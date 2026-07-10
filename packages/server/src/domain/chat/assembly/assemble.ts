@@ -155,7 +155,10 @@ function dedupeNonEmpty(parts: readonly string[]): string[] {
 }
 
 /** The room-override SCOPE FALLBACK (Part III §9): the value a room override inherits / `{{original}}`
- *  recovers, + whether it merged the present cast. Solo/scoped collapses to `activeValue` (byte-identical). */
+ *  recovers, + whether it merged the present cast. Solo/scoped collapses to `activeValue` (byte-identical).
+ *  Consumed ONLY by the two `{{original}}`-templated overridable markers (main_prompt / post_history) — NOT
+ *  the scenario marker: a co-speaker's scenario has ONE home (the char_description co-block), so folding the
+ *  merged value into the scenario marker double-emitted it (F6). */
 function resolveScopeFallback(
   field: MemberField,
   ctx: AssembleContext,
@@ -302,16 +305,20 @@ function renderOverridableMarker(
 function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): string {
   const { ctx, trace } = env;
   const room = ctx.roomOverrides?.scenario;
-  const active = renderMacros(templateFor(section), ctx, ctx.pinnedPersona);
-  const { value, merged } = resolveScopeFallback("scenario", ctx, active);
+  // The ACTIVE speaker's effective scenario ONLY (room > card, via the `{{scenario}}` macro). Co-speakers'
+  // scenarios are emitted ONCE by the char_description co-block (`renderCoSpeakers` — the ST-APPEND home);
+  // merging them here TOO double-emitted every co-speaker scenario (F6). `resolveScopeFallback` is the
+  // room-override `{{original}}` recovery value (used by the two overridable markers), which the scenario
+  // marker's plain `{{scenario}}` replacement never consumes — so it must not run here.
+  const value = renderMacros(templateFor(section), ctx, ctx.pinnedPersona);
   if (value.trim().length === 0) {
     return "";
   }
-  const inheritedLabel = merged ? "merged (present cast)" : `from ${ctx.character.name}`;
-  recordOverrideSource(trace, "scenario", overrideSet(room) ? "room override" : inheritedLabel);
-  if (merged) {
-    recordMergedCacheBuster(trace);
-  }
+  recordOverrideSource(
+    trace,
+    "scenario",
+    overrideSet(room) ? "room override" : `from ${ctx.character.name}`,
+  );
   return value;
 }
 

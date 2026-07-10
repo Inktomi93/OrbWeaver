@@ -31,9 +31,11 @@ import {
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import { credentialsKeyFromEnv } from "#infra/crypto";
+import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler";
+import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler";
 import { startWorkloadsWorker } from "../transport/jobs/workloads-worker";
 import { createApp } from "./app";
 import { createAuthSeam } from "./auth";
@@ -72,6 +74,8 @@ export function createLifecycle(): Lifecycle {
   let db: Db | null = null;
   let server: ServerType | null = null;
   let stopScheduler: (() => void) | null = null;
+  // The OIDC PKCE-transaction GC timer (armed only in oidc mode); shutdown clears it.
+  let stopOidcGc: (() => void) | null = null;
   // The workloads worker loop runs until its AbortSignal fires; shutdown aborts it to drain the in-flight row.
   let stopWorker: AbortController | null = null;
   // The vLLM supervisor's graceful-drain closer is SYNCHRONOUS (VllmEngineHandle.start → () => void).
@@ -84,6 +88,12 @@ export function createLifecycle(): Lifecycle {
       return;
     }
     booted = true;
+
+    // 1. SSRF egress firewall FIRST — swap undici's global dispatcher for the private-IP-rejecting DNS
+    //    lookup so EVERY outbound fetch below (compose, seeds, the `/models` probe, OIDC discovery/JWKS)
+    //    is address-gated before it can fire. No-op when EGRESS_FIREWALL=false; env is import-time-loaded,
+    //    so this needs nothing from boot. (Tier-3-Infra §"infra/network": constructed at entry boot.)
+    installEgressFirewall();
 
     db = await createDb(env.DATABASE_URL);
 
@@ -235,6 +245,19 @@ export function createLifecycle(): Lifecycle {
         built.sessions.authenticate(handle, password);
     }
 
+    // forward-header fail-closed belt: the UNSIGNED trusted-header path is refused until an operator names
+    // the trusted source. Warn loudly at boot so a non-authentik proxy deploy (no signed JWT) isn't left
+    // silently rejecting every request. The signed-JWT authentik path is unaffected.
+    if (
+      env.AUTH_MODE === "forward-header" &&
+      (env.FORWARD_AUTH_TRUSTED_PROXIES === undefined ||
+        env.FORWARD_AUTH_TRUSTED_PROXIES.trim().length === 0)
+    ) {
+      log.warn(
+        "boot: AUTH_MODE=forward-header with FORWARD_AUTH_TRUSTED_PROXIES unset — the UNSIGNED trusted-header path is FAIL-CLOSED (raw identity headers are rejected). Set FORWARD_AUTH_TRUSTED_PROXIES to the trusted proxy/client source range(s) to enable it; the signed-JWT (authentik) path is unaffected.",
+      );
+    }
+
     let oidc: OidcRoutesDeps | undefined;
     if (env.AUTH_MODE === "oidc") {
       let cachedConfig: Configuration | undefined;
@@ -244,10 +267,24 @@ export function createLifecycle(): Lifecycle {
       const clientId = env.OIDC_CLIENT_ID ?? "";
       const clientSecret = env.OIDC_CLIENT_SECRET;
 
+      const oidcStore = createOidcStore(db, now);
+      // The OIDC_REDIRECT_URIS allowlist: the FULL callback URLs the per-request derived origin must
+      // exact-match. The login route derives the callback from the request origin + gates on this list
+      // (origin-flexible: public FQDN AND LAN-IP/localhost), so no single redirect URI is baked in.
+      const redirectAllowlist = (env.OIDC_REDIRECT_URIS ?? "")
+        .split(",")
+        .map((u) => u.trim())
+        .filter((u) => u.length > 0);
       oidc = {
-        redirectUri: env.OIDC_REDIRECT_URIS?.split(",")[0]?.trim() ?? "",
-        scope: "openid profile email",
-        store: createOidcStore(db),
+        redirectAllowlist,
+        scope: env.OIDC_SCOPES,
+        claims: {
+          usernameClaim: env.OIDC_USERNAME_CLAIM,
+          uidClaim: env.OIDC_UID_CLAIM,
+          groupsClaim: env.OIDC_GROUPS_CLAIM,
+          emailClaim: env.OIDC_EMAIL_CLAIM,
+        },
+        store: oidcStore,
         getConfig: async (): Promise<Configuration> => {
           if (cachedConfig === undefined) {
             cachedConfig = await discovery(issuerUrl, clientId, clientSecret);
@@ -255,6 +292,15 @@ export function createLifecycle(): Lifecycle {
           return cachedConfig;
         },
       };
+
+      //   • OIDC PKCE-transaction GC: reap expired/abandoned transactions on a cadence (the store's on-consume
+      //     sweep only fires opportunistically, so an abandoned flow's row is otherwise unbounded). Direct-sweep
+      //     driver (not a workload — a trivial idempotent DELETE); armed only in oidc mode where the table exists.
+      stopOidcGc = startOidcGcScheduler({
+        sweep: oidcStore.deleteExpired,
+        now,
+        scheduleInterval: scheduleTimer,
+      });
     }
 
     // 11. build + serve the app; the CAS handle for the blob route is re-built here (stateless, same dir —
@@ -320,6 +366,10 @@ export function createLifecycle(): Lifecycle {
     if (stopScheduler !== null) {
       stopScheduler();
       stopScheduler = null;
+    }
+    if (stopOidcGc !== null) {
+      stopOidcGc();
+      stopOidcGc = null;
     }
     if (stopWorker !== null) {
       // Aborts the poll loop AND the in-flight row's run (the signal threads into runWorkload → cancelled).

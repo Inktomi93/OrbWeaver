@@ -1,8 +1,10 @@
 // The client COMPOSITION ROOT (the entry/ mirror): constructs the singletons ONCE — QueryClient →
-// tRPC client → options proxy → the invalidation seam — and provides them to the tree. Nothing
-// imports this file (dep-cruiser client-nothing-imports-main); everything below consumes via
-// providers/hooks. Router context only FORWARDS these already-constructed singletons (never
-// constructs — UI-Lib-TanStack-Router.md C#4: one DI channel, the root is it).
+// tRPC client → the toast manager (the `notify` seam's render half) — and provides them to the tree.
+// The tRPC options proxy + the `invalidation` seam are NOT built here; both are minted per-render at
+// routes/home-page.tsx (data/use-invalidation.ts) — the live path. Nothing imports this file
+// (dep-cruiser client-nothing-imports-main); everything below consumes via providers/hooks. Router
+// context only FORWARDS these already-constructed singletons (never constructs —
+// UI-Lib-TanStack-Router.md C#4: one DI channel, the root is it).
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -12,6 +14,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
@@ -21,14 +24,8 @@ import type { ReactElement } from "react";
 // biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  createAppQueryClient,
-  createInvalidation,
-  createTrpcClient,
-  createTrpcProxy,
-  TRPCProvider,
-} from "#data";
-import { AppErrorBoundary, buildClientErrorPayload } from "#lib";
+import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
+import { AppErrorBoundary, bindNotify, buildClientErrorPayload } from "#lib";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { router } from "./routes/router";
 import "./styles/globals.css";
@@ -66,9 +63,26 @@ globalThis.addEventListener("vite:preloadError", () => {
 // ── The singleton graph (constructed once, at module scope — the stable-query-client discipline) ──
 const queryClient = createAppQueryClient();
 const trpcClient = createTrpcClient();
-const trpc = createTrpcProxy(trpcClient, queryClient);
-/** The central invalidation seam instance — bus deps + mutation factories receive THIS. */
-export const invalidation = createInvalidation({ queryClient, trpc });
+
+// ── The render half of the `notify` seam (lib/notify.ts): the app-wide toast manager, minted OUTSIDE
+// React (createToastManager) so it binds ONCE here at the composition root and the `<ToastProvider>`
+// below renders whatever `notify.*` enqueues. Every user-facing error — the D54 QueryCache/MutationCache
+// `errorToast` channel (data/query-client.ts) + the SSE `__subscriptionError` frame (use-chat-bus.ts) —
+// terminates in `notify`, so without this bind they were console-only. `add` returns an id we discard;
+// the seam is fire-and-forget (Notify returns void). `error` announces urgently (priority high); success
+// tints the border via `type` (toast/variants.ts `data-type`).
+const toastManager = createToastManager();
+bindNotify({
+  info: (message): void => {
+    toastManager.add({ title: message });
+  },
+  success: (message): void => {
+    toastManager.add({ title: message, type: "success" });
+  },
+  error: (message): void => {
+    toastManager.add({ title: message, type: "error", priority: "high" });
+  },
+});
 
 // ── PD-58: the app-level error boundary — `trpcClient` already exists at module scope here (the ONE
 // place outside a component that holds it), so the report callback needs no hook/context plumbing.
@@ -81,9 +95,9 @@ function reportClientError(error: Error, ownerStack: string | null): void {
 }
 
 // The crash fallback JSX is inlined directly into `renderFallback` below (not its own top-level
-// function) — main.tsx already exports the non-component `invalidation` singleton, and a named
-// top-level component export/definition here would collide with the "a module exports either
-// components only, or none" Fast-Refresh discipline. Full-viewport, no retry (see error-boundary.tsx: a
+// function) — this entry module is a side-effecting root (nothing imports it,
+// client-nothing-imports-main) and a named top-level component definition here would collide with the
+// "a module exports either components only, or none" Fast-Refresh discipline. Full-viewport, no retry (see error-boundary.tsx: a
 // boundary with nothing to reset offers a reload, not a retry that would likely re-throw immediately).
 
 const rootEl = document.getElementById("root");
@@ -95,29 +109,34 @@ createRoot(rootEl).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-        <AppErrorBoundary
-          onError={reportClientError}
-          renderFallback={(): ReactElement => (
-            <Stack
-              align="center"
-              justify="center"
-              className="min-h-dvh bg-background text-foreground"
-            >
-              <EmptyState
-                icon={<Icon icon={AlertTriangle} size="lg" />}
-                title="Something went wrong"
-                description="The app hit an unexpected error. Reloading usually fixes it."
-                action={
-                  <Button intent="primary" onClick={(): void => globalThis.location.reload()}>
-                    Reload
-                  </Button>
-                }
-              />
-            </Stack>
-          )}
-        >
-          <RouterProvider router={router} />
-        </AppErrorBoundary>
+        {/* The toast render half — the same `toastManager` bound to `notify` above (mounted OUTSIDE the
+            AppErrorBoundary so a notification survives an app-level crash boundary swap). */}
+        <ToastProvider toastManager={toastManager}>
+          <AppErrorBoundary
+            onError={reportClientError}
+            renderFallback={(): ReactElement => (
+              <Stack
+                align="center"
+                justify="center"
+                className="min-h-dvh bg-background text-foreground"
+              >
+                <EmptyState
+                  icon={<Icon icon={AlertTriangle} size="lg" />}
+                  title="Something went wrong"
+                  description="The app hit an unexpected error. Reloading usually fixes it."
+                  action={
+                    <Button intent="primary" onClick={(): void => globalThis.location.reload()}>
+                      Reload
+                    </Button>
+                  }
+                />
+              </Stack>
+            )}
+          >
+            <RouterProvider router={router} />
+          </AppErrorBoundary>
+          <Toaster />
+        </ToastProvider>
         {DevTools === null ? null : (
           <Suspense fallback={null}>
             <DevTools queryClient={queryClient} router={router} />

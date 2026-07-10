@@ -10,6 +10,7 @@ import { readDuplicateCharacters } from "./duplicates/retrieve";
 import { computeThemes as runComputeThemes } from "./themes/generate";
 import { readThemes } from "./themes/retrieve";
 import { createComputeHubScores } from "./verbs/compute-hub-scores";
+import { createDistill } from "./verbs/distill";
 
 export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService {
   const dupDeps = {
@@ -21,10 +22,10 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     newThemeClusterId: ctx.newThemeClusterId,
     summarize: ctx.summarize,
   };
-
   return {
     computeDuplicatePairs: (opts) => runComputeDuplicatePairs(ctx.db, dupDeps, opts),
     duplicateCharacters: (userId, opts) => readDuplicateCharacters(ctx.db, userId, opts),
+    distillCharacters: createDistill(ctx),
     computeThemes: (opts) => runComputeThemes(ctx.db, themeDeps, opts),
     themes: (userId, level) => readThemes(ctx.db, userId, level),
     ...createComputeHubScores(ctx),

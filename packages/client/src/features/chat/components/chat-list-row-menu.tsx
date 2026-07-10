@@ -25,7 +25,6 @@ import { Archive, Icon, MoreVertical, Pencil, Star, Trash2 } from "@orb/ui/icons
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
@@ -142,11 +141,9 @@ export function ChatListRowMenu({
         <AlertDialogPopup>
           <Stack gap="block">
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
             <AlertDialogDescription>
-              <Text tone="muted">
-                This permanently deletes the chat and its messages for everyone. This can't be
-                undone.
-              </Text>
+              This permanently deletes the chat and its messages for everyone. This can't be undone.
             </AlertDialogDescription>
             <AlertDialogActions>
               <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />

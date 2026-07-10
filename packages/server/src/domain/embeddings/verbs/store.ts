@@ -106,6 +106,14 @@ async function storeImage(
   if (p.force !== true && (await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
+  // F8 — skip-don't-write on an EMPTY caption (the summarizer returned no item). `image_embeddings.content_hash`
+  // covers the BYTES only, so a captioned row written with `caption: ""` would never regenerate without `force`
+  // (the staleness gate + PD-53 sweep short-circuit on the unchanged bytes forever). Mirror the memory digest's
+  // `skippedEmpty` (build/digests.ts): leave the captioned lens UNWRITTEN so the next indexer run retries it —
+  // the raw lens already carries the image-only signal.
+  if (p.lens === "image-captioned" && p.caption.trim().length === 0) {
+    return { outcome: "noop", contentHash: hash };
+  }
   const req =
     p.lens === "image-captioned"
       ? ({ kind: "multimodal", input: { image: p.content, text: p.caption } } as const)

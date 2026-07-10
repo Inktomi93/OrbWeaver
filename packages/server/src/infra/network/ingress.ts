@@ -69,6 +69,18 @@ export function clientIp(c: Context): string | null {
 }
 
 /**
+ * The RAW TCP peer socket address — the immediate connection's remote address, straight from conninfo with
+ * NO XFF precedence. This is the anti-spoof subject for the forward-header UNSIGNED trusted-proxy gate: a
+ * client can forge `X-Forwarded-For`/`X-Real-IP`, but never the socket peer. Distinct from {@link clientIp},
+ * which resolves the XFF-derived CLIENT *behind* a trusted proxy; here we want the PROXY/peer identity
+ * itself, to answer "did this request arrive FROM a trusted proxy?". `undefined` when the transport exposes
+ * no conninfo (→ the unsigned path fails closed). Threaded to the auth seam by `entry/app.ts`.
+ */
+export function peerIp(c: Context): string | undefined {
+  return getConnInfo(c).remote.address;
+}
+
+/**
  * The PURE allow decision (the testable core of {@link ipAllowlistMiddleware}): loopback/private is
  * always allowed (the operator's own box); an unresolvable ip is allowed (the gate is a belt, not the
  * auth layer — identity still gates below); anything else must match the allowlist.

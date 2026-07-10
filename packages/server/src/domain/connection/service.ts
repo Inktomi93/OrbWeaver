@@ -4,10 +4,13 @@
 // `resolveRole` instance (the one home for resolution) — wired here at the root, never sibling-imported.
 
 import type { ConnectionContext, ConnectionService } from "./contract/service";
+import { createGetAgentSdkCatalog } from "./verbs/get-agent-sdk-catalog";
 import { createGetCatalog } from "./verbs/get-catalog";
 import { createGetGenerationCost } from "./verbs/get-generation-cost";
 import { createGetModelCapability } from "./verbs/get-model-capability";
 import { createGetOrCredits } from "./verbs/get-or-credits";
+import { createGetOrSkinTierModels } from "./verbs/get-or-skin-tier-models";
+import { createRefreshAgentSdkCatalog } from "./verbs/refresh-agent-sdk-catalog";
 import { createRefreshCatalog } from "./verbs/refresh-catalog";
 import { createResolveChat } from "./verbs/resolve-chat";
 import { createResolveRole } from "./verbs/resolve-role";
@@ -19,8 +22,11 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
     resolveRole,
     resolveChat: createResolveChat(resolveRole),
     getModelCapability: createGetModelCapability(ctx),
+    getOrSkinTierModels: createGetOrSkinTierModels(ctx),
     getCatalog: createGetCatalog(ctx),
     refreshCatalog: createRefreshCatalog(ctx),
+    getAgentSdkCatalog: createGetAgentSdkCatalog(ctx),
+    refreshAgentSdkCatalog: createRefreshAgentSdkCatalog(ctx),
     testClaudeAuth: createTestClaudeAuth(ctx),
     getOrCredits: createGetOrCredits(ctx),
     getGenerationCost: createGetGenerationCost(ctx),

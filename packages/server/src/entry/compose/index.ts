@@ -4,6 +4,8 @@
 // composes (the event bus, the two role-client binders, the workload runner-env hub, the effective-config
 // boot surface). Nothing here owns business logic — this tier only assembles lower tiers (entry invariant #1).
 
+// The agent-sdk turn shaping (the PD-7 seed/tail split) — exported for the bridge tests only.
+export { flattenAgentHistory, splitAgentHistory } from "./chat";
 export type { EffectiveConfigWiring } from "./effective-config";
 export { createEffectiveConfigWiring } from "./effective-config";
 export { createCharacterUpdatedChatFan } from "./emit-character-updated";

@@ -48,7 +48,7 @@ test("character_sprites: composite-PK (characterId,label) upsert REPLACES, never
   const characterId = await seedCharacter(db, ownerId, "character_sp_a");
   const assetA = await seedAsset(db, ownerId, "asset_sp_a1");
   const assetB = await seedAsset(db, ownerId, "asset_sp_a2");
-  const now = new Date(1_700_000_000_000);
+  const now = 1_700_000_000_000; // epoch-ms (plain integer column, never a Date)
 
   await db
     .insert(characterSprites)
@@ -77,7 +77,7 @@ test("character delete CASCADEs its sprite bindings", async () => {
   const assetId = await seedAsset(db, ownerId, "asset_sp_c");
   await db
     .insert(characterSprites)
-    .values({ characterId, label: "anger", assetId, createdAt: new Date(1_700_000_000_000) });
+    .values({ characterId, label: "anger", assetId, createdAt: 1_700_000_000_000 });
 
   await db.delete(characters).where(eq(characters.id, characterId));
   expect(
@@ -92,7 +92,7 @@ test("asset delete CASCADEs the binding (never a dangling sprite row)", async ()
   const assetId = await seedAsset(db, ownerId, "asset_sp_d");
   await db
     .insert(characterSprites)
-    .values({ characterId, label: "fear", assetId, createdAt: new Date(1_700_000_000_000) });
+    .values({ characterId, label: "fear", assetId, createdAt: 1_700_000_000_000 });
 
   await db.delete(assets).where(eq(assets.id, assetId));
   expect(

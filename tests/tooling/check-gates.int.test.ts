@@ -7,6 +7,15 @@
 // Each fixture is a minimal violation at the path its gate anchors on, all named `__g_*` so cleanup is a
 // single find -prune -rm. We run `check:structure` clean (→ the registry), then with fixtures (→ the
 // fired set), and assert every registered gate is in the fired set.
+//
+// `__g_` is a RESERVED sentinel: these fixtures materialize inside the real package tree (the gates anchor
+// on realistic paths), but they exist only for the milliseconds between writeFixtures() and cleanFixtures().
+// A concurrent OTHER tree consumer (tsc/biome/vitest/eslint/depcruise) that globbed one mid-lifecycle used
+// to emit a phantom error — the "never run `pnpm test` alongside `pnpm check`" footgun. That is FIXED by
+// excluding `__g_*` from every one of those configs (tsconfig.base.json + tsconfig.json + biome.json +
+// vitest.config.ts + eslint.config.js + .dependency-cruiser.cjs); the gate harness itself reads fixtures
+// via ts-morph's own globs (skipAddingFilesFromTsConfig), which those excludes don't touch, so it still
+// fires on them. The self-test is now hermetic w.r.t. every other consumer — run it alongside anything.
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";

@@ -8,6 +8,7 @@
 //   • loadUserSettings  — returns DEFAULT_USER_SETTINGS with a configurable `routing.roleDefaults`.
 
 import type {
+  AgentSdkModel,
   ChatSource,
   ModelCatalogEntry,
 } from "../../../../packages/contracts/src/connection/index.ts";
@@ -73,6 +74,8 @@ export interface ConnHarness {
   readonly setRoleDefaults: (roleDefaults: RoleDefaults) => void;
   /** Set the OR catalog the faked `fetchOrCatalog` returns. */
   readonly setOrCatalog: (models: ModelCatalogEntry[]) => void;
+  /** Set the agent-sdk daemon catalog the faked `fetchAgentSdkModels` returns. */
+  readonly setAgentSdkCatalog: (models: AgentSdkModel[]) => void;
   /** Toggle the boot vLLM-availability fact the resolver reads (default `true`). `false` drives the
    *  no-GPU derive fallback (embed/rerank/imageEmbed vllm → local-light). */
   readonly setVllmAvailable: (available: boolean) => void;
@@ -87,6 +90,7 @@ export function makeConnHarness(db: Db): ConnHarness {
   const clock = createFrozenClock();
   let roleDefaults: RoleDefaults = DEFAULT_USER_SETTINGS.routing.roleDefaults;
   let orCatalog: ModelCatalogEntry[] = [];
+  let agentSdkCatalog: AgentSdkModel[] = [];
   let vllmAvailable = true;
   const credentialCalls: ChatSource[] = [];
   const verifyCalls: { readonly source: ChatSource; readonly model: string }[] = [];
@@ -99,6 +103,7 @@ export function makeConnHarness(db: Db): ConnHarness {
       return Promise.resolve(fakeCredential(source));
     },
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
+    fetchAgentSdkModels: () => Promise.resolve([...agentSdkCatalog]),
     loadUserSettings: () =>
       Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
     // apiKeySource: "none" signals host login active (contract/service.ts).
@@ -138,6 +143,9 @@ export function makeConnHarness(db: Db): ConnHarness {
     setOrCatalog: (models: ModelCatalogEntry[]): void => {
       orCatalog = models;
     },
+    setAgentSdkCatalog: (models: AgentSdkModel[]): void => {
+      agentSdkCatalog = models;
+    },
     setVllmAvailable: (available: boolean): void => {
       vllmAvailable = available;
     },
@@ -156,6 +164,21 @@ export function principal(userId: string, role: UserRole = "user"): Principal {
     handle: castId<Handle>(userId),
     externalId: null as ExternalId | null,
     via: "cookie",
+  };
+}
+
+/** A minimal-valid agent-sdk daemon model row for cache/alias-resolution tests. Defaults to the `sonnet`
+ *  alias → `claude-sonnet-5` (effort mode, the daemon's full level set). */
+export function makeAgentSdkModel(overrides: Partial<AgentSdkModel> = {}): AgentSdkModel {
+  return {
+    alias: "sonnet",
+    resolvedModel: "claude-sonnet-5",
+    displayName: "Sonnet",
+    description: "Sonnet 5",
+    supportsEffort: true,
+    effortLevels: ["low", "medium", "high", "xhigh", "max"],
+    supportsAdaptiveThinking: false,
+    ...overrides,
   };
 }
 

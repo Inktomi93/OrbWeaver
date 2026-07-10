@@ -8,11 +8,15 @@
 
 /* shell.css — the app-shell's layout MECHANICS (UI-Arch §4.1 + §11.1 + §4b axis 2). The shell tier is
  * the ONE place raw layout CSS + the ONE viewport @media live; feature TSX never writes @media, and the
- * clamp-overlay + grid math live HERE, not in JS. Every value references a generated token custom
- * property (--color-*, --spacing-*, --z-*, --motion-*, --dimension-*, from @orb/ui globals.css @theme).
- * The two local layout constants (rail width, panel clamp) are shell-scoped CSS vars — not Tailwind
- * utilities, so they touch no token gate — but their DEFINITIONS now reference the DTCG dimension.*
- * tokens (WS0), so nothing visual bypasses a token. */
+ * clamp-overlay + grid math live HERE, not in JS. Every COLOR + spacing + z + motion + dimension value
+ * references a generated token custom property (--color-*, --spacing-*, --z-*, --motion-*, --dimension-*,
+ * from @orb/ui globals.css @theme) — including the bg-image legibility halo, whose darkening rides
+ * --color-scrim (never a raw rgb()/oklch() literal). The two local layout constants (rail width, panel
+ * clamp) are shell-scoped CSS vars — not Tailwind utilities, so they touch no token gate — but their
+ * DEFINITIONS reference the DTCG dimension.* tokens (WS0). The ONE deliberate raw literal is the mobile
+ * bottom-tab icon/label gap (`0.125rem`, a 2px sub-field spacing intent with no token on the scale) —
+ * allowlisted by the css-structure gate (tests/ui/styles/css-structure.suite.test.ts), which asserts the
+ * STRUCTURAL geometry (rail/chrome/panel) never hand-writes a number. */
 
 .shell-grid {
   /* rail (fixed) | list track | content (fluid) | context track. A collapsed/overlay panel's track is
@@ -62,8 +66,9 @@
   background: transparent;
   /* Legibility halo for text floating DIRECTLY over the photo (attribution names, empty-state copy —
    * anything in the transparent column not on an opaque/glass surface). Keeps it readable on ANY image
-   * regardless of the user's scrim (backgroundDim). Reset below on the surfaced elements. */
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
+   * regardless of the user's scrim (backgroundDim). Reset below on the surfaced elements. The halo's
+   * darkening rides --color-scrim (the theme-aware overlay tone) so no raw color literal lands here. */
+  text-shadow: 0 1px 3px var(--color-scrim);
 }
 /* Message bubbles + composer carry their own legible fill — kill the halo there (it would smear body text). */
 .shell-grid[data-has-bg-image] [data-slot="message-bubble"],

@@ -1,7 +1,9 @@
 // verb: snapshot — append a `character_snapshots` history blob (the "git commit"): the live card captured
 // as one opaque JSON blob, owner-gated. Nothing FKs the snapshot table (invariant 4), so a snapshot can
-// never pin or alter card resolution. The live card is unchanged → no `character.updated` emit. Throws
-// `CharacterNotFoundError` when not owned/found.
+// never pin or alter card resolution. The live card is unchanged → no `character.updated` emit (the indexer
+// re-reads nothing). It IS a user-facing mutation with a read surface (`listSnapshots` → the History tab), so
+// it fires the user-bus `charactersChanged` AFTER the durable write (like `restore`), so a second device's
+// History refetches. Throws `CharacterNotFoundError` when not owned/found.
 
 import { CharacterNotFoundError } from "../contract/errors";
 import type { SnapshotParams } from "../contract/params";
@@ -37,6 +39,7 @@ export function createSnapshot(ctx: CharacterContext): CharacterService["snapsho
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
 
     return { id, characterId, createdAt: at };
   };

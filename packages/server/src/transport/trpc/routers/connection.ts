@@ -23,6 +23,16 @@ export const connectionRouter = t.router({
     ctx.services.connection.refreshCatalog({ signal }),
   ),
 
+  // The agent-sdk daemon model catalog (`supportedModels()`) — the family→version map. Browse is authed;
+  // refresh (run the discovery → write the KV snapshot) is admin-gated, mirroring the OR catalog verbs.
+  getAgentSdkCatalog: authedProcedure.query(({ ctx, signal }) =>
+    ctx.services.connection.getAgentSdkCatalog({ signal }),
+  ),
+
+  refreshAgentSdkCatalog: adminProcedure.mutation(({ ctx, signal }) =>
+    ctx.services.connection.refreshAgentSdkCatalog({ signal }),
+  ),
+
   // The max-pro-sub host-Claude health check (neo `testClaudeAuth` — Tier-4 maps it here). A MUTATION
   // despite being read-shaped: it spends a (tiny) generation, so it keeps tRPC's CSRF gate (the
   // credentials-router esoteric-#9 posture). authed at the transport; the D17 OWNER gate runs inside

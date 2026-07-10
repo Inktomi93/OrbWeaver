@@ -4,7 +4,11 @@
 // in the shared `backends/kit` (which is SDK-free OpenAI-wire helpers). They map onto the SDK-free
 // `ProviderErrorKind` vocab so the runner builds one `ProviderError` surface for every caller.
 
-import type { SDKAssistantMessageError, SDKResultError } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  SDKAssistantMessageError,
+  SDKResultError,
+  TerminalReason,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { ProviderErrorKind } from "../../contract";
 
 /** A classification result: the normalized kind + whether a retry could plausibly recover the turn. */
@@ -81,6 +85,61 @@ export function classifyResultSubtype(subtype: SDKResultError["subtype"]): Class
       return { kind: "invalid", retryable: false };
     default:
       return assertNeverClassification(subtype);
+  }
+}
+
+/**
+ * Classify an SDK loop-level `TerminalReason` → the normalized vocab. Exhaustive over the 19-member union
+ * (SDK 0.3.206) so a new member is a `tsc` error, never a silent collapse to a generic subtype. Unlike
+ * `classifyResultSubtype` (4 coarse subtypes), the terminal reason distinguishes the ban-risk +
+ * context-overflow + input-error causes an error RESULT otherwise flattens — `buildResultError` prefers
+ * it. Ban-risk vs transient: `blocking_limit` is a HARD block (fail-fast, non-retryable — retrying courts
+ * the ban the locked decisions guard against); `rapid_refill_breaker` is a transient breaker (retry after
+ * backoff). Both keep `kind:"rate_limit"`; the specific member rides `terminalReason`/`detail` provenance
+ * so a consumer distinguishes them without a new error kind.
+ */
+export function classifyTerminalReason(reason: TerminalReason): Classification {
+  switch (reason) {
+    case "blocking_limit":
+      return { kind: "rate_limit", retryable: false };
+    case "rapid_refill_breaker":
+      return { kind: "rate_limit", retryable: true };
+    case "prompt_too_long":
+    case "image_error":
+      return { kind: "invalid", retryable: false };
+    // Deferral requested against a runtime/config that can't honor it — a retry won't make the feature
+    // exist, so it classifies with the input errors, not the aborts (unlike `tool_deferred`, a clean stop).
+    case "tool_deferred_unavailable":
+      return { kind: "invalid", retryable: false };
+    case "model_error":
+      return { kind: "server", retryable: true };
+    // Upstream API fault / pre-turn setup (spawn) fault / the model exhausting the runtime's own
+    // malformed-tool-use retries — all transient generation-side faults, same treatment as `model_error`.
+    case "api_error":
+    case "turn_setup_failed":
+    case "malformed_tool_use_exhausted":
+      return { kind: "server", retryable: true };
+    // The caller-imposed spend ceiling — mirrors `error_max_budget_usd` (classifyResultSubtype): a
+    // retry burns budget again, never auto-retry into spend.
+    case "budget_exhausted":
+      return { kind: "billing", retryable: false };
+    // Mirrors `error_max_structured_output_retries`: the schema/output contract can't be met as-given.
+    case "structured_output_retry_exhausted":
+      return { kind: "invalid", retryable: false };
+    case "aborted_streaming":
+    case "aborted_tools":
+    case "stop_hook_prevented":
+    case "hook_stopped":
+    case "tool_deferred":
+    case "max_turns":
+    case "background_requested":
+      return { kind: "aborted", retryable: false };
+    case "completed":
+      // A `completed` terminal reason on the ERROR path is contradictory — treat conservatively as a
+      // transient server fault (it never reaches the success return, which handles the normal completion).
+      return { kind: "server", retryable: true };
+    default:
+      return assertNeverClassification(reason);
   }
 }
 

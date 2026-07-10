@@ -22,17 +22,20 @@ export interface ImageRefAssets {
   readonly loadAssetBytes: (id: AssetId) => Promise<Uint8Array | null>;
 }
 
-/** Resolve a parsed D45 image ref to a model-fetchable URL/data-URI, or `null` when blocked/gone. `external`
- *  refs pass through (the `forbidExternalMedia` gate lives upstream). `isPresentParticipant(userId, chatId)`
- *  is the D21 reference-check: is the asset's owner a present member of the referencing chat? */
+/** Resolve a parsed D45 image ref to a model-fetchable URL/data-URI, or `null` when blocked/gone. An
+ *  `external` ref is BLOCKED (→ `null`) when `forbidExternalMedia` is set — the D44 §12.3 send-path gate (the
+ *  load itself is a tracking-pixel/exfil vector); it passes through only when the deployment/character policy
+ *  opts in. `isPresentParticipant(userId, chatId)` is the D21 reference-check: is the asset's owner a present
+ *  member of the referencing chat? */
 export async function resolveImageRefToUrl(
   assets: ImageRefAssets,
   isPresentParticipant: (userId: UserId, chatId: ChatId) => Promise<boolean>,
+  forbidExternalMedia: boolean,
   params: { readonly ownerId: UserId; readonly chatId: ChatId; readonly ref: ContentImageRef },
 ): Promise<string | null> {
   const { ownerId: hostId, chatId, ref } = params;
   if (ref.kind === "external") {
-    return ref.url;
+    return forbidExternalMedia ? null : ref.url;
   }
   const assetId = castId<AssetId>(ref.assetId);
   const meta = await assets.assetCasRefById(assetId);

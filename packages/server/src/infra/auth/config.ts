@@ -66,6 +66,9 @@ export function authConfigFromEnv(): AuthConfig {
     ...(env.FORWARD_AUTH_UID_HEADER !== undefined
       ? { forwardUidHeader: env.FORWARD_AUTH_UID_HEADER }
       : {}),
+    ...(env.FORWARD_AUTH_EMAIL_HEADER !== undefined
+      ? { forwardEmailHeader: env.FORWARD_AUTH_EMAIL_HEADER }
+      : {}),
     forwardTrustedProxies: parseCsv(env.FORWARD_AUTH_TRUSTED_PROXIES),
     jwksAllowlist: jwksAllowlistFromEnv(),
     ...(env.FORWARD_AUTH_JWT_ISSUER !== undefined

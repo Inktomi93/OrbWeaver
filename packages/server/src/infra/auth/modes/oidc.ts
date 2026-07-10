@@ -22,8 +22,9 @@ export function resolveOidc(): Promise<ResolvedIdentity | null> {
  * Verify an OIDC callback's `state` against the injected (db-backed) transaction store, returning the
  * single-use transaction (with the PKCE `codeVerifier` + `nonce`) iff the state matches a stored one.
  * Returns null — FAIL-CLOSED — when no store is wired, the state is empty, the transaction is absent
- * (replay / forged / expired-and-swept), or (defensively) the stored row's state disagrees. `consume`
- * is atomic take-and-delete, so a replayed callback can never be re-driven.
+ * (replay / forged / past its TTL), or (defensively) the stored row's state disagrees. `consume` is an
+ * atomic take-and-delete that ALSO enforces the 10-min TTL (`expiresAt > now`) and sweeps expired rows, so
+ * a replayed callback can never be re-driven and a stale (\>10-min) state/PKCE tx is rejected, not accepted.
  */
 export async function verifyPkceState(
   deps: ResolveDeps,

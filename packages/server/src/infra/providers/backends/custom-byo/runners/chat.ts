@@ -91,7 +91,8 @@ interface ResponseMap {
 
 // The conservative DEFAULTS (the wire is raw snake_case — the OpenRouter SDK's camelCase normalisation does
 // NOT apply to a raw fetch). STREAM addresses one SSE chunk's `delta`; BODY addresses a non-streamed body's
-// `message`. A future user override (deferred — see `resolveResponseMap`) is a per-field merge over these.
+// `message`. A future user override (deferred — the PD-13 response-map metadata) is a per-field merge
+// over these; nothing consumes an override map today.
 const STREAM_DEFAULT_MAP: ResponseMap = {
   contentPath: "choices.0.delta.content",
   reasoningPath: "choices.0.delta.reasoning",
@@ -302,9 +303,10 @@ function buildBody(req: ChatCompletionsRequest): Record<string, unknown> {
   };
   // Layer 2 (PD-101): `req.customParameters` is `patch` — user wins at any leaf, incl. nested objects
   // (e.g. a deep `reasoning: {...}` override), and `__proto__`/`constructor`/`prototype` are no-ops
-  // regardless of which side carries them. `applyIncludeExclude` (below, still imported) becomes the
-  // second layer once the FLAG[PD-13] per-endpoint include/exclude transforms land on the credential
-  // metadata — it is NOT the customParameters overlay path, so it is not called here today.
+  // regardless of which side carries them. The kit's `applyIncludeExclude` (`backends/kit/openai-compat/
+  // body.ts` — exported+tested there, NOT imported here) becomes the second layer once the FLAG[PD-13]
+  // per-endpoint include/exclude transforms land on the credential metadata — it is NOT the
+  // customParameters overlay path, so it is not called here today.
   return req.customParameters === undefined
     ? base
     : deepMergeRequestBody(base, req.customParameters);

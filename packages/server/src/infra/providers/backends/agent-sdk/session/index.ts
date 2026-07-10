@@ -8,8 +8,16 @@
 export {
   buildSeedFrames,
   GREETING_USER_STUB,
+  isBranchDivergence,
   type SeedTurn,
-  seedFramesAreStale,
+  seedSessionId,
+  sessionContainsSeedPrefix,
+  sessionMatchesSeed,
   toSeedTurns,
 } from "./frames";
-export { InMemorySessionStore, SessionCache } from "./store";
+export {
+  InMemorySessionStore,
+  type ReplaceableSessionStore,
+  type SeededSessionDecision,
+  SessionCache,
+} from "./store";

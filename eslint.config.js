@@ -105,6 +105,10 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/dist/**",
       "reports/**",
+      // `__g_*` — the check-gates self-test's reserved throwaway-fixture sentinel (tsconfig.base.json's
+      // exclude note). Ignoring it keeps a concurrent `pnpm lint:eslint` from catching a fixture (many land
+      // under packages/*/src) mid-lifecycle → a phantom lint error that vanishes on re-run.
+      "**/__g_*",
       "**/*.gen.ts",
       "**/routeTree.gen.ts",
       "packages/ui/src/tokens/index.ts",
@@ -220,13 +224,26 @@ export default tseslint.config(
       // …the third, `incompatible-library`, is INFORMATIONAL, not a defect: it fires when the Compiler
       // CORRECTLY skips compiling a component that wraps a third-party API it can't memoize — i.e. our
       // sealed satellites (virtual-list wraps TanStack Virtual's `useVirtualizer`, which returns
-      // non-memoizable functions by design). Un-sealing to satisfy it is impossible + wrong. Keep it at
-      // the plugin's recommended "warn" (surfaced for review, non-blocking) — the seal is the intended
-      // architecture. This is a reasoned deviation from a blunt `--max-warnings=0`: we hard-block real
-      // bugs (everything else is "error") while letting expected seal-skip notices through. Flip to
-      // "error" only if a gate on new incompatible libraries is wanted (then each seal needs an ack).
+      // non-memoizable functions by design). Un-sealing to satisfy it is impossible + wrong. Stays at
+      // "warn" HERE so a NEW seal still surfaces — and with `--max-warnings=0` (the lint:eslint script) a
+      // new one is a HARD gate that must be explicitly acked (off-by-path) in the block below, exactly like
+      // the three known seals. This keeps the tree warning-free while forcing every seal to be a conscious
+      // architectural ack rather than silent noise.
       "react-hooks/incompatible-library": "warn",
     },
+  },
+  {
+    // The KNOWN Compiler-incompatible seals — acked OFF by exact path (see the reasoning above). Each is a
+    // sealed satellite that wraps a third-party hook the Compiler can't memoize; the skip is the intended
+    // architecture, so the notice is pure noise here. A NEW incompatible-library seal is deliberately NOT
+    // covered by this list — it stays "warn" → hard-fails under `--max-warnings=0` until added here with intent.
+    files: [
+      "packages/ui/src/primitives/virtual-list/virtual-list.tsx",
+      "packages/ui/src/primitives/message-list/message-list.tsx",
+      "packages/ui/src/primitives/media-grid/media-grid.tsx",
+    ],
+    plugins: { "react-hooks": reactHooks },
+    rules: { "react-hooks/incompatible-library": "off" },
   },
   {
     // jsx-a11y: enforcing accessibility constraints that Biome does not natively cover yet

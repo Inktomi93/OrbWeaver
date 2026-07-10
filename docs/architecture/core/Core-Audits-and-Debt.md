@@ -66,7 +66,7 @@ Status: `ready` = trigger has landed, do it now · `blocked:<slice>` = waiting o
 | id | item | current home | → target home | trigger | status | |
 | - | - | - | - | - | - | - |
 | PD-2 | `AdminUserView` | `domain/admin/contract/views.ts` (admin owns its read-model — correct home today) | `@orb/contracts/identity` | DECIDED: stays in admin/contract; relocate ONLY if the Phase-6 admin client imports the view type directly (a concrete P6-build check, not "iff ever") | blocked:client(P6) | |
-| PD-7 | agent-sdk reseed-from-canon | `infra/providers/backends/agent-sdk/session/` (seam exists; unfed) | wire the durable `sessionStore` / canon feed | chat/canon (P5) | blocked:sdk-session | |
+| PD-7 | agent-sdk reseed-from-canon | **DONE 2026-07-10** — wired via the CANON-FEED arm (not the durable store): the agent-sdk `ChatRequest` arm gained `seed` (the model-visible pre-turn transcript) + `TurnRequest.chatId`; the entry bridge splits shaped history into seed + prompt tail (`splitAgentHistory`, flatten fallback for continue-mode/tool rows); `SessionCache.ensureSeededSession` resumes on transcript↔seed match and reseeds a fresh DETERMINISTIC session (`seedSessionId`, salt walk) on divergence — swipes/edits/window-slides can never resume a stale transcript. Store keyed by sessionId ONLY (the SDK's sanitized-cwd `projectKey` is deliberately ignored — uuids are globally unique). Cross-restart resume works WITHOUT a durable store (the seed rebuilds byte-identically); a durable store remains a cache OPTIMIZATION, not a correctness need. | `infra/providers/backends/agent-sdk/session/` + `entry/compose/chat.ts` | chat/canon (P5) | **done** (needs one live-sub probe before full trust — the frame shape was probe-validated on an older SDK) | |
 | PD-12 | credentials `CustomModelProfile` (BYO model profile) | deferred (domain/credentials) | `@orb/contracts/credentials` (NOT importing `ModelCapability` — D31 cycle) | BYO custom-endpoint form | blocked:connection/credentials | |
 | PD-13 | custom-byo `CustomOpenAiResponseMap` + `includeBody`/`excludeBody` | engine built; config type deferred | `@orb/contracts` + the credential metadata | custom-endpoint form | blocked:connection/client | |
 | PD-16 | providers diagnostic `signal?` threading | carried on the request shapes, unthreaded | thread through once reachable | SDK ports gain request options | blocked:upstream-sdk | |
@@ -195,7 +195,10 @@ embeddings/search "ONE engine" → `Knowledge-Cluster.md`; AAD belt → `Spine-I
 - `Spine-Identity-and-Auth.md`: present-tense pre-build ("resolved twice per request", old viaFallback/viaCookie names, "role gates NOTHING") — all built; flip to built-state + absorb the two de-numbered sessions invariants (token-hash-not-stored, per-request revoked/expired/enabled recheck).
 - `Tier-4-Transport.md ~246`: "404 in single-user on every invite/notifications/join" — unenforced (see PD-106).
 - `preset` contracts (\~L175): names a non-existent `GUIDED_ACTION_IMPLS` identifier.
-- stale PD-5 OIDC comments in `entry/http/auth-routes.ts` (claim OIDC unbuilt; it's built + tested).
+- ~~stale PD-5 OIDC comments in `entry/http/auth-routes.ts` (claim OIDC unbuilt; it's built + tested).~~ FIXED
+  2026-07-10 (task #62): the `auth-routes.ts` `OidcMintStore`/`OidcRoutesDeps` DEFER comments + the oidc-store
+  "interim GC / no scheduled sweep" header now describe reality — the scheduled reap landed as
+  `transport/jobs/oidc-gc-scheduler` (hourly `deleteExpired` sweep of expired/abandoned PKCE transactions).
 
 ### Enable-now — gates whose triggers have landed
 

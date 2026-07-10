@@ -1,15 +1,89 @@
 // Unit tests for the vLLM supervisor's THREE pure decision cores (no IO, injected inputs) — the measured
 // lifecycle matrix (Esoteric §4). `decideTick` is the reconciliation judgment; `breakerAllows` is the
-// crash-loop window math; `findOrphanedEngineCores` is the cwd-based orphan match. The IO shell
-// (spawn/fetch/ps) is NOT unit-tested here — these cores ARE the supervisor's testable logic.
+// crash-loop window math; `findOrphanedEngineCores` is the cwd-based orphan match.
+//
+// PLUS an IO-shell lifecycle test (`startVllmEngines`): the pure cores can't see the `pendingSpawn` flag's
+// LIFETIME, so this drives the real shell with mocked IO (spawn/fetch/ps/gpu) + an injected clock+sleep to
+// prove the flag stays true across the restart-backoff window — a monitor tick landing in that window must
+// NOT double-queue the spawn (which would double-charge the breaker and mislabel an owned engine 'adopted').
 
 import {
   breakerAllows,
   decideTick,
+  engineBaseUrl,
   findOrphanedEngineCores,
+  getEngineStatus,
+  startVllmEngines,
 } from "@orb/server/infra/providers/vllm/engine";
-import { describe } from "vitest";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
+
+// ── IO-shell harness (hoisted so the vi.mock factories can reach the shared fakes) ──────────────────────
+interface FakeChild {
+  readonly engine: string;
+  readonly handlers: Record<string, (arg?: unknown) => void>;
+  readonly stdin: { end: () => void };
+  readonly on: (event: string, cb: (arg?: unknown) => void) => FakeChild;
+}
+
+const io = vi.hoisted(() => {
+  // Engines currently answering /health OK. A spawn adds its engine here (the child "boots healthy"); a
+  // simulated crash removes it. `fetch` reads this to decide healthy-vs-free.
+  const healthy = new Set<string>();
+  const spawns: string[] = []; // engine per spawn() call, in order
+  const children: FakeChild[] = [];
+  const makeChild = (engine: string): FakeChild => {
+    const handlers: Record<string, (arg?: unknown) => void> = {};
+    const child: FakeChild = {
+      engine,
+      handlers,
+      stdin: { end: (): void => undefined },
+      on(event, cb): FakeChild {
+        handlers[event] = cb;
+        return child;
+      },
+    };
+    return child;
+  };
+  return { healthy, spawns, children, makeChild };
+});
+
+// Partial mocks (spread the real module — foundation/config etc. still need readFileSync/the rest).
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return {
+    ...actual,
+    // spawnOwned: parse the engine from the death-couple wrapper (`… vllm-engine.sh <engine> >>…`), record
+    // the spawn, and mark the engine healthy so its next /health probe resolves owned.
+    spawn: (_cmd: string, args: readonly string[]): FakeChild => {
+      const wrapper = args[1] ?? "";
+      const engine =
+        ["embed", "rerank", "gen"].find((e) => wrapper.includes(`vllm-engine.sh" ${e} `)) ?? "?";
+      const child = io.makeChild(engine);
+      io.children.push(child);
+      io.spawns.push(engine);
+      io.healthy.add(engine);
+      return child;
+    },
+    // reap ps / port-owner ss → empty (no orphans, no foreign owner).
+    execFile: (_c: string, _a: readonly string[], cb: (e: unknown, out: string) => void): void =>
+      cb(null, ""),
+    // detectGpu's nvidia-smi probe: succeed (a GPU is "present").
+    execFileSync: (): undefined => undefined,
+  };
+});
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    mkdirSync: (): undefined => undefined,
+    // hasOurMarker readlink → throw ⇒ "not ours" ⇒ nothing to reap.
+    readlinkSync: (): string => {
+      throw new Error("no /proc in test");
+    },
+  };
+});
 
 // The measured thresholds (mirrored from the supervisor constants — the matrix asserts against them).
 const BREAKER_WINDOW_MS = 600_000; // 10m
@@ -220,5 +294,88 @@ describe("findOrphanedEngineCores", () => {
   test("ignores non-EngineCore rows entirely", () => {
     const reaped = findOrphanedEngineCores("  444   1 python train.py", () => true);
     expect(reaped).toEqual([]);
+  });
+});
+
+// ── IO shell: the pendingSpawn flag lifetime across the restart-backoff window ─────────────────────────
+describe("startVllmEngines — the queued-spawn flag holds across the backoff window", () => {
+  const fixedNow = 1_000_000;
+  const monitorIntervalMs = 21_000;
+  const engines = ["embed", "rerank", "gen"] as const;
+
+  const urlEngine = (url: string): string | undefined =>
+    engines.find((e) => url.startsWith(engineBaseUrl(e)));
+
+  beforeEach(() => {
+    io.healthy.clear();
+    io.spawns.length = 0;
+    io.children.length = 0;
+    vi.useFakeTimers();
+    // /health: healthy iff the engine's child has spawned (and not "crashed"); else connection-refused (free).
+    vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean }> => {
+      const engine = urlEngine(String(input));
+      return engine !== undefined && io.healthy.has(engine)
+        ? Promise.resolve({ ok: true })
+        : Promise.reject(new Error("ECONNREFUSED"));
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  // Drain the microtask/promise chain (probes, the spawn mutex) without advancing wall-clock.
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 8; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: draining the async chain is inherently sequential.
+      await vi.advanceTimersByTimeAsync(0);
+    }
+  };
+
+  test("a monitor tick inside the restart backoff does NOT double-queue the respawn", async () => {
+    // Injected sleep: park the restart backoff (>=5s) on a manual resolver so a monitor tick can land in
+    // the window; health-poll sleeps resolve immediately.
+    let parkBackoffs = false;
+    const parked: Array<() => void> = [];
+    const sleep = (ms: number): Promise<void> =>
+      parkBackoffs && ms >= 5000
+        ? new Promise<void>((resolve) => parked.push(resolve))
+        : Promise.resolve();
+
+    const stop = startVllmEngines({ repoRoot: "/repo", now: (): number => fixedNow, sleep });
+    try {
+      // Boot: all three ports free → each engine spawns and (the spawn marks it healthy) boots owned.
+      await settle();
+      expect(io.spawns).toEqual(["embed", "rerank", "gen"]);
+      expect(getEngineStatus("embed")?.status).toBe("owned");
+
+      // Crash embed: /health goes free AND the owned child exits (the tick applies restart policy).
+      io.healthy.delete("embed");
+      io.children.find((c) => c.engine === "embed")?.handlers["exit"]?.(0);
+
+      // Park backoffs, then a monitor tick fires the restart → the backoff parks; pendingSpawn := true.
+      parkBackoffs = true;
+      await vi.advanceTimersByTimeAsync(monitorIntervalMs);
+      expect(parked.length).toBe(1); // restart backoff is parked
+      expect(io.spawns).toEqual(["embed", "rerank", "gen"]); // no respawn yet
+
+      // A SECOND tick lands INSIDE the parked backoff window. With the flag held true, the decision
+      // short-circuits to none. (The bug cleared pendingSpawn before the sleep → this tick queued a
+      // second embed spawn, double-charging the breaker.)
+      await vi.advanceTimersByTimeAsync(monitorIntervalMs);
+      expect(io.spawns).toEqual(["embed", "rerank", "gen"]); // still no double-queue
+
+      // Release the backoff → exactly ONE respawn runs, and embed stays OWNED (never mislabeled adopted).
+      parkBackoffs = false;
+      for (const resolve of parked) {
+        resolve();
+      }
+      await settle();
+      expect(io.spawns).toEqual(["embed", "rerank", "gen", "embed"]);
+      expect(getEngineStatus("embed")?.status).toBe("owned");
+    } finally {
+      stop();
+    }
   });
 });

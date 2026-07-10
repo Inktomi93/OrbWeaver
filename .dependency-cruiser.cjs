@@ -547,8 +547,10 @@ module.exports = {
       conditionNames: ["import", "require", "node", "default", "types"],
       mainFields: ["module", "main", "types", "typings"],
     },
-    // TanStack Router codegen (client, Phase 6) — not ours to police.
-    exclude: { path: "routeTree\\.gen\\.ts$" },
+    // TanStack Router codegen (client, Phase 6) — not ours to police. `__g_` is the check-gates
+    // self-test's reserved throwaway-fixture sentinel (tsconfig.base.json's exclude note): excluding it
+    // stops a concurrent `pnpm depcruise` from graphing a fixture mid-lifecycle → a phantom edge/error.
+    exclude: { path: ["routeTree\\.gen\\.ts$", "(^|/)__g_"] },
     // content strategy (not git-metadata) so caching works in CI checkouts without full history.
     cache: { strategy: "content" },
     reporterOptions: {

@@ -215,6 +215,18 @@ describe("the raw SSE parser", () => {
     }
     expect(out).toEqual([{ n: 1 }, { n: 2 }]);
   });
+
+  test("flushes a final unterminated `data:` line at EOF (no trailing newline)", async () => {
+    // A spec-sloppy BYO endpoint ends the stream with the terminal usage/finish chunk and no `\n`.
+    const tailPayload = `{"usage":{"prompt_tokens":10},"finish_reason":"stop"}`;
+    const text = `data: {"n":1}\ndata: ${tailPayload}`;
+    const out: unknown[] = [];
+    for await (const item of parseOpenAiSse(sseBody(text))) {
+      out.push(item);
+    }
+    // Raw snake_case wire payload — build via JSON.parse so no snake_case identifiers appear in source.
+    expect(out).toEqual([{ n: 1 }, JSON.parse(tailPayload)]);
+  });
 });
 
 describe("the D48 tool-call delta accumulator (T2 — tool-use-design/02 §6)", () => {

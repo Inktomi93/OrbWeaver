@@ -15,9 +15,12 @@
 //      is invisible" failure already flagged. A named `shape.ts` makes the SHAPE order readable top
 //      to bottom. The ENGINE's pipeline imports `shape` from here and only PLACES the cache tag.
 //
-// THE ORDER (read top to bottom): scope-to-speaker (egocentric) → splice in_chat by depth → squash
-// same-role → name-stamp → group/continuation nudge → [fit-pass: applied by the engine post-shape via
-// history-budget.ts; the breakpoint offset-from-end survives its front-drop]. Plus the §8 breakpoint.
+// THE ORDER (read top to bottom): scope-to-speaker (egocentric) → splice in_chat by depth → name-stamp →
+// squash same-role → group/continuation nudge → [fit-pass: applied by the engine post-shape via
+// history-budget.ts; the breakpoint offset-from-end survives its front-drop]. Plus the §8 breakpoint. The
+// name-stamp precedes the FINAL squash so a group round's per-character `Name:` prefix lands on each row
+// BEFORE adjacent distinct-character rows merge (F2 — the merged block keeps every speaker's label); the
+// reported `squashed` stage remains the pre-name squash (labels are per-row annotations, adjacency-neutral).
 
 import type { ChatInjection, GroupConfig } from "@orb/contracts/chat";
 import type { NamesBehavior } from "@orb/contracts/preset";
@@ -130,17 +133,30 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
 // job is computing the ONE safe offset + the conservative aborts the runner can't see.
 //
 // INVARIANT (holds for every intent — see the engine's planOrHistory): the volatile tail is ALWAYS
-// exactly the LAST element of `withTail`. So the boundary = withTail[stableCount-1], and after splice
-// (depth 0/1 land at/after it) + squash (the prefix is alternating canon → no internal merge) it stays
-// at index stableCount-1 in the final array → offset = finalLen - stableCount.
+// exactly the LAST element of `withTail`; and (post ABORT #1) every surviving in_chat injection splices
+// at/after that boundary (depth 0/1), never INSIDE the stable prefix. So the last stable message is the
+// TAIL of the squashed stable prefix (`withTail[0..stableCount-1]`), and the offset counts from the
+// SQUASHED prefix length — NOT the raw `stableCount`. The old `finalLen - stableCount` assumed the prefix
+// never merges internally ("alternating canon"), which is FALSE for GROUP canon: two back-to-back
+// single-speaker rounds (`…assistant(Aria), assistant(Kai)…`) are adjacent same-role rows that squash
+// INSIDE the prefix, shrinking it. A boundary/tail injection then masks the collapse (adds a row the raw
+// subtraction happens to cancel against) and the tag lands on the per-turn injection instead of the last
+// real message → the rolling-pair cache silently stops hitting (F5). Counting from the squashed prefix
+// length pins the true last-stable message.
 /** @internal — exported for the off-by-one unit test, which drives the REAL splice + squash to build the
- *  inputs. */
+ *  inputs. `scopedFold` = an egocentric scoped round is in effect (its merged rows are DERIVED per-turn —
+ *  and the target even changes within one group round — so a collapsed scoped prefix has no stable
+ *  breakpoint; the group-canon merge, being committed messages, does). */
 export function computeHistoryBreakpoint(
   withTail: readonly { role: WireRole; content: string }[],
   injected: readonly { role: WireRole; content: string }[],
   finalHistory: readonly { role: WireRole; content: string }[],
-  injections: readonly { position: string; depth: number }[] | undefined,
+  opts: {
+    readonly injections: readonly { position: string; depth: number }[] | undefined;
+    readonly scopedFold?: boolean;
+  },
 ): number | undefined {
+  const { injections, scopedFold = false } = opts;
   const stableCount = withTail.length - 1; // everything but the volatile last turn
   if (stableCount < 1) {
     return; // no stable prefix (first turn / history disabled)
@@ -152,21 +168,23 @@ export function computeHistoryBreakpoint(
   }
   // ABORT #2: boundary squash-merge — if the last stable message shares a role with the message
   // immediately after it (a depth-1 injection, or the volatile turn), squash folds them and the
-  // boundary's bytes change → skip. (The prefix itself is alternating canon, so its only merge risk is
-  // this one adjacency.)
+  // boundary's bytes change → skip.
   const boundary = injected[stableCount - 1];
   const next = injected[stableCount];
   if (boundary !== undefined && next !== undefined && boundary.role === next.role) {
     return;
   }
-  const offsetFromEnd = finalHistory.length - stableCount; // breakpoint sits at index stableCount-1
-  // FLAG[neo-quirk]: neo returns this offset RAW. When the egocentric scoped fold creates adjacent
-  // same-role rows INSIDE the stable prefix, squash collapses them (finalHistory.length < stableCount),
-  // yielding a degenerate NEGATIVE offset — neo's `scoped-egocentric-history` returns -1, which the
-  // single-volatile-tail invariant this math assumes does NOT cover. neo then SILENTLY DISCARDS it (the
-  // runner's `targetIdx >= history.length` bounds check drops the tag). orbweaver returns `undefined` —
-  // the CORRECT "no safe breakpoint" (same downstream effect, no cache_control placed). A valid
-  // breakpoint must point at a real stable message BEFORE the volatile tail → offset ≥ 1.
+  // The last stable message is the TAIL of the SQUASHED stable prefix (group canon collapses adjacent
+  // same-role rounds inside it — see the header). Count the offset from that length, not `stableCount`.
+  const squashedPrefixLen = squashSameRole(withTail.slice(0, stableCount)).length;
+  // FLAG[neo-quirk]: the egocentric scoped fold DERIVES its merged rows per-turn (target-dependent), so a
+  // collapsed scoped prefix has no stable breakpoint — return `undefined` (neo returned a degenerate -1 it
+  // then silently discarded; Part III §12 inv 7). Group canon's merges are committed messages → stable.
+  if (scopedFold && squashedPrefixLen < stableCount) {
+    return;
+  }
+  // A valid breakpoint must point at a real stable message BEFORE the volatile tail → offset ≥ 1.
+  const offsetFromEnd = finalHistory.length - squashedPrefixLen;
   if (offsetFromEnd < 1) {
     return;
   }
@@ -200,10 +218,19 @@ export function shape(input: ShapeInput): ShapeOutput {
       ? [...scopedCanon, { role: "user", content: input.appendUserTurn }]
       : [...scopedCanon];
 
-  // 2. splice in_chat by depth → 3. squash same-role → 4. name-stamp.
+  // 2. splice in_chat by depth → 3. name-stamp → 4. squash same-role.
+  // F2: the per-character `Name:` prefix is stamped BEFORE the FINAL squash, so adjacent distinct-character
+  // rows (a per-speaker group round / the greet-all opening) keep EACH speaker's label inside the merged
+  // block (`"Aria: …\n\nKai: …"`) instead of collapsing under the first author's name. squash is
+  // author-aware (completion `name` fields survive — role-squash.ts). The reported `squashed` stage stays
+  // the PRE-name squash: the trusted `Name:` prefix + the OpenAI `name` field are pure per-row annotations
+  // that never change the role-adjacency the §8 breakpoint math + the content-free trace reason about (so
+  // the stage/oracle contract is unchanged), while `named` is the FINAL name-stamped-then-squashed prefix.
   const injected = spliceInChatInjections(withTail, input.injections, resolveContent);
   const squashed = squashSameRole(injected);
-  const named = applyNamesBehavior(squashed, input.namesBehavior, input.speakers, multiCharacter);
+  const named = squashSameRole(
+    applyNamesBehavior(injected, input.namesBehavior, input.speakers, multiCharacter),
+  );
 
   // 5. group/continuation nudge: a multi-speaker round's `[Write the next reply only as X.]` rides as a
   // trailing user message (squashed into the tail); a force/auto/empty-opening round that would otherwise
@@ -220,7 +247,13 @@ export function shape(input: ShapeInput): ShapeOutput {
   const cacheBreakpointFromEnd =
     tailUser !== null
       ? undefined
-      : computeHistoryBreakpoint(withTail, injected, named, input.injections);
+      : computeHistoryBreakpoint(withTail, injected, named, {
+          injections: input.injections,
+          scopedFold:
+            input.output === "per-speaker" &&
+            input.cardScope === "scoped" &&
+            input.scopedTargetId !== null,
+        });
 
   return {
     history,

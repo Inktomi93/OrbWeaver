@@ -49,8 +49,12 @@ export interface AuthConfig {
   forwardUserHeader?: string;
   forwardGroupsHeader?: string;
   forwardUidHeader?: string;
-  /** Opt-in source-IP gate for the unsigned path: CIDRs the forwarded client IP must match. Empty ⇒ no
-   *  gate (network-isolation trust). The signed-JWT path never consults this. */
+  /** Custom UNSIGNED email header (env `FORWARD_AUTH_EMAIL_HEADER`). Read on the custom-header path; the
+   *  known proxy families read their own email header. A mutable attribute — never an identity key. */
+  forwardEmailHeader?: string;
+  /** MANDATORY source gate for the unsigned path: CIDRs the forwarded client IP must match. Empty ⇒
+   *  the unsigned trusted-header path is FAIL-CLOSED (rejected) — an operator must declare the trusted
+   *  source before raw identity headers are honored. The signed-JWT path never consults this. */
   forwardTrustedProxies: readonly string[];
   /** JWKS-URL host allowlist for the `X-Authentik-Meta-Jwks` header. Empty ⇒ FAIL-CLOSED at the
    *  resolver: with verify on but no trusted key source, the signed path is refused. */
@@ -83,11 +87,12 @@ export interface OidcTransactionStore {
 
 /** The structured claims a verified forward-header JWT yields. `handle` is the `preferred_username`
  *  claim — `undefined` when the JWT verified but carries none (the mode rejects rather than fall through
- *  to the unsigned path — fail-closed point #4). */
+ *  to the unsigned path — fail-closed point #4). `email` is a mutable attribute (null when absent). */
 export interface ForwardJwtClaims {
   handle: string | undefined;
   externalId: string | null;
   groups: string[];
+  email: string | null;
 }
 
 /** Args for the injected forward-header JWT verifier. */
@@ -124,6 +129,12 @@ export interface ResolveDeps {
   verifyForwardJwt?: ForwardJwtVerifier;
   /** OIDC callback: the db-backed PKCE/state store (consumed by `verifyPkceState`, not by `resolve`). */
   oidcStore?: OidcTransactionStore;
+  /** The RAW TCP peer socket address, threaded per-request from `entry` (via the seam → `infra/network.peerIp`)
+   *  for the forward-header UNSIGNED trusted-proxy gate: the `forwardTrustedProxies` allowlist matches THIS
+   *  (the immediate connection's remote address), NEVER a spoofable `X-Forwarded-For`/`X-Real-IP` header a
+   *  direct-socket attacker controls. Absent ⇒ the unsigned path fails closed (an unverifiable source is
+   *  untrusted). Only `forward-header` reads it; the signed-JWT path carries its own proof and ignores it. */
+  peerIp?: string;
   /** Test/override seam: the parsed `AuthConfig`. Production omits it → `authConfigFromEnv()`. */
   config?: AuthConfig;
 }

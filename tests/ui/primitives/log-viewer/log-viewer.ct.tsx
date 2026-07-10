@@ -4,6 +4,7 @@
 import { LogViewer } from "@orb/ui/log-viewer";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 
 function makeLines(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `line ${index}`);
@@ -183,6 +184,110 @@ test("a long log windows its DOM via the virtual-list seal instead of rendering 
   await expect(component.getByRole("log")).toHaveAttribute("aria-live", "polite");
   await expect(component.getByText("line 499", { exact: true })).toBeVisible();
   await expect(component.getByText("line 0", { exact: true })).toHaveCount(0);
+});
+
+// The distance (px) from the reader's current scroll position to the TRUE bottom of the line
+// region — the same "were they at the tail" metric the plain-path pin tests above use, read off
+// the role="log" scroll node (message-list's own scroll wrapper once virtualized).
+function distanceFromEnd(log: Locator): Promise<number> {
+  return log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight);
+}
+
+// message-list's own `scrollEndThreshold` (px) — within this of the tail reads as "pinned".
+const PINNED_SLACK_PX = 80;
+
+test("a virtualized log sticks to the bottom while streaming when the reader is pinned", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(250)} className="h-full" />
+    </div>,
+  );
+  const log = component.getByRole("log");
+  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+
+  await component.update(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(300)} className="h-full" />
+    </div>,
+  );
+
+  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect(log.getByText("line 299", { exact: true })).toBeInViewport();
+});
+
+test("a reader scrolled up in a virtualized log is NOT yanked to the bottom by an append", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(250)} className="h-full" />
+    </div>,
+  );
+  const log = component.getByRole("log");
+  await log.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBe(0);
+
+  await component.update(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(300)} className="h-full" />
+    </div>,
+  );
+
+  // Still reading history near the top — the append below did NOT drag them to the tail.
+  await expect.poll(() => distanceFromEnd(log)).toBeGreaterThan(1000);
+});
+
+test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the bottom while streaming", async ({
+  mount,
+}) => {
+  // 300 lines capped to 250 → virtualized AND the buffer is already full, so `visible.length`
+  // (the virtualizer's item COUNT) stays a constant 250 across every append. message-list's own
+  // `followOnAppend` is gated on the count GROWING, so it never re-fires here — this is the exact
+  // case the old `scrollToIndex={visible.length - 1}` froze mid-history. The explicit ring-buffer
+  // follow must keep the tail pinned.
+  const component = await mount(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(300)} maxLines={250} className="h-full" />
+    </div>,
+  );
+  const log = component.getByRole("log");
+  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+
+  await component.update(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(320)} maxLines={250} className="h-full" />
+    </div>,
+  );
+
+  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect(log.getByText("line 319", { exact: true })).toBeInViewport();
+});
+
+test("a maxLines-capped virtualized log does NOT yank a reader who scrolled up", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(300)} maxLines={250} className="h-full" />
+    </div>,
+  );
+  const log = component.getByRole("log");
+  await log.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBe(0);
+
+  await component.update(
+    <div style={{ height: 150 }}>
+      <LogViewer lines={makeLines(320)} maxLines={250} className="h-full" />
+    </div>,
+  );
+
+  await expect.poll(() => distanceFromEnd(log)).toBeGreaterThan(1000);
 });
 
 test("the copy affordance writes the visible lines to the clipboard", async ({ mount, page }) => {

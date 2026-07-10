@@ -26,11 +26,12 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { env, processEnvSnapshot } from "#foundation/env";
+import type { OrSkinTierModels } from "../../contract";
 
 // ── Host-secret denylist (the app's OWN secrets the Claude child has no business seeing) ──────────────
-// The firewall owns this policy (foundation/env produces only the raw snapshot, ledger §2 / D8). A
-// TARGETED denylist (not an allowlist) — `claude login` resolution + operator CLAUDE_CODE_* deploy
-// knobs must keep flowing. This does NOT overlap the credential firewall: the ANTHROPIC_* /
+// The firewall owns this policy (foundation/env produces only the raw snapshot, ledger §2 / D8). These
+// are the NON-Claude-namespaced app secrets (the Claude/Anthropic namespace is stripped wholesale below,
+// so it need not be listed here). This does NOT overlap the credential firewall: the ANTHROPIC_* /
 // CLAUDE_CODE_OAUTH_TOKEN sources are set/nulled by each builder AFTER this baseline.
 const HOST_SECRET_ENV_KEYS = [
   "OPENROUTER_API_KEY",
@@ -41,12 +42,36 @@ const HOST_SECRET_ENV_KEYS = [
   "LOCAL_INITIAL_PASSWORD",
 ] as const;
 
-/** `process.env` (via the foundation snapshot) minus the app's own secrets — the baseline both SDK
- *  child envs spread. The SOLE place that consumes the raw snapshot for the Claude child. */
+// ── Ambient Claude/Anthropic control-surface strip (uncontrolled-behavior leak guard) ─────────────────
+// The spawned RP/chat subprocess's Claude behavior must be 100% OUR config, not the operator's ambient
+// shell. When the app runs from a shell that exports CLAUDE_CODE_* / CLAUDECODE / ANTHROPIC_* (e.g. the
+// operator's own Claude Code session, or a deploy shell), those vars would pass through the baseline and
+// silently flip entrypoint identity, tool surface, model routing, thinking budget, etc. So we strip the
+// ENTIRE Claude/Anthropic namespace from the baseline. This is SAFE: everything we actually depend on is
+// re-added AFTER the baseline in the spread order (claudeRuntimeEnv's ISOLATION_PINS + generation knobs,
+// then each builder's auth-firewall overlay), so nothing we need can be stripped here — only leaks.
+// Deploy-time CLAUDE_CODE_* knobs flow ONLY through the per-preset escape hatch (`advanced.claudeEnv` via
+// {@link claudeUserEnv}, still filtered by {@link RESERVED_CLAUDE_ENV_KEYS}), NOT ambient shell passthrough.
+const CLAUDE_ENV_PREFIXES = ["CLAUDE", "ANTHROPIC"] as const;
+/** Extra ambient control knobs outside the CLAUDE/ANTHROPIC prefixes but still Claude behavior. */
+const CLAUDE_ENV_EXACT_KEYS = new Set<string>(["MAX_THINKING_TOKENS"]);
+function isAmbientClaudeEnvKey(key: string): boolean {
+  return CLAUDE_ENV_PREFIXES.some((p) => key.startsWith(p)) || CLAUDE_ENV_EXACT_KEYS.has(key);
+}
+
+/** `process.env` (via the foundation snapshot) minus the app's own secrets AND the entire ambient
+ *  Claude/Anthropic control surface — the baseline all three SDK child envs spread. Non-Claude vars
+ *  (PATH/HOME/LANG/TMPDIR/…) survive; the child needs them to spawn. The SOLE place that consumes the
+ *  raw snapshot for the Claude child. */
 function hostEnvForClaudeChild(): Record<string, string | undefined> {
   const base = processEnvSnapshot();
   for (const key of HOST_SECRET_ENV_KEYS) {
     delete base[key];
+  }
+  for (const key of Object.keys(base)) {
+    if (isAmbientClaudeEnvKey(key)) {
+      delete base[key];
+    }
   }
   return base;
 }
@@ -126,12 +151,6 @@ export const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
 
 /** CLAUDE.md injection kill-switch — pinned on every spawn (the host's CLAUDE.md must not steer RP). */
 const DISABLE_CLAUDE_MDS = "true";
-/** OR-skin tier → OpenRouter Claude id mapping (verified 2026-06 against the host sub). */
-const OPENROUTER_TIER_MODELS = {
-  opus: "anthropic/claude-opus-4.8",
-  sonnet: "anthropic/claude-sonnet-4.6",
-  haiku: "anthropic/claude-haiku-4.5",
-} as const;
 /** The OR skin's auth target (the Anthropic-compatible skin lives under `/api`). */
 const OPENROUTER_ANTHROPIC_BASE_URL = "https://openrouter.ai/api";
 const LOOPBACK_HOST = "127.0.0.1";
@@ -266,9 +285,17 @@ export function buildClaudeSdkEnv(
  * credential source nulled. The ONLY auth in scope is the OpenRouter key (passed as an arg — pure +
  * the "key required" invariant explicit at the call site). `ANTHROPIC_API_KEY` is set to EMPTY STRING
  * (not unset — an unset key lets the runtime fall through to other sources).
+ *
+ * `tierModels` is REQUIRED (no default): the OR-skin tier → OpenRouter slug map is now DERIVED by the
+ * connection domain from its two live catalogs (`deriveOrSkinTierModels`) and threaded down on the request,
+ * so the firewall holds ZERO hardcoded model strings. It still lands in the auth-firewall overlay position
+ * (after the escape hatch), and its three keys stay in {@link RESERVED_CLAUDE_ENV_KEYS} — a preset can
+ * neither set nor strip them. The derivation never throws (a cold catalog degrades to the curated
+ * shortlist), so a caller always has a coherent trio to pass.
  */
 export function buildClaudeOpenRouterEnv(
   openRouterApiKey: string,
+  tierModels: OrSkinTierModels,
   overrides: ClaudeRuntimeOverrides = {},
 ): Record<string, string | undefined> {
   if (openRouterApiKey.length === 0) {
@@ -286,9 +313,9 @@ export function buildClaudeOpenRouterEnv(
     ANTHROPIC_API_KEY: "",
     ANTHROPIC_BASE_URL: OPENROUTER_ANTHROPIC_BASE_URL,
     ANTHROPIC_AUTH_TOKEN: openRouterApiKey,
-    ANTHROPIC_DEFAULT_OPUS_MODEL: OPENROUTER_TIER_MODELS.opus,
-    ANTHROPIC_DEFAULT_SONNET_MODEL: OPENROUTER_TIER_MODELS.sonnet,
-    ANTHROPIC_DEFAULT_HAIKU_MODEL: OPENROUTER_TIER_MODELS.haiku,
+    ANTHROPIC_DEFAULT_OPUS_MODEL: tierModels.opus,
+    ANTHROPIC_DEFAULT_SONNET_MODEL: tierModels.sonnet,
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: tierModels.haiku,
     // Credential isolation — empty ephemeral dir + null every alternative host credential source. The
     // sub OAuth token is structurally unreachable regardless of the runtime's credential precedence.
     CLAUDE_CONFIG_DIR: configDir,

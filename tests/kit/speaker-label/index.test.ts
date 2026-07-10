@@ -58,6 +58,12 @@ test("stripLeadingSpeakerName leaves a foreign name, an empty name, and tags alo
   expect(stripLeadingSpeakerName("<speaker>Alice: hi", "Alice")).toBe("<speaker>Alice: hi");
 });
 
+test("stripLeadingSpeakerName escapes regex metacharacters in the name (a period doesn't wildcard)", () => {
+  expect(stripLeadingSpeakerName("Dr. X: hello", "Dr. X")).toBe("hello");
+  // Without escaping, "Dr. X" as a regex would also match "DrY X" — it must not.
+  expect(stripLeadingSpeakerName("DrY X: hello", "Dr. X")).toBe("DrY X: hello");
+});
+
 test("stripSelfSpeakerLabel strips interleaved leading tags and labels", () => {
   expect(stripSelfSpeakerLabel("<speaker>Alice: hi", "Alice")).toBe("hi");
   expect(stripSelfSpeakerLabel("<speaker>Alice: <speaker>Alice: hey", "Alice")).toBe("hey");

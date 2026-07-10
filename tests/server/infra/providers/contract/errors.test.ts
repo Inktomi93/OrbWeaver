@@ -39,6 +39,84 @@ describe("ProviderError", () => {
     const err = new ProviderError({ kind: "server", retryable: true, message: "boom" });
     expect(err.resetsAt).toBeUndefined();
     expect(err.apiErrorStatus).toBeUndefined();
+    expect(err.model).toBeUndefined();
+    expect(err.terminalReason).toBeUndefined();
+    expect(err.detail).toBeUndefined();
+    expect(err.sessionId).toBeUndefined();
+    expect(err.requestId).toBeUndefined();
+  });
+
+  test("carries the session + request correlation provenance when provided", () => {
+    const err = new ProviderError({
+      kind: "server",
+      retryable: true,
+      message: "boom",
+      sessionId: "sess-42",
+      requestId: "req-9",
+    });
+    expect(err.sessionId).toBe("sess-42");
+    expect(err.requestId).toBe("req-9");
+  });
+
+  test("toLog() flattens EVERY provenance field structured (never buried in the message)", () => {
+    // Every optional set on the init MUST surface as its own key — a field added to ProviderError but
+    // missed in toLog() fails here (the taxonomy's provider.error line would silently drop it).
+    const err = new ProviderError({
+      kind: "rate_limit",
+      retryable: true,
+      message: "429 slow down",
+      model: "claude-sonnet-4.5",
+      terminalReason: "blocking_limit",
+      detail: "rate_limit",
+      resetsAt: 5000,
+      apiErrorStatus: 429,
+      sessionId: "sess-42",
+      requestId: "req-9",
+    });
+    expect(err.toLog()).toStrictEqual({
+      kind: "rate_limit",
+      retryable: true,
+      message: "429 slow down",
+      model: "claude-sonnet-4.5",
+      terminalReason: "blocking_limit",
+      detail: "rate_limit",
+      resetsAt: 5000,
+      apiErrorStatus: 429,
+      sessionId: "sess-42",
+      requestId: "req-9",
+    });
+  });
+
+  test("toLog() omits absent optionals — only kind/retryable/message on a bare error (no undefined noise)", () => {
+    const err = new ProviderError({ kind: "server", retryable: true, message: "boom" });
+    expect(err.toLog()).toStrictEqual({ kind: "server", retryable: true, message: "boom" });
+  });
+
+  test("toLog() does NOT flatten the cause (it rides the standard err serializer's stack, not a key)", () => {
+    const err = new ProviderError({
+      kind: "server",
+      retryable: true,
+      message: "x",
+      cause: new Error("root"),
+    });
+    expect(err.toLog()).not.toHaveProperty("cause");
+  });
+
+  test("carries the debuggability provenance (model + terminal reason + specific detail code)", () => {
+    // The generic `kind` is "invalid" but `detail` preserves the specific SDK cause ("prompt_too_long")
+    // and `terminalReason` the raw loop-level provenance — enough to debug WITHOUT the backend-internal
+    // session id (deliberately never surfaced).
+    const err = new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: "agent-sdk: turn failed",
+      model: "claude-sonnet-4.5",
+      terminalReason: "prompt_too_long",
+      detail: "prompt_too_long",
+    });
+    expect(err.model).toBe("claude-sonnet-4.5");
+    expect(err.terminalReason).toBe("prompt_too_long");
+    expect(err.detail).toBe("prompt_too_long");
   });
 
   test("chains a cause for diagnostics (and leaves it unset when omitted)", () => {

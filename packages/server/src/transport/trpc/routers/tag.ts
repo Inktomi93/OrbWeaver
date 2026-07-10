@@ -8,7 +8,7 @@ import {
   tagTargetTypeSchema,
   updateTagSchema,
 } from "@orb/contracts/tag";
-import type { TagId } from "@orb/kit/ids";
+import type { CharacterId, TagId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
@@ -40,9 +40,30 @@ export const tagRouter = t.router({
       ctx.services.tag.removeTag({ principal: ctx.auth, tagId: input.tagId }),
     ),
 
+  mergeTags: authedProcedure
+    .input(z.object({ sourceTagId: brandedId<TagId>(), targetTagId: brandedId<TagId>() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.tag.mergeTags({
+        principal: ctx.auth,
+        sourceTagId: input.sourceTagId,
+        targetTagId: input.targetTagId,
+      }),
+    ),
+
   listTagsWithUsage: authedProcedure.query(({ ctx }) =>
     ctx.services.tag.listTagsWithUsage({ principal: ctx.auth }),
   ),
+
+  // The Accept/Reject review queue: the owner's STAGED (`pending`) character-tag suggestions (PD-40 distill +
+  // import staged card tags). `characterId` narrows to one editor's suggestions; absent = the whole inbox.
+  listPendingSuggestions: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>().optional() }).optional())
+    .query(({ ctx, input }) =>
+      ctx.services.tag.listPendingSuggestions({
+        principal: ctx.auth,
+        ...(input?.characterId !== undefined ? { characterId: input.characterId } : {}),
+      }),
+    ),
 
   pruneUnusedTags: authedProcedure.mutation(({ ctx }) =>
     ctx.services.tag.pruneUnusedTags({ principal: ctx.auth }),

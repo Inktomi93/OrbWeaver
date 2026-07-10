@@ -2,8 +2,9 @@
 // (`GroupConfig`), edited as an AUTOSAVE form (`createAutosaveEntityForm`, UI-Primitives §13.4 —
 // "Group-chat create + config"): each field flip debounces a whole-config write ("flip it and it saves"),
 // matching the sibling room-overrides tab + the immediate-commit chat law (FINAL-Chats §2 — the chats
-// section carries NO save-bar). The form machinery, the seed/remount/reseed obligations, and the mapping
-// live in `use-group-config-form.ts`; this file is the FIELDS + the copy + the progressive disclosure.
+// section carries NO save-bar). The form machinery + the seed/remount/reseed obligations live in
+// `use-group-config-form.ts`, the form↔wire mapping in `../lib/group-config-model.ts`; this file is the
+// FIELDS + the copy + the progressive disclosure.
 //
 // WHY autosave, not `createSavedEntityForm`: a save-bar on the Group tab violates the no-save-bar chat
 // law, and the shipped semantics ARE flip-and-it-saves. The `GroupConfig` DU is a whole-object write, but
@@ -21,8 +22,8 @@
 // mode switch re-derives the coupled speakerTags default (via `form.setFieldValue`) so the legible default
 // follows the mode; card-scope shows only on per-speaker.
 
-import type { GroupConfig, MemberCardVisibility } from "@orb/contracts/chat";
-import { MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
+import { GROUP_POLICIES, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { Stack } from "@orb/ui/layout";
@@ -44,13 +45,17 @@ import {
 
 type GroupOutput = GroupConfig["output"];
 
-const POLICY_ITEMS: SelectItems<string> = [
-  { value: "natural", label: "Natural" },
-  { value: "list", label: "Everyone, in order" },
-  { value: "pooled", label: "Round-robin" },
-  { value: "manual", label: "Only when I pick" },
-  { value: "smart", label: "Smart (side-LLM)" },
-];
+const POLICY_LABELS: Record<GroupPolicy, string> = {
+  natural: "Natural",
+  list: "Everyone, in order",
+  pooled: "Round-robin",
+  manual: "Only when I pick",
+  smart: "Smart (side-LLM)",
+};
+const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({
+  value,
+  label: POLICY_LABELS[value],
+}));
 
 const VISIBILITY_LABELS: Record<MemberCardVisibility, string> = {
   "name-avatar": "Name + avatar only",

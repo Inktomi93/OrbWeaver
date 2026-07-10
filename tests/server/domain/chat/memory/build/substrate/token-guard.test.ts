@@ -1,5 +1,6 @@
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { describe } from "vitest";
 import {
   fitBlockToBudget,
@@ -9,10 +10,20 @@ import type { MsgRow } from "../../../../../../../packages/server/src/domain/cha
 import { expect, test } from "../../../../../../support/fixtures";
 
 const aria = castId<CharacterId>("character_aria");
-const names = new Map<CharacterId, string>([[aria, "Aria"]]);
+const names: RowMacroNameContext = {
+  characterNamesById: new Map([[aria, { name: "Aria" }]]),
+  personaNamesById: new Map<PersonaId, RowPersonaName>(),
+};
 
 function row(seq: number, content: string): MsgRow {
-  return { seq, role: "assistant", characterId: aria, authorUserId: null, content };
+  return {
+    seq,
+    role: "assistant",
+    characterId: aria,
+    authorUserId: null,
+    personaId: null,
+    content,
+  };
 }
 
 describe("memory/build/substrate/token-guard", () => {

@@ -164,6 +164,14 @@ export const userIntentSchema = z
       .object({
         claudeEnv: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
         openrouterCustomParameters: z.record(z.string(), z.unknown()).optional(),
+        // agent-sdk ONLY: where the dynamic (volatile, per-turn) system-prompt half is delivered.
+        //   "system" (default) — joined into the ONE system-prompt string. Simple, authoritative
+        //     position, but ANY change re-writes the whole cached system block (probe-measured ~12.7k).
+        //   "hook" — injected via a UserPromptSubmit hook at the message tail (dynamicContextOptions).
+        //     Cache-safe (never touches the cached prefix), but lands NEAR the user prompt (not up in
+        //     the system prompt) and rides the CLI's `<system-reminder>` channel. A deliberate
+        //     trade-off knob — tweak per preset; the foot-gun is yours to pull.
+        agentSdkDynamicContext: z.enum(["system", "hook"]).optional(),
       })
       .optional(),
   })
@@ -480,6 +488,7 @@ export type ChoiceBlockSpec = z.infer<typeof choiceBlockSchema>;
 /** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
 export const PROMPT_CONFIG_SCHEMA_VERSION = 3;
 // Version constants for the lift chain (named so the walk's literals aren't bare numbers).
+const SCHEMA_VERSION_V1 = 1; // the walk floor — a versionless/garbage blob probes as v1.
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 
@@ -600,6 +609,29 @@ export const CONFIG_LIFTS: Record<
   // v2 → v3: purely ADDITIVE (`trigger`, `inject.order` are optional/defaulted). Stamp the version only.
   2: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V3 }),
 };
+
+/** Walk a raw config blob forward through {@link CONFIG_LIFTS} from `fromVersion` to the current version.
+ *  Mirrors `defineVersionedConfig`'s internal lift loop for the STRICT neo-file path (which validates —
+ *  and REJECTS — after lifting, rather than degrading to a default). The lifts are total record→record. */
+function liftConfigForward(
+  config: Record<string, unknown>,
+  fromVersion: number,
+): Record<string, unknown> {
+  let out = config;
+  let version = fromVersion;
+  for (let lift = CONFIG_LIFTS[version]; lift !== undefined; lift = CONFIG_LIFTS[version]) {
+    out = lift(out);
+    version += 1;
+  }
+  return out;
+}
+
+/** The version a versioned blob probes as: its positive-integer `schemaVersion`, else v1 (the floor). */
+function probeSchemaVersion(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= SCHEMA_VERSION_V1
+    ? value
+    : SCHEMA_VERSION_V1;
+}
 
 /** The starter arrangement (used when a chat pins no preset). */
 export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
@@ -1539,7 +1571,9 @@ export const NEO_PRESET_SCHEMA_KIND = "neo-tavern-preset";
 
 export interface NeoPresetFile {
   schemaKind: typeof NEO_PRESET_SCHEMA_KIND;
-  /** The PromptConfig schema version at export time (the parser lifts older files forward). */
+  /** The PromptConfig schema version at export time — `parseNeoPresetFile` uses it as the lift-walk
+   *  start so older files are lifted forward before strict validation (falls back to the config blob's
+   *  own `schemaVersion` when absent/garbage). */
   schemaVersion: number;
   name: string;
   config: PromptConfig;
@@ -1559,10 +1593,11 @@ export type ParseNeoPresetResult =
   | { ok: true; name: string; config: PromptConfig }
   | { ok: false; error: string };
 
-/** Parse a `neo-tavern-preset` file. Validates the envelope, then STRICTLY validates the config via
- *  `promptConfigSchema` directly: a structurally-wrong config is REJECTED (not degraded to DEFAULT) so
- *  a broken file errors loudly instead of silently importing as an empty preset — the deliberate
- *  contrast with `parsePromptConfig`'s lenient degrade-to-default. */
+/** Parse a `neo-tavern-preset` file. Validates the envelope, LIFTS an older config forward through the
+ *  `CONFIG_LIFTS` chain (v1/v2-era files import — the format IS the predecessor app's export shape), then
+ *  STRICTLY validates the lifted config via `promptConfigSchema` directly: a structurally-wrong config is
+ *  REJECTED (not degraded to DEFAULT) so a broken file errors loudly instead of silently importing as an
+ *  empty preset — the deliberate contrast with `parsePromptConfig`'s lenient degrade-to-default. */
 export function parseNeoPresetFile(raw: unknown): ParseNeoPresetResult {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, error: "Not a JSON object." };
@@ -1571,7 +1606,24 @@ export function parseNeoPresetFile(raw: unknown): ParseNeoPresetResult {
   if (o["schemaKind"] !== NEO_PRESET_SCHEMA_KIND) {
     return { ok: false, error: `Not a ${NEO_PRESET_SCHEMA_KIND} file.` };
   }
-  const result = promptConfigSchema.safeParse(o["config"]);
+  const rawConfig = o["config"];
+  if (rawConfig === null || typeof rawConfig !== "object" || Array.isArray(rawConfig)) {
+    return {
+      ok: false,
+      error: "The file's \"config\" isn't a valid prompt config: not an object.",
+    };
+  }
+  // The envelope's `schemaVersion` is the export-time version and wins as the lift-walk start; a
+  // missing/garbage envelope version falls back to the config blob's own probe (floored at v1).
+  const envelopeVersion = o["schemaVersion"];
+  const startVersion =
+    typeof envelopeVersion === "number" &&
+    Number.isInteger(envelopeVersion) &&
+    envelopeVersion >= SCHEMA_VERSION_V1
+      ? envelopeVersion
+      : probeSchemaVersion((rawConfig as Record<string, unknown>)["schemaVersion"]);
+  const lifted = liftConfigForward(rawConfig as Record<string, unknown>, startVersion);
+  const result = promptConfigSchema.safeParse(lifted);
   if (!result.success) {
     return {
       ok: false,

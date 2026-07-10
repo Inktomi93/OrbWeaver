@@ -27,20 +27,26 @@ const headers = (init: Record<string, string> = {}): Headers => new Headers(init
 describe("resolve — the verification output never carries userId or role (invariant #3)", () => {
   test("single-user → the owner-fallback identity, via:'fallback', NO userId/role", async () => {
     const res = await resolve(headers(), { config: cfg({ mode: "single-user" }) });
-    expect(res.identity).toEqual({ externalId: null, handle: "owner", groups: [] });
+    expect(res.identity).toEqual({ externalId: null, handle: "owner", groups: [], email: null });
     expect(res.via).toBe("fallback");
     expect(res.identity).not.toHaveProperty("userId");
     expect(res.identity).not.toHaveProperty("role");
   });
 
-  test("a forward-header identity carries only {externalId, handle, groups} (no userId/role)", async () => {
+  test("a forward-header identity carries only {externalId, handle, groups, email} (no userId/role)", async () => {
     // Infra never produces a cookie identity post-D40 (the seam owns that); the SSO header is the path that
     // DOES mint a pre-row identity here, so it's where invariant #3 is exercised.
     const res = await resolve(headers({ "x-authentik-username": "alice" }), {
-      config: cfg({ mode: "forward-header" }),
+      config: cfg({ mode: "forward-header", forwardTrustedProxies: ["10.0.0.0/8"] }),
+      peerIp: "10.1.2.3",
     });
     expect(res.identity).not.toBeNull();
-    expect(Object.keys(res.identity ?? {}).sort()).toEqual(["externalId", "groups", "handle"]);
+    expect(Object.keys(res.identity ?? {}).sort()).toEqual([
+      "email",
+      "externalId",
+      "groups",
+      "handle",
+    ]);
   });
 });
 
@@ -71,7 +77,8 @@ describe("resolve — owner fallback (the seam mints owner from via:'fallback')"
 describe("resolve — per-request signals", () => {
   test("a forward-header identity → via:'header' (infra never resolves a cookie post-D40)", async () => {
     const res = await resolve(headers({ "x-authentik-username": "alice" }), {
-      config: cfg({ mode: "forward-header" }),
+      config: cfg({ mode: "forward-header", forwardTrustedProxies: ["10.0.0.0/8"] }),
+      peerIp: "10.1.2.3",
     });
     expect(res.via).toBe("header");
   });

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "abd48adc-0314-49a6-adcf-ece9511a5f34",
+  "id": "ac60bd37-5a4e-4678-a05f-6ab5d26da6a8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
@@ -8779,6 +8779,13 @@
         },
         "external_id": {
           "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

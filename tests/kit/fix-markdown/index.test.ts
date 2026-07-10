@@ -35,6 +35,17 @@ test("the display path closes per line", () => {
   expect(fixMarkdown("*a\n*b", true)).toBe("*a*\n*b*");
 });
 
+test("a lone tilde in a numeric range is left untouched (not a paired marker)", () => {
+  expect(fixMarkdown("range 10~20°C", false)).toBe("range 10~20°C");
+});
+
+test("a snake_case identifier's single underscores are not treated as whitespace-padded pairs", () => {
+  // stripInnerWhitespace only rewrites markers with whitespace to strip; an identifier with no
+  // whitespace between its underscores round-trips unchanged even though it's technically a
+  // matched `_..._` pair (the false-italic risk lives in the renderer, not here).
+  expect(fixMarkdown("my_variable_name is set", false)).toBe("my_variable_name is set");
+});
+
 test("repairStreamingTail holds a torn <speaker> open tag with no close yet", () => {
   expect(repairStreamingTail("Hello <speaker>Bob")).toBe("Hello ");
 });

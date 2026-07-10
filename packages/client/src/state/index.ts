@@ -94,6 +94,7 @@ export {
   closeModal,
   MODAL_SLOT_IDS,
   openModal,
+  openSettingsTo,
   PANEL_MODES,
   SECTION_IDS,
   setActiveSection,
@@ -105,4 +106,5 @@ export {
   useMobileSheet,
   useOpenModal,
   usePanelOverride,
+  useSettingsTarget,
 } from "./shell-store";

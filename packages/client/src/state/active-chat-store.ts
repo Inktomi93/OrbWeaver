@@ -103,14 +103,21 @@ export function selectChat(chatId: ChatId): void {
 }
 
 /** Record that the active DRAFT has committed to a real chat (fired from the route's `onChatStarted`
- *  seam). Promotes the handle draft→committed WITHOUT changing `sessionKey`, so the surface does NOT
- *  remount mid-first-turn (see THE KEY DISCIPLINE) — a later rail round-trip then reconstructs the
- *  committed chat, not a stale draft. A no-op if the active chat is no longer that draft (the user
- *  navigated on): the committed id would not match the current slot, so we only apply when still a draft. */
-export function commitDraft(chatId: ChatId): void {
+ *  seam, which carries the ORIGINATING draft's `forDraftKey`). Promotes the handle draft→committed
+ *  WITHOUT changing `sessionKey`, so the surface does NOT remount mid-first-turn (see THE KEY
+ *  DISCIPLINE) — a later rail round-trip then reconstructs the committed chat, not a stale draft.
+ *
+ *  A no-op UNLESS the active slot is STILL that exact draft
+ *  (`kind === "draft" && draftKey === forDraftKey`). A late-resolving commit for a draft the user already
+ *  navigated away from — a NEWER draft they just started (different draftKey), a `landing` return, or a
+ *  chat they selected — must NOT
+ *  hijack the active slot: promoting chat A over draft B would flip the handle while `sessionKey` stays
+ *  B's, so the room surface keeps rendering draft B while the header/context show chat A (split-brain).
+ *  The draftKey correlation is what the old `isCommitted`-only guard was missing. */
+export function commitDraft(chatId: ChatId, forDraftKey: string): void {
   const { handle, draftSeed, sessionKey } = useActiveChatStore.getState();
-  if (isCommitted(handle)) {
-    return; // already committed / moved on — nothing to promote
+  if (handle.kind !== "draft" || handle.draftKey !== forDraftKey) {
+    return; // committed / landing / a DIFFERENT (newer) draft is active now — nothing to promote
   }
   useActiveChatStore.setState(
     { handle: committedChat(chatId), draftSeed, sessionKey },

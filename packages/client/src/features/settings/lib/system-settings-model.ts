@@ -13,10 +13,27 @@
 //
 // `maxImageBytes` is projected to/from MB (the wire stays BYTES — the schema field is `.int()` bytes); the
 // mapping lives here, never in the surface JSX.
+//
+// THE TWO-BASELINE DIFF (why `diffSystemPatch` takes `{ original, lastSaved }`, not one baseline): the
+// server MERGES each patch over the stored override blob (`domain/settings/substrate/merge.ts` — an
+// OMITTED key is untouched; only an explicit `null` CLEARS a top-level override so the env floor shows
+// through). A single mount-baseline diff that merely OMITTED unchanged-vs-baseline fields left a reverted
+// control STUCK: flip trustHtml ON (autosave stores `true`) then OFF → `current === baseline` → the field
+// is omitted → the patch is `{}` → the stored `true` survives (the switch reads OFF but the deployment
+// keeps trusting HTML). The fix needs BOTH references:
+//   • `original` — the mount effective config = the INHERITED/default reference. A field back AT it must
+//     carry a schema `null` CLEAR (revert to the env floor), never be re-pinned.
+//   • `lastSaved` — the last PERSISTED form (the surface refreshes it from each `updateAppSettings` result).
+//     A field is written only when it CHANGED since the last save — so an untouched env-mirrored field is
+//     never pinned (the standing env-floor law the diff exists to protect), and a same-value re-send is
+//     skipped.
+// `vllmConcurrency` is nested with NON-nullable `.positive()` sub-keys (embed/summarize): a single-key
+// change sends only that sub-key (the merge recurses, leaving the sibling's stored value untouched — no
+// env-floor pin); the whole object clears (`null`) only once BOTH sub-keys are back at `original`. A
+// sub-key that reverts while its sibling stays overridden cannot be individually cleared (non-nullable) —
+// it holds until both revert; a documented corner, not the common single-knob path.
 
 import type { AppSettings, EffectiveAppConfig, LogLevel } from "@orb/contracts/settings";
-import { LOG_LEVELS } from "@orb/contracts/settings";
-import type { SelectItems } from "@orb/ui/select";
 
 /** Decimal MB (the schema DEFAULT_MAX_IMAGE_BYTES = 5_000_000 is documented as "5 MB" — 1 MB = 1e6 B,
  *  matching safeFetch's own byte accounting). */
@@ -65,64 +82,106 @@ export function projectSystemForm(config: EffectiveAppConfig): SystemSettingsFor
   };
 }
 
+/** The two references `diffSystemPatch` needs (see the module header): `original` = the mount effective
+ *  config (the inherited/default a reverted field CLEARS back to); `lastSaved` = the last persisted form
+ *  (change-detection, refreshed by the surface from each save result). */
+export interface SystemSettingsBaselines {
+  readonly original: SystemSettingsForm;
+  readonly lastSaved: SystemSettingsForm;
+}
+
+/** The nullable-in-schema scalar fields whose PATCH key equals their FORM key (so a generic index works).
+ *  `maxImageMb` (MB→bytes rename) and the nested `vllmConcurrency` are handled separately. */
+const NULLABLE_SCALAR_KEYS = [
+  "corpusAutoindex",
+  "logLevel",
+  "forbidExternalMedia",
+  "trustHtml",
+  "allowNonOwnerLocalCompute",
+  // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
+  "nonOwnerLocalComputeBudget",
+  // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
+  "allowNonOwnerMaxProSub",
+] as const;
+type NullableScalarKey = (typeof NULLABLE_SCALAR_KEYS)[number];
+
+/** Set a single nullable-in-schema scalar field on the patch iff it CHANGED since the last save: a value
+ *  back at `original` carries a `null` CLEAR (revert to the env floor / domain floor), otherwise the new
+ *  override value. Untouched fields are never written, so an env-mirrored field is never pinned. */
+function diffScalar(
+  patch: Record<string, unknown>,
+  key: NullableScalarKey,
+  current: SystemSettingsForm,
+  { original, lastSaved }: SystemSettingsBaselines,
+): void {
+  const value = current[key];
+  if (value === lastSaved[key]) {
+    return;
+  }
+  patch[key] = value === original[key] ? null : value;
+}
+
 /**
- * Diff the current form against its mount BASELINE into an `AppSettings` override partial — only the fields
- * the admin actually moved (see the module header for WHY the whole-form write is unsafe here). Fields that
- * cannot represent a `null` in the schema (`vllmConcurrency.{embed,summarize}` are `.positive()`, non-nullable)
- * fall back to the baseline when cleared, so a stray empty input never sends an invalid override;
- * `nonOwnerLocalComputeBudget` IS `.nullable()` (null = clear → the domain floor), so its `null` passes through.
+ * Diff the current form into an `AppSettings` override partial. Writes ONLY fields moved since the last
+ * save (`lastSaved`); a field returned to the inherited value (`original`) is CLEARED with a schema `null`
+ * so the server-side override genuinely releases (see the module header for the merge semantics + WHY a
+ * single mount-baseline diff left reverts stuck). Env-mirrored fields the admin never touched are never
+ * pinned. `vllmConcurrency`'s non-nullable sub-keys clear only when BOTH return to `original`.
  */
 export function diffSystemPatch(
-  baseline: SystemSettingsForm,
+  baselines: SystemSettingsBaselines,
   current: SystemSettingsForm,
 ): AppSettings {
+  const { original, lastSaved } = baselines;
   const patch: Record<string, unknown> = {};
-  if (current.corpusAutoindex !== baseline.corpusAutoindex) {
-    patch["corpusAutoindex"] = current.corpusAutoindex;
+
+  for (const key of NULLABLE_SCALAR_KEYS) {
+    diffScalar(patch, key, current, baselines);
   }
-  if (current.logLevel !== baseline.logLevel) {
-    patch["logLevel"] = current.logLevel;
+
+  // maxImageMb (MB in the form; the wire is BYTES). Same clear-on-revert rule, plus MB→bytes on an
+  // override value; a cleared input (`null`) also clears the override.
+  if (current.maxImageMb !== lastSaved.maxImageMb) {
+    patch["maxImageBytes"] =
+      current.maxImageMb === null || current.maxImageMb === original.maxImageMb
+        ? null
+        : Math.round(current.maxImageMb * BYTES_PER_MB);
   }
-  if (current.forbidExternalMedia !== baseline.forbidExternalMedia) {
-    patch["forbidExternalMedia"] = current.forbidExternalMedia;
-  }
-  if (current.trustHtml !== baseline.trustHtml) {
-    patch["trustHtml"] = current.trustHtml;
-  }
-  if (current.maxImageMb !== null && current.maxImageMb !== baseline.maxImageMb) {
-    patch["maxImageBytes"] = Math.round(current.maxImageMb * BYTES_PER_MB);
-  }
-  const embed = current.vllmEmbedConcurrency ?? baseline.vllmEmbedConcurrency;
-  const summarize = current.vllmSummarizeConcurrency ?? baseline.vllmSummarizeConcurrency;
-  if (embed !== baseline.vllmEmbedConcurrency || summarize !== baseline.vllmSummarizeConcurrency) {
-    patch["vllmConcurrency"] = { embed, summarize };
-  }
-  if (current.allowNonOwnerLocalCompute !== baseline.allowNonOwnerLocalCompute) {
-    patch["allowNonOwnerLocalCompute"] = current.allowNonOwnerLocalCompute;
-  }
-  if (current.nonOwnerLocalComputeBudget !== baseline.nonOwnerLocalComputeBudget) {
-    // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
-    patch["nonOwnerLocalComputeBudget"] = current.nonOwnerLocalComputeBudget;
-  }
-  if (current.allowNonOwnerMaxProSub !== baseline.allowNonOwnerMaxProSub) {
-    // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
-    patch["allowNonOwnerMaxProSub"] = current.allowNonOwnerMaxProSub;
-  }
+
+  diffVllmConcurrency(patch, baselines, current);
+
   return patch as AppSettings;
 }
 
-const LOG_LEVEL_LABELS: Record<LogLevel, string> = {
-  fatal: "Fatal",
-  error: "Error",
-  warn: "Warn",
-  info: "Info",
-  debug: "Debug",
-  trace: "Trace",
-  silent: "Silent",
-};
-
-/** The log-level Select options (derived from the ONE `LOG_LEVELS` tuple — never a hand-kept mirror). */
-export const LOG_LEVEL_ITEMS: SelectItems<string> = LOG_LEVELS.map((value) => ({
-  value,
-  label: LOG_LEVEL_LABELS[value],
-}));
+/** vLLM concurrency is a nested object with NON-nullable sub-keys. Send only sub-keys changed since the
+ *  last save AND still a genuine override; clear the WHOLE object (`null`) only once both are back at
+ *  `original` (a lone reverted sub-key can't be nulled individually — see the module header). */
+function diffVllmConcurrency(
+  patch: Record<string, unknown>,
+  { original, lastSaved }: SystemSettingsBaselines,
+  current: SystemSettingsForm,
+): void {
+  const embed = current.vllmEmbedConcurrency;
+  const summarize = current.vllmSummarizeConcurrency;
+  const embedChanged = embed !== lastSaved.vllmEmbedConcurrency;
+  const summarizeChanged = summarize !== lastSaved.vllmSummarizeConcurrency;
+  if (!(embedChanged || summarizeChanged)) {
+    return;
+  }
+  const embedAtOriginal = embed === null || embed === original.vllmEmbedConcurrency;
+  const summarizeAtOriginal = summarize === null || summarize === original.vllmSummarizeConcurrency;
+  if (embedAtOriginal && summarizeAtOriginal) {
+    patch["vllmConcurrency"] = null;
+    return;
+  }
+  const nested: Record<string, number> = {};
+  if (embedChanged && embed !== null && embed !== original.vllmEmbedConcurrency) {
+    nested["embed"] = embed;
+  }
+  if (summarizeChanged && summarize !== null && summarize !== original.vllmSummarizeConcurrency) {
+    nested["summarize"] = summarize;
+  }
+  if (Object.keys(nested).length > 0) {
+    patch["vllmConcurrency"] = nested;
+  }
+}

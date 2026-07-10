@@ -211,6 +211,63 @@ describe("runChatCompletionTurn — stream reduce → ChatResult", () => {
     expect(result.usage.contextWindow).toBe(200_000);
   });
 
+  test("assembles delta.toolCalls fragments into ChatResult.toolCalls (the D48 tool loop, end-to-end)", async () => {
+    // The model emits tool-call fragments across chunks (arguments sliced mid-token, id/name latch on
+    // first sight) and finishes with `tool_calls` — the runner must feed these through the reducer so the
+    // pipeline pivot sees the assembled calls. Two calls interleaved by wire `index`.
+    const { client } = streamingClient([
+      chunk({
+        choices: [
+          {
+            delta: {
+              toolCalls: [
+                { index: 0, id: "call_a", type: "function", function: { name: "get_weather" } },
+                { index: 1, id: "call_b", type: "function", function: { name: "get_time" } },
+              ],
+            },
+            finishReason: null,
+            index: 0,
+          },
+        ],
+      }),
+      chunk({
+        choices: [
+          {
+            delta: {
+              toolCalls: [
+                { index: 0, function: { arguments: '{"city":' } },
+                { index: 1, function: { arguments: '{"tz":"UTC"}' } },
+              ],
+            },
+            finishReason: null,
+            index: 0,
+          },
+        ],
+      }),
+      chunk({
+        choices: [
+          {
+            delta: { toolCalls: [{ index: 0, function: { arguments: '"Paris"}' } }] },
+            finishReason: "tool_calls",
+            index: 0,
+          },
+        ],
+      }),
+    ]);
+    const result = await runChatCompletionTurn(client, makeRequest(), DEPS);
+    expect(result.finishReason).toBe("tool");
+    expect(result.toolCalls).toEqual([
+      { toolCallId: "call_a", name: "get_weather", arguments: '{"city":"Paris"}' },
+      { toolCallId: "call_b", name: "get_time", arguments: '{"tz":"UTC"}' },
+    ]);
+  });
+
+  test("a tool-less turn leaves ChatResult.toolCalls absent (byte-identical to pre-D48)", async () => {
+    const { client } = streamingClient(OK_STREAM);
+    const result = await runChatCompletionTurn(client, makeRequest(), DEPS);
+    expect(result.toolCalls).toBeUndefined();
+  });
+
   test("prefers the structured reasoningDetails channel over the legacy string (no Opus-4.8 doubling)", async () => {
     const { client } = streamingClient([
       chunk({

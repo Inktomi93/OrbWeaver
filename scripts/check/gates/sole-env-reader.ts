@@ -13,11 +13,18 @@ const SERVER_SRC = "/packages/server/src/";
 const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//u;
 
 // The ONE sanctioned call-time process.env EXCEPTION: the
-// role-derivation policy reads exactly these three vars at CALL time (not via the frozen `env`) so per-test
-// `vi.stubEnv` drives the role matrix. Allowlisted to THIS ONE file + EXACTLY these keys — any other key,
-// or any process.env read elsewhere in the domain, stays RED.
+// role-derivation policy reads exactly these vars at CALL time (not via the frozen `env`) so per-test
+// `vi.stubEnv` drives the role/access matrix. Allowlisted to THIS ONE file + EXACTLY these keys — any other
+// key, or any process.env read elsewhere in the domain, stays RED. OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS
+// are the group→role governance vars (admin grant + login gate; declared in foundation/env, read here).
 const ROLE_POLICY = /\/packages\/server\/src\/domain\/sessions\/substrate\/role-policy\.ts$/u;
-const SANCTIONED_KEYS = new Set(["OWNER_HANDLES", "OWNER_GROUP", "RE_DERIVE_ROLE_ON_LOGIN"]);
+const SANCTIONED_KEYS = new Set([
+  "OWNER_HANDLES",
+  "OWNER_GROUP",
+  "RE_DERIVE_ROLE_ON_LOGIN",
+  "OIDC_ADMIN_GROUPS",
+  "OIDC_ALLOWED_GROUPS",
+]);
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

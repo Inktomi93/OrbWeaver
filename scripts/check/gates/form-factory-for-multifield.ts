@@ -20,10 +20,9 @@
 // FREE — all four are ≤2 controlled inputs, under the threshold. `Tabs` is deliberately excluded from
 // FORM_CONTROLS (its `value`/`onValueChange` is active-tab state, not a field).
 //
-// DORMANT: not in report.ts's ALL_CHECKS — self-tested by tests/tooling/form-factory-for-multifield.int
-// .test.ts, held out pending its Layer-3 ACTIVE row + count bump in the FROZEN
-// Core-Enforcement-Active-Gates.md (SYNC WITH the DORMANT_GATES sets in
-// enforcement-registry-parity.ts + check-gates.int.test.ts).
+// ACTIVE: in report.ts's ALL_CHECKS (activated 2026-07-09) — runs on every `pnpm check`, not just its
+// self-test (tests/tooling/form-factory-for-multifield.int.test.ts). Its Layer-3 ACTIVE row lives in
+// Core-Enforcement-Active-Gates.md (kept in SYNC with enforcement-registry-parity.ts + check-gates.int).
 import type { JsxAttribute, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";

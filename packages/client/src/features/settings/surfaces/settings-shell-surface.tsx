@@ -10,12 +10,16 @@
 // is the Dialog `xl` variant (modal-slots.tsx + ModalHost's flex-column popup). The surface is the
 // containment CONSUMER (§2.1) — its root is a `<Container>`.
 //
-// ACTIVE-TRACKING MODEL — SELECTION, not scroll-spy (the simpler correct model): the active category +
-// subcategory are the last thing the user picked (nav click or a search jump); `aria-current` follows
-// that selection. Scroll-spy (an IntersectionObserver tracking which section is on screen) would add an
-// observer + jumpier highlight for a marginal gain — Discord's own settings nav is selection-driven, and
-// click-to-jump with aria-current on the target is fully accessible. The jump itself rAF-polls for the
-// anchor node (the pane may be suspending on its settings read when switched into from another category).
+// ACTIVE-TRACKING MODEL — a SELECTION × SCROLL-SPY hybrid (owner ruling: active subcategory tracks
+// scroll). The active CATEGORY is pure selection — the last category the user picked (nav click or a
+// search jump) drives which pane mounts + its `aria-current`. WITHIN that pane the active SUBCATEGORY
+// tracks SCROLL: a passive, rAF-throttled scroll listener on the pane's scroll container lights the last
+// section whose top has crossed the spy line (classic scroll-spy — see the effect below), suppressed
+// while a programmatic jump is in flight so a click/search jump wins cleanly. Not an IntersectionObserver
+// (a plain scrollTop compare is enough + gives the "short trailing section still wins" behavior); keyed
+// on LOCAL `active` state, so it is not the banned shared-selection effect. The jump itself rAF-polls for
+// the anchor node (the pane may be suspending on its settings read when switched into from another
+// category), then lights the first section at rest.
 //
 // REAL vs PLACEHOLDER (J11): Appearance + Personas + System (the APP-tier AppSettings home, Task #37) are
 // the real panes (setting-row / form grammar); every other category renders its distinct teaching
@@ -38,11 +42,12 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFocusOnMount } from "#lib";
+import { useSettingsTarget } from "#state";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
-import type { SETTINGS_CATEGORY_IDS } from "../lib/settings-nav";
 import {
   categoryIdsForGroup,
   SETTINGS_CATEGORIES,
+  SETTINGS_CATEGORY_IDS,
   SETTINGS_GROUP_LABELS,
   SETTINGS_GROUPS,
   settingsAnchorId,
@@ -52,10 +57,17 @@ import { SETTINGS_SEARCH_ENTRIES } from "../lib/settings-search";
 import { AppearanceSettingsSurface } from "./appearance-settings-surface";
 import { PersonaSettingsSurface } from "./persona-settings-surface";
 import { SystemSettingsSurface } from "./system-settings-surface";
+import { TagsSettingsSurface } from "./tags-settings-surface";
 
 // The active-category id — a LOCAL (non-exported) alias derived from the tuple (an exported alias would be
 // the types-in-contract leak the nav registry avoids; local is fine).
 type CategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
+
+/** Narrow the shell store's opaque `settingsCategory` deep-link string to a real category id (an unknown id
+ *  falls back to the default pane). Keeps the store domain-agnostic — the registry check lives here. */
+function isCategoryId(v: string | null): v is CategoryId {
+  return v !== null && (SETTINGS_CATEGORY_IDS as readonly string[]).includes(v);
+}
 
 /** The settings overlay body: nav (search + grouped category/subcategory rows) on the left, the active
  *  pane on the right. */
@@ -64,7 +76,22 @@ export function SettingsShell(): ReactElement {
   const contentRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
-  const [active, setActive] = useState<CategoryId>("appearance");
+  // A cross-feature deep-link (e.g. the character editor's "Manage tags") can request a specific pane via the
+  // shell store's opaque `settingsCategory` seam; honor it as the initial pane + whenever it changes (an
+  // unknown id falls back to the default). Validated here against the registry — the store stays domain-agnostic.
+  const targetCategory = useSettingsTarget();
+  const [active, setActive] = useState<CategoryId>(() =>
+    isCategoryId(targetCategory) ? targetCategory : "appearance",
+  );
+  // Honor a deep-link when the REQUESTED category changes — React's "adjust state during render on a prop
+  // change" pattern (not a setState-in-effect cascade). A user nav click still `setActive`s freely between links.
+  const [seenTarget, setSeenTarget] = useState(targetCategory);
+  if (targetCategory !== seenTarget) {
+    setSeenTarget(targetCategory);
+    if (isCategoryId(targetCategory)) {
+      setActive(targetCategory);
+    }
+  }
   // The active subcategory — drives aria-current on the indented rows. Set instantly on a click/search
   // jump AND tracked by the scroll-spy below as the user scrolls the pane. `null` = above the first
   // section (only the category row carries aria-current then).
@@ -350,6 +377,9 @@ function SettingsPane({ category }: { readonly category: CategoryId }): ReactEle
   }
   if (category === "personas") {
     return <PersonaSettingsSurface />;
+  }
+  if (category === "tags") {
+    return <TagsSettingsSurface />;
   }
   if (category === "system") {
     return <SystemSettingsSurface />;

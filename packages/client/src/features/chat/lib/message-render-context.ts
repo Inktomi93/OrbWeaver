@@ -12,9 +12,12 @@
 //   • `{{user}}` → the row's AUTHOR persona (`MessageView.personaId`) — the SAME id the #21 attribution
 //     badge resolves, so macro and badge are consistent by construction, and the server's history-macro
 //     pass resolves the row's `{{user}}` against the same `personaId` (viewer == model).
-// This helper supplies only the DEFAULTS (`speakerCharName` = the solo-chat `{{char}}` fallback;
-// `activePersonaName` = the viewing participant's current persona, the null-stamp `{{user}}` fallback,
-// Chat-Macro-Resolution.md §4) plus passing the producer maps straight through.
+// This helper supplies only the DEFAULTS: `speakerCharName` = the solo-chat `{{char}}` fallback; `cast` =
+// the full cast names in roster order (a HUMAN-authored / narrator row's `{{char}}` = the joined cast in
+// multi, the one character in solo — ruling B); `fallbackPersonaName`/`fallbackPersonaDescription` = the
+// chat ANCHOR persona (`ChatDetail.anchorPersonaId`), the null-stamp `{{user}}`/`{{persona}}` fallback —
+// NEVER the viewing participant's own active persona (ruling A / the design principle: a greeting or AI
+// line addresses the SAME persona for the model and every human, never the reader). Plus the producer maps.
 //
 // Always returns a DEFINED context (never `undefined`): the kit atom's own literal floors
 // ("Character"/"User") mean an empty producer never erases a macro word the way an ad hoc "" ctx
@@ -34,9 +37,10 @@ export interface ResolveMessageRenderContextInput {
    *  merged with the loaded `listMessages` page's `macroNames`. */
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
-  /** The viewing participant's CURRENT persona id (§4) — the null-stamp `{{user}}` fallback SUBJECT;
-   *  resolved to a NAME here via `personaNamesById` (never the chat's `anchorPersonaId` pin). */
-  readonly viewerActivePersonaId?: PersonaId | null | undefined;
+  /** The chat's ANCHOR persona id (`ChatDetail.anchorPersonaId`) — the null-stamp `{{user}}`/`{{persona}}`
+   *  fallback SUBJECT (ruling A / the design principle: never the viewer's own active persona); resolved to
+   *  a name + description here via `personaNamesById`. */
+  readonly anchorPersonaId?: PersonaId | null | undefined;
   /** ST `auto_fix_generated_markdown` parity (the `autoFixMarkdown` appearance pref) — passed straight
    *  through onto the render context so the display pipeline's `fixMarkdown` step is gated (default OFF). */
   readonly autoFixMarkdown?: boolean | undefined;
@@ -69,6 +73,25 @@ function resolveDefaultCharacterName(
   return characterCount === SOLO_CAST_FLOOR ? soloName : undefined;
 }
 
+/** The full cast display names in roster order — the `{{group}}` subject AND a HUMAN-authored / narrator
+ *  row's `{{char}}` (ruling B). Character participants only (`kind === "character"`, the same discriminant
+ *  `resolveDefaultCharacterName` uses), in `participants` insertion (roster) order so the joined string
+ *  matches the server's `ctx.cast` join byte-for-byte (the parity oracle). Undefined when no roster. */
+function resolveCastNames(
+  participants: ReadonlyMap<CharacterId, ParticipantView> | undefined,
+): readonly string[] | undefined {
+  if (participants === undefined) {
+    return;
+  }
+  const names: string[] = [];
+  for (const participant of participants.values()) {
+    if (participant.kind === "character") {
+      names.push(participant.displayName);
+    }
+  }
+  return names;
+}
+
 /** Build the room-level `MessageRenderContext` for the DISPLAY macro pass — pure, no I/O. Every row in
  *  a chat shares one of these; both per-row retargets ride `renderMessageForDisplay`'s `rowCharacterId`/
  *  `rowPersonaId` arguments (the message's own `characterId`/`personaId`), not a per-row context
@@ -77,15 +100,20 @@ export function resolveMessageRenderContext(
   input: ResolveMessageRenderContextInput,
 ): MessageRenderContext {
   const speakerCharName = resolveDefaultCharacterName(input.participants);
-  const activePersonaName =
-    input.viewerActivePersonaId === null || input.viewerActivePersonaId === undefined
+  const cast = resolveCastNames(input.participants);
+  const anchorPersona =
+    input.anchorPersonaId === null || input.anchorPersonaId === undefined
       ? undefined
-      : input.personaNamesById.get(input.viewerActivePersonaId)?.name;
+      : input.personaNamesById.get(input.anchorPersonaId);
   return {
     characterNamesById: input.characterNamesById,
     personaNamesById: input.personaNamesById,
     ...(speakerCharName === undefined ? {} : { speakerCharName }),
-    ...(activePersonaName === undefined ? {} : { activePersonaName }),
+    ...(cast === undefined ? {} : { cast }),
+    ...(anchorPersona === undefined ? {} : { fallbackPersonaName: anchorPersona.name }),
+    ...(anchorPersona === undefined
+      ? {}
+      : { fallbackPersonaDescription: anchorPersona.description }),
     ...(input.autoFixMarkdown === undefined ? {} : { autoFixMarkdown: input.autoFixMarkdown }),
   };
 }

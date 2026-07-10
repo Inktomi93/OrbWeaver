@@ -53,7 +53,9 @@
       "!.claude",
       "!**/routeTree.gen.ts",
       "!packages/ui/src/tokens/index.ts",
-      "!packages/ui/src/styles/theme.css"
+      "!packages/ui/src/styles/theme.css",
+      "!**/__g_*",
+      "!**/__g_*/**"
     ]
   },
   "formatter": {

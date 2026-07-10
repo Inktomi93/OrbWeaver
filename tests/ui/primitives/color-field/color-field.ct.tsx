@@ -83,6 +83,54 @@ test("the clamp rejects an expression() injection attempt — no commit, inline 
   await expect(page.getByTestId("committed-value")).toHaveText("#111111");
 });
 
+// An UNSET/inherit field (empty value) is a VALID per-field "clear" (FINAL-Character §8.1), NOT a
+// validation error — `isSafeColor("")` is correctly false (a security predicate), so the field's error
+// gate must neutralize EMPTY rather than fire on `!isValid`. Otherwise the first thing a user sees on
+// the theming money shot (and the Settings global theme editor) is a spurious "Enter a valid color".
+test("an unset (inherit) field shows NO error when opened — empty = a valid clear, not invalid", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ColorFieldHarness initialValue="" />);
+  await page.getByLabel("Accent").click();
+  await expect(page.getByLabel("Hex")).toHaveValue("");
+  await expect(page.getByText("Enter a valid color")).toHaveCount(0);
+});
+
+test("a NON-empty invalid value still errors — the gate neutralizes only EMPTY", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ColorFieldHarness initialValue="" />);
+  await page.getByLabel("Accent").click();
+  // Non-empty, non-injection, but not a parseable color (digits, no `#`, not a named color).
+  await page.getByLabel("Hex").fill("12345");
+  await expect(page.getByText("Enter a valid color")).toBeVisible();
+});
+
+// FINAL-Character §8.1 per-field clear: the explicit "Reset to default" button emits the "" sentinel so
+// the consumer maps it to ITS clear semantic (override-omit / tag-null). It must be the ONLY clear path —
+// a transiently-empty hex draft mid-typing must NEVER fire a spurious clear.
+test('clicking "Reset to default" emits the empty clear to the caller', async ({ mount, page }) => {
+  await mount(<ColorFieldHarness initialValue="#111111" />);
+  await page.getByLabel("Accent").click();
+  await page.getByRole("button", { name: "Reset to default" }).click();
+  // The caller received the "" sentinel — the committed-value readout is now empty.
+  await expect(page.getByTestId("committed-value")).toHaveText("");
+});
+
+test("deleting the hex value mid-typing does NOT emit a clear — only the Reset button does", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ColorFieldHarness initialValue="#111111" />);
+  await page.getByLabel("Accent").click();
+  await page.getByLabel("Hex").fill("");
+  // The empty draft never passed the isSafeColor commit gate, so onValueChange never fired — the
+  // last-committed value is untouched (no spurious clear from transient emptiness).
+  await expect(page.getByTestId("committed-value")).toHaveText("#111111");
+});
+
 test("the disabled swatch trigger is inert", async ({ mount, page }) => {
   await mount(<ColorField aria-label="Accent" disabled={true} onValueChange={noop} value="#fff" />);
   await expect(page.getByLabel("Accent")).toBeDisabled();

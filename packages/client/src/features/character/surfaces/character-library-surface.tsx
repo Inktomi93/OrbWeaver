@@ -183,6 +183,7 @@ export function CharacterLibrarySurface({
           isFetchingNextPage={collection.isFetchingNextPage}
           isPending={collection.isPending}
           listProps={collection.listProps}
+          onRetry={collection.refetch}
           query={deferredQuery}
           renderRow={renderRow}
         />
@@ -225,6 +226,7 @@ interface CharacterLibraryBodyProps {
   readonly hasNextPage: boolean;
   readonly isFetchingNextPage: boolean;
   readonly listProps: ReturnType<typeof useCharacterLibraryCollection>["listProps"];
+  readonly onRetry: () => void;
   readonly renderRow: (item: CharacterCardItem) => ReactNode;
 }
 
@@ -240,13 +242,14 @@ function CharacterLibraryBody({
   hasNextPage,
   isFetchingNextPage,
   listProps,
+  onRetry,
   renderRow,
 }: CharacterLibraryBodyProps): ReactElement {
   if (isPending) {
     return <LoadingRows />;
   }
   if (error !== null) {
-    return <ErrorState />;
+    return <ErrorState onRetry={onRetry} />;
   }
   if (isEmpty) {
     return (
@@ -334,11 +337,15 @@ function LoadingRows(): ReactElement {
   );
 }
 
-/** The read-error surface. No Retry button: `createCollectionSurface` exposes no refetch handle. */
-function ErrorState(): ReactElement {
+/** The read-error surface — a Retry re-runs the query (`collection.refetch`), so a transient read failure
+ *  is never a dead end (UI-Arch §4.3 rule 1). */
+function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
   return (
     <Stack align="center" gap="row" justify="center" padding="section">
       <Text tone="muted">Couldn't load the character library.</Text>
+      <Button intent="secondary" onClick={onRetry} size="sm">
+        Retry
+      </Button>
     </Stack>
   );
 }

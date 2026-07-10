@@ -26,7 +26,7 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { cn } from "#lib";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { CHARACTER_CARD_MACROS } from "../lib/character-card-form-model";
+import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 import { CharacterTokenCounter } from "./character-token-counter";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
@@ -136,6 +136,9 @@ function GreetingBody({
           {(field): ReactElement => (
             <>
               <MacroTextarea
+                // The textarea plays `combobox` (macro autocomplete) — without a name an SR announces
+                // it as an unlabeled combobox. Name it by the active alternate ("Opening N", §6.1).
+                aria-label={`Opening ${index + 1}`}
                 value={field.state.value}
                 onChange={(next): void => field.handleChange(next)}
                 onBlur={field.handleBlur}

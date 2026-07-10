@@ -82,9 +82,10 @@ export interface WorkloadStatsEnv {
   readonly reconcileStats: (args: { signal: AbortSignal }) => Promise<ReconcileStatsWorkloadResult>;
 }
 
-/** connection.* — the keyless OpenRouter catalog snapshot refresh, COUNTS ONLY (no provider entry shapes
- *  cross into the workloads contract — the adapter discipline). Provided by `connection`. Consumed by
- *  `refresh-model-catalog`. */
+/** connection.* — the provider catalog snapshot refreshes, COUNTS ONLY (no provider entry shapes cross
+ *  into the workloads contract — the adapter discipline). `refreshCatalogSnapshot` runs BOTH provider
+ *  catalog refreshes (OpenRouter `/models` + the agent-sdk daemon `supportedModels()` map) and returns both
+ *  counts. Provided by `connection`. Consumed by `refresh-model-catalog`. */
 export interface WorkloadConnectionEnv {
   readonly refreshCatalogSnapshot: (args: { signal: AbortSignal }) => Promise<CatalogRefreshResult>;
 }

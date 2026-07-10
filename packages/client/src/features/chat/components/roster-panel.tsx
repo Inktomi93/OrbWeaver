@@ -94,9 +94,13 @@ function RosterRow({
   onSetTalkativeness,
   onForceTurn,
 }: RosterRowProps): ReactElement {
-  // Local mirror for smooth drag; the row is keyed by member id so this re-seeds from the source value
-  // on any roster change. Commit-on-release (`onValueCommitted`) fires the write — not one per frame.
-  const [weight, setWeight] = useState(member.talkativeness);
+  // CONTROLLED from `member.talkativeness` (the authoritative roster value); a local override holds ONLY
+  // the in-progress drag so the thumb stays smooth mid-gesture, and is cleared on release. This is what
+  // makes BOTH a bus/other-device change AND a failed-write revert re-seed the thumb: a once-seeded
+  // `useState` could not (the row is keyed by member id, so a value-only change never remounts). The drag
+  // value goes null on commit, so the thumb falls back to the prop — its confirmed value until a refetch.
+  const [dragValue, setDragValue] = useState<number | null>(null);
+  const weight = dragValue ?? member.talkativeness;
   const { characterId, displayName: name } = member;
 
   return (
@@ -114,8 +118,11 @@ function RosterRow({
           max={1}
           step={0.05}
           thumbLabels={[`Talkativeness: ${name}`]}
-          onValueChange={(value): void => setWeight(firstThumb(value))}
-          onValueCommitted={(value): void => onSetTalkativeness(characterId, firstThumb(value))}
+          onValueChange={(value): void => setDragValue(firstThumb(value))}
+          onValueCommitted={(value): void => {
+            setDragValue(null);
+            onSetTalkativeness(characterId, firstThumb(value));
+          }}
         />
 
         <Button

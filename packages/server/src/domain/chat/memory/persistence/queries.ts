@@ -42,6 +42,7 @@ export async function loadCanonThroughSeq(
       role: messages.role,
       characterId: messages.characterId,
       authorUserId: messages.authorUserId,
+      personaId: messages.personaId,
       content: messageVariants.content,
     })
     .from(messages)

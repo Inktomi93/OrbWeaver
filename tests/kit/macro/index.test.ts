@@ -333,3 +333,63 @@ test("globalMacroRegistry is a shared singleton extensions can register onto", (
   globalMacroRegistry.register("kitportgreet", () => "hey");
   expect(processMacros("{{kitportgreet}}", opts())).toBe("hey");
 });
+
+// ── default registry: banned / groupnotmuted / hasvar literal / addvar / comparators / else ────
+
+test("banned renders empty (legacy upstreams strip its contents)", () => {
+  expect(processMacros('{{banned "some text"}}', opts())).toBe("");
+});
+
+test("groupnotmuted excludes muted cast members; group still includes them", () => {
+  const withMuted = opts({ cast: ["Alice", "Bram", "Cleo"], castNotMuted: ["Alice", "Cleo"] });
+  expect(processMacros("{{group}}", withMuted)).toBe("Alice, Bram, Cleo");
+  expect(processMacros("{{groupnotmuted}}", withMuted)).toBe("Alice, Cleo");
+});
+
+test('hasvar returns the literal string "true", not a boolean', () => {
+  expect(processMacros("{{setvar::f::x}}{{hasvar::f}}", opts())).toBe("true");
+});
+
+test("addvar concatenates with no separator", () => {
+  expect(processMacros("{{setvar::n::a}}{{addvar::n::b}}{{getvar::n}}", opts())).toBe("ab");
+});
+
+test("if comparator accepts curly/typographic quotes on the RHS", () => {
+  // Built from parts (double-then-single curly-quote pairs) so neither line reads as one
+  // contiguous high-entropy literal (noSecrets).
+  const dq = ["“", "”"]; // “ ”
+  const sq = ["‘", "’"]; // ‘ ’
+  expect(processMacros(`{{#if char == ${dq[0]}Alice${dq[1]}}}match{{/if}}`, opts())).toBe("match");
+  expect(processMacros(`{{#if char == ${sq[0]}Alice${sq[1]}}}match{{/if}}`, opts())).toBe("match");
+});
+
+test("{{else}} splits case-insensitively (Else / ELSE both work)", () => {
+  expect(processMacros("{{#if flag}}Y{{Else}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
+  expect(processMacros("{{#if flag}}Y{{ELSE}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
+});
+
+// ── defense-in-depth: output budget + single-warn discipline ───────────────────────────────────
+
+test("the depth budget warns exactly ONCE, not once per recursion level", () => {
+  const warnings: string[] = [];
+  processMacros(
+    "{{appearance}}",
+    opts({ appearance: "{{appearance}}", onWarn: (m) => warnings.push(m) }),
+  );
+  expect(warnings.filter((w) => w.includes("depth limit"))).toHaveLength(1);
+});
+
+test("output over the 1MB cap truncates to exactly the cap and warns once", () => {
+  // The budget charges per-append (per text/macro node), not per byte — a chunk that would push
+  // the cumulative total OVER the cap is dropped WHOLESALE, not sliced. `{{noop}}` (renders "")
+  // forces a node boundary between two 500k chunks without adding output, so the total lands
+  // EXACTLY on the 1,000,000-byte cap after the second chunk; the third chunk (pushing to 1.5MB)
+  // is entirely rejected.
+  const half = 500_000;
+  const chunk = "x".repeat(half);
+  const oversized = `${chunk}{{noop}}${chunk}{{noop}}${chunk}`; // 1.5MB across 3 chunks
+  const warnings: string[] = [];
+  const out = processMacros(oversized, opts({ onWarn: (m) => warnings.push(m) }));
+  expect(out).toHaveLength(half * 2);
+  expect(warnings.filter((w) => w.includes("output limit"))).toHaveLength(1);
+});

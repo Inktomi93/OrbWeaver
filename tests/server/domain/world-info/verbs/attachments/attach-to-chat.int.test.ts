@@ -18,6 +18,7 @@ describe("attachToChat", () => {
     const host = await seedUser(db, { handle: "host" });
     const chatId = await seedChat(db);
     const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
+    harness.userEvents.length = 0; // drop createBook's own worldInfoChanged — assert only the attach's.
 
     await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
     await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
@@ -32,6 +33,10 @@ describe("attachToChat", () => {
     expect(harness.audits.filter((a) => a.entry.action === "worldInfo.attachToChat")).toHaveLength(
       1,
     );
+    // The user-bus freshness emit fires ONCE (the real insert only) to the acting host / book owner.
+    expect(harness.userEvents).toEqual([
+      { userId: host, event: { type: "worldInfoChanged", bookId: book.id } },
+    ]);
   });
 
   test("a chat-guard rejection propagates — nothing writes, emits, or audits", async () => {

@@ -18,7 +18,11 @@
 // observability probe, never for the input/button — those use getByLabel/getByRole).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AutosaveDraftMirrorStory, AutosaveUnmountFlushStory } from "./_ct-stories";
+import {
+  AutosaveDraftMirrorStory,
+  AutosaveFailedSaveStory,
+  AutosaveUnmountFlushStory,
+} from "./_ct-stories";
 
 test("a host re-render after an edit does NOT clobber the draft mirror back to the mount seed", async ({
   mount,
@@ -90,4 +94,36 @@ test("a field unmounting on an UNTOUCHED form does NOT flush its seed (the setRo
   // empty. (Deterministic, no wait: the flush is synchronous, not the 5s debounce.)
   await page.getByRole("button", { name: "unmount field" }).click();
   await expect(savedState).toHaveText("{}");
+});
+
+// F4 — a REJECTING autosave must not leave an unhandled promise rejection, and must skip clearDraft so
+// the edit survives in the mirror for retry. Before the fix, the listener's `void handleSubmit()` let
+// form-core's re-thrown onSubmit error escape as an unhandledrejection (and poisoned CT console asserts).
+test("a rejecting autosave surfaces no unhandled rejection and preserves the draft", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AutosaveFailedSaveStory />);
+
+  const draftState = page.getByTestId("failed-save-draft");
+  const calledState = page.getByTestId("failed-save-called");
+  const rejectionCount = page.getByTestId("failed-save-rejections");
+  await expect(draftState).toHaveText("{}");
+  await expect(calledState).toHaveText("{}");
+  await expect(rejectionCount).toHaveText("0");
+
+  // Type a VALID edit → the debounced onChange mirrors it, then submits → the save REJECTS.
+  await page.getByLabel("Failing text").fill("edited while offline");
+
+  // The submit fired (save was called with the edit) and rejected — proving the failure path ran.
+  await expect(calledState).toContainText('"text":"edited while offline"');
+  // The mirror STILL holds the edit: onSubmit awaits save BEFORE clearDraft, so a failed save skips
+  // the clear (the data survives for retry). A SUCCESSFUL save would have cleared it to "{}".
+  await expect(draftState).toContainText('"text":"edited while offline"');
+
+  // THE PIN: the rejection was swallowed by the listener's `.catch` — zero unhandled rejections. A
+  // macrotask boundary guarantees any pending `unhandledrejection` microtask (which the broken `void`
+  // path WOULD queue after the reject we just observed) has fired before this assertion reads the count.
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+  await expect(rejectionCount).toHaveText("0");
 });

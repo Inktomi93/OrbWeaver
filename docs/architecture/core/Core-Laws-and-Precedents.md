@@ -158,6 +158,8 @@ A full-read audit of all 41 docs (6 agents, every doc end-to-end) surfaced cross
 - **D60–D61** → [`Core-Path-Registry-D60-D61.md`](Core-Path-Registry-D60-D61.md) — agent-principal (D60), marinara-borrow disposition (D61)
 - **D62** → [`Core-Path-Registry-D62.md`](Core-Path-Registry-D62.md) — the UI/UX revamp program (region law §4.2/§4.3, rulings P1–P6, design gates, the D62 lanes)
 - **D63** → [`Core-Path-Registry-D63.md`](Core-Path-Registry-D63.md) — the app background IMAGE re-homes from `ThemeOverride` to the `appearance` user-settings namespace (amends D49 §3; the surface COLOR stays a theme token)
+- **D64** → [`Core-Path-Registry-D64.md`](Core-Path-Registry-D64.md) — a host-handoff / non-owner fork TRANSFERS the room + history but DROPS the prior owner's character seats, keeping the humans (F4/PD-21 resolution; supersedes the fail-closed `cast_not_owned` refuse)
+- **D65** → [`Core-Path-Registry-D65.md`](Core-Path-Registry-D65.md) — OIDC group-derived roles: admin is grantable by the owner *through the IdP* (`OIDC_ADMIN_GROUPS`) alongside `admin.setRole`, `OIDC_ALLOWED_GROUPS` is a fail-closed login gate, roles re-derive each login when group governance is active, and the owner row is never group-derived/gated/downgraded (EXTENDS D17; + `ResolvedIdentity.email` as a nullable attribute)
 
 ## Enforcement registry
 

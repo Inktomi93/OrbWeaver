@@ -23,6 +23,9 @@ export type {
 } from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors";
+// The memory tuning shape + the PD-41 backfill config-resolver op (the composition root types its shared
+// `resolveMemoryConfig` closure against these — one home for the turn/sweep memory-config merge).
+export type { MemoryConfig, ResolveBackfillMemoryConfig } from "./contract/memory";
 // The `chats.metadata` parse-seam the composition root binds onto `ChatContext.getGroupConfig`/
 // `getRoomOverrides` (a thin convenience so chat verbs don't re-import the parser — see contract/context.ts).
 // `parseChatMetadata` additionally backs the entry root's chat-row → `RoutableChat` provider-routing
@@ -34,7 +37,7 @@ export {
   parseChatMetadata,
   TOOL_RECURSE_LIMIT_DEFAULT,
 } from "./contract/metadata";
-export type { TurnRequest, TurnStreamChunk } from "./contract/results";
+export type { TurnMessage, TurnRequest, TurnStreamChunk } from "./contract/results";
 export type { ChatService } from "./contract/service";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard";
 // The `@public` composition-root helpers (workload runners + bootstrap):

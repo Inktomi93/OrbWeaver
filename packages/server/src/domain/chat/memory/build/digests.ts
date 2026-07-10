@@ -9,6 +9,7 @@
 // Owner derives via the chat FK (D20 — NO ownerId param/stamp); group-ness is DATA (the `scope`), not a branch.
 
 import type { CharacterId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { ChatContext } from "../../contract/context";
 import { resolveCfg } from "../constants";
@@ -39,6 +40,7 @@ import {
   blockHash,
   blockSpeakerIds,
   consolidationHash,
+  EMPTY_MACRO_NAMES,
   renderTranscript,
   sliceBlocks,
 } from "./substrate/transcript";
@@ -46,8 +48,10 @@ import { spanWitnessed } from "./substrate/witnessing";
 
 /** What `generateDigests` needs (file-local, NON-exported — the `types-in-contract` gate; callers pass a
  *  structural literal, the `buildAssembleContext` precedent). `config` is the partial `memoryDefaults` (the
- *  composition root threads `AppSettings.memoryDefaults`); `names` resolve character labels for the summarizer
- *  prompt (live identity — D28); `scope` is the egocentric bucket (a real CharacterId — the synthetic group
+ *  composition root threads `AppSettings.memoryDefaults`); `macroNames` is the per-chat name producer
+ *  (`characterNamesById`/`personaNamesById`) resolving the summarizer transcript's speaker LABELS + the BODY
+ *  `{{char}}`/`{{user}}`/`{{persona}}` macros (live identity — D28 / G1), never the raw typeid/literal macro;
+ *  `scope` is the egocentric bucket (a real CharacterId — the synthetic group
  *  char for shared, a cast char for scoped). `witnessing` is the SCOPED-build gate (§4 / inv 12): when present,
  *  only blocks the scope character was present for (its join/leave horizons) are digested into its bucket — a
  *  character genuinely cannot remember a scene it wasn't in, incl. across kick→re-add. ABSENT ⇒ the shared
@@ -55,7 +59,7 @@ import { spanWitnessed } from "./substrate/witnessing";
 interface GenerateDigestsArgs {
   readonly scope: MemoryScope;
   readonly config?: MemoryConfig | null | undefined;
-  readonly names?: ReadonlyMap<CharacterId, string> | undefined;
+  readonly macroNames?: RowMacroNameContext | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly signal?: AbortSignal | undefined;
 }
@@ -65,6 +69,14 @@ interface Tier0Counts {
   written: number;
   skipped: number;
   skippedTokenGuard: number;
+  skippedEmpty: number;
+}
+
+/** A consolidation pass's fold (no token-guard tier — consolidations read stored facets, not raw blocks). */
+interface PassCounts {
+  written: number;
+  skipped: number;
+  skippedEmpty: number;
 }
 
 /**
@@ -80,7 +92,12 @@ export async function generateDigests(
   const startedAt = ctx.now();
   const cfg = resolveCfg(args.config);
   const { chatId, scopedCharacterId } = args.scope;
-  const emptyCounts: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0 };
+  const emptyCounts: Tier0Counts = {
+    written: 0,
+    skipped: 0,
+    skippedTokenGuard: 0,
+    skippedEmpty: 0,
+  };
   if (cfg.mode === "off") {
     logBuild(ctx, args.scope, { startedAt, counts: emptyCounts, note: "mode off" });
     return { written: 0, skipped: 0 };
@@ -94,7 +111,7 @@ export async function generateDigests(
       note: "summarizer context below floor",
     });
   }
-  const names = args.names ?? new Map<CharacterId, string>();
+  const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
 
   const { maxSeq } = await loadChatMeta(ctx.db, chatId);
   const cutoff = maxSeq - cfg.verbatimWindow;
@@ -115,7 +132,7 @@ export async function generateDigests(
   // The pre-pass staleness snapshot (ALL tiers for this bucket) — a parent's check reads its pre-pass hash.
   const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId);
 
-  const counts = await buildTier0(ctx, args, { blocks, existing, names });
+  const counts = await buildTier0(ctx, args, { blocks, existing, macroNames });
 
   // ── tiering: consolidate fanOut tier-k digests → one tier-(k+1) digest (the bounded story-so-far) ──
   const consolidated = await consolidateTiers(ctx, args.scope, {
@@ -127,6 +144,7 @@ export async function generateDigests(
     written: counts.written + consolidated.written,
     skipped: counts.skipped + consolidated.skipped,
     skippedTokenGuard: counts.skippedTokenGuard,
+    skippedEmpty: counts.skippedEmpty + consolidated.skippedEmpty,
   };
   logBuild(ctx, args.scope, { startedAt, counts: total });
   return { written: total.written, skipped: total.skipped };
@@ -140,11 +158,11 @@ async function buildTier0(
   env: {
     readonly blocks: readonly BlockSpan[];
     readonly existing: ReadonlyMap<string, string>;
-    readonly names: ReadonlyMap<CharacterId, string>;
+    readonly macroNames: RowMacroNameContext;
   },
 ): Promise<Tier0Counts> {
   const { chatId, scopedCharacterId, isGroup } = args.scope;
-  const counts: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0 };
+  const counts: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
   const systemPromptTokens = estimateTokens(DIGEST_SYSTEM_PROMPT);
   for (const block of env.blocks) {
     args.signal?.throwIfAborted();
@@ -157,7 +175,7 @@ async function buildTier0(
     // skip-and-flag when even the newest single message overflows. NEVER a silent tail truncation.
     const fitted = fitBlockToBudget(
       block.rows,
-      env.names,
+      env.macroNames,
       ctx.summarizerContextTokens,
       systemPromptTokens,
     );
@@ -165,12 +183,19 @@ async function buildTier0(
       counts.skippedTokenGuard += 1;
       continue;
     }
-    const transcript = renderTranscript(fitted, env.names);
+    const transcript = renderTranscript(fitted, env.macroNames);
     // biome-ignore lint/performance/noAwaitInLoops: the summarizer is metered + the in-flight set guards spend — blocks are summarized sequentially, not fanned out (knowledge-cluster esoteric).
     const res = await ctx.summarize([
       { systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) },
     ]);
     const raw = res.items.at(0)?.text ?? "";
+    // SKIP-AND-FLAG on empty summarizer output (§3a / D55(8)): storing a blank digest keyed by this block's
+    // content-hash would make the staleness gate skip it FOREVER with empty text (permanently absent from
+    // `{{memory}}`). Don't store — leave the block un-digested so the NEXT build retries it; flag it visibly.
+    if (raw.trim().length === 0) {
+      counts.skippedEmpty += 1;
+      continue;
+    }
     const parsed = parseDigest(raw);
     // biome-ignore lint/performance/noAwaitInLoops: the digest must be stored before the next block (and before consolidation reads it back) — the writes are ordered, not parallel.
     await ctx.embeddingsStore({
@@ -210,6 +235,7 @@ function logBuild(
       summarizeCalls: counts.written,
       embedCalls: counts.written,
       blocksSkippedTokenGuard: counts.skippedTokenGuard,
+      blocksSkippedEmpty: counts.skippedEmpty,
       ms: ctx.now() - startedAt,
     },
     ...(note !== undefined ? { note } : {}),
@@ -227,10 +253,11 @@ async function consolidateTiers(
     readonly existing: ReadonlyMap<string, string>;
     readonly signal: AbortSignal | undefined;
   },
-): Promise<MemoryPassCounts> {
+): Promise<PassCounts> {
   const { cfg, existing, signal } = args;
   let written = 0;
   let skipped = 0;
+  let skippedEmpty = 0;
   for (let tier = 0; tier < cfg.maxTier; tier += 1) {
     signal?.throwIfAborted();
     // biome-ignore lint/performance/noAwaitInLoops: a tier consolidates the PRIOR tier's rows — the read at tier k depends on the writes at tier k-1, so the walk is inherently sequential.
@@ -252,8 +279,9 @@ async function consolidateTiers(
     });
     written += pass.written;
     skipped += pass.skipped;
+    skippedEmpty += pass.skippedEmpty;
   }
-  return { written, skipped };
+  return { written, skipped, skippedEmpty };
 }
 
 /** The per-tier consolidation write loop (split out to keep `consolidateTiers` under the cognitive-complexity
@@ -270,9 +298,10 @@ async function writeConsolidations(
     readonly existing: ReadonlyMap<string, string>;
     readonly signal: AbortSignal | undefined;
   },
-): Promise<MemoryPassCounts> {
+): Promise<PassCounts> {
   let written = 0;
   let skipped = 0;
+  let skippedEmpty = 0;
   const parentTier = env.tier + 1;
   for (const [parentBlockIdx, group] of [...env.groups].sort((a, b) => a[0] - b[0])) {
     env.signal?.throwIfAborted();
@@ -297,6 +326,12 @@ async function writeConsolidations(
       },
     ]);
     const raw = res.items.at(0)?.text ?? "";
+    // SKIP-AND-FLAG on empty consolidation output (mirrors the tier-0 guard, D55(8)): a blank arc digest keyed
+    // by `parentHash` would skip forever with empty text — don't store it, so the next build retries.
+    if (raw.trim().length === 0) {
+      skippedEmpty += 1;
+      continue;
+    }
     const parsed = parseDigest(raw);
     // biome-ignore lint/performance/noAwaitInLoops: ordered write (the next tier reads it back) — not parallelizable.
     await ctx.embeddingsStore({
@@ -316,7 +351,7 @@ async function writeConsolidations(
     });
     written += 1;
   }
-  return { written, skipped };
+  return { written, skipped, skippedEmpty };
 }
 
 /** Group tier-k digests by their parent index (`floor(blockIdx / fanOut)`) — a complete group (length ===

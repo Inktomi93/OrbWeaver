@@ -50,9 +50,13 @@ export interface AuthSeamDeps {
 }
 
 /** Per-request knobs. `onSessionSlide` fires with the slid expiry on a throttled cookie session slide so
- *  the HTTP layer can refresh the cookie Max-Age (inert when no response Context is in hand). */
+ *  the HTTP layer can refresh the cookie Max-Age (inert when no response Context is in hand). `peerIp` is
+ *  the raw TCP peer socket address (`infra/network.peerIp(c)`) the forward-header UNSIGNED trusted-proxy
+ *  gate matches against — absent ⇒ that path fails closed (B1 anti-spoof: the gate keys on the socket peer,
+ *  never a spoofable forwarded header). */
 export interface PerRequestSeamDeps {
   readonly onSessionSlide?: (expiresAt: number) => void;
+  readonly peerIp?: string;
 }
 
 /** The seam OUTPUT: the immutable `Principal` (or `null` for an anonymous / disabled caller → transport
@@ -138,6 +142,11 @@ async function resolveHeaderOrFallbackPrincipal(
     };
   }
   const provisioned = await sessions.provisionIdentity(res.identity);
+  // DENIED (OIDC_ALLOWED_GROUPS gate refused) or DISABLED → anonymous → transport 401. A denied identity
+  // never created a row; a disabled one takes effect on this request. Both collapse to null here.
+  if (provisioned.outcome === "denied") {
+    return null;
+  }
   if (!provisioned.enabled) {
     return null;
   }
@@ -201,6 +210,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       config,
       ...(deps.verifyForwardJwt !== undefined && { verifyForwardJwt: deps.verifyForwardJwt }),
       ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
+      ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
     });
     const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res);
     return { principal, csrfHeaderPresent };

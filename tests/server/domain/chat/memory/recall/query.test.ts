@@ -14,7 +14,14 @@ const aria = castId<CharacterId>("character_aria");
 const scope: MemoryScope = { chatId, scopedCharacterId: aria, isGroup: true };
 
 function row(seq: number, content: string): MsgRow {
-  return { seq, role: "assistant", characterId: aria, authorUserId: null, content };
+  return {
+    seq,
+    role: "assistant",
+    characterId: aria,
+    authorUserId: null,
+    personaId: null,
+    content,
+  };
 }
 
 describe("memory/recall/query — buildRecallQuery", () => {

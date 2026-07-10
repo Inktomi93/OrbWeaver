@@ -33,19 +33,33 @@ export async function insertCharacter(db: Db, values: CharacterInsert): Promise<
 }
 
 /** Edit the live card row in place (owner-scoped). Returns `true` if a row was updated (i.e. owned/found).
- *  No `updatedAt` column exists (D28) — the caller recomputes `contentHash` and includes it in `edits`. */
+ *  No `updatedAt` column exists (D28) — the caller recomputes `contentHash` and includes it in `edits`. A
+ *  `handle` edit can trip the per-owner `(ownerId, handle)` unique index → the same typed
+ *  `CharacterOperationError("handle_conflict")` `insertCharacter` raises (never a raw DB error surfacing). */
 export async function writeCardInPlace(
   db: Db,
   characterId: CharacterId,
   ownerId: UserId,
   edits: CharacterEdits,
 ): Promise<boolean> {
-  const updated = await db
-    .update(characters)
-    .set(edits)
-    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-    .returning({ id: characters.id });
-  return updated.length > 0;
+  try {
+    const updated = await db
+      .update(characters)
+      .set(edits)
+      .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+      .returning({ id: characters.id });
+    return updated.length > 0;
+  } catch (err) {
+    if (isConstraintViolation(err)?.kind === "unique") {
+      const conflict = new CharacterOperationError(
+        CHARACTER_HANDLE_CONFLICT,
+        `a character with handle "${edits.handle}" already exists`,
+      );
+      conflict.cause = err;
+      throw conflict;
+    }
+    throw err;
+  }
 }
 
 /** Append a `character_snapshots` history blob (the "git commit"). Nothing FKs this table (invariant 4). */

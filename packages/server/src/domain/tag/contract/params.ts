@@ -38,7 +38,22 @@ export interface RemoveTagParams extends TagActorParams {
   readonly tagId: TagId;
 }
 
+export interface MergeTagsParams extends TagActorParams {
+  /** The tag to fold away — every attachment re-points to `targetTagId`, then this row is deleted. */
+  readonly sourceTagId: TagId;
+  /** The tag that survives (absorbs the source's attachments). Both must be owned by `principal`; equal
+   *  ids are a `DomainOperationError` (a self-merge is nonsensical, not a no-op). */
+  readonly targetTagId: TagId;
+}
+
 export interface ListTagsWithUsageParams extends TagActorParams {}
+
+/** The pending-suggestion review read (PD-40 distill + import staged card tags). `characterId` narrows to ONE
+ *  editor's suggestions; absent = the owner's whole pending inbox. Owner-scoped on `principal.userId` (resolved
+ *  via `characters.ownerId` — the junction carries no owner, D23). */
+export interface ListPendingSuggestionsParams extends TagActorParams {
+  readonly characterId?: CharacterId;
+}
 
 export interface PruneUnusedTagsParams extends TagActorParams {}
 

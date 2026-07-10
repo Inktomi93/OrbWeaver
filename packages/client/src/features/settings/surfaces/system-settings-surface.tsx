@@ -33,13 +33,13 @@ import {
   SYSTEM_SETTINGS_ENTITY_ID,
   useSystemSettingsForm,
 } from "../hooks/use-system-settings-form";
+import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
 import { SYSTEM_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
 import {
   CONCURRENCY_MIN,
   diffSystemPatch,
   LOCAL_COMPUTE_BUDGET_MIN,
-  LOG_LEVEL_ITEMS,
   MAX_IMAGE_MB_MAX,
   MAX_IMAGE_MB_MIN,
   MAX_IMAGE_MB_STEP,
@@ -98,12 +98,24 @@ function SystemForm(): ReactElement {
   });
   const update = useUpdateSystem({ trpc, invalidation });
 
-  // The mount baseline: only fields moved AWAY from it are written as overrides (see the file header).
+  // Two baselines (system-settings-model.ts `diffSystemPatch`): `original` is the MOUNT effective config —
+  // the inherited/default a reverted control clears back to; `lastSaved` tracks the last PERSISTED state
+  // and is refreshed from every save RESULT (the fresh effective config `updateAppSettings` returns), so a
+  // toggle-back genuinely CLEARS its server-side override instead of being silently omitted (the F2 stuck-
+  // override bug — the server merges patches, so an unsent revert leaves the away value pinned).
   const serverForm = projectSystemForm(config);
-  const baselineRef = useRef(serverForm);
+  const originalRef = useRef(serverForm);
+  const lastSavedRef = useRef(serverForm);
 
-  const save = (values: SystemSettingsForm): Promise<unknown> =>
-    update.mutateAsync({ partial: diffSystemPatch(baselineRef.current, values) });
+  const save = async (values: SystemSettingsForm): Promise<EffectiveAppConfig> => {
+    const partial = diffSystemPatch(
+      { original: originalRef.current, lastSaved: lastSavedRef.current },
+      values,
+    );
+    const result = await update.mutateAsync({ partial });
+    lastSavedRef.current = projectSystemForm(result);
+    return result;
+  };
 
   const { form, mountKey } = useSystemSettingsForm({
     entityId: SYSTEM_SETTINGS_ENTITY_ID,

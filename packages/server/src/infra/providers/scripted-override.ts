@@ -88,10 +88,12 @@ export function buildScriptedOverrideRunner(
     return Promise.resolve({
       reply,
       reasoning: "",
+      reasoningRedacted: false,
       stopReason: "end_turn",
       terminalReason: isSdk ? "completed" : null,
       finishReason: normalizeFinishReason("end_turn"),
       ttftMs: null,
+      warmSpareClaimed: null,
       durationApiMs: null,
       apiErrorStatus: null,
       numTurns: 1,

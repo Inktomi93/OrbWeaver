@@ -46,17 +46,20 @@
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import type { DuplicateCharacterPairId, ThemeClusterId, UserId } from "@orb/kit/ids";
-// Type-only cross-feature SHAPE import (depcruise domain-no-cross-feature: type-only across features is
-// allowed; the runtime op is wired at the entry composition root). discovery imports no embeddings runtime.
+// Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
+// allowed; the runtime op is wired at the entry composition root). discovery imports no embeddings/tag runtime.
 import type { EmbeddingsService } from "#domain/embeddings";
+import type { TagService } from "#domain/tag";
 import type {
   ComputeDuplicatesOptions,
   ComputeHubScoresOptions,
   ComputeThemesOptions,
+  DistillCharactersOptions,
   DuplicateCharactersOptions,
   ThemeLevel,
 } from "./params";
 import type {
+  DistillStats,
   DuplicateCharacterPair,
   DuplicateComputeStats,
   HubStats,
@@ -70,8 +73,15 @@ import type {
 export type WriteHubScores = EmbeddingsService["writeHubScores"];
 
 /** The bound `summarize` role thunk (credential+model already bound at the root). discovery's ONLY inference
- *  surface — used for theme naming; it never receives `embed` (it embeds nothing). */
+ *  surface — used for theme naming + the distill pass; it never receives `embed` (it embeds nothing). */
 export type Summarize = RoleClients["summarize"];
+
+/** The tag-staging seam — tag's `attachCardTagByName` verb, bound at the entry root (type-only `#domain/tag`
+ *  SHAPE import, depcruise `domain-no-cross-feature`: type-only across features is allowed; the runtime op is
+ *  wired at the root). The distill pass stages each distilled label as a `source:'auto', status:'pending'`
+ *  suggestion through it — idempotent, and it NEVER downgrades an already-`accepted` row (the verb's
+ *  `onConflictDoNothing`). The ONLY tag write discovery touches. */
+export type AttachCardTagByName = TagService["attachCardTagByName"];
 
 // ── the standalone-compute DEPS shapes (the workload runners construct these directly) ─────────────────
 // The `compute*` passes keep a `(db, deps, opts?)` standalone export (re-exported
@@ -96,6 +106,16 @@ export interface ComputeHubScoresDeps {
   readonly writeHubScores: WriteHubScores;
 }
 
+/** Deps for the standalone `distillCharacters` pass (PD-40 write-half). The bound `summarize` thunk + its
+ *  model id (stamped on `character_summaries.model`), the injected tag-staging seam, and the clock. The
+ *  `distill-characters` workload runner + the on-demand router verb both construct this slice directly. */
+export interface DistillCharactersDeps {
+  readonly now: () => number;
+  readonly summarize: Summarize;
+  readonly summarizerModel: string;
+  readonly attachCardTagByName: AttachCardTagByName;
+}
+
 // ── the DI bundle (the full context the service factory closes over) ──────────
 /**
  * The DI bundle the discovery verbs close over (assembled at `entry/`, surfaced via `context.ts`). It is the
@@ -108,6 +128,11 @@ export interface DiscoveryContext {
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly summarize: Summarize;
+  /** The summarize model id — stamped on `character_summaries.model` (distill provenance). Read from the
+   *  bound `RoleClients.summarizerModel` at the root (the same value `summarize` is bound to). */
+  readonly summarizerModel: string;
+  /** The tag-staging seam (distill's ONLY tag write) — wired to `tag.attachCardTagByName` at the root. */
+  readonly attachCardTagByName: AttachCardTagByName;
   readonly writeHubScores: WriteHubScores;
 }
 
@@ -134,6 +159,14 @@ export interface DiscoveryService {
     userId: UserId,
     opts?: DuplicateCharactersOptions,
   ) => Promise<DuplicateCharacterPair[]>;
+
+  // ── distill (PD-40 write-half: character summaries + staged tag suggestions) ───────────────
+  /** Distill each character's current card into `character_summaries` facets AND stage its distilled labels
+   *  as `source:'auto', status:'pending'` tag suggestions (the Accept/Reject queue) — via the injected
+   *  `summarize` role (swappable) + the `attachCardTagByName` seam. `opts.characterId` narrows to ONE card
+   *  (the on-demand editor "Suggest tags" button, owner-scoped by `opts.ownerId`); absent = the whole-library
+   *  batch (the `distill-characters` workload). Idempotent (upsert by characterId; no-downgrade tag attach). */
+  readonly distillCharacters: (opts?: DistillCharactersOptions) => Promise<DistillStats>;
 
   // ── themes (workload compute + owner-scoped read) ───────────────────────────
   /** Recompute every owner's emergent themes (k-means over solo digest embeddings per level/space, full

@@ -39,6 +39,22 @@ export interface ProviderErrorInit {
   readonly resetsAt?: number;
   /** The upstream HTTP status, when an HTTP backend produced one. */
   readonly apiErrorStatus?: number;
+  /** The model this turn ran against — debuggability provenance (which model failed). */
+  readonly model?: string;
+  /** The RAW backend terminal/subtype string this failure was classified from (agent-sdk dialect, e.g.
+   *  "blocking_limit"/"prompt_too_long") — string-only provenance, NOT an SDK type (D8 keeps the contract
+   *  SDK-free). Lets an operator see WHICH specific cause collapsed onto the generic `kind`. */
+  readonly terminalReason?: string;
+  /** The specific SDK code the classification narrowed from (e.g. "oauth_org_not_allowed" vs the generic
+   *  "auth_failed" kind) — a plain string, the debuggable identity behind the normalized `kind`. */
+  readonly detail?: string;
+  /** The backend-internal session this failure occurred on (agent-sdk resume-cache id). Provenance ONLY —
+   *  never surfaced on the SDK-free `ChatResult` (the session is backend-internal), but carried on the
+   *  error so `toLog()` can correlate a failure to its session in the log stream. */
+  readonly sessionId?: string;
+  /** The upstream request/generation id, when an HTTP backend's response exposes one — correlates a
+   *  failure to the provider's own trace (e.g. OpenRouter's generation id). */
+  readonly requestId?: string;
   /** The underlying cause, chained for diagnostics (never logged as the user-facing message). */
   readonly cause?: unknown;
 }
@@ -53,6 +69,11 @@ export class ProviderError extends Error {
   readonly retryable: boolean;
   readonly resetsAt: number | undefined;
   readonly apiErrorStatus: number | undefined;
+  readonly model: string | undefined;
+  readonly terminalReason: string | undefined;
+  readonly detail: string | undefined;
+  readonly sessionId: string | undefined;
+  readonly requestId: string | undefined;
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
@@ -61,5 +82,32 @@ export class ProviderError extends Error {
     this.retryable = init.retryable;
     this.resetsAt = init.resetsAt;
     this.apiErrorStatus = init.apiErrorStatus;
+    this.model = init.model;
+    this.terminalReason = init.terminalReason;
+    this.detail = init.detail;
+    this.sessionId = init.sessionId;
+    this.requestId = init.requestId;
+  }
+
+  /**
+   * The full provenance of this failure as a flat structured record for `getLog().error(err.toLog(), …)`
+   * — every carried field surfaces as its own log key so an aggregator never has to parse a flattened
+   * message. Absent optionals are omitted (no `undefined` noise in the line). The `cause` is deliberately
+   * NOT included: it is chained for a stack trace via the standard `err` serializer, not flattened here.
+   * A field added to {@link ProviderErrorInit} MUST be mirrored here — the errors test asserts coverage.
+   */
+  toLog(): Record<string, unknown> {
+    return {
+      kind: this.kind,
+      retryable: this.retryable,
+      message: this.message,
+      ...(this.model !== undefined ? { model: this.model } : {}),
+      ...(this.terminalReason !== undefined ? { terminalReason: this.terminalReason } : {}),
+      ...(this.detail !== undefined ? { detail: this.detail } : {}),
+      ...(this.resetsAt !== undefined ? { resetsAt: this.resetsAt } : {}),
+      ...(this.apiErrorStatus !== undefined ? { apiErrorStatus: this.apiErrorStatus } : {}),
+      ...(this.sessionId !== undefined ? { sessionId: this.sessionId } : {}),
+      ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
+    };
   }
 }

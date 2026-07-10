@@ -37,9 +37,16 @@ export interface ReconcileStatsWorkloadResult {
   readonly characters: number;
 }
 
-/** The model-catalog refresh — COUNTS ONLY (no provider entry shapes leak into the workloads contract). */
+/** The model-catalog refresh — COUNTS ONLY (no provider entry shapes leak into the workloads contract).
+ *  The one `refresh-model-catalog` workload refreshes BOTH provider catalogs on its daily tick: the
+ *  OpenRouter `/models` snapshot (`models`) and the agent-sdk daemon `supportedModels()` map
+ *  (`agentSdkModels`). Each lane is best-effort AND INDEPENDENT: one lane's failure never kills the other.
+ *  A refreshed lane reports its snapshot size; a FAILED lane reports `null` (distinct from `0`, which is a
+ *  real empty catalog — `null` means "this lane could not refresh, stale snapshot served"). The whole run
+ *  only fails when BOTH lanes fail (nothing was accomplished). */
 export interface CatalogRefreshResult {
-  readonly models: number;
+  readonly models: number | null;
+  readonly agentSdkModels: number | null;
 }
 
 /** A deferred (P5/v2-stub) runner's terminal projection — an inert run that completed without doing the

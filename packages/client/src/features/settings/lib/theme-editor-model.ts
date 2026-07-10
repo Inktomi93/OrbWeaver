@@ -1,7 +1,8 @@
 // The theme-editor form MODEL (D44 §12.1 · themes-design §3.2): the flat form value shape the editor
 // binds, the ⇄ mappers to the `Theme` entity / `CreateThemeInput`, sensible (Hearth-derived) defaults for
-// a from-scratch theme, a browser-based WCAG contrast helper (Tier-2 readability feedback), and the
-// themeable-var reference the CSS editor surfaces. The picker exposes only the SEED set (surfaces + accent
+// a from-scratch theme, and the themeable-var reference the CSS editor surfaces (the browser-based WCAG
+// contrast helper lives in the sibling `theme-contrast`, kept out so this model stays DOM-free). The
+// picker exposes only the SEED set (surfaces + accent
 // + the RP text colors + the 3 bubble bgs + border + font/radius/chatStyle/density); the neutral ramp AND
 // all foregrounds are DERIVED by <ThemeScope> (never picked) — so this model carries no foreground fields.
 
@@ -89,25 +90,53 @@ export function themeFormFromEntity(theme: Theme): ThemeFormValues {
   };
 }
 
-/** Build the `ThemeOverride` from the flat form values (an empty `borderColor` string ⇒ omit it, so the
- *  border derives from the base surface). Bubble foregrounds are NOT set — they derive at apply-time. */
+/** The clearable color fields — an empty string ⇒ OMIT (the ColorField per-field clear, FINAL-Character
+ *  §8.1): the token drops from the override so <ThemeScope> derives/inherits it (a cleared `background`
+ *  falls back to the app default surface; a cleared `borderColor` derives from the base surface). */
+const CLEARABLE_COLOR_KEYS = [
+  "background",
+  "accent",
+  "borderColor",
+  "speaker",
+  "dialogueColor",
+  "narrationColor",
+  "bodyColor",
+] as const;
+
+/** A bubble bg → `{ bg }` unless cleared (empty ⇒ omit the whole bubble so it inherits). */
+function bubbleFromBg(bg: string): { bg: string } | undefined {
+  return bg.trim() === "" ? undefined : { bg };
+}
+
+/** Build the `ThemeOverride` from the flat form values. A cleared color field ("" — the ColorField's
+ *  per-field clear) is OMITTED so that token inherits/derives via <ThemeScope> rather than shipping a
+ *  literal empty color. Enum fields (font/radius/style/density) are fixed-choice Selects, never cleared.
+ *  Bubble foregrounds are NOT set — they derive at apply-time. */
 export function themeOverrideFromForm(v: ThemeFormValues): ThemeOverride {
-  return {
-    background: v.background,
-    accent: v.accent,
-    ...(v.borderColor.trim() === "" ? {} : { borderColor: v.borderColor }),
-    speaker: v.speaker,
-    dialogueColor: v.dialogueColor,
-    narrationColor: v.narrationColor,
-    bodyColor: v.bodyColor,
-    userBubble: { bg: v.userBubbleBg },
-    aiBubble: { bg: v.aiBubbleBg },
-    systemBubble: { bg: v.systemBubbleBg },
+  const o: ThemeOverride = {
     font: v.font,
     radius: v.radius,
     chatStyle: v.chatStyle,
     density: v.density,
   };
+  for (const key of CLEARABLE_COLOR_KEYS) {
+    if (v[key].trim() !== "") {
+      o[key] = v[key];
+    }
+  }
+  const userBubble = bubbleFromBg(v.userBubbleBg);
+  if (userBubble !== undefined) {
+    o.userBubble = userBubble;
+  }
+  const aiBubble = bubbleFromBg(v.aiBubbleBg);
+  if (aiBubble !== undefined) {
+    o.aiBubble = aiBubble;
+  }
+  const systemBubble = bubbleFromBg(v.systemBubbleBg);
+  if (systemBubble !== undefined) {
+    o.systemBubble = systemBubble;
+  }
+  return o;
 }
 
 /** Build the create/update input from the form values. */
@@ -119,68 +148,8 @@ export function themeInputFromForm(v: ThemeFormValues): CreateThemeInput {
   };
 }
 
-// ── WCAG contrast (Tier-2 readability feedback) ────────────────────────────────────────────────────
-// Browser-resolved: any CSS color (oklch / relative / hex / named) → rgb via getComputedStyle, then the
-// standard WCAG relative-luminance + contrast-ratio. Runs only in the editor (a settings surface, not a
-// hot path). Returns null when a color can't be resolved (SSR/degenerate) — the caller shows no badge.
-const SRGB_MAX = 255;
-// biome-ignore lint/style/useNumericSeparators: the WCAG sRGB linearization threshold — a standard constant; separators would obscure it.
-const SRGB_THRESHOLD = 0.03928;
-const SRGB_LINEAR_DIV = 12.92;
-const SRGB_OFFSET = 0.055;
-const SRGB_SCALE = 1.055;
-const SRGB_GAMMA = 2.4;
-const LUMA_R = 0.2126;
-const LUMA_G = 0.7152;
-const LUMA_B = 0.0722;
-const CONTRAST_OFFSET = 0.05;
-const RGB_RE = /rgba?\(([^)]+)\)/u;
-
-/** WCAG AA floor for body text. Below this, the editor shows a "hard to read" warning (non-blocking). */
-export const AA_CONTRAST_FLOOR = 4.5;
-
-function resolveRgb(color: string): readonly [number, number, number] | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-  const el = document.createElement("span");
-  el.style.color = color;
-  el.style.display = "none";
-  document.body.appendChild(el);
-  const computed = getComputedStyle(el).color;
-  el.remove();
-  const match = RGB_RE.exec(computed);
-  if (match?.[1] === undefined) {
-    return null;
-  }
-  const parts = match[1].split(",").map((s) => Number.parseFloat(s));
-  const [r, g, b] = parts;
-  return r === undefined || g === undefined || b === undefined ? null : [r, g, b];
-}
-
-function relativeLuminance([r, g, b]: readonly [number, number, number]): number {
-  const lin = (channel: number): number => {
-    const c = channel / SRGB_MAX;
-    return c <= SRGB_THRESHOLD
-      ? c / SRGB_LINEAR_DIV
-      : ((c + SRGB_OFFSET) / SRGB_SCALE) ** SRGB_GAMMA;
-  };
-  return LUMA_R * lin(r) + LUMA_G * lin(g) + LUMA_B * lin(b);
-}
-
-/** The WCAG contrast ratio (1–21) between two CSS colors, or null if either can't be resolved. */
-export function contrastRatio(foreground: string, background: string): number | null {
-  const fg = resolveRgb(foreground);
-  const bg = resolveRgb(background);
-  if (fg === null || bg === null) {
-    return null;
-  }
-  const lf = relativeLuminance(fg);
-  const lb = relativeLuminance(bg);
-  const lighter = Math.max(lf, lb);
-  const darker = Math.min(lf, lb);
-  return (lighter + CONTRAST_OFFSET) / (darker + CONTRAST_OFFSET);
-}
+// WCAG contrast feedback (AA_CONTRAST_FLOOR / contrastRatio) lives in the sibling `theme-contrast` — it
+// is browser-only (getComputedStyle) and kept OUT of this model so the mappers stay DOM-free/node-testable.
 
 /** The themeable CSS custom properties an author may target in the custom-CSS box — sourced from the ONE
  *  machine-current list (`THEME_SCOPE_EMIT_VARS`), so the reference never drifts from what actually emits. */

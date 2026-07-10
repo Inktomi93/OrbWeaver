@@ -31,6 +31,12 @@ describe("memory/build/substrate/parse", () => {
     expect(parseDigest("\n\n[anchor]\nfacts").topicAnchor).toBe("[anchor]");
   });
 
+  test("a blank input (empty or all-whitespace) parses to an empty result", () => {
+    expect(parseDigest("")).toEqual({ topicAnchor: "", facts: "", keywords: [] });
+    expect(parseDigest("   ")).toEqual({ topicAnchor: "", facts: "", keywords: [] });
+    expect(parseDigest("\n\n\n")).toEqual({ topicAnchor: "", facts: "", keywords: [] });
+  });
+
   test("renderDigestFacets composes anchor + keywords; handles each absent", () => {
     expect(renderDigestFacets({ topicAnchor: "[a]", keywords: ["k1", "k2"] })).toBe(
       // biome-ignore lint/security/noSecrets: digest fixture string, not a credential.

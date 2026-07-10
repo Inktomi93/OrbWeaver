@@ -40,7 +40,9 @@ export const characterSprites = sqliteTable(
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
     // Management-UI sort + sheet-job forensics; stamped from the injected clock (test-determinism law).
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    // Plain epoch-ms NUMBER column (never drizzle `timestamp`/Date) — the repo-wide timestamp law
+    // (schema/stats.ts): contracts/views type every timestamp as `number`, cross-table sorts compare ms.
+    createdAt: integer("created_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.characterId, t.label] })],
 );

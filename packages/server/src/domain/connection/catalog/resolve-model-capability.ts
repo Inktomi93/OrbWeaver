@@ -14,11 +14,12 @@
 // (infra→domain is illegal upward). Reasoning/sampling/verbosity/output/context are DISTINCT axes; nothing
 // here collapses them into a cascade, and `effortLevels` never carries a `'none'` member.
 
-import type { ChatSource, ModelCapability, Range } from "@orb/contracts/connection";
+import type { AgentSdkModel, ChatSource, ModelCapability, Range } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { getChatModel } from "./chat-models";
 import type { MODEL_FAMILIES } from "./model-family";
 import { detectModelFamily } from "./model-family";
+import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias";
 
 // ── Named bounds (noMagicNumbers). DEFER(promotion): the exact synthesized ranges are the "quality →
 //    axes mapping" deferred item (proposed/connection-capability-panel.md) — the SHAPE (per-knob ranges, distinct
@@ -184,16 +185,25 @@ export function resolveModelCapability(
   model: ModelId | string,
   source: ChatSource,
   orEntry?: { contextLength: number | null; supportedParameters: readonly string[] } | undefined,
+  agentSdkModels?: readonly AgentSdkModel[] | null | undefined,
 ): ModelCapability {
   const curated = getChatModel(model);
   if (curated !== undefined) {
     return curated.capability;
   }
   switch (source) {
-    case "max-pro-sub":
-      // A max-pro-sub turn always rides a curated Claude id (returned above). A non-curated id on this
-      // source is incoherent upstream — a conservative no-reasoning profile rather than synthesis.
+    case "max-pro-sub": {
+      // The family→version fix: a bare family alias (`sonnet`/`opus`/`haiku`) or a stale/uncurated id that
+      // the curated lookup above missed resolves via the DAEMON's live map (`resolveAgentSdkAlias`) to the
+      // current version + its reported capability flags — DAEMON-owned, so identical for the sub + OR-skin.
+      const daemon = resolveAgentSdkAlias(model, agentSdkModels ?? null);
+      if (daemon !== undefined) {
+        return daemon.capability;
+      }
+      // No curated match AND no daemon row (cold cache / unknown id) — a conservative no-reasoning profile
+      // rather than synthesis (a max-pro-sub turn is Claude-only; synthesis would fabricate the wrong axes).
       return staticProfile(OR_DEFAULT_WINDOW, false);
+    }
     case "openrouter":
       return synthesizeOpenRouter(model, orEntry);
     case "vllm":

@@ -117,8 +117,18 @@ describe("oracle reference integrity (no orbweaver assembly needed)", () => {
 // vs neo's discarded -1), not raw equality. Every other case is full byte-parity.
 const NEO_QUIRK_DIVERGENT = "scoped-egocentric-history";
 
+// F2 — the SECOND deliberate divergence. neo squashed adjacent DISTINCT-character assistant rows BEFORE
+// the name-stamp, so a group per-speaker round delivered the later speaker's line under the FIRST
+// character's name (its captured `named`/`history` carry that bug: `"Aria: Aria's line\n\nKai's line"`).
+// orbweaver stamps names BEFORE the final squash (shape.ts), so the merged block keeps EVERY speaker's
+// label (`"…\n\nKai: Kai's line"`) — Kai's line is attributed to Kai. The PRE-name stages (withTail /
+// injected / squashed) + the breakpoint are byte-identical (a per-row label never changes role-adjacency);
+// the divergence is the name-stamp output only.
+const F2_ATTRIBUTION_DIVERGENT = "group-per-speaker-nudge-abort";
+const DIVERGENT: ReadonlySet<string> = new Set([NEO_QUIRK_DIVERGENT, F2_ATTRIBUTION_DIVERGENT]);
+
 describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`, () => {
-  for (const c of fixture.cases.filter((x) => x.name !== NEO_QUIRK_DIVERGENT)) {
+  for (const c of fixture.cases.filter((x) => !DIVERGENT.has(x.name))) {
     test(`${c.name}: assembled history + breakpoint byte-matches neo`, () => {
       const neo = req(reference.cases[c.name], c.name);
       const orb = runOrbweaverShape(c);
@@ -149,6 +159,27 @@ describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`
     expect(neo.cacheBreakpointFromEnd).toBe(-1);
     expect(orb.cacheBreakpointFromEnd).toBeNull();
     expect(orb.targetIdx).toBeNull();
+  });
+
+  test(`${F2_ATTRIBUTION_DIVERGENT}: pre-name stages + breakpoint match neo; the name-stamp fixes F2`, () => {
+    const c = req(
+      fixture.cases.find((x) => x.name === F2_ATTRIBUTION_DIVERGENT),
+      F2_ATTRIBUTION_DIVERGENT,
+    );
+    const neo = req(reference.cases[F2_ATTRIBUTION_DIVERGENT], F2_ATTRIBUTION_DIVERGENT);
+    const orb = runOrbweaverShape(c);
+    // The pre-name SHAPE stages + the (nudge-aborted) breakpoint are byte-identical to neo.
+    expect(orb.multiCharacter).toBe(neo.multiCharacter);
+    expect(orb.withTail).toEqual(neo.withTail);
+    expect(orb.injected).toEqual(neo.injected);
+    expect(orb.squashed).toEqual(neo.squashed);
+    expect(orb.cacheBreakpointFromEnd).toBe(neo.cacheBreakpointFromEnd);
+    expect(orb.targetIdx).toBe(neo.targetIdx);
+    // The DELIBERATE fix: neo lost Kai's label under squash-before-name; orbweaver keeps it.
+    const neoAsst = neo.history.find((r) => r.role === "assistant" && r.content.includes("Aria's"));
+    const orbAsst = orb.history.find((r) => r.role === "assistant" && r.content.includes("Aria's"));
+    expect(neoAsst?.content).toBe("Aria: Aria's line\n\nKai's line");
+    expect(orbAsst?.content).toBe("Aria: Aria's line\n\nKai: Kai's line");
   });
 
   test("the rolling pair byte-matches + the cacheWrite/read delta is preserved", () => {

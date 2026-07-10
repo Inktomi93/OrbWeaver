@@ -24,6 +24,7 @@
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -240,18 +241,7 @@ export function speakerThemesByName(
   return byName;
 }
 
-const INITIALS_FALLBACK = "?";
-const WHITESPACE = /\s+/u;
-
-/** A short (≤2-char) initials fallback for the avatar's un-imaged state — derives from the first
- *  letter of up to the first two whitespace-separated words. Pure display formatting, not identity. */
-export function initialsForAttribution(name: string): string {
-  const words = name
-    .trim()
-    .split(WHITESPACE)
-    .filter((word) => word.length > 0);
-  const first = words[0]?.charAt(0) ?? "";
-  const second = words[1]?.charAt(0) ?? "";
-  const initials = `${first}${second}`.toUpperCase();
-  return initials.length > 0 ? initials : INITIALS_FALLBACK;
-}
+/** A short (≤2-char) initials fallback for the avatar's un-imaged state, under the historical name. The
+ *  ONE grapheme-safe implementation now lives in `@orb/kit/initials` (was a local charAt-based copy that
+ *  split surrogate pairs — "😀Bob" → a lone high surrogate; the kit segmenter yields whole clusters). */
+export const initialsForAttribution = initialsFor;

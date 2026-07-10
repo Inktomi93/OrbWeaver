@@ -24,12 +24,39 @@ export const useCreateCharacter = createEntityMutation<
 });
 
 /** Immediate-commit identity patch (§2/§4.4): the row's star chip fires `{ characterId, starred }`; the
- *  hero archive/trust/theme controls ride the same verb. `busDriven` — `charactersChanged` covers the list. */
+ *  hero archive/trust/theme controls ride the same verb. `busDriven` — `charactersChanged` covers the list.
+ *
+ *  OPTIMISTIC (F16, §4.3 rule 7 — the frequent star/archive toggle flips instantly): patches the
+ *  `character.get` detail cache (the hero editor's read) in `onMutate`, so a hero star/archive click paints
+ *  before the server round-trip → bus echo → refetch. Deterministic key from `vars.characterId`; only the
+ *  two flag fields are patched (a card save / theme / trust update through this same verb carries neither,
+ *  so its `update` is a no-op and it degrades to the bus reconcile exactly as before — no regression).
+ *  NB: the LIST row's star chip reads the SORT-discriminated `character.list` infinite query, whose exact
+ *  key isn't derivable from these vars (the sort lives in the out-of-scope view-prefs store) — it still
+ *  reconciles via the `charactersChanged` bus echo. */
 export const useUpdateCharacter = createEntityMutation<
   inferInput<Trpc["character"]["update"]>,
+  CharacterDetail,
   CharacterDetail
 >({
   options: (trpc) => trpc.character.update.mutationOptions(),
+  optimistic: {
+    readKey: (trpc, vars) => trpc.character.get.queryKey({ characterId: vars.characterId }),
+    update: (old, vars) => {
+      if (old === undefined) {
+        return old;
+      }
+      const { starred, archived } = vars.input;
+      if (starred === undefined && archived === undefined) {
+        return old;
+      }
+      return {
+        ...old,
+        ...(starred === undefined ? {} : { starred }),
+        ...(archived === undefined ? {} : { archived }),
+      };
+    },
+  },
   busDriven: true,
   errorToast: "Couldn't save the character.",
 });

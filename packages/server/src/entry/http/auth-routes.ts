@@ -19,12 +19,19 @@
 // OIDC login (`AUTH_MODE=oidc`): the `openid-client` v6 client flow — discovery (cached) → PKCE +
 //   state + nonce → buildAuthorizationUrl (redirect) → callback: consume the PKCE txn →
 //   authorizationCodeGrant → claims → provisionIdentity → mint cookie.
-//   DEFER(promotion): PD-5 — the OIDC transaction store (`domain/sessions/persistence/oidc-store.ts`,
-//   `oidc_transactions`) is NOT built; `infra/auth`'s `OidcTransactionStore` declares only `consume`
-//   (the verify side), with no MINT side for the authorize redirect. The OIDC client config
-//   (issuer/clientId/clientSecret/redirectUri/scope) is also not yet in `foundation/env`/`AuthConfig`
-//   (that type is verification-side only). So the OIDC routes are wired against the injected
-//   `OidcRoutesDeps` bundle and registered ONLY when it is supplied (inert until PD-5 + the config land).
+//   The OIDC transaction store IS built (`domain/sessions/persistence/oidc-store.ts`, `oidc_transactions`
+//   — mint at authorize + single-use consume at callback, with the `oidc-gc-scheduler` reaping expired
+//   rows); the OIDC client config (issuer/clientId/clientSecret + OIDC_REDIRECT_URIS/OIDC_SCOPES + the
+//   OIDC_*_CLAIM mapping) lives in `foundation/env` and is wired in at `entry/lifecycle`. The routes are
+//   registered ONLY when the `OidcRoutesDeps` bundle is supplied (non-oidc modes leave them inert —
+//   fail-closed). Claim NAMES are configurable (provider-agnostic; defaults are authentik's shape).
+//
+//   ORIGIN-FLEXIBLE CALLBACK: the redirect_uri is DERIVED per-request from the origin (X-Forwarded-Proto +
+//   X-Forwarded-Host/Host) and accepted ONLY if it exact-matches the OIDC_REDIRECT_URIS allowlist — so
+//   login works at the public FQDN AND at a LAN-IP/localhost origin, without ever reflecting an
+//   attacker-supplied origin (open-redirect / CVE-2024-52289). The VALIDATED redirect_uri is stored in the
+//   PKCE transaction and reconstructed at the callback so the token exchange presents the SAME redirect_uri
+//   the IdP saw, even behind a proxy (where `c.req.url` carries the internal upstream host).
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
@@ -39,6 +46,7 @@ import {
   randomPKCECodeVerifier,
   randomState,
 } from "openid-client";
+import { securityEvent } from "#foundation/observability";
 import type { OidcTransaction } from "#infra/auth";
 import { SESSION_COOKIE_NAME } from "#infra/auth";
 
@@ -102,10 +110,22 @@ export interface AuthSessionsPort {
     readonly userAgent?: string | null;
   }) => Promise<{ readonly token: string; readonly expiresAt: number }>;
   readonly revokeByToken: (token: string) => Promise<void>;
-  readonly provisionIdentity: (
-    identity: ResolvedIdentity,
-  ) => Promise<{ readonly userId: UserId; readonly enabled: boolean; readonly role: UserRole }>;
+  /** The upsert result the OIDC callback dispatches on — see {@link ProvisionOutcome}. */
+  readonly provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionOutcome>;
 }
+
+/** The `provisionIdentity` result the OIDC callback dispatches on: `provisioned` (mint the session, gating
+ *  on `enabled`) or `denied` (the OIDC_ALLOWED_GROUPS login gate refused — 401, no session). A file-local,
+ *  NON-exported structural mirror of the domain `ProvisionResult` (keeps the route decoupled from domain
+ *  internals — no cross-tier import; the `no-inline-types` gate allows a non-exported local type). */
+type ProvisionOutcome =
+  | {
+      readonly outcome: "provisioned";
+      readonly userId: UserId;
+      readonly enabled: boolean;
+      readonly role: UserRole;
+    }
+  | { readonly outcome: "denied" };
 
 /** Local password verification (handle + password → the resolved userId, or `null`) — supplied from
  *  `sessions.authenticate` (PD-83) by the composition root in local mode. */
@@ -114,19 +134,35 @@ export interface LocalAuthenticator {
   (handle: string, password: string): Promise<UserId | null>;
 }
 
-/** The OIDC transaction store the route needs — MINT (authorize) + CONSUME (callback). DEFER(promotion):
- *  PD-5 — not built; `infra/auth`'s `OidcTransactionStore` is consume-only. */
+/** The OIDC transaction store the route needs — MINT (authorize) + CONSUME (callback). Wider than infra/auth's
+ *  consume-only `OidcTransactionStore` because the authorize-redirect route also mints. Satisfied by
+ *  `domain/sessions` `createOidcStore` (which ALSO reaps expired rows via `deleteExpired`, driven by the
+ *  `transport/jobs/oidc-gc-scheduler` GC — not part of this route's surface). */
 export interface OidcMintStore {
   readonly mint: (tx: OidcTransaction) => Promise<void>;
   readonly consume: (state: string) => Promise<OidcTransaction | null>;
 }
 
-/** The OIDC client deps (DEFER(promotion): PD-5 + the config plumbing — unsuppliable today). */
+/** The OIDC claim-NAME mapping (env OIDC_*_CLAIM) — provider-agnostic. Defaults to authentik's shape
+ *  (`preferred_username` / `sub` / `groups` / `email`); Okta/Azure/Keycloak override without a code change.
+ *  Any name may be a DOT-PATH for a nested claim (e.g. `user.memberOf`) — see `readClaimPath`. */
+export interface OidcClaimMap {
+  readonly usernameClaim: string;
+  readonly uidClaim: string;
+  readonly groupsClaim: string;
+  readonly emailClaim: string;
+}
+
+/** The OIDC client deps — the `openid-client` config + the callback allowlist + scope + the claim mapping
+ *  + the mint/consume store. Wired at entry/lifecycle in `oidc` mode. */
 export interface OidcRoutesDeps {
   /** The `openid-client` discovery result (cached by the caller — one round-trip at boot). */
   readonly getConfig: () => Promise<Configuration>;
-  readonly redirectUri: string;
+  /** The parsed OIDC_REDIRECT_URIS allowlist — the FULL callback URLs a derived origin must exact-match.
+   *  Empty ⇒ every login 400s (fail-closed: no origin is permitted). */
+  readonly redirectAllowlist: readonly string[];
   readonly scope: string;
+  readonly claims: OidcClaimMap;
   readonly store: OidcMintStore;
 }
 
@@ -188,9 +224,43 @@ function sessionCookieFor(
   return serializeSessionCookie(session.token, (session.expiresAt - now) / MS_PER_SECOND);
 }
 
+/**
+ * Derive the OIDC callback redirect_uri from the request origin (X-Forwarded-Proto + X-Forwarded-Host /
+ * Host) and accept it ONLY when it exact-matches the allowlist — the open-redirect guard (never reflect an
+ * attacker-supplied origin blindly; the CVE-2024-52289 class). The proto DEFAULTS to `https` and is NEVER
+ * downgraded to http on an unknown origin: a direct plain-HTTP deploy that sets no X-Forwarded-Proto
+ * derives an https candidate that won't match an http allowlist entry, so login 400s — intended (front the
+ * app with TLS or a proxy that sets X-Forwarded-Proto). X-Forwarded-Host IS trusted here (a proxy
+ * legitimately rewrites it to the public host) because the allowlist is the real gate — an off-list origin
+ * is rejected regardless. Pure (no I/O) → unit-tested directly. Off-allowlist ⇒ null. Exported for the test. */
+export function deriveRedirectUri(headers: Headers, allowlist: readonly string[]): string | null {
+  const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const host = headers.get("x-forwarded-host")?.split(",")[0]?.trim() || headers.get("host");
+  if (host === null || host.length === 0) {
+    return null;
+  }
+  const candidate = `${proto}://${host}${OIDC_CALLBACK_ROUTE}`;
+  return allowlist.includes(candidate) ? candidate : null;
+}
+
 /** The OIDC authorize-redirect + callback handlers (openid-client v6). */
 function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps): void {
   app.get(OIDC_LOGIN_ROUTE, async (c) => {
+    // Derive + validate the callback origin BEFORE any IdP work: off-allowlist ⇒ 400, no transaction minted,
+    // no discovery round-trip, no redirect leaked to the IdP.
+    const redirectUri = deriveRedirectUri(c.req.raw.headers, oidc.redirectAllowlist);
+    if (redirectUri === null) {
+      securityEvent(
+        "oidc_redirect_uri_rejected",
+        {
+          proto: c.req.raw.headers.get("x-forwarded-proto"),
+          host: c.req.raw.headers.get("x-forwarded-host") ?? c.req.raw.headers.get("host"),
+          allowlistSize: oidc.redirectAllowlist.length,
+        },
+        "security: OIDC login origin not in OIDC_REDIRECT_URIS allowlist — rejecting (no transaction minted)",
+      );
+      return c.json({ error: "This origin is not an allowed OIDC callback." }, BAD_REQUEST);
+    }
     const config = await oidc.getConfig();
     const codeVerifier = randomPKCECodeVerifier();
     const codeChallenge = await calculatePKCECodeChallenge(codeVerifier);
@@ -200,12 +270,12 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       state,
       codeVerifier,
       nonce,
-      redirectUri: oidc.redirectUri,
+      redirectUri,
       createdAt: deps.now(),
     });
     const url = buildAuthorizationUrl(config, {
       // biome-ignore lint/style/useNamingConvention: OAuth/OIDC authorization-request parameter names are wire-fixed (snake_case).
-      redirect_uri: oidc.redirectUri,
+      redirect_uri: redirectUri,
       scope: oidc.scope,
       // biome-ignore lint/style/useNamingConvention: OAuth/OIDC authorization-request parameter names are wire-fixed (snake_case).
       code_challenge: codeChallenge,
@@ -218,21 +288,32 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
   });
 
   app.get(OIDC_CALLBACK_ROUTE, async (c) => {
-    const tx = await oidc.store.consume(c.req.query("state") ?? "");
+    const incoming = new URL(c.req.url);
+    const tx = await oidc.store.consume(incoming.searchParams.get("state") ?? "");
     if (tx === null) {
       return c.json({ error: "invalid or expired oidc state" }, UNAUTHORIZED);
     }
     const config = await oidc.getConfig();
-    const tokens = await authorizationCodeGrant(config, new URL(c.req.url), {
+    // Reconstruct the callback URL from the VALIDATED, stored redirect_uri (the public origin the IdP saw)
+    // + the incoming query, so the token-exchange redirect_uri matches what the IdP received even behind a
+    // proxy (where `c.req.url`'s host is the internal upstream). openid-client checks it against the code.
+    const callbackUrl = new URL(tx.redirectUri);
+    callbackUrl.search = incoming.search;
+    const tokens = await authorizationCodeGrant(config, callbackUrl, {
       pkceCodeVerifier: tx.codeVerifier,
       expectedNonce: tx.nonce,
       expectedState: tx.state,
     });
-    const identity = identityFromClaims(tokens.claims());
+    const identity = identityFromClaims(tokens.claims(), oidc.claims);
     if (identity === null) {
       return c.json({ error: "oidc token carried no usable identity" }, UNAUTHORIZED);
     }
     const provisioned = await deps.sessions.provisionIdentity(identity);
+    if (provisioned.outcome === "denied") {
+      // The OIDC_ALLOWED_GROUPS login gate refused this identity (in none of the allowed groups). 401 —
+      // distinct from the disabled-account 403 below (fail-closed access, no session, no JIT row).
+      return c.json({ error: "not authorized for this application" }, UNAUTHORIZED);
+    }
     if (!provisioned.enabled) {
       return c.json({ error: "account disabled" }, FORBIDDEN);
     }
@@ -245,26 +326,53 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
   });
 }
 
-/** Map verified OIDC ID-token claims → a `ResolvedIdentity`, or `null` when no usable `preferred_username`
- *  is present (fail-closed point #4 — the spine refuses an identity with no handle). */
-function identityFromClaims(
-  claims: { readonly sub?: string; readonly [claim: string]: unknown } | undefined,
+/** Resolve a claim NAME that may be a DOT-PATH (authentik/Entra/AD FS nested claims, e.g. `user.memberOf`,
+ *  `resource_access.orb.roles`) against the claims object. A flat name (no dot) is a single-key lookup —
+ *  fully backward-compatible. A literal dot in a claim key is treated as a path separator (the standard
+ *  convention); the walk short-circuits to `undefined` at any non-object segment. Exported for the test. */
+export function readClaimPath(
+  claims: { readonly [claim: string]: unknown },
+  path: string,
+): unknown {
+  let current: unknown = claims;
+  for (const segment of path.split(".")) {
+    if (current === null || typeof current !== "object") {
+      return;
+    }
+    current = (current as { readonly [k: string]: unknown })[segment];
+  }
+  return current;
+}
+
+/** Map verified OIDC ID-token claims → a `ResolvedIdentity`, or `null` when the configured username claim
+ *  is absent/empty (fail-closed point #4 — the spine refuses an identity with no handle). Claim NAMES are
+ *  injected (`OidcClaimMap`, from OIDC_*_CLAIM) so a non-authentik IdP (Okta `upn`, Azure `oid`/`roles`,
+ *  Keycloak) maps without a code change; defaults are authentik's `preferred_username`/`sub`/`groups`/`email`.
+ *  Each name may be a nested dot-path (`readClaimPath`). `email` is a mutable attribute (null when absent).
+ *  Exported for the unit test (like the cookie serializers above). */
+export function identityFromClaims(
+  claims: { readonly [claim: string]: unknown } | undefined,
+  claimMap: OidcClaimMap,
 ): ResolvedIdentity | null {
   if (claims === undefined) {
     return null;
   }
-  const username = claims["preferred_username"];
+  const username = readClaimPath(claims, claimMap.usernameClaim);
   if (typeof username !== "string" || username.length === 0) {
     return null;
   }
-  const sub = typeof claims.sub === "string" ? claims.sub : null;
-  const rawGroups = claims["groups"];
+  const rawUid = readClaimPath(claims, claimMap.uidClaim);
+  const uid = typeof rawUid === "string" && rawUid.length > 0 ? rawUid : null;
+  const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
   const groups = Array.isArray(rawGroups)
     ? rawGroups.filter((g): g is string => typeof g === "string")
     : [];
+  const rawEmail = readClaimPath(claims, claimMap.emailClaim);
+  const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {
-    externalId: sub === null ? null : castId<ExternalId>(sub),
+    externalId: uid === null ? null : castId<ExternalId>(uid),
     handle: castId<Handle>(username),
     groups,
+    email,
   };
 }

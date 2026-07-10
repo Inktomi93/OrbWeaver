@@ -15,7 +15,7 @@
 
 import { characters, chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ExportChatParams, ExportMessage, ExportVariant } from "../contract/params";
 import type { ExportedText } from "../contract/results";
 import type { ExportContext, ExportService } from "../contract/service";
@@ -195,6 +195,9 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     }
     // D29 host gate — the caller must be the PRESENT `role='host'` row (a non-host caller and a missing
     // chat collapse to the same null; the direct roster read is export's sanctioned bulk-serializer read).
+    // The `leftSeq IS NULL` belt mirrors canonical `requireHost` (chat/guard.ts): a host who left after
+    // nominating a successor leaves a DEPARTED `role='host'` row behind (sole-host leave archives, never
+    // demotes; a handoff demotes only the PRESENT host) — that row must NOT retain bulk-export access.
     const hostRows = await ctx.db
       .select({ userId: chatParticipants.userId })
       .from(chatParticipants)
@@ -202,6 +205,7 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
         and(
           eq(chatParticipants.chatId, chatId),
           eq(chatParticipants.role, "host"),
+          isNull(chatParticipants.leftSeq),
           isNotNull(chatParticipants.userId),
         ),
       );

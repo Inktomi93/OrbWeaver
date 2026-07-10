@@ -48,7 +48,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
@@ -72,6 +72,7 @@ import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
   insertParticipants,
+  markParticipantLeftStatement,
   markUserLeft,
   markUserLeftStatement,
   setPendingHostStatement,
@@ -553,6 +554,32 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
 
 // ── host handoff (two-party: nominate host-only; accept = the nominee self-action — Part III §2) ─────────
 
+/** The character seats a NEW room owner does NOT own — the seats a transfer (handoff/fork) must DROP (D64 —
+ *  F4/PD-21 ruling: a transfer hands the room + history but NOT the prior owner's characters). Cards are
+ *  single-owned (D28 — `getCard` is owner-scoped, `null` for a non-owner) and the whole engine loads cast +
+ *  memory under the ONE new-owner `runAsUserId`, so a character seat whose card resolves `null` under the new
+ *  owner would collapse to a blank `{name:"Assistant"}` (context.ts) and re-mint/orphan the owner-keyed
+ *  group-memory bucket. Rather than REFUSE the transfer, we DROP those seats (the ruling: "remove the host's
+ *  characters, leaving the humans; the new room owner can then add his own"). In today's single-owner model
+ *  that is every seat the outgoing owner owns; an owner transferring to themselves (a solo self-fork) drops
+ *  nothing. Human + agent seats are never dropped here (a human's own seat is theirs). Returns the present
+ *  character participant ids to `leftSeq`-stamp. */
+async function resolveDroppedCharacterSeatIds(
+  ctx: ChatContext,
+  newOwnerUserId: UserId,
+  roster: readonly (typeof chatParticipants.$inferSelect)[],
+): Promise<ChatParticipantId[]> {
+  const characterSeats = roster.flatMap((p) =>
+    p.kind === "character" && p.characterId !== null && p.leftSeq === null
+      ? [{ id: p.id, characterId: p.characterId }]
+      : [],
+  );
+  const cards = await Promise.all(
+    characterSeats.map((s) => ctx.getCard({ ownerId: newOwnerUserId, characterId: s.characterId })),
+  );
+  return characterSeats.flatMap((s, i) => (cards[i] === null ? [s.id] : []));
+}
+
 /** `nominateHostHandoff` — host-only, step 1 (Part III §2). Persist the pending nominee on
  *  `chats.pendingHostUserId` (carried to the nominee's accept), emit `chatUpdated`, and notify the nominee
  *  ("you've been nominated as host"). The nominee MUST be a PRESENT non-host member — a non-member / a host
@@ -593,8 +620,12 @@ function createNominateHostHandoff(
 /** `acceptHostHandoff` — step 2: the nominee accepts (a SELF-action — Part III §2). Gate present-membership
  *  (`requireParticipant`), then the verb-level self-action check: the caller MUST equal
  *  `chats.pendingHostUserId` (else `not_turn_owner` — FLAG[handoff-accept-code]; this is the belt that keeps
- *  the self-promotion hole closed). On pass, atomically swap roles (old host → member, caller → host) + clear
- *  the nomination, emit `chatUpdated`, and notify the previous host of the swap. */
+ *  the self-promotion hole closed). On pass, atomically swap roles (old host → member, caller → host), DROP the
+ *  outgoing host's character seats the new host does not own (D64 — F4/PD-21 ruling: the handoff hands the room
+ *  + history but not the prior host's characters), and clear the nomination — all in ONE batch. Then emit
+ *  `chatUpdated` (so seated clients refetch the roster) and notify the previous host of the swap. The dropped
+ *  characters' prior canon rows are retained (attribution intact); their owner-keyed group-memory bucket is
+ *  naturally orphaned (the room is now a different cast) — EXPECTED per the ruling, not migrated. */
 function createAcceptHostHandoff(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -611,11 +642,18 @@ function createAcceptHostHandoff(
     // The previous host (for the post-swap notification) — may be absent if they left after nominating.
     const roster = await loadRoster(ctx.db, chatId);
     const oldHost = roster.find((p) => p.role === "host" && p.userId !== null);
-    const swap = acceptHostHandoffSwapStatements(ctx.db, {
-      chatId,
-      nomineeUserId: principal.userId,
-      now: ctx.now(),
-    });
+    // D64 (F4/PD-21): the handoff transfers room + history but DROPS the character seats the new host does not
+    // own (leaving humans/agents). `leftSeq`-stamp them at the canon head, in the SAME batch as the role swap.
+    const droppedSeatIds = await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster);
+    const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
+    const swap = [
+      ...acceptHostHandoffSwapStatements(ctx.db, {
+        chatId,
+        nomineeUserId: principal.userId,
+        now: ctx.now(),
+      }),
+      ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
+    ];
     if (
       oldHost?.userId !== undefined &&
       oldHost.userId !== null &&

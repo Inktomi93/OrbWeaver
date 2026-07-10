@@ -15,7 +15,7 @@
 // local-light / custom_openai (and no accountCredits/generationCost off OpenRouter). Those are genuine
 // not-yet-built surfaces, surfaced as a typed not-supported throw — never faked.
 
-import type { ModelCatalogEntry } from "@orb/contracts/connection";
+import type { AgentSdkModel, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type {
   AccountCredits,
@@ -26,6 +26,7 @@ import type {
 import type {
   AccountCreditsRequest,
   BackendKey,
+  FetchAgentSdkModelsRequest,
   FetchCatalogRequest,
   GenerationCostRequest,
   InspectRequest,
@@ -38,6 +39,8 @@ import { backendForSource, requireBackend, requireRoleImpl } from "./roles/dispa
 
 // fetchOrCatalog is OpenRouter-fixed (the doc: "connection injects it specifically").
 const OPENROUTER_KEY: BackendKey = "openrouter";
+// fetchAgentSdkModels is agent-sdk-fixed — discovery is host-login (mode-1); no source dispatch.
+const AGENT_SDK_KEY: BackendKey = "agent-sdk";
 
 /**
  * Compose the bound diagnostic surface from a wired backend registry. Each method resolves the sealed
@@ -89,6 +92,10 @@ export function createProviderDiagnostics(deps: ProviderDeps): ProviderDiagnosti
     fetchOrCatalog: async (req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => {
       const backend = requireBackend(deps.backends, OPENROUTER_KEY, "fetchCatalog");
       return await requireRoleImpl(backend, backend.fetchCatalog, "fetchCatalog")(req);
+    },
+    fetchAgentSdkModels: async (req: FetchAgentSdkModelsRequest): Promise<AgentSdkModel[]> => {
+      const backend = requireBackend(deps.backends, AGENT_SDK_KEY, "fetchModels");
+      return await requireRoleImpl(backend, backend.fetchModels, "fetchModels")(req);
     },
   };
 }

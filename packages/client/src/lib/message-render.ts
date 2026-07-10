@@ -34,14 +34,18 @@ export interface MessageRenderContext {
    *  (the kit atom's own "Character" floor still applies, never a blank erasure). */
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
-  /** The turn's own `{{char}}` default (the solo character / narrator cast-join) — used only when the
-   *  ROW's own `characterId` doesn't resolve via the producer (§2). */
+  /** The turn's own `{{char}}` default (the solo character) — used only when a VOICED row's own
+   *  `characterId` doesn't resolve via the producer (§2). */
   readonly speakerCharName?: string | undefined;
-  /** The speaking participant's CURRENT persona name — the null-stamp `{{user}}` fallback ONLY (§4);
-   *  never a row's `{{user}}` subject when its own `personaId` resolves. */
-  readonly activePersonaName?: string | undefined;
+  /** The chat ANCHOR persona (`chats.anchorPersonaId`) — the null-stamp `{{user}}`/`{{persona}}` fallback
+   *  (ruling A / the design principle: a greeting or AI line addresses the SAME persona the model was told,
+   *  never the VIEWER's own active persona). Never a row's subject when its own `personaId` resolves. */
+  readonly fallbackPersonaName?: string | undefined;
+  readonly fallbackPersonaDescription?: string | undefined;
   readonly scenario?: string;
-  /** The full cast names (drives `{{group}}`); omit for solo (cast-of-one falls out of `char`). */
+  /** The full cast names in roster order — drives `{{group}}` AND a HUMAN-authored / narrator row's
+   *  `{{char}}` (ruling B: the joined cast in multi, the one character in solo). Omit for solo-of-one only
+   *  when unknown (the atom then falls to `speakerCharName`). */
   readonly cast?: readonly string[];
   /** The VIEWER's display-tier regex scripts (D53: per-user, client-side, ephemeral). */
   readonly displayScripts?: readonly RegexScriptInput[];
@@ -70,6 +74,20 @@ export interface MessageRenderContext {
  * constant): a fully-unresolved regex-ctx subject is a cosmetic nuance of that secondary, rarely-used
  * capability, never the primary substitution (which always goes through the real atom).
  */
+/** The `{{char}}` subject for the SECONDARY display-tier regex `ProcessMacroOptions` — mirrors the primary
+ *  atom (`resolveRowMacros`): a VOICED row resolves its own character (or `speakerCharName`), a
+ *  HUMAN-authored / narrator row resolves the CAST (joined in multi, one in solo — ruling B). Floor "". */
+function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null): string {
+  if (characterId !== null) {
+    return ctx.characterNamesById.get(characterId)?.name ?? ctx.speakerCharName ?? "";
+  }
+  const cast = ctx.cast;
+  if (cast !== undefined && cast.length > 1) {
+    return cast.join(", ");
+  }
+  return cast?.[0] ?? ctx.speakerCharName ?? "";
+}
+
 export function renderMessageForDisplay(
   text: string,
   ctx: MessageRenderContext,
@@ -86,18 +104,17 @@ export function renderMessageForDisplay(
       characterNamesById: ctx.characterNamesById,
       personaNamesById: ctx.personaNamesById,
       speakerCharName: ctx.speakerCharName,
-      activePersonaName: ctx.activePersonaName,
+      cast: ctx.cast,
+      fallbackPersonaName: ctx.fallbackPersonaName,
+      fallbackPersonaDescription: ctx.fallbackPersonaDescription,
     },
   );
 
   const rowPersona = personaId === null ? undefined : ctx.personaNamesById.get(personaId);
   const macroCtx: ProcessMacroOptions = {
-    char:
-      (characterId === null ? undefined : ctx.characterNamesById.get(characterId)?.name) ??
-      ctx.speakerCharName ??
-      "",
-    user: rowPersona?.name ?? ctx.activePersonaName ?? "",
-    persona: rowPersona?.description ?? "",
+    char: regexCtxChar(ctx, characterId),
+    user: rowPersona?.name ?? ctx.fallbackPersonaName ?? "",
+    persona: rowPersona?.description ?? ctx.fallbackPersonaDescription ?? "",
     scenario: ctx.scenario ?? "",
     env: ctx.env ?? {},
     ...(ctx.cast === undefined ? {} : { cast: ctx.cast }),

@@ -21,6 +21,7 @@ export {
   ipAllowlistMiddleware,
   isIngressAllowed,
   parseAllowlist,
+  peerIp,
   resolveClientIp,
 } from "./ingress";
 export {

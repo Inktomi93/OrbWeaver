@@ -13,11 +13,12 @@ import { eq } from "drizzle-orm";
 // Query SHAPES are file-local (not exported): callers pass literals + read the inferred/annotated return,
 // so no feature type leaks out of `persistence/` (no-inline-types).
 
-/** The columns `provisionIdentity` needs to decide preserve-vs-update (incl. live `role`/`enabled`). */
+/** The columns `provisionIdentity` needs to decide preserve-vs-update (incl. live `role`/`enabled`/`email`). */
 interface ProvisionRow {
   id: UserId;
   handle: Handle;
   externalId: ExternalId | null;
+  email: string | null;
   role: UserRole;
   enabled: boolean;
 }
@@ -27,17 +28,20 @@ interface UserInsert {
   id: UserId;
   handle: Handle;
   externalId: ExternalId | null;
+  email: string | null;
   role: UserRole;
   enabled: boolean;
   createdAt: number;
   updatedAt: number;
 }
 
-/** The provision-UPDATE patch: rename `handle`, link a newly-seen `externalId`, re-derive `role` (only
- *  under RE_DERIVE_ROLE_ON_LOGIN). `enabled` is NEVER patched (a disabled user can't re-enable by login). */
+/** The provision-UPDATE patch: rename `handle`, link a newly-seen `externalId`, refresh `email`, re-derive
+ *  `role` (only under the re-derive policy). `enabled` is NEVER patched (a disabled user can't re-enable by
+ *  login). */
 interface UserPatch {
   handle?: Handle;
   externalId?: ExternalId;
+  email?: string;
   role?: UserRole;
   updatedAt: number;
 }
@@ -46,6 +50,7 @@ const PROVISION_COLS = {
   id: users.id,
   handle: users.handle,
   externalId: users.externalId,
+  email: users.email,
   role: users.role,
   enabled: users.enabled,
 } as const;

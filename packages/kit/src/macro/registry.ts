@@ -269,6 +269,18 @@ const rollHandler: MacroHandler = (args, ctx) => {
   return "";
 };
 
+// {{pick::A::B::C}} — deterministic option-pick under the injected PRNG (distinct from {{random}}, which
+// also does numeric ranges). Empty arg list → "".
+const pickHandler: MacroHandler = (args, ctx) => {
+  if (args.length === 0) {
+    return "";
+  }
+  // Resolve the PRNG once through the injectable seam (ctx.random) — defaults to Math.random.
+  const random = ctx.random ?? Math.random;
+  const index = Math.floor(random() * args.length);
+  return args[index] ?? "";
+};
+
 // {{datetimeformat::FORMAT}} — Luxon format string (e.g. "yyyy-MM-dd HH:mm"). Empty arg → ISO.
 const dateTimeFormat: MacroHandler = (args, ctx) => {
   const fmt = args[0]?.trim();
@@ -386,6 +398,31 @@ function charField(read: (ctx: MacroContext) => string | undefined): MacroHandle
     }
     return raw.includes("{{") ? ctx.evaluateString(raw) : raw;
   };
+}
+
+// The NONDETERMINISTIC volatile macros — {{random}}/{{pick}}/{{roll}} (PRNG-driven) and the clock family
+// {{time}}/{{date}}/{{weekday}}/{{isodate}}/{{isotime}}/{{datetimeformat}} (wall-clock-driven). These are the
+// macros whose value can NOT be recovered from stored content (the clock/PRNG at commit is gone), so they
+// FREEZE at COMMIT (Chat-Macro-Resolution.md §0: resolve ONCE at send / first-turn, bake the value into
+// canon). Shared by `createDefaultRegistry` (live render) AND `createVolatileOnlyRegistry` (the freeze pass)
+// so the two can never drift on WHICH names freeze. NOTE: the var-mutation macros ({{setvar}}/{{incvar}}/…)
+// and the conversation-context macros ({{input}}/{{lastMessage}}/…) are ALSO flagged `volatile` on the
+// default registry, but they are NOT nondeterministic (stateful / context-derived) and are deliberately
+// EXCLUDED here — freezing them into a stored row would execute a side-effect against an ephemeral env or
+// bake stale conversation context; they stay raw and inert in canon (the names-only read passes them through).
+function registerVolatileMacros(registry: SimpleMacroRegistry): void {
+  const vol = { volatile: true } as const;
+  registry.register("random", randomHandler, vol);
+  registry.register("pick", pickHandler, vol);
+  // Locale-independent clock formats. Zone = ctx.timezone (browser) → server-local fallback. Volatile —
+  // every render is a different "now" → static-half occurrences bust the cached prefix.
+  registry.register("time", (_args, ctx) => nowInZone(ctx).toFormat("HH:mm:ss"), vol);
+  registry.register("date", (_args, ctx) => nowInZone(ctx).toFormat("yyyy-MM-dd"), vol);
+  registry.register("weekday", (_args, ctx) => nowInZone(ctx).toFormat("cccc"), vol); // "Monday" …
+  registry.register("isodate", (_args, ctx) => nowInZone(ctx).toISODate() ?? "", vol);
+  registry.register("isotime", (_args, ctx) => nowInZone(ctx).toISO() ?? "", vol);
+  registry.register("datetimeformat", dateTimeFormat, vol);
+  registry.register("roll", rollHandler, vol);
 }
 
 export function createDefaultRegistry(): MacroRegistry {
@@ -534,21 +571,10 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("hasvar", hasVar);
   registry.register("deletevar", deleteVar);
 
-  // ── Utilities ────────────────────────────────────────────────────────────────────────────────
-  registry.register("random", randomHandler, vol);
-  registry.register(
-    "pick",
-    (args, ctx) => {
-      if (args.length === 0) {
-        return "";
-      }
-      // Resolve the PRNG once through the injectable seam (ctx.random) — defaults to Math.random.
-      const random = ctx.random ?? Math.random;
-      const index = Math.floor(random() * args.length);
-      return args[index] ?? "";
-    },
-    vol,
-  );
+  // ── Utilities + Clock + dice (the NONDETERMINISTIC volatile set — {{random}}/{{pick}}/{{time}}/
+  //    {{date}}/…/{{roll}}) — registered via the SHARED helper so the freeze-at-commit path
+  //    (`createVolatileOnlyRegistry`) resolves EXACTLY the same names the default registry does. ──
+  registerVolatileMacros(registry);
 
   // ── Conditional ────────────────────────────────────────────────────────────────────────────
   // `delayArgResolution: true` lets us read RAW args (pre-evaluation) so we can tell a bare
@@ -587,23 +613,49 @@ export function createDefaultRegistry(): MacroRegistry {
     children ? ctx.evaluateAST(children).toLowerCase() : "",
   );
 
-  // ── Clock ──────────────────────────────────────────────────────────────────────────────────
-  // Locale-independent formats. Zone = ctx.timezone (browser) → server-local fallback. Volatile —
-  // every render is a different "now" → static-half occurrences bust the cached prefix.
-  registry.register("time", (_args, ctx) => nowInZone(ctx).toFormat("HH:mm:ss"), vol);
-  registry.register("date", (_args, ctx) => nowInZone(ctx).toFormat("yyyy-MM-dd"), vol);
-  registry.register("weekday", (_args, ctx) => nowInZone(ctx).toFormat("cccc"), vol); // "Monday" …
-  registry.register("isodate", (_args, ctx) => nowInZone(ctx).toISODate() ?? "", vol);
-  registry.register("isotime", (_args, ctx) => nowInZone(ctx).toISO() ?? "", vol);
-  registry.register("datetimeformat", dateTimeFormat, vol);
-
-  registry.register("roll", rollHandler, vol);
-
   // ── Conversation context (set by the chat send/assembly path; "" elsewhere) ──────────────────
   registry.register("input", (_args, ctx) => ctx.input ?? "", volChat);
   registry.register("lastMessage", (_args, ctx) => ctx.lastMessage ?? "", volChat);
   registry.register("lastUserMessage", (_args, ctx) => ctx.lastUserMessage ?? "", volChat);
   registry.register("lastCharMessage", (_args, ctx) => ctx.lastCharMessage ?? "", volChat);
 
+  return registry;
+}
+
+// The RESTRICTED registry for STORED-HISTORY resolution (Chat-Macro-Resolution.md §0/§2). A stored
+// history row is RAW and its VOLATILE macros ({{time}}/{{date}}/{{roll}}/{{random}}/{{pick}}/var
+// mutations) are NOT re-derivable from the row — their commit-time value is gone. The full default
+// registry re-resolves them against the LIVE wall clock + ambient PRNG on every assemble, so one
+// `{{time}}`/`{{roll}}` in any kept message churned that row's bytes every turn: the Anthropic R1
+// prefix cache missed from that row forward for the life of the chat, and a swipe re-fold of an
+// identical context was not byte-identical (D46). This registry resolves ONLY the STABLE identity
+// macros the row's stamps supply ({{char}}/{{user}}/{{persona}} + their name aliases + {{scenario}});
+// every unregistered (volatile) macro is re-emitted VERBATIM by the evaluator's literal passthrough,
+// which is byte-stable across renders. Doc-faithful (§2 scopes history to names) AND cache-stable.
+export function createNamesOnlyRegistry(): MacroRegistry {
+  const registry = new SimpleMacroRegistry();
+  registry.register("char", (_args, ctx) => ctx.char, { requires: "char" });
+  registry.register("user", (_args, ctx) => ctx.user, { requires: "char" });
+  registry.register("charname", (_args, ctx) => ctx.char, { requires: "char" });
+  registry.register("username", (_args, ctx) => ctx.user, { requires: "char" });
+  registry.register("persona", (_args, ctx) => ctx.persona, { requires: "char" });
+  registry.register("scenario", (_args, ctx) => ctx.scenario, { requires: "char" });
+  return registry;
+}
+
+// The RESTRICTED registry for the COMMIT-TIME FREEZE pass (Chat-Macro-Resolution.md §0 — the inverse of
+// `createNamesOnlyRegistry`). When content COMMITS to the conversation (a user message at SEND; a greeting at
+// the first-turn lock-in), its NONDETERMINISTIC macros ({{roll}}/{{random}}/{{pick}}/{{time}}/{{date}}/…) must
+// resolve ONCE against the turn's pinned clock/PRNG and bake the value into the stored canon row — otherwise a
+// re-render against a live clock/PRNG would produce a DIFFERENT roll/time every turn. This registry resolves
+// ONLY those nondeterministic handlers; every OTHER macro — the IDENTITY set ({{char}}/{{user}}/{{persona}} +
+// name aliases), var mutations, conversation-context, conditionals, char-fields — has no handler here and is
+// re-emitted VERBATIM by the evaluator's literal passthrough (byte-stable), so it stays RAW in canon and is
+// resolved per-view at READ (the names-only pass). The two registries are exact complements on the freeze axis:
+// names-only bakes IDENTITY and passes volatiles through; volatile-only bakes VOLATILES and passes identity
+// through. Built ONCE (a fixed restricted set, never extended) — the freeze pass fires per committed row.
+export function createVolatileOnlyRegistry(): MacroRegistry {
+  const registry = new SimpleMacroRegistry();
+  registerVolatileMacros(registry);
   return registry;
 }

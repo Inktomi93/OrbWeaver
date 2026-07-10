@@ -7,19 +7,25 @@
 // SELF-HEAL on the content hash (a swipe/edit at the protected tip never touches a settled segment).
 // DETERMINISM (D46): blockIdx order; injected embed; no clock/random. NO ownerId (D20 — chat FK derives owner).
 
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 import type { ChatContext } from "../../contract/context";
 import { resolveCfg } from "../constants";
 import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries";
 import type { MemoryConfig, MemoryPassCounts } from "../types";
-import { blockHash, renderTranscript, sliceBlocks } from "./substrate/transcript";
+import {
+  blockHash,
+  EMPTY_MACRO_NAMES,
+  renderTranscript,
+  sliceBlocks,
+} from "./substrate/transcript";
 
 /** What `generateSegments` needs (file-local, NON-exported — the `types-in-contract` gate; caller passes a
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */
 interface GenerateSegmentsArgs {
   readonly chatId: ChatId;
   readonly config?: MemoryConfig | null | undefined;
-  readonly names?: ReadonlyMap<CharacterId, string> | undefined;
+  readonly macroNames?: RowMacroNameContext | undefined;
   readonly signal?: AbortSignal | undefined;
 }
 
@@ -36,7 +42,7 @@ export async function generateSegments(
   if (cfg.mode === "off") {
     return { written: 0, skipped: 0 };
   }
-  const names = args.names ?? new Map<CharacterId, string>();
+  const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
 
   const { maxSeq } = await loadChatMeta(ctx.db, args.chatId);
   const cutoff = maxSeq - cfg.verbatimWindow;
@@ -64,7 +70,7 @@ export async function generateSegments(
       blockIdx: block.blockIdx,
       seqStart: block.seqStart,
       seqEnd: block.seqEnd,
-      text: renderTranscript(block.rows, names),
+      text: renderTranscript(block.rows, macroNames),
       contentHash: hash,
     });
     written += 1;

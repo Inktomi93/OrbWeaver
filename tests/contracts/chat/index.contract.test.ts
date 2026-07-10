@@ -265,6 +265,14 @@ test("openingPolicySchema round-trips its members", () => {
   expect(openingPolicySchema.safeParse("auto").success).toBe(false);
 });
 
+test("openingPolicySchema is cardinality-locked (an added member must be a deliberate test edit)", () => {
+  // Round-trip + reject alone catch a removed/renamed member but NOT an accidentally-added 5th policy
+  // (additive drift). Pin the exact member set so a new opening policy fails here until intended.
+  expect([...openingPolicySchema.options].sort()).toEqual(
+    ["first-message", "generate", "greet-all", "none"].sort(),
+  );
+});
+
 // ═══ invites (D16) ══════════════════════════════════════════════════════════════
 
 test("createInviteSchema accepts an empty share-link and a targeted-by-handle invite", () => {
@@ -517,15 +525,21 @@ test("contentSpansToBlocks — joins text runs, converts D51 image refs, brands 
   }
 });
 
-test("contentSpansToBlocks — a text-only body is ONE markdown block; a bad asset id THROWS", () => {
+test("contentSpansToBlocks — a text-only body is ONE markdown block; a bad asset ref DEGRADES, never throws", () => {
   expect(contentSpansToBlocks([{ kind: "text", text: "plain" }])).toEqual([
     { kind: "markdown", md: "plain" },
   ]);
-  expect(() =>
-    contentSpansToBlocks([
-      { kind: "image", ref: { kind: "asset", assetId: "not-a-typeid" }, alt: "" },
-    ]),
-  ).toThrow();
+  // Stored-content projections degrade, never throw (ratified doctrine): a malformed persisted asset
+  // ref would otherwise crash every render of the row with no per-row boundary — a permanent chat DoS.
+  // It falls back to the raw image markdown as a text block; the projection returns a schema-valid,
+  // renderable block set instead of throwing a ZodError inside React render.
+  const degraded = contentSpansToBlocks([
+    { kind: "image", ref: { kind: "asset", assetId: "not-a-typeid" }, alt: "a map" },
+  ]);
+  expect(degraded).toEqual([{ kind: "markdown", md: "![a map](asset:not-a-typeid)" }]);
+  for (const b of degraded) {
+    expect(messageContentBlockSchema.parse(b)).toEqual(b);
+  }
 });
 
 // ── toolCallRecordSchema (D48/PD-54 T1) — the db read-seam parse for `message_variants.toolCalls` ────
@@ -624,26 +638,26 @@ test("§6 parity keystone: server-build and client-build of the SAME producer ar
   const serverOut = resolveRowMacros("{{user}} waves", rowStamps, {
     characterNamesById: serverCharacterNamesById,
     personaNamesById: serverPersonaNamesById,
-    activePersonaName: "Zara", // the ACTIVE persona — must lose to the row's own Mara stamp.
+    fallbackPersonaName: "Nyx", // the ANCHOR fallback — must lose to the row's own Mara stamp.
   });
   const clientOut = resolveRowMacros("{{user}} waves", rowStamps, {
     characterNamesById: clientCharacterNamesById,
     personaNamesById: clientPersonaNamesById,
-    activePersonaName: "Zara",
+    fallbackPersonaName: "Nyx",
   });
   expect(serverOut).toBe("Mara waves");
   expect(clientOut).toBe("Mara waves");
   expect(serverOut).toBe(clientOut);
 
-  // …and a NULL stamp (no producer entry the row itself owns) falls to the active persona on BOTH sides —
-  // never the pinned anchor (that axis is CARD-only; a history row never sees it — Chat-Macro-Resolution.md §4).
+  // …and a NULL stamp (no producer entry the row itself owns) falls to the chat ANCHOR on BOTH sides — a
+  // chat invariant, so server ASSEMBLE == client DISPLAY (ruling A / the design principle: never the reader).
   const nullStampServer = resolveRowMacros(
     "{{user}} waves",
     { characterId: null, personaId: null },
     {
       characterNamesById: serverCharacterNamesById,
       personaNamesById: serverPersonaNamesById,
-      activePersonaName: "Zara",
+      fallbackPersonaName: "Nyx",
     },
   );
   const nullStampClient = resolveRowMacros(
@@ -652,9 +666,9 @@ test("§6 parity keystone: server-build and client-build of the SAME producer ar
     {
       characterNamesById: clientCharacterNamesById,
       personaNamesById: clientPersonaNamesById,
-      activePersonaName: "Zara",
+      fallbackPersonaName: "Nyx",
     },
   );
-  expect(nullStampServer).toBe("Zara waves");
-  expect(nullStampClient).toBe("Zara waves");
+  expect(nullStampServer).toBe("Nyx waves");
+  expect(nullStampClient).toBe("Nyx waves");
 });

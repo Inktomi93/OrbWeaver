@@ -31,6 +31,10 @@ interface TurnEconomicsInput {
   readonly cacheWriteTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
   readonly genTimeMs?: number | null | undefined;
+  /** The generation's context window (D26 variant `contextWindow`) → `owner_stats.maxContextTokens` (a MAX
+   *  extremum, owner grain only). The engine persists it on every variant, so the live turn delta MUST carry
+   *  it or the column stays NULL until a reconcile (F6). */
+  readonly contextWindow?: number | null | undefined;
 }
 
 /** Set `target[key]` only when `value` is a real number (omit absent economics — the sparse-patch contract;
@@ -58,7 +62,21 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
   }
   return {
     modelGenerations: 1,
-    modelGenSamples: 1,
+    // A gen-time SAMPLE is counted ONLY when a gen time is present — symmetric with the delete mirror
+    // (`canonModelSlice`'s `gen !== null ? sign : 0`, F8). The engine add-path supplies no `genTimeMs`, so
+    // an unconditional `1` here inflated `modelGenSamples` (add +1 / delete −0) and diluted the gen-time
+    // average vs a rebuild (which counts 0 — no persisted gen bounds). Gating it holds the drift gate.
+    modelGenSamples: has(e.genTimeMs) ? 1 : 0,
+    // The MODEL bucket's reasoning count — the live twin of the rebuild's `foldModelGen` reasoning arm
+    // (`hasReasoning(r) → reasoningGenerations++`). `reasoningGenerations` (below) feeds the owner + char
+    // grains; `model_stats.reasoningGenerations` is fed by THIS `modelReasoningGenerations` field
+    // (apply-delta), so omitting it drifted the model row vs a reconcile on a reasoning-bearing turn. Gated
+    // on the SAME trimmed predicate the rebuild + sibling builders use. `modelReasoningMs` is NOT carried:
+    // the engine persists no `reasoning_duration` on the live path, so the rebuild folds 0 there too (the
+    // owner/char-grain `reasoningMs` is likewise omitted live for this reason — no fabricated zero).
+    ...(typeof e.reasoning === "string" && e.reasoning.trim().length > 0
+      ? { modelReasoningGenerations: 1 }
+      : {}),
     ...(has(e.tokensIn) ? { modelTokensIn: e.tokensIn } : {}),
     ...(has(e.tokensOut) ? { modelTokensOut: e.tokensOut } : {}),
     ...(has(e.costUsd) ? { modelCostUsd: e.costUsd } : {}),
@@ -92,7 +110,10 @@ export function assistantTurnDelta(params: {
   // DAILY slice (decoupled from scalar tokens — daily credits the message stream).
   setNum(optional, "dailyTokensIn", e.tokensIn);
   setNum(optional, "dailyTokensOut", e.tokensOut);
-  const hasReasoning = typeof e.reasoning === "string" && e.reasoning.length > 0;
+  // TRIM the reasoning predicate — the rebuild + every sibling builder count a reasoningGeneration only on
+  // `trim().length > 0` (a whitespace-only thinking block is not a generation). A bare `.length > 0` here
+  // over-counted vs a reconcile on such a string (F7).
+  const hasReasoning = typeof e.reasoning === "string" && e.reasoning.trim().length > 0;
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
@@ -104,6 +125,9 @@ export function assistantTurnDelta(params: {
     contentBytes: e.content.length,
     genSamples: typeof e.genTimeMs === "number" ? 1 : 0,
     ...(hasReasoning ? { reasoningGenerations: 1 } : {}),
+    // The context window → `maxContextTokens` (MAX extremum, owner grain). Carried on the live turn delta so
+    // the column tracks the true max on the write path, not only after a reconcile (F6).
+    ...(has(e.contextWindow) ? { maxContextTokens: e.contextWindow } : {}),
     lastAt: params.now,
     now: params.now,
     ...optional,

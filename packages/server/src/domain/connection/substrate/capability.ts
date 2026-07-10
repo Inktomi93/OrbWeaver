@@ -4,18 +4,25 @@
 // in the passed-in cache snapshot and delegates to `catalog/resolveModelCapability`. PURE: the cache is
 // passed in (the verb read it with `ctx.now()`), so this is deterministic + unit-testable.
 
-import type { ChatSource, ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
+import type {
+  AgentSdkModel,
+  ChatSource,
+  ModelCapability,
+  ModelCatalogEntry,
+} from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { resolveModelCapability } from "../catalog/resolve-model-capability";
 
 /** Resolve the ONE `ModelCapability` for a `(model, source)`, threading the matching OR catalog entry (if
- *  any) from the passed-in cache snapshot into the synthesis arm. The single seam verbs use for the
- *  capability descriptor (no direct `catalog/` reach). */
+ *  any) into the synthesis arm AND the cached agent-sdk daemon rows into the max-pro-sub family→version
+ *  arm. Both caches are passed in (the verb read them with `ctx.now()`), so this stays pure + deterministic.
+ *  The single seam verbs use for the capability descriptor (no direct `catalog/` reach). */
 export function resolveCapability(
   model: ModelId | string,
   source: ChatSource,
   cached: readonly ModelCatalogEntry[] | null,
+  agentSdkModels: readonly AgentSdkModel[] | null,
 ): ModelCapability {
   const entry = cached?.find((m) => m.id === model);
-  return resolveModelCapability(model, source, entry);
+  return resolveModelCapability(model, source, entry, agentSdkModels);
 }

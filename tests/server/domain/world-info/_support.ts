@@ -7,6 +7,7 @@
 // `packages/server/src/domain`.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { characters, chats, personas, users } from "@orb/db";
 import type {
@@ -31,11 +32,18 @@ interface AuditCall {
   readonly at: number;
 }
 
+interface UserEventCall {
+  readonly userId: UserId;
+  readonly event: UserBusEvent;
+}
+
 export interface WorldInfoHarness {
   readonly ctx: WorldInfoContext;
   readonly audits: AuditCall[];
   /** Chat-scope verbs' bus emissions (PD-30). */
   readonly wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][];
+  /** The recorded user-bus `emitUserEvent` calls — assert `worldInfoChanged` fires after a durable write. */
+  readonly userEvents: UserEventCall[];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
 }
@@ -52,6 +60,7 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfo
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][] = [];
+  const userEvents: UserEventCall[] = [];
   const notStubbed = (): never => {
     throw new Error("WorldInfoContext chat-guard op not stubbed in this test");
   };
@@ -70,10 +79,12 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfo
       wiEvents.push(event);
       return Promise.resolve();
     },
-    // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
-    emitUserEvent: (): void => undefined,
+    // PD user-bus lane: records the emit so a chat-scope test can assert `worldInfoChanged` fires.
+    emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
+      userEvents.push({ userId, event });
+    },
   };
-  return { ctx, audits, wiEvents, advance: (ms: number): void => clock.advance(ms) };
+  return { ctx, audits, wiEvents, userEvents, advance: (ms: number): void => clock.advance(ms) };
 }
 
 interface SeedUserOverrides {

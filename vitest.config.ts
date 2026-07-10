@@ -14,7 +14,10 @@ import { defineConfig } from "vitest/config";
 // single-tenant globalMacroRegistry resets for free; do NOT copy neo's `isolate: false`) and
 // `pool: 'forks'` (process isolation is safe for the libSQL native binding in the integration lane).
 
-const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "reports/**"];
+// `**/__g_*` — the check-gates self-test's reserved throwaway-fixture sentinel (tsconfig.base.json's
+// exclude note). Some fixtures are `.test.ts`, so a CONCURRENT `vitest` lane could try to collect one
+// mid-lifecycle (it's written then rm'd inside check-gates.int); ignore keeps every lane hermetic.
+const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "reports/**", "**/__g_*"];
 const inCI = process.env.CI !== undefined;
 
 export default defineConfig({

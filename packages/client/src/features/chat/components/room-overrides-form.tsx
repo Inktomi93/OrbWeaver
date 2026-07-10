@@ -22,13 +22,13 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { RoomOverridesFormValues } from "../hooks/use-room-overrides-form";
+import { useRoomOverridesForm } from "../hooks/use-room-overrides-form";
+import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model";
 import {
   fromRoomOverridesForm,
   isAuthorsNotePrefill,
   toRoomOverridesForm,
-  useRoomOverridesForm,
-} from "../hooks/use-room-overrides-form";
+} from "../lib/room-overrides-form-model";
 
 // Labelled role options for the author's-note placement (the injections-manager/persona-editor precedent —
 // same labels, built from the one-home `MESSAGE_ROLES` tuple).

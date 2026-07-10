@@ -1,8 +1,9 @@
 // Edit-in-place's textarea half (the per-message ACTION cluster's edit affordance; scout brief
 // "edit-in-place"). `message-row.tsx` swaps this in for `<MessageContent>` while
 // `useIsEditingMessage(message.id)` is true — the mode flag + the in-progress TEXT both live in the
-// EXTERNAL `state/message-edit-draft` store, never `useState` (PD-119: `@orb/ui/message-list` is a pure
-// windowed virtualizer with no keep-mounted path, so a component-local draft would silently drop on a
+// EXTERNAL `state/message-edit-draft` store, never `useState` (FINAL-Chats §6.3 mandates an external
+// edit-draft store: `@orb/ui/message-list` now ships the PD-119 `keepMounted` predicate, but the chat
+// surface does NOT pin editing rows with it, so a component-local draft would silently drop on a
 // scroll-driven unmount/remount).
 //
 // Keyboard: Enter (no Shift) saves, Esc cancels (discards the draft, reverts to the read-only body),

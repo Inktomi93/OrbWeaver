@@ -8,7 +8,8 @@
 // (each `{key, value}`) + the CRUD callbacks (`onAdd`/`onSave`/`onDelete`), owning neither the read nor
 // the writes. A COMMITTED chat's reader (`InjectionsManager`) reads `chat.listChatInjections` (rows keyed
 // by the server id) + wires the `setChatInjection`/`deleteChatInjection` verbs; a DRAFT's reader (the draft
-// panel) supplies `draftConfig.injections` (rows keyed by array index) + wires `setDraftInjections`. Same
+// panel) supplies `draftConfig.injections` (rows keyed by a stable client-side key) + wires
+// `setDraftInjections`. Same
 // list, same look — only the source + CRUD seam differ. There is NO enabled/disabled toggle — orbweaver's
 // contract has no soft-disable; "off" = delete the row (a deliberate divergence from neo).
 //
@@ -77,8 +78,8 @@ const NEW_INJECTION: InjectionFields = {
   content: "",
 };
 
-/** One row in the source-agnostic list — a stable key (committed → the server id; draft → the array index)
- *  + the editable fields. */
+/** One row in the source-agnostic list — a stable key (committed → the server id; draft → a stable
+ *  client-side key) + the editable fields. */
 interface InjectionListRow {
   readonly key: string;
   readonly value: InjectionFields;

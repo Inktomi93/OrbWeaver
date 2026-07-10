@@ -17,13 +17,13 @@ describe("resolveChat — row beats settings", () => {
 
     const conn = await svc.resolveChat({
       principal: principal("user_1"),
-      routableChat: { api: "agent-sdk", source: "openrouter", model: "claude-sonnet-4-6" },
+      routableChat: { api: "agent-sdk", source: "openrouter", model: "claude-sonnet-5" },
     });
 
     // row source openrouter beat the settings max-pro-sub; row model won the agent-sdk heal.
     expect(conn.credential.source).toBe("openrouter");
     expect(conn.api).toBe("agent-sdk");
-    expect(conn.model).toBe("claude-sonnet-4-6");
+    expect(conn.model).toBe("claude-sonnet-5");
   });
 
   test("an empty chat row falls through to the UserSettings default", async () => {

@@ -125,9 +125,19 @@ test("an invalid cookie under fallback=deny is unauthenticated (null), not the o
 test("a stale cookie is IGNORED outside cookie modes (forward-header never calls validate)", async () => {
   // validate throws (stub default) — reaching it would fail the test; the seam must skip the cookie.
   const seam = createAuthSeam({
-    config: baseConfig({ mode: "forward-header", forwardUserHeader: "x-forwarded-user" }),
+    config: baseConfig({
+      mode: "forward-header",
+      forwardUserHeader: "x-forwarded-user",
+      forwardTrustedProxies: ["10.0.0.0/8"],
+    }),
     sessions: stubSessions({
-      provisionIdentity: () => Promise.resolve({ userId: HEADER_UID, enabled: true, role: "user" }),
+      provisionIdentity: () =>
+        Promise.resolve({
+          outcome: "provisioned",
+          userId: HEADER_UID,
+          enabled: true,
+          role: "user",
+        }),
     }),
   });
 
@@ -135,7 +145,7 @@ test("a stale cookie is IGNORED outside cookie modes (forward-header never calls
     cookie: "__Host-orb_session=leftover",
     "x-forwarded-user": "bob",
   });
-  const { principal } = await seam.resolvePrincipal(headers);
+  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "10.1.2.3" });
 
   expect(principal?.userId).toBe(HEADER_UID);
   expect(principal?.via).toBe("header");
@@ -144,33 +154,71 @@ test("a stale cookie is IGNORED outside cookie modes (forward-header never calls
 test("an SSO header upserts via provisionIdentity and carries the resolved role", async () => {
   let received: ExternalId | null | undefined;
   const seam = createAuthSeam({
-    config: baseConfig({ mode: "forward-header", forwardUserHeader: "x-forwarded-user" }),
+    config: baseConfig({
+      mode: "forward-header",
+      forwardUserHeader: "x-forwarded-user",
+      forwardTrustedProxies: ["10.0.0.0/8"],
+    }),
     sessions: stubSessions({
       provisionIdentity: (identity) => {
         received = identity.externalId;
-        return Promise.resolve({ userId: HEADER_UID, enabled: true, role: "admin" });
+        return Promise.resolve({
+          outcome: "provisioned",
+          userId: HEADER_UID,
+          enabled: true,
+          role: "admin",
+        });
       },
     }),
   });
 
   const headers = new Headers({ "x-forwarded-user": "carol" });
-  const { principal } = await seam.resolvePrincipal(headers);
+  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "10.1.2.3" });
 
   expect(principal?.role).toBe("admin");
   expect(principal?.handle).toBe("carol");
   expect(received).toBeNull(); // unsigned header path → no externalId
 });
 
+test("B1 anti-spoof: an SSO header from an UNTRUSTED peer is rejected even with a forged trusted XFF", async () => {
+  // provisionIdentity throws (stub default) — reaching it would fail the test; the peer-IP gate must reject
+  // BEFORE any upsert. The attacker forges an in-range X-Forwarded-For but the socket peer is off-allowlist.
+  const seam = createAuthSeam({
+    config: baseConfig({
+      mode: "forward-header",
+      forwardUserHeader: "x-forwarded-user",
+      forwardTrustedProxies: ["10.0.0.0/8"],
+    }),
+    sessions: stubSessions({}),
+  });
+
+  const headers = new Headers({ "x-forwarded-user": "owner", "x-forwarded-for": "10.1.2.3" });
+  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "203.0.113.9" });
+
+  expect(principal).toBeNull();
+});
+
 test("a disabled SSO row is gated to null (disable takes effect next request, not JWT-baked)", async () => {
   const seam = createAuthSeam({
-    config: baseConfig({ mode: "forward-header", forwardUserHeader: "x-forwarded-user" }),
+    config: baseConfig({
+      mode: "forward-header",
+      forwardUserHeader: "x-forwarded-user",
+      forwardTrustedProxies: ["10.0.0.0/8"],
+    }),
     sessions: stubSessions({
       provisionIdentity: () =>
-        Promise.resolve({ userId: HEADER_UID, enabled: false, role: "user" }),
+        Promise.resolve({
+          outcome: "provisioned",
+          userId: HEADER_UID,
+          enabled: false,
+          role: "user",
+        }),
     }),
   });
 
-  const { principal } = await seam.resolvePrincipal(new Headers({ "x-forwarded-user": "dave" }));
+  const { principal } = await seam.resolvePrincipal(new Headers({ "x-forwarded-user": "dave" }), {
+    peerIp: "10.1.2.3",
+  });
   expect(principal).toBeNull();
 });
 

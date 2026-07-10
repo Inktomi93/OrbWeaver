@@ -4,8 +4,10 @@
 // guides) are OMITTED — never a disabled stub pointing at nothing (§4.3 rule 1: no dead ends).
 //
 // The turn actions (Continue · Regenerate · Impersonate) reuse `useGuidedActions` (the composer wand's
-// own dispatch) with an EMPTY steer — from the header there is no draft text, so these are the plain
-// continue/reroll/impersonate (rule 10: same verb, same home, second entry point). Continue/Regenerate
+// own dispatch) with an EMPTY steer — from the header there is no draft text, so `useGuidedActions` OMITS
+// the `guided` object entirely (FINAL-Chat-Tab-Redesign §6.4: an empty `input` would resolve a dangling
+// template scaffold server-side; a plain turn sends no steer), giving the plain continue/reroll/impersonate
+// (rule 10: same verb, same home, second entry point). Continue/Regenerate
 // gate on a tail assistant slot (the wand's own `tailAssistantMessageId` gate). Rename is a single
 // controlled input (the §13.4 single-rename carve-out, the ChatListRowMenu precedent); Delete cascades
 // hard → an AlertDialog confirm (never an undo-toast, DESIGN.md §9), then `goToLanding` (the deleted
@@ -37,7 +39,6 @@ import {
   MenuSubmenuTrigger,
   MenuTrigger,
 } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
@@ -198,11 +199,9 @@ export function ChatOptionsMenu({
         <AlertDialogPopup>
           <Stack gap="block">
             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
             <AlertDialogDescription>
-              <Text tone="muted">
-                This permanently deletes the chat and its messages for everyone. This can't be
-                undone.
-              </Text>
+              This permanently deletes the chat and its messages for everyone. This can't be undone.
             </AlertDialogDescription>
             <AlertDialogActions>
               <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />

@@ -2,8 +2,9 @@
 // composite key). Chats are MEMBERSHIP-scoped (D18), so the room gate is the INJECTED `requireChatHost`
 // (chat's own guard — room-wide prompt content is a one-shot jailbreak surface, the chat-injection
 // precedent: write = host). The book gate stays ownership (`loadOwnedBook` — the host shares THEIR book).
-// Only a REAL insert emits `wiBookAttached` (the injected chat-bus emit) + audits — an idempotent re-attach
-// is silent (no phantom pool-invalidation event).
+// Only a REAL insert emits `wiBookAttached` (the injected chat-bus emit) + `worldInfoChanged` (the user-bus
+// freshness emit to the acting host — every attachment mutation fires it per the contract header) + audits —
+// an idempotent re-attach is silent (no phantom pool-invalidation event).
 
 import { chatBooks } from "@orb/db";
 import { WorldInfoNotFoundError } from "../../contract/errors";
@@ -41,5 +42,6 @@ export function createAttachToChat(ctx: WorldInfoContext): WorldInfoService["att
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
   };
 }

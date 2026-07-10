@@ -7,6 +7,8 @@
 // TEXT — db may not import this server-tier home — and the domain validates against this tuple, schema/
 // discovery.ts header.)
 
+import type { CharacterId, UserId } from "@orb/kit/ids";
+
 // ── ThemeLevel (the clustering-level dispatch axis) ───────────────────────────
 /** `scene` = the tier-0 single-block digests; `arc` = the tier-1+ cross-block syntheses. The ONE home for
  *  the level axis (db column, reads, and compute all derive from this tuple — no inline re-spell). */
@@ -35,6 +37,16 @@ export interface ComputeThemesOptions {
 export interface ComputeHubScoresOptions {
   readonly k?: number;
   readonly denseMax?: number;
+}
+
+/** Options for the `distillCharacters` pass (PD-40 write-half). `characterId` narrows to ONE card — the
+ *  on-demand `suggestCharacterTags` editor button; ABSENT = the whole-library batch (the `distill-characters`
+ *  workload). `ownerId` is the on-demand owner-scope belt (a foreign/missing character yields no work — never
+ *  a cross-owner write). `signal` forwards the workload run's cancellation. */
+export interface DistillCharactersOptions {
+  readonly characterId?: CharacterId;
+  readonly ownerId?: UserId;
+  readonly signal?: AbortSignal | undefined;
 }
 
 // ── read option bags ──────────────────────────────────────────────────────────

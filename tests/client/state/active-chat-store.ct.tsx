@@ -73,6 +73,42 @@ test("commitDraft is a no-op once the active chat is already committed", async (
   );
 });
 
+test("commitDraft for a stale draft does NOT hijack a NEWER active draft", async ({ mount }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+
+  // Draft A (session=draft-2) is in flight…
+  await probe.getByRole("button", { name: "new with aria" }).click();
+  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria");
+
+  // …the user starts a NEW chat (draft B, session=draft-3) before A's first send resolves.
+  await probe.getByRole("button", { name: "new blank" }).click();
+  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=none");
+
+  // A's late-resolving commit fires for draftKey draft-2 — the guard MUST reject it (draft-3 is active
+  // now), or the handle would flip to chat A while sessionKey stays draft B's (the split-brain hijack).
+  await probe.getByRole("button", { name: "commit stale draft-2", exact: true }).click();
+  await expect(state).toHaveText("handle=draft:draft-3 session=draft-3 seed=none");
+});
+
+test("commitDraft for a stale draft does NOT hijack the landing state", async ({ mount }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+
+  // Draft A (session=draft-2) is in flight…
+  await probe.getByRole("button", { name: "new with aria" }).click();
+  await expect(state).toHaveText("handle=draft:draft-2 session=draft-2 seed=char_probe_aria");
+
+  // …the user closes it back to landing (session=draft-3) before A's first send resolves.
+  await probe.getByRole("button", { name: "go landing" }).click();
+  await expect(state).toHaveText("handle=landing session=draft-3 seed=none");
+
+  // A's late-resolving commit fires for draftKey draft-2 — the guard MUST reject it (landing is not a
+  // draft), or the user would be teleported out of landing into chat A they navigated away from.
+  await probe.getByRole("button", { name: "commit stale draft-2", exact: true }).click();
+  await expect(state).toHaveText("handle=landing session=draft-3 seed=none");
+});
+
 test("goToLanding returns to the landing handle with a fresh session key (J1)", async ({
   mount,
 }) => {

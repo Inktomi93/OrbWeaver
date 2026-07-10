@@ -37,8 +37,8 @@ const present =
 
 // biome-ignore lint/security/noSecrets: the describe label is a function name, not a secret.
 describe("resolveImageRefToUrl", () => {
-  test("external ref passes through unchanged (assets never touched)", async () => {
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), present([]), {
+  test("external ref passes through when NOT forbidden (assets never touched)", async () => {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), present([]), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: { kind: "external", url: "https://example.com/x.png" },
@@ -46,9 +46,21 @@ describe("resolveImageRefToUrl", () => {
     expect(url).toBe("https://example.com/x.png");
   });
 
+  test("F7a: external ref is BLOCKED → null when forbidExternalMedia is set (D44 §12.3)", async () => {
+    const gate = vi.fn(present([]));
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), gate, true, {
+      ownerId: HOST,
+      chatId: CHAT,
+      ref: { kind: "external", url: "https://example.com/x.png" },
+    });
+    expect(url).toBeNull();
+    // The gate is an ASSET-owner reference-check; an external block never touches assets/membership.
+    expect(gate).not.toHaveBeenCalled();
+  });
+
   test("host-owned asset resolves WITHOUT a membership read (owner === host short-circuit)", async () => {
     const gate = vi.fn(present([]));
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), gate, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), gate, false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -57,9 +69,18 @@ describe("resolveImageRefToUrl", () => {
     expect(gate).not.toHaveBeenCalled();
   });
 
+  test("asset ref is unaffected by forbidExternalMedia (the gate is external-only)", async () => {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), present([]), true, {
+      ownerId: HOST,
+      chatId: CHAT,
+      ref: assetRef(),
+    });
+    expect(url).toBe(dataUri("image/png", [7]));
+  });
+
   test("a present member's own asset resolves (the D21 in-room reference-check)", async () => {
     const gate = vi.fn(present([MEMBER]));
-    const url = await resolveImageRefToUrl(assetsOwnedBy(MEMBER), gate, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(MEMBER), gate, false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -69,7 +90,7 @@ describe("resolveImageRefToUrl", () => {
   });
 
   test("a non-participant owner's asset is refused → null (no cross-chat oracle)", async () => {
-    const url = await resolveImageRefToUrl(assetsOwnedBy(STRANGER), present([MEMBER]), {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(STRANGER), present([MEMBER]), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -79,7 +100,7 @@ describe("resolveImageRefToUrl", () => {
 
   test("a gone asset (no row) → null, without a membership read", async () => {
     const gate = vi.fn(present([MEMBER]));
-    const url = await resolveImageRefToUrl(assetsOwnedBy(undefined), gate, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(undefined), gate, false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),

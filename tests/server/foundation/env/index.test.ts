@@ -51,7 +51,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
         AUTH_MODE: "oidc",
         OIDC_CLIENT_ID: "x",
         OIDC_CLIENT_SECRET: "x",
-        OIDC_REDIRECT_URIS: "https://x/cb",
+        OIDC_REDIRECT_URIS: "https://x/api/auth/oidc/callback",
         SESSION_SECRET: VALID_SESSION_SECRET,
       }),
     ).rejects.toThrow("OIDC_ISSUER is required when AUTH_MODE=oidc");
@@ -64,7 +64,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
         OIDC_ISSUER: "https://idp.example",
         OIDC_CLIENT_ID: "x",
         OIDC_CLIENT_SECRET: "x",
-        OIDC_REDIRECT_URIS: "https://x/cb",
+        OIDC_REDIRECT_URIS: "https://x/api/auth/oidc/callback",
       }),
     ).rejects.toThrow("SESSION_SECRET is required when AUTH_MODE=oidc");
   });
@@ -75,11 +75,50 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
       OIDC_ISSUER: "https://idp.example",
       OIDC_CLIENT_ID: "client",
       OIDC_CLIENT_SECRET: "x",
-      OIDC_REDIRECT_URIS: "https://app/cb",
+      OIDC_REDIRECT_URIS: "https://app/api/auth/oidc/callback",
       SESSION_SECRET: VALID_SESSION_SECRET,
     });
     expect(env.AUTH_MODE).toBe("oidc");
     expect(env.OIDC_ISSUER).toBe("https://idp.example");
+    // The callback allowlist is a raw CSV string here (parsed into the per-request derivation allowlist at
+    // entry/lifecycle — env just carries the floor).
+    expect(env.OIDC_REDIRECT_URIS).toBe("https://app/api/auth/oidc/callback");
+    // provider-agnostic claim/scope mapping defaults to authentik's shape (non-breaking).
+    expect(env.OIDC_SCOPES).toBe("openid profile email");
+    expect(env.OIDC_USERNAME_CLAIM).toBe("preferred_username");
+    expect(env.OIDC_UID_CLAIM).toBe("sub");
+    expect(env.OIDC_GROUPS_CLAIM).toBe("groups");
+  });
+
+  test("AUTH_MODE=oidc WITHOUT OIDC_REDIRECT_URIS → boot FAILS", async () => {
+    await expect(
+      reimportEnvWith({
+        AUTH_MODE: "oidc",
+        OIDC_ISSUER: "https://idp.example",
+        OIDC_CLIENT_ID: "x",
+        OIDC_CLIENT_SECRET: "x",
+        SESSION_SECRET: VALID_SESSION_SECRET,
+      }),
+    ).rejects.toThrow("OIDC_REDIRECT_URIS is required when AUTH_MODE=oidc");
+  });
+
+  test("OIDC claim overrides parse (provider-agnostic Okta/Azure shape)", async () => {
+    const { env } = await reimportEnvWith({
+      AUTH_MODE: "oidc",
+      OIDC_ISSUER: "https://idp.example",
+      OIDC_CLIENT_ID: "client",
+      OIDC_CLIENT_SECRET: "x",
+      OIDC_REDIRECT_URIS: "https://app/api/auth/oidc/callback",
+      SESSION_SECRET: VALID_SESSION_SECRET,
+      OIDC_SCOPES: "openid profile email groups",
+      OIDC_USERNAME_CLAIM: "upn",
+      OIDC_UID_CLAIM: "oid",
+      OIDC_GROUPS_CLAIM: "roles",
+    });
+    expect(env.OIDC_SCOPES).toBe("openid profile email groups");
+    expect(env.OIDC_USERNAME_CLAIM).toBe("upn");
+    expect(env.OIDC_UID_CLAIM).toBe("oid");
+    expect(env.OIDC_GROUPS_CLAIM).toBe("roles");
   });
 
   test("AUTH_MODE=local WITHOUT LOCAL_INITIAL_PASSWORD → boot FAILS", async () => {
@@ -116,7 +155,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
         OIDC_ISSUER: "https://idp.example",
         OIDC_CLIENT_ID: "x",
         OIDC_CLIENT_SECRET: "x",
-        OIDC_REDIRECT_URIS: "https://x/cb",
+        OIDC_REDIRECT_URIS: "https://x/api/auth/oidc/callback",
         SESSION_SECRET: "too-short",
       }),
     ).rejects.toThrow("SESSION_SECRET");

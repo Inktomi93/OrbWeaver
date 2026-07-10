@@ -1,11 +1,12 @@
 import { tv } from "#lib";
 
-// The switch skin. The visible track is switch-thumb (28px) tall × switch-track (48px) wide — dedicated
+// The switch skin. The visible track is switch-thumb (32px) tall × switch-track (48px) wide — dedicated
 // pointer-INDEPENDENT display tokens, so the desktop switch stays generous instead of collapsing toward
 // a near-square ~4px-travel toggle (owner defect #3: the old h-section × w-touch-target sized the track
-// off the pointer-narrowing touch-target, leaving fine-pointer travel = 28px − 24px = 4px). The ≥44px
+// off the pointer-narrowing touch-target, leaving fine-pointer travel = 28px − 24px = 4px). The 32px
+// track height also clears the design-audit tap-target hard floor on its own box (Task #76). The ≥44px
 // touch floor is met SEPARATELY by the size-touch-target ::before pseudo (coarse), so the visible track
-// never has to carry the hit floor. Thumb travel = switch-track − switch-thumb (20px) — an unmistakable
+// never has to carry the hit floor. Thumb travel = switch-track − switch-thumb (16px) — an unmistakable
 // left↔right slide — PLUS the track/thumb colour flip (hollow bg-input/foreground → filled primary/
 // primary-foreground), so on vs off reads at a glance on colour AND position. Token calc, no raw px.
 export const switchVariants = tv({

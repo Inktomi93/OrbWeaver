@@ -38,16 +38,24 @@
 //                          (canon/injections/variables/metadata/memory/regex-tier union) `gatherAssembleContext`
 //                          reads ITSELF via `ChatContext`; the verb fills cast/persona-ids/pending text.
 
-import type { ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatBusEvent,
+  GroupConfig,
+  MessageView,
+  SpeakerRef,
+} from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import { batchMany } from "@orb/db/kit";
+import type { GenerationType } from "@orb/contracts/preset";
+import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
+import type { MemoryConfig } from "../contract/memory";
 import type {
   AbortParams,
   ContinueTurnParams,
@@ -60,7 +68,7 @@ import type {
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params";
-import type { TurnEngine, TurnOutcome, TurnPrep } from "../contract/results";
+import type { TurnEngine, TurnKind, TurnOutcome, TurnPrep } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
@@ -78,6 +86,7 @@ import {
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
+import { freezeVolatileMacros } from "../substrate/assembly-access";
 import { userMessageDelta } from "../substrate/stats-delta";
 import {
   driveRoundVia,
@@ -244,9 +253,36 @@ function lastSpeakerRef(
   return row.authorUserId !== null ? { kind: "agent", userId: row.authorUserId } : null;
 }
 
+/** The built turn context + the resolved host memory config threaded onto every `TurnPrep`. `memoryConfig` is
+ *  the SAME `ForeignInputs.memoryConfig` recall reads (memoryDefaults ⊕ the host D36 opt-out → `mode:"off"`) —
+ *  one source of truth: the engine's post-turn build honors the host's memory enable/tuning off THIS value. */
+interface BuiltTurnContext {
+  readonly assembleContext: AssembleContext;
+  readonly memoryConfig: MemoryConfig | null | undefined;
+}
+
+/** The turn's driving {@link TurnKind} → the ST `injection_trigger` {@link GenerationType} gate (F1). Exhaustive
+ *  Record (§5.5 — a new `TurnKind` fails `tsc` here, never silently defaults). `send`/`generate`/`force`/`auto`/
+ *  `opening` are fresh generations ⇒ `"normal"`; the aux kinds carry their own gate so trigger-gated preset
+ *  sections (`trigger:["continue"]`, `trigger:["swipe"]`, …) fire on the matching turn kind and NOT on the rest.
+ *  (`regenerate`/`quiet` are `GenerationType`s with no `TurnKind`: regenerate is a `swipe` on the tail; quiet has
+ *  no live verb — both stay unreachable by construction.) */
+const GENERATION_TYPE_FOR_KIND: Record<TurnKind, GenerationType> = {
+  send: "normal",
+  generate: "normal",
+  force: "normal",
+  auto: "normal",
+  opening: "normal",
+  swipe: "swipe",
+  continue: "continue",
+  impersonate: "impersonate",
+};
+
 /** Build the ONE immutable assemble ctx for the round: resolve the FOREIGN half (preset/persona/settings) from
  *  chat-supplied KEYS, then GATHER the chat-internal half + BUILD the pure ctx (`gatherAssembleContext`). The
- *  chat-owned data (canon/injections/variables/metadata/memory/regex-tier) the gather reads ITSELF. */
+ *  chat-owned data (canon/injections/variables/metadata/memory/regex-tier) the gather reads ITSELF. Returns the
+ *  built ctx PLUS the resolved memory config (`foreign.memoryConfig`) so the caller threads the SAME resolution
+ *  recall uses onto the `TurnPrep` (the engine's build side honors the D36 opt-out — one source, no re-derive). */
 async function buildTurnContext(
   ctx: ChatContext,
   deps: TurnDeps,
@@ -254,24 +290,30 @@ async function buildTurnContext(
     readonly chatId: ChatId;
     readonly runAsUserId: UserId;
     readonly model: string;
+    /** The driving turn kind — mapped to the ST `injection_trigger` `GenerationType` gate (F1). */
+    readonly kind: TurnKind;
     readonly castCharacterIds: readonly CharacterId[];
     readonly personaIds: readonly PersonaId[];
     readonly anchorPersonaId: PersonaId | null;
+    /** The TRIGGERING human's active persona (whose turn drives this assemble) — binds prompt-config
+     *  `{{user}}`'s `active` to the speaker, not `personaIds[0]` (the presence-order-arbitrary first human). */
+    readonly triggerPersonaId?: PersonaId | null | undefined;
     readonly pendingUserText?: string | undefined;
     readonly guided?: GuidedSteer | undefined;
   },
   /** SEND sink — when present + the round resolves host-tier scripts, the gather's `buildAssembleContext` writes
    *  the post-USER_INPUT-regex user text here for the verb to PERSIST. */
   out?: SendRegexSink,
-): ReturnType<typeof gatherAssembleContext> {
+): Promise<BuiltTurnContext> {
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: args.runAsUserId,
     model: args.model,
     anchorPersonaId: args.anchorPersonaId,
     personaIds: args.personaIds,
+    triggerPersonaId: args.triggerPersonaId,
   });
-  return await gatherAssembleContext(
+  const assembleContext = await gatherAssembleContext(
     ctx,
     {
       chatId: args.chatId,
@@ -279,6 +321,7 @@ async function buildTurnContext(
       model: args.model,
       castCharacterIds: args.castCharacterIds,
       personaIds: args.personaIds,
+      generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       // D46: the seeded turn PRNG drives the config-plane `randomPick` draw (deterministic, replayable).
       prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
@@ -287,18 +330,26 @@ async function buildTurnContext(
     foreign,
     out,
   );
+  return { assembleContext, memoryConfig: foreign.memoryConfig };
 }
 
 /** Persist a user message (a fresh slot + its one variant — D26) and emit `messageCommitted`. FLAG[send-regex]
  *  RESOLVED (D53 step 2): the SEND-context USER_INPUT regex pass runs inside `buildAssembleContext`
  *  and the CALLER passes the post-regex text as `content` (via the `SendRegexSink`) — this fn persists exactly
- *  what it is handed (the host-tier 3-source union is computed by the GATHER — `resolveHostTierRegexScripts`). */
+ *  what it is handed (the host-tier 3-source union is computed by the GATHER — `resolveHostTierRegexScripts`).
+ *
+ *  U1 (seq TOCTOU): the user-row seq is allocated from `loadMaxMessageSeq` OUTSIDE the engine's per-chat lock
+ *  (the lock guards the AI turn, acquired later in the round — engine.ts). Two concurrent same-chat sends
+ *  (multi-human D16 / a double-click; transport does NOT serialize per chat) can read the same head and collide
+ *  on the `messages (chatId, seq)` UNIQUE. The seq read + insert lives here and retries ONCE on that unique
+ *  violation: the loser re-derives the now-higher head and re-mints fresh ids. The first (failed) batch is
+ *  atomic and rolls back BEFORE any emit, so the retry double-commits nothing. A second collision on the retry
+ *  (a third simultaneous writer) surfaces the raw error — astronomically unlikely, never silently swallowed. */
 async function persistUserMessage(
   ctx: ChatContext,
   emit: TurnDeps["emit"],
   args: {
     readonly chatId: ChatId;
-    readonly seq: number;
     readonly content: string;
     readonly authorUserId: UserId;
     readonly personaId: PersonaId | null;
@@ -307,27 +358,40 @@ async function persistUserMessage(
   },
 ): Promise<MessageView> {
   const now = ctx.now();
-  const params = {
-    messageId: ctx.newMessageId(),
-    variantId: ctx.newMessageVariantId(),
-    chatId: args.chatId,
-    seq: args.seq,
-    role: "user" as const,
-    authorUserId: args.authorUserId,
-    personaId: args.personaId,
-    now,
-    variant: { content: args.content },
+  // ONE seq-allocate-and-insert attempt: read the current head, mint fresh ids, commit the atomic 3-step batch.
+  // Throws the raw batch error (the `(chatId, seq)` UNIQUE on a raced head) — the caller decides whether to retry.
+  const attempt = async (): Promise<MessageView> => {
+    const params = {
+      messageId: ctx.newMessageId(),
+      variantId: ctx.newMessageVariantId(),
+      chatId: args.chatId,
+      seq: (await loadMaxMessageSeq(ctx.db, args.chatId)) + 1,
+      role: "user" as const,
+      authorUserId: args.authorUserId,
+      personaId: args.personaId,
+      now,
+      variant: { content: args.content },
+    };
+    const statements = insertCanonMessageStatements(ctx.db, params);
+    // The canon-mutator stats push: the user turn's rollup delta rides the SAME batch as its
+    // canon insert. characterId null — the rebuild's per-char grain is assistant-only.
+    ctx.applyStatsDelta(
+      statements,
+      ctx.db,
+      userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }),
+    );
+    await ctx.db.batch(batchMany(statements));
+    return buildCommittedMessageView(params);
   };
-  const statements = insertCanonMessageStatements(ctx.db, params);
-  // The canon-mutator stats push: the user turn's rollup delta rides the SAME batch as its
-  // canon insert. characterId null — the rebuild's per-char grain is assistant-only.
-  ctx.applyStatsDelta(
-    statements,
-    ctx.db,
-    userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }),
-  );
-  await ctx.db.batch(batchMany(statements));
-  const view = buildCommittedMessageView(params);
+  const view = await attempt().catch((err: unknown) => {
+    // Retry ONCE, and ONLY on the raced `(chatId, seq)` UNIQUE (a concurrent send won the head; the failed
+    // batch rolled back atomically before any emit). Any other constraint (a minted-id PK — impossible; an FK)
+    // rethrows — this is not a general swallow. A second collision on the retry surfaces raw.
+    if (isConstraintViolation(err)?.kind === "unique") {
+      return attempt();
+    }
+    throw err;
+  });
   await emit({ type: "messageCommitted", chatId: args.chatId, messageId: view.id, view });
   // PD user-bus lane: the user row moved chat-list recency → fan `chatsChanged` to every present human member
   // (cross-device + multi-human). List-only (no `detail`) — the per-chat bus drives the OPEN chat's detail.
@@ -447,6 +511,44 @@ async function runChain(
   });
 }
 
+/**
+ * Task #77 / D51 — the GREETING FIRST-USER-TURN volatile freeze. When the first user message locks the
+ * conversation in, bake each greeting's nondeterministic macros (`{{roll}}`/`{{time}}`/…) against the turn's
+ * pinned clock + seeded PRNG so they stop shipping the literal `{{roll}}` to the model (and every viewer)
+ * forever. IDENTITY macros (`{{char}}`/`{{user}}`/`{{persona}}`) pass through RAW — they stay per-view /
+ * resolved-at-read (the anchor-addressed greeting, ruling A), so the anchor can still change and re-resolve.
+ *
+ * OWNER RULING: freeze the SELECTED variant of each pre-first-turn assistant (greeting) row. IDEMPOTENT — a
+ * frozen row carries no volatile macros left, so freezing it again produces byte-identical content and emits
+ * NO write (the guard skips unchanged rows). That idempotency also makes it safe under the concurrent-send
+ * retry (U1): two simultaneous "first" sends both freeze to the same bytes, never a double-mutation.
+ *
+ * STOP-REPORT (the deferred swipe edge, owner-flagged): only the SELECTED variant freezes at this ONE first
+ * turn. A later swipe of a committed greeting to a different (unfrozen) alternate leaves that alternate's
+ * volatiles raw — there is no subsequent "first turn" to re-freeze it. And the frozen rows are not re-emitted
+ * on the bus here, so a client showing a raw greeting sees the frozen value only on its next refetch (a
+ * greeting rarely carries a volatile; #73's names-only render already keeps a raw greeting cache-stable).
+ */
+async function freezeGreetingVolatiles(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  assembleContext: AssembleContext,
+  priorCanon: readonly MessageView[],
+): Promise<void> {
+  const stmts = priorCanon.flatMap((m) => {
+    if (m.role !== "assistant") {
+      return [];
+    }
+    const frozen = freezeVolatileMacros(m.content, assembleContext, { random: deps.prng });
+    return frozen === m.content
+      ? []
+      : [setVariantContentStatement(ctx.db, m.selectedVariantId, frozen, m.reasoning)];
+  });
+  if (stmts.length > 0) {
+    await ctx.db.batch(batchMany(stmts));
+  }
+}
+
 // ── send (the human turn → arbitration → round → optional auto-mode chain) ──────────────────────────────────
 /** `send` — persist the user message, build the ONE immutable assemble ctx, arbitrate the responders, drive the
  *  round, then (if `autoMode`) chain AI→AI. Member-gated (anyone present posts); the AI turns run as the host. */
@@ -475,26 +577,36 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
     // BEFORE the user row commits; the engine reloads canon (incl. the committed row) for the wire history. The
     // SEND USER_INPUT regex runs INSIDE the producer and writes the post-regex text to `sendOut`.
     const sendOut: SendRegexSink = {};
-    const assembleContext = await buildTurnContext(
+    const { assembleContext, memoryConfig } = await buildTurnContext(
       ctx,
       deps,
       {
         chatId,
         runAsUserId: identity.runAsUserId,
         model: connection.model,
+        kind: "send",
         castCharacterIds: room.castCharacterIds,
         personaIds: room.personaIds,
         anchorPersonaId: membership.chat.anchorPersonaId,
+        // Prompt-config `{{user}}` = the TRIGGERING human's persona (this send's author) — the SAME id the
+        // user row is stamped with below (an explicit param wins, else the sender's active persona), never
+        // `personaIds[0]`.
+        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
+        triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
         pendingUserText: content,
         guided,
       },
       sendOut,
     );
 
-    const seq = await loadMaxMessageSeq(ctx.db, chatId);
+    // Task #77 / D51: a greeting's VOLATILE macros ({{roll}}/{{time}}/…) freeze at the FIRST USER TURN (the
+    // send that locks the conversation in — the greeting is malleable/swipeable until then). Detect it BEFORE
+    // this send commits (no `role:"user"` row exists yet), then bake the greetings after the row lands.
+    const priorCanon = await loadCanonHistory(ctx.db, chatId);
+    const isFirstUserTurn = !priorCanon.some((m) => m.role === "user");
+
     const userView = await persistUserMessage(ctx, deps.emit, {
       chatId,
-      seq: seq + 1,
       // The POST-USER_INPUT-regex text (canon-mutating at write — §7); raw `content` when no host script fired.
       content: sendOut.sendUserText ?? content,
       authorUserId: principal.userId,
@@ -504,6 +616,10 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       personaId: personaId !== undefined ? personaId : membership.activePersonaId,
       hostUserId: room.hostUserId,
     });
+
+    if (isFirstUserTurn) {
+      await freezeGreetingVolatiles(ctx, deps, assembleContext, priorCanon);
+    }
 
     const facts = await canonFacts(ctx, chatId);
     const speakers = await arbitrate(ctx, deps, {
@@ -533,6 +649,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       runAsUserId: identity.runAsUserId,
       kind: "send",
       intent: intent ?? {},
+      memoryConfig,
       signal: handle.signal,
     };
 
@@ -604,13 +721,16 @@ function createForceCharacterTurn(
     }
     const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
     const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
-    const assembleContext = await buildTurnContext(ctx, deps, {
+    const { assembleContext, memoryConfig } = await buildTurnContext(ctx, deps, {
       chatId,
       runAsUserId: identity.runAsUserId,
       model: connection.model,
+      kind: "force",
       castCharacterIds: room.castCharacterIds,
       personaIds: room.personaIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
+      // The host triggers a forced character turn → prompt-config `{{user}}` = the host's active persona.
+      triggerPersonaId: membership.activePersonaId,
       guided,
     });
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
@@ -622,6 +742,7 @@ function createForceCharacterTurn(
       runAsUserId: identity.runAsUserId,
       kind: "force",
       intent: intent ?? {},
+      memoryConfig,
       signal: handle.signal,
     };
     try {
@@ -670,7 +791,10 @@ interface TurnBase {
   readonly room: Room;
   readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
   readonly connection: ResolvedConnection;
-  readonly assembleContext: Awaited<ReturnType<typeof buildTurnContext>>;
+  readonly assembleContext: AssembleContext;
+  /** The resolved host memory config threaded onto the aux turn's `TurnPrep` (the SAME `foreign.memoryConfig`
+   *  recall reads — the engine's build honors the D36 opt-out off it). */
+  readonly memoryConfig: MemoryConfig | null | undefined;
 }
 
 /** Resolve the {@link TurnBase} for an auxiliary turn (loadRoom → D19 triple → connection → assemble ctx). The
@@ -682,7 +806,12 @@ async function resolveTurnBase(
   args: {
     readonly principal: SendParams["principal"];
     readonly chatId: ChatId;
+    /** The driving turn kind (swipe/continue/impersonate/generate) — carries the F1 `injection_trigger` gate. */
+    readonly kind: TurnKind;
     readonly anchorPersonaId: PersonaId | null;
+    /** The TRIGGERING human's active persona (the caller of this aux turn) — binds prompt-config `{{user}}`
+     *  to the speaker, not `personaIds[0]`. */
+    readonly triggerPersonaId?: PersonaId | null | undefined;
     /** The one-turn typed steer (PD-63) — threaded into the assemble ctx (GATHER → BUILD). */
     readonly guided?: GuidedSteer | undefined;
   },
@@ -694,16 +823,18 @@ async function resolveTurnBase(
     hostUserId: room.hostUserId,
   });
   const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
-  const assembleContext = await buildTurnContext(ctx, deps, {
+  const { assembleContext, memoryConfig } = await buildTurnContext(ctx, deps, {
     chatId,
     runAsUserId: identity.runAsUserId,
     model: connection.model,
+    kind: args.kind,
     castCharacterIds: room.castCharacterIds,
     personaIds: room.personaIds,
     anchorPersonaId: args.anchorPersonaId,
+    triggerPersonaId: args.triggerPersonaId,
     guided: args.guided,
   });
-  return { room, identity, connection, assembleContext };
+  return { room, identity, connection, assembleContext, memoryConfig };
 }
 
 /** Run ONE engine turn under an active-turns registration, threading the abort signal into the engine (FLAG
@@ -757,16 +888,24 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     guided,
   }: SwipeParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const target = await loadSlotTarget(ctx.db, messageId);
+    // CHAT-SCOPED load (the IDOR fix): a `messageId` from another chat matches nothing → the same leak-free
+    // NOT_FOUND a nonexistent id yields, so a member can neither read nor swipe-append another room's canon.
+    const target = await loadSlotTarget(ctx.db, chatId, messageId);
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      guided,
-    });
+    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
+      ctx,
+      deps,
+      {
+        principal,
+        chatId,
+        kind: "swipe",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        triggerPersonaId: membership.activePersonaId,
+        guided,
+      },
+    );
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
@@ -776,6 +915,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       runAsUserId: identity.runAsUserId,
       kind: "swipe",
       intent: intent ?? {},
+      memoryConfig,
       speakerCharacterId: target.characterId,
       persist: { mode: "append-variant", targetMessageId: messageId },
       ...(shape !== undefined ? { shape } : {}),
@@ -796,16 +936,24 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     guided,
   }: ContinueTurnParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const target = await loadSlotTarget(ctx.db, messageId);
+    // CHAT-SCOPED load (the IDOR fix): a `messageId` from another chat matches nothing → the same leak-free
+    // NOT_FOUND a nonexistent id yields, so a member can neither read nor continue-append another room's canon.
+    const target = await loadSlotTarget(ctx.db, chatId, messageId);
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      guided,
-    });
+    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
+      ctx,
+      deps,
+      {
+        principal,
+        chatId,
+        kind: "continue",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        triggerPersonaId: membership.activePersonaId,
+        guided,
+      },
+    );
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
@@ -815,6 +963,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       runAsUserId: identity.runAsUserId,
       kind: "continue",
       intent: intent ?? {},
+      memoryConfig,
       speakerCharacterId: target.characterId,
       appendUserTurn: CONTINUE_NUDGE,
       persist: { mode: "continue", targetMessageId: messageId },
@@ -836,12 +985,21 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
     guided,
   }: ImpersonateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      guided,
-    });
+    const { identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
+      ctx,
+      deps,
+      {
+        principal,
+        chatId,
+        kind: "impersonate",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        // The model writes THIS persona's voice → prompt-config `{{user}}` is the impersonated persona (the
+        // SAME id the persisted user slot is stamped with — an explicit param wins, else the active persona).
+        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the slot stamp below).
+        triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
+        guided,
+      },
+    );
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
       assembleContext,
@@ -850,6 +1008,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       runAsUserId: identity.runAsUserId,
       kind: "impersonate",
       intent: intent ?? {},
+      memoryConfig,
       speakerCharacterId: null,
       appendUserTurn: IMPERSONATE_NUDGE,
       persist: {
@@ -877,12 +1036,18 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
     guided,
   }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      guided,
-    });
+    const { room, identity, connection, assembleContext, memoryConfig } = await resolveTurnBase(
+      ctx,
+      deps,
+      {
+        principal,
+        chatId,
+        kind: "generate",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        triggerPersonaId: membership.activePersonaId,
+        guided,
+      },
+    );
     const speaker = speakerCharacterId ?? primaryCharacterId(room);
     const shape = speakerShapeFor(room, speaker);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
@@ -893,6 +1058,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       runAsUserId: identity.runAsUserId,
       kind: "generate",
       intent: intent ?? {},
+      memoryConfig,
       speakerCharacterId: speaker,
       lockFree: true,
       ...(shape !== undefined ? { shape } : {}),
@@ -914,7 +1080,9 @@ async function restoreContinue(
   },
 ): Promise<MessageView> {
   const { chatId, messageId, direction } = args;
-  const snap = await loadContinueSnapshot(ctx.db, messageId);
+  // CHAT-SCOPED load (the IDOR fix): a `messageId` from another chat matches nothing → the same
+  // `no_continuation` refusal a nonexistent id yields, so undo/revert cannot restore/mutate another room's canon.
+  const snap = await loadContinueSnapshot(ctx.db, chatId, messageId);
   if (
     snap === undefined ||
     snap.preContinueContent === null ||

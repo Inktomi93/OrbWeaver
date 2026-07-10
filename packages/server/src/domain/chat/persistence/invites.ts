@@ -1,7 +1,8 @@
 // domain/chat/persistence/invites — the `chat_invites` reads + the ATOMIC REDEEM (the ONE human participant-
 // insert chokepoint, Part III §2) + the `pending_turns` host-offline deferred-turn reads/writes. QUERIES ONLY:
-// the redeem's `maxUses`/expiry TOCTOU is closed by a single conditional `UPDATE … RETURNING`; targeting /
-// AUTH_MODE / host authority are the verbs'. The token is NEVER raw here — lookups key on the peppered
+// the redeem's `maxUses`/expiry/TARGETING TOCTOU is closed by a single conditional `UPDATE … RETURNING`
+// (redeem/decline enforce `invitedUserId` in the WHERE — atomic with the state change; preview's targeting is
+// the verb's read-side check); AUTH_MODE / host authority are the verbs'. The token is NEVER raw here — lookups key on the peppered
 // `tokenHash` the verb computes (mirror the `sessions` token discipline); this layer never sees the raw token.
 
 import type { Db } from "@orb/db";
@@ -62,11 +63,19 @@ export async function createInvite(db: Db, row: typeof chatInvites.$inferInsert)
 
 /**
  * The ATOMIC redeem (Part III §2 — the ONE human participant-insert chokepoint). Step 1 is the TOCTOU-closing
- * conditional `UPDATE chat_invites SET uses=uses+1 (… → 'accepted' once exhausted) WHERE tokenHash AND status='pending' AND remaining>0 AND not-expired RETURNING`
+ * conditional `UPDATE chat_invites SET uses=uses+1 (… → 'accepted' once exhausted) WHERE tokenHash AND status='pending' AND remaining>0 AND not-expired AND (untargeted OR target=caller) AND caller-not-already-present RETURNING`
  * — a contended/expired/exhausted invite matches
- * nothing (→ `undefined`). Step 2 stamps the participant via the same {@link upsertMemberOnJoin} re-add upsert
- * (`role` server-forced `member`, `joinSeq`=current canon head — history replays from there AFTER accept).
- * Returns the joined chat id + the participant row, or `undefined` if the invite was not redeemable.
+ * nothing (→ `undefined`). TARGETING is enforced HERE, atomic with the use-increment (mirror
+ * {@link declineInviteById}; the `previewInvite` target semantics — an untargeted `invitedUserId=null` invite
+ * redeems for anyone, a targeted one ONLY for its `invitedUserId`): a non-target's claim matches nothing → it
+ * never burns a use nor flips status, and the verb surfaces the same leak-free NOT_FOUND an invalid token
+ * gives. The `caller-not-already-present` predicate makes a re-redeem by a PRESENT member idempotent (no burned
+ * use, no status flip — the F5 fix): a bookmarked /join re-fire on a finite invite never consumes a remaining
+ * use, and the verb's recovery path returns their existing membership. Step 2 stamps the participant via the
+ * same {@link upsertMemberOnJoin} re-add upsert (`role` server-forced `member`, `joinSeq`=current canon head —
+ * history replays from there AFTER accept); its `undefined` no-op is now reachable ONLY under a concurrent
+ * same-user double-redeem race (both UPDATEs pass the not-present check before either upsert lands). Returns the
+ * joined chat id + the participant row, or `undefined` if the invite was not redeemable.
  */
 export async function redeemInviteAtomic(
   db: Db,
@@ -92,6 +101,13 @@ export async function redeemInviteAtomic(
         eq(chatInvites.status, "pending"),
         or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
         or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
+        // Targeting: an untargeted invite redeems for anyone; a targeted one ONLY for its `invitedUserId`.
+        or(isNull(chatInvites.invitedUserId), eq(chatInvites.invitedUserId, params.userId)),
+        // Idempotent re-redeem: a caller who is ALREADY a PRESENT member of this invite's chat burns no use and
+        // flips no status (mirror `upsertMemberOnJoin`'s `(chatId,userId)` no-op — `leftSeq IS NULL` = present).
+        // A bookmarked /join re-fire on a finite multi-use invite thus never eats a remaining use (the verb's
+        // recovery path re-reads their existing membership); a PREVIOUSLY-LEFT member still re-redeems + re-joins.
+        sql`not exists (select 1 from ${chatParticipants} where ${chatParticipants.chatId} = ${chatInvites.chatId} and ${chatParticipants.userId} = ${params.userId} and ${chatParticipants.leftSeq} is null)`,
       ),
     )
     .returning({ id: chatInvites.id, chatId: chatInvites.chatId });

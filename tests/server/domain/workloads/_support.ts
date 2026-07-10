@@ -43,8 +43,12 @@ export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
 }
 
 /** A fake cross-feature env: every op is a `vi.fn` with a sane default return; a test overrides a single op
- *  to assert behavior (failure/cancel) or read `.mock.calls`. `cas` is unused by any runner (cast). */
-export function fakeEnv(): WorkloadRunnerEnv {
+ *  to assert behavior (failure/cancel) or read `.mock.calls`. `cas` is unused by any runner (cast).
+ *  `overrides` is a deep partial-per-feature bundle, applied at construction — `WorkloadRunnerEnv`'s
+ *  feature ops are readonly, so a test can no longer reassign `env.<feature>.<op>` after the fact. */
+export function fakeEnv(
+  overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<WorkloadRunnerEnv[K]> } = {},
+): WorkloadRunnerEnv {
   return {
     embeddings: {
       embedCorpus: vi.fn(async (_args: { force: boolean; signal: AbortSignal }) => ({
@@ -99,7 +103,11 @@ export function fakeEnv(): WorkloadRunnerEnv {
       })),
     },
     connection: {
-      refreshCatalogSnapshot: vi.fn(async (_args: { signal: AbortSignal }) => ({ models: 99 })),
+      refreshCatalogSnapshot: vi.fn(async (_args: { signal: AbortSignal }) => ({
+        models: 99,
+        agentSdkModels: 3,
+      })),
+      ...overrides.connection,
     },
     memory: {
       backfill: vi.fn(async (_args: { signal: AbortSignal }) => ({

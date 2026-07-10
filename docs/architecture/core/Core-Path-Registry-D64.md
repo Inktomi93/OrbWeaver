@@ -1,0 +1,18 @@
+---
+kind: reference
+status: active
+updated: 2026-07-10
+---
+
+# Orbweaver — Path/Home Registry: D64
+
+> Split-sibling of `Core-Laws-and-Precedents.md` §7 (range files D1–D61 listed there; D62/D63/D64 solo). Decision **D64**: a host-handoff / non-owner fork TRANSFERS the room + history but DROPS the prior owner's character seats (F4/PD-21 resolution). SUPERSEDES the fail-closed `cast_not_owned` refuse.
+
+---
+
+- **D64 — A host-handoff (`acceptHostHandoff`) and a non-owner fork (`forkChat`) SUCCEED: they transfer the room + history to the new owner but DROP the prior host's character seats (keeping the humans); the new owner adds their own cast. RESOLVES crownjewel F4 / PD-21; SUPERSEDES the fail-closed `cast_not_owned` refuse a prior lane landed (2026-07-10).** Owner ruling (verbatim intent): *"the handoff would hand the room and the history but not the characters — it would remove the host's characters, leaving the humans; the new room owner can then add his own."* Cards are single-owned (D28 — `getCard` is owner-scoped, `null` for a non-owner) and the whole engine loads cast + memory under the ONE new-owner `runAsUserId` (PD-21), so a character seat whose card resolves `null` under the new owner would otherwise collapse to a blank `{name:"Assistant"}` (context.ts) and re-mint/orphan the owner-keyed group-memory bucket. The prior lane REFUSED that transfer (typed `cast_not_owned`, `assertNewHostOwnsCast`/`assertForkerOwnsCast`); the ruling instead DROPS the un-resolvable seats. **The drop mechanism:**
+  - **`acceptHostHandoff`** — after the self-action gate, resolve each present character seat via `getCard({ownerId: newHost, characterId})`; every seat that resolves `null` (in the single-owner model, all the outgoing host's characters) is `leftSeq`-stamped at the canon head, in the SAME batch as the demote→promote→clear role swap (`markParticipantLeftStatement`, `persistence/participant.ts`). Human + agent seats are never dropped (a human's own seat is theirs). Emits the existing `chatUpdated` so seated clients refetch the roster.
+  - **`forkChat`** — the deep copy carries only the character seats the FORKER owns (`resolveOwnedCharacterSeats` — owner-scoped `getCard`); un-owned seats are omitted from the new roster. The canon (history) is copied WHOLE regardless, so a dropped character's prior lines survive in the fork; only the live seat is gone. An OWNER forking their OWN chat owns every card → the whole cast is kept UNCHANGED (the reachable path today).
+  - **Group-memory bucket:** the outgoing host's synthetic group-memory bucket is naturally orphaned (the room is now a different cast) — EXPECTED per the ruling, not a bug; NOT migrated.
+  - **`cast_not_owned` error REMOVED** from `CHAT_OP_CODES` (no path throws it). The `FLAG[cast-ownership-on-transfer]` is RESOLVED.
+- **Touched:** `domain/chat/verbs/roster.ts` (`assertNewHostOwnsCast` → `resolveDroppedCharacterSeatIds` + the drop-in-swap-batch), `domain/chat/verbs/fork.ts` (`assertForkerOwnsCast` → `resolveOwnedCharacterSeats` + copy-only-owned), `domain/chat/persistence/participant.ts` (`markParticipantLeftStatement` — the unexecuted by-id `leftSeq` UPDATE for the atomic batch), `domain/chat/contract/errors.ts` (drop `cast_not_owned`), and the two `.int.test.ts`. **Enforcement:** the two verb `.int.test`s (handoff-to-non-owner drops the host's characters / keeps humans + roles / emits; non-owner fork drops un-owned seats + keeps the whole canon; owner self-fork unchanged). Driven at the verb layer with seeded non-owner principals (multi-human membership is still transport-unwired — the crownjewel reachability frame; this closes the F4 hole BEFORE that wiring ships). (Nate — ruling given 2026-07-10; supersedes the interim fail-closed guard.)

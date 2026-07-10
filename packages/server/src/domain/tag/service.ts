@@ -10,7 +10,9 @@ import { createCreate } from "./verbs/create";
 import { createDetachCardTagByName } from "./verbs/detach-card-tag-by-name";
 import { createGet } from "./verbs/get";
 import { createList } from "./verbs/list";
+import { createListPendingSuggestions } from "./verbs/list-pending-suggestions";
 import { createListWithUsage } from "./verbs/list-with-usage";
+import { createMerge } from "./verbs/merge";
 import { createPrune } from "./verbs/prune";
 import { createRemove } from "./verbs/remove";
 import { createSetOrder } from "./verbs/set-order";
@@ -24,7 +26,9 @@ export function createTagService(ctx: TagContext): TagService {
     listTags: createList(ctx),
     updateTag: createUpdate(ctx),
     removeTag: createRemove(ctx),
+    mergeTags: createMerge(ctx),
     listTagsWithUsage: createListWithUsage(ctx),
+    listPendingSuggestions: createListPendingSuggestions(ctx),
     pruneUnusedTags: createPrune(ctx),
     setTagOrder: createSetOrder(ctx),
     attachTag: attach.attachTag,

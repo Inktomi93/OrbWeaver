@@ -14,8 +14,9 @@ const CAPTION_USER_PROMPT = "Describe this image.";
 
 /** Generate the avatar caption inline via the injected `summarize` op (decided: inline, not a chained
  *  `caption.created` event — the caption is fast enough; an extra event hop buys nothing). Returns the
- *  summary text (empty string when the family returned no item — the joint embed still runs on the image
- *  bytes). */
+ *  summary text, or "" when the family returned no item — the `store` verb treats an empty caption as
+ *  skip-don't-write for the captioned lens (F8: it would otherwise poison the bytes-hashed row permanently),
+ *  so the captioned embed is retried on the next indexer run; the raw lens carries the image-only signal. */
 export async function generateAvatarCaption(
   roleClients: RoleClients,
   bytes: Uint8Array,

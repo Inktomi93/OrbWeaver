@@ -53,5 +53,14 @@
   },
   // `${configDir}/../../reset.d.ts` → the repo-root ts-reset import; every package lives at
   // packages/<name>, so `../../` always resolves to root. Declaration-only, no emit.
-  "include": ["${configDir}/src", "${configDir}/../../reset.d.ts"]
+  "include": ["${configDir}/src", "${configDir}/../../reset.d.ts"],
+  // `__g_*` is the RESERVED sentinel prefix the check-gates self-test (tests/tooling/check-gates.int.test.ts)
+  // materializes throwaway violation fixtures under — they exist for milliseconds inside one test then are
+  // rm'd. tsc/biome/vitest/eslint/depcruise all glob the real tree, so a CONCURRENT typecheck could catch a
+  // fixture mid-lifecycle → a phantom error that vanishes on re-run (the "never run `pnpm test` alongside
+  // `pnpm check`" footgun). Excluding the sentinel here (mirrored in tsconfig.json/biome.json/vitest.config.ts/
+  // eslint.config.js/.dependency-cruiser.cjs) makes the self-test hermetic: the gate harness reads fixtures via
+  // ts-morph's OWN globs (skipAddingFilesFromTsConfig — unaffected by this exclude), so it still fires on them.
+  // Specifying `exclude` overrides tsc's default, so node_modules is re-listed to keep it out.
+  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
 }

@@ -9,6 +9,7 @@
 
 import { useTRPC } from "@orb/client/data";
 import {
+  CharacterAppearanceTab,
   CharacterBulkBar,
   CharacterCardTile,
   CharacterEditorSurface,
@@ -101,6 +102,18 @@ export function CharacterEditorSurfaceStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 720 }}>
         <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The §8.1 CONTEXT Appearance tab over the real data layer (`character.get` + `character.update` stubbed
+ *  by routeTrpc) — drives the per-character theme cluster's immediate-commit / reset / per-field-clear. */
+export function CharacterAppearanceTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720 }}>
+        <CharacterAppearanceTab characterId={castId<CharacterId>("char_ct_1")} />
       </div>
     </CtDataProviders>
   );

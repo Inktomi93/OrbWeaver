@@ -18,6 +18,7 @@ import { env } from "#foundation/env";
 import { ConnectionRoutingError } from "../contract/errors";
 import type { AgentOverride, ResolveRoleParams } from "../contract/params";
 import type { ConnectionContext, ConnectionService } from "../contract/service";
+import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
 import { healToChatDefault } from "../substrate/heal-model";
 import { getCachedOrModels } from "../substrate/or-model-cache";
@@ -89,12 +90,21 @@ const ROLE_SELECTORS: {
     model: ov?.model ?? rd.imageEmbed?.model ?? env.VLLM_EMBED_MODEL,
     chatModel: false,
   }),
-  summarize: (rd, ov) => ({
-    api: DEFAULT_CHAT_API,
-    source: ov?.source ?? rd.summarize?.source ?? DEFAULT_LOCAL_SOURCE,
-    model: ov?.model ?? rd.summarize?.model ?? env.VLLM_GEN_MODEL,
-    chatModel: true,
-  }),
+  // summarize DEFAULTS to the local vLLM gen model, but a user override MAY select the Max sub
+  // (max-pro-sub) — the agent-sdk backend serves it as a schema-validated summarizer on sub quota. A
+  // max-pro-sub source pairs with `api:"agent-sdk"` (the only coherent api for the sub, `assertCoherent`)
+  // and heals its model through the tier-preserving agent-sdk heal (`healToChatDefault`, like chat). Any
+  // other source stays on the chat-completions api against the concrete engine/model string.
+  summarize: (rd, ov) => {
+    const source = ov?.source ?? rd.summarize?.source ?? DEFAULT_LOCAL_SOURCE;
+    const isSub = source === "max-pro-sub";
+    return {
+      api: isSub ? "agent-sdk" : DEFAULT_CHAT_API,
+      source,
+      model: ov?.model ?? rd.summarize?.model ?? (isSub ? null : env.VLLM_GEN_MODEL),
+      chatModel: true,
+    };
+  },
   generateImage: (rd, ov) => ({
     api: DEFAULT_CHAT_API,
     source: ov?.source ?? rd.generateImage?.source ?? DEFAULT_IMAGE_SOURCE,
@@ -179,7 +189,12 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
       principal: params.principal,
       source: selection.source,
     });
-    const capability = resolveCapability(model, selection.source, getCachedOrModels(ctx.now()));
+    const capability = resolveCapability(
+      model,
+      selection.source,
+      getCachedOrModels(ctx.now()),
+      getCachedAgentSdkModels(ctx.now()),
+    );
     return { api: selection.api, model, credential, capability };
   };
 }

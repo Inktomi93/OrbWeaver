@@ -65,7 +65,7 @@ export const TOKENS = {
   "spacing.avatar-lg": { cssVar: "--spacing-avatar-lg", value: "2.125rem" },
   "spacing.avatar-hero": { cssVar: "--spacing-avatar-hero", value: "4rem" },
   "spacing.switch-track": { cssVar: "--spacing-switch-track", value: "3rem" },
-  "spacing.switch-thumb": { cssVar: "--spacing-switch-thumb", value: "1.75rem" },
+  "spacing.switch-thumb": { cssVar: "--spacing-switch-thumb", value: "2rem" },
   "radius.base": { cssVar: "--radius-base", value: "0.5rem" },
   "radius.control": { cssVar: "--radius-control", value: "0.375rem" },
   "radius.card": { cssVar: "--radius-card", value: "0.625rem" },

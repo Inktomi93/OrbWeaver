@@ -36,6 +36,10 @@ export const users = sqliteTable(
     // Stable SSO subject — nullable (the single-user / owner-fallback path has none); UNIQUE-when-set
     // via the partial index below.
     externalId: text("external_id").$type<ExternalId>(),
+    // MUTABLE contact attribute off the SSO `email` claim (or FORWARD_AUTH_EMAIL_HEADER) — re-derived on
+    // each login, never wiped on a null (keep-on-null). NEVER an identity/join key (no UNIQUE): identity
+    // stays keyed on `id` + `external_id`. Nullable — the single-user/owner-fallback + local paths carry none.
+    email: text("email"),
     role: text("role", { enum: USER_ROLES }).notNull().default(DEFAULT_ROLE),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     // Local-auth path only; null for SSO-only users.

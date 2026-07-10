@@ -238,6 +238,59 @@ test("parseNeoPresetFile is STRICT: a structurally-broken config is REJECTED (er
   expect(lenient).toEqual(DEFAULT_PROMPT_CONFIG);
 });
 
+test("parseNeoPresetFile LIFTS a v1-era file forward before strict validation (older files import)", () => {
+  // The format IS the predecessor app's export shape — a v1 config (literal `main` section + `jailbreak`
+  // marker, the shapes CONFIG_LIFTS[1] migrates) must import, not be rejected as "invalid prompt config".
+  const v1Config: unknown = {
+    schemaVersion: 1,
+    sections: [
+      {
+        type: "literal",
+        id: "main",
+        name: "Main",
+        role: "system",
+        content: "You are {{char}}.",
+        enabled: true,
+      },
+      {
+        type: "marker",
+        id: "jb",
+        name: "Jailbreak",
+        marker: "jailbreak",
+        role: "system",
+        enabled: true,
+        template: "stay in character",
+      },
+      {
+        type: "marker",
+        id: "ph",
+        name: "Post-history",
+        marker: "post_history",
+        role: "system",
+        enabled: true,
+      },
+    ],
+    params: {},
+  };
+  const result = parseNeoPresetFile({
+    schemaKind: NEO_PRESET_SCHEMA_KIND,
+    schemaVersion: 1,
+    name: "legacy",
+    config: v1Config,
+  });
+  if (!result.ok) {
+    throw new Error(`expected the v1 file to lift + import, got: ${result.error}`);
+  }
+  expect(result.name).toBe("legacy");
+  // Lifted to the current version, and the v1 literal `main` became the `main_prompt` marker.
+  expect(result.config.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
+  expect(result.config.sections.map((s) => ("marker" in s ? s.marker : s.id))).toEqual([
+    "main_prompt",
+    "chat_history",
+    "post_history",
+  ]);
+});
+
 test("parseNeoPresetFile rejects a non-object and a wrong schemaKind", () => {
   expect(parseNeoPresetFile(null).ok).toBe(false);
   expect(parseNeoPresetFile({ schemaKind: "something-else", config: {} }).ok).toBe(false);

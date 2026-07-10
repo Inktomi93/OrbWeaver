@@ -24,5 +24,8 @@ export const colorFieldVariants = tv({
     nativeColorInput:
       "h-control-md w-full cursor-pointer rounded-control border border-border p-0 disabled:cursor-not-allowed",
     hexField: "w-full",
+    // The per-field clear affordance (FINAL-Character §8.1). Left-aligned under the hex field so it
+    // reads as a secondary action, not a full-width primary — it emits the empty "" clear sentinel.
+    resetButton: "self-start",
   },
 });

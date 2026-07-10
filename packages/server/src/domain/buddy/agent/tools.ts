@@ -8,7 +8,7 @@
 import type { Db } from "@orb/db";
 import { buddies, characters, chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { BuddyWorkloadKind } from "../contract/agent-env";
 import type { BuddyToolResult, BuddyToolSpec } from "../contract/agent-turn";
@@ -80,7 +80,15 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
         const rows = await db
           .select({ n: count() })
           .from(chatParticipants)
-          .where(and(eq(chatParticipants.userId, userId), eq(chatParticipants.role, "host")));
+          .where(
+            and(
+              eq(chatParticipants.userId, userId),
+              eq(chatParticipants.role, "host"),
+              // PRESENT host only — a departed ex-host row (handoff-via-leave, D18) would over-count
+              // chats the user no longer hosts.
+              isNull(chatParticipants.leftSeq),
+            ),
+          );
         return toolText(JSON.stringify({ chats: rows[0]?.n ?? 0 }));
       },
     },

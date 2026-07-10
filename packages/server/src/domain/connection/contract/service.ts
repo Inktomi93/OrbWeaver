@@ -14,6 +14,7 @@
 // db steps stay in `persistence/`; `now` is the injected determinism seam (no ambient clock — testing §3).
 
 import type {
+  AgentSdkModel,
   ChatSource,
   ModelCapability,
   ModelCatalogEntry,
@@ -35,7 +36,7 @@ import type {
   ResolveRoleParams,
   TestClaudeAuthParams,
 } from "./params";
-import type { CatalogSnapshot } from "./results";
+import type { AgentSdkCatalogSnapshot, CatalogSnapshot, OrSkinTierModels } from "./results";
 
 /** credentials.resolve — resolve the brand-protected credential for a `{principal, source}`. The
  *  `max-pro-sub` owner gate lives in credentials; connection never re-checks it. */
@@ -49,6 +50,13 @@ export type ResolveCredentialOp = (params: {
 export type FetchOrCatalogOp = (req: {
   readonly signal?: AbortSignal | undefined;
 }) => Promise<ModelCatalogEntry[]>;
+
+/** infra/providers.fetchAgentSdkModels — the live agent-sdk `supportedModels()` discovery (host-login-
+ *  fixed, no credential — a control-channel call, not a billed turn). Returns the normalized daemon
+ *  family→version rows connection persists in its SEPARATE agent-sdk snapshot. */
+export type FetchAgentSdkModelsOp = (req: {
+  readonly signal?: AbortSignal | undefined;
+}) => Promise<AgentSdkModel[]>;
 
 /** settings.loadUserSettings — the parsed per-user UserSettings (the `routing.roleDefaults.*` source).
  *  Connection is a CONSUMER of settings, not an owner. */
@@ -89,6 +97,7 @@ export interface ConnectionContext {
   readonly now: () => number;
   readonly resolveCredential: ResolveCredentialOp;
   readonly fetchOrCatalog: FetchOrCatalogOp;
+  readonly fetchAgentSdkModels: FetchAgentSdkModelsOp;
   readonly loadUserSettings: LoadUserSettingsOp;
   readonly verifyClaudeAuth: VerifyClaudeAuthOp;
   readonly accountCredits: AccountCreditsOp;
@@ -119,8 +128,20 @@ export interface ConnectionService {
   readonly resolveRole: (params: ResolveRoleParams) => Promise<ResolvedConnection>;
   readonly resolveChat: (params: ResolveChatParams) => Promise<ResolvedConnection>;
   readonly getModelCapability: (params: GetModelCapabilityParams) => Promise<ModelCapability>;
+  /** DERIVE the mode-2 (OR-Anthropic skin) tier→OpenRouter-slug map (`opus`/`sonnet`/`haiku`) from the two
+   *  live catalogs this domain holds (the agent-sdk daemon map + the OR id list). Threaded onto the
+   *  agent-sdk chat request by the chat compose seam so the env firewall holds NO hardcoded model strings.
+   *  NEVER throws — a cold catalog degrades to the curated shortlist, so every agent-sdk turn gets a trio. */
+  readonly getOrSkinTierModels: () => Promise<OrSkinTierModels>;
   readonly getCatalog: (params: GetCatalogParams) => Promise<CatalogSnapshot>;
   readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogSnapshot>;
+  /** The agent-sdk daemon's family→version catalog (`supportedModels()`). `getAgentSdkCatalog` reads the
+   *  persisted snapshot (seeds the cache); `refreshAgentSdkCatalog` runs the live discovery, persists, and
+   *  warms the cache (stale-snapshot fallback on failure). SEPARATE from the OR catalog verbs above. */
+  readonly getAgentSdkCatalog: (params: GetCatalogParams) => Promise<AgentSdkCatalogSnapshot>;
+  readonly refreshAgentSdkCatalog: (
+    params: RefreshCatalogParams,
+  ) => Promise<AgentSdkCatalogSnapshot>;
   /** The max-pro-sub HEALTH CHECK (neo `models.testClaudeAuth`, Tier-4-Transport.md): resolve the
    *  owner-gated `max-pro-sub` credential (credentials enforces D17 — a non-owner rejects there), then run
    *  the tiny SDK verify turn on the cheapest curated tier. `apiKeySource === "none"` = host login active. */

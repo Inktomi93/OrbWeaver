@@ -86,16 +86,27 @@ test("a search with no matches shows the 'no matches' empty state", async ({ mou
   await expect(component.getByText("No matches")).toBeVisible();
 });
 
-test("a read failure shows the error state (no Retry — the factory exposes no refetch handle)", async ({
+test("a read failure shows the error state with a working Retry (rule 1 — no dead ends)", async ({
   mount,
   page,
 }) => {
-  await routeTrpc(page, { "character.list": () => trpcError() });
+  // First read fails; after Retry the responder recovers — the list renders without a remount.
+  let failed = false;
+  await routeTrpc(page, {
+    "character.list": () => {
+      if (!failed) {
+        failed = true;
+        return trpcError();
+      }
+      return { items: [BOLT], nextCursor: null };
+    },
+  });
 
   const component = await mount(<CharacterLibrarySurfaceStory />);
 
   await expect(component.getByText("Couldn't load the character library.")).toBeVisible();
-  await expect(component.getByRole("button", { name: "Retry" })).toHaveCount(0);
+  await component.getByRole("button", { name: "Retry" }).click();
+  await expect(component.getByText("Bolt")).toBeVisible();
 });
 
 // ── §4.2/§4.5/§4.6/§4.3 the new LIST features ──────────────────────────────────────────────────────

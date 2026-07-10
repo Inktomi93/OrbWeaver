@@ -30,18 +30,18 @@ test("resolveRowMacros: {{user}} resolves to the row's stamped persona name (Mar
   const out = resolveRowMacros(
     "{{user}} waves",
     { characterId: null, personaId: MARA_ID },
-    ctx({ activePersonaName: "Zara" }),
+    ctx({ fallbackPersonaName: "Zara" }),
   );
   expect(out).toBe("Mara waves");
 });
 
-// ── null personaId ⇒ falls to the active-persona fallback (never the row-stamp lookup) ──
+// ── null personaId ⇒ falls to the chat ANCHOR fallback (never the row-stamp lookup) ──
 
-test("resolveRowMacros: {{user}} falls back to activePersonaName when personaId is null", () => {
+test("resolveRowMacros: {{user}} falls back to fallbackPersonaName (the anchor) when personaId is null", () => {
   const out = resolveRowMacros(
     "{{user}} waves",
     { characterId: null, personaId: null },
-    ctx({ activePersonaName: "Zara" }),
+    ctx({ fallbackPersonaName: "Zara" }),
   );
   expect(out).toBe("Zara waves");
 });
@@ -77,6 +77,50 @@ test('resolveRowMacros: {{char}} falls back to the literal "Character" when noth
   expect(out).toBe("Character nods");
 });
 
+// ── ruling B: a HUMAN-authored / narrator row (characterId === null) resolves {{char}} to the CAST ──
+
+test("resolveRowMacros: {{char}} in a user row resolves to the JOINED cast in a multi-character room", () => {
+  const out = resolveRowMacros(
+    "{{char}}, look here",
+    { characterId: null, personaId: MARA_ID },
+    ctx({ cast: ["Aria", "Kai"], speakerCharName: "Aria" }),
+  );
+  // A user's own {{char}} addresses the whole cast (== {{group}}), NOT the arbitrary current speaker.
+  expect(out).toBe("Aria, Kai, look here");
+});
+
+test("resolveRowMacros: {{char}} in a user row resolves to the ONE character in a solo room", () => {
+  const out = resolveRowMacros(
+    "{{char}}, look here",
+    { characterId: null, personaId: MARA_ID },
+    ctx({ cast: ["Aria"] }),
+  );
+  expect(out).toBe("Aria, look here");
+});
+
+test("resolveRowMacros: a VOICED row with a DELETED character floors to Character, never the cast join", () => {
+  const out = resolveRowMacros(
+    "{{char}} nods",
+    { characterId: castId<CharacterId>("character_gone"), personaId: null },
+    ctx({ cast: ["Aria", "Kai"] }),
+  );
+  // A stamped-but-unresolvable character is a deleted-id FLOOR (not a user/narrator row) → "Character",
+  // NOT the cast join — only a null characterId means "the cast".
+  expect(out).toBe("Character nods");
+});
+
+// ── {{user}}/{{persona}} null-stamp fallback = the chat ANCHOR (name + description), never the reader ──
+
+test("resolveRowMacros: {{persona}} for a null-stamp row falls back to the anchor description", () => {
+  const out = resolveRowMacros(
+    "{{user}} — {{persona}}",
+    { characterId: ARIA_ID, personaId: null },
+    ctx({ fallbackPersonaName: "Nyx", fallbackPersonaDescription: "the pinned host POV" }),
+  );
+  // A greeting / AI line (null persona) addresses the ANCHOR — same for the model and every viewer.
+  expect(out).toBe("Nyx — the pinned host POV");
+});
+
 // ── passthrough / non-interference ──────────────────────────────────────────────────────────────
 
 test("resolveRowMacros: a no-{{ string is returned byte-identical", () => {
@@ -108,4 +152,31 @@ test("resolveRowMacros: {{persona}} is empty when the persona doesn't resolve", 
     ctx(),
   );
   expect(out).toBe("before--after");
+});
+
+// ── volatile macros in stored history re-emit VERBATIM (F2): a row must render byte-identically on ──
+// ── every assemble/re-render regardless of the wall clock / PRNG, or the R1 prefix cache misses ────
+// ── from that row forward every turn and the swipe re-fold breaks byte-identity (D46). ─────────────
+
+test("resolveRowMacros: a stored row with {{time}} + {{roll}} renders byte-identical across calls", async () => {
+  const stored = "The clock reads {{time}} and I rolled {{roll:d20}} ({{random}}).";
+  const stamps = { characterId: null, personaId: null } as const;
+  const render1 = resolveRowMacros(stored, stamps, ctx());
+  // A seconds-resolution clock could advance and the PRNG differs regardless — a live registry would
+  // have produced different bytes here.
+  await new Promise((r) => setTimeout(r, 1100));
+  const render2 = resolveRowMacros(stored, stamps, ctx());
+  expect(render1).toBe(render2);
+  // Volatile macros pass through as their literal source span (not re-derived, not stripped).
+  expect(render1).toBe(stored);
+});
+
+test("resolveRowMacros: identity names still resolve while volatile macros pass through verbatim", () => {
+  const out = resolveRowMacros(
+    "{{char}} tells {{user}} the time is {{time}} — rolled {{roll:d6}}",
+    { characterId: ARIA_ID, personaId: MARA_ID },
+    ctx(),
+  );
+  // Names resolve from the row's stamps; {{time}}/{{roll}} re-emit verbatim (stable).
+  expect(out).toBe("Aria tells Mara the time is {{time}} — rolled {{roll:d6}}");
 });

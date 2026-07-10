@@ -19,6 +19,12 @@ const FAKE_SUB_TOKEN = "oauth-sub-token-SECRET";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
 const KEY_REQUIRED_RE = /OpenRouter API key is required/u;
 const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/u;
+// The derived tier→slug map the caller (connection) now supplies — the firewall carries NO hardcoded map.
+const TIER_MODELS = {
+  opus: "anthropic/claude-opus-4.8",
+  sonnet: "anthropic/claude-sonnet-5",
+  haiku: "anthropic/claude-haiku-4.5",
+} as const;
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -31,7 +37,7 @@ describe("mode-2 (OpenRouter-Anthropic skin) firewall", () => {
     vi.stubEnv("ANTHROPIC_IDENTITY_TOKEN", FAKE_SUB_TOKEN);
     vi.stubEnv("OPENROUTER_API_KEY", "host-or-secret");
 
-    const env = buildClaudeOpenRouterEnv(OR_KEY);
+    const env = buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS);
 
     // The token string appears NOWHERE in the spawn env.
     expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
@@ -49,8 +55,17 @@ describe("mode-2 (OpenRouter-Anthropic skin) firewall", () => {
     expect(env["OPENROUTER_API_KEY"]).toBeUndefined();
   });
 
+  test("the tier envs are EXACTLY the passed tier map (no hardcoded model strings in the firewall)", () => {
+    // The derived sonnet slug is the daemon-current `claude-sonnet-5`, not the old stale `4.6` pin — the
+    // firewall echoes whatever the caller derived, so a family roll-forward is picked up automatically.
+    const env = buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS);
+    expect(env["ANTHROPIC_DEFAULT_OPUS_MODEL"]).toBe(TIER_MODELS.opus);
+    expect(env["ANTHROPIC_DEFAULT_SONNET_MODEL"]).toBe(TIER_MODELS.sonnet);
+    expect(env["ANTHROPIC_DEFAULT_HAIKU_MODEL"]).toBe(TIER_MODELS.haiku);
+  });
+
   test("the ephemeral config dir is EMPTY — no .credentials.json is reachable", () => {
-    const env = buildClaudeOpenRouterEnv(OR_KEY);
+    const env = buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS);
     expect(env["CLAUDE_CONFIG_DIR"]).toBeDefined();
     expect(env["ANTHROPIC_CONFIG_DIR"]).toBe(env["CLAUDE_CONFIG_DIR"]);
     const dir = env["CLAUDE_CONFIG_DIR"] as string;
@@ -58,7 +73,7 @@ describe("mode-2 (OpenRouter-Anthropic skin) firewall", () => {
   });
 
   test("a missing OpenRouter key fails loudly (the key-required invariant)", () => {
-    expect(() => buildClaudeOpenRouterEnv("")).toThrow(KEY_REQUIRED_RE);
+    expect(() => buildClaudeOpenRouterEnv("", TIER_MODELS)).toThrow(KEY_REQUIRED_RE);
   });
 });
 
@@ -80,13 +95,14 @@ describe("the preset escape hatch cannot breach the firewall (reserved-keys filt
       // A legitimate non-reserved knob DOES pass through:
       ["MY_CUSTOM_FLAG", "ok"],
     ]);
-    const env = buildClaudeOpenRouterEnv(OR_KEY, { userEnv: hatch });
+    const env = buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS, { userEnv: hatch });
 
     // Runner-owned auth/routing wins over every escape-hatch attempt.
     expect(env["ANTHROPIC_BASE_URL"]).toBe(OPENROUTER_BASE);
     expect(env["ANTHROPIC_AUTH_TOKEN"]).toBe(OR_KEY);
     expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
-    expect(env["ANTHROPIC_DEFAULT_OPUS_MODEL"]).toBe("anthropic/claude-opus-4.8");
+    // The tier default is the CALLER's derived value (still reserved — the hatch's "evil/model" was dropped).
+    expect(env["ANTHROPIC_DEFAULT_OPUS_MODEL"]).toBe(TIER_MODELS.opus);
     expect(env["CLAUDE_CONFIG_DIR"]).not.toBe("/tmp/attacker");
     // The strip attempt is ignored — the firewall's empty-string API key stands.
     expect(env["ANTHROPIC_API_KEY"]).toBe("");
@@ -106,6 +122,26 @@ describe("the preset escape hatch cannot breach the firewall (reserved-keys filt
     ]) {
       expect(RESERVED_CLAUDE_ENV_KEYS.has(key)).toBe(true);
     }
+  });
+});
+
+describe("host baseline strips the ambient Claude/Anthropic control surface (uncontrolled-behavior leak)", () => {
+  test("ambient CLAUDE_*/ANTHROPIC_*/CLAUDECODE are stripped; a non-Claude var survives", () => {
+    // Simulate the operator's own Claude Code session / a deploy shell exporting control knobs.
+    vi.stubEnv("CLAUDE_CODE_SOME_AMBIENT_KNOB", "ambient-value");
+    vi.stubEnv("ANTHROPIC_MODEL", "some-ambient-model");
+    vi.stubEnv("CLAUDECODE", "1");
+    // A non-Claude ambient var the child needs / should keep.
+    vi.stubEnv("SOME_UNRELATED_PATH_VAR", "/opt/keep-me");
+
+    const env = buildClaudeSdkEnv();
+
+    // The entire ambient Claude/Anthropic namespace is stripped from the baseline.
+    expect(env["CLAUDE_CODE_SOME_AMBIENT_KNOB"]).toBeUndefined();
+    expect(env["ANTHROPIC_MODEL"]).toBeUndefined();
+    expect(env["CLAUDECODE"]).toBeUndefined();
+    // A non-Claude ambient var passes through — the child needs PATH/HOME/etc. to spawn.
+    expect(env["SOME_UNRELATED_PATH_VAR"]).toBe("/opt/keep-me");
   });
 });
 
@@ -130,5 +166,24 @@ describe("mode-3 (local vLLM) firewall", () => {
     expect(env["ANTHROPIC_AUTH_TOKEN"]).toBe("local-vllm");
     expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
     expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
+  });
+});
+
+describe("byte-stability — cache-buster tripwires (a nondeterministic env busts the prompt cache)", () => {
+  test("mode-1 env is deep-equal across calls with the same overrides", () => {
+    const overrides = { maxOutputTokens: 2048, disableThinking: false };
+    expect(buildClaudeSdkEnv(overrides)).toStrictEqual(buildClaudeSdkEnv(overrides));
+  });
+
+  test("mode-2 env is deep-equal across calls with the same key + overrides", () => {
+    expect(
+      buildClaudeOpenRouterEnv("sk-or-x", TIER_MODELS, { maxContextTokens: 100_000 }),
+    ).toStrictEqual(
+      buildClaudeOpenRouterEnv("sk-or-x", TIER_MODELS, { maxContextTokens: 100_000 }),
+    );
+  });
+
+  test("mode-3 env is deep-equal across calls", () => {
+    expect(buildClaudeVllmEnv()).toStrictEqual(buildClaudeVllmEnv());
   });
 });

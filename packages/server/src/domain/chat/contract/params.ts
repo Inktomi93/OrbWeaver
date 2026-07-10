@@ -129,7 +129,10 @@ export interface GetChatLineageParams extends ChatScopedParams {}
 export interface GetChatParams extends ChatScopedParams {}
 
 /** `previewAssembly` — the BUILD product for a hypothetical turn (host/admin trace). `speakerCharacterId`
- *  scopes the preview to a per-speaker turn; `generationType`/`guided` mirror a real turn's gate. */
+ *  scopes the preview to a per-speaker turn; `guided` mirrors a real turn's steered assembly. The preview runs
+ *  the "normal" `injection_trigger` gate (F1: the live gate is now per-turn `TurnKind`→`GenerationType` in
+ *  `verbs/turn.ts`); a `generationType` axis on the preview (to trace non-`normal` trigger-gating) would thread
+ *  through `verbs/read.ts buildPreviewContext` → `gatherAssembleContext.generationType` — not yet wired. */
 export interface PreviewAssemblyParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly guided?: GuidedSteer | undefined;

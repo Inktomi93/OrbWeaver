@@ -138,7 +138,12 @@ export function createAutosaveEntityForm<TValues extends object>(
           // documented NON-persistent "differs from the seed right now" flag (the one the Unsaved pill uses,
           // NOT persistent `isDirty`): untouched ⇒ isDefaultValue true ⇒ skip.
           if (formApi.state.isValid && !formApi.state.isDefaultValue) {
-            void formApi.handleSubmit();
+            // form-core's `handleSubmit` RE-THROWS an `onSubmit` rejection (a wire failure / network
+            // error), so a bare `void` leaves an UNHANDLED REJECTION (and poisons CT console asserts).
+            // Swallow it HERE — the injected `save`'s own `errorToast` meta surfaces the failure once
+            // (D54 QueryCache/MutationCache channel); `onSubmit` awaits `save` BEFORE `clearDraft`, so a
+            // failed save correctly skips the clear and the edit survives in the mirror for retry.
+            formApi.handleSubmit().catch(() => undefined);
           }
         },
         onChangeDebounceMs: config.debounceMs ?? DEFAULT_DEBOUNCE_MS,
@@ -157,7 +162,9 @@ export function createAutosaveEntityForm<TValues extends object>(
           };
         }) => {
           if (formApi.state.isValid && !formApi.state.isDefaultValue) {
-            void formApi.handleSubmit();
+            // Same rejection swallow as the onChange listener (see it): `handleSubmit` re-throws an
+            // `onSubmit` failure, so catch it here rather than leave an unhandled rejection.
+            formApi.handleSubmit().catch(() => undefined);
           }
         },
       },

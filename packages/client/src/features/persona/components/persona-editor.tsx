@@ -3,7 +3,8 @@
 // ROW-owned (persona-panel-row.tsx) and never repeated here. What's left, AUTOSAVING on every change
 // (`createAutosaveEntityForm` — no Save button, no dirty pill): title · description (macro-aware +
 // token-count) · starred · the injection placement (ONE Placement select; depth/role reveal compactly
-// only for `at_depth`, the assistant@0 prefill guard still blocks the write) · the single-select lore
+// only for `at_depth`; the assistant@0 prefill combo is withheld from the write + warned inline) · the
+// single-select lore
 // book (a separate live-mutation control, not part of the form — mirrors the M:N attach/detach it drives)
 // · duplicate/export actions. Set-as-default + delete live on the PANEL ROW; reattribute is a CHAT action.
 //
@@ -29,10 +30,10 @@ import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, slugifyFilename } from "#lib";
 import { usePersonaForm } from "../hooks/use-persona-form";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
+import { PERSONA_DESCRIPTION_MACROS } from "../lib/persona-description-macros";
 import type { PersonaFormValues } from "../lib/persona-editor-model";
 import {
   isPrefillCombo,
-  PERSONA_DESCRIPTION_MACROS,
   personaFormFromEntity,
   personaInputFromForm,
 } from "../lib/persona-editor-model";

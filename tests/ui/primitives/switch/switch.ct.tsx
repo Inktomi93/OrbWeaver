@@ -55,14 +55,15 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
   const thumb = control.locator('[data-slot="switch-thumb"]');
   const track = await control.boundingBox();
   const offX = (await thumb.boundingBox())?.x ?? 0;
-  // Rectangular, not the old near-square (48×28 → w > 1.4×h); the switch reads as a switch at a glance.
+  // Rectangular, not the old near-square (48×32 → w > 1.4×h); the switch reads as a switch at a glance.
   expect((track?.width ?? 0) / (track?.height ?? 1)).toBeGreaterThan(1.4);
   await control.click();
   await expect(control).toHaveAttribute("aria-checked", "true");
-  // Travel = switch-track − switch-thumb = 3rem − 1.75rem = 20px. The old fine-pointer travel was ~4px;
-  // assert well past that so a regression toward a near-square track fails here. Poll past the 130ms
-  // transform transition (the thumb slides, boundingBox tracks the transform mid-animation).
-  await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0).toBeGreaterThan(offX + 15);
+  // Travel = switch-track − switch-thumb = 3rem − 2rem = 16px (thumb raised to 32px for the tap-target
+  // floor, Task #76). The old fine-pointer travel was ~4px; assert well past that so a regression toward
+  // a near-square track fails here. Poll past the 130ms transform transition (the thumb slides,
+  // boundingBox tracks the transform mid-animation).
+  await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0).toBeGreaterThan(offX + 12);
 });
 
 test("onCheckedChange reports the next state", async ({ mount, page }) => {

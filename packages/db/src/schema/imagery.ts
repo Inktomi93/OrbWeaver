@@ -16,7 +16,8 @@
 // (and its provenance) outlives a deleted chat — it's the user's, the chat was just where it was born.
 //
 // `mode` DERIVES the canonical `PROMPT_TEMPLATE_MODES` tuple from `@orb/contracts/imagery` (the ONE home;
-// `no-inline-union-redecl`) via a tuple-built CHECK — the column never re-spells the union.
+// `no-inline-union-redecl`) on BOTH tiers — the column's `{ enum }` gives the row-type union and the
+// tuple-built CHECK gates the SQL; the column never re-spells the union on either side.
 
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId } from "@orb/kit/ids";
@@ -43,8 +44,9 @@ export const imageryGenerations = sqliteTable(
     chatId: text("chat_id")
       .$type<ChatId>()
       .references(() => chats.id, { onDelete: "set null" }),
-    // The template mode this generation used ("free" for the P5 chat caller). CHECK-gated to the tuple.
-    mode: text("mode").notNull(),
+    // The template mode this generation used ("free" for the P5 chat caller). CHECK-gated to the tuple;
+    // `{ enum }` derives the row-type union (`$inferSelect.mode` is `PromptTemplateMode`, not bare string).
+    mode: text("mode", { enum: PROMPT_TEMPLATE_MODES }).notNull(),
     // The card this portrait depicts (portrait modes; null for scene/background/free). SET NULL on delete.
     subjectCharacterId: text("subject_character_id")
       .$type<CharacterId>()

@@ -8,7 +8,11 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardContentHash } from "#kit/serde/card";
-import { CharacterNotFoundError } from "../contract/errors";
+import {
+  CHARACTER_HANDLE_RESERVED,
+  CharacterNotFoundError,
+  CharacterOperationError,
+} from "../contract/errors";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
@@ -19,6 +23,7 @@ import {
   loadOwnedCharacterWithAvatar,
 } from "../persistence/queries";
 import { cardTokenSize } from "../substrate/card-tokens";
+import { isReservedGroupHandle } from "../substrate/group-character";
 
 /** Split the optional provenance into the two nullable row columns (null/null when app-authored). Extracted
  *  so the verb closure stays under the cognitive-complexity gate that the card-defaults block already loads. */
@@ -71,6 +76,12 @@ function cardFromInput(input: CreateCharacterParams["input"]): CharacterCard {
 export function createCreate(ctx: CharacterContext): CharacterService["create"] {
   return async ({ principal, input, provenance }: CreateCharacterParams) => {
     const ownerId = principal.userId;
+    if (isReservedGroupHandle(input.handle)) {
+      throw new CharacterOperationError(
+        CHARACTER_HANDLE_RESERVED,
+        `handle "${input.handle}" is reserved for synthetic group characters`,
+      );
+    }
     await guardAvatarOwned(ctx, ownerId, input.avatarAssetId);
     const at = ctx.now();
     const characterId = ctx.newCharacterId();

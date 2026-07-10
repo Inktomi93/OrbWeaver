@@ -16,12 +16,16 @@
 // null-vs-empty (§2 wire discipline): a nullable card text field maps `"" ⇒ null` on save (null = clear);
 // the always-a-list columns (`greetings`/`regexScripts`) ride as arrays, never null, so they never clear
 // spuriously. depthPrompt re-nests from the three flat siblings; an empty prompt ⇒ `null` (no note).
+//
+// SAVE = CHANGED KEYS ONLY (§2, LOAD-BEARING): `characterUpdateDiff` — not `characterUpdateFromForm` — is
+// the save payload. It diffs the normalized form against the normalized SERVER row and emits only the keys
+// the user actually changed, so a Save never re-sends untouched fields and can't silently revert a
+// concurrent edit (the two-tab data-loss bug §2 forbids). Omitted = unchanged; a present `null` = clear.
 
 import type { UpdateCharacterInput } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
 import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
@@ -113,10 +117,13 @@ export function characterCardFormFromDetail(card: CharacterDetail): CharacterCar
   };
 }
 
-/** Build the `character.update` PARTIAL card patch from the form values (the CONTENT-save payload). Sends
- *  the full authored card (not a per-key diff — a Save is an explicit whole-card write); nullable text maps
- *  `"" ⇒ null` (clear), the list columns ride as arrays, and the three depthPrompt siblings re-nest into the
- *  `{prompt, depth, role}` directive (empty prompt ⇒ `null`). Identity fields are NEVER sent from here. */
+/** The full NORMALIZED card payload from the form values (every draft key, wire-normalized). Nullable text
+ *  maps `"" ⇒ null` (clear), the list columns ride as arrays, and the three depthPrompt siblings re-nest into
+ *  the `{prompt, depth, role}` directive (empty prompt ⇒ `null`). Identity fields are NEVER sent from here.
+ *  NOT the save payload directly — `characterUpdateDiff` narrows it to only the CHANGED keys (§2 wire
+ *  discipline: omitted = unchanged), which is what the save-bar actually sends. Kept separate because the
+ *  diff builds BOTH sides (desired + server baseline) through this ONE normalizer, so only genuine edits
+ *  differ. */
 export function characterUpdateFromForm(values: CharacterCardFormValues): UpdateCharacterInput {
   return {
     name: values.name,
@@ -137,6 +144,55 @@ export function characterUpdateFromForm(values: CharacterCardFormValues): Update
     creator: orNull(values.creator),
     cardVersion: orNull(values.cardVersion),
   };
+}
+
+/** The §2 CHANGED-KEYS diff (the LOAD-BEARING save discipline — FINAL-Character §2: "send only changed
+ *  keys … do not hand-roll a full-object PUT"). Both the desired payload and the server row's baseline are
+ *  built through the SAME `characterUpdateFromForm` normalizer, so a key is emitted ONLY when the user's
+ *  edit genuinely differs from what the server holds — never a full-object PUT that would silently revert a
+ *  concurrent edit to an untouched field (the two-tab data-loss bug). `"" ⇒ null` clears survive as a
+ *  present `null` key (distinct from omitted); an untouched nullable field is omitted, not sent as `null`. */
+export function characterUpdateDiff(
+  values: CharacterCardFormValues,
+  card: CharacterDetail,
+): UpdateCharacterInput {
+  const desired = characterUpdateFromForm(values);
+  const baseline = characterUpdateFromForm(characterCardFormFromDetail(card));
+  const patch: Record<string, unknown> = {};
+  for (const key of Object.keys(desired) as (keyof UpdateCharacterInput)[]) {
+    if (!deepEqual(desired[key], baseline[key])) {
+      patch[key] = desired[key];
+    }
+  }
+  return patch as UpdateCharacterInput;
+}
+
+/** A structural equality for the diff's field values (strings/null, string[], regexScript objects, the
+ *  depthPrompt directive). File-local — the compared shapes are exactly the `characterUpdateFromForm`
+ *  outputs (plain JSON: primitives, arrays, plain objects), so no Map/Set/Date handling is needed. */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+    return false;
+  }
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((item, index) => deepEqual(item, b[index]))
+    );
+  }
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  return (
+    aKeys.length === bKeys.length &&
+    aKeys.every((key) =>
+      deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
+    )
+  );
 }
 
 /** Keep `[0]` always (the first message, even when empty), drop only trailing empty ALTERNATES. */
@@ -196,11 +252,3 @@ export function totalTokenCount(
   const activeGreeting = values.greetings[activeGreetingIndex] ?? values.greetings[0] ?? "";
   return permanentTokenCount(values) + estimateTokens(values.name) + estimateTokens(activeGreeting);
 }
-
-/** The macro catalog card free-text completes against (the `{{ }}` trigger). Cards self-reference the
- *  character with `{{char}}` and the human with `{{user}}`; the list feeds the macro-aware textarea
- *  (ui imports no registry — the field takes `suggestions`). */
-export const CHARACTER_CARD_MACROS: readonly MacroSuggestion[] = [
-  { name: "char", category: "character", description: "This character's name" },
-  { name: "user", category: "persona", description: "The active persona's name" },
-];

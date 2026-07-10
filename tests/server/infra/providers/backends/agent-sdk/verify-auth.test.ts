@@ -37,6 +37,30 @@ function streamOf(messages: readonly unknown[]): AsyncGenerator<never> {
   return gen();
 }
 
+/** Wrap a stream into a fake SDK `Query` that ALSO exposes an `accountInfo` control method — the live-Query
+ *  shape `verifyAuth` probes. A bare `streamOf` (no method) exercises the "no control channel" absence path;
+ *  the caller supplies `accountInfo` so a test can make it resolve or throw. */
+function queryOf(
+  messages: readonly unknown[],
+  accountInfo: () => Promise<unknown>,
+): AsyncGenerator<never> {
+  const stream = streamOf(messages) as AsyncGenerator<never> & {
+    accountInfo: () => Promise<unknown>;
+  };
+  stream.accountInfo = accountInfo;
+  return stream;
+}
+
+/** The identity/plan fields `accountInfo()` returns (the SDK also carries `tokenSource`/`apiKeySource`
+ *  internals the SDK-free mapper deliberately drops). */
+const ACCOUNT_INFO_RESPONSE = {
+  email: "owner@example.com",
+  organization: "Acme",
+  subscriptionType: "max",
+  apiProvider: "firstParty",
+  tokenSource: "oauth", // dropped by the mapper (not in the contract shape)
+};
+
 const initMsg = { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none" };
 const assistantMsg = {
   type: "assistant",
@@ -52,14 +76,17 @@ const successResult = {
 };
 
 describe("agent-sdk verifyAuth", () => {
-  test("a healthy host-login probe: apiKeySource surfaced, reply trimmed, cost reported", async () => {
+  test("a healthy host-login probe: apiKeySource surfaced, reply trimmed, cost reported, account enriched", async () => {
+    const accountInfo = vi.fn(() => Promise.resolve(ACCOUNT_INFO_RESPONSE));
     const fakeQuery = vi.fn((_args: { options?: Record<string, unknown> }) =>
-      streamOf([initMsg, assistantMsg, successResult]),
+      queryOf([initMsg, assistantMsg, successResult], accountInfo),
     );
     const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
 
     const result = await (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL });
 
+    // The account probe enriches the result with the SDK-free identity/plan fields (SDK `tokenSource`
+    // internal is dropped by the mapper).
     expect(result).toEqual({
       source: "max-pro-sub",
       ok: true,
@@ -67,7 +94,14 @@ describe("agent-sdk verifyAuth", () => {
       model: MODEL,
       reply: "ok",
       costUsd: 0.0004,
+      account: {
+        email: "owner@example.com",
+        organization: "Acme",
+        subscriptionType: "max",
+        apiProvider: "firstParty",
+      },
     });
+    expect(accountInfo).toHaveBeenCalledOnce();
     // The spawn goes through the FIREWALL BASE with no resume (a probe never touches session lineage).
     const options = fakeQuery.mock.calls[0]?.[0]?.options ?? {};
     expect(options["tools"]).toEqual([]);
@@ -77,6 +111,29 @@ describe("agent-sdk verifyAuth", () => {
     expect(options["model"]).toBe(MODEL);
     expect(options["resume"]).toBeUndefined();
     expect(options["sessionStore"]).toBeUndefined();
+  });
+
+  test("a throwing accountInfo probe leaves `account` ABSENT — the verify turn still reports", async () => {
+    const accountInfo = vi.fn(() => Promise.reject(new Error("control channel down")));
+    const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], accountInfo));
+    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+
+    const result = await (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL });
+
+    // The probe failed — `account` absent, but the health verdict is intact.
+    expect(result.account).toBeUndefined();
+    expect(result.ok).toBe(true);
+    expect(result.reply).toBe("ok");
+  });
+
+  test("no accountInfo control method (a bare stream) → `account` absent, verdict intact", async () => {
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+
+    const result = await (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL });
+
+    expect(result.account).toBeUndefined();
+    expect(result.ok).toBe(true);
   });
 
   test("an is_error result reports ok:false (never a fake success)", async () => {

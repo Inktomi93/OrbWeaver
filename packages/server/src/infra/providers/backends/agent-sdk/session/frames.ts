@@ -21,6 +21,7 @@
 
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
+import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract";
 
 /** One canon turn to seed (already macro-resolved + view-rendered by the domain). */
 export interface SeedTurn {
@@ -157,31 +158,174 @@ export function buildSeedFrames(
   return frames;
 }
 
-/** Extract a frame's first text-block content (the comparison key for staleness). */
+/** Extract a frame's text content (the comparison key for the transcript↔seed match). Handles BOTH
+ *  content shapes a stored frame can carry: our synthesized block arrays AND the SDK's own appended
+ *  frames, whose `message.content` may be a plain string. Joins every text block (an assistant frame
+ *  can carry [thinking, text] — thinking is excluded from the comparison on purpose: seeds never have
+ *  it, and the model-visible transcript identity is the prose). */
 function frameText(entry: SessionStoreEntry): string {
-  const message = (entry as { message?: { content?: Array<{ type?: string; text?: string }> } })
-    .message;
-  const block = message?.content?.find((b) => b.type === "text");
-  return block?.text ?? "";
+  const message = (
+    entry as { message?: { content?: string | Array<{ type?: string; text?: string }> } }
+  ).message;
+  const content = message?.content;
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return "";
+  }
+  return content
+    .filter((b) => b.type === "text" && typeof b.text === "string")
+    .map((b) => b.text)
+    .join("");
+}
+
+/** One merged role-run of a transcript — the comparison unit for {@link sessionMatchesSeed}. */
+interface TranscriptRun {
+  readonly role: "user" | "assistant";
+  readonly text: string;
+}
+
+/** Reduce transcript-shaped rows (role + text) into merged role-RUNS: consecutive same-role rows fold
+ *  into one. This is what makes the comparator robust to (a) the SDK splitting ONE logical assistant
+ *  reply across several stored frames (per content block — contiguous text, joined with "") and (b) a
+ *  multi-row prompt tail stored as ONE joined user frame (joined with the contract's
+ *  {@link AGENT_PROMPT_TAIL_JOINER} — the same joiner the entry bridge sends). Empty texts are dropped
+ *  before joining so they can't skew separators. */
+function mergeRuns(rows: readonly { role: "user" | "assistant"; text: string }[]): TranscriptRun[] {
+  const runs: { role: "user" | "assistant"; parts: string[] }[] = [];
+  for (const row of rows) {
+    const last = runs.at(-1);
+    if (last !== undefined && last.role === row.role) {
+      last.parts.push(row.text);
+    } else {
+      runs.push({ role: row.role, parts: [row.text] });
+    }
+  }
+  return runs.map((r) => ({
+    role: r.role,
+    // TRIMMED: the runner trims the reply before it reaches canon, while the session's mirrored frame
+    // keeps the model's raw trailing whitespace — an untrimmed compare would false-diverge (and reseed)
+    // on every turn the model emits a trailing newline.
+    text: r.parts
+      .filter((p) => p.length > 0)
+      .join(r.role === "user" ? AGENT_PROMPT_TAIL_JOINER : "")
+      .trim(),
+  }));
+}
+
+/** A stored entry's transcript row, or null for non-transcript frames (system/summary/meta — the SDK
+ *  appends bookkeeping frames our seed never contains; they are identity-neutral). */
+function entryRow(entry: SessionStoreEntry): { role: "user" | "assistant"; text: string } | null {
+  const kind = (entry as { type?: unknown }).type;
+  if (kind !== "user" && kind !== "assistant") {
+    return null;
+  }
+  // Meta frames (caveats, command echoes) are runtime bookkeeping, not conversation identity.
+  if ((entry as { isMeta?: boolean }).isMeta === true) {
+    return null;
+  }
+  return { role: kind, text: frameText(entry) };
+}
+
+/** Reduce a stored session's entries to merged transcript role-runs (the shared normalization the resume
+ *  gate + the branch detector compare on). Non-transcript / meta frames drop out. */
+function sessionRuns(entries: readonly SessionStoreEntry[]): TranscriptRun[] {
+  const rows: { role: "user" | "assistant"; text: string }[] = [];
+  for (const entry of entries) {
+    const row = entryRow(entry);
+    if (row !== null) {
+      rows.push(row);
+    }
+  }
+  return mergeRuns(rows);
 }
 
 /**
- * Reseed-when-stale comparator: do the freshly-rebuilt seed frames differ from what the store already
- * holds for this session? Because {@link buildSeedFrames} is deterministic, equal canon → identical
- * frames → not stale (the prompt cache survives). A length/uuid/text mismatch means canon moved under the
- * session and the caller must rebuild. Pure — no I/O.
+ * Does the stored session transcript still MATCH the freshly-rendered seed? The resume gate: a match
+ * means the session's model-visible history equals what the domain says the model should see, so the
+ * runner resumes it (prompt-cache survival); a mismatch (edit/swipe/window-slide/injection shift) means
+ * the caller must reseed a FRESH session. Compared as merged role-runs of text (robust to the SDK's
+ * per-block frame splits and its non-transcript bookkeeping frames). EXACT match required — a session
+ * holding MORE than the seed (e.g. the rejected reply of a swipe) must NOT be resumed. Pure — no I/O.
  */
-export function seedFramesAreStale(
-  existing: readonly SessionStoreEntry[],
-  rebuilt: readonly SessionStoreEntry[],
+export function sessionMatchesSeed(
+  entries: readonly SessionStoreEntry[],
+  seed: readonly SeedTurn[],
 ): boolean {
-  if (existing.length !== rebuilt.length) {
-    return true;
+  const stored = sessionRuns(entries);
+  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
+  if (stored.length !== seedR.length) {
+    return false;
   }
-  return existing.some((entry, i) => {
-    const other = rebuilt[i];
-    return (
-      other === undefined || entry.uuid !== other.uuid || frameText(entry) !== frameText(other)
-    );
+  return stored.every((run, i) => {
+    const other = seedR[i];
+    return other !== undefined && run.role === other.role && run.text === other.text;
   });
+}
+
+/**
+ * Is the freshly-rendered seed a full LEADING PREFIX of the stored session's transcript — i.e. does the
+ * stored lineage hold EXACTLY the seed (the {@link sessionMatchesSeed} case) OR the seed followed by MORE
+ * turns the SDK appended live (a grown superset)? Compared on the same merged role-runs. This is the
+ * re-adoption gate the deterministic candidate-id probe uses: after a turn runs, the live subprocess
+ * APPENDS its own user+assistant frames to the lineage, so a swipe-back that re-derives that lineage's id
+ * finds it GROWN past the pre-turn seed — an exact-only compare would false-diverge and re-fork (probe s9,
+ * 2026-07-10: A→B→A re-forked instead of re-adopting). A seed that is a clean leading prefix means the
+ * lineage is the same conversation the seed describes; adopting it is safe (the extra tail is that same
+ * conversation's own continuation, which the next turn will resume against). Pure — no I/O.
+ */
+export function sessionContainsSeedPrefix(
+  entries: readonly SessionStoreEntry[],
+  seed: readonly SeedTurn[],
+): boolean {
+  const stored = sessionRuns(entries);
+  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
+  if (seedR.length === 0 || stored.length < seedR.length) {
+    return false;
+  }
+  return seedR.every((run, i) => {
+    const other = stored[i];
+    return other !== undefined && run.role === other.role && run.text === other.text;
+  });
+}
+
+/**
+ * Is the DIVERGENCE between a stored session and the new seed a BRANCH — i.e. do they share a non-trivial
+ * common prefix and THEN diverge (a swipe / edit), as opposed to an unrelated / window-slid transcript
+ * that shares nothing to preserve? Compared on the same merged role-runs as {@link sessionMatchesSeed}.
+ *
+ * "Non-trivial" = at least one FULLY-equal leading role-run in common — so an assistant-first greeting's
+ * lone user stub, or a coincidental first-word match, does not by itself class as a branch. The caller uses
+ * this to choose FORK (preserve the stored lineage; seed the branch under its own deterministic id so a
+ * later swipe-back re-adopts the original) over destructive in-place reseed. Assumes the two already
+ * diverged (the caller checks {@link sessionMatchesSeed} first); an exact match still reports its shared
+ * prefix truthfully but is not a divergence.
+ */
+export function isBranchDivergence(
+  entries: readonly SessionStoreEntry[],
+  seed: readonly SeedTurn[],
+): boolean {
+  const stored = sessionRuns(entries);
+  const seedR = mergeRuns(seed.map((t) => ({ role: t.role, text: t.content })));
+  const limit = Math.min(stored.length, seedR.length);
+  let shared = 0;
+  for (let i = 0; i < limit; i++) {
+    const a = stored[i];
+    const b = seedR[i];
+    if (a === undefined || b === undefined || a.role !== b.role || a.text !== b.text) {
+      break;
+    }
+    shared += 1;
+  }
+  return shared >= 1;
+}
+
+/** Deterministic, uuid-v4-shaped session id for a chat's seed state (+ a collision `salt` — the caller
+ *  bumps it when the store already holds a DIVERGED transcript under the unsalted id, e.g. a reverted
+ *  edit landing back on a previously-used canon state). Same chat + same seed + same salt → the same id,
+ *  so a reseed of unchanged canon yields byte-identical frames under the same session (cache survival). */
+export function seedSessionId(chatId: string, seed: readonly SeedTurn[], salt = 0): string {
+  const body = seed.map((t) => `${t.role}\u0001${t.content}`).join("\u0002");
+  return deterministicId(`${chatId}\u0000${salt}\u0000${body}`);
 }

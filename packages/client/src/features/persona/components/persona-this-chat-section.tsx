@@ -71,18 +71,24 @@ export function PersonaThisChatSection(): ReactElement | null {
     if (targetPersonaId === null) {
       return;
     }
-    // Own-authored USER slots in the most-recent window — see REATTRIBUTE_WINDOW's header note.
-    const page = await queryClient.fetchQuery(
-      trpc.chat.listMessages.queryOptions({ chatId, limit: REATTRIBUTE_WINDOW }),
-    );
-    const messageIds: MessageId[] = page.messages
-      .filter((m) => m.role === "user" && m.authorUserId === chat.viewerUserId)
-      .map((m) => m.id);
-    if (messageIds.length === 0) {
-      notify.info("No messages of yours in the recent window to restamp.");
-      return;
+    // Own-authored USER slots in the most-recent window — see REATTRIBUTE_WINDOW's header note. The
+    // `fetchQuery` read carries no mutation errorToast of its own, so catch its rejection here (the
+    // reattribute mutation below keeps its MutationCache errorToast).
+    try {
+      const page = await queryClient.fetchQuery(
+        trpc.chat.listMessages.queryOptions({ chatId, limit: REATTRIBUTE_WINDOW }),
+      );
+      const messageIds: MessageId[] = page.messages
+        .filter((m) => m.role === "user" && m.authorUserId === chat.viewerUserId)
+        .map((m) => m.id);
+      if (messageIds.length === 0) {
+        notify.info("No messages of yours in the recent window to restamp.");
+        return;
+      }
+      reattribute.mutate({ chatId, messageIds, personaId: targetPersonaId });
+    } catch {
+      notify.error("Couldn't load recent messages to restamp.");
     }
-    reattribute.mutate({ chatId, messageIds, personaId: targetPersonaId });
   };
 
   return (

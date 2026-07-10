@@ -50,6 +50,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
+import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
@@ -235,7 +236,7 @@ export interface MessageContentSpansStoryProps {
 /** The bare `<MessageContent>` — mounts the #21 `<speaker>`-span split + per-span `<ThemeScope>`
  *  in isolation, without the row's attribution chrome. Also the macro-resolution CT's mount point
  *  (`characterName`/`userName` build a minimal `renderContext` when supplied — as the `speakerCharName`/
- *  `activePersonaName` DEFAULTS, with empty producer maps, matching a chat with no roster wired). */
+ *  `fallbackPersonaName` DEFAULTS, with empty producer maps, matching a chat with no roster wired). */
 export function MessageContentSpansStory({
   content,
   characterName,
@@ -250,7 +251,7 @@ export function MessageContentSpansStory({
           characterNamesById: buildCharacterNameMap([]),
           personaNamesById: buildPersonaNameMap([]),
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
-          ...(userName === undefined ? {} : { activePersonaName: userName }),
+          ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };
   return (
     <MessageContent
@@ -850,6 +851,51 @@ export function RosterPanelStory({ omitForceTurn = false }: RosterPanelStoryProp
           {...(omitForceTurn
             ? {}
             : { onForceTurn: (id: CharacterId): void => setLastAction(`force:${id}`) })}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The ⋯ chat-options menu (chat-options-menu.tsx). Its turn actions (Continue/Regenerate/Impersonate)
+ *  reuse `useGuidedActions` with an EMPTY steer — the `.ct.tsx` stubs `chat.listMessages` (a tail assistant
+ *  enables Continue/Regenerate) and asserts each verb fires with NO `guided` object (the F2 plain-turn fix). */
+export function ChatOptionsMenuStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
+          assertions use the PAGE locator, the composer-wand precedent). */}
+      <div>
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characterIds={[]} isHost={true} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Roster tab with a re-seed harness (F4): `bump-aria` moves the talkativeness PROP (a bus/other-device
+ *  echo), and `onSetTalkativeness` is a NO-OP (busDriven: no optimistic prop update — stands in for a FAILED
+ *  write). Proves the thumb re-seeds from the prop on a value-only change AND snaps back on a failed write —
+ *  neither of which a once-seeded `useState` could do (the row is keyed by member id, so no remount). */
+export function RosterReseedStory(): ReactElement {
+  const [ariaWeight, setAriaWeight] = useState(0.5);
+  const members: RosterMember[] = [
+    {
+      characterId: castId<CharacterId>("character_aria"),
+      displayName: "Aria",
+      disabled: false,
+      talkativeness: ariaWeight,
+    },
+  ];
+  return (
+    <CtDataProviders>
+      <div style={{ width: 360 }}>
+        <button type="button" data-testid="bump-aria" onClick={(): void => setAriaWeight(0.8)}>
+          bump
+        </button>
+        <RosterPanel
+          members={members}
+          onSetDisabled={(): void => undefined}
+          onSetTalkativeness={(): void => undefined}
         />
       </div>
     </CtDataProviders>

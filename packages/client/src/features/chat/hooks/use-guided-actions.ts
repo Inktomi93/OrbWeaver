@@ -41,13 +41,16 @@ interface GuidedSteerInput {
 
 interface GuidedTurnVars {
   readonly chatId: ChatId;
-  readonly guided: GuidedSteerInput;
+  // OPTIONAL: an empty steer OMITS the object entirely (see `steerFor`). `steer.input ?? ""` on the
+  // server would otherwise resolve the guided TEMPLATE with a dangling scaffold — a plain
+  // continue/regenerate/impersonate must send NO `guided` (FINAL-Chat-Tab-Redesign §6.4, owner-ruled).
+  readonly guided?: GuidedSteerInput | undefined;
 }
 
 interface GuidedSlotVars {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
-  readonly guided: GuidedSteerInput;
+  readonly guided?: GuidedSteerInput | undefined;
 }
 
 // Module-scope factories (§13.1 pattern — the returned hooks have a stable identity). BUS-DRIVEN (TData
@@ -78,6 +81,23 @@ const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknow
   busDriven: true,
   errorToast: "Couldn't impersonate with that guidance.",
 });
+
+/** Build the `guided` steer for a verb — or `undefined` when the steer is empty, so an EMPTY steer omits
+ *  the whole object. `input:""` is not enough: the server coerces `steer.input ?? ""`, so an empty-but-
+ *  present steer still resolves the guided template into a dangling scaffold. A plain turn (the header
+ *  menu's continue/regenerate/impersonate) supplies no `guided` at all (FINAL-Chat-Tab-Redesign §6.4,
+ *  owner-ruled) — for impersonate that also drops `person`, so the kit resolver falls back to its "first"
+ *  default (an unsteered impersonate has no `{{person}}` to place). */
+function steerFor(
+  action: GuidedActionKind,
+  input: string,
+  person?: GuidedImpersonatePerson,
+): GuidedSteerInput | undefined {
+  if (input.trim() === "") {
+    return;
+  }
+  return person === undefined ? { action, input } : { action, input, person };
+}
 
 interface GuidedStartChatVars extends DraftCarry {
   characterIds: CharacterId[];
@@ -198,33 +218,37 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       if (chatId === null) {
         return;
       }
-      generate.mutate({ chatId, guided: { action: "response", input } });
+      const guided = steerFor("response", input);
+      generate.mutate(guided === undefined ? { chatId } : { chatId, guided });
     },
     fireSwipe: (input): void => {
       if (chatId === null || tailAssistantMessageId === null) {
         return;
       }
-      swipe.mutate({
-        chatId,
-        messageId: tailAssistantMessageId,
-        guided: { action: "swipe", input },
-      });
+      const guided = steerFor("swipe", input);
+      swipe.mutate(
+        guided === undefined
+          ? { chatId, messageId: tailAssistantMessageId }
+          : { chatId, messageId: tailAssistantMessageId, guided },
+      );
     },
     fireContinue: (input): void => {
       if (chatId === null || tailAssistantMessageId === null) {
         return;
       }
-      continueTurn.mutate({
-        chatId,
-        messageId: tailAssistantMessageId,
-        guided: { action: "continue", input },
-      });
+      const guided = steerFor("continue", input);
+      continueTurn.mutate(
+        guided === undefined
+          ? { chatId, messageId: tailAssistantMessageId }
+          : { chatId, messageId: tailAssistantMessageId, guided },
+      );
     },
     fireImpersonate: (input, person): void => {
       if (chatId === null) {
         return;
       }
-      impersonate.mutate({ chatId, guided: { action: "impersonate", input, person } });
+      const guided = steerFor("impersonate", input, person);
+      impersonate.mutate(guided === undefined ? { chatId } : { chatId, guided });
     },
     fireOpening,
   };

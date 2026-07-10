@@ -21,6 +21,7 @@ import {
   CircleUser,
   Drama,
   ExternalLink,
+  Hash,
   Lock,
   MessagesSquare,
   Settings,
@@ -38,6 +39,7 @@ export const SETTINGS_CATEGORY_IDS = [
   "account",
   "personas",
   "appearance",
+  "tags",
   "chat-behavior",
   "connections",
   "automation",
@@ -95,6 +97,9 @@ export const APPEARANCE_SUBCATEGORY_IDS = {
 
 /** Persona pane subcategory ids (same one-home discipline as the appearance map). */
 export const PERSONA_SUBCATEGORY_IDS = { personas: "personas" } as const;
+
+/** Tags pane subcategory ids (Task #65 — the tag-management screen; same one-home discipline). */
+export const TAGS_SUBCATEGORY_IDS = { tags: "tags" } as const;
 
 /** System pane subcategory ids (Task #37) — the ONE home shared by the registry AND the surface's
  *  `<Section>` anchor stamps (a typo/rename is a `tsc` error, never a stale anchor). */
@@ -271,6 +276,20 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
               keywords: ["accent", "color", "border", "hairline"],
             },
           ],
+        },
+      ],
+    },
+    tags: {
+      group: "user",
+      label: "Tags",
+      icon: Hash,
+      description: "Rename, recolor, reorder, merge, and delete the labels across your library.",
+      built: true,
+      subcategories: [
+        {
+          id: TAGS_SUBCATEGORY_IDS.tags,
+          label: "Tags",
+          keywords: ["label", "folder", "color", "merge", "rename", "prune"],
         },
       ],
     },

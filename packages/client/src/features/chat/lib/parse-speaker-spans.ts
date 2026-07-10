@@ -22,8 +22,10 @@ export interface SpeakerSpan {
 // Mirrors `@orb/kit/speaker-label`'s private `SPEAKER_TAG_PAIR` shape: an open `<speaker ...>` (attrs
 // allowed on the open tag), a bounded name with no `<`/`>` (capped length — no nested-quantifier
 // backtracking), a close tag, then any trailing whitespace so the next span's text doesn't start with
-// a stray newline left by the marker.
-const SPEAKER_TAG_PAIR = /<\s*speaker\b[^>]*>([^<>]{0,200})<\s*\/\s*speaker\s*>\s*/giu;
+// a stray newline left by the marker. Flags are `/gi` — BYTE-IDENTICAL to the kit's (no `u`): the repo's
+// no-re-added-`u` doctrine (the biome `/u` autofix wave) plus the mirror-fidelity claim (under `u` the
+// `{0,200}` cap counts code POINTS, the kit counts code UNITS — a byte-true mirror must match the kit).
+const SPEAKER_TAG_PAIR = /<\s*speaker\b[^>]*>([^<>]{0,200})<\s*\/\s*speaker\s*>\s*/gi;
 
 /** Parse a settled body string into ordered speaker spans (§12.4). */
 export function parseSpeakerSpans(content: string): readonly SpeakerSpan[] {

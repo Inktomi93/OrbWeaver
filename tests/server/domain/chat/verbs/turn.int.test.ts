@@ -9,14 +9,25 @@ import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
+import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
-import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type {
+  CharacterId,
+  ChatId,
+  Handle,
+  MessageId,
+  ModelId,
+  PersonaId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { resolveRowMacros } from "@orb/kit/macro";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
@@ -24,7 +35,10 @@ import { ChatNotFoundError } from "../../../../../packages/server/src/domain/cha
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import {
+  loadCanonHistory,
+  loadMaxMessageSeq,
+} from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
@@ -83,6 +97,11 @@ function seededPrng(seed = 1): () => number {
   };
 }
 
+// A frozen {{roll:d20}} bakes to a literal number; the identity {{user}} stays raw (per-view at read).
+const FROZEN_ROLL_RE = /^I roll (\d+) and \{\{user\}\} smiles$/;
+// A frozen {{time}} bakes to the send-time clock (HH:mm:ss); server-local zone, so assert the SHAPE.
+const FROZEN_TIME_RE = /^the time is \d{2}:\d{2}:\d{2}$/;
+
 const PERSONAS: { anchor: AssemblePersona | null; active: AssemblePersona | null } = {
   anchor: { name: "Nate", description: "the user" },
   active: { name: "Nate", description: "the user" },
@@ -105,6 +124,8 @@ function harness(
     hostTierRegexScripts?: RegexScript[];
     /** Capture each wire `TurnRequest` (the guided-routing pins inspect the assembled prompt). */
     onChatRequest?: (request: unknown) => void;
+    /** Override the resolved `PromptConfig` (the F1 injection_trigger pin drives trigger-gated sections). */
+    promptConfig?: PromptConfig;
     /** Capture the `personaIds` `loadRoom` resolved for the round (the PD-70 presence-gating pin). */
     onForeignInputs?: (args: { readonly personaIds: readonly PersonaId[] }) => void;
     /** Override server-derived presence (default = everyone online; a cast-gating test marks a member away). */
@@ -138,12 +159,8 @@ function harness(
     resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
     holder: "replica-1",
     lockTtlMs: 60_000,
-    generateSegments: async () => {
-      /* no-op */
-    },
-    generateDigests: async () => {
-      /* no-op */
-    },
+    generateSegments: async () => ({ written: 0, skipped: 0 }),
+    generateDigests: async () => ({ written: 0, skipped: 0 }),
   });
   const activeTurns = createActiveTurns();
   const turn = createTurn(ctx, {
@@ -156,7 +173,7 @@ function harness(
     resolveForeignInputs: (args) => {
       over.onForeignInputs?.(args);
       return Promise.resolve({
-        promptConfig: DEFAULT_PROMPT_CONFIG,
+        promptConfig: over.promptConfig ?? DEFAULT_PROMPT_CONFIG,
         personas: PERSONAS,
         globalRegexScripts: over.hostTierRegexScripts ?? [],
         scanDepth: 6,
@@ -241,6 +258,111 @@ describe("send — the solo path (roster-of-1)", () => {
     expect(types).toContain("messageCommitted");
     expect(types).toContain("turnStarted");
     expect(types).toContain("turnCompleted");
+  });
+});
+
+describe("send — volatile-macro FREEZE at commit (Chat-Macro-Resolution §0 / the D51 refinement)", () => {
+  test("a user message freezes {{roll}} to a baked value while {{user}} stays raw (per-view)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+
+    await h.turn.send({
+      principal: principal(host),
+      chatId,
+      content: "I roll {{roll:d20}} and {{user}} smiles",
+    });
+
+    const canon = await loadCanonHistory(db, chatId);
+    const stored = canon.find((r) => r.role === "user")?.content ?? "";
+    // The nondeterministic {{roll}} is FROZEN to a literal number in canon; the identity {{user}} stays RAW.
+    const matched = stored.match(FROZEN_ROLL_RE);
+    expect(matched).not.toBeNull();
+    expect(stored).toContain("{{user}}");
+    expect(stored).not.toContain("{{roll");
+
+    // Re-rendering the stored row on a later turn is byte-stable on the roll AND resolves {{user}} LIVE at
+    // read (identity is not baked): the null-stamp fallback is the chat ANCHOR (ruling A — viewer-independent,
+    // so the SAME string for the model and every human), and changing the anchor changes the name while the
+    // frozen roll is untouched.
+    const frozenRoll = matched?.[1];
+    const view = (anchorName: string): string =>
+      resolveRowMacros(
+        stored,
+        { characterId: null, personaId: null },
+        {
+          characterNamesById: new Map<CharacterId, RowCharacterName>(),
+          personaNamesById: new Map<PersonaId, RowPersonaName>(),
+          fallbackPersonaName: anchorName,
+        },
+      );
+    expect(view("Zara")).toBe(`I roll ${frozenRoll} and Zara smiles`);
+    expect(view("Yuki")).toBe(`I roll ${frozenRoll} and Yuki smiles`);
+  });
+
+  test("{{time}} freezes to the send-time clock value, not the raw macro", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+
+    await h.turn.send({ principal: principal(host), chatId, content: "the time is {{time}}" });
+
+    const stored =
+      (await loadCanonHistory(db, chatId)).find((r) => r.role === "user")?.content ?? "";
+    expect(stored).toMatch(FROZEN_TIME_RE);
+    expect(stored).not.toContain("{{time}}");
+  });
+
+  test("a composer message with NO volatile macros is stored byte-identical (identity/author content untouched)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+    const raw = "just {{user}} talking to {{char}}, no dice";
+
+    await h.turn.send({ principal: principal(host), chatId, content: raw });
+
+    expect((await loadCanonHistory(db, chatId)).find((m) => m.role === "user")?.content).toBe(raw);
+  });
+});
+
+describe("send — user-row seq collision retry (U1: the seq TOCTOU is allocated outside the engine lock)", () => {
+  test("a raced (chatId,seq) UNIQUE on the user insert re-derives the head and retries — nothing lost", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+
+    // Simulate a concurrent same-chat send winning the head between THIS send's `loadMaxMessageSeq` and its
+    // insert: on the FIRST `db.batch` (the user-row 3-step dance), a competing writer lands a row at the seq
+    // this attempt was about to claim, then the batch fails the `(chatId,seq)` UNIQUE. persistUserMessage must
+    // catch the unique violation, re-read the now-higher head, and re-commit — no lost message, no 500.
+    let tripped = false;
+    const racedDb = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === "batch") {
+          return async (stmts: unknown) => {
+            if (!tripped) {
+              tripped = true;
+              const claimed = (await loadMaxMessageSeq(db, chatId)) + 1;
+              await seedMessage(db, chatId, claimed, {
+                role: "user",
+                authorUserId: host,
+                content: "racer",
+              });
+              throw new Error("SQLITE_CONSTRAINT: UNIQUE constraint failed: messages.chat_id, seq");
+            }
+            return (target as Db).batch(stmts as never);
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+
+    const h = harness(racedDb, names);
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+
+    expect(tripped).toBe(true); // the retry path actually fired
+    const canon = await loadCanonHistory(db, chatId);
+    // The racer took seq 1; this send's user row retried onto seq 2, the assistant onto seq 3 — none dropped.
+    expect(canon.map((m) => m.content)).toEqual(["racer", "hello", "Hi there"]);
+    expect(canon.map((m) => m.seq)).toEqual([1, 2, 3]);
+    expect(outcome.messages[0]?.content).toBe("hello");
+    expect(outcome.messages[0]?.seq).toBe(2);
   });
 });
 
@@ -657,6 +779,111 @@ describe("guided steer routing (chat.md §6, PD-63)", () => {
   });
 });
 
+// F1 (the ST `injection_trigger` gate, live-wired): the verb maps its `TurnKind` → the assemble ctx's
+// `generationType` (turn.ts `GENERATION_TYPE_FOR_KIND`) so a trigger-gated preset section fires on the RIGHT
+// turn kind. Before F1 every live turn hardcoded "normal", so `trigger:["continue"]` NEVER fired and
+// `trigger:["normal"]` fired on swipe/continue too. These pins drive REAL turns end-to-end (production supplies
+// the type — no hand-fed `generationType`) and read the wire the engine dispatched.
+const NORMAL_MARK = "NORMAL-TRIGGER-SECTION";
+const CONTINUE_MARK = "CONTINUE-TRIGGER-SECTION";
+function triggerGatedConfig(): PromptConfig {
+  const sections = [
+    { type: "marker", id: "m1", name: "sys", marker: "main_prompt", role: "system", enabled: true },
+    {
+      type: "literal",
+      id: "l-normal",
+      name: "normal-only",
+      role: "system",
+      content: NORMAL_MARK,
+      enabled: true,
+      trigger: ["normal"],
+    },
+    {
+      type: "literal",
+      id: "l-continue",
+      name: "continue-only",
+      role: "system",
+      content: CONTINUE_MARK,
+      enabled: true,
+      trigger: ["continue"],
+    },
+    {
+      type: "marker",
+      id: "m2",
+      name: "hist",
+      marker: "chat_history",
+      role: "system",
+      enabled: true,
+    },
+  ] satisfies PromptSection[];
+  return {
+    schemaVersion: 3,
+    sections,
+    params: {},
+    regexScripts: [],
+    variables: [],
+  } satisfies PromptConfig;
+}
+
+describe("F1 — injection_trigger gate is wired per TurnKind (not hardcoded normal)", () => {
+  test("send drives generationType 'normal' → the normal-gated section fires, the continue-gated one does not", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, {
+      promptConfig: triggerGatedConfig(),
+      onChatRequest: (r) => requests.push(r),
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+
+    const wire = JSON.stringify(requests);
+    expect(wire).toContain(NORMAL_MARK);
+    expect(wire).not.toContain(CONTINUE_MARK);
+  });
+
+  test("swipe drives generationType 'swipe' → NEITHER the normal- nor the continue-gated section fires", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
+    const { messageId } = await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      characterId: chars[0] as CharacterId,
+      content: "first take",
+    });
+    const requests: unknown[] = [];
+    const h = harness(db, names, {
+      promptConfig: triggerGatedConfig(),
+      onChatRequest: (r) => requests.push(r),
+    });
+
+    await h.turn.swipe({ principal: principal(host), chatId, messageId });
+
+    const wire = JSON.stringify(requests);
+    expect(wire).not.toContain(NORMAL_MARK);
+    expect(wire).not.toContain(CONTINUE_MARK);
+  });
+
+  test("continue drives generationType 'continue' → the continue-gated section fires, the normal-gated one does not", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
+    const { messageId } = await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      characterId: chars[0] as CharacterId,
+      content: "the tale so far",
+    });
+    const requests: unknown[] = [];
+    const h = harness(db, names, {
+      promptConfig: triggerGatedConfig(),
+      onChatRequest: (r) => requests.push(r),
+    });
+
+    await h.turn.continueTurn({ principal: principal(host), chatId, messageId });
+
+    const wire = JSON.stringify(requests);
+    expect(wire).toContain(CONTINUE_MARK);
+    expect(wire).not.toContain(NORMAL_MARK);
+  });
+});
+
 describe("swipe — append-variant on an existing assistant slot (D26)", () => {
   test("appends a variant + advances the selection; slot attribution unchanged", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
@@ -809,6 +1036,151 @@ describe("send — SEND USER_INPUT regex (D53; chat.md §2/§7)", () => {
       content: "raw badword text",
     });
     expect(outcome.messages[0]?.content).toBe("raw badword text");
+  });
+});
+
+// ── Cross-chat IDOR (stickler F1): a message-targeting turn verb gates `requireParticipant(chatId)` but
+// then loads + mutates the target by bare `messageId`. Before the fix, `loadSlotTarget`/`loadContinueSnapshot`
+// queried `WHERE messages.id = ?` with NO chatId predicate, so a member of chat A passing `{chatId: A,
+// messageId: <a message in chat B>}` could read + append to B's canon as a non-member. The loaders are now
+// chat-scoped in-query, so a foreign message is indistinguishable from a nonexistent one and B stays untouched.
+describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId", () => {
+  /** Victim room B (alice hosts, one character, one assistant message M) + attacker room A (bob hosts). Bob is
+   *  a PRESENT member of A [so `requireParticipant(A)` passes] and a NON-member of B. */
+  async function seedTwoRooms(): Promise<{
+    alice: UserId;
+    bob: UserId;
+    victimChat: ChatId;
+    attackerChat: ChatId;
+    victimMessageId: MessageId;
+    names: Record<string, string>;
+  }> {
+    const alice = await seedUser(db, "alice");
+    const bob = await seedUser(db, "bob");
+    const victimChat = await seedChat(db, "victim", {
+      metadata: { group: { output: "per-speaker", policy: "natural" } },
+    });
+    await seedParticipant(db, { chatId: victimChat, key: "va", userId: alice, role: "host" });
+    const victimChar = await seedCharacter(db, alice, "vic");
+    await seedParticipant(db, {
+      chatId: victimChat,
+      key: "vc",
+      characterId: victimChar,
+      joinSeq: 0,
+    });
+    await seedMessage(db, victimChat, 1, {
+      role: "user",
+      authorUserId: alice,
+      content: "victim opening",
+    });
+    const { messageId: victimMessageId } = await seedMessage(db, victimChat, 2, {
+      role: "assistant",
+      characterId: victimChar,
+      content: "victim canon",
+    });
+    const attackerChat = await seedChat(db, "attacker", {
+      metadata: { group: { output: "per-speaker", policy: "natural" } },
+    });
+    await seedParticipant(db, { chatId: attackerChat, key: "ab", userId: bob, role: "host" });
+    return {
+      alice,
+      bob,
+      victimChat,
+      attackerChat,
+      victimMessageId,
+      names: { [victimChar]: "vic" },
+    };
+  }
+
+  /** A messageId that exists in NO chat — the nonexistent-message control (the response a foreign id must match). */
+  const ghost = castId<MessageId>("message_ghost");
+
+  test("swipe with a chat-B messageId is refused identically to a nonexistent id — B's canon untouched", async () => {
+    const room = await seedTwoRooms();
+    const h = harness(db, room.names);
+
+    // Bob (host of A, non-member of B) targets B's assistant message via A → leak-free NOT_FOUND…
+    await expect(
+      h.turn.swipe({
+        principal: principal(room.bob),
+        chatId: room.attackerChat,
+        messageId: room.victimMessageId,
+      }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    // …indistinguishable from a genuinely nonexistent message in A.
+    await expect(
+      h.turn.swipe({
+        principal: principal(room.bob),
+        chatId: room.attackerChat,
+        messageId: ghost,
+      }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+
+    // B's canon is unmutated: M still carries its single original variant (no appended swipe, no flip).
+    const canonB = await loadCanonHistory(db, room.victimChat);
+    const m = canonB.find((row) => row.id === room.victimMessageId);
+    expect(m?.content).toBe("victim canon");
+    expect(m?.variantCount).toBe(1);
+  });
+
+  test("continueTurn with a chat-B messageId is refused identically to a nonexistent id — B's canon untouched", async () => {
+    const room = await seedTwoRooms();
+    const h = harness(db, room.names);
+
+    await expect(
+      h.turn.continueTurn({
+        principal: principal(room.bob),
+        chatId: room.attackerChat,
+        messageId: room.victimMessageId,
+      }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(
+      h.turn.continueTurn({
+        principal: principal(room.bob),
+        chatId: room.attackerChat,
+        messageId: ghost,
+      }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+
+    const canonB = await loadCanonHistory(db, room.victimChat);
+    expect(canonB.find((row) => row.id === room.victimMessageId)?.content).toBe("victim canon");
+  });
+
+  test("undoContinue with a chat-B messageId is refused no_continuation — B's real continuation stays intact", async () => {
+    const room = await seedTwoRooms();
+    const h = harness(db, room.names);
+
+    // Alice legitimately continues M in B → writes the D26 snapshot columns + extends the content (so the
+    // foreign undo below WOULD succeed against an unscoped loader — this is the real exploit precondition).
+    const cont = await h.turn.continueTurn({
+      principal: principal(room.alice),
+      chatId: room.victimChat,
+      messageId: room.victimMessageId,
+    });
+    expect(cont.messages[0]?.content).toBe("victim canonHi there");
+
+    // Bob (member of A, non-member of B) tries to roll back B's continuation via A → no_continuation…
+    await expect(
+      h.turn.undoContinue({
+        principal: principal(room.bob),
+        chatId: room.attackerChat,
+        messageId: room.victimMessageId,
+      }),
+    ).rejects.toMatchObject({ code: "no_continuation" });
+    // …indistinguishable from a nonexistent message in A (both hit the empty-snapshot refusal).
+    await expect(
+      h.turn.undoContinue({
+        principal: principal(room.bob),
+        chatId: room.attackerChat,
+        messageId: ghost,
+      }),
+    ).rejects.toMatchObject({ code: "no_continuation" });
+
+    // B's continuation is intact: bob's undo did NOT restore the pre-continue content.
+    const canonB = await loadCanonHistory(db, room.victimChat);
+    expect(canonB.find((row) => row.id === room.victimMessageId)?.content).toBe(
+      "victim canonHi there",
+    );
   });
 });
 

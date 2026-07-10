@@ -313,6 +313,129 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
   });
 });
 
+// Stickler F4: `redeemInvite` enforced `maxUses`/expiry but NOT the stored `invitedUserId`, while its siblings
+// (`previewInvite`/`declineInvite`) did — so a targeted-invite token that reached the wrong user still joined
+// them. The atomic redeem now carries the `(untargeted OR target=caller)` predicate: a non-target's claim
+// matches nothing (never burns a use), and the verb surfaces the same leak-free NOT_FOUND an invalid token
+// gives. An untargeted (share-link) invite is unaffected.
+describe("redeemInvite — targeting (F4)", () => {
+  test("a targeted invite redeemed by a NON-target is refused leak-free — and burns no use", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const attacker = await seedUser(db, "attacker");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    // The token reached the wrong user (forwarded / mis-posted); the attacker redeems it directly.
+    await expect(
+      invites.redeemInvite({ principal: principal(attacker), input: { token: "tok" } }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+
+    // No membership was granted, and the atomic UPDATE never matched — the use count + status are untouched,
+    // so the invite is still fully redeemable by its real target.
+    const attackerRows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, attacker));
+    expect(attackerRows).toHaveLength(0);
+    const [inv] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
+    expect(inv?.uses).toBe(0);
+    expect(inv?.status).toBe("pending");
+  });
+
+  test("the same targeted invite still redeems for its intended target", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedInvite(chatId, "tok", { invitedUserId: target });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const result = await invites.redeemInvite({
+      principal: principal(target),
+      input: { token: "tok" },
+    });
+
+    expect(result.participant.userId).toBe(target);
+    expect(result.participant.role).toBe("member");
+  });
+
+  test("an untargeted (share-link) invite still redeems for anyone", async () => {
+    const host = await seedUser(db, "host");
+    const anyone = await seedUser(db, "anyone");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedInvite(chatId, "tok"); // no invitedUserId ⇒ untargeted
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const result = await invites.redeemInvite({
+      principal: principal(anyone),
+      input: { token: "tok" },
+    });
+
+    expect(result.participant.userId).toBe(anyone);
+    expect(result.participant.role).toBe("member");
+  });
+});
+
+// Stickler F5: the atomic UPDATE incremented `uses` BEFORE `upsertMemberOnJoin` no-oped for an already-present
+// member, so a bookmarked /join re-fire ate a finite invite's remaining use. The redeem now carries a
+// `caller-not-already-present` predicate: a present member's re-redeem matches nothing (no burn, no status
+// flip) and the verb recovers their existing membership, leaving the invite's remaining uses for real joiners.
+describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () => {
+  test("maxUses:2 — a present member re-redeems: uses stays 1, status pending, a second joiner still gets in", async () => {
+    const host = await seedUser(db, "host");
+    const first = await seedUser(db, "first");
+    const second = await seedUser(db, "second");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { maxUses: 2 });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    // First joiner redeems (uses 0 → 1) and joins.
+    await invites.redeemInvite({ principal: principal(first), input: { token: "tok" } });
+    // The bookmarked /join re-fires while `first` is still present — this must NOT burn the second use.
+    const again = await invites.redeemInvite({
+      principal: principal(first),
+      input: { token: "tok" },
+    });
+    expect(again.participant.userId).toBe(first); // recovered their existing membership, not a phantom error
+
+    const [inv] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
+    expect(inv?.uses).toBe(1); // NOT 2 — the re-redeem burned nothing
+    expect(inv?.status).toBe("pending"); // still redeemable
+
+    // The intended second joiner still gets in (they would have been locked out if the re-fire had exhausted it).
+    const secondResult = await invites.redeemInvite({
+      principal: principal(second),
+      input: { token: "tok" },
+    });
+    expect(secondResult.participant.userId).toBe(second);
+    const [after] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
+    expect(after?.uses).toBe(2);
+    expect(after?.status).toBe("accepted"); // exhausted by the two DISTINCT joiners
+  });
+
+  test("a previously-LEFT member still re-redeems + re-joins (the not-present predicate only guards PRESENT members)", async () => {
+    const host = await seedUser(db, "host");
+    const back = await seedUser(db, "back");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "b", userId: back, role: "member", leftSeq: 3 });
+    const inviteId = await seedInvite(chatId, "tok", { maxUses: 2 });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await invites.redeemInvite({ principal: principal(back), input: { token: "tok" } });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, back));
+    expect(row?.leftSeq).toBeNull(); // re-joined
+    const [inv] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
+    expect(inv?.uses).toBe(1); // a genuine (re)join DOES consume a use
+  });
+});
+
 describe("revokeInvite / declineInvite — status transitions", () => {
   test("the host revokes a pending invite", async () => {
     const host = await seedUser(db, "host");

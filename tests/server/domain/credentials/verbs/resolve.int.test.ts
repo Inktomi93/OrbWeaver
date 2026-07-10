@@ -2,6 +2,7 @@
 // gate (D17), the AES-256-GCM AAD binding (a row lifted to another owner WON'T decrypt — GCM tag
 // mismatch, treated as absent), and the revoked/missing → no-credential floor. Real db + real SecretBox.
 
+import type { ProviderMetadata } from "@orb/contracts/credentials";
 import { userCredentials } from "@orb/db";
 import { DomainForbiddenError, DomainNoCredentialError } from "@orb/kit/errors";
 import { createCredentialsService } from "@orb/server/domain/credentials";
@@ -121,5 +122,26 @@ describe("resolve", () => {
       baseUrl: "https://llm.local/v1",
       apiKey: "sk-custom",
     });
+  });
+
+  test("a custom_openai row with corrupt/missing baseUrl metadata → typed credential_metadata_invalid", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const added = await svc.add({
+      principal: principal(owner),
+      provider: "custom_openai",
+      key: "sk-custom",
+      metadata: { kind: "custom_openai", baseUrl: "https://placeholder.test/v1" },
+    });
+    await db
+      .update(userCredentials)
+      // FABRICATION-OK: a deliberately corrupt custom_openai row (no baseUrl) — proves the read seam returns null for it.
+      .set({ metadata: { kind: "custom_openai" } as unknown as ProviderMetadata })
+      .where(eq(userCredentials.id, added.id));
+
+    await expect(
+      svc.resolve({ principal: principal(owner), source: "custom_openai" }),
+    ).rejects.toMatchObject({ code: "credential_metadata_invalid" });
   });
 });

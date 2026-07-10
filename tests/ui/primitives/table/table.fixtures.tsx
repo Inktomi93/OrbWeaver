@@ -76,6 +76,42 @@ export function PaginatedTableStory(): ReactElement {
  * the table sits on a later page. Proves the pageIndex-clamp derivation in table.tsx, not just that
  * it renders once.
  */
+interface Score {
+  readonly id: string;
+  readonly name: string;
+  readonly points: number | null;
+}
+
+// A column with some BLANK (null) cells — the nulls-last-regardless-of-direction acceptance shape.
+// `points` is deliberately out of order and mixes real numbers with nulls so both a stable asc/desc
+// primitive ordering AND the null placement are observable.
+const SCORES: readonly Score[] = [
+  { id: "s1", name: "Alpha", points: 2 },
+  { id: "s2", name: "Bravo", points: null },
+  { id: "s3", name: "Ciel", points: 3 },
+  { id: "s4", name: "Delta", points: null },
+  { id: "s5", name: "Echo", points: 1 },
+];
+
+const SCORE_COLUMNS: readonly TableColumn<Score>[] = [
+  { id: "name", header: "Name", accessor: (s) => s.name },
+  { id: "points", header: "Points", accessor: (s) => s.points, align: "end", sortable: true },
+];
+
+/** Sortable table over data with null/blank cells — drives the nulls-last acceptance test. The
+ * `sorting` is controlled so the test can flip asc/desc without depending on the click cycle. */
+export function NullableSortStory({ direction }: { direction: "asc" | "desc" }): ReactElement {
+  return (
+    <Table
+      aria-label="Scores"
+      columns={SCORE_COLUMNS}
+      data={SCORES}
+      getRowId={(s): string => s.id}
+      sorting={{ columnId: "points", direction }}
+    />
+  );
+}
+
 export function ShrinkingDataStory(): ReactElement {
   const [count, setCount] = useState(12);
   const data = MANY_PEOPLE.filter((_, i) => i < count).map((p) => ({ ...p }));

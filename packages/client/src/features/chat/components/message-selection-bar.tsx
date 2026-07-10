@@ -22,7 +22,6 @@ import {
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { SelectionBar } from "@orb/ui/selection-bar";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import {
@@ -95,10 +94,9 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
         <AlertDialogPopup>
           <Stack gap="block">
             <AlertDialogTitle>Delete {count} selected message(s)?</AlertDialogTitle>
+            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
             <AlertDialogDescription>
-              <Text tone="muted">
-                This permanently removes them for everyone. This can't be undone.
-              </Text>
+              This permanently removes them for everyone. This can't be undone.
             </AlertDialogDescription>
             <AlertDialogActions>
               <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />

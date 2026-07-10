@@ -12,6 +12,7 @@ import { chats, messageVariants } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { ChatId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
@@ -23,7 +24,10 @@ import type {
 } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import {
+  loadCanonHistory,
+  loadMaxMessageSeq,
+} from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import {
@@ -32,6 +36,7 @@ import {
   seedCharacter,
   seedChat,
   seedMessage,
+  seedParticipant,
   seedUser,
 } from "../_support";
 
@@ -110,6 +115,8 @@ function harness(
     budget?: number | null;
     allowNonOwnerMaxProSub?: boolean;
     debit?: () => Promise<void>;
+    generateSegments?: Parameters<typeof createTurnEngine>[1]["generateSegments"];
+    generateDigests?: Parameters<typeof createTurnEngine>[1]["generateDigests"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -139,12 +146,8 @@ function harness(
       }),
     holder: "replica-1",
     lockTtlMs: 60_000,
-    generateSegments: async () => {
-      /* no-op */
-    },
-    generateDigests: async () => {
-      /* no-op */
-    },
+    generateSegments: over.generateSegments ?? (async () => ({ written: 0, skipped: 0 })),
+    generateDigests: over.generateDigests ?? (async () => ({ written: 0, skipped: 0 })),
   });
   return { ctx, events, deltas, chatChangedFans, debitBudget, engine };
 }
@@ -373,6 +376,96 @@ describe("createTurnEngine — D46 runtime plane (delta persist + cache recomput
   });
 });
 
+describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", () => {
+  test("the memory build throwing emits warning(memory_build_failed) but the turn itself still completes", async () => {
+    const chatId = await seedChat(db, "memfail");
+    // A cast character in the roster — `chars.length > 0` is what actually drives the engine into calling
+    // `deps.generateDigests` (an empty roster short-circuits `Promise.all([])`, never reaching the throw).
+    await seedUser(db, "host");
+    const char = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: char });
+    const events: ChatBusEvent[] = [];
+    const ctx = makeChatContext(db, { runChatTurn: OK_TURN });
+    const engine = createTurnEngine(ctx, {
+      emit: (event: ChatBusEvent): Promise<void> => {
+        events.push(event);
+        return Promise.resolve();
+      },
+      debitBudget: vi.fn(() => Promise.resolve()),
+      resolveTurnPolicy: (): Promise<{ budget: number | null; allowNonOwnerMaxProSub: boolean }> =>
+        Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+      holder: "replica-1",
+      lockTtlMs: 60_000,
+      generateSegments: async () => ({ written: 0, skipped: 0 }),
+      generateDigests: () => {
+        throw new Error("digest build exploded");
+      },
+    });
+
+    const outcome = await engine.runTurn(prepOf(chatId));
+    expect(outcome.aborted).toBe(false);
+    expect(types(events)).toContain("turnCompleted");
+
+    // The build runs fire-and-forget AFTER the turn resolves — poll for the warning event's arrival.
+    const warning = await vi.waitFor(() => {
+      const w = events.find((e) => e.type === "warning");
+      expect(w).toBeDefined();
+      return w;
+    });
+    expect(warning).toMatchObject({ type: "warning", chatId, code: "memory_build_failed" });
+  });
+
+  test("F3: threads the resolved cast NAME map into the segment + digest builds (not raw typeids)", async () => {
+    const chatId = await seedChat(db, "memnames");
+    await seedUser(db, "host");
+    const char = await seedCharacter(db, HOST, "aria"); // id character_aria, name "aria"
+    await seedParticipant(db, { chatId, key: "aria", characterId: char });
+    // A prior character-voiced canon row → the per-chat producer resolves character_aria → its live name.
+    await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: char,
+      content: "prior line",
+    });
+
+    const segNames: (RowMacroNameContext | undefined)[] = [];
+    const digNames: (RowMacroNameContext | undefined)[] = [];
+    const h = harness(db, {
+      generateSegments: (_ctx, args) => {
+        segNames.push(args.macroNames);
+        return Promise.resolve({ written: 0, skipped: 0 });
+      },
+      generateDigests: (_ctx, args) => {
+        digNames.push(args.macroNames);
+        return Promise.resolve({ written: 0, skipped: 0 });
+      },
+    });
+
+    await h.engine.runTurn(prepOf(chatId));
+    await vi.waitFor(() => {
+      expect(segNames.length).toBeGreaterThan(0);
+      expect(digNames.length).toBeGreaterThan(0);
+    });
+
+    // The build receives the LIVE per-chat producer (F3/G1) — the character name keyed by id, so the
+    // summarizer transcript labels "aria: …" + resolves the BODY, NOT the raw `character_aria` typeid fallback.
+    expect(segNames[0]?.characterNamesById.get(char)?.name).toBe("aria");
+    expect(digNames.every((m) => m?.characterNamesById.get(char)?.name === "aria")).toBe(true);
+  });
+
+  test("the memory build succeeding never emits warning(memory_build_failed)", async () => {
+    const chatId = await seedChat(db, "memok");
+    const h = harness(db);
+
+    await h.engine.runTurn(prepOf(chatId));
+    // The success arm's generateDigests already resolved synchronously inside runTurn's fire-and-forget chain
+    // by the time we get here in practice, but to be safe against scheduling, flush a microtask turn.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(types(h.events)).not.toContain("warning");
+  });
+});
+
 describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
   test("a generation failure emits turnAborted(error) THEN rethrows; lock released", async () => {
     const chatId = await seedChat(db, "a");
@@ -555,6 +648,115 @@ describe("createTurnEngine — generate (LOCK-FREE; active-turns)", () => {
     expect(outcome.aborted).toBe(false);
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.messages[0]?.content).toBe("Hi there");
+  });
+});
+
+describe("createTurnEngine — F3: new-slot seq-collision retry (lock-free generate ∥ locked send)", () => {
+  test("a raced (chatId,seq) UNIQUE on the new-slot commit re-derives the head + re-mints, retries once — the paid generation is NOT lost", async () => {
+    const chatId = await seedChat(db, "race");
+
+    // Simulate the F3 race: a lock-free `generate` and a locked `send` both allocated `maxSeq + 1` before
+    // their pipelines; the slower committer's new-slot insert loses the `messages_chat_seq_unique` race AFTER
+    // the generation was paid + streamed. On the FIRST `db.batch`, a competing writer lands a row at the seq
+    // this attempt was about to claim, then the batch fails the UNIQUE. commitGeneration must catch it,
+    // re-read the now-higher head, re-mint fresh ids, and re-commit — no lost message, no turnAborted.
+    let tripped = false;
+    const racedDb = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === "batch") {
+          return async (stmts: unknown) => {
+            if (!tripped) {
+              tripped = true;
+              const claimed = (await loadMaxMessageSeq(db, chatId)) + 1;
+              await seedMessage(db, chatId, claimed, { content: "racer" });
+              throw new Error("SQLITE_CONSTRAINT: UNIQUE constraint failed: messages.chat_id, seq");
+            }
+            return (target as Db).batch(stmts as never);
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Db;
+
+    const h = harness(racedDb);
+    const outcome = await h.engine.runTurn(prepOf(chatId, { lockFree: true }));
+
+    expect(tripped).toBe(true); // the retry path actually fired
+    // The racer took seq 1; the assistant reply retried onto seq 2 — nothing dropped, no re-generation.
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.map((m) => m.content)).toEqual(["racer", "Hi there"]);
+    expect(canon.map((m) => m.seq)).toEqual([1, 2]);
+    expect(outcome.aborted).toBe(false);
+    expect(outcome.messages[0]?.content).toBe("Hi there");
+    expect(outcome.messages[0]?.seq).toBe(2);
+    // The generation was committed exactly once (the first, failed batch rolled back atomically).
+    expect(types(h.events)).not.toContain("turnAborted");
+  });
+});
+
+describe("createTurnEngine — F4: continuePostfix delimiter on a continue turn", () => {
+  const continueTurn = scripted([
+    { kind: "text", text: "more" },
+    {
+      kind: "final",
+      economics: { content: "more", tokensIn: 1, tokensOut: 1, model: "test-model" },
+    },
+  ]);
+
+  /** Seed an assistant slot to continue, run a continue turn with the given postfix, and return the extended
+   *  variant row (content + the undo/revert snapshot columns). */
+  async function continueWith(
+    postfix: "none" | "space" | "newline" | "double-newline" | undefined,
+  ): Promise<{ content: string; preContinueContent: string; lastContinuationContent: string }> {
+    const chatId = await seedChat(db, `cont-${postfix ?? "default"}`);
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      content: "tip",
+    });
+    const h = harness(db, { runChatTurn: continueTurn });
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        kind: "continue",
+        persist: { mode: "continue", targetMessageId: messageId },
+        assembleContext: {
+          ...ASSEMBLE_CTX,
+          promptConfig: {
+            ...DEFAULT_PROMPT_CONFIG,
+            ...(postfix !== undefined ? { continuePostfix: postfix } : {}),
+          },
+        },
+      }),
+    );
+    const [row] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    return {
+      content: row?.content ?? "",
+      preContinueContent: row?.preContinueContent ?? "",
+      lastContinuationContent: row?.lastContinuationContent ?? "",
+    };
+  }
+
+  test("a non-empty postfix (double-newline) is inserted between the tip and the continued chunk", async () => {
+    const row = await continueWith("double-newline");
+    expect(row.content).toBe("tip\n\nmore");
+    // The delimiter is folded INTO the continuation piece so `revertContinue` (preContinue + lastContinuation)
+    // reproduces the committed content byte-for-byte.
+    expect(row.preContinueContent).toBe("tip");
+    expect(row.lastContinuationContent).toBe("\n\nmore");
+    expect(row.preContinueContent + row.lastContinuationContent).toBe(row.content);
+  });
+
+  test("a `space` postfix inserts a single space", async () => {
+    const row = await continueWith("space");
+    expect(row.content).toBe("tip more");
+    expect(row.lastContinuationContent).toBe(" more");
+  });
+
+  test("an absent / `none` postfix keeps today's byte-adjacent concatenation (no delimiter)", async () => {
+    expect((await continueWith(undefined)).content).toBe("tipmore");
+    const none = await continueWith("none");
+    expect(none.content).toBe("tipmore");
+    expect(none.lastContinuationContent).toBe("more");
   });
 });
 

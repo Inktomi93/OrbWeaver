@@ -87,12 +87,8 @@ function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
     resolveTurnPolicy: async () => ({ budget: null, allowNonOwnerMaxProSub: false }),
     holder: "tester",
     lockTtlMs: 1000,
-    generateSegments: async () => {
-      /* no-op */
-    },
-    generateDigests: async () => {
-      /* no-op */
-    },
+    generateSegments: async () => ({ written: 0, skipped: 0 }),
+    generateDigests: async () => ({ written: 0, skipped: 0 }),
   });
 }
 

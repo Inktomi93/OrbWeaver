@@ -5,12 +5,23 @@ import type { ReactElement } from "react";
 import { useMemo } from "react";
 import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC, useUserBus } from "#data";
-import { AppShell, RAIL_SECTIONS, useShellLayout, YouSheet } from "#features/app-shell";
 import {
+  AppShell,
+  ContextTabsPanel,
+  RAIL_SECTIONS,
+  useShellLayout,
+  YouSheet,
+} from "#features/app-shell";
+import {
+  CharacterActionsMenu,
+  CharacterActivityTab,
+  CharacterAppearanceTab,
   CharacterEditorSurface,
+  CharacterHistoryTab,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
+  CharacterRelationsTab,
 } from "#features/character";
 import type { GoToSection } from "#features/chat";
 import {
@@ -233,6 +244,22 @@ export function HomePage(): ReactElement {
                 <CharacterLibraryWelcome />
               ) : (
                 <CharacterEditorSurface characterId={selectedCharacterId} />
+              ),
+            // CONTEXT (FINAL-Character §7): the relationship ledger + config + actions, composed via the
+            // CONTEXT_SLOTS registry — the route injects the per-tab bodies + the Actions menu; the shell
+            // renders the registry-driven tab strip. Nothing selected ⇒ the shell's own placeholder.
+            context:
+              selectedCharacterId === null ? undefined : (
+                <ContextTabsPanel
+                  section="characters"
+                  actions={<CharacterActionsMenu characterId={selectedCharacterId} />}
+                  bodies={{
+                    activity: <CharacterActivityTab characterId={selectedCharacterId} />,
+                    appearance: <CharacterAppearanceTab characterId={selectedCharacterId} />,
+                    relations: <CharacterRelationsTab characterId={selectedCharacterId} />,
+                    history: <CharacterHistoryTab characterId={selectedCharacterId} />,
+                  }}
+                />
               ),
           },
         }}

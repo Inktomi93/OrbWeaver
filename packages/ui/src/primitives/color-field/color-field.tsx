@@ -2,6 +2,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
 import { cn, isSafeColor } from "#lib";
+import { Button } from "#primitives/button";
 import { Field } from "#primitives/field";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Icon fine (the spinner.tsx precedent).
 import { Check, Icon } from "#primitives/icons";
@@ -123,6 +124,13 @@ const FALLBACK_NATIVE_HEX = "#000000";
  * including a `url()`/`expression()` injection attempt — is rejected inline (the popover's hex
  * field shows the error) and never reaches `onValueChange`.
  *
+ * Per-field clear (FINAL-Character §8.1): a "Reset to default" button in the popover emits the empty
+ * `""` sentinel via `onValueChange` — the consumer maps that to ITS clear semantic (a sparse
+ * `ThemeOverride` OMITS the field so the token inherits the parent scope; a tag sends `null`). The
+ * clear is ONLY this explicit button — deleting the hex field mid-typing never fires it (a transiently
+ * empty draft doesn't pass the `isSafeColor` commit gate, so it can't emit). `value===""` renders the
+ * neutral/inherit chip (an unset field is a valid clear, not an error — `showError` gates on non-empty).
+ *
  * `loading`/`success` (the 8-state contract, ui-package-design §5) swap the swatch for a
  * `<Spinner>` / a checkmark and inert the trigger — caller-driven states, same shape as
  * `Button.loading`; this primitive holds no timer for clearing `success`.
@@ -145,6 +153,12 @@ export function ColorField({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const isValid = isSafeColor(draft);
+  // An EMPTY draft is the per-field "clear = inherit" state (FINAL-Character §8.1), a VALID unset —
+  // NOT a validation error. `isSafeColor("")` is correctly false (it's a security predicate; empty is
+  // not a safe COLOR), so the error must be gated on a NON-empty value that fails the clamp, never on
+  // `!isValid` alone — otherwise an unset/inherit field shows "Enter a valid color…" on mount before
+  // any interaction (the first thing seen on the theming money shot + the Settings global theme editor).
+  const showError = draft.trim() !== "" && !isValid;
   const nativeHex = NATIVE_HEX_RE.test(draft) ? draft : FALLBACK_NATIVE_HEX;
 
   const handleOpenChange = (next: boolean): void => {
@@ -161,6 +175,17 @@ export function ColorField({
     if (isSafeColor(next)) {
       onValueChange(next);
     }
+  };
+
+  // The EXPLICIT per-field clear (FINAL-Character §8.1): emit the "" sentinel so the consumer maps it to
+  // ITS clear semantic (a sparse override omits the field → inherit; a tag sends null). Deliberately NOT
+  // wired to a transiently-empty hex draft — `commit("")` never emits (isSafeColor("") is false), so
+  // deleting the hex mid-typing can't fire a spurious clear; only this button does. Close so the trigger
+  // re-seeds from the (now empty) committed value on the next open.
+  const handleReset = (): void => {
+    setDraft("");
+    onValueChange("");
+    setOpen(false);
   };
 
   return (
@@ -216,10 +241,20 @@ export function ColorField({
           <Field
             className={slots.hexField()}
             label="Hex"
-            {...(isValid ? {} : { error: "Enter a valid color (hex, rgb, hsl, or oklch)." })}
+            {...(showError ? { error: "Enter a valid color (hex, rgb, hsl, or oklch)." } : {})}
           >
             <Input onValueChange={commit} spellCheck={false} value={draft} />
           </Field>
+          <Button
+            className={slots.resetButton()}
+            data-slot="color-field-reset"
+            intent="ghost"
+            onClick={handleReset}
+            size="sm"
+            type="button"
+          >
+            Reset to default
+          </Button>
         </div>
       </PopoverPopup>
     </Popover>

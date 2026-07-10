@@ -10,17 +10,18 @@ import type { Theme } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph fine (the character-library-surface.tsx precedent).
-import { Check, Copy, Icon, Pencil, Plus, Trash2 } from "@orb/ui/icons";
+import { Check, Icon, Plus } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { CSSProperties, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { ThemeEditor } from "../components/theme-editor";
+import { ThemeRowMenu } from "../components/theme-row-menu";
 import {
   useCreateTheme,
   useDuplicateTheme,
@@ -72,12 +73,20 @@ function ThemeManager(): ReactElement {
   const [editing, setEditing] = useState<Theme | null>(null);
 
   const onNew = async (): Promise<void> => {
-    const created = await createTheme.mutateAsync(themeInputFromForm(DEFAULT_THEME_FORM));
-    setEditing(created);
+    try {
+      const created = await createTheme.mutateAsync(themeInputFromForm(DEFAULT_THEME_FORM));
+      setEditing(created);
+    } catch {
+      // `createEntityMutation`'s errorToast already surfaced the failure — stay on the list.
+    }
   };
   const onCustomize = async (seedId: ThemeId): Promise<void> => {
-    const duplicated = await duplicateTheme.mutateAsync({ id: seedId });
-    setEditing(duplicated);
+    try {
+      const duplicated = await duplicateTheme.mutateAsync({ id: seedId });
+      setEditing(duplicated);
+    } catch {
+      // `createEntityMutation`'s errorToast already surfaced the failure — stay on the list.
+    }
   };
   const selectById = (id: string | null): void =>
     selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
@@ -142,67 +151,18 @@ function ThemeManager(): ReactElement {
   );
 }
 
-/** A theme's swatch — its real background + accent (from the stored override). */
+/** A theme's swatch — its real background + accent, painted through `<ThemeScope>` (the gate-enforced
+ *  path for a ThemeOverride to reach the DOM; `theme-override-only-via-scope`, never a raw inline style).
+ *  ThemeScope emits `--color-background`/`--color-primary` from the override, so the token classes read
+ *  them; an unset field inherits the global token. Decorative — empty dot content, no accessible-name leak
+ *  (the character-card accent-dot precedent). */
 function ThemeSwatch({ theme }: { readonly theme: Theme }): ReactElement {
-  const style: CSSProperties = {
-    background: theme.override.background ?? "var(--color-background)",
-  };
-  const dot: CSSProperties = { background: theme.override.accent ?? "var(--color-primary)" };
   return (
-    <Row
-      aria-hidden={true}
-      className="size-8 items-end justify-end rounded-control border border-border p-field"
-      style={style}
+    <ThemeScope
+      className="flex size-8 items-end justify-end rounded-control border border-border bg-background p-field"
+      tokens={theme.override}
     >
-      <Stack className="size-2 rounded-full" style={dot} />
-    </Row>
-  );
-}
-
-/** The per-row action menu: seeds offer only Customize (duplicate-to-edit); owned rows offer Edit ·
- *  Duplicate · Delete. */
-function ThemeRowMenu({
-  theme,
-  onCustomize,
-  onEdit,
-  onDelete,
-}: {
-  readonly theme: Theme;
-  readonly onCustomize: () => void;
-  readonly onEdit: () => void;
-  readonly onDelete: () => void;
-}): ReactElement {
-  return (
-    <Menu>
-      <MenuTrigger
-        render={<Button intent="ghost" size="sm" aria-label={`${theme.name} actions`} />}
-      >
-        ⋯
-      </MenuTrigger>
-      <MenuPopup align="end">
-        {theme.isSeed ? (
-          <MenuItem onClick={onCustomize}>
-            <Icon icon={Copy} size="sm" />
-            Customize
-          </MenuItem>
-        ) : (
-          <>
-            <MenuItem onClick={onEdit}>
-              <Icon icon={Pencil} size="sm" />
-              Edit
-            </MenuItem>
-            <MenuItem onClick={onCustomize}>
-              <Icon icon={Copy} size="sm" />
-              Duplicate
-            </MenuItem>
-            <MenuSeparator />
-            <MenuItem onClick={onDelete}>
-              <Icon icon={Trash2} size="sm" />
-              Delete
-            </MenuItem>
-          </>
-        )}
-      </MenuPopup>
-    </Menu>
+      <Stack className="size-2 rounded-full bg-primary">{null}</Stack>
+    </ThemeScope>
   );
 }

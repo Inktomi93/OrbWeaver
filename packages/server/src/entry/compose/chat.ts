@@ -36,7 +36,9 @@ import type {
   ChatServiceDeps,
   ChatToolOps,
   ChatToolSet,
+  MemoryConfig,
   PresenceReadOp,
+  TurnMessage,
   TurnRequest,
   TurnStreamChunk,
 } from "#domain/chat";
@@ -64,7 +66,8 @@ import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
-import type { ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
+import type { AgentSeedTurn, ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
+import { AGENT_PROMPT_TAIL_JOINER } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
 import { publishNotification } from "../../transport/trpc";
@@ -82,6 +85,74 @@ const MEMBER_BUDGET_WINDOW_MS = 86_400_000;
  *  sanctioned mint site). */
 function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => mintTypeId(prefix);
+}
+
+// ── The agent-sdk turn shape (the PD-7 wiring) ────────────────────────────────────────────────────────
+// The stateful backend wants (a) the SESSION SEED — the model-visible transcript BEFORE this turn — and
+// (b) the PROMPT TAIL — the trailing user rows this turn asks the model to answer. With both, it resumes
+// its cached session while the session transcript still matches the seed and reseeds deterministically on
+// divergence (edit/swipe/window-slide), so history rides the session (prompt-cache survival) instead of
+// being re-sent flattened every turn. When the history has NO clean user tail (continue-mode assistant-
+// final history, or a D48 tool row that can't ride this arm), fall back to the pre-PD-7 flatten — one
+// prompt string, NO chatId/seed (a fresh throwaway session) — never resume a session that already holds
+// the text being continued.
+
+/** One rendered row: image parts become a placeholder (no vision on this path); the wire `name` label is
+ *  stamped into the text (agent-sdk seed frames carry no `name` field). */
+function agentRowText(m: TurnMessage): string {
+  const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
+  return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
+}
+
+/** The legacy flatten (the no-seed fallback): the WHOLE history as one role-labeled blob. Exported
+ *  for the bridge tests only — not a composition surface. */
+export function flattenAgentHistory(history: readonly TurnMessage[]): string {
+  return history
+    .map((m) => {
+      const prefix = m.role === "assistant" ? "Assistant" : "User";
+      const name = m.name ? ` (${m.name})` : "";
+      const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
+      return `${prefix}${name}: ${text}`;
+    })
+    .join("\n\n");
+}
+
+/** Split the shaped history into the session seed + the joined prompt tail; `null` when the history has
+ *  no clean user tail (the caller falls back to {@link flattenAgentHistory}). Exported for the
+ *  bridge tests only — not a composition surface. */
+export function splitAgentHistory(
+  history: readonly TurnMessage[],
+): { seed: readonly AgentSeedTurn[]; prompt: string } | null {
+  // A tool row can only mean a mid-migration mixed history (tools never attach on the agent-sdk arm) —
+  // fall back rather than mistranslate a tool exchange into prose.
+  if (history.some((m) => m.role === "tool")) {
+    return null;
+  }
+  let lastAssistant = -1;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i]?.role === "assistant") {
+      lastAssistant = i;
+      break;
+    }
+  }
+  const tail = history.slice(lastAssistant + 1);
+  if (tail.length === 0) {
+    return null; // continue-mode: assistant-final history has no user turn to send.
+  }
+  const prompt = tail
+    .map(agentRowText)
+    .filter((t) => t.length > 0)
+    .join(AGENT_PROMPT_TAIL_JOINER);
+  if (prompt.length === 0) {
+    return null;
+  }
+  const seed = history.slice(0, lastAssistant + 1).map(
+    (m): AgentSeedTurn => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: agentRowText(m),
+    }),
+  );
+  return { seed, prompt };
 }
 
 /** What `buildChatService` needs from the composition root — the boot primitives + the already-built sibling
@@ -256,6 +327,22 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return config.variables;
   };
 
+  // The ONE memory-config MERGE (D36 user opt-out): the admin-set `AppSettings.memoryDefaults`, forced to
+  // `mode:"off"` when the host disabled memory. Kept PURE + synchronous so the live turn path (which already
+  // holds the host's `us`) and the sweep resolver below both funnel through it WITHOUT either re-reading
+  // settings — the opt-out can't be honored on the turn and dropped on the corpus sweep (#54 — the sweep bug).
+  const withMemoryOptOut = (disabled: boolean, defaults: MemoryConfig): MemoryConfig =>
+    disabled ? { ...defaults, mode: "off" } : defaults;
+
+  // The PD-41 sweep's injected resolver (`resolveMemoryConfig(hostUserId) => Promise<MemoryConfig>`): load the
+  // host's settings + the admin floor, then the shared merge. Keyed by the FROZEN host `UserId` (D19); the
+  // sweep skips a `mode:"off"` host's chats entirely.
+  const resolveMemoryConfig = async (hostUserId: UserId): Promise<MemoryConfig> => {
+    const us = await input.settings.loadUserSettings(hostUserId);
+    const defaults = input.settings.getEffectiveConfig().memoryDefaults;
+    return withMemoryOptOut(us.memory.enabled === false, defaults);
+  };
+
   const chatCtx: ChatContext = {
     db,
     now,
@@ -300,8 +387,19 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         }
       };
 
-      const chatReq: ChatRequest =
+      // PD-7: seed + tail when the history splits cleanly (the backend resumes/reseeds its session);
+      // the flatten fallback keeps continue-mode byte-identical to the pre-PD-7 turn (no chatId ⇒ no
+      // resume — a fresh throwaway session for the one-off shape).
+      const agentSplit = req.connection.api === "agent-sdk" ? splitAgentHistory(req.history) : null;
+      // The OR-skin tier→slug map the mode-2 firewall needs (killing the old hardcoded map in env.ts).
+      // DERIVED by connection from its two live catalogs; never throws (cold catalog ⇒ curated shortlist).
+      // Computed for EVERY agent-sdk turn (mode-1/3 ignore it) — the firewall requires it on the request.
+      const orSkinTierModels =
         req.connection.api === "agent-sdk"
+          ? await input.connection.getOrSkinTierModels()
+          : undefined;
+      const chatReq: ChatRequest =
+        req.connection.api === "agent-sdk" && orSkinTierModels !== undefined
           ? {
               api: "agent-sdk",
               model: req.connection.model,
@@ -309,18 +407,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               capability: req.connection.capability,
               params: req.intent,
               systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+              orSkinTierModels,
               // D17: the engine's enforced owner-consent verdict → the firewall's `ownerConsented` re-verify.
               ownerConsented: req.ownerConsented,
-              prompt: req.history
-                .map((m) => {
-                  const prefix = m.role === "assistant" ? "Assistant" : "User";
-                  const name = m.name ? ` (${m.name})` : "";
-                  const text = m.content
-                    .map((c) => (c.type === "text" ? c.text : "[Image]"))
-                    .join("");
-                  return `${prefix}${name}: ${text}`;
-                })
-                .join("\n\n"),
+              ...(agentSplit !== null
+                ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt }
+                : { prompt: flattenAgentHistory(req.history) }),
               onDelta,
               signal: req.signal,
             }
@@ -358,6 +450,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               cacheWriteTokens: result.usage.cacheWriteTokens,
               contextWindow: result.usage.contextWindow,
               costUsd: result.usage.costUsd,
+              // D26 provenance: the output cap the backend echoed + the requested reasoning effort (F10 —
+              // previously dropped, so both columns stayed NULL despite the runner knowing them).
+              maxOutputTokens: result.usage.maxOutputTokens,
+              reasoningEffort: req.intent.effort ?? null,
               ttftMs: result.ttftMs,
               finishReason: result.finishReason,
               stopReason: result.stopReason,
@@ -535,6 +631,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
             .limit(1);
           return rows.length > 0;
         },
+        // D44 §12.3 send-path gate: an external media ref is dropped when the deployment floor forbids it
+        // (the effective config resolves the born-in-DB `true` floor + any admin override).
+        input.settings.getEffectiveConfig().forbidExternalMedia,
         params,
       ),
     // The `ParticipantView`/`MemberCardView`/persona-avatar-producer bridge — a bare id→hash lookup over
@@ -747,7 +846,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
       return resolveChatVia(runAsUserId, routable);
     },
-    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds }) => {
+    resolveForeignInputs: async ({
+      runAsUserId,
+      anchorPersonaId,
+      personaIds,
+      triggerPersonaId,
+    }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
       const principal = hostPrincipal(runAsUserId);
 
@@ -781,14 +885,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         }
       };
       const anchor = await loadPersona(anchorPersonaId);
-      const active = await loadPersona(personaIds.at(0) ?? null);
+      // active = the TRIGGERING human's persona (whose turn drives this assemble), NOT `personaIds[0]` (the
+      // presence-order-arbitrary first present human) — so prompt-config `{{user}}` is the speaker's own
+      // persona in a multi-human room. Falls back to the first present persona only when the trigger has none.
+      const active = await loadPersona(triggerPersonaId ?? personaIds.at(0) ?? null);
 
       // memoryConfig = the admin-resolved defaults, forced OFF when the host disabled memory (D36 user opt-out).
-      const cfg = input.settings.getEffectiveConfig();
-      const memoryConfig =
-        us.memory.enabled === false
-          ? { ...cfg.memoryDefaults, mode: "off" as const }
-          : cfg.memoryDefaults;
+      // The SAME `withMemoryOptOut` merge the PD-41 sweep resolver uses (one home — #54), fed the already-loaded
+      // `us` so the hot turn path takes no second settings read.
+      const memoryConfig = withMemoryOptOut(
+        us.memory.enabled === false,
+        input.settings.getEffectiveConfig().memoryDefaults,
+      );
 
       return {
         promptConfig,
@@ -821,7 +929,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     service: createChatService(chatCtx, chatDeps),
     emitBusEvent: emitChatEvent,
     backfill: {
-      memory: (args) => backfillMemory(chatCtx, args),
+      memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),
     },
   };

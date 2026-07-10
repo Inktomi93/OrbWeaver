@@ -26,10 +26,9 @@ import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useThemeForm } from "../hooks/use-theme-form";
 import { useUpdateTheme } from "../hooks/use-theme-mutations";
+import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
 import type { ThemeFormValues } from "../lib/theme-editor-model";
 import {
-  AA_CONTRAST_FLOOR,
-  contrastRatio,
   THEMEABLE_VARS,
   themeFormFromEntity,
   themeInputFromForm,

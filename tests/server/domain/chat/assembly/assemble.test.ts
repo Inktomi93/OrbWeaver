@@ -1,10 +1,14 @@
 // assembly/assemble — the BUILD section walk (chat.md Part II §2 phase 3 + §3 rules 1/2/3). Pins: the
 // macro→frame order, render-ONCE {{original}} recovery (card + room override), the static/dynamic split, the
 // chat_history pivot → after-history injection, sendHistory, and the system-block chat-injection routing.
-import type { AssembleContext, ChatInjection } from "@orb/contracts/chat";
+import type { AssembleCharacter, AssembleContext, ChatInjection } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
+import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card";
 import { expect, test } from "../../../../support/fixtures";
 
 let sectionSeq = 0;
@@ -140,5 +144,100 @@ describe("assemblePrompt — section walk", () => {
     ]);
     const out = assemblePrompt(config, ctxOf({ nowMs: 1_750_000_000_000, timezone: "UTC" }));
     expect(out.trace.staticCacheBusters).toContain("date");
+  });
+});
+
+// `injection_trigger` section-gating (`shouldTrigger`/`generationTypeBucket`, assemble.ts ~L499-515):
+// fires only on a matching `generationType`, swipe/regenerate alias to the same bucket, an absent
+// trigger always fires, and a trigger-gated section is never eligible for the cached static prefix
+// (the KV-cache-safety invariant).
+describe("assemblePrompt — injection_trigger section-gating", () => {
+  test("fires only when generationType matches one of the section's triggers", () => {
+    const config = configOf([literal("continue-only", { trigger: ["continue"] })]);
+    expect(assemblePrompt(config, ctxOf({ generationType: "continue" })).dynamic).toContain(
+      "continue-only",
+    );
+    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).dynamic).not.toContain(
+      "continue-only",
+    );
+  });
+
+  test("swipe and regenerate alias to the same generation-type bucket", () => {
+    const config = configOf([literal("swipe-gated", { trigger: ["swipe"] })]);
+    expect(assemblePrompt(config, ctxOf({ generationType: "swipe" })).dynamic).toContain(
+      "swipe-gated",
+    );
+    expect(assemblePrompt(config, ctxOf({ generationType: "regenerate" })).dynamic).toContain(
+      "swipe-gated",
+    );
+    expect(assemblePrompt(config, ctxOf({ generationType: "normal" })).dynamic).not.toContain(
+      "swipe-gated",
+    );
+  });
+
+  test("an absent trigger always fires, regardless of generation type", () => {
+    const config = configOf([literal("always")]);
+    expect(assemblePrompt(config, ctxOf({ generationType: "quiet" })).static).toContain("always");
+    expect(assemblePrompt(config, ctxOf({ generationType: "impersonate" })).static).toContain(
+      "always",
+    );
+  });
+
+  test("an absent generationType defaults to normal", () => {
+    const config = configOf([literal("normal-only", { trigger: ["normal"] })]);
+    expect(assemblePrompt(config, ctxOf()).dynamic).toContain("normal-only");
+  });
+
+  test("a trigger-gated section always lands in the dynamic half, never the cached static prefix", () => {
+    const config = configOf([
+      marker({ marker: "main_prompt", template: "sys", trigger: ["normal"] }),
+    ]);
+    const out = assemblePrompt(config, ctxOf({ generationType: "normal" }));
+    expect(out.static).toBe("");
+    expect(out.dynamic).toContain("sys");
+  });
+});
+
+// F6: in merged mode a co-speaker's scenario has ONE home — the char_description co-block (renderCoSpeakers,
+// "[Kai's scenario]"). The scenario marker used to ALSO fold it in via resolveScopeFallback, double-emitting
+// every co-speaker scenario. It now emits the ACTIVE speaker's scenario only.
+describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", () => {
+  const char = (name: string, scenario: string): AssembleCharacter => ({
+    name,
+    description: `${name} description`,
+    personality: `${name} personality`,
+    scenario,
+    exampleMessages: null,
+    systemPrompt: null,
+    postHistoryInstructions: null,
+    depthPrompt: null,
+  });
+  const aria = char("Aria", "ARIA-SCENARIO");
+  const kai = char("Kai", "KAI-SCENARIO");
+
+  test("a co-speaker's scenario appears ONCE (the co-block), not doubled into the scenario marker", () => {
+    const base = ctxOf({
+      character: aria,
+      promptConfig: DEFAULT_PROMPT_CONFIG,
+      cast: [aria, kai],
+      castCharacterIds: [
+        castId<CharacterId>("character_aria"),
+        castId<CharacterId>("character_kai"),
+      ],
+      castMembers: [
+        { kind: "character", characterId: castId<CharacterId>("character_aria") },
+        { kind: "character", characterId: castId<CharacterId>("character_kai") },
+      ],
+      pinnedPersona: { name: "Nate", description: "" },
+      activePersona: { name: "Nate", description: "" },
+    });
+    const ctx = shapeContextForSpeaker(base, {
+      ref: { kind: "character", characterId: castId<CharacterId>("character_aria") },
+      cardScope: "merged",
+    });
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctx);
+    const all = `${out.static}\n\n${out.dynamic}`;
+    expect(all.split("KAI-SCENARIO").length - 1).toBe(1);
+    expect(all.split("ARIA-SCENARIO").length - 1).toBe(1);
   });
 });

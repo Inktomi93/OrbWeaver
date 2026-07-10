@@ -65,7 +65,13 @@ fields the server treats as **identity edits, NOT card content**. Obey it exactl
 **The `update` wire discipline (LOAD-BEARING — `card-merge.ts` `keep()`):** send **only changed keys**.
 `undefined`/omitted = "leave unchanged"; **`null` = "clear this field"** (distinct meanings — never send
 `undefined` to mean clear). For the always-a-list columns `greetings`/`regexScripts`, `null` clears to `[]`.
-The form factory's `!== isDefaultValue` diff already does this; do not hand-roll a full-object PUT.
+The changed-keys projection lives at the **SURFACE's save seam**, NOT in the form factory:
+`createSavedEntityForm` hands `save` the FULL `TValues` (it cannot know which fields clear-to-`null` vs
+which are merely unchanged — that per-field `null(clear)`-vs-`omit(unchanged)` semantic is card-specific).
+The reference impl is `characterUpdateDiff` (`features/character/lib/character-card-form-model.ts`), wired
+at the editor's save (`character-editor-surface.tsx` — `input: characterUpdateDiff(values, data)`): it
+diffs the form values against the loaded row and emits `null` for a cleared field, omits an unchanged one.
+Do not hand-roll a full-object PUT, and do not double-diff (the surface already diffs — the factory does not).
 
 **Why this matters:** the single most common way this lane is built wrong is routing `themeOverride`/
 `trustHtml` through the CONTENT draft save-bar. Then the live theme preview shows the change applied yet

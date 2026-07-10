@@ -84,7 +84,8 @@ catalog:
   # --- infra/providers backends (Phase 4b-ii-b — tiers/providers.md) ---
   # @anthropic-ai/claude-agent-sdk: the agent-sdk backend (the Max sub + the OR-Anthropic skin + agent
   # mode). Its env firewall is the load-bearing credential seam (providers.md Esoteric §1).
-  "@anthropic-ai/claude-agent-sdk": ^0.3.195
+  # `^0.3.206` floor — owner-approved force past the age gate 2026-07-10 (see minimumReleaseAgeExclude).
+  "@anthropic-ai/claude-agent-sdk": ^0.3.206
   # @openrouter/sdk: the openrouter backend (stateless chat.send / beta.responses + embed/rerank/image).
   # `^0.13.0` (not pinned to .20) so the minimumReleaseAge guard auto-picks the latest >24h-old 0.13.x.
   "@openrouter/sdk": ^0.13.0
@@ -234,3 +235,14 @@ overrides:
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - dependency-cruiser@18.0.0
+  # agent-sdk 0.3.206 (+ its 8 platform-binary siblings): owner-approved force past the age gate
+  # 2026-07-10 (published ~20h prior). Version-pinned — the gate stays live for future releases.
+  - "@anthropic-ai/claude-agent-sdk@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.206"
+  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.206"

@@ -14,6 +14,7 @@ import { buildAssembleContext as buildAssembleContextImpl } from "../assembly/co
 import { fitHistoryToWindow } from "../assembly/history-budget";
 import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
+  freezeVolatileMacros as freezeVolatileMacrosImpl,
   renderHistoryMacros as renderHistoryMacrosImpl,
   resolveGuidedActionText as resolveGuidedActionTextImpl,
 } from "../assembly/macros";
@@ -60,12 +61,22 @@ export function buildTurnMacroContext(
 }
 
 /** SHAPE (canon pre-pass): resolve `{{…}}` in a stored history row's body (resolve-on-READ; D26/D51 keep
- *  storage raw). `{{char}}` binds to the row's OWN speaker, `{{user}}`/`{{persona}}` to the ACTIVE persona
- *  (card=pin / user-facing=active) — the client DISPLAY parity split. The legal `engine/ → assembly/` bridge. */
+ *  storage raw). `{{char}}` binds to the row's OWN speaker (or the cast for a user/narrator row),
+ *  `{{user}}`/`{{persona}}` to the row's own persona — falling back to the chat ANCHOR for a null stamp
+ *  (never the reader) — the client DISPLAY parity split. The legal `engine/ → assembly/` bridge. */
 export function renderHistoryMacros(
   ...args: Parameters<typeof renderHistoryMacrosImpl>
 ): ReturnType<typeof renderHistoryMacrosImpl> {
   return renderHistoryMacrosImpl(...args);
+}
+
+/** FREEZE the VOLATILE (nondeterministic clock/PRNG) macros in `text` at COMMIT (Chat-Macro-Resolution.md
+ *  §0): the exact inverse of `renderHistoryMacros`' names-only pass. Used by the SEND path (composer text) and
+ *  the greeting FIRST-USER-TURN freeze (Task #77 / D51) — a verb reaches assembly ONLY through this bridge. */
+export function freezeVolatileMacros(
+  ...args: Parameters<typeof freezeVolatileMacrosImpl>
+): ReturnType<typeof freezeVolatileMacrosImpl> {
+  return freezeVolatileMacrosImpl(...args);
 }
 
 /** Resolve a guided-action TEMPLATE against the turn ctx (the guided steering resolver; PD-63).

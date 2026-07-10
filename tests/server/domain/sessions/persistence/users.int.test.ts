@@ -30,6 +30,7 @@ async function seedAlice(): Promise<void> {
     id: ALICE,
     handle: HANDLE,
     externalId: EXTERNAL,
+    email: null,
     role: "user",
     enabled: true,
     createdAt: T0,
@@ -53,6 +54,7 @@ describe("persistence/users", () => {
       id: castId<UserId>("user_other"),
       handle: HANDLE,
       externalId: null,
+      email: null,
       role: "owner",
       enabled: true,
       createdAt: T0,
@@ -71,6 +73,7 @@ describe("persistence/users", () => {
       id: ALICE,
       handle: HANDLE,
       externalId: EXTERNAL,
+      email: null,
       role: "user",
       enabled: true,
     });

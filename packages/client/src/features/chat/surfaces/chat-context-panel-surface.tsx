@@ -5,10 +5,13 @@
 // ChatInjection). UI-Arch §4.1 — the CONTEXT region is the shell's designed detail home.
 //
 // SELF-CONTAINED BY DESIGN: this surface does NOT assume it is the sole CONTEXT occupant. The route
-// mounts it via the chats `SectionSlot.context` entry today; when task #32 lands the `CHAT_CONTEXT_SLOTS`
-// registry (the cross-feature graft point rpg/crew will use — rpg-design/11 §1, chat-crew-design/07),
-// this becomes chat's own registered slot entry with NO rework — it already renders as one bounded
-// section, not a full-panel takeover.
+// mounts it via the chats `SectionSlot.context` entry directly (owner-parked — chat keeps its DIRECT
+// mount). The cross-feature CONTEXT graft point has LANDED as the `CONTEXT_SLOTS` registry +
+// `<ContextTabsPanel>` (app-shell/lib/context-slots.ts — the founding consumer is the `characters`
+// section, FINAL-Character §7; rpg/crew will register there too — rpg-design/11 §1, chat-crew-design/07).
+// MIGRATING chat onto that registry is a SEPARATE, currently-PARKED chat-lane task: this panel already
+// renders as one bounded Tabs section (not a full-panel takeover), so the move is a straight lift with no
+// rework when it's picked up.
 //
 // HOST GATE (UI-Arch §5.1 viewer proxy — no client auth/session yet, task #50): "am I host" resolves
 // from `ChatDetail.participants` via `resolveViewerIsHost` (the first present human seat — the owner,
@@ -41,12 +44,12 @@ import { RoomOverridesForm } from "../components/room-overrides-form";
 import type { RosterMember } from "../components/roster-panel";
 import { RosterPanel } from "../components/roster-panel";
 import { useSetRoomOverrides } from "../hooks/use-context-panel-mutations";
-import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../hooks/use-room-overrides-form";
 import {
   useForceCharacterTurn,
   useSetParticipantDisabled,
   useSetParticipantTalkativeness,
 } from "../hooks/use-roster-mutations";
+import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
 import { resolveIsGroupChat, resolveViewerIsHost } from "../lib/roster";
 
 /** Project a committed chat's character participants into the source-agnostic `RosterMember` view. */

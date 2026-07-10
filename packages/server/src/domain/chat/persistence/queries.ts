@@ -529,24 +529,31 @@ interface ContinueSnapshot {
 
 /** The write target for a swipe (`append-variant`) / `continue` — the slot's seq + attribution + its selected
  *  variant's current state. `variantCount` is the next swipe's `idx`; `content`/`reasoning` are the continue
- *  base. `undefined` ⇒ no such committed slot (the verb maps it to a leak-free NOT_FOUND). */
+ *  base. CHAT-SCOPED (the `id AND chatId` predicate — a foreign-chat `messageId` matches nothing, so a member
+ *  of one chat cannot read/mutate another's canon; the cross-chat IDOR fix). `undefined` ⇒ no such committed
+ *  slot IN THIS CHAT — the verb maps a missing/foreign slot to ONE leak-free NOT_FOUND (indistinguishable). */
 export async function loadSlotTarget(
   db: Db,
+  chatId: ChatId,
   messageId: MessageId,
 ): Promise<SlotTarget | undefined> {
   const rows = await db
     .select(slotTargetSelection)
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(eq(messages.id, messageId))
+    .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId)))
     .limit(LIMIT_ONE);
   return rows.at(0);
 }
 
 /** The continue-undo snapshot for a slot's SELECTED variant (D26 `preContinue*`/`lastContinuation*`). All-null
- *  ⇒ the variant was never continued (undo/revert refuse `no_continuation`). `undefined` ⇒ no such slot. */
+ *  ⇒ the variant was never continued (undo/revert refuse `no_continuation`). CHAT-SCOPED (the `id AND chatId`
+ *  predicate — a foreign-chat `messageId` matches nothing, so a member of one chat cannot restore/mutate
+ *  another's canon; the cross-chat IDOR fix). `undefined` ⇒ no such slot IN THIS CHAT (missing/foreign
+ *  collapse to the same `no_continuation` refusal — indistinguishable). */
 export async function loadContinueSnapshot(
   db: Db,
+  chatId: ChatId,
   messageId: MessageId,
 ): Promise<ContinueSnapshot | undefined> {
   const rows = await db
@@ -559,7 +566,7 @@ export async function loadContinueSnapshot(
     })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(eq(messages.id, messageId))
+    .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId)))
     .limit(LIMIT_ONE);
   return rows.at(0);
 }

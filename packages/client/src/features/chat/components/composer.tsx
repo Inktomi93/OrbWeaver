@@ -11,8 +11,8 @@
 // fabricating a placeholder button for it would be the invention the missing-API protocol forbids.
 //
 // Send (Pattern B) and Stop are `useSendMessage`/`useStopTurn` (hooks/); continue-on-empty eligibility
-// is `lib/continue-on-empty.ts` — real, tested groundwork the Send button doesn't yet act on (the
-// `chat.continueTurn` verb isn't on the transport — MISSING-API, flagged at its source).
+// is `lib/continue-on-empty.ts` — real, tested groundwork the Send button doesn't yet act on
+// (continue-on-empty stays parked for Wave A; `chat.continueTurn` is already on the transport).
 
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";

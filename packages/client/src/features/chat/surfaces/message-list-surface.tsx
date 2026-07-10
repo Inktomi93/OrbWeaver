@@ -1,4 +1,3 @@
-import { useRef } from "react";
 // THE chat keystone — the message-list surface (UI-Arch §2.1 CONSUMER tier; scout §"chat-surface").
 // It COMPOSES the built seams — it never paints raw:
 //   • reads canon (`MessagesPage`) + the roster (`chat.getChat`, see below) via
@@ -33,11 +32,11 @@ import { useRef } from "react";
 // `{{char}}` producer built from those cards. Edit/Swipe on a greeting row route to the draft-config store
 // (the row's `greeting` binding), never a chat verb.
 //
-// READ-PATH NOTE (deviation flagged for the coordinator): the plan/§13.2 prescribe `useGatedQuery`, but
-// its `GatedOptions` type is INCOMPATIBLE with the current tRPC `queryOptions` return (TanStack v5.101
-// key-typed `staleTime`/`queryFn` variance — a client-factory drift I surfaced as the first consumer,
-// out of this file set). The equivalent-and-compiling path is the QueryBoundary + useSuspenseQuery
-// canonical, gated by the ChatHandle discriminant. Swap back once `useGatedQuery` is realigned.
+// READ-PATH NOTE: this surface uses `QueryBoundary` + `useSuspenseQueries` (PLURAL — the roster + canon
+// reads must run in PARALLEL, not serially waterfall), gated by the ChatHandle discriminant. `useGatedQuery`
+// (the non-suspense gated read) is now realigned and tRPC-`queryOptions`-compatible — four siblings in this
+// slice consume it — so this is NOT a deviation: the suspense-plural boundary is simply the right fit for a
+// two-read surface, not a fallback around a broken factory.
 
 import type { ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import {
@@ -53,6 +52,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
+import { useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useChatBus, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
@@ -240,6 +240,7 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         personaNamesById={personaNamesById}
         personaAvatarsById={personaAvatarsById}
         activePersonaId={activePersonaId}
+        anchorPersonaId={chatDetail.anchorPersonaId}
         viewerUserId={viewerUserId}
         onChatForked={onChatForked}
       />

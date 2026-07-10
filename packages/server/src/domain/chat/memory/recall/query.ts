@@ -6,7 +6,8 @@
 // scan is search's. `candidates` is left ABSENT here (the bridge restriction is layered by `recall.ts`).
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { renderTranscript } from "../build/substrate/transcript";
 import type { MemoryScope, MsgRow, ResolvedMemoryConfig } from "../types";
 
@@ -23,12 +24,23 @@ export function buildRecallQuery(
   const window = recent.slice(Math.max(0, recent.length - cfg.queryWindow));
   return {
     scope: { chat: scope.chatId },
-    queryText: renderTranscript(window, names),
+    queryText: renderTranscript(window, recallMacroNames(names)),
     scopedCharacterId: scope.scopedCharacterId,
     mode: cfg.mode,
     verbatimWindow: cfg.verbatimWindow,
     keywordMatch: cfg.keywordMatch,
     recencyBias: cfg.recencyBias,
     minScore: cfg.minScore,
+  };
+}
+
+/** Adapt recall's char-name map (the gather producer, `assemble-gather.ts`) into the `resolveRowMacros`
+ *  context `renderTranscript` takes. Recall carries CHARACTER names only (its query text labels + resolves
+ *  `{{char}}` per row for embed-index parity with the digest body); the persona map is empty here, so a query
+ *  row's `{{user}}` floors to "User" — the recall query text is a fuzzy semantic embed, not per-persona keyed. */
+function recallMacroNames(names: ReadonlyMap<CharacterId, string>): RowMacroNameContext {
+  return {
+    characterNamesById: new Map([...names].map(([id, name]) => [id, { name }])),
+    personaNamesById: new Map<PersonaId, RowPersonaName>(),
   };
 }

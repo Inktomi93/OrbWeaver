@@ -305,6 +305,55 @@ describe("store — image lenses (image_embeddings)", () => {
     const captioned = rows.find((r) => r.lens === "image-captioned");
     expect(captioned?.caption).toBe(TEST_CAPTION);
   });
+
+  // F8 — an EMPTY caption (the summarizer returned no item) must NOT be written to the captioned lens:
+  // `image_embeddings.content_hash` covers the BYTES only, so a `caption: ""` row would short-circuit to
+  // `noop` on every future run and never regenerate without `force` (permanent degradation). Skip-don't-write
+  // (mirrors the memory digest's skippedEmpty) — the row stays absent so the next indexer run retries it.
+  test("empty caption → captioned lens NOT poisoned; retried (skip-don't-write)", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const assetId = await seedAsset(db, owner);
+
+    const skipped = await svc.store({
+      kind: "avatar",
+      lens: "image-captioned",
+      assetId,
+      content: IMG,
+      caption: "   \n  ", // whitespace-only ≡ empty (the summarizer produced nothing usable)
+      model: IMAGE_EMBED_MODEL,
+      dim: EMBED_DIM,
+    });
+
+    expect(skipped.outcome).toBe("noop");
+    // The expensive joint embed never ran, and NO poisoned captioned row landed.
+    expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
+    const empty = await db
+      .select()
+      .from(imageEmbeddings)
+      .where(eq(imageEmbeddings.assetId, assetId));
+    expect(empty.filter((r) => r.lens === "image-captioned")).toHaveLength(0);
+
+    // A later run with a REAL caption is not short-circuited — it embeds + writes the captioned lens.
+    const written = await svc.store({
+      kind: "avatar",
+      lens: "image-captioned",
+      assetId,
+      content: IMG,
+      caption: TEST_CAPTION,
+      model: IMAGE_EMBED_MODEL,
+      dim: EMBED_DIM,
+    });
+    expect(written.outcome).toBe("written");
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(1);
+    const after = await db
+      .select()
+      .from(imageEmbeddings)
+      .where(eq(imageEmbeddings.assetId, assetId));
+    expect(after.find((r) => r.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
+  });
 });
 
 describe("store — chat-block lenses (segment / digest)", () => {
