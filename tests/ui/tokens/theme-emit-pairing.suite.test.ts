@@ -59,38 +59,33 @@ function scanConsumedVars(): Set<string> {
 }
 
 /** STATIC base tokens: consumed but not part of ThemeScope's dynamic emit surface — each is defined
- *  once in theme.css and never re-derived from a user override. Seeded from CURRENT reality
- *  (2026-07-09); task #16's audit burns this list down (either wires the token into
- *  THEME_SCOPE_EMIT_VARS + clamp.ts, or confirms it's intentionally static and documents that in
- *  clamp.ts directly, removing the entry here). */
+ *  once in theme.css and never re-derived from a user override. #16 AUDITED this list: `accent`- and
+ *  `primary`-foreground graduated to the dynamic emit surface (clamp.ts now derives them — the accent
+ *  surface joined the neutral ramp, and primary-foreground flips off the picked accent). The 2026-07-09
+ *  chrome-theming lane graduated `secondary`-foreground too — `--color-secondary` joined the derived
+ *  neutral ramp (alongside `muted` + `sidebar-accent`), so its fg now derives with it. The FOUR that
+ *  remain are audited-static by construction — each pairs with a SEMANTIC-INTENT surface (destructive /
+ *  success / warning / highlight), and NONE of those bases is in the ThemeScope override subset (D44
+ *  §12.1: the subset is accent + per-role bubbles + name + RP prose + font/radius/background — no
+ *  semantic-intent tokens). A base that can never be overridden needs no derived foreground: the fg/bg
+ *  pair stays internally consistent under every theme. (AA of each pair is proven by the seed-palette-
+ *  contrast enforcement test, not asserted here.) */
 const DOCUMENTED_STATIC = new Map<string, string>([
   [
-    "--color-accent-foreground",
-    "static base token (theme.css) — accent surface itself isn't user-overridable via ThemeScope yet; pending #16 audit",
-  ],
-  [
     "--color-destructive-foreground",
-    "static base token (theme.css) — semantic destructive surface isn't themeable via ThemeScope; pending #16 audit",
+    "audited-static (#16) — the destructive semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg. Pair is a deliberately-accepted 3.65:1 solid button (UIP-101, treated at the 3:1 UI floor).",
   ],
   [
     "--color-highlight-foreground",
-    "static base token (theme.css) — highlight surface isn't themeable via ThemeScope; pending #16 audit",
-  ],
-  [
-    "--color-primary-foreground",
-    "static base token (theme.css) — the accent picker sets --color-primary but its derived foreground isn't re-derived by ThemeScope (unlike bubble/neutral foregrounds); pending #16 audit",
-  ],
-  [
-    "--color-secondary-foreground",
-    "static base token (theme.css) — semantic secondary surface isn't themeable via ThemeScope; pending #16 audit",
+    "audited-static (#16) — the highlight (search-match) semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg.",
   ],
   [
     "--color-success-foreground",
-    "static base token (theme.css) — semantic success surface isn't themeable via ThemeScope; pending #16 audit",
+    "audited-static (#16) — the success semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg.",
   ],
   [
     "--color-warning-foreground",
-    "static base token (theme.css) — semantic warning surface isn't themeable via ThemeScope; pending #16 audit",
+    "audited-static (#16) — the warning semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg.",
   ],
 ]);
 

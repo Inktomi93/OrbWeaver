@@ -28,13 +28,14 @@ import { openModal } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
-/** The full shell with a chats CONTENT slot + a corpus LIST/CONTENT slot; other sections fall back. */
+/** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
+ *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
 export function AppShellStory(): ReactElement {
   return (
     <CtDataProviders>
       <AppShell
         sections={{
-          chats: { content: <p>chats content pane</p> },
+          chats: { content: <p>chats content pane</p>, context: <p>chats context pane</p> },
           corpus: { list: <p>corpus list pane</p>, content: <p>corpus content pane</p> },
         }}
         // The route composes the real "You" bottom-sheet body over the `you` modal slot (L6/J12) — mirror

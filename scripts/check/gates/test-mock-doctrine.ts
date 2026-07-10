@@ -15,8 +15,17 @@ function checkMockCall(call: CallExpression, filePath: string): Violation | null
     return null;
   }
   const mockTarget = arg0.getText().replace(/['"]/gu, "");
-  // Internal paths typically start with relative paths or package names
-  if (!(mockTarget.startsWith(".") || mockTarget.startsWith("packages/"))) {
+  // Internal targets: a relative path, a raw `packages/…` path, OR the `@orb/*` workspace alias — the last
+  // is how EVERY internal cross-package import is actually written, so omitting it left the gate blind to
+  // `vi.mock("@orb/server/…")` (the whole point of the ban). Third-party node edges (bare names, `node:`)
+  // stay legal.
+  if (
+    !(
+      mockTarget.startsWith(".") ||
+      mockTarget.startsWith("packages/") ||
+      mockTarget.startsWith("@orb/")
+    )
+  ) {
     return null;
   }
   return {

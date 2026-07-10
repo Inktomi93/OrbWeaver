@@ -4,4 +4,8 @@
 // feature imports this slice's internals, and this slice imports no other feature (cross-domain reads
 // ride trpc.*).
 
+// `PersonaPanelRow` is front-door-exported so its CT (the side-eye item-13 stretched-overlay rework)
+// drives it directly from a non-test story — the CharacterCardTile precedent.
+export type { PersonaPanelRowProps } from "./components/persona-panel-row";
+export { PersonaPanelRow } from "./components/persona-panel-row";
 export { PersonaPanelSurface } from "./surfaces/persona-panel-surface";

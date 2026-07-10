@@ -12,6 +12,7 @@ export type {
 export { createCollectionSurface } from "./create-collection-surface";
 export type { EntityMutationConfig, EntityMutationResult } from "./create-entity-mutation";
 export { createEntityMutation } from "./create-entity-mutation";
+export { importCharacters } from "./import-characters";
 export type { InvalidateFilter, Invalidation } from "./invalidation";
 export { createInvalidation } from "./invalidation";
 export type { QueryBoundaryProps } from "./query-boundary";

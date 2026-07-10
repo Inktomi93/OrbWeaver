@@ -3,11 +3,15 @@
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
 import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
+import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 // The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
 // Rail precedent) — AppearanceSettingsSurface is mounted by SettingsShell itself, not exported standalone.
 import { AppearanceSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/appearance-settings-surface";
+// shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
+// directly so the modal-chrome story below has the header/divider styles even in isolation.
+import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 /** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test). */
@@ -17,6 +21,33 @@ export function SettingsShellStory(): ReactElement {
       <div style={{ height: 560, width: 900 }}>
         <SettingsShell />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The settings shell inside the REAL modal chrome (a faithful mirror of ModalHost's `DialogModal`: the
+ *  `xl` DialogPopup, the `.shell-modal-header` + its divider, and the scroll-body div) — so the CT can
+ *  measure the header→content gap and the divider width against the true modal content box. */
+export function SettingsModalStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <Dialog open={true}>
+        <DialogPopup size="xl">
+          <header className="shell-modal-header shrink-0">
+            <DialogTitle>Settings</DialogTitle>
+            <DialogClose
+              render={
+                <button aria-label="Close" type="button">
+                  ×
+                </button>
+              }
+            />
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <SettingsShell />
+          </div>
+        </DialogPopup>
+      </Dialog>
     </CtDataProviders>
   );
 }
@@ -37,11 +68,24 @@ export function ThemePickerStory(): ReactElement {
 
 /** The real appearance settings pane (D44 §12.1 #31) in isolation — `getUserSettings` (read) and
  *  `updateUserSettingsSection` (the autosave write) are stubbed per-test via routeTrpc. A tall scrolling
- *  box: the surface's `Grid cols="wide"` tiles many sections and would clip in a short fixed box. */
+ *  box: the surface stacks many sections and would clip in a short fixed box. */
 export function AppearanceSettingsStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <AppearanceSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The appearance pane at a NARROW container width (a phone-width settings modal) — proves the horizontal
+ *  row grammar's fixed ~200px control column can't starve the label block to 0 (the Wave-1 in-flow-squeeze
+ *  class); it stacks the row so the label keeps full width. */
+export function AppearanceSettingsNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 300 }}>
         <AppearanceSettingsSurface />
       </div>
     </CtDataProviders>

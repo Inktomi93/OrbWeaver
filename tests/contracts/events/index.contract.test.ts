@@ -17,7 +17,11 @@ test("each event carries only its branded id (an injected EmitDomainEvent accept
   const emit: EmitDomainEvent = (event) => {
     seen.push(event);
   };
-  emit({ type: "character.updated", characterId: castId<CharacterId>("character_evt") });
+  emit({
+    type: "character.updated",
+    characterId: castId<CharacterId>("character_evt"),
+    contentChanged: true,
+  });
   emit({ type: "asset.created", assetId: castId<AssetId>("asset_evt") });
   expect(seen.map((e) => e.type)).toEqual([...DOMAIN_EVENT_TYPES]);
 });

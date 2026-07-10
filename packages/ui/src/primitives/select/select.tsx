@@ -3,7 +3,8 @@ import type { SelectPositionerProps, SelectRootProps } from "@base-ui/react/sele
 import { Select as BaseSelect } from "@base-ui/react/select";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
-import { cn } from "#lib";
+import type { PortalContainer } from "#lib";
+import { cn, usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/ChevronDown/Icon fine.
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import { selectVariants } from "./variants";
@@ -131,6 +132,9 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
   align?: SelectPositionerProps["align"];
   /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: SelectPositionerProps["sideOffset"];
+  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
+   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  container?: PortalContainer;
   /**
    * Accessible name for the trigger (the combobox). `Select.Root` renders no element, so these ride
    * the Trigger — a labelless Select gets its name here (or via `aria-labelledby`/`Field`).
@@ -171,6 +175,7 @@ export function Select<Value = string, Multiple extends boolean = false>(
     side,
     align,
     sideOffset = POPUP_SIDE_OFFSET,
+    container,
     id,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledby,
@@ -180,6 +185,7 @@ export function Select<Value = string, Multiple extends boolean = false>(
   // The grouped shape ({ label, items }) is a Base UI `Group` structurally; the union widening to
   // Root's `items` type needs a nudge the compiler won't infer through our stricter option union.
   const rootItems = items as SelectRootProps<Value, Multiple>["items"];
+  const portalContainer = usePortalContainer();
   const hasLabel = label !== undefined && label !== null;
   // Base UI's `Select.Label` strips any `id` we pass (it derives its own from the root, ignoring
   // "runtime id overrides from untyped consumers") — so the association id lives on an inner span
@@ -230,7 +236,7 @@ export function Select<Value = string, Multiple extends boolean = false>(
           </BaseSelect.Trigger>
         }
       />
-      <BaseSelect.Portal>
+      <BaseSelect.Portal container={container ?? portalContainer}>
         {backdrop ? (
           <BaseSelect.Backdrop className={slots.backdrop()} data-slot="select-backdrop" />
         ) : null}

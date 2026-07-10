@@ -1,0 +1,161 @@
+// §4.1 the `+` create/import picker — a `@orb/ui/menu` on the header's `+` button offering the two
+// mutually-exclusive entry choices ("New character" · "Import card"), each opening its own picker Dialog
+// (legal per pain-point 1 rule 5 — a picker, never section content in a modal). "New" is a minimal create
+// (handle auto-derived from the name via `@orb/kit/slug`; create requires handle + name + description);
+// "Import card" is the PNG/JSON dropzone over the shipped `POST /api/import` multipart route
+// (`data/importCharacters`). Both refresh the LIST via the user-bus `charactersChanged` path-invalidate
+// (create is `busDriven`; import fires it explicitly since it is a raw POST, not a tRPC mutation).
+//
+// A COMPONENT, not a surface — so the inline picker Dialogs are legal (surface-purity §A.7b; the
+// persona-panel-row precedent).
+
+import { slugifyHandle } from "@orb/kit/slug";
+import { Button } from "@orb/ui/button";
+import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { FileDropzone } from "@orb/ui/file-dropzone";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Plus/Upload/Icon fine (the character-library-surface.tsx precedent).
+import { Icon, Plus } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
+import { Row, Stack } from "@orb/ui/layout";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Text } from "@orb/ui/text";
+import { Textarea } from "@orb/ui/textarea";
+import type { ReactElement } from "react";
+import { useState } from "react";
+import { importCharacters, useInvalidation, useTRPC } from "#data";
+import { notify } from "#lib";
+import { selectCharacter } from "#state";
+import { useCreateCharacter } from "../hooks/use-character-mutations";
+
+const CARD_ACCEPT = ".png,.json,image/png,application/json";
+
+/** The `+` split entry (New / Import card) with its two picker dialogs. */
+export function CharacterCreateMenu(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const create = useCreateCharacter({ trpc, invalidation });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const incomplete = name.trim() === "" || description.trim() === "";
+
+  const onCreate = (): void => {
+    if (incomplete) {
+      return;
+    }
+    void (async (): Promise<void> => {
+      try {
+        const character = await create.mutateAsync({
+          input: {
+            handle: slugifyHandle(name.trim()),
+            name: name.trim(),
+            description: description.trim(),
+          },
+        });
+        selectCharacter(character.id);
+        setCreateOpen(false);
+        setName("");
+        setDescription("");
+      } catch {
+        // `createEntityMutation`'s `errorToast` already surfaced the failure — keep the dialog open.
+      }
+    })();
+  };
+
+  const onImportFiles = (accepted: readonly File[]): void => {
+    if (accepted.length === 0) {
+      return;
+    }
+    void (async (): Promise<void> => {
+      try {
+        await importCharacters(accepted);
+        // Import is a raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate the
+        // character verbs emit, so the LIST refreshes through the ONE invalidation map.
+        invalidation.invalidateUser({ type: "charactersChanged" });
+        notify.success("Card imported.");
+        setImportOpen(false);
+      } catch {
+        notify.error("Couldn't import the card.");
+      }
+    })();
+  };
+
+  return (
+    <>
+      <Menu>
+        <MenuTrigger
+          render={
+            <Button aria-label="New or import a character" intent="primary" size="icon">
+              <Icon icon={Plus} size="sm" />
+            </Button>
+          }
+        />
+        <MenuPopup>
+          <MenuItem onClick={(): void => setCreateOpen(true)}>New character</MenuItem>
+          <MenuItem onClick={(): void => setImportOpen(true)}>Import card</MenuItem>
+        </MenuPopup>
+      </Menu>
+
+      <Dialog onOpenChange={setCreateOpen} open={createOpen}>
+        <DialogPopup>
+          <Stack gap="block">
+            <DialogTitle>New character</DialogTitle>
+            {/* Plain children — DialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
+            <DialogDescription>
+              Give them a name and a one-line description — you can flesh out the rest in the
+              editor.
+            </DialogDescription>
+            <Stack gap="field">
+              <Text as="span" size="label" tone="muted">
+                Name
+              </Text>
+              <Input
+                aria-label="Character name"
+                onValueChange={setName}
+                placeholder="Elara Vance"
+                value={name}
+              />
+              <Text as="span" size="label" tone="muted">
+                Description
+              </Text>
+              <Textarea
+                aria-label="Character description"
+                onChange={(event): void => setDescription(event.target.value)}
+                placeholder="A wandering cartographer with a sharp tongue."
+                value={description}
+              />
+            </Stack>
+            {/* §4.1: create requires handle + name + description (handle auto-derives from the name). Gate
+                on BOTH authored fields, and say why while incomplete. */}
+            {incomplete ? (
+              <Text size="label" tone="muted">
+                A name and a description are both required.
+              </Text>
+            ) : null}
+            <Row gap="field" justify="end">
+              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+              <Button disabled={incomplete || create.isPending} intent="primary" onClick={onCreate}>
+                Create
+              </Button>
+            </Row>
+          </Stack>
+        </DialogPopup>
+      </Dialog>
+
+      <Dialog onOpenChange={setImportOpen} open={importOpen}>
+        <DialogPopup>
+          <Stack gap="block">
+            <DialogTitle>Import card</DialogTitle>
+            <DialogDescription>Drop a SillyTavern character card (PNG or JSON).</DialogDescription>
+            <FileDropzone
+              accept={CARD_ACCEPT}
+              multiple={true}
+              onFilesSelected={({ accepted }): void => onImportFiles(accepted)}
+            />
+          </Stack>
+        </DialogPopup>
+      </Dialog>
+    </>
+  );
+}

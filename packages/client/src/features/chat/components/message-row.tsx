@@ -74,7 +74,11 @@ import {
   useIsMessageSelected,
   useSelectionActive,
 } from "#state";
-import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution";
+import {
+  initialsForAttribution,
+  resolveRowAttribution,
+  speakerThemesByName,
+} from "../lib/attribution";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { resolveRowRenderPolicy } from "../lib/render-trust";
@@ -243,7 +247,14 @@ export function MessageRow({
   // OWN correctly-shaped sharp variant (`blobPortraitUrl`/`blobBannerUrl`, `lib/message-row-variants`),
   // which this row has no opinion on.
   const decoration =
-    skin.bubbleDecoration?.({ kind: attribution.kind, avatarHash: attribution.avatarHash }) ?? null;
+    skin.bubbleDecoration?.({
+      kind: attribution.kind,
+      avatarHash: attribution.avatarHash,
+      // The no-image fallback path (owner ruling 2026-07-09): the hue seed + resolved initials let Echo/
+      // Whisper paint the first-class fallback TILE as the mode's art when the entity has no avatar.
+      hueSeed: attribution.hueSeed,
+      initial: attribution.name === null ? "" : initialsForAttribution(attribution.name),
+    }) ?? null;
   const avatarNode = renderRowAvatar({
     attribution,
     avatarTreatment,
@@ -295,7 +306,18 @@ export function MessageRow({
         <Row align="start" gap="row" data-slot="message-row-body">
           {leadingAvatar}
           <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
-            <Row justify="between" align="center" gap="field" data-slot="message-name-row">
+            {/* §B.1 name + actions on one row. Over a bg photo, the no-fill modes (flat/hush/document)
+                back this CHROME with their own scrim chip (`skin.chromeBacking`, side-eye P1) — the row
+                is a sibling ABOVE the bubble, so its interactive action icons otherwise float on the raw
+                photo (1.83:1, WCAG 1.4.11). Self-gated by `in-data-[has-bg-image]:` ⇒ inert without a
+                bg image; undefined (no chip) for the filled modes. */}
+            <Row
+              justify="between"
+              align="center"
+              gap="field"
+              data-slot="message-name-row"
+              className={skin.chromeBacking}
+            >
               {attribution.name === null ? null : (
                 <Row gap="field" align="baseline" data-slot="message-attribution">
                   {renderAttributionName(attribution)}

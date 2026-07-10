@@ -123,15 +123,12 @@ export function HomePage(): ReactElement {
     [],
   );
 
-  // UIP-202 + J2/J3: the topbar shows the ACTIVE CHAT identity on the Chats section — a committed chat's
-  // roster header, OR (character-first) a DRAFT's seeded-character identity so a new chat is never an
-  // anonymous void. Landing/blank/other sections fall back to the shell's section-name title. The route
-  // is the single reactive reader (§5.1); the shell only forwards this ReactNode, staying domain-agnostic.
+  // UIP-202 + J2/J3: the Chats topbar identity — a committed chat's roster header, OR (character-first)
+  // a DRAFT's seeded-character identity so a new chat is never an anonymous void. Landing/blank falls
+  // back to the shell's section-name title. Lives in the CHATS SectionSlot entry, so it renders only
+  // while Chats owns the shell — no per-region section guard (the shell reads sections[activeSection]).
   const draftCharacterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
-  const topbarHeader = ((): ReactElement | null => {
-    if (activeSection !== "chats") {
-      return null;
-    }
+  const chatsHeader = ((): ReactElement | null => {
     if (activeChatId !== null) {
       return <ChatHeaderSurface chatId={activeChatId} />;
     }
@@ -141,16 +138,19 @@ export function HomePage(): ReactElement {
     return null;
   })();
 
-  // The CONTEXT region body (J2/J3): a committed chat's server-backed panel, or a DRAFT's draft-config-
+  // The Chats CONTEXT body (J2/J3): a committed chat's server-backed panel, or a DRAFT's draft-config-
   // backed twin (fully editable pre-send). Landing / no draft ⇒ null (the shell shows its placeholder).
-  const contextRegion = ((): ReactElement | null => {
+  // Section-keyed via the SectionSlot entry — CONTEXT follows CONTENT (§4.2 rule 1) by construction:
+  // switching to another rail section swaps this out with that section's (or the placeholder), never
+  // leaving a stale chat panel mounted beside foreign CONTENT.
+  const chatsContext = ((): ReactElement | null => {
     if (activeChatId !== null) {
       return <ChatContextPanel chatId={activeChatId} />;
     }
     if (handle.kind === "draft") {
       return <DraftContextPanel draftKey={handle.draftKey} characterIds={draftCharacterIds} />;
     }
-    return null; // landing / no draft → the shell renders its own placeholder (`contextPanel ?? …`)
+    return null; // landing / no draft → the shell renders its own placeholder (`context ?? …`)
   })();
 
   // Compute the current logical route for the accessibility announcer.
@@ -177,10 +177,13 @@ export function HomePage(): ReactElement {
     <>
       <AriaAnnouncer message={routeAnnouncement} />
       <AppShell
-        header={topbarHeader}
         railFoot={<PersonaPanelSurface />}
         sections={{
           chats: {
+            // The Chats topbar identity + CONTEXT panel ride the SAME section entry as LIST/CONTENT
+            // (§4.2: the four regions are one ensemble, keyed by the active section — Discord physics).
+            header: chatsHeader,
+            context: chatsContext,
             list: (
               <ChatListAnchor>
                 <ChatListSurface
@@ -243,10 +246,6 @@ export function HomePage(): ReactElement {
           // slot (the same seam as the four above), keeping app-shell's modal-slots lib component-free.
           you: <YouSheet />,
         }}
-        // The CONTEXT (right) region — the chat detail panel (overrides · preview · injections, task #28).
-        // A COMMITTED chat mounts the server-backed panel; a DRAFT mounts its twin (J2/J3) that reads/writes
-        // the draft-config store instead (fully editable pre-send). Landing / non-chat ⇒ the shell placeholder.
-        contextPanel={contextRegion}
       />
     </>
   );

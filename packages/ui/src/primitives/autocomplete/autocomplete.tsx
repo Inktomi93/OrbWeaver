@@ -4,7 +4,8 @@ import type {
 } from "@base-ui/react/autocomplete";
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
-import { cn } from "#lib";
+import type { PortalContainer } from "#lib";
+import { cn, usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine (the spinner.tsx precedent).
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants";
@@ -72,6 +73,9 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   align?: BasePositionerProps["align"];
   /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: BasePositionerProps["sideOffset"];
+  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
+   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  container?: PortalContainer;
 }
 
 /**
@@ -142,8 +146,10 @@ export function Autocomplete({
   side,
   align,
   sideOffset = POPUP_SIDE_OFFSET,
+  container,
   ...rest
 }: AutocompleteProps): ReactElement {
+  const portalContainer = usePortalContainer();
   const listChild =
     groups === undefined
       ? (item: string): ReactNode => (
@@ -206,7 +212,7 @@ export function Autocomplete({
           <Icon icon={X} size="sm" />
         </BaseAutocomplete.Clear>
       </BaseAutocomplete.InputGroup>
-      <BaseAutocomplete.Portal>
+      <BaseAutocomplete.Portal container={container ?? portalContainer}>
         <BaseAutocomplete.Positioner
           align={align}
           className={slots.positioner()}

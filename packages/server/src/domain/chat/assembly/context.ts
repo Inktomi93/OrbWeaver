@@ -48,6 +48,7 @@ import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
+import { resolveInjectionPlacement } from "@orb/kit/injection";
 import type { MacroContext } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -84,6 +85,14 @@ interface InjectionCandidate {
 }
 
 const OPERATOR_PRIORITY = Number.MAX_SAFE_INTEGER;
+
+// The house AUTHOR'S-NOTE register depth — "near enough to steer, far enough not to dominate"
+// (chat-crew-design/04). The ROOM author's note's default when its stored shape carries no depth: today
+// `roomOverrides.authorsNote` is a BARE string (no depth/role), so the room note always lands here. Making
+// depth/role USER-SETTABLE (widen the contract shape to a `{prompt, depth?, role?}` directive + a client
+// depth control) is a DELIBERATE deferral to task #22, NOT an oversight — the resolve below already reads a
+// host-set depth/role the instant the shape carries them (zero change at this seam).
+const AUTHORS_NOTE_DEFAULT_DEPTH = 4;
 
 function compareStr(a: string, b: string): number {
   if (a < b) {
@@ -654,6 +663,65 @@ function depthNoteSource(contributorNames: readonly string[]): string {
   return contributorNames.length === 1 ? `from ${contributorNames[0]}` : "merged (present cast)";
 }
 
+/** The chat's ROOM author's note (`roomOverrides.authorsNote`) → an `in_chat` depth-note candidate on the
+ *  SAME central injection machinery the member notes ride (an `ignoreBudget` OPERATOR_PRIORITY candidate —
+ *  host steering intent, never droppable). Returns null when the rendered note is empty.
+ *
+ *  PLACEMENT (D32): resolved through the shared `resolveInjectionPlacement` primitive with the house
+ *  AUTHOR'S-NOTE defaults ({@link AUTHORS_NOTE_DEFAULT_DEPTH}, role "system" — the assembler default). The
+ *  stored note is TODAY a bare string, so it is wrapped as a `{prompt}` directive carrying no depth/role and
+ *  the defaults always win; when the contract later widens `authorsNote` to a `{prompt, depth?, role?}`
+ *  directive (task #22), pass the stored directive straight through and the host-set depth/role flow with
+ *  ZERO change to the resolve/render calls here.
+ *
+ *  MACRO ROUTING (matches the ROOM-OVERRIDE axis at assemble.ts — host room overrides render against the
+ *  ACTIVE persona): `{{user}}` → the active persona; `{{char}}` → the base primary (the note is chat-scoped,
+ *  not bound to any one cast member, so the ctx is left unmodified — `character`/`speaker` stay the primary). */
+function roomAuthorsNoteCandidate(ctx: AssembleContext, note: string): InjectionCandidate | null {
+  const directive = { prompt: note };
+  const content = renderMacros(directive.prompt, ctx, ctx.activePersona);
+  if (content.trim().length === 0) {
+    return null;
+  }
+  const { depth, role } = resolveInjectionPlacement(directive, {
+    depth: AUTHORS_NOTE_DEFAULT_DEPTH,
+    role: "system",
+  });
+  return {
+    injection: { position: "in_chat", depth, role, content },
+    tokens: estimateTokens(content),
+    ignoreBudget: true,
+    priority: OPERATOR_PRIORITY,
+    entryId: "authors-note-room",
+    bucket: null,
+  };
+}
+
+/** THE author's-note depth injection for this turn — ONE home, no doubling (task #18 owner ruling,
+ *  2026-07-09): a non-empty `roomOverrides.authorsNote` OVERRIDES and SUPPRESSES the per-member card
+ *  `depthPrompt` notes (the host's room note is the room's single author's-note authority); an unset /
+ *  whitespace-only room note ⇒ the member notes flow exactly as before (the regression path). The trace
+ *  source is "room override" (the reserved `AssembleContext.authorsNoteSource` label) vs the member
+ *  contributor label. Suppression keys on the STORED note being non-empty, so a host note that renders empty
+ *  still suppresses (the authored room note is the authority) — it just contributes no candidate. */
+function authorsNoteCandidates(ctx: AssembleContext): {
+  candidates: InjectionCandidate[];
+  authorsNoteSource?: string;
+} {
+  const roomNote = ctx.roomOverrides?.authorsNote;
+  if (roomNote !== undefined && roomNote.trim().length > 0) {
+    const candidate = roomAuthorsNoteCandidate(ctx, roomNote);
+    return {
+      candidates: candidate !== null ? [candidate] : [],
+      authorsNoteSource: "room override",
+    };
+  }
+  const member = characterDepthNoteCandidates(ctx);
+  return member.contributorNames.length > 0
+    ? { candidates: member.candidates, authorsNoteSource: depthNoteSource(member.contributorNames) }
+    : { candidates: member.candidates };
+}
+
 /**
  * RESOLVE → GATHER → BUILD: produce the IMMUTABLE per-turn `AssembleContext`. Reads the
  * chat-owned roster cast (via `ctx.getCard`) + the WI pool; everything cross-domain is in `input` (see the
@@ -768,17 +836,18 @@ export async function buildAssembleContext(
     bucket: null,
   }));
   const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas);
-  // The seated cast's per-member Character's-Note-@-Depth (card `depthPrompt`) — the CHARACTER sibling of the
-  // persona depth candidate, joining the SAME list/budget pass. Appended AFTER persona so a same-depth tie
-  // orders persona-then-note deterministically (array order = output order; see the builder's STACKING note).
-  const depthNotes = characterDepthNoteCandidates(base);
+  // THE author's-note depth injection (task #18 ruling): a non-empty `roomOverrides.authorsNote` OVERRIDES +
+  // SUPPRESSES the per-member card `depthPrompt` notes; unset ⇒ the member notes flow. Either way it joins the
+  // SAME list/budget pass. Appended AFTER persona so a same-depth tie orders persona-then-note deterministically
+  // (array order = output order; see the character-note STACKING note).
+  const authorsNote = authorsNoteCandidates(base);
   const { kept, dropped } = budgetInjections(
     [
       ...wi.candidates,
       ...userCandidates,
       ...guided.candidates,
       ...personaDescription,
-      ...depthNotes.candidates,
+      ...authorsNote.candidates,
     ],
     input.injectionTokenBudget,
   );
@@ -792,10 +861,10 @@ export async function buildAssembleContext(
     chatInjections,
     worldInfoBefore: beforeParts.join("\n"),
     worldInfoAfter: afterParts.join("\n"),
-    // The author's-note trace label for the fired character notes (`ignoreBudget` ⇒ every contributor
-    // survives the budget; the label mirrors that set). Unset when no note fired (trace omits it).
-    ...(depthNotes.contributorNames.length > 0
-      ? { authorsNoteSource: depthNoteSource(depthNotes.contributorNames) }
+    // The author's-note trace source ("room override" when the room note wins, else the member contributor
+    // label; `ignoreBudget` ⇒ every contributor survives the budget). Unset when no note applied (trace omits it).
+    ...(authorsNote.authorsNoteSource !== undefined
+      ? { authorsNoteSource: authorsNote.authorsNoteSource }
       : {}),
     // Carry the resolved host-tier regex set onto the immutable ctx so RECEIVE (the pipeline) applies the same
     // set (AI_OUTPUT/REASONING) the SEND pass used (USER_INPUT) — D53. Absent stays absent (preview/aux turns).

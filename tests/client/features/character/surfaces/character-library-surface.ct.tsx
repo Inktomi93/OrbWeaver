@@ -12,6 +12,7 @@
 // (routeTrpc) — the responder inspects the decoded `input.cursor` to serve page 1 vs page 2.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories";
 import { makeCharacterSummary, makeTagFixture } from "../fixtures";
@@ -95,4 +96,156 @@ test("a read failure shows the error state (no Retry — the factory exposes no 
 
   await expect(component.getByText("Couldn't load the character library.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Retry" })).toHaveCount(0);
+});
+
+// ── §4.2/§4.5/§4.6/§4.3 the new LIST features ──────────────────────────────────────────────────────
+
+const STARLA = makeCharacterSummary({
+  id: "char_star",
+  name: "Starla",
+  starred: true,
+  createdAt: 3000,
+});
+const BOLT2 = makeCharacterSummary({ id: "char_bolt2", name: "Bolt", createdAt: 2000 });
+const TAGGED = makeCharacterSummary({
+  id: "char_tag",
+  name: "Cassius",
+  createdAt: 1000,
+  tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" })],
+});
+
+/** Route a single exhausted page of the three fixtures + an empty `listChats` (empty resume map). */
+async function routeThree(page: Page): Promise<void> {
+  await routeTrpc(page, {
+    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "chat.listChats": () => [],
+  });
+}
+
+test("§4.2 the favorites strip surfaces starred characters as select-only avatars", async ({
+  mount,
+  page,
+}) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  const strip = component.getByRole("list", { name: "Favorite characters" });
+  await expect(strip.getByRole("button", { name: "Open Starla" })).toBeVisible();
+  // Bolt is not starred → not in the strip.
+  await expect(strip.getByRole("button", { name: "Open Bolt" })).toHaveCount(0);
+});
+
+test("§4.5 the Favorites filter chip narrows to starred rows", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await expect(component.getByText("Bolt")).toBeVisible();
+  await component.getByRole("button", { name: "Show only favorites" }).click();
+  await expect(component.getByText("Bolt")).toHaveCount(0);
+  await expect(component.getByText("Cassius")).toHaveCount(0);
+});
+
+test("§4.3 the Group toggle switches to categorized view (an Uncategorized bucket)", async ({
+  mount,
+  page,
+}) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "Group by tag" }).click();
+  // Starla + Bolt have no tags → the trailing Uncategorized category header.
+  await expect(component.getByText("Uncategorized")).toBeVisible();
+});
+
+test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "Select multiple" }).click();
+  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  // The selection bar's bulk actions appear once a row is selected.
+  await expect(component.getByRole("button", { name: "Tag", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Archive", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Delete", exact: true })).toBeVisible();
+});
+
+// D1 — a chip-induced empty over the loaded window must NOT show search copy nor dead-end: a favorite that
+// lives only on a LATER page is reachable via a Load more affordance. Page 1 is large enough that the
+// virtual list does not auto-tail-fetch, so filtering to favorites (none on page 1) yields the chip-empty.
+const PAGE1_FILLERS = Array.from({ length: 40 }, (_, i) =>
+  makeCharacterSummary({ id: `char_fill_${i}`, name: `Filler ${i}`, createdAt: 9000 - i }),
+);
+const LATE_FAVORITE = makeCharacterSummary({
+  id: "char_late_fav",
+  name: "Zephyr",
+  starred: true,
+  createdAt: 100,
+});
+const PAGE1_CURSOR_LATE = { createdAt: 8961, id: "char_fill_39" };
+
+test("D1 a favorites-chip empty over the loaded window offers Load more, reaching a later-page favorite", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "character.list": (input: unknown) =>
+      (input as { cursor?: unknown } | undefined)?.cursor === undefined
+        ? { items: PAGE1_FILLERS, nextCursor: PAGE1_CURSOR_LATE }
+        : { items: [LATE_FAVORITE], nextCursor: null },
+    "chat.listChats": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await expect(component.getByText("Filler 0")).toBeVisible();
+
+  await component.getByRole("button", { name: "Show only favorites" }).click();
+  // NOT the search copy (no search was typed), and NOT a dead end — the chip-empty offers Load more.
+  await expect(component.getByText("No matches in view")).toBeVisible();
+  const loadMore = component.getByRole("button", { name: "Load more" });
+  await expect(loadMore).toBeVisible();
+
+  await loadMore.click();
+  // Page 2 holds the only favorite — it is now reachable.
+  await expect(component.getByText("Zephyr")).toBeVisible();
+});
+
+test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "chat.listChats": () => [],
+    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "Select multiple" }).click();
+  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("button", { name: "Tag", exact: true }).click();
+
+  // The picker Dialog is portaled outside the mount root — query it via `page`.
+  await page.getByRole("textbox", { name: "Tag name" }).fill("adventure");
+  await page.getByRole("button", { name: "Apply" }).click();
+  // Applying clears the selection → the bulk bar (its Tag action) is gone.
+  await expect(component.getByRole("button", { name: "Tag", exact: true })).toHaveCount(0);
+});
+
+test("D4 the create dialog gates Create on BOTH name and description, with the requirement shown", async ({
+  mount,
+  page,
+}) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "New or import a character" }).click();
+  // The Menu popup + the create Dialog are portaled outside the mount root — query them via `page`.
+  await page.getByRole("menuitem", { name: "New character" }).click();
+
+  const create = page.getByRole("button", { name: "Create", exact: true });
+  await expect(create).toBeDisabled();
+  await expect(page.getByText("A name and a description are both required.")).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Character name" }).fill("Elara");
+  // Name alone is not enough — description is required (§4.1).
+  await expect(create).toBeDisabled();
+
+  await page
+    .getByRole("textbox", { name: "Character description" })
+    .fill("A sharp-tongued map-maker.");
+  await expect(create).toBeEnabled();
+  await expect(page.getByText("A name and a description are both required.")).toHaveCount(0);
 });

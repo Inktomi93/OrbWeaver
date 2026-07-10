@@ -15,10 +15,17 @@ import type { AssetId, CharacterId } from "@orb/kit/ids";
 export const DOMAIN_EVENT_TYPES = ["character.updated", "asset.created"] as const;
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
 
-/** A character card was created/edited — the indexer re-embeds the card (`store(kind='card', lens='card-text')`). */
+/** A character card was created/edited — the indexer re-embeds the card (`store(kind='card', lens='card-text')`).
+ *  `contentChanged` discriminates a real CONTENT write (create/import/restore, or an `update` that changed a
+ *  card field) from an identity-FLAG-only edit (star/archive/trustHtml/theme — `card-merge.ts:flagEdits`): the
+ *  embeddings indexer re-embeds ONLY when `contentChanged` is true, so toggling a star never touches the model
+ *  (owner ruling — starring is not a content change, backfill belongs to content events + the PD-53 sweep). The
+ *  field is ADDITIVE: the multi-human chat-bus fan (`emit-character-updated.ts`) ignores it and fires on EVERY
+ *  edit (a co-member's open room must hear a theme/flag change too — a different consumer with a different need). */
 export interface CharacterUpdatedEvent {
   readonly type: "character.updated";
   readonly characterId: CharacterId;
+  readonly contentChanged: boolean;
 }
 
 /** An avatar asset was stored — the indexer embeds BOTH image lenses (`image-raw` + `image-captioned`). */

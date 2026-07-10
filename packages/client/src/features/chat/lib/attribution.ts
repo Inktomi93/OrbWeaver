@@ -45,6 +45,14 @@ export interface RowAttribution {
    *  initials fallback. Character rows: `ParticipantView.avatarHash` (roster-scoped). User/persona rows:
    *  `personaAvatarsById` (a producer separate from `avatarAssetId`'s SOURCE — see the file header). */
   readonly avatarHash: string | null;
+  /** The STABLE per-entity seed for the deterministic fallback hue (`@orb/ui/avatar` `avatarFallbackHue`)
+   *  — the SAME id the library card / chat header seed with (a character's `characterId`, a persona's
+   *  `personaId`), so a given entity resolves to ONE color everywhere it appears: the icon-left chip, and
+   *  the immersive Echo/Whisper fallback tile that IS the mode's art source when the entity has no image
+   *  (owner ruling 2026-07-09, `FINAL-Persona-and-Immersive-Chat-Visuals.md` — the fallback tile is a
+   *  first-class avatar). Never the name (names collide + aren't stable); a stable literal for the two
+   *  id-less identities (Narrator / self-as-"You"). */
+  readonly hueSeed: string;
   /** The per-speaker theme tokens for the row's bubble (`null` for user rows and unresolved rows — the
    *  per-role bubble token carries the identity there). Layer 3: the character's AUTHORED `themeOverride`
    *  when set (unset fields inherit the global scope via CSS cascade — `<ThemeScope>` only emits present
@@ -58,6 +66,7 @@ const NO_ATTRIBUTION: RowAttribution = {
   kind: null,
   avatarAssetId: null,
   avatarHash: null,
+  hueSeed: "",
   tokens: null,
 };
 /** A null `characterId` in a multi-character room — a real, neutral identity, not "unknown". Still the
@@ -67,6 +76,7 @@ const NARRATOR_ATTRIBUTION: RowAttribution = {
   kind: "character",
   avatarAssetId: null,
   avatarHash: null,
+  hueSeed: "narrator",
   tokens: null,
 };
 /** The viewer's OWN row when no persona is selected (the DB may genuinely hold none — personas are
@@ -78,6 +88,7 @@ const DEFAULT_USER_ATTRIBUTION: RowAttribution = {
   kind: "persona",
   avatarAssetId: null,
   avatarHash: null,
+  hueSeed: "you",
   tokens: null,
 };
 
@@ -120,7 +131,16 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
   }
   const avatarHash =
     (personaId === null ? undefined : input.personaAvatarsById?.get(personaId)) ?? null;
-  return { name: persona.name, kind: "persona", avatarAssetId: null, avatarHash, tokens: null };
+  return {
+    name: persona.name,
+    kind: "persona",
+    avatarAssetId: null,
+    avatarHash,
+    // `personaId` is non-null here (a resolved persona was found for it); seed the hue off it so this
+    // human's fallback color matches their persona-panel/list-row chip.
+    hueSeed: personaId ?? "you",
+    tokens: null,
+  };
 }
 
 function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttribution {
@@ -140,6 +160,10 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
     kind: "character",
     avatarAssetId: participant?.avatarAssetId ?? null,
     avatarHash: participant?.avatarHash ?? null,
+    // Seed the fallback hue off the stamped `characterId` (the SAME seed the character-library card + the
+    // chat header use) so a character with no avatar reads the same color in the row chip AND the
+    // immersive Echo/Whisper art tile — never the pre-fix constant bucket (hashed `alt=""`, chart-2).
+    hueSeed: input.characterId,
     tokens,
   };
 }

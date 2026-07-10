@@ -33,10 +33,15 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
 
     if (Object.keys(input).length > 0) {
       const next = mergeCard(cardOf(current), input);
+      const nextHash = cardContentHash(next);
+      // A flag-only edit (star/archive/theme — `flagEdits`) leaves the card fields untouched, so the
+      // re-flattened hash is identical to the stored one; a real card-field write changes it. This is the
+      // discriminator the embeddings indexer reads to skip re-embedding a mere star toggle (owner ruling).
+      const contentChanged = nextHash !== current.contentHash;
       const at = ctx.now();
       const written = await writeCardInPlace(ctx.db, characterId, ownerId, {
         ...next,
-        contentHash: cardContentHash(next),
+        contentHash: nextHash,
         tokenSize: cardTokenSize(next),
         ...flagEdits(input),
       });
@@ -44,7 +49,7 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
         throw new CharacterNotFoundError(characterId);
       }
 
-      ctx.emit({ type: "character.updated", characterId });
+      ctx.emit({ type: "character.updated", characterId, contentChanged });
       await ctx.audit(
         {
           actorUserId: ownerId,

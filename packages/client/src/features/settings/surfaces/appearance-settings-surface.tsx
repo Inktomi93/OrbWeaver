@@ -30,14 +30,15 @@ import { useRef } from "react";
 // so it stays schema-only until PD-130 lands real timing data.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { DEFAULT_BLUR_SURFACES } from "@orb/contracts/settings";
 import { Button } from "@orb/ui/button";
-import { Grid, Section, Stack } from "@orb/ui/layout";
+import { FieldLayout } from "@orb/ui/field";
+import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
+import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
 import {
@@ -46,8 +47,6 @@ import {
   BACKGROUND_DIM_MAX,
   BACKGROUND_DIM_MIN,
   BACKGROUND_DIM_STEP,
-  BLUR_STRENGTH_MAX,
-  BLUR_STRENGTH_MIN,
   CHAT_WIDTH_MAX,
   CHAT_WIDTH_MIN,
   FONT_SCALE_MAX,
@@ -61,13 +60,13 @@ import {
   AVATAR_SIZE_ITEMS,
   BACKGROUND_FIT_ITEMS,
   BACKGROUND_KIND_ITEMS,
-  BLUR_SURFACE_ITEMS,
   CHAT_STYLE_ITEMS,
   DENSITY_ITEMS,
   ELEVATION_ITEMS,
   MESSAGE_ACTIONS_ITEMS,
   SEEDED_BACKGROUND_ITEMS,
 } from "../lib/appearance-select-items";
+import { APPEARANCE_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
 
 // The section-patch mutation (module scope, §13.1). PD user-bus lane: `updateUserSettingsSection` emits
 // `settingsChanged`, and `USER_BUS_FILTERS.settingsChanged` refetches `getUserSettings` — the live-flip
@@ -84,6 +83,10 @@ const useUpdateAppearance = createEntityMutation<UpdateAppearanceVars, unknown>(
   busDriven: true, // updateUserSettingsSection emits `settingsChanged` → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your appearance settings.",
 });
+
+/** The DOM anchor id for one appearance subcategory `<Section>` (Task #15 search-to-anchor) — derived
+ *  from the shared registry ids so a rename is a `tsc` error, never a stale anchor. */
+const anchor = (sub: string): string => settingsAnchorId("appearance", sub);
 
 /** The appearance panel body (rendered inside the settings modal's Dialog). */
 export function AppearanceSettingsSurface(): ReactElement {
@@ -103,7 +106,13 @@ export function AppearanceSettingsSurface(): ReactElement {
           </Text>
         )}
       >
-        <AppearanceForm />
+        <FieldLayout orientation="horizontal">
+          {/* The pane is its OWN container so the horizontal fields stack on a narrow pane (§4b axis 1)
+              regardless of the modal chrome — the fixed control column can't starve the label. */}
+          <Container>
+            <AppearanceForm />
+          </Container>
+        </FieldLayout>
       </QueryBoundary>
     </Stack>
   );
@@ -130,10 +139,17 @@ function AppearanceForm(): ReactElement {
 
   return (
     <Stack key={mountKey} gap="section">
-      {/* Grid: the sections tile into as many columns as fit and reflow — the pane FILLS the wide
-          settings modal and new sections just flow in, no fixed layout to maintain. */}
-      <Grid cols="wide" gap="gutter">
-        <Section heading="Message style">
+      {/* SINGLE COLUMN of SECTIONS (owner ruling — Discord grammar): sections stack top-to-bottom in
+          EXACTLY the registry order, so nav order == pane order == reading order and an anchor-jump lands
+          at the top of a section. Fields WITHIN a section may pair up (intra-section @container). The
+          first section stays at the pane TOP so its heading shares a baseline with the nav's group label
+          (owner item 3). */}
+      <Stack gap="section">
+        <Section
+          divider={true}
+          heading="Message style"
+          id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageStyle)}
+        >
           <form.AppField name="chatStyle">
             {(field): ReactElement => (
               <field.SelectField
@@ -171,7 +187,7 @@ function AppearanceForm(): ReactElement {
           </form.AppField>
         </Section>
 
-        <Section heading="Avatars">
+        <Section divider={true} heading="Avatars" id={anchor(APPEARANCE_SUBCATEGORY_IDS.avatars)}>
           <form.AppField name="showInChatAvatars">
             {(field): ReactElement => (
               <field.SwitchField
@@ -206,7 +222,7 @@ function AppearanceForm(): ReactElement {
           </form.AppField>
         </Section>
 
-        <Section heading="Sizing">
+        <Section divider={true} heading="Sizing" id={anchor(APPEARANCE_SUBCATEGORY_IDS.sizing)}>
           <form.AppField name="chatWidthPct">
             {(field): ReactElement => (
               <field.SliderField
@@ -230,7 +246,7 @@ function AppearanceForm(): ReactElement {
           </form.AppField>
         </Section>
 
-        <Section heading="Motion">
+        <Section divider={true} heading="Motion" id={anchor(APPEARANCE_SUBCATEGORY_IDS.motion)}>
           <form.AppField name="reducedMotion">
             {(field): ReactElement => (
               <field.SwitchField
@@ -241,7 +257,11 @@ function AppearanceForm(): ReactElement {
           </form.AppField>
         </Section>
 
-        <Section heading="Message details">
+        <Section
+          divider={true}
+          heading="Message details"
+          id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageDetails)}
+        >
           <form.AppField name="showTimestamps">
             {(field): ReactElement => (
               <field.SwitchField
@@ -284,7 +304,11 @@ function AppearanceForm(): ReactElement {
           </form.AppField>
         </Section>
 
-        <Section heading="Message actions">
+        <Section
+          divider={true}
+          heading="Message actions"
+          id={anchor(APPEARANCE_SUBCATEGORY_IDS.messageActions)}
+        >
           <form.AppField name="messageActions">
             {(field): ReactElement => (
               <field.SelectField
@@ -296,7 +320,11 @@ function AppearanceForm(): ReactElement {
           </form.AppField>
         </Section>
 
-        <Section heading="Background">
+        <Section
+          divider={true}
+          heading="Background"
+          id={anchor(APPEARANCE_SUBCATEGORY_IDS.background)}
+        >
           <form.AppField name="backgroundImageKind">
             {(field): ReactElement => (
               <field.SelectField
@@ -369,60 +397,10 @@ function AppearanceForm(): ReactElement {
 
         <AppearanceReadingSection form={form} />
 
-        <Section heading="Effects">
-          <form.AppField name="blurSurfaces">
-            {(field): ReactElement => (
-              <Stack gap="field">
-                <field.MultiToggleField
-                  label="Frosted glass"
-                  description="Backdrop blur + a translucent fill on the chosen surfaces. Off by default; messages carry glass poorly (scrolling prose over blur) so it's never pre-checked."
-                  items={BLUR_SURFACE_ITEMS}
-                />
-                {field.state.value.length === 0 ? (
-                  <Button
-                    intent="ghost"
-                    size="sm"
-                    onClick={(): void => field.handleChange([...DEFAULT_BLUR_SURFACES])}
-                  >
-                    Enable (panels + composer + dialogs)
-                  </Button>
-                ) : null}
-              </Stack>
-            )}
-          </form.AppField>
-          {/* WS3/Phase-4b — the glass blur RADIUS dial. Inert with an empty `blurSurfaces` (no surface
-              opted in yet); rendered unconditionally rather than gated behind a `form.Subscribe` —
-              it's a preparatory dial for the moment a surface IS enabled, same posture as a color
-              picker shown before a palette is picked. */}
-          <form.AppField name="blurStrength">
-            {(field): ReactElement => (
-              <field.SliderField
-                label="Glass blur radius"
-                description="How strong the frosted-glass blur is, for any surface enabled above."
-                min={BLUR_STRENGTH_MIN}
-                max={BLUR_STRENGTH_MAX}
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="shadowEffects">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Prose shadow"
-                description="A subtle readability halo on message text."
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="enableThemeColorization">
-            {(field): ReactElement => (
-              <field.SwitchField
-                label="Tint the UI with the accent color"
-                description="Retints borders and hairlines across panels, dialogs, and the composer from your accent color."
-              />
-            )}
-          </form.AppField>
-        </Section>
-      </Grid>
-      <Text size="micro" tone="muted" transform="caps">
+        <AppearanceEffectsSection form={form} />
+      </Stack>
+      {/* The autosave note as a muted footnote (UIP-404 — subtle, not a prominent element). */}
+      <Text size="micro" tone="muted">
         Changes save automatically and sync across your devices.
       </Text>
     </Stack>

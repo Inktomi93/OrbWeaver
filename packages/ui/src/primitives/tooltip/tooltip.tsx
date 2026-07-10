@@ -8,6 +8,8 @@ import type {
 } from "@base-ui/react/tooltip";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactElement } from "react";
+import type { PortalContainer } from "#lib";
+import { usePortalContainer } from "#lib";
 import { tooltipVariants } from "./variants";
 
 const slots = tooltipVariants();
@@ -51,6 +53,9 @@ export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
   align?: BasePositionerProps["align"];
   /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
+  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
+   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  container?: PortalContainer;
 }
 
 /**
@@ -60,9 +65,18 @@ export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
  * Spec: ui-package-design §6.1 dictate — explicit Positioner with a token-safe sideOffset default.
  */
 export function TooltipPopup(props: TooltipPopupProps): ReactElement {
-  const { className, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, ...rest } = props;
+  const {
+    className,
+    children,
+    side,
+    align,
+    sideOffset = DEFAULT_SIDE_OFFSET,
+    container,
+    ...rest
+  } = props;
+  const portalContainer = usePortalContainer();
   return (
-    <BaseTooltip.Portal>
+    <BaseTooltip.Portal container={container ?? portalContainer}>
       <BaseTooltip.Positioner
         align={align}
         className={slots.positioner()}

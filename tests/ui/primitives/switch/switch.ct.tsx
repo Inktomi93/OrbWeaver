@@ -26,6 +26,45 @@ test("keyboard toggles too, and checked wears the primary token", async ({ mount
   await expect(control).toHaveAttribute("aria-checked", "false");
 });
 
+// ── Defect #3 pins (owner: "toggles are very short and tiny and can barely show a difference between
+// on and off"). Two regressions locked out: (1) the checked and unchecked tracks must wear DIFFERENT
+// token values (not "barely a difference"); (2) the visible track must be a generous rectangle with a
+// SUBSTANTIAL thumb travel (the old design collapsed to ~4px travel on fine pointers). done ≠ rendered
+// — these assert the RENDERED geometry/colour, not the source. ──
+test("checked vs unchecked wear DIFFERENT track token values (the on/off distinction pin)", async ({
+  mount,
+  page,
+}) => {
+  // The two states must map to genuinely different tokens — the "barely shows a difference" regression.
+  expect(TOKENS["color.input"].value).not.toBe(TOKENS["color.primary"].value);
+  await mount(<Switch aria-label="Streaming" />);
+  const control = page.getByRole("switch");
+  const off = await control.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await control.click();
+  await expect(control).toHaveCSS("background-color", TOKENS["color.primary"].value);
+  const on = await control.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(on).not.toBe(off); // rendered colours actually diverge on/off, not just the source classes
+});
+
+test("the track is a generous rectangle and the thumb travels a substantial distance", async ({
+  mount,
+  page,
+}) => {
+  await mount(<Switch aria-label="Streaming" />);
+  const control = page.getByRole("switch");
+  const thumb = control.locator('[data-slot="switch-thumb"]');
+  const track = await control.boundingBox();
+  const offX = (await thumb.boundingBox())?.x ?? 0;
+  // Rectangular, not the old near-square (48×28 → w > 1.4×h); the switch reads as a switch at a glance.
+  expect((track?.width ?? 0) / (track?.height ?? 1)).toBeGreaterThan(1.4);
+  await control.click();
+  await expect(control).toHaveAttribute("aria-checked", "true");
+  // Travel = switch-track − switch-thumb = 3rem − 1.75rem = 20px. The old fine-pointer travel was ~4px;
+  // assert well past that so a regression toward a near-square track fails here. Poll past the 130ms
+  // transform transition (the thumb slides, boundingBox tracks the transform mid-animation).
+  await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0).toBeGreaterThan(offX + 15);
+});
+
 test("onCheckedChange reports the next state", async ({ mount, page }) => {
   const seen: boolean[] = [];
   await mount(

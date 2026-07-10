@@ -9,14 +9,16 @@ import { useId } from "react";
 
 export interface AutoSaveRowProps {
   hint?: string;
+  description?: string;
   disabledReason?: string;
 }
 
-export function AutoSaveRow({ hint, disabledReason }: AutoSaveRowProps): ReactElement {
+export function AutoSaveRow({ hint, description, disabledReason }: AutoSaveRowProps): ReactElement {
   const id = useId();
   return (
     <SettingRow
       {...(hint === undefined ? {} : { hint })}
+      {...(description === undefined ? {} : { description })}
       {...(disabledReason === undefined ? {} : { disabledReason })}
       id={id}
       label="Auto-save"

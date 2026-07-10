@@ -18,16 +18,18 @@ import { personaBackupSchema } from "@orb/contracts/persona";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Upload fine.
 import { Icon, Upload } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
+import { SettingRow } from "@orb/ui/setting-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useId, useRef } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { notify, useFocusOnMount } from "#lib";
+import { PERSONA_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
 
 interface PersonaPrefsPatchVars {
   readonly section: "persona";
@@ -76,6 +78,8 @@ function PersonaSettingsForm(): ReactElement {
   const setPrefs = useSetPersonaPrefs({ trpc, invalidation });
   const importPersona = useImportPersona({ trpc, invalidation });
   const fileRef = useRef<HTMLInputElement>(null);
+  const notifyId = useId();
+  const restoreId = useId();
 
   const onRestoreFile = async (file: File): Promise<void> => {
     let parsed: unknown;
@@ -98,43 +102,48 @@ function PersonaSettingsForm(): ReactElement {
   };
 
   return (
-    <Section heading="Personas">
-      <Row align="center" className="justify-between" gap="row">
-        <Text size="label">Notify me when my persona changes in a chat</Text>
+    <Section heading="Personas" id={settingsAnchorId("personas", PERSONA_SUBCATEGORY_IDS.personas)}>
+      <SettingRow id={notifyId} label="Notify me when my persona changes in a chat">
+        {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- SettingRow renders the
+            associated `<label htmlFor={notifyId}>`; the shared id is the real (runtime) label wiring the
+            linter can't see across the component boundary. */}
         <Switch
-          aria-label="Notify me when my persona changes in a chat"
+          id={notifyId}
           checked={data.config.persona.showNotifications}
           onCheckedChange={(next): void =>
             setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })
           }
         />
-      </Row>
-      <Row align="center" className="justify-between" gap="row">
-        <Stack className="min-w-0">
-          <Text size="label">Restore personas from a backup</Text>
-          <Text size="micro" tone="muted">
-            A JSON export from this app, or a batch of one/many personas.
-          </Text>
-        </Stack>
-        <Button intent="secondary" onClick={(): void => fileRef.current?.click()} size="sm">
+      </SettingRow>
+      <SettingRow
+        id={restoreId}
+        label="Restore personas from a backup"
+        description="A JSON export from this app, or a batch of one/many personas."
+      >
+        <Button
+          id={restoreId}
+          intent="secondary"
+          onClick={(): void => fileRef.current?.click()}
+          size="sm"
+        >
           <Icon icon={Upload} size="sm" />
           Restore…
         </Button>
-        <input
-          aria-label="Upload persona backup file"
-          accept="application/json"
-          hidden={true}
-          onChange={(event): void => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file !== undefined) {
-              void onRestoreFile(file);
-            }
-          }}
-          ref={fileRef}
-          type="file"
-        />
-      </Row>
+      </SettingRow>
+      <input
+        aria-label="Upload persona backup file"
+        accept="application/json"
+        hidden={true}
+        onChange={(event): void => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file !== undefined) {
+            void onRestoreFile(file);
+          }
+        }}
+        ref={fileRef}
+        type="file"
+      />
     </Section>
   );
 }

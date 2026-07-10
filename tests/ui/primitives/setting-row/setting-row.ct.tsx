@@ -29,6 +29,16 @@ test("the info-glyph tooltip's hint is reachable as an accessible name and shows
   await expect(popup).toHaveText(hint);
 });
 
+test("renders an always-visible description under the label in the muted token", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AutoSaveRow description="Saves your draft every 30 seconds" />);
+  const desc = page.getByText("Saves your draft every 30 seconds");
+  await expect(desc).toBeVisible();
+  await expect(desc).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
+});
+
 test("renders a disabled-with-reason note in the muted token", async ({ mount, page }) => {
   await mount(<AutoSaveRow disabledReason="Requires an active subscription" />);
   const note = page.getByText("Requires an active subscription");

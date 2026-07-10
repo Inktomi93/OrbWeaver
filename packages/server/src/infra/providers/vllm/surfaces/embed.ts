@@ -27,13 +27,30 @@ const TRUNCATE_TO_MODEL_MAX = -1;
 // A "server rejected the `dimensions` param" message — the trigger for the full-dim client-side fallback.
 const DIMENSIONS_REJECTED_RE = /dimensions/i;
 
+// Wall-clock ceiling on ONE embed request. Embedding is a short non-streaming round trip; an engine that
+// accepts the socket but never answers (warming, wedged) must NOT pin the call forever — the invariant is
+// "boot/indexing is never HOSTAGE to a warming engine" (the seed→character.updated→re-embed path fires at
+// boot, before the engines are guaranteed live). A trip aborts the fetch → the engine client maps it to a
+// RETRYABLE ProviderError, so the indexer / PD-53 catch-up sweep re-embeds once the engine is up — bounded,
+// never dropped. This is a WHOLE-REQUEST cap, correct ONLY because embed is non-streaming; chat GENERATION
+// uses `engineStream` with a rolling idle guard (backends/kit/idle-timeout.ts), never a hard deadline.
+const EMBED_REQUEST_TIMEOUT_MS = 120_000;
+
+/** Compose the caller's cancel signal with the per-request timeout so the fetch aborts on either cause. */
+function embedRequestSignal(external: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return external === undefined ? timeout : AbortSignal.any([external, timeout]);
+}
+
 /** Deps the embed surface closes over. `embedDim`/`chunkSize`/`concurrency` are injected (the composition
- *  root reads env once; concurrency is a settings-tier knob — see the subsystem FLAG, not env today). */
+ *  root reads env once; concurrency is a settings-tier knob — see the subsystem FLAG, not env today).
+ *  `requestTimeoutMs` overrides the {@link EMBED_REQUEST_TIMEOUT_MS} ceiling (tests use a tiny value). */
 export interface VllmEmbedDeps {
   readonly client: VllmEngineClient;
   readonly embedDim: number;
   readonly chunkSize: number;
   readonly concurrency: number;
+  readonly requestTimeoutMs?: number;
 }
 
 // The engine's OpenAI-compatible embeddings response (raw snake_case socket shape).
@@ -117,6 +134,12 @@ export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Pro
   return async (req) => {
     const inputs: readonly string[] = typeof req.input === "string" ? [req.input] : req.input;
     const dim = req.dimensions ?? deps.embedDim;
+    // Bound the whole request (all chunks share one deadline) so a warming/wedged engine can't hang the
+    // embed — folds in the caller's cancel signal.
+    const signal = embedRequestSignal(
+      req.signal,
+      deps.requestTimeoutMs ?? EMBED_REQUEST_TIMEOUT_MS,
+    );
     // A caller instruction (per-scope query instruction) wins; else the inputType default.
     const instruction =
       req.instruction ?? (req.inputType === "query" ? QUERY_INSTRUCTION : DOC_INSTRUCTION);
@@ -149,7 +172,7 @@ export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Pro
           model: req.model,
           texts: chunk.map((k) => k.prompt),
           dim,
-          signal: req.signal,
+          signal,
         });
         usages[i] = scatter(response, chunk, dim, vectors);
       }

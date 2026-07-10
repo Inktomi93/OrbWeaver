@@ -23,6 +23,11 @@ import { createTV } from "tailwind-variants";
 // file's header); re-exported so ui consumers keep their `#lib` import.
 export { isSafeColor } from "@orb/kit/safe-color";
 export { cn } from "tailwind-variants";
+export {
+  type PortalContainer,
+  PortalContainerContext,
+  usePortalContainer,
+} from "./portal-container";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 
 export const tv = createTV({

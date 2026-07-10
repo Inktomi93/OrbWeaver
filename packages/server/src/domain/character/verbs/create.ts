@@ -90,7 +90,8 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
       ...card,
     });
 
-    ctx.emit({ type: "character.updated", characterId });
+    // A brand-new card is all content → the indexer embeds it (contentChanged is always true for create).
+    ctx.emit({ type: "character.updated", characterId, contentChanged: true });
     await ctx.audit(
       {
         actorUserId: ownerId,

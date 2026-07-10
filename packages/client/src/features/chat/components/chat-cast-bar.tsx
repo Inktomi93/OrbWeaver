@@ -87,6 +87,9 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
           <Avatar
             size="sm"
             fallbackDelay={0}
+            // Seed off the character id (matching the transcript row + library card) so an imageless
+            // member's chip is its own deterministic color, not the shared `alt=""` bucket.
+            hueSeed={member.characterId}
             {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}
           >
             {initialsForAttribution(member.displayName)}

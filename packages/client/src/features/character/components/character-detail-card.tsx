@@ -57,7 +57,10 @@ export function CharacterDetailCard({
   return (
     <Stack className="mx-auto w-full max-w-(--container-cq-lg)" gap="section" padding="section">
       <Row align="center" gap="block">
-        <Avatar shape="square" size="hero" {...avatarSrc}>
+        {/* `hueSeed={id}` matches the LIST row + favorites strip (they seed the id), so the same character
+            resolves to the same fallback hue everywhere; the initials fallback is aria-hidden by the Avatar
+            primitive, so they never leak into the accessible name. */}
+        <Avatar hueSeed={character.id} shape="square" size="hero" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
         <Stack className="min-w-0 flex-1" gap="field">

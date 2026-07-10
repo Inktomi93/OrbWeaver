@@ -5,7 +5,7 @@
 // ChatInjection). UI-Arch §4.1 — the CONTEXT region is the shell's designed detail home.
 //
 // SELF-CONTAINED BY DESIGN: this surface does NOT assume it is the sole CONTEXT occupant. The route
-// mounts it via `AppShellProps.contextPanel` today; when task #32 lands the `CHAT_CONTEXT_SLOTS`
+// mounts it via the chats `SectionSlot.context` entry today; when task #32 lands the `CHAT_CONTEXT_SLOTS`
 // registry (the cross-feature graft point rpg/crew will use — rpg-design/11 §1, chat-crew-design/07),
 // this becomes chat's own registered slot entry with NO rework — it already renders as one bounded
 // section, not a full-panel takeover.

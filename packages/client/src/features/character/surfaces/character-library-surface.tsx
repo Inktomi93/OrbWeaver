@@ -1,80 +1,79 @@
-// THE character library surface (UI-Arch §2.1 CONSUMER tier) — a browse/grid of the caller's owned
-// characters: a search box (`useDeferredValue`) over a virtualized, INFINITELY-paged list of
-// `<CharacterCardTile>` rows, wired through the `createCollectionSurface` factory (UI-Primitives §13.1/§13.2 —
-// the mandated browse primitive; a hand-wired query+list+filter is the review flag).
+// THE character library surface (UI-Arch §2.1 CONSUMER tier · FINAL-Character §4) — the Characters LIST.
+// EXTENDS the working keyset-browse (§12 "don't rebuild"): `createCollectionSurface` over `character.list`
+// (keyset-paged, sliding-window `maxPages`), now with the §4.1 header (title + persistent search + `+`
+// create/import picker), the §4.5 nine-sort select (server `sort` param — a sort change re-keys the query,
+// `keepPreviousData` greys the old rows), the §4.5 filter chips (favorites/archived/tag-AND — CLIENT-side
+// over the loaded pages, same as search; `character.list` has no server filter param), the §4.2 favorites
+// strip, the §4.3 flat⇄categorized view, and §4.6 bulk mode (the collection's own transient id-set +
+// `@orb/ui/selection-bar`). The §4.4 row is `<CharacterCardTile>`.
 //
-// PAGING: `character.list` is keyset-paged (`domain/character/verbs/list.ts` — the `domain/notifications`
-// `{items, nextCursor}` shape; the cursor itself is the `domain/assets` `(createdAt, id)` compound-keyset
-// precedent, collapsed into ONE `cursor` object field because tRPC's `infiniteQueryOptions` threads
-// exactly one `cursor` field through as the page param — see the router's own header note). `maxPages`
-// bounds the client-side cache to a sliding window (UI-Lib-TanStack-Query.md §4) so a long scroll session
-// doesn't grow the in-memory page list unboundedly; `getPreviousPageParam` is a permanent no-op (the
-// library only ever scrolls forward) — `maxPages` requires BOTH direction getters even though this surface
-// never calls `fetchPreviousPage`.
-//
-// SEARCH DECISION: stays CLIENT-SIDE over the loaded pages (`useDeferredValue` + `filterCharacters`), same
-// as before the swap. `character.list` has no server-side `search` param — adding one is a real domain
-// change (a new query condition, not a transport pass-through) and is out of scope for this pass; moving
-// search server-side later is a clean follow-up (the search box already isolates the concern).
-//
-// LOADING/EMPTY/ERROR: `createCollectionSurface` uses a plain (non-suspense) `useInfiniteQuery`, so this
-// surface reads `isPending`/`error`/`isEmpty` off the returned collection directly instead of the
-// `<QueryBoundary>` suspense handshake the old unpaged read used. NOTE: the factory does not expose a
-// `refetch`/retry handle (by design — §13.1's litmus keeps the wiring surface minimal), so the error state
-// here is read-only (no Retry button); a future factory revision could add one, but that is
-// `create-collection-surface.ts` territory, outside this surface's file.
+// RESUME-OR-NEW (§4.4/§9c): the dual-purpose Chat CTA resumes the most-recent chat with a character or
+// starts a new one. The decision is a RENDER derivation (§5.1 — never an effect on a selection pointer):
+// `resumeTargets` builds characterId → most-recent chatId from the bus-driven `listChats` read; the click
+// fires exactly ONE store action (`selectChat` or `startNewChat`, then `setActiveSection`).
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterListSort } from "@orb/contracts/character";
+import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Search/Users fine.
 import { Icon, Search, Users } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useDeferredValue, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { createCollectionSurface, useTRPC } from "#data";
+import { createCollectionSurface, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
-import { selectCharacter, setActiveSection, startNewChat, useSelectedCharacterId } from "#state";
+import {
+  selectCharacter,
+  selectChat,
+  setActiveSection,
+  startNewChat,
+  toggleFavoritesOnly,
+  toggleShowArchived,
+  toggleTagFilter,
+  useCharacterBulkMode,
+  useCharacterSortMode,
+  useCharacterViewMode,
+  useFavoritesOnly,
+  useSelectedCharacterId,
+  useShowArchived,
+  useTagFilter,
+} from "#state";
+import { CharacterBulkBar } from "../components/character-bulk-bar";
 import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCardTile } from "../components/character-card";
+import { CharacterCategorizedList } from "../components/character-categorized-list";
+import { CharacterFavoritesStrip } from "../components/character-favorites-strip";
+import { CharacterFilterChips } from "../components/character-filter-chips";
+import { CharacterLibraryToolbar } from "../components/character-library-toolbar";
+import { useUpdateCharacter } from "../hooks/use-character-mutations";
+import { filterByChips, groupByTag, resumeTargets } from "../lib/character-list-view";
 import { filterCharacters } from "../lib/filter-characters";
 
-/** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
 const ESTIMATED_ROW_PX = 80;
 const SKELETON_ROW_COUNT = 6;
-/** Server-clamped page size (`domain/character/verbs/list.ts` DEFAULT_LIMIT/MAX_LIMIT — this just picks
- *  the per-fetch page size within that bound). */
 const PAGE_LIMIT = 30;
-/** The sliding-window cache bound (UI-Lib-TanStack-Query.md §4) — old pages drop as new ones load. */
 const MAX_PAGES = 5;
-/** Stable no-op for the card's DORMANT bulk-select seam (`onToggleSelect`) — no bulk-mode UI exists yet
- *  (the future bulk-ops lane wires it, the message-selection precedent). Module-level so it never churns. */
-const NOOP_TOGGLE = (): void => undefined;
 
 type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
 type CharacterLibraryItem = CharacterListPage["items"][number];
 
-/** The one machine for this browse view (§13.1) — infinite query + `maxPages` + `keepPreviousData` +
- *  the virtual-list tail-fetch guard + selection, all baked. `query`/`itemsOf`/`idOf` are annotated
- *  (rather than passing explicit type args to `createCollectionSurface`) so `TPageParam`/`TKey` stay
- *  INFERRED from the real tRPC proxy return type — explicit args on a subset of the factory's generics
- *  would default the rest instead of inferring them, breaking the `TRPCQueryKey` branding. */
+/** The one browse machine (§13.1). `params` now carries the §4.5 `sort` — a change re-keys the infinite
+ *  query (fresh from `initialCursor: null`; `keepPreviousData` keeps the old rows visible meanwhile). */
 const useCharacterLibraryCollection = createCollectionSurface({
-  query: (trpc: Trpc, _params: undefined) =>
+  query: (trpc: Trpc, params: { sort: CharacterListSort }) =>
     trpc.character.list.infiniteQueryOptions(
-      { limit: PAGE_LIMIT },
+      { limit: PAGE_LIMIT, sort: params.sort },
       {
-        // `initialCursor` (NOT `initialPageParam` — that's the factory's OUTPUT, auto-derived from
-        // this + the input's own `cursor`, per `@trpc/tanstack-react-query`'s infiniteQueryOptions).
         initialCursor: null,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
-        // The library never scrolls backward; `maxPages` still requires both direction getters.
         getPreviousPageParam: () => undefined,
         maxPages: MAX_PAGES,
       },
@@ -87,87 +86,161 @@ export interface CharacterLibrarySurfaceProps {
   readonly ariaLabel?: string;
 }
 
-/** The character library: search + the virtualized, infinitely-paged card list. */
+/** The character library: header + favorites + filters + the flat/categorized paged list + bulk mode. */
 export function CharacterLibrarySurface({
   ariaLabel = "Character library",
 }: CharacterLibrarySurfaceProps): ReactElement {
   const trpc = useTRPC();
+  const invalidation = useInvalidation();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
-  const collection = useCharacterLibraryCollection({ trpc }, undefined);
-  // The selected character (J9) — drives the row's `selected` skin AND the route's CONTENT swap to the
-  // detail card. Lives in its OWN store (not the collection's local selection, which is the dormant
-  // bulk-select seam), so the selection survives a windowed row unmount + is the route's single reader.
+  const sortMode = useCharacterSortMode();
+  const viewMode = useCharacterViewMode();
+  const favoritesOnly = useFavoritesOnly();
+  const showArchived = useShowArchived();
+  const tagFilter = useTagFilter();
+  const bulkMode = useCharacterBulkMode();
+  const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode });
   const selectedId = useSelectedCharacterId();
+  const update = useUpdateCharacter({ trpc, invalidation });
 
-  const filtered: readonly CharacterCardItem[] = filterCharacters(collection.items, deferredQuery);
+  // §4.4/§9c reverse read — bus-driven `listChats` (staleTime default; `chatsChanged` refreshes it), folded
+  // to characterId → most-recent chatId in render. Degrades to "start new" until it loads (empty map).
+  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
+  const resumeMap = useMemo(() => resumeTargets(chatsQuery.data ?? []), [chatsQuery.data]);
 
-  // The library → chat seam (UI-Arch §5.1): a writer-only touch of the shared stores — seed a fresh
-  // draft with this character, then flip the rail to the Chats section so the route mounts it. NO
-  // `#features/chat` import (dep-cruiser client-feature-front-door); the active-chat + shell stores are
-  // the shared substrate below both features, so nothing chases an ambient active chat.
-  const startChatWith = (id: string): void => {
-    startNewChat({ characterIds: [castId<CharacterId>(id)] });
+  const items = collection.items;
+  const favorites = useMemo(() => items.filter((c) => c.starred), [items]);
+  const availableTags = useMemo(() => tagVocabulary(items), [items]);
+  const filtered: readonly CharacterCardItem[] = useMemo(
+    () =>
+      filterByChips(filterCharacters(items, deferredQuery), {
+        favoritesOnly,
+        showArchived,
+        tagFilter,
+      }),
+    [items, deferredQuery, favoritesOnly, showArchived, tagFilter],
+  );
+
+  const openEditor = (id: string): void => selectCharacter(castId<CharacterId>(id));
+  const toggleStar = (id: string, next: boolean): void =>
+    update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
+  const toggleBulk = (id: string): void => collection.selection.toggle(id);
+  // The resume-or-new decision + the ONE sanctioned cross-section jump (§9c) — a writer-only store touch.
+  const chatWith = (id: string): void => {
+    const characterId = castId<CharacterId>(id);
+    const target = resumeMap.get(characterId);
+    if (target === undefined) {
+      startNewChat({ characterIds: [characterId] });
+    } else {
+      selectChat(target);
+    }
     setActiveSection("chats");
   };
-  // Open a row's detail card (J9) — a writer-only store touch; the route reads `selectedCharacterId` and
-  // renders the detail surface in the Characters CONTENT (no section flip — we're already here).
-  const openDetail = (id: string): void => selectCharacter(castId<CharacterId>(id));
+
+  const renderRow = (item: CharacterCardItem): ReactNode => (
+    <CharacterCardTile
+      bulkMode={bulkMode}
+      bulkSelected={collection.selection.isSelected(item.id)}
+      character={item}
+      onChat={chatWith}
+      onSelect={openEditor}
+      onToggleBulk={toggleBulk}
+      onToggleStar={toggleStar}
+      selected={selectedId === item.id}
+    />
+  );
 
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  const selectedCount = collection.selection.selected.size;
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="block">
-      <Input
-        aria-label="Search characters"
-        onValueChange={setQuery}
-        placeholder="Search characters…"
-        value={query}
+      <CharacterLibraryToolbar onQueryChange={setQuery} query={query} />
+      <CharacterFilterChips
+        availableTags={availableTags}
+        favoritesOnly={favoritesOnly}
+        onToggleArchived={toggleShowArchived}
+        onToggleFavorites={toggleFavoritesOnly}
+        onToggleTag={toggleTagFilter}
+        showArchived={showArchived}
+        tagFilter={tagFilter}
+      />
+      <CharacterFavoritesStrip
+        favorites={favorites}
+        onSelect={openEditor}
+        selectedId={selectedId}
       />
       <Stack className="min-h-0 flex-1">
         <CharacterLibraryBody
           ariaLabel={ariaLabel}
+          categorized={viewMode === "categorized"}
           error={collection.error}
           filtered={filtered}
+          hasNextPage={collection.hasNextPage}
           isEmpty={collection.isEmpty}
+          isFetchingNextPage={collection.isFetchingNextPage}
           isPending={collection.isPending}
           listProps={collection.listProps}
-          onSelect={openDetail}
-          onStartChat={startChatWith}
           query={deferredQuery}
-          selectedId={selectedId}
+          renderRow={renderRow}
         />
       </Stack>
+      {bulkMode && selectedCount > 0 ? (
+        <CharacterBulkBar
+          ids={[...collection.selection.selected]}
+          onClear={collection.selection.clear}
+          selectedCount={selectedCount}
+          trpc={trpc}
+        />
+      ) : null}
     </Stack>
   );
+}
+
+/** The visible-tag vocabulary across the loaded rows (deduped by id) — the tag-filter chip set. */
+function tagVocabulary(
+  items: readonly CharacterLibraryItem[],
+): readonly { readonly id: TagId; readonly name: string }[] {
+  const seen = new Map<TagId, string>();
+  for (const item of items) {
+    for (const tag of item.tags) {
+      if (!tag.isHiddenOnCard) {
+        seen.set(tag.id, tag.name);
+      }
+    }
+  }
+  return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 interface CharacterLibraryBodyProps {
   readonly ariaLabel: string;
   readonly query: string;
+  readonly categorized: boolean;
   readonly isPending: boolean;
   readonly isEmpty: boolean;
   readonly error: unknown | null;
   readonly filtered: readonly CharacterCardItem[];
+  readonly hasNextPage: boolean;
+  readonly isFetchingNextPage: boolean;
   readonly listProps: ReturnType<typeof useCharacterLibraryCollection>["listProps"];
-  readonly selectedId: CharacterId | null;
-  readonly onSelect: (id: string) => void;
-  readonly onStartChat: (id: string) => void;
+  readonly renderRow: (item: CharacterCardItem) => ReactNode;
 }
 
-/** Loading → error → empty (no characters at all) → no-matches (a search with zero hits) → the list. */
+/** Loading → error → empty → no-matches → the flat virtual list OR the categorized grouped list. */
 function CharacterLibraryBody({
   ariaLabel,
   query,
+  categorized,
   isPending,
   isEmpty,
   error,
   filtered,
+  hasNextPage,
+  isFetchingNextPage,
   listProps,
-  selectedId,
-  onSelect,
-  onStartChat,
+  renderRow,
 }: CharacterLibraryBodyProps): ReactElement {
   if (isPending) {
     return <LoadingRows />;
@@ -185,17 +258,56 @@ function CharacterLibraryBody({
     );
   }
   if (filtered.length === 0) {
+    // A search with zero hits gets the search copy. A CHIP-induced empty is different: chips filter
+    // client-side over the loaded sliding window, so a match may live on a not-yet-fetched page — never
+    // show search copy (nor a dead end) for it. When more pages exist, offer Load more (the SAME guarded
+    // fetch the virtual list wires to `onEndApproach`), else say the loaded set holds no match.
+    if (query.trim() !== "") {
+      return (
+        <EmptyState
+          description={`No character matches "${query}".`}
+          icon={<Icon icon={Search} size="lg" />}
+          title="No matches"
+        />
+      );
+    }
     return (
       <EmptyState
-        description={`No character matches "${query}".`}
-        icon={<Icon icon={Search} size="lg" />}
-        title="No matches"
+        {...(hasNextPage
+          ? {
+              action: (
+                <Button
+                  disabled={isFetchingNextPage}
+                  intent="secondary"
+                  onClick={listProps.onEndApproach}
+                >
+                  Load more
+                </Button>
+              ),
+            }
+          : {})}
+        description={
+          hasNextPage
+            ? "None among the loaded characters — load more to keep looking."
+            : "No characters match the current filters."
+        }
+        icon={<Icon icon={Users} size="lg" />}
+        title="No matches in view"
       />
     );
   }
-
+  if (categorized) {
+    return (
+      <CharacterCategorizedList
+        groups={groupByTag(filtered)}
+        hasNextPage={hasNextPage}
+        isLoadingMore={isFetchingNextPage}
+        onLoadMore={listProps.onEndApproach}
+        renderRow={renderRow}
+      />
+    );
+  }
   return (
-    // VirtualList itself has no aria surface (a bare scroll div) — the labelled region wraps it.
     <Stack aria-label={ariaLabel} className="h-full min-h-0" role="list">
       <VirtualList
         className="h-full"
@@ -205,15 +317,7 @@ function CharacterLibraryBody({
         getItemKey={(item): string => item.id}
         items={filtered}
         onEndApproach={listProps.onEndApproach}
-        renderItem={(item): ReactNode => (
-          <CharacterCardTile
-            character={item}
-            onSelect={onSelect}
-            onStartChat={onStartChat}
-            onToggleSelect={NOOP_TOGGLE}
-            selected={selectedId === item.id}
-          />
-        )}
+        renderItem={renderRow}
       />
     </Stack>
   );

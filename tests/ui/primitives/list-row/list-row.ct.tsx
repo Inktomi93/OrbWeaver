@@ -7,6 +7,17 @@ import { ListRow } from "@orb/ui/list-row";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
+test("clickable body is a NATIVE <button> element (side-eye item 13), not a role='button' div", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ListRow clickable={true} title="Elara" />);
+  const body = page.locator('[data-slot="list-row-body"]');
+  await expect(body).toHaveJSProperty("tagName", "BUTTON");
+  // A native button needs `type="button"` so it never submits an enclosing form.
+  await expect(body).toHaveAttribute("type", "button");
+});
+
 test("clickable row exposes button role and activates via Enter/Space", async ({ mount, page }) => {
   const clicks: string[] = [];
   await mount(
@@ -26,9 +37,10 @@ test("clickable row exposes button role and activates via Enter/Space", async ({
   await expect.poll(() => clicks.length).toBe(2);
 });
 
-test("non-clickable row has no button role", async ({ mount, page }) => {
+test("non-clickable row is a static <div> body with no button role", async ({ mount, page }) => {
   await mount(<ListRow title="Elara" />);
   await expect(page.getByRole("button")).toHaveCount(0);
+  await expect(page.locator('[data-slot="list-row-body"]')).toHaveJSProperty("tagName", "DIV");
 });
 
 test("trailing action is a separate tab stop, not nested in the row's accessible name", async ({
@@ -112,6 +124,26 @@ test("title and subtitle truncate with the full text recoverable via the title a
   await mount(<ListRow subtitle={longSubtitle} title={longTitle} />);
   await expect(page.getByText(longTitle)).toHaveAttribute("title", longTitle);
   await expect(page.getByText(longSubtitle)).toHaveAttribute("title", longSubtitle);
+});
+
+test("subtitleReveal display-swaps the subtitle on :focus-within (in the content column, not actions)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <ListRow clickable={true} subtitle="the pitch" subtitleReveal="handle · 42" title="Elara" />,
+  );
+  const subtitle = page.locator('[data-slot="list-row-subtitle"]');
+  const reveal = page.locator('[data-slot="list-row-subtitle-reveal"]');
+  // Rest: the subtitle shows, the reveal is display:none (zero layout — no rest-state cost).
+  await expect(subtitle).toBeVisible();
+  await expect(reveal).toBeHidden();
+  // Focusing the body (:focus-within) swaps them on the SAME content line — no layout shift, no `actions`
+  // contention. The reveal is in the content column, not the trailing slot.
+  await page.locator('[data-slot="list-row-body"]').focus();
+  await expect(reveal).toBeVisible();
+  await expect(subtitle).toBeHidden();
+  await expect(reveal).toHaveAttribute("title", "handle · 42");
 });
 
 // Density rides the control-height min-heights (compact = min-h-control-sm, default = min-h-control-md),

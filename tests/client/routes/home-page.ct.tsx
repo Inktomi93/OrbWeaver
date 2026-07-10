@@ -61,8 +61,9 @@ test("picking a character in the library starts a chat with it (the library→ch
   // On the Characters section the chat composer is NOT mounted (CONTENT is the library).
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 
-  // Start a chat with Aria → the store seam flips CONTENT back to a fresh, seeded chat room.
-  await page.getByRole("button", { name: "Start chat with Aria Nightshade", exact: true }).click();
+  // Chat with Aria (the §4.4 dual-purpose CTA — "Chat with X", resume-or-new; renamed from "Start
+  // chat with X" in the Wave 1 rework) → the store seam flips CONTENT back to a fresh, seeded room.
+  await page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }).click();
 
   // The route (the sole store reader) navigated to the Chats section: the composer is back, on a fresh
   // draft seeded with Aria — character-first, her greeting rendered as the opening row (not an empty void),

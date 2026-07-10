@@ -364,7 +364,7 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     });
     const expected = await w.character.loadCardText(created.id);
 
-    w.emit({ type: "character.updated", characterId: created.id });
+    w.emit({ type: "character.updated", characterId: created.id, contentChanged: true });
     await drain(() => w.store.mock.calls.length > 0);
 
     expect(w.store).toHaveBeenCalledTimes(1);
@@ -375,6 +375,24 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
       throw new Error("expected a card-text store call");
     }
     expect(params.content).toBe(expected);
+  });
+
+  test("a flag-only character.updated (contentChanged=false) drives ZERO store work", async () => {
+    const db = await freshDb();
+    const w = await wireIndexer(db);
+    onTestFinished(w.cleanup);
+    const owner = await seedUser(db, { handle: "owner" });
+    const created = await w.character.create({
+      principal: principal(owner),
+      input: { handle: "star", name: "Star", description: "a starred card" },
+    });
+
+    // A star toggle: same card content, contentChanged=false → the indexer skips before touching the store,
+    // so the embed backend (and its model-load crash window) is never reached on an identity-flag edit.
+    w.emit({ type: "character.updated", characterId: created.id, contentChanged: false });
+    await drain(() => w.store.mock.calls.length > 0);
+
+    expect(w.store).not.toHaveBeenCalled();
   });
 
   test("asset.created drives the indexer to store both image lenses from the real CAS bytes", async () => {

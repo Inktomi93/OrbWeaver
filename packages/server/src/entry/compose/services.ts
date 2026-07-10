@@ -103,6 +103,7 @@ import { createHostPrincipalResolver } from "../auth";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
 import { createEffectiveConfigWiring } from "./effective-config";
+import { createCharacterUpdatedChatFan } from "./emit-character-updated";
 import type { DomainEventBus } from "./event-bus";
 import { createDomainEventBus } from "./event-bus";
 import { bindRoleClientsForUser } from "./role-clients";
@@ -507,6 +508,21 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     const seq = await chatBus.emit(event);
     publishChatEvent({ seq, event });
   };
+
+  // ── The MULTI-HUMAN bridge (task #17): character.updated → a `chatUpdated` chat-bus event on every chat where
+  //    that character is CURRENTLY seated, so a co-member's OPEN room refetches the roster/theme/assembly fields
+  //    when another human's card edit lands (emit-character-updated.ts). SEPARATE, ALWAYS-ON subscription —
+  //    UNLIKE the indexer's, it is NOT gated on `corpusAutoindex` (open-room freshness ⟂ the search-corpus knob):
+  //    a stale co-member room is a bug whether or not the corpus indexes. Fans through the durable-first
+  //    `emitChatEvent` (the ONE bus); asset.created is not our concern here (a narrow single-arm subscriber). ──
+  const fanCharacterUpdateToChats = createCharacterUpdatedChatFan(db, emitChatEvent);
+  eventBus.subscribe((event: DomainEvent): Promise<void> => {
+    if (event.type === "character.updated") {
+      return fanCharacterUpdateToChats(event.characterId);
+    }
+    return Promise.resolve();
+  });
+
   const persona = createPersonaService({
     db,
     now,

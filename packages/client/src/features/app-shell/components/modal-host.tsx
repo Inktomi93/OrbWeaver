@@ -12,7 +12,9 @@ import { Drawer, DrawerClose, DrawerPopup, DrawerTitle } from "@orb/ui/drawer";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the status-chip.tsx precedent).
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import type { ModalSlotId } from "#state";
+import type { ModalDef } from "../lib/modal-slots";
 import { MODAL_SLOTS } from "../lib/modal-slots";
 
 export interface ModalHostProps {
@@ -72,6 +74,36 @@ export function ModalHost({
     );
   }
 
+  return <DialogModal body={body} container={container} def={def} onOpenChange={onOpenChange} />;
+}
+
+/**
+ * The centered-Dialog presentation, split out so its `finalFocus` capture runs at OPEN time. ModalHost
+ * mounts the Dialog already-open (store-driven — no `DialogTrigger`), so Base UI's own restore-focus
+ * has no false→true transition to snapshot the trigger from; this child mounts fresh on each open, so its
+ * `useState` initializer captures the element focused at that instant (the rail/topbar control that
+ * called `openModal`) and hands it to `finalFocus` — focus returns there on close (§13.8 R1 · side-eye
+ * P3). `document.activeElement` is still the trigger during render (Base UI moves focus in a later layout
+ * effect). Falls back to Base UI's default (`true`) when nothing focusable was captured.
+ */
+function DialogModal({
+  body,
+  container,
+  def,
+  onOpenChange,
+}: {
+  readonly body: ReactNode;
+  readonly container: DialogPopupProps["container"];
+  readonly def: ModalDef;
+  readonly onOpenChange: (nextOpen: boolean) => void;
+}): ReactElement {
+  // Captured once at mount (this child mounts on open) — `document.activeElement` is still the trigger
+  // during render (Base UI moves focus in a later layout effect). A `finalFocus` FUNCTION (never a ref
+  // read in render) hands it back: the element, or `true` for Base UI's default when nothing was captured.
+  const [capturedTrigger] = useState<HTMLElement | null>(() =>
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
+
   // The @orb/ui DialogPopup is a capped flex COLUMN (max-h-full) — pin the header and scroll ONLY the
   // interior body region, NEVER the backdrop (§13.7 scroll ownership; the receipts showed a scrollable
   // backdrop taking the title + close out of view). SHELL modals (full/xl) FILL the popup height
@@ -83,7 +115,11 @@ export function ModalHost({
   const bodyClass = isShellModal ? "min-h-0 flex-1 overflow-y-auto" : "min-h-0 overflow-y-auto";
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
-      <DialogPopup {...sizeProp} container={container}>
+      <DialogPopup
+        {...sizeProp}
+        container={container}
+        finalFocus={(): HTMLElement | boolean => capturedTrigger ?? true}
+      >
         <header className="shell-modal-header shrink-0">
           <DialogTitle>{def.title}</DialogTitle>
           <DialogClose

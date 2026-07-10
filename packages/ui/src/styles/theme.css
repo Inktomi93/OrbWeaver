@@ -63,6 +63,8 @@
   --spacing-avatar-md: 1.875rem;
   --spacing-avatar-lg: 2.125rem;
   --spacing-avatar-hero: 4rem;
+  --spacing-switch-track: 3rem;
+  --spacing-switch-thumb: 1.75rem;
   --radius-base: 0.5rem;
   --radius-control: 0.375rem;
   --radius-card: 0.625rem;
@@ -111,6 +113,7 @@
   --width-dialog-lg: 45rem;
   --width-dialog-xl: 65rem;
   --width-sidebar-sm: 13.75rem;
+  --width-control-col: 12.5rem;
   --z-base: 0;
   --z-raised: 10;
   --z-overlay: 40;

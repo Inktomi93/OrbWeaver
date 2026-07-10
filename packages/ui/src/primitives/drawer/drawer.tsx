@@ -15,6 +15,7 @@ import type {
 import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
+import { usePortalContainer } from "#lib";
 import { drawerVariants } from "./variants";
 
 type DrawerSide = NonNullable<VariantProps<typeof drawerVariants>["side"]>;
@@ -58,7 +59,7 @@ export interface DrawerPopupProps
   extends Omit<BasePopupProps, "className">,
     VariantProps<typeof drawerVariants> {
   className?: string;
-  /** Portal target — render the drawer into a specific container (default: document.body). */
+  /** Portal target — defaults to the themed portal root from context (usePortalContainer, D44 §12.1); an explicit node/ref overrides (ModalHost). */
   container?: BasePortalProps["container"];
   /** Keep the portal mounted while the drawer is closed (preserve DOM/animations). @defaultValue false */
   keepMounted?: BasePortalProps["keepMounted"];
@@ -75,9 +76,13 @@ export interface DrawerPopupProps
  */
 export function DrawerPopup(props: DrawerPopupProps): ReactElement {
   const { className, children, side, container, keepMounted, forceRender, ...rest } = props;
+  // Default the Portal target to the themed root from context (D44 §12.1) so a feature-level drawer
+  // inherits the active <ThemeScope> instead of Hearth chrome from <body>; an explicit `container` still
+  // wins. Sentinel is undefined, never null (see portal-container.ts).
+  const portalContainer = usePortalContainer();
   const slots = drawerVariants({ side });
   return (
-    <BaseDrawer.Portal container={container} keepMounted={keepMounted}>
+    <BaseDrawer.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
       <BaseDrawer.Backdrop
         className={slots.backdrop()}
         data-slot="drawer-backdrop"

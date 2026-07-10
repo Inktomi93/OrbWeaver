@@ -24,6 +24,7 @@
 // rule keeps the slice to its enumerated files, so this (already shared-by-all-three) module is their
 // one home rather than a copy in each role file.
 
+import process from "node:process";
 import type { DataType, DeviceType } from "@huggingface/transformers";
 import {
   AutoModel,
@@ -160,14 +161,100 @@ function toImageSource(image: ImageInput): string | Blob {
   return typeof image === "string" ? image : new Blob([Uint8Array.from(image)]);
 }
 
+// ── lib-boundary belt: @huggingface/transformers 4.2.0 model-loader escape ──────────────────────────────
+// Their `getSession()` (transformers.node.mjs ~22414) spawns `getCoreModelFile(...)` WITHOUT awaiting it, then
+// `await getModelDataFiles(...)` — and `getModelDataFiles` fetches ONNX external-data via
+// `new Promise(async (resolve, reject) => { await getModelFile(...) })`, an async executor whose rejection
+// never calls `reject`, so the outer promise HANGS forever → `getSession` hangs → the un-awaited
+// `getCoreModelFile` promise is orphaned. When a model file is missing (un-fetched / partial cache / offline)
+// that orphan REJECTS UNHANDLED, and with no process listener (production) an unhandled rejection is FATAL —
+// and OUR `await from_pretrained` never sees it (getSession is still hung), so an ordinary try/catch cannot
+// reach it (confirmed: the process dies before the awaiting catch runs). We cannot patch the lib, so we OWN
+// the escape at our ONE call boundary into it: while a load runs, a scoped `unhandledRejection` listener turns
+// a transformers model-loader escape into a proper rejection of THIS load (loadWithCpuFallback + the store
+// then see a normal typed failure) and RE-RAISES anything it can't attribute. This is neither a
+// lifetime-global handler nor a swallow-all — the listener exists only while a model load is in flight and
+// only intercepts the lib's own loader frames.
+const TRANSFORMERS_LOADER_FRAMES = ["getModelFile", "getCoreModelFile", "loadResourceFile"];
+
+/** True for an escape thrown from the transformers.js model-file loader (both the offline
+ *  `local_files_only`/`allowRemoteModels=false` message and the remote "Unable to get model file path or
+ *  buffer" message originate there) — matched on the stack's lib path + a loader frame, not a brittle
+ *  message string, so a future lib message tweak still classifies. */
+function isTransformersLoaderEscape(err: unknown): boolean {
+  if (!(err instanceof Error) || typeof err.stack !== "string") {
+    return false;
+  }
+  const { stack } = err;
+  return (
+    stack.includes("@huggingface/transformers") &&
+    TRANSFORMERS_LOADER_FRAMES.some((frame) => stack.includes(frame))
+  );
+}
+
+// The belt listener is installed LAZILY on the first model load and then kept for the process lifetime. This
+// is deliberate, NOT a lifetime swallow-all: a SINGLE hung `getSession` emits MULTIPLE detached orphans (the
+// core `model.onnx` PLUS each missing `model.onnx_data` external-data chunk), and they fire at different
+// microtask turns — some AFTER our load's promise has already settled (verified: a scoped listener that
+// uninstalls when its load ends still crashes on the straggler). "Own everything the lib call can emit"
+// therefore requires coverage that outlives any one load. The handler absorbs ONLY transformers model-loader
+// orphans (a class NOTHING but this module can produce — we are the lib's sole caller) and RE-RAISES every
+// other rejection, so an unrelated future escape still crashes exactly as Node's default would (no masking).
+const inFlightLoadRejectors: ((err: Error) => void)[] = [];
+let beltInstalled = false;
+
+function onBeltRejection(err: unknown): void {
+  if (isTransformersLoaderEscape(err)) {
+    // Fail the oldest still-awaiting load (one orphan ⇒ one hung getSession; FIFO is exact for the realistic
+    // single-load case). Stragglers past that (extra chunk orphans, or a load already failed) are absorbed —
+    // they are the SAME benign lib orphan, never an unrelated bug.
+    inFlightLoadRejectors.shift()?.(err instanceof Error ? err : new Error(String(err)));
+    return;
+  }
+  // Anything that is NOT a transformers loader orphan is re-raised, restoring Node's default fatal behavior
+  // (a listener's mere presence would otherwise suppress the crash and hide the unrelated escape).
+  throw err;
+}
+
+function registerBeltLoad(reject: (err: Error) => void): () => void {
+  inFlightLoadRejectors.push(reject);
+  if (!beltInstalled) {
+    beltInstalled = true;
+    process.on("unhandledRejection", onBeltRejection);
+  }
+  return (): void => {
+    const idx = inFlightLoadRejectors.indexOf(reject);
+    if (idx >= 0) {
+      inFlightLoadRejectors.splice(idx, 1);
+    }
+  };
+}
+
+/** Run one transformers.js model load under the lib-boundary belt (see the note above): the lib's detached
+ *  loader orphan is converted into a rejection of THIS load instead of a fatal unhandled rejection. */
+async function ownModelLoad<T>(load: () => Promise<T>): Promise<T> {
+  let rejectOrphan: (err: Error) => void = () => undefined;
+  const orphanGuard = new Promise<never>((_, reject) => {
+    rejectOrphan = reject;
+  });
+  const cleanup = registerBeltLoad(rejectOrphan);
+  try {
+    // The hung `load()` promise (a leaked lib orphan) never settles; `orphanGuard` wins and we degrade cleanly.
+    return await Promise.race([load(), orphanGuard]);
+  } finally {
+    cleanup();
+  }
+}
+
 /** Try `build(device)`; on failure with a non-CPU device, warn and retry once on CPU — the GPU-less
- *  backstop so the in-process tier always works (a missing/broken CUDA EP must not brick embeddings). */
+ *  backstop so the in-process tier always works (a missing/broken CUDA EP must not brick embeddings). Both
+ *  attempts run under {@link ownModelLoad} so a transformers loader orphan degrades to a caught failure. */
 async function loadWithCpuFallback<T>(
   device: DeviceType,
   build: (device: DeviceType) => Promise<T>,
 ): Promise<T> {
   try {
-    return await build(device);
+    return await ownModelLoad(() => build(device));
   } catch (err) {
     if (device === CPU_DEVICE) {
       throw err;
@@ -176,13 +263,13 @@ async function loadWithCpuFallback<T>(
       { err: String(err), device },
       "local-light: model load failed on device; retrying on cpu",
     );
-    return await build(CPU_DEVICE);
+    return await ownModelLoad(() => build(CPU_DEVICE));
   }
 }
 
 /** Bounded, promise-memoized loader for one model kind. Stores the in-flight promise (concurrent first
  *  calls share one load); evicts + disposes the oldest entry past the cap (insertion-order Map). */
-function createMemo<T>(
+export function createMemo<T>(
   load: (id: string) => Promise<T>,
   dispose: (value: T) => void,
 ): (id: string) => Promise<T> {
@@ -194,6 +281,17 @@ function createMemo<T>(
     }
     const created = load(id);
     entries.set(id, created);
+    // The memo caches the RESOLVED model, never a rejection: a transformers.js load failure (an
+    // un-fetched/partial model, an offline box, a transient network fault) is RECOVERABLE, so a rejected
+    // entry is evicted once it settles — the next embed/rerank trigger retries the load instead of the
+    // first failure poisoning the model for the whole process lifetime. The `=== created` guard leaves a
+    // newer in-flight load untouched. (This `.catch` also owns the memoized promise's rejection; the role
+    // helpers that read it already await it, so it can never mask a caller's failure.)
+    void created.catch(() => {
+      if (entries.get(id) === created) {
+        entries.delete(id);
+      }
+    });
     if (entries.size > MODEL_CACHE_CAP) {
       const oldest = entries.keys().next().value;
       if (oldest !== undefined) {

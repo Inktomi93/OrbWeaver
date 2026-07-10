@@ -95,6 +95,10 @@ function fontStack(font: ThemeFont): string {
 export const THEME_SCOPE_EMIT_VARS = [
   "--color-primary",
   "--color-ring",
+  // The accent picker sets --color-primary; its readable foreground DERIVES off that picked accent
+  // (contrast-tone flip) so text on primary buttons stays legible for ANY accent (a dark accent can't
+  // keep the light static default and vanish). #16: burned off the emit-pairing allowlist.
+  "--color-primary-foreground",
   "--color-user-bubble",
   "--color-user-bubble-foreground",
   "--color-ai-bubble",
@@ -112,6 +116,24 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-surface-raised",
   "--color-card",
   "--color-popover",
+  // The hover/selected SURFACE (list-row/menu/combobox selection) derives off the base too — a member
+  // of the neutral ramp so a selected row tracks the theme instead of staying the pinned Hearth tone,
+  // which let its paired --color-accent-foreground derive as well (#16: the light-theme quick-pick
+  // illegibility, side-eye P2 — a dark static accent surface under a light theme kept near-white text).
+  "--color-accent",
+  "--color-accent-foreground",
+  // The SIDEBAR hover surface (rail/sidebar-button :hover, shell.css `.shell-rail-button:hover`) — a
+  // neutral ramp member off the base, sitting a hair above `sidebar`. Without it a custom theme recolors
+  // the rail but its hover stayed the pinned Hearth charcoal ("default black on hover" — owner defect #2).
+  // Its text is `--color-sidebar-foreground` (already derived), so no separate paired fg.
+  "--color-sidebar-accent",
+  // `secondary` + `muted` are the remaining NEUTRAL ramp surfaces (combobox/toast chips read `bg-secondary`;
+  // skeleton/badge/progress/avatar-fallback read `bg-muted`) — derived off the base so a chip/skeleton on a
+  // themed panel tracks the palette instead of staying a Hearth-grey slab beside recolored chrome. `muted`'s
+  // text is the already-derived `--color-muted-foreground`; `secondary`'s pairs with the derived fg below.
+  "--color-secondary",
+  "--color-secondary-foreground",
+  "--color-muted",
   // The neutral FOREGROUNDS, DERIVED for contrast from the surface they sit on (light surface → dark
   // text, dark surface → light text) — so "set the background white" can never yield invisible text. The
   // picker never sets these; they're computed. (Bubble foregrounds — also derived — reuse the keys above.)
@@ -143,11 +165,24 @@ const RAMP_DL_SIDEBAR = -0.026;
 const RAMP_DL_SURFACE_RAISED = 0.027;
 const RAMP_DL_CARD = 0.047;
 const RAMP_DL_POPOVER = 0.087;
+// The hover/selected surface sits a step above `card` (matches Hearth's authored 0.285 vs its 0.158
+// background). Its paired foreground derives off this same shifted L below (never hand-picked).
+const RAMP_DL_ACCENT = 0.127;
+// The SIDEBAR hover surface sits just above `sidebar` (matches Hearth's authored 0.235 vs its 0.158
+// background = +0.077); `secondary` and `muted` are the neutral chip/skeleton surfaces (Hearth 0.255 =
+// +0.097). All three are neutral ramp members — same hue/chroma as the base, only L shifts.
+const RAMP_DL_SIDEBAR_ACCENT = 0.077;
+const RAMP_DL_SECONDARY = 0.097;
+const RAMP_DL_MUTED = 0.097;
 const SURFACE_RAMP_DELTAS: ReadonlyArray<readonly [name: string, deltaL: number]> = [
   ["--color-sidebar", RAMP_DL_SIDEBAR],
   ["--color-surface-raised", RAMP_DL_SURFACE_RAISED],
   ["--color-card", RAMP_DL_CARD],
   ["--color-popover", RAMP_DL_POPOVER],
+  ["--color-accent", RAMP_DL_ACCENT],
+  ["--color-sidebar-accent", RAMP_DL_SIDEBAR_ACCENT],
+  ["--color-secondary", RAMP_DL_SECONDARY],
+  ["--color-muted", RAMP_DL_MUTED],
 ];
 
 // Contrast-safe FOREGROUND derivation (readability floor — a foreground is NEVER picked, always derived
@@ -174,9 +209,45 @@ const INPUT_ALPHA = 0.12; // the input-field surface lift (matches the token's d
 const MUTED_L_MIN = 0.34;
 const MUTED_L_MAX = 0.82;
 const MUTED_CONTRAST_L = `clamp(${MUTED_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${MUTED_L_MAX})`;
+/**
+ * The NUMERIC derivation constants — the single source for both the CSS-string emits above AND the
+ * seed-palette-contrast enforcement test (tests/ui/content/theme-scope/palette-contrast.suite.test.ts),
+ * which recomputes the derived colors in house oklch math to prove every derived pairing clears WCAG AA.
+ * Exported for the same reason as THEME_SCOPE_EMIT_VARS: the test asserts against the REAL constants, so
+ * a future retune of the pivot/ramp can't silently drop a pairing below AA (R6 — a derivation claim is
+ * only as good as the test that computes its result).
+ */
+export const THEME_DERIVATION = {
+  fgPivotL: FG_PIVOT_L,
+  fgSteepness: FG_STEEPNESS,
+  fgLMin: FG_L_MIN,
+  fgLMax: FG_L_MAX,
+  mutedLMin: MUTED_L_MIN,
+  mutedLMax: MUTED_L_MAX,
+  borderAlpha: BORDER_ALPHA,
+  inputAlpha: INPUT_ALPHA,
+  ramp: {
+    sidebar: RAMP_DL_SIDEBAR,
+    surfaceRaised: RAMP_DL_SURFACE_RAISED,
+    card: RAMP_DL_CARD,
+    popover: RAMP_DL_POPOVER,
+    accent: RAMP_DL_ACCENT,
+    sidebarAccent: RAMP_DL_SIDEBAR_ACCENT,
+    secondary: RAMP_DL_SECONDARY,
+    muted: RAMP_DL_MUTED,
+  },
+} as const;
+
 /** A contrast-safe foreground for text sitting on `surface` (any validated color) — browser-computed. */
 function foregroundOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
+}
+/** The contrast foreground for a RAMP-derived surface whose L is the base's `l + deltaL` — computed
+ *  SINGLE-LEVEL off the base (the pivot flip reads `l + deltaL`, never a nested relative-color of the
+ *  already-derived surface) so it stays the same shape as every other derived token. */
+function foregroundOnShifted(base: string, deltaL: number): string {
+  const shiftedL = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - (l + ${deltaL})) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
+  return `oklch(from ${base} ${shiftedL} 0 h)`;
 }
 /** A contrast-safe MUTED foreground (secondary text/placeholders) for `surface` — softer than
  *  `foregroundOn` but still ≥4.5:1 against the derived input fill. */
@@ -210,6 +281,10 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
   };
   put("--color-primary", t.accent);
   put("--color-ring", t.accent);
+  // The accent picker's readable foreground DERIVES off the picked accent (contrast-tone flip) — a
+  // static default can't survive an accent of the opposite polarity (dark accent + light static text =
+  // invisible). Emitted only alongside the accent it pairs with.
+  put("--color-primary-foreground", t.accent === undefined ? undefined : foregroundOn(t.accent));
   put("--color-speaker", t.speaker);
   put("--color-dialogue", t.dialogueColor);
   put("--color-narration", t.narrationColor);
@@ -239,11 +314,18 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     for (const [name, deltaL] of SURFACE_RAMP_DELTAS) {
       vars[name] = `oklch(from ${t.background} calc(l + ${deltaL}) c h)`;
     }
+    // The hover/selected surface is a ramp member (above); its text derives off the SAME shifted L so a
+    // selected row's foreground tracks the theme + stays polarity-correct (a light theme flips it dark).
+    vars["--color-accent-foreground"] = foregroundOnShifted(t.background, RAMP_DL_ACCENT);
     const fg = foregroundOn(t.background);
     vars["--color-foreground"] = fg;
     vars["--color-card-foreground"] = fg;
     vars["--color-popover-foreground"] = fg;
     vars["--color-sidebar-foreground"] = fg;
+    // `secondary` is a neutral ramp surface at the same polarity as the base; its text reuses the derived
+    // foreground (the static token pins secondary-foreground = foreground too). `muted`'s text is the
+    // separately-derived `--color-muted-foreground` below; `sidebar-accent`'s is `sidebar-foreground`.
+    vars["--color-secondary-foreground"] = fg;
     // Secondary/placeholder text derives too — a softer contrast tone that still clears AA, so a custom
     // theme's muted text tracks the palette instead of keeping the fixed (light-only) static token.
     vars["--color-muted-foreground"] = mutedForegroundOn(t.background);
