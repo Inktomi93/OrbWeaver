@@ -1,5 +1,12 @@
 # Test-quality fleet review — 2026-07-09
 
+> **RETIRED to history/ 2026-07-10 — WORK DONE.** The six-reviewer fleet review + the full-coverage
+> provenance matrix (874/874 files, §7) are landed; R1–R8 shipped across `6dad440`/`b6da9af`
+> (R1 policy P0, R2/R7 egress+OIDC, R3 real-wires, W2a firewall table, R8 provenance trivia). Kept
+> as the resolved record + the provenance exemplars (drift-gate, parity oracles, non-vacuity
+> controls) worth citing. Open residue when retired: R2's frozen-env branches, the 12 keyed-cred
+> fabrication files (baseline ratchets them down over time).
+
 ```
 kind: review report (findings + dispatch queue)   status: reviewed, fixes unbuilt
 method: six section reviewers over the whole tests/ tree (chat domain · 23 other domains ·

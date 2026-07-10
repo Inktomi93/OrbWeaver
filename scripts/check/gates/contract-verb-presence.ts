@@ -10,7 +10,7 @@
 // test files — NOT a filename convention: world-info/tag organize their tests differently and are fully
 // covered, so a mirror rule would false-fire.
 //
-// WHY — the 2026-07-09 ts-morph census (docs/architecture/proposed/test-support-dry-punchlist.md §5) found
+// WHY — the 2026-07-09 ts-morph census (docs/architecture/history/test-support-dry-punchlist.md §5) found
 // 269 Service-interface verbs, 258 (96%) invoked in tests, but 10 with ZERO invocation anywhere — the
 // replay/list spine `FINAL-Chat-Tab-Redesign-UX.md` §9 leans on among them ("wiring-verified, not
 // run-verified", now measured fact). Adding a verb with no test then FAILS `pnpm check`.

@@ -1,5 +1,10 @@
 # Neo-tavern test steal list — 2026-07-09
 
+> **RETIRED to history/ 2026-07-10 — MOSTLY CONSUMED.** The neo-tavern corpus mining is done; the
+> fork + `b6da9af` consumed it (N1 esoterica, N3 property suites, N4 harness, and all five N2 e2e
+> ports — 11 tests green). Kept as the resolved record. Open residue at retirement: N3 #7 ruled
+> DEFERRED-NOT-A-GAP (chat\_events is append-only); nothing else outstanding.
+
 > **RE-VERIFIED 2026-07-10 against `994318d..eb5d6b3` (the mega/mega2/auth-macro fork — 245 test
 > files, +20k lines): the fork CONSUMED most of this list.** Verified DONE on disk:
 > **N0** (the cold-cache `removeQueries` fix landed, `create-entity-mutation.ts` L145) · **N1**

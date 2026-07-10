@@ -1,5 +1,12 @@
 # Test-tree DRY punchlist — jscpd sweep 2026-07-09
 
+> **RETIRED to history/ 2026-07-10 — WORK DONE.** The jscpd DRY sweep + its Wave-1 support-adoption
+> is landed (`6dad440` mass wave + `b6da9af` post-wave; W3 ruled WONTFIX §3). Kept as the resolved
+> record. The LIVE law the gates enforce lives in `core/Spine-Testing.md §4/§5` +
+> `core/Core-Enforcement-Active-Gates.md` (`no-test-fabrication`, `contract-verb-presence`) — this
+> doc is provenance, not law. §4 "Ruled ACCEPTABLE — do not re-litigate" is the one bit worth
+> promoting to Spine-Testing if a future DRY sweep re-opens it; until then it's findable here.
+
 ```
 kind: work-queue (dispatch-shaped, like ui-polish-punchlist)   status: triaged, unbuilt
 source: manual jscpd v5 run over tests/ (normally gate-excluded): 724 files · 745 clones ·
@@ -106,7 +113,7 @@ individual trees (sessions, db/schema, tooling) never grew.
   preambles across 53 files STAY. Owner ruling: this is **pure DRY, not drift-resistance** — the
   only "drift" a fixture would consolidate is loud/compiler-caught (a service-constructor change
   reds all inline sites at typecheck; it cannot silently rot the way the fabrication casts could).
-  So the fixture buys ergonomics, not safety, at a cost of ~5 domains × a full-file sweep — not
+  So the fixture buys ergonomics, not safety, at a cost of \~5 domains × a full-file sweep — not
   worth the churn or the loss of test-locality (inline arrange reads as a self-contained spec).
   Do lazily/opportunistically at most: convert a domain's preambles to a `<domain>App` fixture
   only when already editing that file for a real reason; never a mass sweep. Joins §4 (do not
