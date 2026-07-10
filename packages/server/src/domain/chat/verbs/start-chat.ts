@@ -20,11 +20,24 @@
 // The absent policy resolves by roster size: a roster of 1 character ⇒ `first-message`, of >1 ⇒ `greet-all`,
 // of 0 ⇒ `none` (no cast to greet).
 //
-// FLAG[greeting-macro]: the VERBATIM greeting is still seeded RAW — and this is correct, NOT an unbuilt seam.
-// The SEND USER_INPUT regex (D53 step 2) applies to COMPOSER text (a typed user turn); a seeded greeting takes
-// NO composer input, so USER_INPUT regex never applies there. Resolving macros at seed time would ALSO bake in
-// the anchor persona (breaking the per-view `{{user}}` the render-once/author-side-macro law requires — Part II
-// §2/§3). The `generate` opening DOES run through the engine→pipeline, so its generated text gets the RECEIVE
+// FLAG[greeting-macro]: the VERBATIM greeting is seeded RAW at SEED time — and this is correct. The SEND
+// USER_INPUT regex (D53 step 2) applies to COMPOSER text (a typed user turn); a seeded greeting takes NO
+// composer input, so USER_INPUT regex never applies there. Resolving IDENTITY macros at seed time would BAKE
+// the anchor persona onto the row (freezing it against a later anchor change), so `{{char}}`/`{{user}}`/
+// `{{persona}}` stay raw/per-view, resolved at READ. Their SUBJECTS (Chat-Macro-Resolution.md §2/§4, ruling A):
+// a greeting is a seeded ASSISTANT row (`personaId: null`, `characterId` = the greeting's own character), so
+// the shared atom resolves `{{char}}` to that character and `{{user}}`/`{{persona}}` to the chat ANCHOR
+// (`pinnedPersona`, the null-stamp fallback — NEVER the reader's active persona), identically on server
+// ASSEMBLE and every client DISPLAY. The anchor is LIVE (re-resolved each read), so changing the host anchor
+// updates every greeting's `{{user}}`.
+// VOLATILE macros freeze at COMMIT (Task #77 / the D51 refinement): a user message's volatiles freeze at SEND,
+// and a greeting's volatiles freeze at the FIRST USER TURN that locks the conversation in (`freezeGreetingVolatiles`,
+// verbs/turn.ts — a greeting is malleable/swipeable until then). BUILT for the SELECTED greeting variant
+// (idempotent → concurrent-retry-safe). STILL DEFERRED (owner-flagged edge): a POST-first-turn swipe to a
+// different (unfrozen) greeting variant is not re-frozen, and the freeze is not re-emitted on the bus (a
+// client sees the baked value on its next refetch — greetings rarely carry a volatile, and Task #73's
+// names-only render already keeps a raw greeting byte-stable/cache-safe).
+// The `generate` opening DOES run through the engine→pipeline, so its generated text gets the RECEIVE
 // AI_OUTPUT/REASONING regex + post-process — the host-tier scripts are the union the GATHER computes onto its ctx.
 //
 // FLAG[chatOpened]: `startChat` emits ONLY `chatCreated`. `chatOpened` is SUBSCRIPTION-synthesized at the
@@ -393,6 +406,9 @@ async function runGeneratedOpening(
     runAsUserId: hostUserId,
     kind: "opening",
     intent: {},
+    // The SAME resolved host memory config recall reads (`foreign.memoryConfig`) → the engine's post-turn build
+    // honors the host's D36 opt-out / tuning for the opening turn too (one source, no re-derive).
+    memoryConfig: foreign.memoryConfig,
     speakerCharacterId: args.characterIds[0] ?? null,
     appendUserTurn: openingPrompt,
   });

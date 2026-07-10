@@ -118,6 +118,42 @@ test("closing the <speaker> tag settles the render without white-screening", asy
   await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
+// ── D44 §12.0 stream-trust guardrail (#25 — the streaming path is the highest-exposure window) ─────
+
+test("SECURITY: a streamed markdown image never emits an <img> — the live stream renders UNTRUSTED", async ({
+  mount,
+}) => {
+  // A prompt-injected turn streams an inline image ref. Under the pre-fix `trust="trusted"` posture the
+  // ghost rendered it live → the browser fetched the attacker URL mid-stream (D21 tracking-pixel exfil)
+  // BEFORE commit-time sanitization ever ran. The stream tier is now untrusted: the untrusted allowlist
+  // drops `<img>` at the element level, so no image element (and no preload) is ever emitted.
+  const component = await mount(
+    <GhostRowScriptedStory chunks={["Look: ![x](https://attacker.example/p.png) done "]} />,
+  );
+  await driveScript(component, 1);
+
+  await expect(component.getByText("Look:", { exact: false })).toBeVisible();
+  await expect(component.locator("img")).toHaveCount(0);
+  await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
+test("a complete <speaker> marker mid-stream shows the name as plain text (untrusted drops the tag)", async ({
+  mount,
+}) => {
+  // Untrusted drops the `<speaker>` element AND its child, so the stream pre-passes `speakerTagsToPlain`
+  // to keep the narrator's name visible as a plain `Name:` prefix while streaming (the settled row
+  // re-parses the marker for per-speaker coloring on turn-complete).
+  const component = await mount(
+    <GhostRowScriptedStory chunks={["<speaker>Bob</speaker> hello there "]} />,
+  );
+  await driveScript(component, 1);
+
+  await expect(component.getByText("Bob:", { exact: false })).toBeVisible();
+  await expect(component.getByText("hello there", { exact: false })).toBeVisible();
+  await expect(component.getByText("<speaker", { exact: false })).toHaveCount(0);
+  await expect(component.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
 test("reduced motion: the full streamed text lands immediately, with no pacing lag", async ({
   mount,
   page,

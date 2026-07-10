@@ -37,6 +37,8 @@ function cred(source: ResolvedCredential["source"]): ResolvedCredential {
 const CHAT_RESULT: ChatResult = {
   reply: "ok",
   reasoning: "",
+  reasoningRedacted: false,
+  warmSpareClaimed: null,
   stopReason: null,
   terminalReason: null,
   finishReason: "stop",

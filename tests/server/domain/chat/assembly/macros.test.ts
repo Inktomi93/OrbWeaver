@@ -12,6 +12,7 @@ import {
   buildTurnMacroContext,
   renderHistoryMacros,
   renderMacros,
+  resolveGuidedActionText,
 } from "../../../../../packages/server/src/domain/chat/assembly/macros";
 import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { expect, test } from "../../../../support/fixtures";
@@ -127,18 +128,29 @@ describe("renderHistoryMacros", () => {
     expect(renderHistoryMacros("{{char}} waves", stamps, ctx, { producer })).toBe("Aria waves");
   });
 
-  test("a null characterId stamp falls through to speakerCharName, then the ctx default (charForSpeaker)", () => {
-    const ctx = ctxOf({ character: { name: "Aria", description: "a bold knight" } });
-    expect(renderHistoryMacros("{{char}} nods", NO_STAMPS, ctx, { producer: EMPTY_PRODUCER })).toBe(
-      "Aria nods",
-    );
-    // An explicit speakerCharName (the turn's current speaker/cast default) overrides the ctx default.
+  test("a null characterId stamp resolves {{char}} to the CAST (ruling B), not the turn's speaker default", () => {
+    // Ruling B (Chat-Macro-Resolution.md §2/§4): a HUMAN-authored / narrator row (characterId === null)
+    // resolves {{char}} to the CAST — the one character in solo, the joined names in a multi-character room
+    // (== {{group}}) — never the arbitrary current speaker. renderHistoryMacros always feeds the cast
+    // (ctx.cast ?? [ctx.character]), so it wins over any explicit speakerCharName for a narrator row.
+    const solo = ctxOf({ character: { name: "Aria", description: "a bold knight" } });
     expect(
-      renderHistoryMacros("{{char}} nods", NO_STAMPS, ctx, {
+      renderHistoryMacros("{{char}} nods", NO_STAMPS, solo, {
         producer: EMPTY_PRODUCER,
         speakerCharName: "Kai",
       }),
-    ).toBe("Kai nods");
+    ).toBe("Aria nods");
+    // A multi-character room: the narrator row's {{char}} is the JOINED cast.
+    const multi = ctxOf({
+      character: { name: "Aria", description: "" },
+      cast: [
+        { name: "Aria", description: "" },
+        { name: "Kai", description: "" },
+      ],
+    });
+    expect(
+      renderHistoryMacros("{{char}} nods", NO_STAMPS, multi, { producer: EMPTY_PRODUCER }),
+    ).toBe("Aria, Kai nods");
   });
 
   test("two rows with DIFFERENT personaId stamps each resolve {{user}} to their OWN persona", () => {
@@ -169,13 +181,16 @@ describe("renderHistoryMacros", () => {
     expect(renderHistoryMacros("{{user}} waves", stamps, ctx, { producer })).toBe("Mara waves");
   });
 
-  test("a null personaId stamp falls back to the ACTIVE persona, never the pinned anchor", () => {
+  test("a null personaId stamp falls back to the chat ANCHOR (pinnedPersona), never the active persona", () => {
+    // Ruling A (Chat-Macro-Resolution.md §2/§4): a null-stamp history row's {{user}} resolves to the chat
+    // ANCHOR (pinnedPersona = anchor ?? active), a chat invariant — never the per-viewer active persona — so
+    // a greeting / AI / legacy line addresses the SAME persona for the model and every human.
     const ctx = ctxOf({
       pinnedPersona: { name: "Nyx", description: "the frozen anchor" },
       activePersona: { name: "Zara", description: "the live active persona" },
     });
     expect(renderHistoryMacros("{{user}} nods", NO_STAMPS, ctx, { producer: EMPTY_PRODUCER })).toBe(
-      "Zara nods",
+      "Nyx nods",
     );
   });
 
@@ -204,13 +219,51 @@ describe("renderHistoryMacros", () => {
   });
 
   test("<speaker> narrator tags are left intact (the parser only touches {{…}})", () => {
+    // The <speaker>…</speaker> marker is opaque to the macro parser (disjoint token set) — it passes through
+    // verbatim for the separate speakerTagsToPlain pass. {{char}} here resolves to the solo CAST (Kai, ruling
+    // B), independent of the tag's literal content — which proves the tag drives nothing in this pass.
     const ctx = ctxOf({ character: { name: "Kai", description: "" } });
     expect(
       renderHistoryMacros("<speaker>Aria</speaker>{{char}} smiles", NO_STAMPS, ctx, {
         producer: EMPTY_PRODUCER,
         speakerCharName: "Aria",
       }),
-    ).toBe("<speaker>Aria</speaker>Aria smiles");
+    ).toBe("<speaker>Aria</speaker>Kai smiles");
+  });
+});
+
+describe("resolveGuidedActionText — the blank-steer per-action guard (F2)", () => {
+  const ctx = ctxOf({ activePersona: { name: "Nyx", description: "scholar" } });
+
+  test("a scaffold-only action (response) with a BLANK steer injects NOTHING", () => {
+    // The default `response` template is a pure `{{input}}` scaffold — a blank steer must render "" (inject
+    // nothing) rather than the dangling `[Take the following into special consideration…: ]`.
+    expect(resolveGuidedActionText(ctx, { action: "response", input: "" })).toBe("");
+    expect(resolveGuidedActionText(ctx, { action: "response", input: "   " })).toBe("");
+  });
+
+  test("scaffold-only siblings (swipe/continue/rewrite) with a blank steer also inject nothing", () => {
+    for (const action of ["swipe", "continue", "rewrite"] as const) {
+      expect(resolveGuidedActionText(ctx, { action, input: "" })).toBe("");
+    }
+  });
+
+  test("a scaffold-only action WITH a steer still fires", () => {
+    expect(resolveGuidedActionText(ctx, { action: "response", input: "make it tense" })).toContain(
+      "make it tense",
+    );
+  });
+
+  test("a standalone action (opening) STILL fires unsteered (its template carries a real instruction)", () => {
+    const out = resolveGuidedActionText(ctx, { action: "opening", input: "" });
+    expect(out.length).toBeGreaterThan(0);
+    expect(out).toContain("Open the scene");
+  });
+
+  test("a standalone action (impersonate) STILL fires unsteered", () => {
+    const out = resolveGuidedActionText(ctx, { action: "impersonate", input: "" });
+    expect(out.length).toBeGreaterThan(0);
+    expect(out).toContain("Nyx"); // {{user}} resolves to the active persona
   });
 });
 

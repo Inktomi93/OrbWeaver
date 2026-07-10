@@ -1,5 +1,6 @@
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 import { describe } from "vitest";
 import {
   blockHash,
@@ -14,6 +15,9 @@ import { expect, test } from "../../../../../../support/fixtures";
 const aria = castId<CharacterId>("character_aria");
 const cole = castId<CharacterId>("character_cole");
 const alex = castId<UserId>("user_nate");
+const bram = castId<UserId>("user_bram");
+const mara = castId<PersonaId>("persona_mara");
+const vex = castId<PersonaId>("persona_vex");
 
 function row(seq: number, over: Partial<MsgRow> = {}): MsgRow {
   return {
@@ -21,10 +25,30 @@ function row(seq: number, over: Partial<MsgRow> = {}): MsgRow {
     role: "assistant",
     characterId: aria,
     authorUserId: null,
+    personaId: null,
     content: `m${seq}`,
     ...over,
   };
 }
+
+/** Build a `resolveRowMacros` producer context from entry lists (the test analog of the live per-chat
+ *  producer the engine/backfill thread into the build). */
+function macroCtx(over?: {
+  readonly chars?: readonly (readonly [CharacterId, string])[];
+  readonly personas?: readonly (readonly [PersonaId, string, string?])[];
+}): RowMacroNameContext {
+  return {
+    characterNamesById: new Map((over?.chars ?? []).map(([id, name]) => [id, { name }])),
+    personaNamesById: new Map(
+      (over?.personas ?? []).map(([id, name, description]) => [
+        id,
+        { name, description: description ?? "" },
+      ]),
+    ),
+  };
+}
+
+const EMPTY_CTX = macroCtx();
 
 describe("memory/build/substrate/transcript", () => {
   test("sliceBlocks yields only COMPLETE fixed-width blocks (the trailing partial is dropped)", () => {
@@ -36,32 +60,101 @@ describe("memory/build/substrate/transcript", () => {
   });
 
   test("speakerLabel resolves a character name, else a role label", () => {
-    const names = new Map<CharacterId, string>([[aria, "Aria"]]);
-    expect(speakerLabel(row(1), names)).toBe("Aria");
-    expect(speakerLabel(row(1, { characterId: cole }), names)).toBe(cole); // unknown → id fallback
-    expect(speakerLabel(row(1, { characterId: null, authorUserId: alex }), names)).toBe("User");
+    const ctx = macroCtx({ chars: [[aria, "Aria"]] });
+    expect(speakerLabel(row(1), ctx)).toBe("Aria");
+    expect(speakerLabel(row(1, { characterId: cole }), ctx)).toBe(cole); // unknown → id fallback
+    expect(speakerLabel(row(1, { characterId: null, authorUserId: alex }), ctx)).toBe("User");
     expect(
-      speakerLabel(row(1, { characterId: null, authorUserId: null, role: "system" }), names),
+      speakerLabel(row(1, { characterId: null, authorUserId: null, role: "system" }), ctx),
     ).toBe("System");
   });
 
   test("renderTranscript renders Label: body lines oldest→newest", () => {
-    const names = new Map<CharacterId, string>([[aria, "Aria"]]);
-    const out = renderTranscript([row(1), row(2, { content: "hi" })], names);
+    const ctx = macroCtx({ chars: [[aria, "Aria"]] });
+    const out = renderTranscript([row(1), row(2, { content: "hi" })], ctx);
     expect(out).toBe("Aria: m1\nAria: hi");
   });
 
-  test("blockHash is deterministic + name-INDEPENDENT but re-attribution-SENSITIVE", () => {
-    const names1 = new Map<CharacterId, string>([[aria, "Aria"]]);
-    const names2 = new Map<CharacterId, string>([[aria, "Renamed"]]);
+  test("G1: the BODY resolves {{char}}→the row's character and {{user}}→the row's persona (never the raw macro or typeid)", () => {
+    const ctx = macroCtx({
+      chars: [[aria, "Aria"]],
+      personas: [[mara, "Mara", "a wandering knight"]],
+    });
+    const rows = [
+      // an AI line owns its `{{char}}`; a user line owns its `{{user}}`/`{{persona}}` (per-row stamps).
+      row(1, { characterId: aria, content: "I am {{char}}." }),
+      row(2, {
+        characterId: null,
+        authorUserId: alex,
+        personaId: mara,
+        content: "and I am {{user}} — {{persona}}.",
+      }),
+    ];
+    const out = renderTranscript(rows, ctx);
+    expect(out).toBe("Aria: I am Aria.\nUser: and I am Mara — a wandering knight.");
+    // the summarizer/embedding NEVER sees the literal macro or the id typeid.
+    expect(out).not.toContain("{{");
+    expect(out).not.toContain("persona_mara");
+    expect(out).not.toContain("character_aria");
+  });
+
+  test("G1 multi-human: two humans' rows resolve to their OWN persona names (not both the generic 'User')", () => {
+    const ctx = macroCtx({
+      personas: [
+        [mara, "Mara"],
+        [vex, "Vex"],
+      ],
+    });
+    const rows = [
+      row(1, {
+        characterId: null,
+        authorUserId: alex,
+        personaId: mara,
+        content: "{{user}} enters",
+      }),
+      row(2, {
+        characterId: null,
+        authorUserId: bram,
+        personaId: vex,
+        content: "{{user}} follows",
+      }),
+    ];
+    const out = renderTranscript(rows, ctx);
+    // both LABELS are the generic "User" (label is role-based), but the BODIES distinguish the two humans.
+    expect(out).toBe("User: Mara enters\nUser: Vex follows");
+    expect(out).toContain("Mara enters");
+    expect(out).toContain("Vex follows");
+  });
+
+  test("blockHash is deterministic + name-INDEPENDENT but re-attribution-SENSITIVE (character axis)", () => {
+    const ctx1 = macroCtx({ chars: [[aria, "Aria"]] });
+    const ctx2 = macroCtx({ chars: [[aria, "Renamed"]] });
     const rows = [row(1), row(2)];
     const h = blockHash("0:0", rows);
     // a rename does NOT change the hash (it folds the stable id, not the name)
     expect(blockHash("0:0", rows)).toBe(h);
-    expect(renderTranscript(rows, names1)).not.toBe(renderTranscript(rows, names2)); // names differ…
+    expect(renderTranscript(rows, ctx1)).not.toBe(renderTranscript(rows, ctx2)); // names differ…
     // …but a genuine re-attribution (different characterId) DOES bust the hash
     const reattributed = [row(1, { characterId: cole }), row(2)];
     expect(blockHash("0:0", reattributed)).not.toBe(h);
+  });
+
+  test("G2: PERSONA reattribution busts the hash (memory self-heals — was persona-blind before)", () => {
+    const base = [
+      row(1, { characterId: null, authorUserId: alex, personaId: mara, content: "hi" }),
+    ];
+    const h = blockHash("0:0", base);
+    // same speaker (authorUserId) + same content, only the authoring persona re-stamped → the hash MUST change
+    // (pre-fix this was a silent no-op: personaId was not folded, so the digest never re-embedded).
+    const reattributed = [
+      row(1, { characterId: null, authorUserId: alex, personaId: vex, content: "hi" }),
+    ];
+    expect(blockHash("0:0", reattributed)).not.toBe(h);
+    // and a null-persona row hashes distinctly from a stamped one (the fold distinguishes absence).
+    const unstamped = [
+      row(1, { characterId: null, authorUserId: alex, personaId: null, content: "hi" }),
+    ];
+    expect(blockHash("0:0", unstamped)).not.toBe(h);
   });
 
   test("blockHash folds the scope prefix (shared vs scoped buckets stay distinct)", () => {
@@ -80,6 +173,13 @@ describe("memory/build/substrate/transcript", () => {
     expect(blockHash("0:0", [row(1, { characterId: null, authorUserId: other })])).not.toBe(h);
     // An agent's line hashes differently from a character speaking the identical text (distinct stable ids).
     expect(blockHash("0:0", [row(1, { characterId: aria, authorUserId: null })])).not.toBe(h);
+  });
+
+  test("renderTranscript with an empty producer floors every macro (no raw id leak on {{user}})", () => {
+    const rows = [
+      row(1, { characterId: null, authorUserId: alex, personaId: mara, content: "{{user}}" }),
+    ];
+    expect(renderTranscript(rows, EMPTY_CTX)).toBe("User: User"); // label + body both floor to "User"
   });
 
   test("blockSpeakerIds returns distinct character ids in first-seen order", () => {

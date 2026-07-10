@@ -51,6 +51,7 @@ import { probeOpenRouterCredential } from "./probe";
 import { runChatCompletionTurn } from "./runners/chat/chat-completions";
 import { runResponsesTurn } from "./runners/chat/responses";
 import type { OpenRouterChatDeps } from "./runners/chat/shared";
+import { buildChatResponseFormat } from "./runners/chat/shared";
 import { runEmbed } from "./runners/embed/runner";
 import { runGenerateImage, runImageEmbed } from "./runners/image/runner";
 import { runRerank } from "./runners/rerank/runner";
@@ -104,8 +105,20 @@ export interface OpenRouterBackendDeps {
 
 // The summarize shaper: ONE chat turn per input, run SEQUENTIALLY (OpenRouter enforces per-key rate
 // limits, so a parallel fan-out trips 429s). A thin shaper over chat — it never duplicates chat logic.
+// STRUCTURED OUTPUT (cross-backend parity): `req.jsonSchema` rides the SAME OpenAI `response_format:
+// json_schema` dialect the chat runners emit (buildChatResponseFormat) — so a caller's ONE `jsonSchema`
+// knob is enforced identically whether the swapped `summarize` role resolves to a vLLM box (surfaces/
+// summarize → chat-completion response_format) or a hosted OpenRouter model (here). The schema name is
+// the fixed "result" the vLLM engine also uses (engine/chat-completion.ts) — one wire contract, two backends.
 async function runSummarize(client: OrClient, req: SummarizeRequest): Promise<SummarizeResult> {
   const items: SummarizeResult["items"] = [];
+  const responseFormat =
+    req.jsonSchema !== undefined
+      ? buildChatResponseFormat({
+          name: "result",
+          schema: req.jsonSchema as Record<string, unknown>,
+        })
+      : undefined;
   for (const input of req.inputs) {
     const chatRequest: SdkChatRequest = {
       model: req.model,
@@ -115,6 +128,7 @@ async function runSummarize(client: OrClient, req: SummarizeRequest): Promise<Su
       ],
       ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
       ...(req.maxTokens !== undefined ? { maxCompletionTokens: req.maxTokens } : {}),
+      ...(responseFormat !== undefined ? { responseFormat } : {}),
     };
     // biome-ignore lint/performance/noAwaitInLoops: sequential by design — OpenRouter per-key rate limits make a parallel fan-out trip 429s.
     const result = await client.chat.send(

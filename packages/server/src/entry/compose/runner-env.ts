@@ -53,9 +53,9 @@ export interface RunnerEnvDeps {
   readonly cas: Cas;
   readonly discovery: Pick<
     DiscoveryService,
-    "computeThemes" | "computeDuplicatePairs" | "computeCharacterHubScores"
+    "computeThemes" | "computeDuplicatePairs" | "computeCharacterHubScores" | "distillCharacters"
   >;
-  readonly connection: Pick<ConnectionService, "refreshCatalog">;
+  readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
   /** The PD-53 bulk embed passes (resumable, content_hash-gated catch-up sweeps). */
   readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
   /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx at the root (built after chat). */
@@ -90,7 +90,13 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         const stats = await deps.discovery.computeThemes({ k });
         return { scanned: stats.digestsAssigned, written: stats.clustersWritten };
       },
-      distillCharacters: notBuilt("discovery.distillCharacters not built (PD-40)"),
+      // PD-40 write-half: the whole-library distill pass (character summaries + staged `pending` tag
+      // suggestions). DistillStats → the workload-owned AnalyticsResult (scanned = cards read;
+      // written = summaries upserted — the adapter discipline; the workload contract never imports DistillStats).
+      distillCharacters: async ({ signal }): Promise<DiscoveryOut> => {
+        const stats = await deps.discovery.distillCharacters({ signal });
+        return { scanned: stats.scanned, written: stats.distilled };
+      },
       computeCooccurrence: notBuilt("discovery.computeCooccurrence not built (PD-40)"),
       findDuplicates: async (): Promise<DiscoveryOut> => {
         const stats = await deps.discovery.computeDuplicatePairs();
@@ -120,9 +126,24 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       },
     },
     connection: {
+      // The daily catalog refresh runs BOTH provider catalogs — OpenRouter `/models` + the agent-sdk
+      // daemon `supportedModels()` map (the family→version fix's auto-population). Each lane is best-effort
+      // AND INDEPENDENT: the two run under `allSettled` so one lane's failure (no OR key, or a cold agent-sdk
+      // snapshot + unreachable daemon) never discards the other lane's refresh. A refreshed lane reports its
+      // snapshot size; a FAILED lane reports `null` (distinct from `0` = a real empty catalog). The run only
+      // fails — rethrowing the first rejection — when BOTH lanes failed (nothing was accomplished).
       refreshCatalogSnapshot: async ({ signal }): Promise<CatalogOut> => {
-        const snap = await deps.connection.refreshCatalog({ signal });
-        return { models: snap.models.length };
+        const [or, agentSdk] = await Promise.allSettled([
+          deps.connection.refreshCatalog({ signal }),
+          deps.connection.refreshAgentSdkCatalog({ signal }),
+        ]);
+        if (or.status === "rejected" && agentSdk.status === "rejected") {
+          throw or.reason;
+        }
+        return {
+          models: or.status === "fulfilled" ? or.value.models.length : null,
+          agentSdkModels: agentSdk.status === "fulfilled" ? agentSdk.value.models.length : null,
+        };
       },
     },
     // PD-41 cleared: chat's corpus sweeps (substrate/backfill.ts), bound over the chat ctx at the root.

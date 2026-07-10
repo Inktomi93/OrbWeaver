@@ -5,7 +5,7 @@
 // pasted message or a small-context main must NEVER silently truncate the block tail: degrade VISIBLY by
 // trimming oldest-within-block to fit, or skip-and-flag when even the newest single message overflows.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
 // The CANONICAL estimator (one home, §7.5). QuadChars counts each non-ASCII codepoint (CJK/emoji/accented) as
 // 1 token; a local `length/4` undercounts those ~4× and would let a CJK transcript silently overflow the
 // summarizer — the exact truncation this guard exists to prevent. Never re-roll the estimate here.
@@ -28,7 +28,7 @@ export const SUMMARIZER_CONTEXT_FLOOR = 4096;
  */
 export function fitBlockToBudget(
   rows: readonly MsgRow[],
-  names: ReadonlyMap<CharacterId, string>,
+  macroNames: RowMacroNameContext,
   contextTokens: number,
   systemPromptTokens: number,
 ): MsgRow[] | null {
@@ -37,7 +37,7 @@ export function fitBlockToBudget(
     return null;
   }
   let kept = [...rows];
-  while (kept.length > 0 && estimateTokens(renderTranscript(kept, names)) > budget) {
+  while (kept.length > 0 && estimateTokens(renderTranscript(kept, macroNames)) > budget) {
     kept = kept.slice(1); // drop the oldest message in the block (trim-to-fit, not truncate)
   }
   return kept.length > 0 ? kept : null;

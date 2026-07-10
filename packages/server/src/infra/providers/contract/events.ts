@@ -28,6 +28,17 @@ export interface RateLimitSnapshot {
   readonly isUsingOverage: boolean | undefined;
   /** Threshold fraction (0–1) crossed to trigger this event (e.g. 0.75). */
   readonly surpassedThreshold: number | undefined;
+  /** The overage bucket's own status (allowed | allowed_warning | rejected) — undefined when the provider
+   *  reports no separate overage window. */
+  readonly overageStatus: string | undefined;
+  /** Epoch-ms the overage window resets, when reported. */
+  readonly overageResetsAt: number | undefined;
+  /** WHY overage is unavailable (e.g. "out_of_credits" | "org_level_disabled" | "overage_not_provisioned")
+   *  — the actionable "why the fallback is off" signal; undefined when overage is available/in use. */
+  readonly overageDisabledReason: string | undefined;
+  /** A hard error code on the limit (currently only "credits_required") — the ban-risk / wallet-blocked
+   *  signal that the subscription is exhausted AND overage can't cover it. Undefined in the normal case. */
+  readonly errorCode: string | undefined;
 }
 
 /**
@@ -60,6 +71,9 @@ export type ChatEvent =
       readonly rateLimitType: string | undefined;
       readonly resetsAt: number | undefined;
       readonly utilization: number | undefined;
+      /** True when consuming overage beyond the subscription limit — the ban-risk canary event consumers
+       *  branch on (the event was a lossy projection of the snapshot; this is the one signal worth it). */
+      readonly isUsingOverage: boolean | undefined;
     }
   | {
       readonly kind: "status";
@@ -89,4 +103,31 @@ export type ChatEvent =
       readonly at: number;
       readonly code: WarningCode;
       readonly message: string;
+    }
+  | {
+      // A safety-classifier refusal (agent-sdk `model_refusal_fallback`/`model_refusal_no_fallback`).
+      // Without this event a refusal is only visible as a bare `finishReason:"filter"` — the category
+      // and whether a fallback model retried the turn are the actionable parts. `category` is an OPEN
+      // vocab ("cyber", "bio", …; new values ship on the wire ahead of schema); `explanation` is
+      // unstable human prose — display only, never parse.
+      readonly kind: "refusal";
+      readonly at: number;
+      /** The model whose request was refused. */
+      readonly model: string;
+      readonly category: string | null;
+      readonly explanation: string | null;
+      /** True when the runtime retried on a fallback model (the turn may still have succeeded). */
+      readonly retried: boolean;
+      /** The fallback model that retried, when `retried`. */
+      readonly fallbackModel: string | null;
+    }
+  | {
+      // A tool call was auto-denied by the SDK permission layer (SDKResult.permission_denials). With our
+      // LOCKED tool-less config this MUST always be empty — a non-empty list means a tool leaked past the
+      // roleplay firewall, so this event exists to make that never-fire case LOUD (never silent). Distinct
+      // from `warning` (a resolve-chat dropped-knob) — this is a firewall-breach signal, security-load-bearing.
+      readonly kind: "permission_leak";
+      readonly at: number;
+      /** The tool names the SDK denied (the leak surface — never the tool_input, which could carry content). */
+      readonly toolNames: readonly string[];
     };

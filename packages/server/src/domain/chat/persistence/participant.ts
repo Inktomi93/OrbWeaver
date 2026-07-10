@@ -240,12 +240,23 @@ export async function markParticipantLeft(
   participantId: ChatParticipantId,
   leftSeq: number,
 ): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const rows = await db
+  const rows = await markParticipantLeftStatement(db, participantId, leftSeq);
+  return rows.at(0);
+}
+
+/** The {@link markParticipantLeft} UPDATE, UNEXECUTED — for callers that must commit the character-seat drop in
+ *  ONE batch alongside another mutation (D64: `acceptHostHandoff` drops the prior host's un-owned character
+ *  seats atomically with the host-role swap). Atomic on the still-present row (`WHERE leftSeq IS NULL`). */
+export function markParticipantLeftStatement(
+  db: Db,
+  participantId: ChatParticipantId,
+  leftSeq: number,
+): AwaitableBatchStmt<(typeof chatParticipants.$inferSelect)[]> {
+  return db
     .update(chatParticipants)
     .set({ leftSeq })
     .where(and(eq(chatParticipants.id, participantId), isNull(chatParticipants.leftSeq)))
     .returning();
-  return rows.at(0);
 }
 
 /** Set a participant's `role` by id (a single-row role write; e.g. a targeted promotion/demotion). Returns

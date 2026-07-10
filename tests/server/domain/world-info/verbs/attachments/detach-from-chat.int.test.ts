@@ -18,6 +18,7 @@ describe("detachFromChat", () => {
     const chatId = await seedChat(db);
     const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
     await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
+    harness.userEvents.length = 0; // drop createBook + attach emits — assert only the detach's.
 
     const first = await svc.detachFromChat({ principal: principal(host), chatId, bookId: book.id });
     const again = await svc.detachFromChat({ principal: principal(host), chatId, bookId: book.id });
@@ -33,6 +34,10 @@ describe("detachFromChat", () => {
     expect(
       harness.audits.filter((a) => a.entry.action === "worldInfo.detachFromChat"),
     ).toHaveLength(1);
+    // Only the REAL detach fires the user-bus freshness emit (the no-op detach is silent).
+    expect(harness.userEvents).toEqual([
+      { userId: host, event: { type: "worldInfoChanged", bookId: book.id } },
+    ]);
   });
 
   test("a NON-owned attached book is still detachable by the host (room authority, not book ownership)", async () => {

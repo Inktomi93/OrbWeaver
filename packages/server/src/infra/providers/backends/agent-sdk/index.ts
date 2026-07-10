@@ -9,6 +9,7 @@
 // upward (the contract is SDK-free; `AgentToolServer` is opaque `unknown`, narrowed inside this family).
 
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
+import type { AgentSdkModel } from "@orb/contracts/connection";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { ZodRawShape } from "zod";
 import type {
@@ -16,28 +17,51 @@ import type {
   AgentTurnRequest,
   ChatRequest,
   ChatResult,
+  FetchAgentSdkModelsRequest,
   ProviderBackend,
+  SummarizeRequest,
+  SummarizeResult,
   VerifyAuthRequest,
 } from "../../contract";
 import { ProviderError } from "../../contract";
 import { runAgentTurn } from "./agent-runner";
+import { fetchAgentSdkModels } from "./catalog";
 import { runChatTurn } from "./runner";
 import { SessionCache } from "./session";
+import { summarize } from "./summarize";
 import type { AgentSdkDeps } from "./types";
 import { verifyAuth } from "./verify-auth";
 
 // ── Family-internal surface (entry wiring + the family's OWN tests). NOT a domain-reachable surface —
 //    `providers-public-surface-only` keeps domains on the providers root barrel; this family barrel is
 //    reachable only by `entry/` + the agent-sdk tests (whose import resolution can only hit an index.ts). ──
+export { fetchAgentSdkModels } from "./catalog";
 export {
   buildClaudeOpenRouterEnv,
   buildClaudeSdkEnv,
   buildClaudeVllmEnv,
   RESERVED_CLAUDE_ENV_KEYS,
 } from "./env";
+export {
+  logProviderCompaction,
+  logProviderDialog,
+  logProviderDrift,
+  logProviderError,
+  logProviderLeak,
+  logProviderMcp,
+  logProviderRateLimit,
+  logProviderRefusal,
+  logProviderRetry,
+  logProviderSession,
+  logProviderSummarize,
+  logProviderTurn,
+  type ProviderMcpServerHealth,
+  type ProviderTurnLog,
+  type ProviderTurnUsage,
+} from "./log";
 export { consumeTurnStream } from "./runner";
-export { disciplineOptions } from "./translate";
-export { assertInitFrameShape } from "./verify";
+export { disciplineOptions, dynamicContextOptions, firewallBase } from "./translate";
+export { assertInitFrameShape, classifyTerminalReason } from "./verify";
 
 /** Default MCP namespace for a tool server built via {@link createAgentToolServer}. */
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
@@ -83,9 +107,16 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
       return runChatTurn(req, resolved, sessions);
     },
     runAgentTurn: (req: AgentTurnRequest): Promise<ChatResult> => runAgentTurn(req, resolved),
+    // The Max sub as a selectable summarizer (mode-1 only; a non-sub credential fails closed pointing at the
+    // hosted OpenRouter path). Schema-validated output on sub quota — byte-parity with the vLLM/OR twins.
+    summarize: (req: SummarizeRequest): Promise<SummarizeResult> => summarize(req, resolved),
     // The host-Claude auth verify (connection.testClaudeAuth) — a tiny turn through the SAME firewall a
     // real turn uses; no session resume (a health probe never touches the prompt-cache lineage).
     verifyAuth: (req: VerifyAuthRequest): Promise<VerifyAuthResult> => verifyAuth(req, resolved),
+    // The `supportedModels()` discovery (connection.refreshAgentSdkCatalog) — a held-open streaming query
+    // through the SAME mode-1 firewall; a control-channel call, not a billed turn (see catalog.ts).
+    fetchModels: (_req: FetchAgentSdkModelsRequest): Promise<AgentSdkModel[]> =>
+      fetchAgentSdkModels(resolved),
   };
 }
 

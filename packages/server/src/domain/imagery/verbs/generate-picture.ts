@@ -16,6 +16,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { AssetId, ChatId } from "@orb/kit/ids";
+import { sniffMime } from "@orb/kit/image-sniff";
 import { modelKey, utcDay } from "@orb/kit/stats-tally";
 import { GenerationFailedError, ImageryNotConfiguredError } from "../contract/errors";
 import type { GeneratePictureParams } from "../contract/params";
@@ -29,43 +30,13 @@ const DEFAULT_IMAGE_COUNT = 1;
 const ALT_MAX_CHARS = 300;
 /** The fallback mime when neither the bytes nor the provider name an image type. */
 const DEFAULT_IMAGE_MIME = "image/png";
-
-// ── magic-byte sniff (the claimed mime is derived from the bytes so assets' `enforceMagic` re-check agrees;
-//    a local copy of the four hosted-image signatures — FLAG[PD-29]: `sniffMime` is not yet in @orb/kit) ──
-const PNG_MAGIC = "89504e47";
-const JPEG_MAGIC = "ffd8ff";
-const GIF_MAGIC = "47494638";
-const RIFF_MAGIC = "52494646";
-const WEBP_TAG_HEX = "57454250"; // "WEBP" at container bytes 8..11.
-const HEADER_BYTES = 12;
-const WEBP_TAG_HEX_OFFSET = 16; // byte 8 → hex char 16.
-const PNG_MIME = "image/png";
-const JPEG_MIME = "image/jpeg";
-const GIF_MIME = "image/gif";
-const WEBP_MIME = "image/webp";
+/** `@orb/kit/image-sniff`'s "unrecognized signature" sentinel — the SAME table assets' `enforceMagic` uses. */
+const OCTET_STREAM = "application/octet-stream";
 
 /** The materialized bytes of one returned image + the provider's claimed media type (a sniff fallback). */
 interface DecodedImage {
   readonly bytes: Uint8Array;
   readonly mediaType: string | undefined;
-}
-
-/** The detected image mime from the leading magic bytes, or `undefined` when no known signature matches. */
-function sniffMime(bytes: Uint8Array): string | undefined {
-  const head = Buffer.from(bytes.subarray(0, HEADER_BYTES)).toString("hex");
-  if (head.startsWith(PNG_MAGIC)) {
-    return PNG_MIME;
-  }
-  if (head.startsWith(JPEG_MAGIC)) {
-    return JPEG_MIME;
-  }
-  if (head.startsWith(GIF_MAGIC)) {
-    return GIF_MIME;
-  }
-  const isWebp =
-    head.startsWith(RIFF_MAGIC) &&
-    head.slice(WEBP_TAG_HEX_OFFSET, WEBP_TAG_HEX_OFFSET + WEBP_TAG_HEX.length) === WEBP_TAG_HEX;
-  return isWebp ? WEBP_MIME : undefined;
 }
 
 /** Decode one returned image to bytes: inline base64 → decode; provider URL → download via the injected
@@ -113,7 +84,13 @@ async function persistImage(
   ctx: ImageryContext,
   args: PersistArgs,
 ): Promise<GeneratedPictureImage> {
-  const mime = sniffMime(args.img.bytes) ?? args.img.mediaType ?? DEFAULT_IMAGE_MIME;
+  // Derive the claimed mime from the bytes via the SHARED `@orb/kit/image-sniff` table — the exact one
+  // assets' `enforceMagic` re-checks against, so a recognized signature is guaranteed to pass that gate (the
+  // forked local copy DIVERGED — e.g. GIF prefix vs strict GIF87a/89a — and could slip a mismatch into a paid
+  // store; PD-123). On the unrecognized sentinel the caller policy falls back to the provider mediaType then
+  // PNG (per the kit header — the caller owns the fallback, not kit).
+  const sniffed = sniffMime(args.img.bytes);
+  const mime = sniffed === OCTET_STREAM ? (args.img.mediaType ?? DEFAULT_IMAGE_MIME) : sniffed;
   const stored = await ctx.storeAsset(args.caller, args.img.bytes, "generated", mime);
   const generationId = ctx.newGenerationId();
   await insertGeneration(ctx.db, {

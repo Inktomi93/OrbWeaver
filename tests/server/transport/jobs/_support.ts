@@ -18,6 +18,7 @@ import type {
 } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import type { WorkloadRowAnyKind } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
 import type { CatalogRefreshSchedulerDeps } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
+import type { OidcGcSchedulerDeps } from "../../../../packages/server/src/transport/jobs/oidc-gc-scheduler.ts";
 import type { WorkloadsWorkerDeps } from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
 
 /** A fixed instant — every timestamp pins here (no ambient clock; test-determinism §3). */
@@ -99,6 +100,17 @@ export function makeSchedulerDeps(
   return {
     service,
     ownerId: castId<UserId>("user_owner"),
+    now: () => T0,
+    scheduleInterval: vi.fn((_fn: () => void, _ms: number) => () => undefined),
+    ...overrides,
+  };
+}
+
+/** Build OIDC-GC-scheduler deps with a faked `sweep` op (defaults to 0 reaped) + the frozen clock + an inert
+ *  interval. Override `sweep` to script a reap count or a throw. */
+export function makeOidcGcDeps(overrides: Partial<OidcGcSchedulerDeps> = {}): OidcGcSchedulerDeps {
+  return {
+    sweep: vi.fn((_before: number) => Promise.resolve(0)),
     now: () => T0,
     scheduleInterval: vi.fn((_fn: () => void, _ms: number) => () => undefined),
     ...overrides,

@@ -84,6 +84,13 @@ interface ShellState {
    *  and the persisted overrides on desktop. TRANSIENT (never persisted, like `openModal`) and RESET on
    *  section change (`setActiveSection`) so a rail-tab tap always lands on CONTENT. */
   readonly mobileSheet: PanelName | null;
+  /** The settings overlay "open to THIS category" seam — an OPAQUE string the settings shell interprets
+   *  against its own category registry (a cross-feature deep-link, e.g. the character editor's "Manage tags"
+   *  → the Tags pane). Kept a bare `string | null` (NOT the settings-feature category union) so the shell
+   *  store stays domain-agnostic — exactly the `contextTab` posture. `null` = the shell's own default pane.
+   *  Set alongside `openModal:'settings'` by `openSettingsTo`; cleared on `closeModal`. Transient (never
+   *  persisted — a deep-linked pane must not survive a reload, like `openModal`). */
+  readonly settingsCategory: string | null;
 }
 
 /** Only the layout preference persists — `openModal` is transient (never reopen a modal on reload). */
@@ -98,6 +105,7 @@ const DEFAULT_STATE: ShellState = {
   openModal: null,
   contextTab: null,
   mobileSheet: null,
+  settingsCategory: null,
 };
 
 // v2: the persisted shape changed from a single global `listPanel`/`contextPanel` pair (v1) to the
@@ -169,6 +177,7 @@ function migrate(persisted: unknown): ShellState {
     openModal: null,
     contextTab: null,
     mobileSheet: null,
+    settingsCategory: null,
   };
 }
 
@@ -210,6 +219,17 @@ export function openModal(id: ModalSlotId): void {
   useShellStore.setState({ openModal: id }, false, "shell/openModal");
 }
 
+/** Open the settings overlay AND target a specific category pane (the cross-feature deep-link seam — e.g.
+ *  the character editor's "Manage tags" → the Tags pane). `category` is opaque here; the settings shell
+ *  validates it against its own registry (an unknown id falls back to the shell's default pane). */
+export function openSettingsTo(category: string): void {
+  useShellStore.setState(
+    { openModal: "settings", settingsCategory: category },
+    false,
+    "shell/openSettingsTo",
+  );
+}
+
 /** Ask the CONTEXT panel to open a specific tab (an opaque id the active context surface interprets —
  *  ux-flow-revamp J6: the chat options menu calls this + docks the panel). `null` clears the request. */
 export function setContextTab(tab: string | null): void {
@@ -217,7 +237,7 @@ export function setContextTab(tab: string | null): void {
 }
 
 export function closeModal(): void {
-  useShellStore.setState({ openModal: null }, false, "shell/closeModal");
+  useShellStore.setState({ openModal: null, settingsCategory: null }, false, "shell/closeModal");
 }
 
 /** Open/close the mobile side-panel SHEET (L6/J12). `null` closes (back to CONTENT); a `PanelName` opens
@@ -252,4 +272,10 @@ export function useContextTab(): string | null {
 /** Which side panel is open as a mobile SHEET (`null` = on CONTENT). A primitive selector. */
 export function useMobileSheet(): PanelName | null {
   return useShellStore((s) => s.mobileSheet);
+}
+
+/** The settings deep-link target category (opaque; `null` = the settings shell's default pane). A
+ *  primitive selector — the settings shell reads it to open straight to a requested pane. */
+export function useSettingsTarget(): string | null {
+  return useShellStore((s) => s.settingsCategory);
 }

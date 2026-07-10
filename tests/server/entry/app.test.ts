@@ -19,6 +19,21 @@ import { createApp } from "../../../packages/server/src/entry/app.ts";
 import { expect, test } from "../../support/fixtures";
 
 const FROZEN_NOW = 1_750_000_000_000;
+
+// The auth middleware now reads the raw TCP peer address via `@hono/node-server/conninfo`'s `getConnInfo`,
+// which reads `c.env.incoming.socket.*` and THROWS without it. `app.fetch(req)` in a unit test supplies no
+// node socket env, so every request would 500 in the middleware before reaching a route. Passing this fake
+// conninfo env as `app.fetch`'s second arg mirrors what `@hono/node-server` binds in production (the peer
+// then threads into `seam.resolvePrincipal({ peerIp })` — the fakeSeam ignores it).
+const PEER_ENV = {
+  incoming: { socket: { remoteAddress: "127.0.0.1", remotePort: 54_321, remoteFamily: "IPv4" } },
+};
+
+/** Drive the built app with the fake conninfo env (see PEER_ENV). */
+function hit(app: ReturnType<typeof createApp>, req: Request): Promise<Response> {
+  return Promise.resolve(app.fetch(req, PEER_ENV));
+}
+
 const OK = 200;
 const UNAUTHORIZED = 401;
 const SERVICE_UNAVAILABLE = 503;
@@ -77,28 +92,28 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
 describe("createApp", () => {
   test("GET /healthz → 200 ok when live", async () => {
     const app = createApp(deps({}));
-    const res = await app.fetch(new Request("http://localhost/healthz"));
+    const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(OK);
     expect(await res.json()).toEqual({ status: "ok" });
   });
 
   test("GET /healthz → 503 shutting_down when the shutdown getter flips", async () => {
     const app = createApp(deps({ isShuttingDown: (): boolean => true }));
-    const res = await app.fetch(new Request("http://localhost/healthz"));
+    const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(SERVICE_UNAVAILABLE);
     expect(await res.json()).toEqual({ status: "shutting_down" });
   });
 
   test("GET /healthz → 503 credentials_key_mismatch when the key probe failed", async () => {
     const app = createApp(deps({ credentialsKeyOk: (): boolean => false }));
-    const res = await app.fetch(new Request("http://localhost/healthz"));
+    const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(SERVICE_UNAVAILABLE);
     expect(await res.json()).toEqual({ status: "credentials_key_mismatch" });
   });
 
   test("anonymous caller → the blob route 401s (the middleware set principal=null on the context)", async () => {
     const app = createApp(deps({ seam: fakeSeam(null) }));
-    const res = await app.fetch(new Request(`http://localhost/api/blob/${"a".repeat(64)}`));
+    const res = await hit(app, new Request(`http://localhost/api/blob/${"a".repeat(64)}`));
     expect(res.status).toBe(UNAUTHORIZED);
   });
 
@@ -108,7 +123,7 @@ describe("createApp", () => {
       calls += 1;
     });
     const app = createApp(deps({ seam }));
-    await app.fetch(new Request("http://localhost/healthz"));
+    await hit(app, new Request("http://localhost/healthz"));
     expect(calls).toBe(1);
   });
 
@@ -117,7 +132,7 @@ describe("createApp", () => {
     const app = createApp(
       deps({ seam: fakeSeam(OWNER), seedUserCharacters: (p): void => void seeded.push(p) }),
     );
-    await app.fetch(new Request("http://localhost/healthz"));
+    await hit(app, new Request("http://localhost/healthz"));
     expect(seeded).toEqual([OWNER]);
   });
 
@@ -126,7 +141,7 @@ describe("createApp", () => {
     const app = createApp(
       deps({ seam: fakeSeam(null), seedUserCharacters: (p): void => void seeded.push(p) }),
     );
-    await app.fetch(new Request("http://localhost/healthz"));
+    await hit(app, new Request("http://localhost/healthz"));
     expect(seeded).toHaveLength(0);
   });
 
@@ -136,7 +151,8 @@ describe("createApp", () => {
   test("PD-118: a response carries X-Request-Id and the request ring records the request", async () => {
     const requestId = "pd-118-app-mount-req-1";
     const app = createApp(deps({}));
-    const res = await app.fetch(
+    const res = await hit(
+      app,
       new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }),
     );
     expect(res.status).toBe(OK);
@@ -164,7 +180,8 @@ describe("createApp", () => {
       throw new Error("boom-observed");
     });
 
-    const res = await app.fetch(
+    const res = await hit(
+      app,
       new Request("http://localhost/api/_probe/throw", {
         headers: { "X-Request-Id": requestId },
       }),

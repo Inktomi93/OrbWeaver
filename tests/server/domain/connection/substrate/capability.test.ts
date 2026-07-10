@@ -20,13 +20,13 @@ const gpt5: ModelCatalogEntry = {
 
 describe("resolveCapability (mediator)", () => {
   test("threads the matching cache entry into the OR synthesis (window + per-knob ranges)", () => {
-    const cap = resolveCapability("openai/gpt-5", "openrouter", [gpt5]);
+    const cap = resolveCapability("openai/gpt-5", "openrouter", [gpt5], null);
     expect(cap.context.window).toBe(256_000);
     expect(cap.sampling.topK).toEqual({ min: 0, max: 200 });
   });
 
   test("falls to the baseline when the model is absent from the cache", () => {
-    const cap = resolveCapability("ghost/model", "openrouter", [gpt5]);
+    const cap = resolveCapability("ghost/model", "openrouter", [gpt5], null);
     expect(cap.context.window).toBe(200_000); // OR default (no entry)
     expect(cap.sampling.temperature).toEqual({ min: 0, max: 2 });
   });

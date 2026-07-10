@@ -22,12 +22,21 @@
 
 import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { ContinuePostfix } from "@orb/contracts/preset";
+import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
+import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
+import { getLog } from "#foundation/observability";
 import type { ChatContext, DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
+import type {
+  MemoryConfig,
+  MemoryPassCounts,
+  MemoryScope,
+  WitnessInterval,
+} from "../contract/memory";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
 import type {
   HistoryMacroNames,
@@ -50,14 +59,16 @@ import { releaseLock, tryAcquireLock } from "../persistence/lock";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import {
   loadCanonHistory,
+  loadCanonStatRows,
   loadMaxMessageSeq,
   loadMessageView,
   loadSlotTarget,
   loadVariableDeltas,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { resolveGroupBucketCharacterId } from "../substrate/group-bucket";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
-import { assistantTurnDelta } from "../substrate/stats-delta";
+import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 import { debitTurnBudget } from "./budget";
 import { runTurnPipeline } from "./pipeline";
 import { committedOutcome } from "./result";
@@ -75,22 +86,31 @@ interface EngineDeps {
   readonly holder: string;
   /** The per-chat lock TTL (ms) — sized for one turn. */
   readonly lockTtlMs: number;
-  /** Injected memory segment builder (domain-no-cross-subsystem rule). */
+  /** Injected memory segment builder (domain-no-cross-subsystem rule). Typed to the real
+   *  `memory/build/segments.generateSegments` signature — NO `any` (an `any`-typed injected dep is exactly
+   *  what disabled compile defense at the seam that broke group memory; stickler slice-1 F1/F1c). */
   readonly generateSegments: (
     ctx: ChatContext,
-    args: { readonly chatId: ChatId },
-  ) => Promise<unknown>;
-  /** Injected memory digest builder (domain-no-cross-subsystem rule). */
+    args: {
+      readonly chatId: ChatId;
+      readonly config?: MemoryConfig | null | undefined;
+      readonly macroNames?: RowMacroNameContext | undefined;
+      readonly signal?: AbortSignal | undefined;
+    },
+  ) => Promise<MemoryPassCounts>;
+  /** Injected memory digest builder (domain-no-cross-subsystem rule). Typed to the real
+   *  `memory/build/digests.generateDigests` signature — the `scope` is a real {@link MemoryScope}
+   *  (`scopedCharacterId` is a real `CharacterId`, inv 8), never a fabricated handle. */
   readonly generateDigests: (
     ctx: ChatContext,
     args: {
-      readonly scope: any;
-      readonly config?: any;
-      readonly names?: any;
-      readonly witnessing?: any;
-      readonly signal?: AbortSignal;
+      readonly scope: MemoryScope;
+      readonly config?: MemoryConfig | null | undefined;
+      readonly macroNames?: RowMacroNameContext | undefined;
+      readonly witnessing?: readonly WitnessInterval[] | undefined;
+      readonly signal?: AbortSignal | undefined;
     },
-  ) => Promise<unknown>;
+  ) => Promise<MemoryPassCounts>;
 }
 
 /** Map the engine's 8-kind turn axis → the public 5-member bus `TurnIntent` (one home; no inline re-spell).
@@ -105,6 +125,23 @@ const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
   auto: "generate",
   force: "generate",
 };
+
+/** The resolved continuation delimiter for each `ContinuePostfix` axis member (F4) — the string spliced
+ *  BETWEEN a continue turn's existing variant tip and the newly-generated chunk. A mapped Record so a new
+ *  axis member fails `tsc` (string-union dispatch). Absent/`none` ⇒ byte-adjacent (the pre-F4 behavior). */
+const CONTINUE_POSTFIX_DELIMITER: Record<ContinuePostfix, string> = {
+  none: "",
+  space: " ",
+  newline: "\n",
+  "double-newline": "\n\n",
+};
+
+/** The continuation delimiter this turn's resolved preset configures (F4 — `PromptConfig.continuePostfix`
+ *  was a dead knob: continue raw-concatenated the tip + chunk). Read off the immutable assemble ctx so the
+ *  commit write AND the mirror stats delta join through ONE home — the drift gate breaks if they diverge. */
+function continuePostfixDelimiter(prep: TurnPrep): string {
+  return CONTINUE_POSTFIX_DELIMITER[prep.assembleContext.promptConfig.continuePostfix ?? "none"];
+}
 
 /** The shared economics subset (variant columns ∩ stats input). Null-coalesced — an unreported field
  *  contributes nothing downstream. */
@@ -150,6 +187,8 @@ async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promis
 function variantPayloadOf(
   prep: TurnPrep,
   result: Awaited<ReturnType<typeof runTurnPipeline>>,
+  genStartedAt: number,
+  genFinishedAt: number,
 ): Parameters<typeof appendVariantStatements>[1]["variant"] {
   const e = result.economics;
   return {
@@ -157,7 +196,14 @@ function variantPayloadOf(
     reasoning: result.reasoning,
     ...economicsCommon(e),
     contextWindow: e?.contextWindow ?? null,
+    // D26 provenance columns (F10) — the runner-echoed output cap + the requested reasoning effort.
+    maxOutputTokens: e?.maxOutputTokens ?? null,
+    reasoningEffort: e?.reasoningEffort ?? null,
     contextBoundaryMessageId: result.contextBoundaryMessageId,
+    // The pipeline window the engine measured (D26 gen bounds) — the reconcile + the live stats mirror both
+    // read `gf − gs` for gen-time/throughput (F2).
+    genStartedAt,
+    genFinishedAt,
     ttftMs: e?.ttftMs ?? null,
     finishReason: e?.finishReason ?? null,
     stopReason: e?.stopReason ?? null,
@@ -173,6 +219,280 @@ function variantPayloadOf(
   };
 }
 
+/** The economics + gen-window a mirror-builder canon row reads for the FRESHLY-generated variant (the reduced
+ *  `final` chunk + the measured pipeline window). Null-coalesced to the sparse-patch contract; `metadata` is
+ *  always null on the live path (the engine writes no `reasoning_duration`). Shared by the append-variant /
+ *  continue signed-delta rows so they mirror `reconcileStats`'s fold column-for-column (F1/F2/F6). */
+function generatedRowEconomics(
+  result: Awaited<ReturnType<typeof runTurnPipeline>>,
+  genStartedAt: number,
+  genFinishedAt: number,
+): {
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  contextWindow: number | null;
+  genStartedAt: number;
+  genFinishedAt: number;
+  model: string | null;
+  provider: string | null;
+  metadata: Record<string, unknown> | null;
+} {
+  const e = result.economics;
+  return {
+    tokensIn: e?.tokensIn ?? null,
+    tokensOut: e?.tokensOut ?? null,
+    costUsd: e?.costUsd ?? null,
+    cacheReadTokens: e?.cacheReadTokens ?? null,
+    cacheWriteTokens: e?.cacheWriteTokens ?? null,
+    contextWindow: e?.contextWindow ?? null,
+    genStartedAt,
+    genFinishedAt,
+    model: e?.model ?? null,
+    provider: e?.provider ?? null,
+    metadata: null,
+  };
+}
+
+/** The pre-mutation SELECTED-variant stat row of the target slot — the OLD state an append-variant / continue
+ *  delta subtracts. Loaded BEFORE the batch (the mirror builders' signed `(new − old)` needs the row exactly
+ *  as the rebuild would fold it pre-write). File-local alias for the inferred query shape. */
+type CanonStatRow = Awaited<ReturnType<typeof loadCanonStatRows>>[number];
+
+/**
+ * The per-turn stats delta(s) the commit applies, matching what `reconcileStats` folds for the SAME canon
+ * change (the drift-gate contract, stats inv #3). ONE builder per persist mode (F1 — the engine used to emit
+ * a full `assistantTurnDelta` for ALL modes, so every swipe/continue inflated `assistantTurns` and no swipe
+ * ever counted):
+ *   • new-slot assistant — the existing {@link assistantTurnDelta} (now carrying the measured gen-time F2 +
+ *     the context window F6). A fresh assistant slot's fold.
+ *   • new-slot user (impersonate) — {@link canonMessageDelta} on a `role:"user"` row (userTurns + economics,
+ *     never an assistant turn / model bucket — the rebuild folds a user row that way).
+ *   • append-variant (swipe) — the selected-swap: remove the OLD variant as the selected message (−1), add it
+ *     back as a swipe (+1, foldSwipe drops swipe cost), add the NEW variant as the selected message (+1).
+ *   • continue — `(new − old)` on the slot: the extended variant as a message (+1) minus its pre-continue
+ *     state (−1).
+ */
+async function buildTurnStatsDeltas(args: {
+  readonly ctx: ChatContext;
+  readonly prep: TurnPrep;
+  readonly persist: TurnPersist;
+  readonly target: SlotTarget | null;
+  readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
+  readonly speakerCharacterId: CharacterId | null;
+  readonly genStartedAt: number;
+  readonly genFinishedAt: number;
+  readonly now: number;
+}): Promise<StatsDelta[]> {
+  const { ctx, prep, persist, target, result, genStartedAt, genFinishedAt, now } = args;
+  const ownerId = prep.runAsUserId;
+  const econ = generatedRowEconomics(result, genStartedAt, genFinishedAt);
+
+  if (persist.mode === "new-slot") {
+    if (persist.role === "assistant") {
+      return [
+        assistantTurnDelta({
+          ownerId,
+          characterId: args.speakerCharacterId,
+          economics: {
+            content: result.content,
+            reasoning: result.reasoning,
+            ...economicsCommon(result.economics),
+            contextWindow: result.economics?.contextWindow ?? null,
+            genTimeMs: genFinishedAt - genStartedAt,
+          },
+          now,
+        }),
+      ];
+    }
+    // impersonate (`role:"user"`): the rebuild folds a user row (userTurns + the generation's economics, NO
+    // assistantTurns / character / model grain) — the full assistantTurnDelta miscounted it as an assistant.
+    return [
+      canonMessageDelta({
+        ownerId,
+        sign: 1,
+        now,
+        row: {
+          characterId: null,
+          role: persist.role,
+          createdAt: now,
+          content: result.content,
+          reasoning: result.reasoning,
+          selectedIdx: null,
+          variantCount: 1,
+          ...econ,
+        },
+      }),
+    ];
+  }
+
+  // append-variant / continue mutate an EXISTING slot — load its pre-mutation selected-variant row so the
+  // signed deltas subtract exactly what the rebuild folded before the write.
+  const old = target === null ? undefined : await loadOldStatRow(ctx, prep, target);
+  if (old === undefined || target === null) {
+    // Unreachable: executeTurn refuses a missing target pre-start (a null here is a wiring bug).
+    throw new ChatNotFoundError(prep.chatId);
+  }
+
+  if (persist.mode === "append-variant") {
+    return [
+      // Remove the old selected variant AS THE SELECTED MESSAGE.
+      canonMessageDelta({ ownerId, sign: -1, now, row: old }),
+      // Add it back AS A SWIPE (the non-selected variant — foldSwipe: re-roll counters, no daily/cost).
+      swipeVariantDelta({
+        ownerId,
+        sign: 1,
+        now,
+        row: {
+          characterId: old.characterId,
+          msgCreatedAt: old.createdAt,
+          content: old.content,
+          tokensIn: old.tokensIn,
+          tokensOut: old.tokensOut,
+          genStartedAt: old.genStartedAt,
+          genFinishedAt: old.genFinishedAt,
+          model: old.model,
+          provider: old.provider,
+          reasoning: old.reasoning,
+          metadata: old.metadata,
+        },
+      }),
+      // Add the NEW variant AS THE SELECTED MESSAGE (now settled: variantCount+1, selected at the appended idx).
+      canonMessageDelta({
+        ownerId,
+        sign: 1,
+        now,
+        row: {
+          characterId: target.characterId,
+          role: target.role,
+          createdAt: old.createdAt,
+          content: result.content,
+          reasoning: result.reasoning,
+          selectedIdx: target.variantCount,
+          variantCount: target.variantCount + 1,
+          ...econ,
+        },
+      }),
+    ];
+  }
+
+  // continue: `(new − old)` on the slot — the extended variant replaces the pre-continue one (same idx/count).
+  return [
+    canonMessageDelta({
+      ownerId,
+      sign: 1,
+      now,
+      row: {
+        characterId: old.characterId,
+        role: old.role,
+        createdAt: old.createdAt,
+        // F4: mirror the commit's postfix-delimited join so the drift gate holds (both sides join identically).
+        content: old.content + continuePostfixDelimiter(prep) + result.content,
+        reasoning: combineReasoning(old.reasoning, result.reasoning),
+        selectedIdx: old.selectedIdx,
+        variantCount: old.variantCount,
+        ...econ,
+      },
+    }),
+    canonMessageDelta({ ownerId, sign: -1, now, row: old }),
+  ];
+}
+
+/** Load the target slot's pre-mutation selected-variant stat row (the append-variant / continue OLD state). */
+async function loadOldStatRow(
+  ctx: ChatContext,
+  prep: TurnPrep,
+  target: SlotTarget,
+): Promise<CanonStatRow | undefined> {
+  const rows = await loadCanonStatRows(ctx.db, prep.chatId, [target.messageId]);
+  return rows.at(0);
+}
+
+/** Build ONE persist-mode's canon statements (D26 new-slot / append-variant / continue) + the committed-view
+ *  reader, for a given tail `seq`. Extracted from {@link commitGeneration} so its F3 seq-collision retry loop
+ *  stays under the cognitive-complexity ceiling. Re-mints the new-slot ids on every call (the retry needs
+ *  fresh ids). */
+function buildCommitPlan(args: {
+  readonly ctx: ChatContext;
+  readonly prep: TurnPrep;
+  readonly persist: TurnPersist;
+  readonly target: SlotTarget | null;
+  readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
+  readonly variant: ReturnType<typeof variantPayloadOf>;
+  readonly now: number;
+  readonly seq: number;
+}): {
+  statements: BatchStmt[];
+  speakerCharacterId: CharacterId | null;
+  loadView: () => Promise<MessageView>;
+} {
+  const { ctx, prep, persist, target, result, variant, now, seq } = args;
+  if (persist.mode === "new-slot") {
+    // A fresh slot at the canon tail. `role:"assistant"` voices the speaker; `role:"user"` (impersonate) is
+    // human-voiced (authorUserId/personaId, no character). The view reconstructs without a re-read (D26).
+    const characterId = persist.role === "assistant" ? prep.speakerCharacterId : null;
+    const insertParams = {
+      messageId: ctx.newMessageId(),
+      variantId: ctx.newMessageVariantId(),
+      chatId: prep.chatId,
+      seq,
+      role: persist.role,
+      characterId,
+      authorUserId: persist.authorUserId ?? null,
+      personaId: persist.personaId ?? null,
+      now,
+      variant,
+    };
+    const view = buildCommittedMessageView(insertParams);
+    return {
+      statements: insertCanonMessageStatements(ctx.db, insertParams),
+      speakerCharacterId: characterId,
+      loadView: (): Promise<MessageView> => Promise.resolve(view),
+    };
+  }
+  if (target === null) {
+    // append-variant / continue need a target; the pre-start load guarantees it. A null here is a wiring bug.
+    throw new ChatNotFoundError(prep.chatId);
+  }
+  if (persist.mode === "append-variant") {
+    // A swipe/regenerate: append a sibling variant at the next idx + select it (slot attribution unchanged).
+    return {
+      statements: appendVariantStatements(ctx.db, {
+        messageId: target.messageId,
+        variantId: ctx.newMessageVariantId(),
+        idx: target.variantCount,
+        now,
+        variant,
+      }),
+      speakerCharacterId: target.characterId,
+      loadView: (): Promise<MessageView> => readCommittedView(ctx, target.messageId),
+    };
+  }
+  // continue: extend the selected variant in place; snapshot the pre-continue state + record the appended
+  // continuation so undo/revert round-trip (D26). F4: the preset's configured continuePostfix delimiter is
+  // spliced between the tip and the chunk, folded INTO the continuation piece so `revertContinue`'s
+  // `preContinue + lastContinuation` re-join reproduces the committed content byte-for-byte.
+  const continuationContent = continuePostfixDelimiter(prep) + result.content;
+  return {
+    statements: continueVariantStatements(ctx.db, {
+      variantId: target.selectedVariantId,
+      variant: {
+        ...variant,
+        content: target.content + continuationContent,
+        reasoning: combineReasoning(target.reasoning, result.reasoning),
+      },
+      preContinueContent: target.content,
+      preContinueReasoning: target.reasoning,
+      lastContinuationContent: continuationContent,
+      lastContinuationReasoning: result.reasoning,
+    }),
+    speakerCharacterId: target.characterId,
+    loadView: (): Promise<MessageView> => readCommittedView(ctx, target.messageId),
+  };
+}
+
 /** Commit a turn's generation per the persist MODE (D26 — new-slot / append-variant / continue) + the stats
  *  delta in ONE atomic batch, then emit `messageCommitted`. The stats delta is attributed to the host
  *  (`runAsUserId`) and the VOICED slot's character (the new-slot speaker / the target slot's character). The
@@ -185,101 +505,83 @@ async function commitGeneration(args: {
   readonly target: SlotTarget | null;
   readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
   readonly nextSeq: number;
+  readonly genStartedAt: number;
+  readonly genFinishedAt: number;
 }): Promise<MessageView> {
-  const { ctx, deps, prep, persist, target, result, nextSeq } = args;
-  const variant = variantPayloadOf(prep, result);
+  const { ctx, deps, prep, persist, target, result, nextSeq, genStartedAt, genFinishedAt } = args;
+  const now = ctx.now();
+  const variant = variantPayloadOf(prep, result, genStartedAt, genFinishedAt);
   // D46: a group round REUSES one assembleContext across its speakers (round.ts `buildSpeakerPrep`), so the
   // by-reference op-log accumulates. `variant.variableDelta` snapshotted THIS turn's ops above; clear the shared
   // log now so the next speaker's delta starts empty (each variant records only the mutations ITS assembly ran).
   prep.assembleContext.opLog?.splice(0);
 
-  let statements: BatchStmt[];
-  let speakerCharacterId: CharacterId | null;
-  let loadView: () => Promise<MessageView>;
-
-  if (persist.mode === "new-slot") {
-    // A fresh slot at the canon tail. `role:"assistant"` voices the speaker; `role:"user"` (impersonate) is
-    // human-voiced (authorUserId/personaId, no character). The view reconstructs without a re-read (D26).
-    const characterId = persist.role === "assistant" ? prep.speakerCharacterId : null;
-    const insertParams = {
-      messageId: ctx.newMessageId(),
-      variantId: ctx.newMessageVariantId(),
-      chatId: prep.chatId,
-      seq: nextSeq,
-      role: persist.role,
-      characterId,
-      authorUserId: persist.authorUserId ?? null,
-      personaId: persist.personaId ?? null,
-      now: ctx.now(),
+  // ONE commit attempt at a given tail `seq`: build the persist mode's canon statements (re-minting the
+  // new-slot ids each call), ride the stats delta(s) + the D46 runtime-vars fold on the SAME atomic batch, and
+  // reconstruct/re-read the view. A new-slot insert is the ONLY mode that writes a fresh `(chatId, seq)` row,
+  // so it is the only one that can raise `messages_chat_seq_unique` — see the F3 retry below.
+  const attempt = async (seq: number): Promise<MessageView> => {
+    const { statements, speakerCharacterId, loadView } = buildCommitPlan({
+      ctx,
+      prep,
+      persist,
+      target,
+      result,
       variant,
-    };
-    statements = insertCanonMessageStatements(ctx.db, insertParams);
-    speakerCharacterId = characterId;
-    const view = buildCommittedMessageView(insertParams);
-    loadView = (): Promise<MessageView> => Promise.resolve(view);
-  } else if (target === null) {
-    // append-variant / continue need a target; the pre-start load guarantees it. A null here is a wiring bug.
-    throw new ChatNotFoundError(prep.chatId);
-  } else if (persist.mode === "append-variant") {
-    // A swipe/regenerate: append a sibling variant at the next idx + select it (slot attribution unchanged).
-    statements = appendVariantStatements(ctx.db, {
-      messageId: target.messageId,
-      variantId: ctx.newMessageVariantId(),
-      idx: target.variantCount,
-      now: ctx.now(),
-      variant,
+      now,
+      seq,
     });
-    speakerCharacterId = target.characterId;
-    loadView = (): Promise<MessageView> => readCommittedView(ctx, target.messageId);
-  } else {
-    // continue: extend the selected variant in place; snapshot the pre-continue state + record the appended
-    // continuation so undo/revert round-trip (D26).
-    statements = continueVariantStatements(ctx.db, {
-      variantId: target.selectedVariantId,
-      variant: {
-        ...variant,
-        content: target.content + result.content,
-        reasoning: combineReasoning(target.reasoning, result.reasoning),
-      },
-      preContinueContent: target.content,
-      preContinueReasoning: target.reasoning,
-      lastContinuationContent: result.content,
-      lastContinuationReasoning: result.reasoning,
-    });
-    speakerCharacterId = target.characterId;
-    loadView = (): Promise<MessageView> => readCommittedView(ctx, target.messageId);
-  }
 
-  // The canon statements + the stats delta → ONE atomic batch (the rollups commit WITH the canon write).
-  const delta = assistantTurnDelta({
-    ownerId: prep.runAsUserId,
-    characterId: speakerCharacterId,
-    economics: {
-      content: result.content,
-      reasoning: result.reasoning,
-      ...economicsCommon(result.economics),
-    },
-    now: ctx.now(),
+    // The canon statements + the stats delta(s) → ONE atomic batch (the rollups commit WITH the canon write).
+    // ONE builder per persist mode (D26) so the live delta mirrors what `reconcileStats` folds for this same
+    // canon change — a swipe emits the selected-swap, a continue emits `(new − old)`, never a full new-turn
+    // delta for all three (F1). Loaded pre-batch (the OLD selected-variant row the signed delta subtracts).
+    const deltas = await buildTurnStatsDeltas({
+      ctx,
+      prep,
+      persist,
+      target,
+      result,
+      speakerCharacterId,
+      genStartedAt,
+      genFinishedAt,
+      now,
+    });
+    for (const delta of deltas) {
+      ctx.applyStatsDelta(statements, ctx.db, delta);
+    }
+
+    // D46 runtime plane: recompute `chats.runtime_variables` reflecting THIS commit's delta, in the SAME atomic
+    // batch as the canon write. The fold source is the CURRENT selected-variant chain (loaded pre-batch) with
+    // this turn's variant folded in: new-slot APPENDS at the tail seq; append-variant/continue OVERRIDE the
+    // target slot's delta (its selected variant is now this turn's). Derive-don't-stamp — a later swipe re-folds.
+    const turnDelta = variant.variableDelta ?? [];
+    const currentDeltas = await loadVariableDeltas(ctx.db, prep.chatId);
+    const postEntries =
+      persist.mode === "new-slot" || target === null
+        ? [...currentDeltas, { seq, delta: turnDelta }]
+        : currentDeltas.map((e) =>
+            e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e,
+          );
+    statements.push(runtimeVariablesUpdateStatement(ctx.db, prep.chatId, foldChain(postEntries)));
+
+    await ctx.db.batch(batchMany(statements));
+    return loadView();
+  };
+
+  // F3: a lock-free `generate` runs CONCURRENT with a locked `send` (active-turns never refuses), and both
+  // allocate `maxSeq + 1` before the pipeline — so the slower committer's new-slot insert can LOSE the
+  // `messages_chat_seq_unique` race AFTER the generation was already paid + streamed. Re-derive the now-higher
+  // head, re-mint fresh ids, and retry the commit ONCE (the generation is in hand — no re-pay), mirroring
+  // persistUserMessage's U1. Only a new-slot insert raises this UNIQUE; the first (failed) batch rolled back
+  // atomically BEFORE any emit, so the retry double-commits nothing. A second collision (a third writer)
+  // surfaces raw — astronomically unlikely, never silently swallowed.
+  const view = await attempt(nextSeq).catch(async (err: unknown) => {
+    if (persist.mode === "new-slot" && isConstraintViolation(err)?.kind === "unique") {
+      return attempt((await loadMaxMessageSeq(ctx.db, prep.chatId)) + 1);
+    }
+    throw err;
   });
-  ctx.applyStatsDelta(statements, ctx.db, delta);
-
-  // D46 runtime plane: recompute `chats.runtime_variables` reflecting THIS commit's delta, in the SAME atomic
-  // batch as the canon write. The fold source is the CURRENT selected-variant chain (loaded pre-batch) with this
-  // turn's variant folded in: new-slot APPENDS at the tail seq; append-variant/continue OVERRIDE the target
-  // slot's delta (its selected variant is now this turn's). Derive-don't-stamp — a later swipe re-folds (#3263).
-  const turnDelta = variant.variableDelta ?? [];
-  const currentDeltas = await loadVariableDeltas(ctx.db, prep.chatId);
-  const postEntries =
-    persist.mode === "new-slot" || target === null
-      ? [...currentDeltas, { seq: nextSeq, delta: turnDelta }]
-      : currentDeltas.map((e) =>
-          e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e,
-        );
-  statements.push(runtimeVariablesUpdateStatement(ctx.db, prep.chatId, foldChain(postEntries)));
-
-  await ctx.db.batch(batchMany(statements));
-
-  const view = await loadView();
   await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view });
   return view;
 }
@@ -339,7 +641,7 @@ async function executeTurn(
   const target =
     persist.mode === "new-slot"
       ? null
-      : ((await loadSlotTarget(ctx.db, persist.targetMessageId)) ?? null);
+      : ((await loadSlotTarget(ctx.db, prep.chatId, persist.targetMessageId)) ?? null);
   if (persist.mode !== "new-slot" && target === null) {
     throw new ChatNotFoundError(prep.chatId);
   }
@@ -370,6 +672,10 @@ async function executeTurn(
       characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
       personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
     };
+    // The generation window bounds (D26 gen_started_at/gen_finished_at): the engine owns the pipeline, so it
+    // measures the wall-clock window around the role call and stamps it on the variant. `gf − gs` is the ONE
+    // gen-time source the reconcile + the live stats mirror both read (F2 — nothing else populated it).
+    const genStartedAt = ctx.now();
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
       // The injected node:vm ReDoS watchdog (D53) — the RECEIVE AI_OUTPUT/REASONING regex passes run under it.
@@ -412,6 +718,7 @@ async function executeTurn(
         void deps.emit({ type: "delta", chatId: prep.chatId, delta });
       },
     });
+    const genFinishedAt = ctx.now();
     // D45: image parts were stripped for a non-vision model — surface it (once per turn) on the bus.
     if (result.imageDropped) {
       await deps.emit({ type: "warning", chatId: prep.chatId, code: "image_dropped" });
@@ -446,6 +753,8 @@ async function executeTurn(
       target,
       result,
       nextSeq: maxSeq + 1,
+      genStartedAt,
+      genFinishedAt,
     });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
     // PD user-bus lane (cross-device + multi-human chat-list recency): fan `chatsChanged` to every present
@@ -457,39 +766,76 @@ async function executeTurn(
     // drives the OPEN chat's `getChat` on every subscribed device. One fan per terminal event, no debounce v1.
     void ctx.emitChatChanged(prep.chatId);
 
-    // Memory trigger (§3a): fire-and-forget — must not block the reply.
-    void Promise.resolve().then(async () => {
-      try {
-        await deps.generateSegments(ctx, { chatId: prep.chatId });
-        const roster = await loadRoster(ctx.db, prep.chatId);
-        const chars = roster.flatMap((r) =>
-          r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
-        );
-
-        // Run the digest/summarizer sweeps (sequentially — the memory logic itself bounds concurrency, but we
-        // run the scopes sequentially here so an aborted test teardown doesn't hit DB race conditions).
-        //
-        // 1. Group-as-character scope (only for groups). The single synthetic bucket.
-        if (chars.length > 1) {
-          await deps.generateDigests(ctx, {
-            scope: {
-              chatId: prep.chatId,
-              scopedCharacterId: castId<CharacterId>(`__group__${prep.chatId}`),
-              isGroup: chars.length > 1,
-            },
+    // Memory trigger (§3a): fire-and-forget — must not block the reply. SKIPPED ENTIRELY when the host
+    // disabled memory (D36 — `memoryConfig.mode === "off"`, the SAME opt-out recall honors): no roster load,
+    // no synthetic-group mint, no summarizer/embed. The build reads the SAME resolved host config recall does
+    // (`prep.memoryConfig`, threaded from the one source in `verbs/turn.ts`/`verbs/start-chat.ts`), so its
+    // tuning (blockSize/verbatimWindow/…) is honored too — not the baked `resolveCfg(undefined)` defaults.
+    const memoryConfig = prep.memoryConfig;
+    if (memoryConfig?.mode !== "off") {
+      // F3 + G1: render the summarizer transcript by character NAME (D28 live identity) AND resolve the
+      // transcript BODY's `{{char}}`/`{{user}}`/`{{persona}}` macros — never the raw typeid or the literal
+      // macro. Reuse the per-chat producer the SHAPE path already built above (one source, no re-derive): it
+      // carries BOTH the character AND persona name maps, so the build's `resolveRowMacros` pass resolves each
+      // row's persona per-stamp — the SAME producer the assemble/display atoms use (so build + assemble agree).
+      const macroNames = historyMacroNames;
+      void Promise.resolve().then(async () => {
+        try {
+          await deps.generateSegments(ctx, {
+            chatId: prep.chatId,
+            config: memoryConfig,
+            macroNames,
           });
+          const roster = await loadRoster(ctx.db, prep.chatId);
+          const chars = roster.flatMap((r) =>
+            r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
+          );
+
+          // Run the digest/summarizer sweeps (sequentially — the memory logic itself bounds concurrency, but
+          // we run the scopes sequentially here so an aborted test teardown doesn't hit DB race conditions).
+          //
+          // 1. Group-as-character scope (only for groups). The single synthetic bucket, keyed by the REAL
+          //    minted synthetic-character row id (inv 8) — resolved the ONE way recall reads it
+          //    (substrate/group-bucket), NEVER the fabricated `__group__` handle string (which FK-throws on
+          //    every write — stickler F1).
+          if (chars.length > 1) {
+            const groupCharacterId = await resolveGroupBucketCharacterId(ctx, {
+              ownerId: prep.runAsUserId,
+              chatId: prep.chatId,
+            });
+            await deps.generateDigests(ctx, {
+              scope: { chatId: prep.chatId, scopedCharacterId: groupCharacterId, isGroup: true },
+              config: memoryConfig,
+              macroNames,
+            });
+          }
+          await Promise.all(
+            chars.map((charId) =>
+              deps.generateDigests(ctx, {
+                scope: {
+                  chatId: prep.chatId,
+                  scopedCharacterId: charId,
+                  isGroup: chars.length > 1,
+                },
+                config: memoryConfig,
+                macroNames,
+              }),
+            ),
+          );
+        } catch (memErr) {
+          // Fire-and-forget per §3a: a memory-build failure must never surface to the CALLER — but it must NOT
+          // be INVISIBLE (D55(7) — "chat is not a black box"; the silent `catch {}` is exactly why the dead
+          // group memory went unnoticed). Log the trace for the operator + emit the machine-dispatchable
+          // warning code (D41/D51 the warning-code channel) so "did memory break, and why" stays first-class.
+          getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
+          try {
+            await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
+          } catch {
+            // best-effort observability — a failed warning emit must never re-throw out of the fire-and-forget.
+          }
         }
-        await Promise.all(
-          chars.map((charId) =>
-            deps.generateDigests(ctx, {
-              scope: { chatId: prep.chatId, scopedCharacterId: charId, isGroup: chars.length > 1 },
-            }),
-          ),
-        );
-      } catch {
-        // Swallowed: fire-and-forget per §3a above — a memory-build failure must never surface to the caller.
-      }
-    });
+      });
+    }
 
     return committedOutcome([view]);
   } catch (err) {

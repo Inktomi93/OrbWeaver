@@ -28,12 +28,17 @@
   // Every `.tsx` in those three trees is browser and owned with dom by ui/client tsconfig. The node-side
   // CT plumbing (`tests/support/ct/*.ts`, e.g. route-trpc.ts) STAYS here (`.ts`, not `.tsx`), as does the
   // node `tests/ui/tokens/*.test.ts`.
+  // `__g_*` — the check-gates self-test's reserved throwaway-fixture sentinel (see tsconfig.base.json's
+  // exclude note): this aggregator sweeps packages/scripts/tests, so it must skip the sentinel too or a
+  // concurrent `typecheck:graph` catches a fixture mid-lifecycle → phantom error.
   "exclude": [
     "packages/ui/src",
     "packages/client/src",
     "tests/ui/**/*.tsx",
     "tests/client/**/*.tsx",
     "tests/support/ct/**/*.tsx",
-    "playwright"
+    "playwright",
+    "**/__g_*",
+    "**/__g_*/**"
   ]
 }

@@ -155,13 +155,18 @@ export async function appendTurn(
 }
 
 /** The caller's transcript, oldest-first. `limit` caps how many of the MOST RECENT turns return (take
- *  them in SQL via DESC + LIMIT, then reverse to the oldest-first order callers expect). */
+ *  them in SQL via DESC + LIMIT, then reverse to the oldest-first order callers expect). The `id` tiebreak is
+ *  LOAD-BEARING: `ask` writes the user + assistant lines with two separate `ctx.now()` calls that can land in
+ *  the SAME millisecond (fast/scripted turns; a frozen-clock test makes them ALWAYS equal), leaving equal-
+ *  `createdAt` pairs with SQL-undefined order — which would swap the pair (assistant before the user that
+ *  prompted it) in both `history` + the `ask` seed prompt. `BuddyTurnId` is ms-sortable + minted in write
+ *  order (user \< assistant), so `desc(id)` here reverses to `asc(id)` → the user line precedes the assistant. */
 export async function loadTurns(db: Db, userId: UserId, limit: number): Promise<BuddyTurnRow[]> {
   const rows = await db
     .select()
     .from(buddyTurns)
     .where(eq(buddyTurns.userId, userId))
-    .orderBy(desc(buddyTurns.createdAt))
+    .orderBy(desc(buddyTurns.createdAt), desc(buddyTurns.id))
     .limit(limit);
   return rows.reverse();
 }

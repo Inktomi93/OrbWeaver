@@ -1,7 +1,7 @@
 // domain/chat/substrate/runtime-variables — the D46 RUNTIME-PLANE cache derivation. The runtime variable state
 // is the deterministic FOLD (`foldVarOps`) of each message's SELECTED-variant `variable_delta`, seq-ordered
 // along the swipe chain (D26). It is materialized on `chats.runtime_variables` for O(1) reads and RECOMPUTED on
-// every mutating event (turn commit / swipe select / delete / fork) — derive-don't-stamp, so a swipe/fork
+// every mutating event (turn commit / swipe select / delete / fork / move-reorder) — derive-don't-stamp, so a swipe/fork
 // rewinds by re-folding (avoids the ST swipe-clobber issue #3263). This file owns the fold-composition + the cache UPDATE
 // statement so the four mutators share ONE home (never diverge).
 

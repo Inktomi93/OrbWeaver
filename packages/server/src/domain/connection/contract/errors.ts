@@ -41,3 +41,18 @@ export class CatalogUnavailableError extends DomainUnavailableError {
     }
   }
 }
+
+/**
+ * The agent-sdk daemon model catalog could not be discovered (spawn failure, discovery timeout) AND no
+ * persisted snapshot exists. `refreshAgentSdkCatalog` throws this when the live `supportedModels()` fails
+ * with nothing to fall back to; a STALE snapshot is served as-is (best-effort). HTTP 503-shaped. SEPARATE
+ * from {@link CatalogUnavailableError} (OR ≠ agent-sdk) so a client can tell the two catalog gaps apart.
+ */
+export class AgentSdkCatalogUnavailableError extends DomainUnavailableError {
+  constructor(reason: string, options?: { readonly cause?: unknown }) {
+    super(`agent-sdk model catalog unavailable: ${reason}`);
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
+}

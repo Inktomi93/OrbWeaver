@@ -44,13 +44,22 @@ describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
     expect(await MODE_RESOLVERS.oidc(headers(), cfg(), {})).toBeNull();
   });
 
-  test("forward-header returns a pre-row identity from a trusted header", async () => {
+  test("forward-header returns a pre-row identity from a trusted PEER (in the declared range)", async () => {
+    const res = await MODE_RESOLVERS["forward-header"](
+      headers({ "x-authentik-username": "alice" }),
+      cfg({ mode: "forward-header", forwardTrustedProxies: ["10.0.0.0/8"] }),
+      { peerIp: "10.1.2.3" },
+    );
+    expect(res).toEqual({ externalId: null, handle: "alice", groups: [], email: null });
+  });
+
+  test("forward-header unsigned path is FAIL-CLOSED when FORWARD_AUTH_TRUSTED_PROXIES is unset (B1)", async () => {
     const res = await MODE_RESOLVERS["forward-header"](
       headers({ "x-authentik-username": "alice" }),
       cfg({ mode: "forward-header" }),
       {},
     );
-    expect(res).toEqual({ externalId: null, handle: "alice", groups: [] });
+    expect(res).toBeNull();
   });
 });
 

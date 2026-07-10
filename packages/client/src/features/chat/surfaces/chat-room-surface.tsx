@@ -45,8 +45,11 @@ export interface ChatRoomSurfaceProps {
   /** New-chat seed for the draft→committed path — see `DraftSeed` (hooks/use-send-message.ts). */
   readonly draftSeed?: DraftSeed | undefined;
   /** Fires once a draft chat is promoted to a committed one (e.g. so a chat-list ancestor can select
-   *  it) — this pane already updates its OWN handle regardless of whether a caller supplies this. */
-  readonly onChatStarted?: ((chatId: ChatId) => void) | undefined;
+   *  it) — this pane already updates its OWN handle regardless of whether a caller supplies this. The
+   *  second arg is the ORIGINATING draft's key (`initialHandle.draftKey`), so the ancestor's
+   *  `commitDraft(chatId, draftKey)` applies ONLY while that exact draft is still the active slot — a
+   *  late resolve after the user started a newer draft / returned to landing can't hijack the slot. */
+  readonly onChatStarted?: ((chatId: ChatId, draftKey: string) => void) | undefined;
   /** Navigate to a forked chat (a message row's Fork) — threaded to the transcript; the route maps it
    *  to the active-chat store's `selectChat` (the unified fork-nav landing, §5.1). */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
@@ -66,7 +69,12 @@ export function ChatRoomSurface({
 
   const onCommitted = (chatId: ChatId): void => {
     setHandle(committedChat(chatId));
-    onChatStarted?.(chatId);
+    // The draft key that identifies THIS slot — `onCommitted` only ever fires for a draft opening
+    // (a committed room has nothing to promote), so `initialHandle` is a draft here. Threading it lets
+    // the ancestor's `commitDraft` reject a late resolve once the active slot has moved on.
+    if (initialHandle.kind === "draft") {
+      onChatStarted?.(chatId, initialHandle.draftKey);
+    }
   };
 
   // Layer 2 — the sole-character CHROME takeover (D44 §12.1). Read the committed roster (the warm

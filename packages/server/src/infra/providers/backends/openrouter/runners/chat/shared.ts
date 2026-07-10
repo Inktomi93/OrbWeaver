@@ -12,6 +12,7 @@ import type {
   ChatMessages,
   ChatRequest,
   ChatStreamChunk,
+  ChatStreamToolCall,
   ChatSystemMessage,
   ChatToolCall,
   ChatToolChoice,
@@ -22,7 +23,11 @@ import type { ChatContentPart } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { errorMessage } from "@orb/kit/error-message";
 import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
-import type { ChatCompletionStreamChunk, ReasoningRequest } from "../../../../backends/kit";
+import type {
+  ChatCompletionStreamChunk,
+  ChatToolCallDelta,
+  ReasoningRequest,
+} from "../../../../backends/kit";
 import {
   cacheControlBlock,
   chatHistoryText,
@@ -309,6 +314,34 @@ export function isMandatoryReasoningRejection(error: unknown): boolean {
 }
 
 // ── SDK → kit stream-chunk reshape ─────────────────────────────────────────────────────────────────
+// Map the SDK's typed tool-call fragments (`delta.toolCalls[i]` — `ChatStreamToolCall`) → the kit's
+// structural `ChatToolCallDelta[]` the reducer's `accumulateToolCallDeltas` string-concatenates by `index`
+// (D48/T2). The SDK shape is 1:1 with the kit fragment (`index` required, `id?`, `function.{name?,
+// arguments?}`); the SDK's `type:"function"` marker is dropped (the reducer never reads it). Omitting this
+// map is what silently killed the tool loop on the chat-completions runner (the finishReason normalized to
+// "tool" but no calls were assembled → the pipeline pivot returned null).
+function reshapeToolCallDeltas(
+  toolCalls: ChatStreamToolCall[] | undefined,
+): ChatToolCallDelta[] | undefined {
+  if (toolCalls === undefined) {
+    return;
+  }
+  return toolCalls.map((call) => ({
+    index: call.index,
+    ...(call.id !== undefined ? { id: call.id } : {}),
+    ...(call.function !== undefined
+      ? {
+          function: {
+            ...(call.function.name !== undefined ? { name: call.function.name } : {}),
+            ...(call.function.arguments !== undefined
+              ? { arguments: call.function.arguments }
+              : {}),
+          },
+        }
+      : {}),
+  }));
+}
+
 // Map the SDK's typed reasoning-detail entries → the kit's structural `ChatReasoningDetail` (the reducer
 // reads BOTH the legacy `reasoning` string and the structured `reasoningDetails` to de-dupe Opus-4.8 CoT).
 function reshapeReasoningDetails(
@@ -331,7 +364,7 @@ function reshapeReasoningDetails(
  * Reshape ONE SDK {@link ChatStreamChunk} into the kit's {@link ChatCompletionStreamChunk} the shared
  * reducer consumes (the SDK handles SSE itself, so the kit's raw `parseOpenAiSse` is NOT used here — this
  * is the SDK-typed equivalent of custom-byo's `reshapeChunk`). Carries the in-band `error`, the usage
- * sentinel, the finish reason, and both reasoning channels.
+ * sentinel, the finish reason, both reasoning channels, and the D48 tool-call fragments.
  */
 export function reshapeChatStreamChunk(chunk: ChatStreamChunk): ChatCompletionStreamChunk {
   // The error + usage tail rides on every chunk shape (incl. the terminal usage-sentinel, whose `choices`
@@ -347,6 +380,7 @@ export function reshapeChatStreamChunk(chunk: ChatStreamChunk): ChatCompletionSt
   const { delta } = choice;
   const { reasoning } = delta;
   const reasoningDetails = reshapeReasoningDetails(delta.reasoningDetails);
+  const toolCalls = reshapeToolCallDeltas(delta.toolCalls);
   return {
     choices: [
       {
@@ -354,6 +388,7 @@ export function reshapeChatStreamChunk(chunk: ChatStreamChunk): ChatCompletionSt
           content: delta.content ?? null,
           ...(reasoning !== undefined && reasoning !== null ? { reasoning } : {}),
           ...(reasoningDetails !== undefined ? { reasoningDetails } : {}),
+          ...(toolCalls !== undefined ? { toolCalls } : {}),
         },
         finishReason: choice.finishReason ?? null,
       },

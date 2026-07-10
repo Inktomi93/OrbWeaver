@@ -11,8 +11,16 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { Db } from "@orb/db";
-import { chats, messages, messageVariants } from "@orb/db";
+import type { BatchStmt, Db } from "@orb/db";
+import {
+  characterStats,
+  chats,
+  dailyStats,
+  messages,
+  messageVariants,
+  modelStats,
+  ownerStats,
+} from "@orb/db";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
@@ -25,10 +33,13 @@ import {
   ChatOperationError,
 } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit";
+import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
+  FROZEN_AT,
   makeChatContext,
   seedCharacter,
   seedChat,
@@ -542,6 +553,174 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
   });
 });
 
+// ── The drift gate (stats inv #3): a canon-mutator verb's LIVE delta, applied on top of a reconciled
+// baseline, must leave the four rollups byte-identical to a full `reconcileStats` over the POST-mutation
+// canon — proving live == rebuild on the ADDITIVE columns (words/tokens/cost/swipes/counts). Extrema
+// (`firstChatAt`/`lastActivityAt`/`maxContextTokens`) + bookkeeping (`id`/`computedAt`) are stripped — a
+// subtracted extremum can't be retracted live (it re-floats + settles on the next reconcile, stats-delta.ts).
+const NON_ADDITIVE = new Set([
+  "id",
+  "computedAt",
+  "firstChatAt",
+  "lastActivityAt",
+  "maxContextTokens",
+]);
+
+/** Strip the non-additive/bookkeeping columns so the two writers are compared over the DATA they compute. */
+function strip(row: object): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(row).filter(([k]) => !NON_ADDITIVE.has(k)));
+}
+
+interface RollupSnapshot {
+  owner: Record<string, unknown> | null;
+  chars: Record<string, unknown>[];
+  days: Record<string, unknown>[];
+  models: Record<string, unknown>[];
+}
+
+/** Read + normalize the four rollup tables for `owner` (sorted so the comparison is order-independent). */
+async function snapshotRollups(database: Db, owner: UserId): Promise<RollupSnapshot> {
+  const [ownerRow] = await database.select().from(ownerStats).where(eq(ownerStats.ownerId, owner));
+  const chars = await database.select().from(characterStats);
+  const days = await database.select().from(dailyStats).where(eq(dailyStats.ownerId, owner));
+  const models = await database.select().from(modelStats).where(eq(modelStats.ownerId, owner));
+  const byKey =
+    (key: string) =>
+    (a: Record<string, unknown>, b: Record<string, unknown>): number =>
+      String(a[key]).localeCompare(String(b[key]));
+  return {
+    owner: ownerRow ? strip(ownerRow) : null,
+    chars: chars.map(strip).sort(byKey("characterId")),
+    days: days.map(strip).sort(byKey("day")),
+    models: models.map(strip).sort(byKey("model")),
+  };
+}
+
+/** A stats ctx whose `applyStatsDelta` BOTH records the pushed deltas AND applies them for real (so the
+ *  rollups actually land in the batch the verb commits — the live half of the drift comparison). */
+function recordingStatsCtx(database: Db, sink: StatsDelta[]): ReturnType<typeof makeChatContext> {
+  return makeChatContext(database, {
+    applyStatsDelta: (batch, deltaDb, delta) => {
+      sink.push(delta as StatsDelta);
+      applyStatsDelta(batch as BatchStmt[], deltaDb, delta);
+    },
+  });
+}
+
+describe("canon-mutator stats drift gate (live delta == a reconcile over the resulting canon)", () => {
+  const clock = { now: () => FROZEN_AT };
+
+  test("selectVariant — the 4-part swap keeps the rollups drift-free (cost/cache follow the selection)", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    // v0 = the SELECTED variant (modest economics); v1 = a sibling swipe with LARGER economics + a bigger
+    // context window (distinct so a wrong/absent swap would visibly drift cost/cache/tokens/idx).
+    const { messageId, variantId: v0 } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+      content: "small selected take",
+    });
+    await db
+      .update(messageVariants)
+      .set({
+        model: "gpt",
+        provider: "openrouter",
+        tokensIn: 10,
+        tokensOut: 20,
+        costUsd: 0.5,
+        cacheReadTokens: 5,
+        cacheWriteTokens: 3,
+        contextWindow: 1000,
+        genStartedAt: FROZEN_AT,
+        genFinishedAt: FROZEN_AT + 100,
+        reasoning: "hmm",
+      })
+      .where(eq(messageVariants.id, v0));
+    const v1 = await addVariant(db, messageId, 1, "a much larger alternative body here");
+    await db
+      .update(messageVariants)
+      .set({
+        model: "gpt",
+        provider: "openrouter",
+        tokensIn: 100,
+        tokensOut: 200,
+        costUsd: 5,
+        cacheReadTokens: 50,
+        cacheWriteTokens: 30,
+        contextWindow: 2000,
+        genStartedAt: FROZEN_AT,
+        genFinishedAt: FROZEN_AT + 300,
+        reasoning: "big think",
+      })
+      .where(eq(messageVariants.id, v1));
+
+    const deltas: StatsDelta[] = [];
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs });
+
+    // Baseline: reconcile the PRE-flip canon (v0 selected) into the rollups.
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    // Flip v0 → v1: the live path applies the signed swap on top of the baseline.
+    await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: v1 });
+
+    // Composition: −old-as-message, +old-as-swipe, −new-as-swipe, +new-as-message (all host-attributed).
+    expect(deltas).toHaveLength(4);
+    expect(deltas.every((d) => d.ownerId === host)).toBe(true);
+    const live = await snapshotRollups(db, host);
+
+    // Reconcile the POST-flip canon (a per-owner REPLACE) and assert the live rollups already matched it.
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    expect(live).toEqual(await snapshotRollups(db, host));
+
+    // Guard against a false green from two empties: the message stream now credits v1's economics + idx 1.
+    expect(live.owner).toMatchObject({
+      assistantTurns: 1,
+      costUsd: 5,
+      cacheReadTokens: 50,
+      activeIdxSum: 1,
+    });
+  });
+
+  test("duplicateMessage — the copied-economics delta keeps the rollups drift-free (dup double-counts, live == rebuild)", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+      content: "copy me two words",
+    });
+    await db
+      .update(messageVariants)
+      .set({
+        model: "gpt",
+        provider: "openrouter",
+        tokensIn: 12,
+        tokensOut: 34,
+        costUsd: 1.5,
+        cacheReadTokens: 6,
+        cacheWriteTokens: 4,
+        contextWindow: 900,
+        reasoning: "r",
+      })
+      .where(eq(messageVariants.id, variantId));
+
+    const deltas: StatsDelta[] = [];
+    const edit = createEdit(recordingStatsCtx(db, deltas), { emit, resolveForeignInputs });
+
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    await edit.duplicateMessage({ principal: principal(host), chatId, messageId });
+
+    // One +1 canonMessageDelta carrying the COPIED economics (the rebuild folds the copy identically).
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]?.assistantTurns).toBe(1);
+    expect(deltas[0]?.costUsd).toBe(1.5);
+    const live = await snapshotRollups(db, host);
+
+    await reconcileStats(db, { ownerId: host, now: clock.now });
+    expect(live).toEqual(await snapshotRollups(db, host));
+
+    // Guard: the dup DOUBLED the source's contribution (source + copy) — and live agrees with the rebuild.
+    expect(live.owner).toMatchObject({ assistantTurns: 2, costUsd: 3 });
+  });
+});
+
 describe("moveMessage — host-only re-sequence", () => {
   test("moving the head to the tail re-stamps the affected block", async () => {
     const { host, member, chatId, charA } = await seedRoom();
@@ -569,6 +748,89 @@ describe("moveMessage — host-only re-sequence", () => {
       .orderBy(asc(messages.seq));
     expect(ordered.map((r) => r.content)).toEqual(["two", "three", "one"]);
     expect(emitted.at(-1)).toEqual({ type: "messagesReordered", chatId });
+  });
+
+  test("a MID move re-stamps ONLY the block; trailing rows keep their seq VALUES (F2 — no stranding)", async () => {
+    const { host, member, chatId, charA } = await seedRoom();
+    // [id1@1, id2@2, id3@3, id4@4, id5@5]; move id2 → toSeq 4 (a mid move, id5 trails the block).
+    const m1 = await seedMessage(db, chatId, 1, {
+      role: "user",
+      authorUserId: member,
+      content: "1",
+    });
+    const m2 = await seedMessage(db, chatId, 2, {
+      role: "user",
+      authorUserId: member,
+      content: "2",
+    });
+    await seedMessage(db, chatId, 3, { role: "assistant", characterId: charA, content: "3" });
+    await seedMessage(db, chatId, 4, { role: "assistant", characterId: charA, content: "4" });
+    await seedMessage(db, chatId, 5, { role: "assistant", characterId: charA, content: "5" });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.moveMessage({
+      principal: principal(host),
+      chatId,
+      messageId: m2.messageId,
+      toSeq: 4,
+    });
+
+    const ordered = await db
+      .select({ id: messages.id, seq: messages.seq, content: messageVariants.content })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, chatId))
+      .orderBy(asc(messages.seq));
+    // The moved order is [1,3,4,2,5] AND the seq values stay tight 1..5 — id5 is NOT stranded (was seq 11),
+    // and maxSeq is unchanged outside the block (the verb's own documented invariant, edit.ts:482-484).
+    expect(ordered.map((r) => r.content)).toEqual(["1", "3", "4", "2", "5"]);
+    expect(ordered.map((r) => r.seq)).toEqual([1, 2, 3, 4, 5]);
+    // id1 (below the block) and id5 (above the block) keep their ORIGINAL seq values — only the block moved.
+    expect(ordered.find((r) => r.id === m1.messageId)?.seq).toBe(1);
+    expect(ordered.at(-1)?.content).toBe("5");
+    expect(ordered.at(-1)?.seq).toBe(5);
+  });
+
+  test("a reorder re-folds runtime_variables over the NEW order (F3 — D46 later-op-wins)", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    // A@seq2 sets hp=10; B@seq3 sets hp=20 → the later op (B) wins → cache hp=20.
+    const a = await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      characterId: charA,
+      content: "A",
+    });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: [{ op: "set", key: "hp", value: "10" }] })
+      .where(eq(messageVariants.id, a.variantId));
+    const b = await seedMessage(db, chatId, 3, {
+      role: "assistant",
+      characterId: charA,
+      content: "B",
+    });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: [{ op: "set", key: "hp", value: "20" }] })
+      .where(eq(messageVariants.id, b.variantId));
+    await db
+      .update(chats)
+      .set({ runtimeVariables: { hp: "20" } })
+      .where(eq(chats.id, chatId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    // Move B before A (B → seq 2, A → seq 3): now A is the LATER op → the fold flips to hp=10.
+    await edit.moveMessage({
+      principal: principal(host),
+      chatId,
+      messageId: b.messageId,
+      toSeq: 2,
+    });
+
+    const [row] = await db
+      .select({ runtimeVariables: chats.runtimeVariables })
+      .from(chats)
+      .where(eq(chats.id, chatId));
+    expect(row?.runtimeVariables).toEqual({ hp: "10" });
   });
 
   test("a member is refused (not_host)", async () => {

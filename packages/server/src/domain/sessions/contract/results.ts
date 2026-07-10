@@ -27,13 +27,22 @@ export interface ValidatedSession {
   enabled: boolean;
 }
 
-/** `provisionIdentity` output: the upserted row's id + live login state. The seam gates on `enabled`
- *  (disabled → unauthenticated) and carries `role` into the `Principal`. */
-export interface ProvisionResult {
-  userId: UserId;
-  enabled: boolean;
-  role: UserRole;
-}
+/** The SSO login access + role decision (`substrate/role-policy.deriveIdentityAccess`) — homed here (the
+ *  domain type home, §7.4) because both the substrate policy and the `provisionIdentity` verb consume it.
+ *  `deny` = the `OIDC_ALLOWED_GROUPS` login gate refused the identity (in none of the allowed groups, and
+ *  not owner/admin); `allow` carries the derived global role. */
+export type IdentityAccess =
+  | { readonly outcome: "allow"; readonly role: UserRole }
+  | { readonly outcome: "deny" };
+
+/** `provisionIdentity` output — a discriminated union: `provisioned` (the upserted row's id + live login
+ *  state; the seam gates on `enabled` and carries `role` into the `Principal`) or `denied` (the
+ *  `OIDC_ALLOWED_GROUPS` login gate refused the identity — NO row is created/updated; the seam → null →
+ *  401, the OIDC route → 401). A `denied` result is distinct from `enabled:false` (a disabled account,
+ *  which the OIDC route surfaces as 403). */
+export type ProvisionResult =
+  | { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole }
+  | { readonly outcome: "denied" };
 
 /** `loadUserById` output (PD-73): a bare row id's live principal-fields — the entry root's frozen-host →
  *  `Principal` bridge (D19: the host funds the turn and may be offline, so the role-sensitive ops re-read

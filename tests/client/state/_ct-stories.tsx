@@ -107,8 +107,22 @@ export function ActiveChatStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
         select chat
       </button>
-      <button type="button" onClick={(): void => commitDraft(PROBE_COMMIT_CHAT)}>
+      {/* Commit the CURRENTLY-active draft — reads its draftKey off the live handle (the real send
+          seam threads `initialHandle.draftKey`). A committed/landing handle passes "" ⇒ the guard
+          no-ops, exactly as commitDraft rejects a non-draft slot. */}
+      <button
+        type="button"
+        onClick={(): void =>
+          commitDraft(PROBE_COMMIT_CHAT, handle.kind === "draft" ? handle.draftKey : "")
+        }
+      >
         commit draft
+      </button>
+      {/* Commit a STALE draftKey (`draft-2`, the FIRST draft minted per fresh page) — reproduces a
+          late-resolving `commitDraft(chatA)` for a draft the user already navigated away from. The
+          guard must reject it whenever the active slot is a newer draft / landing / committed chat. */}
+      <button type="button" onClick={(): void => commitDraft(PROBE_COMMIT_CHAT, "draft-2")}>
+        commit stale draft-2
       </button>
       <button type="button" onClick={(): void => goToLanding()}>
         go landing

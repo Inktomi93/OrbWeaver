@@ -4,7 +4,8 @@ import { cn } from "#lib";
 import { Button } from "#primitives/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/CircleAlert/Copy/Icon/Info fine (the spinner.tsx precedent).
 import { AlertTriangle, CircleAlert, Copy, Icon, Info } from "#primitives/icons";
-import { VirtualList } from "#primitives/virtual-list";
+import type { MessageListHandle } from "#primitives/message-list";
+import { MessageList } from "#primitives/message-list";
 import { logViewerVariants } from "./variants";
 
 // Levels declared ONCE as an `as const` tuple, union derived (§7.5 no-inline-union-redecl); both
@@ -104,15 +105,22 @@ export interface LogViewerProps {
  * The scrollable line region carries `role="log"` + `aria-live="polite"` — the streaming-log
  * accessibility contract (assistive tech announces new lines as they arrive). That role/live-region
  * pair lives on a STABLE wrapper in both paths below — never on the windowed rows themselves — so
- * announcements keep working once the panel is virtualized (§ below). `tabIndex={0}` makes the
- * region keyboard-scrollable (WCAG 2.1.1 — arrow/Page keys scroll a focused overflow container even
- * with no other focusable descendant).
+ * announcements keep working once the panel is virtualized (the plain path stamps it on its own
+ * scroll `<div>`; the virtualized path inherits it from the `message-list` seal, whose scroll
+ * wrapper carries the same pair). On the plain path `tabIndex={0}` also makes the region
+ * keyboard-scrollable (WCAG 2.1.1 — arrow/Page keys scroll a focused overflow container even with
+ * no other focusable descendant).
  *
- * At/above `VIRTUALIZE_THRESHOLD` visible lines, the line region composes the `virtual-list` seal
- * instead of mapping every line to a `<div>`. That path inherits virtual-list's own bounded-height
- * requirement (D43 §11.3 — give the panel a real height via `className`, e.g. `h-64`, or it
- * throws); below the threshold, lines render plainly and no bounded height is required, matching
- * today's behavior for the common short-log case.
+ * At/above `VIRTUALIZE_THRESHOLD` visible lines, the line region composes the `message-list` seal
+ * (NOT the lower-level `virtual-list`): message-list's `anchorTo:"end"` + `followOnAppend` is the
+ * pin-not-yank autoscroll expressed correctly for a virtualized list — it re-checks `isAtEnd()`
+ * before following, so a reader scrolled up is never yanked. `followOnAppend` only fires when the
+ * item COUNT grows, so a `maxLines`-full ring buffer (constant length, sliding content) needs an
+ * explicit tail-follow — driven here off `isAtEnd()`/`scrollToEnd()` on the seal's handle, gated by
+ * the same "was the reader at the tail" check (see the autoscroll effect below). That path inherits
+ * message-list's bounded-height requirement (D43 §11.3 — give the panel a real height via
+ * `className`, e.g. `h-64`, or it throws); below the threshold, lines render plainly and no bounded
+ * height is required, matching today's behavior for the common short-log case.
  *
  * Usage: `<LogViewer lines={logLines} maxLines={256} className="h-64" />`
  */
@@ -128,11 +136,38 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   // Stable per-line identity across a sliding `maxLines` window: `lines.slice(-maxLines)`
   // recomputes the visible slice fresh every render, so a plain visible-index key would
   // misattribute a row's identity to the WRONG line whenever the window slides off older lines —
-  // exactly the "index keys break prepend stability" case virtual-list's own `getItemKey` docs
+  // exactly the "index keys break prepend stability" case message-list's own `getItemKey` docs
   // warn about. Offsetting by how far the window has slid gives each line a key that's stable for
   // its whole life; with no `maxLines` (or before the buffer fills), offset is 0 and this degrades
   // to the plain append-only index.
   const keyOffset = lines.length - visible.length;
+
+  // The virtualized-path pin state. `listHandleRef` reaches message-list's imperative handle
+  // (`isAtEnd`/`scrollToEnd`); `wasAtEndRef` mirrors the plain path's `isNearBottomRef` — updated
+  // ONLY from a real scroll on the seal's scroll node (below), so at append time it still reflects
+  // "was the reader at the tail BEFORE this line landed", never "did we just follow them there".
+  // Starts `true` so a fresh panel begins pinned.
+  const listHandleRef = useRef<MessageListHandle | null>(null);
+  const wasAtEndRef = useRef(true);
+  const virtualScrollNodeRef = useRef<HTMLDivElement | null>(null);
+  // Stable handler (useRef initializer runs once): add/removeEventListener must pass the SAME
+  // reference or a re-registration would leak listeners. Reads only refs, so it never goes stale.
+  const handleVirtualScrollRef = useRef((): void => {
+    wasAtEndRef.current = listHandleRef.current?.isAtEnd() ?? true;
+  });
+
+  // Attaches the scroll listener to message-list's real scroll node (its `scrollContainerRef`
+  // escape hatch). Removes from the prior node first so a node swap never double-binds.
+  const registerVirtualScrollNode = (node: HTMLDivElement | null): void => {
+    const previous = virtualScrollNodeRef.current;
+    if (previous !== null) {
+      previous.removeEventListener("scroll", handleVirtualScrollRef.current);
+    }
+    virtualScrollNodeRef.current = node;
+    if (node !== null) {
+      node.addEventListener("scroll", handleVirtualScrollRef.current, { passive: true });
+    }
+  };
 
   // The "did the rendered content actually change" guard — content, not just re-render, drives
   // the scroll (a signature over length + last line beats deep-comparing the whole array).
@@ -140,21 +175,35 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   const contentSignature = `${visible.length}:${lastLine === undefined ? "" : textOf(lastLine)}`;
   const previousSignatureRef = useRef<string | null>(null);
 
-  // PIN-not-yank autoscroll for the PLAIN path: an append only re-scrolls the line region to its
-  // new bottom when the reader was ALREADY at/near the bottom (isNearBottomRef, kept current by
-  // `handleScroll` below) — a reader scrolled up to read history is never yanked back down. No
-  // dependency array (runs every commit) + an internal signature guard, since the effect body
-  // itself doesn't reference `visible`/`contentSignature` directly (exhaustive-deps would flag them
-  // as unused deps otherwise). `behavior` passed explicitly to `scrollTo` overrides the global
+  // PIN-not-yank autoscroll: an append only re-scrolls the line region to its new bottom when the
+  // reader was ALREADY at/near the bottom — a reader scrolled up to read history is never yanked
+  // back down. No dependency array (runs every commit) + an internal signature guard, since the
+  // effect body itself doesn't reference `visible`/`contentSignature` directly (exhaustive-deps
+  // would flag them as unused deps otherwise).
+  //
+  // PLAIN path: gate on `isNearBottomRef` (kept current by `handleScroll` below) and scroll the
+  // real overflow `<div>`. `behavior` passed explicitly to `scrollTo` overrides the global
   // reduced-motion CSS floor (styles/globals.css forces `scroll-behavior: auto` only for
   // CSS-triggered scrolls), so the reduced-motion check happens here via `matchMedia` directly.
-  // When virtualized, `scrollRef` is never attached to the DOM (below) so this is inert — VirtualList's
-  // own `scrollToIndex` prop drives the equivalent pin-to-bottom behavior instead.
+  //
+  // VIRTUALIZED path: message-list's own `anchorTo:"end"` + `followOnAppend` already sticks to the
+  // tail whenever the item COUNT grows (and never yanks a scrolled-up reader — it re-checks
+  // `isAtEnd()` itself). The one case it can't cover is a `maxLines`-full ring buffer: the count is
+  // CONSTANT while content slides, so `followOnAppend` (gated on `nextCount > prevCount`) never
+  // re-fires. Drive that case explicitly via the handle's `scrollToEnd()` (which respects
+  // reduced-motion), gated by the same `wasAtEndRef` "were they at the tail" check so a scrolled-up
+  // reader stays put.
   useLayoutEffect(() => {
     if (previousSignatureRef.current === contentSignature) {
       return;
     }
     previousSignatureRef.current = contentSignature;
+    if (shouldVirtualize) {
+      if (wasAtEndRef.current) {
+        listHandleRef.current?.scrollToEnd();
+      }
+      return;
+    }
     const el = scrollRef.current;
     if (el === null || !isNearBottomRef.current) {
       return;
@@ -180,32 +229,37 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
           <Icon icon={Copy} size="sm" label="Copy log" />
         </Button>
       </div>
-      <div
-        ref={shouldVirtualize ? undefined : scrollRef}
-        role="log"
-        aria-live="polite"
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: WCAG 2.1.1 keyboard-scrollable overflow region — tabIndex=0 makes arrow/Page-key scrolling reachable without a mouse; not an accidental tab-stop.
-        tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- same justification as the biome-ignore above
-        onScroll={shouldVirtualize ? undefined : handleScroll}
-        className={slots.scroll()}
-        data-slot="log-viewer-scroll"
-      >
-        {shouldVirtualize ? (
-          <VirtualList
-            items={visible}
-            getItemKey={(_line, index): number => keyOffset + index}
-            estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
-            renderItem={(line): ReactElement => <LogLineRow line={line} slots={slots} />}
-            scrollToIndex={visible.length - 1}
-            className="h-full"
-          />
-        ) : (
-          visible.map((line, index) => (
+      {shouldVirtualize ? (
+        // The virtualized path IS a message-list — it owns the scroll container plus the same
+        // `role="log"`/`aria-live="polite"` stable wrapper (message-list cites this seal's
+        // precedent), so it is NOT wrapped in a second `role="log"` div. `scrollContainerRef`
+        // hands us the real scroll node to track tail-proximity for the ring-buffer follow above.
+        <MessageList
+          ref={listHandleRef}
+          items={visible}
+          getItemKey={(_line, index): number => keyOffset + index}
+          estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
+          renderItem={(line): ReactElement => <LogLineRow line={line} slots={slots} />}
+          scrollContainerRef={registerVirtualScrollNode}
+          className={slots.scroll()}
+        />
+      ) : (
+        <div
+          ref={scrollRef}
+          role="log"
+          aria-live="polite"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: WCAG 2.1.1 keyboard-scrollable overflow region — tabIndex=0 makes arrow/Page-key scrolling reachable without a mouse; not an accidental tab-stop.
+          tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- same justification as the biome-ignore above
+          onScroll={handleScroll}
+          className={slots.scroll()}
+          data-slot="log-viewer-scroll"
+        >
+          {visible.map((line, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: an append-only log tail (lines are never reordered/removed from the middle) — position is a stable identity.
             <LogLineRow key={index} line={line} slots={slots} />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

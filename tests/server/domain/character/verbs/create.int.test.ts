@@ -111,6 +111,21 @@ describe("create", () => {
     expect(bDetail.handle).toBe("shared");
   });
 
+  test("refuses a reserved `__group__*` handle (the synthetic namespace) — no row, no emit", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCharacterService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const squat = svc.create({
+      principal: principal(owner),
+      input: { handle: "__group__chat_1", name: "Squat", description: "x" },
+    });
+    await expect(squat).rejects.toBeInstanceOf(CharacterOperationError);
+    await expect(squat).rejects.toMatchObject({ code: "handle_reserved" });
+    expect(h.events).toHaveLength(0);
+  });
+
   test("a FOREIGN avatar asset throws AssetNotFoundError (D21 cross-root belt — no row, no emit)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

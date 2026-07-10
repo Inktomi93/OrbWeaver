@@ -54,10 +54,18 @@ interface CanonVariantInput {
   readonly cacheWriteTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
   readonly contextWindow?: number | null | undefined;
+  /** D26 provenance columns — the output cap the backend echoed + the requested reasoning effort (F10). */
+  readonly maxOutputTokens?: number | null | undefined;
+  readonly reasoningEffort?: string | null | undefined;
   /** The §8 fit-pass boundary (`TurnPipelineResult.contextBoundaryMessageId`) — the earliest message
    *  actually included in the assembled history this generation. Null ⇒ nothing was dropped / the
    *  fit-pass never ran. */
   readonly contextBoundaryMessageId?: MessageId | null | undefined;
+  /** The generation window bounds (epoch-ms) the engine stamps around the pipeline (D26 `gen_started_at`/
+   *  `gen_finished_at`). Persistence-only columns (NOT on the read `MessageView`) — the reconcile + the live
+   *  stats mirror both read `gf − gs` for gen-time/throughput; absent ⇒ null (a verbatim/greeting seed, F2). */
+  readonly genStartedAt?: number | null | undefined;
+  readonly genFinishedAt?: number | null | undefined;
   readonly ttftMs?: number | null | undefined;
   readonly finishReason?: string | null | undefined;
   readonly stopReason?: string | null | undefined;
@@ -145,6 +153,12 @@ function variantColumns(args: {
     messageId: args.messageId,
     idx: args.idx,
     ...variantEconomics(args.variant),
+    // D26 provenance columns (F10) — the per-variant cap in force + the requested reasoning effort.
+    maxOutputTokens: args.variant.maxOutputTokens ?? null,
+    reasoningEffort: args.variant.reasoningEffort ?? null,
+    // Persistence-only gen bounds (not on the read view) — the stats gen-time axis reads `gf − gs` (F2).
+    genStartedAt: args.variant.genStartedAt ?? null,
+    genFinishedAt: args.variant.genFinishedAt ?? null,
     params: args.variant.params ?? null,
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,
@@ -267,6 +281,10 @@ export function continueVariantStatements(
         .update(messageVariants)
         .set({
           ...variantEconomics(params.variant),
+          // A continue RE-generates, so the gen window is re-stamped to the continuation's (F2 — the mirror
+          // delta is `(new − old)` on the slot, both reading the persisted `gf − gs`).
+          genStartedAt: params.variant.genStartedAt ?? null,
+          genFinishedAt: params.variant.genFinishedAt ?? null,
           params: params.variant.params ?? null,
           promptSnapshot: params.variant.promptSnapshot ?? null,
           // A continue re-runs assembly (macros fire again) → its op-log REPLACES this variant's delta (the

@@ -49,7 +49,12 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
     // The un-credentialed owner path. `via:"fallback"` is the SAFE "this IS the owner" discriminator
     // (NEVER `externalId === null`); the seam mints the owner from it. NO role/userId is resolved here.
     return {
-      identity: { externalId: null, handle: castId<Handle>(config.defaultHandle), groups: [] },
+      identity: {
+        externalId: null,
+        handle: castId<Handle>(config.defaultHandle),
+        groups: [],
+        email: null,
+      },
       via: "fallback",
       hasCsrfHeader: csrf,
     };

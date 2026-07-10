@@ -79,6 +79,36 @@ describe("buddy persistence", () => {
     expect(turns.map((t) => t.content)).toEqual(["first", "second"]);
   });
 
+  test("equal-createdAt user/assistant pair keeps write order (the id tiebreak — frozen-clock vector)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { id: "user_o" });
+    await seedBuddy(db, owner);
+    // A frozen clock makes both turns land in the SAME millisecond — `createdAt` alone can't order them, so the
+    // `desc(id)` tiebreak is what preserves write order. To make this test actually DISCRIMINATE the tiebreak
+    // (not just agree with SQLite's rowid fallback), the physical INSERTION order is REVERSED vs the id order:
+    // the assistant row (larger id `buddy_turn_2`) is inserted FIRST, the user row (smaller id `buddy_turn_1`)
+    // SECOND. Without the id tiebreak, loadTurns would return insertion order → [assistant, user] (wrong);
+    // only the id tiebreak yields the correct [user, assistant]. (Verified: dropping `desc(id)` fails this.)
+    await appendTurn(db, {
+      id: castId("buddy_turn_2"),
+      userId: owner,
+      role: "assistant",
+      content: "reply",
+      createdAt: NOW,
+    });
+    await appendTurn(db, {
+      id: castId("buddy_turn_1"),
+      userId: owner,
+      role: "user",
+      content: "prompt",
+      createdAt: NOW,
+    });
+
+    const turns = await loadTurns(db, owner, 10);
+    expect(turns.map((t) => t.content)).toEqual(["prompt", "reply"]);
+    expect(turns.map((t) => t.role)).toEqual(["user", "assistant"]);
+  });
+
   test("clearTurns wipes only the caller's turns", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { id: "user_o" });

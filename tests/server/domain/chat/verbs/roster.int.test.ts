@@ -8,7 +8,7 @@ import type { ChatBusEvent, ParticipantView, RoomOverrides } from "@orb/contract
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats } from "@orb/db";
+import { characters, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -69,6 +69,19 @@ function principal(userId: UserId): Principal {
 
 const card = (name: string): CharacterCard =>
   ({ name, avatarAssetId: null }) as unknown as CharacterCard;
+
+/** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
+ *  only for its OWNER, `null` for a non-owner. The handoff cast-drop resolver (D64 / F4) calls this per seated
+ *  character to decide which seats the NEW host doesn't own (→ dropped); the harness default is a bare `null`. */
+function ownedCard(): (params: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+}) => Promise<CharacterCard | null> {
+  return async ({ ownerId, characterId }) => {
+    const [row] = await db.select().from(characters).where(eq(characters.id, characterId));
+    return row !== undefined && row.ownerId === ownerId ? card(row.name) : null;
+  };
+}
 
 describe("setGroupConfig — host-only metadata write", () => {
   test("the host writes a fully-defaulted GroupConfig + emits chatUpdated", async () => {
@@ -497,6 +510,79 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_turn_owner");
+  });
+
+  // D64 (F4/PD-21 ruling): host authority MOVES to a non-card-owner — the handoff SUCCEEDS, transferring the
+  // room + history but DROPPING the outgoing host's character seats (leaving the humans; the new owner adds
+  // their own). Driven at the verb layer with seeded non-owner principals (multi-human membership is unwired).
+  test("handoff to a non-owner SUCCEEDS: the outgoing host's characters are dropped, the owner's kept, humans remain", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    // Single-owner cast (D28): aria belongs to the OUTGOING host, bella to the NOMINEE. After the handoff the
+    // new host (member) resolves bella but NOT aria → aria's seat drops, bella's stays.
+    const aria = await seedCharacter(db, host, "aria");
+    const bella = await seedCharacter(db, member, "bella");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "ca", characterId: aria, role: "member" });
+    await seedParticipant(db, { chatId, key: "cb", characterId: bella, role: "member" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(
+      makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }),
+      { emit },
+    );
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+    emitted.length = 0;
+    notes.length = 0;
+
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const rows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.chatId, chatId));
+    // Host authority transferred; both humans remain present.
+    expect(rows.find((r) => r.userId === host)?.role).toBe("member");
+    expect(rows.find((r) => r.userId === host)?.leftSeq).toBeNull();
+    expect(rows.find((r) => r.userId === member)?.role).toBe("host");
+    expect(rows.find((r) => r.userId === member)?.leftSeq).toBeNull();
+    // The outgoing host's character seat is DROPPED (leftSeq stamped); the new host's is KEPT present.
+    expect(rows.find((r) => r.characterId === aria)?.leftSeq).not.toBeNull();
+    expect(rows.find((r) => r.characterId === bella)?.leftSeq).toBeNull();
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.pendingHostUserId).toBeNull();
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
+  test("a nominee who owns the WHOLE seated cast keeps every character seat on handoff", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    // The nominee owns the seated character → the new host resolves it, so no seat drops.
+    const characterId = await seedCharacter(db, member, "aria");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(
+      makeChatContext(db, { getCard: ownedCard(), emitNotification: recordingEmit(notes) }),
+      { emit },
+    );
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const rows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.chatId, chatId));
+    expect(rows.find((r) => r.userId === host)?.role).toBe("member");
+    expect(rows.find((r) => r.userId === member)?.role).toBe("host");
+    // The nominee-owned character seat is retained (present).
+    expect(rows.find((r) => r.characterId === characterId)?.leftSeq).toBeNull();
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.pendingHostUserId).toBeNull();
   });
 });
 

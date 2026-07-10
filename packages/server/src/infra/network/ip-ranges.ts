@@ -189,12 +189,16 @@ export function isInRanges(ip: string, ranges: readonly string[]): boolean {
 // plus IPv6 loopback / ULA / link-local. Docker's default bridges live in 172.16.0.0/12 (RFC1918) so
 // they're already covered. Callers EXTEND this via env (TRUSTED_PRIVATE_RANGES), never mutate it.
 export const DEFAULT_TRUSTED_RANGES: readonly string[] = [
+  "0.0.0.0/8", // RFC1122 "this host" — dest 0.0.0.0 routes to loopback on Linux (SSRF bypass otherwise)
   "127.0.0.0/8", // IPv4 loopback
   "10.0.0.0/8", // RFC1918
   "172.16.0.0/12", // RFC1918 (incl. Docker default bridges)
   "192.168.0.0/16", // RFC1918
   "100.64.0.0/10", // CGNAT — Tailscale
   "169.254.0.0/16", // IPv4 link-local
+  // IPv6 unspecified (::) + deprecated IPv4-compatible (::a.b.c.d) block. `::` routes to ::1 on Linux;
+  // the compat form embeds an arbitrary IPv4 (::169.254.169.254) some stacks translate — never legit egress.
+  "::/96",
   "::1/128", // IPv6 loopback
   "fc00::/7", // IPv6 unique-local (ULA)
   "fe80::/10", // IPv6 link-local

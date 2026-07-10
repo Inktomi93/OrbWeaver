@@ -23,6 +23,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssembleContext, ChatInjection } from "@orb/contracts/chat";
+import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { buildAssembleContext } from "../assembly/context";
 import type { ChatContext } from "../contract/context";
@@ -54,6 +55,7 @@ interface CanonRow {
   readonly role: MsgRow["role"];
   readonly characterId: CharacterId | null;
   readonly authorUserId: UserId | null;
+  readonly personaId: PersonaId | null;
   readonly content: string;
 }
 
@@ -159,6 +161,12 @@ export async function gatherAssembleContext(
      *  `randomPick` draw is deterministic + replayable; ABSENT (preview / opening) ⇒ stable resolution (no
      *  randomPick — the merged-read posture), so a preview never varies per poll. */
     readonly prng?: (() => number) | undefined;
+    /** The turn's ST `injection_trigger` gate (F1). Maps the driving `TurnKind` → `GenerationType` at the
+     *  verb (send/generate/force/auto/opening→"normal", swipe→"swipe", continue→"continue",
+     *  impersonate→"impersonate") so trigger-gated preset sections fire on the RIGHT turn kind. ABSENT (preview /
+     *  replace-template macro env) ⇒ "normal" (the merged-read posture — a section with no trigger always fires;
+     *  a `trigger:["normal"]` section renders in the preview). */
+    readonly generationType?: GenerationType | undefined;
   },
   foreign: ForeignInputs,
   out?: SendRegexSink,
@@ -195,6 +203,7 @@ export async function gatherAssembleContext(
       role: m.role,
       characterId: m.characterId,
       authorUserId: m.authorUserId,
+      personaId: m.personaId,
       content: m.content,
     }));
   const recentRows = eligible.slice(Math.max(0, eligible.length - foreign.scanDepth));
@@ -242,8 +251,12 @@ export async function gatherAssembleContext(
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
       model,
-      generationType: "normal",
+      generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),
+      // The seeded turn PRNG (D46) drives the SEND volatile-macro FREEZE ({{roll}}/{{random}}/{{pick}} in the
+      // composer text bake deterministically at commit — Chat-Macro-Resolution.md §0). Absent on preview/aux
+      // turns (no pending composer text to freeze there).
+      ...(args.prng !== undefined ? { prng: args.prng } : {}),
       ...(roomOverrides !== undefined ? { roomOverrides } : {}),
       // FLAG[timezone-per-request]: `{{time}}`/`{{date}}` render server-side into the prompt, but the time
       // zone is the CALLER's browser zone, supplied PER-REQUEST (client.md: epoch-UTC on the wire, the browser

@@ -139,7 +139,7 @@ export interface MessageContentProps {
   readonly rowCharacterId?: CharacterId | null | undefined;
   /** This row's own author persona (the message's `personaId`) — retargets `{{user}}`/`{{persona}}` to
    *  THIS persona (the SAME id the #21 attribution badge resolves); omit/null for rows with no known
-   *  author (falls back to `renderContext`'s `activePersonaName` default). Ignored when `renderContext`
+   *  author (falls back to `renderContext`'s anchor-persona `fallbackPersonaName` default). Ignored when `renderContext`
    *  is absent. */
   readonly rowPersonaId?: PersonaId | null | undefined;
   /** Layer 3 (merged-narrator §12.4) — NAME → the character's authored `themeOverride`, so each

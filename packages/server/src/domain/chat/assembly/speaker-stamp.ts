@@ -6,10 +6,13 @@
 // reports true when the canon carries >1 distinct authoring character, so a roster-of-one chat gets no
 // prefix and ships a transcript byte-identical to the pre-group path.
 //
-// The OTHER half of L10 — `sanitizeSpeakerLookalike` (neutralizing a member-authored leading `Name:` /
-// `<speaker>` on the RAW body so it can't FORGE the trusted prefix) — runs at `loadCanonHistory` (the
-// RECEIVE/load seam), NOT here: it operates on stored canon before SHAPE ever sees it. It lives in
-// `@orb/kit/speaker-label`; SHAPE consumes already-sanitized canon.
+// The trusted prefix stays un-forgeable WITHOUT a load-time sanitize: it is added at SHAPE (`names.ts`),
+// a step no stored body can reach, so a member's own leading `Name:`/`<speaker>` inside their content is
+// left as inline prose — it never becomes the trusted label. The write-side self-label strip that DOES
+// exist is `@orb/kit/speaker-label`'s `stripSelfSpeakerLabel`, called on the EDIT path (`verbs/edit.ts`)
+// to keep a re-saved row's canon pure; the per-speaker generate path is cleaned at RECEIVE by
+// `cleanPerSpeakerReply` (`engine/pipeline.ts`). There is no `loadCanonHistory` sanitize step (and no
+// `sanitizeSpeakerLookalike` function) — SHAPE consumes stored canon as-is.
 
 import type { CharacterId } from "@orb/kit/ids";
 

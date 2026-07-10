@@ -12,7 +12,7 @@
 // tags are personal labels (owner-equality is the whole permission model).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, TagId } from "@orb/kit/ids";
@@ -25,8 +25,10 @@ import type {
   DetachCardTagByNameParams,
   DetachTagParams,
   GetTagParams,
+  ListPendingSuggestionsParams,
   ListTagsParams,
   ListTagsWithUsageParams,
+  MergeTagsParams,
   PruneUnusedTagsParams,
   RemoveTagParams,
   SetTagOrderParams,
@@ -78,7 +80,24 @@ export interface TagService {
   readonly listTags: (params: ListTagsParams) => Promise<TagView[]>;
   readonly updateTag: (params: UpdateTagParams) => Promise<TagView>;
   readonly removeTag: (params: RemoveTagParams) => Promise<void>;
+  /**
+   * Fold `sourceTagId` INTO `targetTagId`: re-point every attachment across all five junctions to the
+   * target (deduping where the target already tags that entity — the STRONGEST character status survives,
+   * `accepted` over `pending`), then delete the source tag. ONE atomic libSQL batch. Owner-scoped (both
+   * tags must be the principal's — a foreign tag reads as `TagNotFoundError`); a self-merge (equal ids) is
+   * a `DomainOperationError`.
+   */
+  readonly mergeTags: (params: MergeTagsParams) => Promise<void>;
   readonly listTagsWithUsage: (params: ListTagsWithUsageParams) => Promise<TagWithUsage[]>;
+  /**
+   * Enumerate the owner's STAGED (`status:'pending'`) character-tag suggestions — the Accept/Reject review
+   * queue (PD-40 distill + import's card-tag carry). `characterId` narrows to one editor's suggestions; absent
+   * = the whole pending inbox. Each row is a {@link TagSuggestionView} (the tag + its `characterId`, so the UI
+   * renders the chip with name/colors). READ-ONLY: Accept = `attachTag(status:'accepted')`, Reject = `detachTag`.
+   */
+  readonly listPendingSuggestions: (
+    params: ListPendingSuggestionsParams,
+  ) => Promise<TagSuggestionView[]>;
   readonly pruneUnusedTags: (params: PruneUnusedTagsParams) => Promise<PruneUnusedResult>;
   readonly setTagOrder: (params: SetTagOrderParams) => Promise<void>;
   readonly attachTag: (params: AttachTagParams) => Promise<void>;

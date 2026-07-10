@@ -9,7 +9,7 @@
 // The dispatcher (`createProviderDiagnostics`) discriminates probe/accountCredits/generationCost/inspect by
 // `credential.source` (reusing `backendForSource`); `fetchOrCatalog` is OpenRouter-fixed (no credential).
 
-import type { ModelCatalogEntry } from "@orb/contracts/connection";
+import type { AgentSdkModel, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type {
   AccountCredits,
@@ -58,6 +58,13 @@ export interface FetchCatalogRequest {
   readonly signal?: AbortSignal | undefined;
 }
 
+/** `fetchAgentSdkModels(req)` — the live agent-sdk `supportedModels()` control-channel discovery. NO
+ *  credential: discovery is host-login-fixed (mode-1 firewall) and the daemon's model map is auth-agnostic;
+ *  connection owns the snapshot + TTL cache. Distinct from {@link FetchCatalogRequest} (the OR fetch). */
+export interface FetchAgentSdkModelsRequest {
+  readonly signal?: AbortSignal | undefined;
+}
+
 /**
  * The bound diagnostic surface — `createProviderDiagnostics(deps)` returns this. probe/accountCredits/
  * generationCost/inspect dispatch on `credential.source` (fail-closed via the dispatch helpers when the
@@ -71,4 +78,5 @@ export interface ProviderDiagnostics {
   readonly inspect: (req: InspectRequest) => Promise<EndpointInspection>;
   readonly verifyAuth: (req: VerifyAuthRequest) => Promise<VerifyAuthResult>;
   readonly fetchOrCatalog: (req: FetchCatalogRequest) => Promise<ModelCatalogEntry[]>;
+  readonly fetchAgentSdkModels: (req: FetchAgentSdkModelsRequest) => Promise<AgentSdkModel[]>;
 }

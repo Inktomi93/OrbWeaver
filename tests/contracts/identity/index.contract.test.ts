@@ -92,10 +92,18 @@ test("ResolvedIdentity is the pre-row shape and carries NO userId (invariant #3)
     externalId: SAMPLE_EXTERNAL_ID,
     handle: SAMPLE_HANDLE,
     groups: ["platform-owners"],
+    email: "owner@example.com",
   };
-  expect(Object.keys(resolved).sort()).toEqual(["externalId", "groups", "handle"].sort());
+  expect(Object.keys(resolved).sort()).toEqual(["email", "externalId", "groups", "handle"].sort());
   expect("userId" in resolved).toBe(false);
-  // The single-user / owner-fallback path resolves with a null externalId (keys on handle).
-  const singleUser: ResolvedIdentity = { externalId: null, handle: SAMPLE_HANDLE, groups: [] };
+  // `email` is a mutable attribute (nullable) — never an identity key.
+  expect("role" in resolved).toBe(false);
+  // The single-user / owner-fallback path resolves with a null externalId (keys on handle) + no email.
+  const singleUser: ResolvedIdentity = {
+    externalId: null,
+    handle: SAMPLE_HANDLE,
+    groups: [],
+    email: null,
+  };
   expect(singleUser.externalId).toBeNull();
 });

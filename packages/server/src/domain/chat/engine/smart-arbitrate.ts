@@ -96,9 +96,30 @@ function buildUserPrompt(recentHistory: string, names: readonly string[]): strin
   return `Recent conversation:\n${history}\n\nCharacters who may speak next: ${names.join(", ")}\n\nNext speaker:`;
 }
 
+// An ASCII word character (the reply + names are already lowercased). A name is a WHOLE word only when
+// neither boundary neighbour is one — so "Ari" does NOT match inside "Arianna", while name-internal
+// punctuation/spaces ("Dr. Vane") stay irrelevant to the boundary test. Top-level (per-call reuse).
+const WORD_CHAR = /[a-z0-9]/;
+function isWordChar(ch: string | undefined): boolean {
+  return ch !== undefined && WORD_CHAR.test(ch);
+}
+
+/** True when `needle` occurs in `haystack` bounded by non-word chars / string edges (whole-word). */
+function includesWholeWord(haystack: string, needle: string): boolean {
+  let from = haystack.indexOf(needle);
+  while (from !== -1) {
+    if (!(isWordChar(haystack[from - 1]) || isWordChar(haystack[from + needle.length]))) {
+      return true;
+    }
+    from = haystack.indexOf(needle, from + 1);
+  }
+  return false;
+}
+
 /** Roster-validating parse: return the eligible character whose name appears in the reply (whole-word,
- *  case-insensitive; longest name first so a substring name can't pre-empt a longer one). Null ⇒ no eligible
- *  name matched (→ the caller falls back). */
+ *  case-insensitive; longest name first so a substring name can't pre-empt a longer one). Whole-word so an
+ *  eligible name embedded in a longer word ("Ari" inside "Arianna") never false-positives (F9 — the header
+ *  claimed whole-word; the impl was a bare substring). Null ⇒ no eligible name matched (→ caller falls back). */
 function matchEligible(
   reply: string,
   eligible: readonly { ref: SpeakerRef; name: string }[],
@@ -106,7 +127,7 @@ function matchEligible(
   const haystack = reply.toLowerCase();
   const byLongest = [...eligible].sort((a, b) => b.name.length - a.name.length);
   for (const member of byLongest) {
-    if (haystack.includes(member.name.toLowerCase())) {
+    if (includesWholeWord(haystack, member.name.toLowerCase())) {
       return member.ref;
     }
   }

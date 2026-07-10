@@ -1,6 +1,4 @@
 // The DRAFT CONTEXT panel (J2/J3) — the shell's right-region body for an active DRAFT chat, the twin of
-import { useRef } from "react";
-import { useFocusOnMount } from "#lib";
 // `ChatContextPanel` for a chat that has no server row yet. A draft is fully editable pre-send, so its
 // config tabs write to the `draft-config` store (keyed by `draftKey`) instead of the server verbs; the
 // first send carries the whole config into `chat.startChat` (use-send-message.ts). Same editors, same
@@ -29,7 +27,9 @@ import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs"
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { QueryBoundary, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import type { DraftConfig } from "#state";
 import {
   setContextTab,
@@ -48,7 +48,7 @@ import { RosterPanel } from "../components/roster-panel";
 import { GROUP_CONFIG_ENTITY_PREFIX } from "../hooks/use-group-config-form";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import { fromInjectionForm } from "../hooks/use-injection-row-form";
-import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../hooks/use-room-overrides-form";
+import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
 
 const EMPTY_ROOM_OVERRIDES: RoomOverrides = {};
 const NO_INJECTIONS: readonly ChatInjectionInput[] = [];
@@ -171,28 +171,47 @@ interface DraftInjectionsTabProps {
 }
 
 /** The draft Injections tab body — the local `draftConfig.injections` array projected into the pure
- *  `InjectionsList` (rows keyed by array INDEX — a draft injection has no server id yet), writing back via
- *  `setDraftInjections` (add = append, save = replace-at-index, delete = filter-out). No server round-trip;
- *  the first send carries the whole array into `chat.startChat`. */
+ *  `InjectionsList`, writing back via `setDraftInjections` (add = append, save = replace-in-place, delete =
+ *  filter-out). No server round-trip; the first send carries the whole array into `chat.startChat`.
+ *
+ *  ROW IDENTITY: a draft injection has no server id, so each row is keyed by a STABLE client-side key held
+ *  in a WeakMap over the injection OBJECT (the store preserves the untouched items' object identity across
+ *  add/save/delete). Keying by array INDEX instead would, on a delete, shift a survivor onto the deleted
+ *  row's autosave form instance (the row's `entityId` = its key) and hand it a stale un-flushed draft. */
 function DraftInjectionsTab({ draftKey, injections }: DraftInjectionsTabProps): ReactElement {
   const current = injections ?? NO_INJECTIONS;
-  const rows = current.map((value, index) => ({ key: String(index), value }));
+  const keysRef = useRef(new WeakMap<ChatInjectionInput, string>());
+  const seqRef = useRef(0);
+  const keyFor = (injection: ChatInjectionInput): string => {
+    const existing = keysRef.current.get(injection);
+    if (existing !== undefined) {
+      return existing;
+    }
+    seqRef.current += 1;
+    const key = `draft-injection-${seqRef.current}`;
+    keysRef.current.set(injection, key);
+    return key;
+  };
+  // keyFor lazily stamps the WeakMap during render — safe under double-render: existing objects return
+  // their assigned key (idempotent), and a new object at worst takes a higher-but-still-unique seq.
+  // eslint-disable-next-line react-hooks/refs -- intentional WeakMap-over-object-identity keying (see the ROW IDENTITY note).
+  const rows = current.map((value) => ({ key: keyFor(value), value }));
 
   return (
     <InjectionsList
       rows={rows}
       isHost={true}
-      onAdd={(): void => setDraftInjections(draftKey, [...current, NEW_DRAFT_INJECTION])}
+      // A FRESH object per add (spread) so two added rows never share one WeakMap key.
+      onAdd={(): void => setDraftInjections(draftKey, [...current, { ...NEW_DRAFT_INJECTION }])}
       onSave={(key, values: InjectionFormValues): Promise<unknown> => {
-        const index = Number(key);
-        const next = current.map((inj, i) => (i === index ? fromInjectionForm(values) : inj));
+        const next = current.map((inj) => (keyFor(inj) === key ? fromInjectionForm(values) : inj));
         setDraftInjections(draftKey, next);
         return Promise.resolve();
       }}
       onDelete={(key): void =>
         setDraftInjections(
           draftKey,
-          current.filter((_, i) => i !== Number(key)),
+          current.filter((inj) => keyFor(inj) !== key),
         )
       }
     />

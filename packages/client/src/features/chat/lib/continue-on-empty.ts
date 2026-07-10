@@ -4,12 +4,10 @@
 // continue). Pure + DOM-free (Spine-Testing.md §7 — extract logic like this to a function over
 // reaching for a browser), so it gets a `.test.ts`, not a CT.
 //
-// MISSING-API (flagged, same posture as `swipe-strip.tsx`'s `selectVariant` gap): the domain verb this
-// would fire (`ChatService.continueTurn`, `domain/chat/verbs/turn.ts createContinueTurn`) exists but is
-// NOT exposed on the tRPC chat router (swept via `sg`/grep — only startChat/listChats/getChat/
-// listMessages/send/swipe/generateImage/abort/streamMessages are wired). This predicate is real,
-// tested groundwork; the composer keeps Send disabled on an empty draft until `chat.continueTurn`
-// lands on the transport and a future task wires the actual call.
+// UNWIRED (deliberate, Wave A — NOT a missing API): `chat.continueTurn` IS on the tRPC chat router
+// (`routers/chat.ts`, the #27 exposure; `hooks/use-guided-actions.ts` already calls it), so the transport
+// gap is closed. This predicate is real, tested groundwork; continue-on-empty stays unwired pending the
+// Wave-A composer polish that acts on it (FINAL-Chats §6.4), not blocked on a missing verb.
 
 import type { MessageRole } from "@orb/kit/message-role";
 

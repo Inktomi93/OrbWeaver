@@ -11,7 +11,8 @@
 // `now`/`query`/`sessionStore` deps below.
 
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
-import type { ChatDeltaEvent, ChatEvent } from "../../contract";
+import type { ChatDeltaEvent, ChatEvent, ContextUsage } from "../../contract";
+import type { SeededSessionDecision } from "./session";
 
 /** The subset of SDK `Options` the firewall base (`disciplineOptions`) pins. Typed so a stray field
  *  can't silently widen the leak surface; spread into the full `query` options at the call site. */
@@ -59,6 +60,9 @@ export interface AgentSdkDeps {
 export interface TurnStreamContext {
   readonly model: string;
   readonly resumed: boolean;
+  /** Which branch the resume decision took (from `SessionCache.ensureSeededSession`, or `resumed`/`fresh`
+   *  for the seedless bare-resume path) — logged on the `provider.turn` / `provider.session` line. */
+  readonly disposition?: SeededSessionDecision["disposition"] | undefined;
   /** Injected epoch-ms clock (determinism). */
   readonly now: () => number;
   /** Tagged on each emitted `ChatDeltaEvent` so concurrent chats are filterable. */
@@ -73,4 +77,13 @@ export interface TurnStreamContext {
   readonly configuredMaxOutputTokens?: number | null | undefined;
   /** The configured soft context cap (CLAUDE_CODE_MAX_CONTEXT_TOKENS) — same provenance rationale. */
   readonly configuredMaxContextTokens?: number | null | undefined;
+  /** Best-effort "how full is the context window" probe, run by the reducer AFTER the stream drains but
+   *  while the live SDK `Query` is still open (only `runChatTurn` can supply it — a hand-built stream has
+   *  no control channel). Its own failure/timeout is swallowed (resolves `undefined`); the reducer never
+   *  awaits it unbounded (the runner bounds it). ABSENT ⇒ no probe (agent-mode / tests / stateless). */
+  readonly probeContextUsage?: (() => Promise<ContextUsage | undefined>) | undefined;
+  /** The bounded CLI-stderr tail for this turn — read ONLY on a spawn-death error (kind server/unknown) to
+   *  attach `stderrTail` to the `provider.error` line; never read on success. Undefined in tests that drive
+   *  the reducer directly (no live spawn → no stderr). */
+  readonly stderrTail?: (() => string) | undefined;
 }

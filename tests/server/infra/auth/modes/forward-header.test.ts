@@ -35,8 +35,13 @@ function fakeVerifier(result: ForwardJwtClaims | null): ForwardJwtVerifier {
 
 const headers = (init: Record<string, string>): Headers => new Headers(init);
 const SIGNED = { "x-authentik-jwt": "aaa.bbb.ccc", "x-authentik-meta-jwks": "{}" };
+// The unsigned path is FAIL-CLOSED unless a trusted-proxy source range is declared; the parsing tests run
+// with an in-range TCP PEER (10/8) so they exercise the accepted (non-rejected) path. The trust subject is
+// the SOCKET PEER (`deps.peerIp`) — an attacker-controlled X-Forwarded-For/X-Real-IP can NEVER grant it.
+const TRUSTED = { forwardTrustedProxies: ["10.0.0.0/8"] };
+const PEER_TRUSTED: ResolveDeps = { peerIp: "10.1.2.3" };
 
-describe("forward-header — unsigned network-trust", () => {
+describe("forward-header — unsigned network-trust (through a declared trusted proxy)", () => {
   test("authentik family: username + uid + pipe-joined groups", async () => {
     const res = await resolveForwardHeader(
       headers({
@@ -44,52 +49,133 @@ describe("forward-header — unsigned network-trust", () => {
         "x-authentik-uid": "sub-alice",
         "x-authentik-groups": "staff|admins",
       }),
-      cfg(),
-      {},
+      cfg(TRUSTED),
+      PEER_TRUSTED,
     );
-    expect(res).toEqual({ externalId: "sub-alice", handle: "alice", groups: ["staff", "admins"] });
+    expect(res).toEqual({
+      externalId: "sub-alice",
+      handle: "alice",
+      groups: ["staff", "admins"],
+      // authentik family reads x-authentik-email when present (none here → null).
+      email: null,
+    });
+  });
+
+  test("authentik family reads x-authentik-email into the mutable email attribute", async () => {
+    const res = await resolveForwardHeader(
+      headers({ "x-authentik-username": "alice", "x-authentik-email": "alice@example.com" }),
+      cfg(TRUSTED),
+      PEER_TRUSTED,
+    );
+    expect(res?.email).toBe("alice@example.com");
   });
 
   test("authelia family: remote-user (no stable uid → externalId null) + comma groups", async () => {
     const res = await resolveForwardHeader(
       headers({ "remote-user": "bob", "remote-groups": "x,y" }),
-      cfg(),
-      {},
+      cfg(TRUSTED),
+      PEER_TRUSTED,
     );
-    expect(res).toEqual({ externalId: null, handle: "bob", groups: ["x", "y"] });
+    expect(res).toEqual({ externalId: null, handle: "bob", groups: ["x", "y"], email: null });
   });
 
-  test("a custom-named proxy header is honored", async () => {
+  test("generic X-Forwarded-User (oauth2-proxy/Traefik/nginx) is first-class in the fallback", async () => {
     const res = await resolveForwardHeader(
-      headers({ "x-user": "carol", "x-uid": "sub-carol" }),
-      cfg({ forwardUserHeader: "x-user", forwardUidHeader: "x-uid" }),
-      {},
+      headers({ "x-forwarded-user": "dave", "x-forwarded-groups": "eng,ops" }),
+      cfg(TRUSTED),
+      PEER_TRUSTED,
     );
-    expect(res).toEqual({ externalId: "sub-carol", handle: "carol", groups: [] });
+    expect(res).toEqual({ externalId: null, handle: "dave", groups: ["eng", "ops"], email: null });
+  });
+
+  test("a custom-named proxy header is honored (incl. the configured email header)", async () => {
+    const res = await resolveForwardHeader(
+      headers({ "x-user": "carol", "x-uid": "sub-carol", "x-email": "carol@example.com" }),
+      cfg({
+        ...TRUSTED,
+        forwardUserHeader: "x-user",
+        forwardUidHeader: "x-uid",
+        forwardEmailHeader: "x-email",
+      }),
+      PEER_TRUSTED,
+    );
+    expect(res).toEqual({
+      externalId: "sub-carol",
+      handle: "carol",
+      groups: [],
+      email: "carol@example.com",
+    });
   });
 
   test("no known user header → null", async () => {
-    expect(await resolveForwardHeader(headers({ "x-other": "z" }), cfg(), {})).toBeNull();
+    expect(
+      await resolveForwardHeader(headers({ "x-other": "z" }), cfg(TRUSTED), PEER_TRUSTED),
+    ).toBeNull();
   });
 });
 
-describe("forward-header — opt-in source-IP gate", () => {
-  test("an out-of-range client IP is rejected → null", async () => {
+describe("forward-header — unsigned path is FAIL-CLOSED by default (B1)", () => {
+  test("EMPTY FORWARD_AUTH_TRUSTED_PROXIES → a spoofed Remote-User: owner is REJECTED", async () => {
+    // The exact attack: any client that reaches the app socket sends a raw trusted header. With no signed
+    // JWT and no declared trusted source, this MUST NOT become the owner — even from a trusted-looking peer.
     const res = await resolveForwardHeader(
-      headers({ "x-authentik-username": "alice", "x-forwarded-for": "1.2.3.4" }),
-      cfg({ forwardTrustedProxies: ["10.0.0.0/8"] }),
+      headers({ "remote-user": "owner", "remote-groups": "owners" }),
+      cfg(),
+      PEER_TRUSTED,
+    );
+    expect(res).toBeNull();
+  });
+
+  test("EMPTY allowlist rejects even a loopback peer (no default trust)", async () => {
+    const res = await resolveForwardHeader(headers({ "x-authentik-username": "owner" }), cfg(), {
+      peerIp: "127.0.0.1",
+    });
+    expect(res).toBeNull();
+  });
+});
+
+describe("forward-header — PEER-IP gate (once the allowlist is set)", () => {
+  test("an out-of-range PEER IP is rejected → null", async () => {
+    const res = await resolveForwardHeader(
+      headers({ "x-authentik-username": "alice" }),
+      cfg(TRUSTED),
+      { peerIp: "1.2.3.4" },
+    );
+    expect(res).toBeNull();
+  });
+
+  test("a MISSING PEER IP is rejected → null (unverifiable source)", async () => {
+    const res = await resolveForwardHeader(
+      headers({ "x-authentik-username": "alice" }),
+      cfg(TRUSTED),
       {},
     );
     expect(res).toBeNull();
   });
 
-  test("an in-range client IP passes → identity", async () => {
+  test("an in-range PEER IP passes → identity", async () => {
     const res = await resolveForwardHeader(
-      headers({ "x-authentik-username": "alice", "x-forwarded-for": "10.1.2.3" }),
-      cfg({ forwardTrustedProxies: ["10.0.0.0/8"] }),
-      {},
+      headers({ "x-authentik-username": "alice" }),
+      cfg(TRUSTED),
+      PEER_TRUSTED,
     );
     expect(res?.handle).toBe("alice");
+  });
+
+  test("B1 anti-spoof: a forged X-Forwarded-For/X-Real-IP claiming a trusted IP from an UNTRUSTED peer is REJECTED", async () => {
+    // The exact spoof PART 1 fixes: a direct-socket attacker (peer 203.0.113.9, off-allowlist) forges an
+    // XFF/X-Real-IP that names an in-range 10/8 hop AND a Remote-User: owner. The pre-fix code trusted the
+    // leftmost XFF and would mint owner; the PEER-IP gate rejects because the SOCKET peer is off-allowlist.
+    const res = await resolveForwardHeader(
+      headers({
+        "x-authentik-username": "owner",
+        "x-forwarded-for": "10.1.2.3",
+        "x-real-ip": "10.0.0.1",
+      }),
+      cfg(TRUSTED),
+      { peerIp: "203.0.113.9" },
+    );
+    expect(res).toBeNull();
   });
 });
 
@@ -102,7 +188,7 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers({ "x-authentik-jwt": "aaa.bbb.ccc", "x-authentik-username": "spoofed" }),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: "x", externalId: null, groups: [] }),
+      verifyDeps({ handle: "x", externalId: null, groups: [], email: null }),
     );
     expect(res).toBeNull();
   });
@@ -111,7 +197,7 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: [] }),
-      verifyDeps({ handle: "x", externalId: null, groups: [] }),
+      verifyDeps({ handle: "x", externalId: null, groups: [], email: null }),
     );
     expect(res).toBeNull();
   });
@@ -138,7 +224,7 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: undefined, externalId: "sub", groups: [] }),
+      verifyDeps({ handle: undefined, externalId: "sub", groups: [], email: null }),
     );
     expect(res).toBeNull();
   });
@@ -147,8 +233,13 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: "alice", externalId: "sub-a", groups: ["g"] }),
+      verifyDeps({ handle: "alice", externalId: "sub-a", groups: ["g"], email: "a@example.com" }),
     );
-    expect(res).toEqual({ externalId: "sub-a", handle: "alice", groups: ["g"] });
+    expect(res).toEqual({
+      externalId: "sub-a",
+      handle: "alice",
+      groups: ["g"],
+      email: "a@example.com",
+    });
   });
 });

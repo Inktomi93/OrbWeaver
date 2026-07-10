@@ -56,16 +56,42 @@ import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
+import { getLog } from "#foundation/observability";
 import type { ApplyRegexReplaceOp, ChatContext } from "../contract/context";
 import type { ResolvedPersonas } from "../contract/foreign";
 import type { GuidedSteer } from "../contract/params";
 import { renderInjection } from "./injections";
-import { buildTurnMacroContext, renderMacros, resolveGuidedActionText } from "./macros";
+import {
+  buildTurnMacroContext,
+  freezeVolatileMacros,
+  renderMacros,
+  resolveGuidedActionText,
+} from "./macros";
 import { loadWorldInfoPool } from "./world-info/pool";
 
 interface MatchedKey {
   key: string;
   matchedLatestUserMessage: boolean;
+}
+
+/** F9: route the D53 regex watchdog's deliberate throw (a ReDoS timeout / a bad host regex) to the operator
+ *  log — the kit executor's `onScriptFailure?.()` is a no-op without a sink, silently eating the guard's
+ *  observability (fail-open by design: the pass proceeds on the text as-is). Shared by the WORLD_INFO +
+ *  USER_INPUT host-tier passes. */
+function onHostRegexFailure(
+  placement: "WORLD_INFO" | "USER_INPUT",
+): (err: unknown, script: RegexScriptInput) => void {
+  return (err, script) =>
+    getLog().warn(
+      { err, placement, findRegex: script.findRegex },
+      "chat: host-tier regex script failed (D53 watchdog)",
+    );
+}
+
+/** F9: the macro engine's depth-cap / 1MB-output trip is fail-open (the output stays bounded) but must be
+ *  OBSERVABLE — route it to the operator log (never supplied on the live assemble path). */
+function onMacroWarn(msg: string, err?: unknown): void {
+  getLog().warn({ err, macroWarn: msg }, "chat: macro budget/eval trip (D53)");
 }
 
 // ── ONE injection list + ONE budget pass ──────────────────────────────────────────────────
@@ -132,7 +158,10 @@ function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext): 
   if (!wiFormat.includes("{{entry}}")) {
     return content;
   }
-  return renderMacros(wiFormat, ctx, ctx.activePersona).replaceAll("{{entry}}", content);
+  // FUNCTION-replacement form (F3): the string form of `replaceAll` treats `$$`/`$&`/`$1` in `content` as
+  // replacement patterns — so lore with currency (`charges $$50`) or `$&` is silently corrupted. A function
+  // replacer inserts `content` verbatim (default wiFormat `{{entry}}` puts EVERY entry through here).
+  return renderMacros(wiFormat, ctx, ctx.activePersona).replaceAll("{{entry}}", () => content);
 }
 
 interface WiConversionArgs {
@@ -233,7 +262,14 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
     placement: "WORLD_INFO",
     ctx: env.regexCtx,
     applyReplace: env.args.applyReplace,
+    onScriptFailure: onHostRegexFailure("WORLD_INFO"),
   });
+  // F2-sibling: an entry whose content renders empty contributes nothing — with the DEFAULT wiFormat
+  // (identity `{{entry}}`) it already collapses to "", but a CUSTOM wiFormat (`[World info:\n{{entry}}]`)
+  // would wrap the emptiness into a dangling scaffold. Guard here so no empty entry ever reaches the prompt.
+  if (afterRegex.trim().length === 0) {
+    return null;
+  }
   return wiCandidate(entry, wrapWiFormat(afterRegex, env.args.wiFormat, env.ctx), env.args);
 }
 
@@ -329,6 +365,11 @@ interface BuildAssembleContextInput {
    *  (turn request → here) lands with the client; FLAG[timezone-per-request] in assemble-gather. */
   readonly timezone?: string | undefined;
   readonly nowMs?: number | undefined;
+  /** The SEEDED turn PRNG (D46 — never ambient `Math.random`). Drives the SEND volatile-macro FREEZE
+   *  (`{{roll}}`/`{{random}}`/`{{pick}}`) so a committed row's baked value is deterministic + replayable. Absent
+   *  (preview / aux turn without a composer send) ⇒ the freeze pass has no PRNG (only pending-text sends
+   *  freeze). */
+  readonly prng?: (() => number) | undefined;
   /** The routing-resolved model id (for `{{model}}` inside WORLD_INFO regex replacements). */
   readonly model: string;
   /** The per-turn injection token budget (0 ⇒ unbudgeted). */
@@ -469,6 +510,13 @@ function resolveGuidedSteer(
     chatId: input.chatId,
     person: steer.person,
   });
+  // F2: a scaffold-only action on a blank steer resolves to "" (resolveGuidedActionText) — inject NOTHING
+  // rather than a dangling scaffold. Neither arm fires: don't touch `base.guidedInstruction` (the marker's
+  // own empty-check would drop it, but leaving the pre-resolved `input.guidedInstruction` intact is correct),
+  // and emit no depth-0 injection. Any genuinely-empty resolution is treated the same (no empty candidate).
+  if (resolved.trim().length === 0) {
+    return { candidates: [] };
+  }
   const placement =
     steer.placement ??
     (config.role === "system"
@@ -757,31 +805,42 @@ export async function buildAssembleContext(
 
   const base = buildBaseContext(character, cast, castMembers, input);
 
-  // ── SEND — USER_INPUT regex on the pending user text (macro → set {{input}} → USER_INPUT regex
-  //    → fold the POST-regex text into the WI haystack + {{input}}). Between RESOLVE/base and GATHER so the
-  //    haystack AND the persisted row (surfaced via `out`) are BOTH post-regex — no divergence (§3 rule 4 / §7).
-  //    The replace-template macro ctx is author-side (macros-before-regex); the watchdog guards the regex (D53). ──
+  // ── SEND — freeze the composer text's VOLATILE macros, THEN run USER_INPUT regex (macro → set {{input}}
+  //    → USER_INPUT regex → fold the POST-regex text into the WI haystack + {{input}}). Between RESOLVE/base
+  //    and GATHER so the haystack AND the persisted row (surfaced via `out`) are BOTH the same post-transform
+  //    text — no divergence (§3 rule 4 / §7). Macros-before-regex (§3 rule 1): the FREEZE resolves the turn's
+  //    nondeterministic macros ONCE (Chat-Macro-Resolution.md §0 — commit-time freeze) so the host regex sees
+  //    (and canon stores) the baked {{roll}}/{{time}} VALUE, while IDENTITY macros stay raw/per-view; then the
+  //    replace-template macro ctx is author-side and the watchdog guards the regex (D53). ──
   const hostScripts: readonly RegexScript[] = input.hostTierRegexScripts ?? [];
   let pendingText = input.pendingUserText;
-  if (input.pendingUserText !== undefined && hostScripts.length > 0) {
-    const sendMacroCtx = buildTurnMacroContext({
-      assembleCtx: base,
-      model: input.model,
-      chatId: input.chatId,
-      input: input.pendingUserText,
-    });
-    const sendUserText = executeRegexScripts({
-      text: input.pendingUserText,
-      scripts: hostScripts,
-      placement: "USER_INPUT",
-      ctx: sendMacroCtx,
-      applyReplace: ctx.applyRegexReplace,
-    });
-    pendingText = sendUserText;
-    // §2: the post-regex text feeds {{input}} for the rest of ASSEMBLE (and the verb persists it via `out`).
-    base.currentInput = sendUserText;
+  if (input.pendingUserText !== undefined) {
+    // FREEZE: bake nondeterministic macros against the pinned clock (base.nowMs/timezone) + seeded PRNG;
+    // identity/name macros pass through raw. A no-`{{` composer string is byte-identical passthrough.
+    let frozen = freezeVolatileMacros(input.pendingUserText, base, { random: input.prng });
+    if (hostScripts.length > 0) {
+      const sendMacroCtx = buildTurnMacroContext({
+        assembleCtx: base,
+        model: input.model,
+        chatId: input.chatId,
+        input: frozen,
+        onWarn: onMacroWarn,
+      });
+      frozen = executeRegexScripts({
+        text: frozen,
+        scripts: hostScripts,
+        placement: "USER_INPUT",
+        ctx: sendMacroCtx,
+        applyReplace: ctx.applyRegexReplace,
+        onScriptFailure: onHostRegexFailure("USER_INPUT"),
+      });
+    }
+    pendingText = frozen;
+    // §2: the frozen (+ post-regex) text feeds {{input}} for the rest of ASSEMBLE AND is the row the verb
+    // persists (via `out`) — canon stores the frozen value, so a re-render is byte-stable (D46/§0).
+    base.currentInput = frozen;
     if (out !== undefined) {
-      out.sendUserText = sendUserText;
+      out.sendUserText = frozen;
     }
   }
 

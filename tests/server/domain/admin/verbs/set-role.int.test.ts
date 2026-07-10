@@ -4,7 +4,12 @@
 // admin succeeds (no last-admin guard — the owner is always admin-capable). Every success audits.
 
 import { users } from "@orb/db";
-import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import {
+  DomainConflictError,
+  DomainForbiddenError,
+  DomainNotFoundError,
+  DomainOperationError,
+} from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
@@ -41,14 +46,36 @@ describe("setRole", () => {
     ).rejects.toThrow(DomainForbiddenError);
   });
 
-  test("granting the owner role is refused (cannot_grant_owner)", async () => {
+  test("promoting a SECOND user to owner is refused with a typed CONFLICT (D40 single-owner), never a raw DB throw", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    // The pre-check fires BEFORE the write, so the `users_single_owner_unique` partial index is never hit
+    // — a friendly `DomainConflictError`, not the raw unique-violation.
     await expect(
       svc.setRole({ principal: principal(owner, "owner"), userId: target, role: "owner" }),
-    ).rejects.toMatchObject({ code: "cannot_grant_owner" });
+    ).rejects.toThrow(DomainConflictError);
+    // The target is untouched — still a plain user.
+    const row = (await db.select().from(users).where(eq(users.id, target)))[0];
+    expect(row?.role).toBe("user");
+  });
+
+  test("setting the EXISTING owner's role to owner is an idempotent no-op success", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createAdminService(h.ctx);
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    const result = await svc.setRole({
+      principal: principal(owner, "owner"),
+      userId: owner,
+      role: "owner",
+    });
+    expect(result.role).toBe("owner");
+    // No write, no audit — the owner row is unchanged.
+    expect(h.audits).toHaveLength(0);
+    const row = (await db.select().from(users).where(eq(users.id, owner)))[0];
+    expect(row?.role).toBe("owner");
   });
 
   test("the owner can't be demoted, and the owner row is unchanged", async () => {

@@ -32,7 +32,16 @@ export type {
   SummarizeResultItem,
 } from "@orb/contracts/providers";
 // ── Infra-internal: the agent role ───────────────────────────────────────────────────────────────
-export type { AgentToolServer, AgentTurnRequest } from "./agent";
+export type {
+  AgentDialogKind,
+  AgentMcpHttpServer,
+  AgentMcpServerSpec,
+  AgentMcpSseServer,
+  AgentMcpStdioServer,
+  AgentToolServer,
+  AgentTurnRequest,
+} from "./agent";
+export { AGENT_DIALOG_KINDS } from "./agent";
 export type {
   BackendKey,
   BackendRegistry,
@@ -45,25 +54,35 @@ export type {
 // ── Infra-internal: the sealed-backend contract + dispatch surface ───────────────────────────────
 export { BACKEND_KEYS, PROVIDER_ROLES } from "./backend";
 export type {
+  AgentMcpServerHealth,
   AgentSdkChatRequest,
+  AgentSeedTurn,
   ChatHistoryMessage,
   ChatRequest,
   ChatResult,
   ChatUsage,
+  ContextUsage,
   CostDetails,
   HistoryRole,
   NormalizedFinishReason,
   OpenRouterChatRequest,
+  OrSkinTierModels,
   ResponseFormat,
   ToolCallInput,
   ToolChoice,
   WireTool,
 } from "./chat";
 // ── Infra-internal: the chat role (request/result/usage/finish vocab + the D48 wire-role axis) ───
-export { HISTORY_ROLES, NORMALIZED_FINISH_REASONS, normalizeFinishReason } from "./chat";
+export {
+  AGENT_PROMPT_TAIL_JOINER,
+  HISTORY_ROLES,
+  NORMALIZED_FINISH_REASONS,
+  normalizeFinishReason,
+} from "./chat";
 // ── Infra-internal: the diagnostic request shapes + the bound diagnostic surface ─────────────────
 export type {
   AccountCreditsRequest,
+  FetchAgentSdkModelsRequest,
   FetchCatalogRequest,
   GenerationCostRequest,
   InspectRequest,

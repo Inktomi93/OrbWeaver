@@ -27,6 +27,7 @@ import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
+import type { MemoryConfig } from "./memory";
 import type { ChatDetail, ChatVariables } from "./views";
 
 // The public lifecycle-intent axis (5; bus events) + the abort-reason axis stay their ONE home in
@@ -138,6 +139,10 @@ export interface TurnMessage {
  */
 export interface TurnRequest {
   readonly connection: ResolvedConnection;
+  /** The chat this turn belongs to — the stateful agent-sdk backend keys its backend-internal resume
+   *  cache by it (providers `ChatRequestCommon.chatId`). NOT session vocab: just the chat's identity;
+   *  the request still carries no `sessionStore`/`resume`/`runner`/`family`. */
+  readonly chatId: ChatId;
   /** The static (cache-stable) system prefix + the per-turn dynamic suffix — the BUILD product. */
   readonly prompt: AssembledPrompt;
   /** The SHAPE-shaped history (egocentric-scoped, spliced, squashed, name-stamped). */
@@ -194,6 +199,12 @@ export interface TurnEconomics {
   readonly cacheWriteTokens?: number | null;
   readonly costUsd?: number | null;
   readonly contextWindow?: number | null;
+  /** The per-variant output cap in force (D26 `max_output_tokens`) — the ceiling the backend echoed for this
+   *  generation. Absent ⇒ null (an uncapped/unreporting path). */
+  readonly maxOutputTokens?: number | null;
+  /** The reasoning-effort provenance (D26 `reasoning_effort`) — the effort level requested for this
+   *  generation (`UserIntent.effort`). Absent ⇒ null (thinking off / not requested). */
+  readonly reasoningEffort?: string | null;
   readonly ttftMs?: number | null;
   readonly finishReason?: string | null;
   readonly stopReason?: string | null;
@@ -228,6 +239,13 @@ export interface TurnPrep {
   /** The recorded generation params (sampling/effort/budget) for this turn — built into the `TurnRequest`,
    *  recorded on the committed `message_variants.params` (D26), and read for the §8 fit reserve. */
   readonly intent: UserIntent;
+  /** The resolved host memory config (the SAME resolution recall reads — `ForeignInputs.memoryConfig`:
+   *  `AppSettings.memoryDefaults` ⊕ the host `memory.enabled` D36 opt-out → `mode:"off"`). Threaded to the
+   *  engine's post-turn build so a host who disabled memory does NOT pay the summarizer/embed every turn (D36
+   *  honored on the BUILD side, matching recall). ABSENT ⇒ the build's baked defaults (`resolveCfg` — `mixC`
+   *  on); `mode:"off"` ⇒ the engine skips the whole §3a build. Set at the TurnPrep construction sites
+   *  (`verbs/turn.ts` base + aux, `verbs/start-chat.ts` opening) off the one resolved source. */
+  readonly memoryConfig?: MemoryConfig | null | undefined;
   /** The roster character this single turn voices (per-speaker / narrator group-character id); null for a
    *  non-character turn. The arbitration chunk resolves WHO speaks; the engine takes the resolved speaker. */
   readonly speakerCharacterId: CharacterId | null;

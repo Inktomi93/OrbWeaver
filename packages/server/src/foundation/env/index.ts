@@ -140,10 +140,18 @@ const envSchema = z
 
     // ── forward-header configurability (the authentik signed-JWT path is unchanged; these tune the
     //    UNSIGNED trusted-header path) ──
+    // REQUIRED to enable the UNSIGNED trusted-header path (comma CIDR list of the trusted proxy/client
+    // source range). UNSET ⇒ the unsigned path is FAIL-CLOSED: raw identity headers (Remote-User,
+    // X-Forwarded-User, …) are REJECTED so a client that reaches the app socket can't forge `owner`. The
+    // signed-JWT authentik path is unaffected (it carries its own cryptographic proof).
     FORWARD_AUTH_TRUSTED_PROXIES: z.string().optional(),
     FORWARD_AUTH_USER_HEADER: z.string().min(1).optional(),
     FORWARD_AUTH_GROUPS_HEADER: z.string().min(1).optional(),
     FORWARD_AUTH_UID_HEADER: z.string().min(1).optional(),
+    // Optional email header for the forward-header path (mutable attribute onto `users.email`). Unset ⇒ no
+    // email from the custom-header family (the authentik/authelia/generic families read their known email
+    // header — x-authentik-email / remote-email / x-forwarded-email — when present).
+    FORWARD_AUTH_EMAIL_HEADER: z.string().min(1).optional(),
 
     // ── IP allowlist edge belt (orthogonal to AUTH_MODE; off by default) ──
     // Comma CIDR list; a request from outside it (and outside loopback, always allowed) gets a 403 before
@@ -168,6 +176,16 @@ const envSchema = z
     // EXACTLY ONE handle (D17: one owner). A multi-handle comma-list is boot-fatal (the superRefine
     // below) — it would seed >1 owner row against `users_single_owner_unique`. Unset ⇒ [DEFAULT_USER_HANDLE].
     OWNER_HANDLES: z.string().optional(),
+    // Group→role governance (owner-confirmed; OpenWebUI OAUTH ADMIN_ROLES/ALLOWED_ROLES mapped onto orb's
+    // owner|admin|user enum — NOT a new group subsystem). Read call-time in `sessions/substrate/role-policy`
+    // (the sanctioned exception, like OWNER_GROUP) so `vi.stubEnv` drives the matrix. RE-DERIVED every login.
+    //   • OIDC_ADMIN_GROUPS — CSV of IdP groups that grant `admin` (the owner granting admin THROUGH the IdP
+    //     rather than in-app setRole). Unset ⇒ no group grants admin (setRole stays the only admin source).
+    //   • OIDC_ALLOWED_GROUPS — CSV login-access GATE: an authenticated user in NONE of these groups is
+    //     DENIED login (401), no JIT row created. Owner is EXEMPT; admins are implicitly allowed. Unset ⇒
+    //     all authenticated users allowed (backward-compat). Setting either var activates group re-derivation.
+    OIDC_ADMIN_GROUPS: z.string().optional(),
+    OIDC_ALLOWED_GROUPS: z.string().optional(),
 
     // forward-header trust: verify the signed JWT against its JWKS (spoof-proof regardless of network
     // path). Default on; falls back to network-isolation trust if the JWT is absent.
@@ -196,11 +214,29 @@ const envSchema = z
       .transform((v) => v === "true"),
 
     // OIDC client (required iff AUTH_MODE=oidc — the superRefine below). OIDC_REDIRECT_URIS is a comma-list
-    // ALLOWLIST of permitted callback origins.
+    // ALLOWLIST of the FULL callback URLs (e.g.
+    // `https://chat.example.com/api/auth/oidc/callback,https://192.168.1.10/api/auth/oidc/callback`). The
+    // /api/auth/oidc/login route DERIVES the callback from the request origin (X-Forwarded-Proto/Host) and
+    // accepts it ONLY when it exact-matches an entry here — so OIDC works at the public FQDN AND at a
+    // LAN-IP/localhost origin without blindly reflecting an attacker-supplied origin (open-redirect /
+    // CVE-2024-52289 class). Off-allowlist → the login 400s, no OIDC transaction minted, no IdP round-trip.
     OIDC_ISSUER: z.url().optional(),
     OIDC_CLIENT_ID: z.string().min(1).optional(),
     OIDC_CLIENT_SECRET: z.string().min(1).optional(),
-    OIDC_REDIRECT_URIS: z.string().optional(),
+    OIDC_REDIRECT_URIS: z.string().min(1).optional(),
+    // OIDC claim/scope mapping — provider-agnostic. DEFAULTS are authentik's shape; override for Okta
+    // (upn / oid), Azure AD (preferred_username / oid / roles), Keycloak, etc. OIDC_GROUPS_CLAIM feeds
+    // the identity `groups` that OWNER_GROUP / OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS (role-policy) map to
+    // owner/admin/access. Non-breaking: unset ⇒ authentik. A claim NAME may be a DOT-PATH (e.g.
+    // `user.memberOf`, `resource_access.orb.roles`) for nested claims (Azure AD FS / Entra / Keycloak) —
+    // the claim reader resolves the path; a flat name (no dot) is a single-key lookup (unchanged).
+    OIDC_SCOPES: z.string().min(1).default("openid profile email"),
+    OIDC_USERNAME_CLAIM: z.string().min(1).default("preferred_username"),
+    OIDC_UID_CLAIM: z.string().min(1).default("sub"),
+    OIDC_GROUPS_CLAIM: z.string().min(1).default("groups"),
+    // The email claim (mutable contact attribute persisted onto `users.email`; NEVER an identity key). The
+    // OIDC flow already requests the `email` scope; this names the claim to read. Default authentik's `email`.
+    OIDC_EMAIL_CLAIM: z.string().min(1).default("email"),
     // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session. Required for the modes
     // that mint cookie sessions (oidc/local — enforced below).
     SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),

@@ -156,6 +156,18 @@ test("matchEntryKeys folds ASCII I to i deterministically (Turkish locale would 
   expect(matchEntryKeys(["WIFI"], "the wifi password")).toEqual(["wifi"]);
 });
 
+test("keyRegex escapes regex metacharacters in the key — a literal period never wildcards", () => {
+  // Without escaping, the "." in "dr." would compile as a regex wildcard and wrongly match "dru".
+  expect(matchEntryKeys(["dr."], "the dru walked in")).toEqual([]);
+  expect(matchEntryKeys(["dr."], "the dr. walked in")).toEqual(["dr."]);
+});
+
+test("matchEntryKeys folds German ß deterministically (no host-locale uppercasing to SS)", () => {
+  // The Unicode default fold leaves ß as ß on every host locale; a locale-dependent fold could
+  // instead normalize case differently across platforms, diverging server vs. client.
+  expect(matchEntryKeys(["straße"], "die straße ist lang")).toEqual(["straße"]);
+});
+
 test("the haystack builder lower-cases without locale dependence", () => {
   // Under a Turkish host `toLocaleLowerCase` would produce "wıfı zone"; the locale-independent fold
   // yields "wifi zone" on every platform, so the scan haystack is identical server- and client-side.

@@ -15,6 +15,12 @@ test("isPlainObject is false for null, arrays, and primitives", () => {
   expect(isPlainObject(undefined)).toBe(false);
 });
 
+test("isPlainObject is true for a null-prototype object (Object.create(null))", () => {
+  // typeof is "object", not null, not an array — a null-prototype object IS a plain object here
+  // even though it has no Object.prototype (e.g. no .hasOwnProperty).
+  expect(isPlainObject(Object.create(null))).toBe(true);
+});
+
 test("isPlainObject narrows unknown to a record for property access", () => {
   const value: unknown = { kind: "x" };
   expect(isPlainObject(value)).toBe(true);

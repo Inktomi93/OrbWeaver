@@ -117,11 +117,13 @@ function comparePrimitive(a: unknown, b: unknown): number | null {
   return null;
 }
 
-// Nulls sort last regardless of direction (the sign flip in sortEntries applies to the REST of the
-// ordering, not to where blanks land — the hand-rolled equivalent of TanStack's own `sortUndefined`
-// default). Split into two small functions (rather than one long if-chain) to stay under the
+// Nulls sort last regardless of direction: the direction `sign` is applied ONLY to the primitive
+// comparison, never to the null branches (which always return +1/-1 to push blanks to the END) —
+// the hand-rolled equivalent of TanStack's own `sortUndefined` default. Multiplying `sign` over the
+// whole result (the old bug) flipped the null ordering under `desc`, clustering blanks at the TOP.
+// Split into two small functions (rather than one long if-chain) to stay under the
 // cognitive-complexity ceiling.
-function compareValues(a: unknown, b: unknown): number {
+function compareValues(a: unknown, b: unknown, sign: number): number {
   if (a === b) {
     return 0;
   }
@@ -131,7 +133,7 @@ function compareValues(a: unknown, b: unknown): number {
   if (b === null || b === undefined) {
     return -1;
   }
-  return comparePrimitive(a, b) ?? String(a).localeCompare(String(b));
+  return sign * (comparePrimitive(a, b) ?? String(a).localeCompare(String(b)));
 }
 
 /** A row paired with its stable id + original position — computed once so sorting never needs to
@@ -167,8 +169,8 @@ function sortEntries<TData>(
     return entries;
   }
   const sign = sort.direction === "desc" ? -1 : 1;
-  return [...entries].sort(
-    (a, b) => sign * compareValues(column.accessor(a.row), column.accessor(b.row)),
+  return [...entries].sort((a, b) =>
+    compareValues(column.accessor(a.row), column.accessor(b.row), sign),
   );
 }
 

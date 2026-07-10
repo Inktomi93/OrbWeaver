@@ -19,7 +19,6 @@ import type { PersonaMetadata, UpdatePersonaInput } from "@orb/contracts/persona
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
-import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
@@ -66,14 +65,28 @@ export function personaFormFromEntity(persona: PersonaDetail): PersonaFormValues
 /** Re-nest the flat form values into the metadata blob, PRESERVING the persona's provenance tail
  *  (`sourceCharacterId`/`swapMacros` + any loose extras) — only `descriptionPosition`/`inject` are the
  *  editor's to write. `inject` rides ONLY the `at_depth` placement (dropped otherwise, matching the
- *  resolver's default). */
+ *  resolver's default).
+ *
+ *  WITHHOLD GUARD (the assistant\@depth-0 prefill the wire rejects — `isPrefillCombo`): this editor
+ *  AUTOSAVES on every debounced change, so it cannot button-gate the invalid combo the way the character
+ *  editor does. Instead the mapper WITHHOLDS the invalid placement — it re-emits the base's LAST-SAVED
+ *  `descriptionPosition`/`inject` untouched (the room-overrides withhold pattern) so the rejected value
+ *  never reaches `persona.update`, while the SIBLING edits in the same tick (title/description) still
+ *  persist. The inline `isPrefillCombo` warning tells the user to pick a valid depth/role; the placement
+ *  commits once they do. */
 function metadataFromForm(
   values: PersonaFormValues,
   base: PersonaMetadata | null,
 ): Record<string, unknown> {
+  const baseEntries = Object.entries(base ?? {});
+  // Withhold: keep the base blob VERBATIM (including its last-saved placement) so autosave still writes the
+  // sibling title/description but the wire-rejected combo is never submitted.
+  if (isPrefillCombo(values)) {
+    return Object.fromEntries(baseEntries);
+  }
   const next: Record<string, unknown> = {};
   // Carry the provenance tail forward; the editor OWNS only descriptionPosition/inject (dropped below).
-  for (const [key, value] of Object.entries(base ?? {})) {
+  for (const [key, value] of baseEntries) {
     if (key !== "inject" && key !== "descriptionPosition") {
       next[key] = value;
     }
@@ -99,8 +112,10 @@ export function personaInputFromForm(
 }
 
 /** The write guard mirror (contract `personaMetadataWriteSchema`): assistant-role at depth 0 is a
- *  response prefill — unsupported across providers. The editor disables Save on this combination instead
- *  of submitting a value the server will reject. */
+ *  response prefill — unsupported across providers. Because the editor AUTOSAVES (no Save button to
+ *  disable), the combo is handled two ways off this predicate: the editor shows an inline warning, and
+ *  `metadataFromForm` WITHHOLDS the invalid placement from the write so the server never sees it while
+ *  sibling edits still autosave. */
 export function isPrefillCombo(values: PersonaFormValues): boolean {
   return (
     values.descriptionPosition === "at_depth" &&
@@ -108,12 +123,3 @@ export function isPrefillCombo(values: PersonaFormValues): boolean {
     (values.injectDepth ?? 0) === 0
   );
 }
-
-/** The macro catalog a persona DESCRIPTION completes against (the `{{ }}` trigger). A persona
- *  description self-references with `{{user}}`/`{{persona}}` (both resolve to THIS persona at assemble
- *  time) and may reference `{{char}}`; the list is passed to the macro-aware textarea (ui imports none). */
-export const PERSONA_DESCRIPTION_MACROS: readonly MacroSuggestion[] = [
-  { name: "user", category: "persona", description: "This persona's name" },
-  { name: "persona", category: "persona", description: "This persona's description" },
-  { name: "char", category: "character", description: "The character's name" },
-];

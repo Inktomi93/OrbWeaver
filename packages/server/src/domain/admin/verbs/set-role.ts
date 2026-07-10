@@ -1,13 +1,16 @@
 // verb: setRole — grant/revoke the delegated `admin` role. OWNER-ONLY (`requireOwner`, D17 — only the box
-// owner grants/revokes admin; `user ↔ admin` only, NEVER to/from `owner`). Carries the owner-immutability
-// guard in BOTH layers: a friendly `loadUser` owner-row pre-check for the fast
-// error, AND the atomic `WHERE role <> 'owner'` ON THE UPDATE so the owner row is un-demotable under a race.
-// Neo's "≥1 enabled admin" last-admin guard is GONE: `requireAdmin` = owner ∪ admin, so the immutable owner
-// is always an administrator — the admin-capable set can never empty, and demoting the last DELEGATED admin
-// is allowed (the owner remains).
+// owner grants/revokes admin; the delegated axis is `user ↔ admin`). The owner role is never MINTED or
+// DEMOTED here: owner→owner is an idempotent no-op success; promoting a SECOND user to owner is refused
+// with a friendly typed CONFLICT (D40 single-owner — `users_single_owner_unique`) checked BEFORE the write
+// so the raw partial-unique violation never escapes (ownership transfer is out of scope); the sole owner
+// can never be demoted (D17). The immutability guard rides BOTH layers: the `loadUser` owner-row pre-check
+// for the fast/typed errors, AND the atomic `WHERE role <> 'owner'` ON THE UPDATE so the owner row is
+// un-demotable under a race. Neo's "≥1 enabled admin" last-admin guard is GONE: `requireAdmin` = owner ∪
+// admin, so the immutable owner is always an administrator — the admin-capable set can never empty, and
+// demoting the last DELEGATED admin is allowed (the owner remains).
 
 import { users } from "@orb/db";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainConflictError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { and, eq, ne } from "drizzle-orm";
 import { ADMIN_OP_CODES } from "../contract/errors";
 import type { SetRoleParams } from "../contract/params";
@@ -23,20 +26,17 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
     requireOwner(params.principal);
     const { userId, role } = params;
 
-    // The owner role is the immutable bootstrap row — it is never granted or revoked here (D17).
-    if (role === OWNER_ROLE) {
-      throw new DomainOperationError(
-        ADMIN_OP_CODES.cannotGrantOwner,
-        "the owner role cannot be granted or revoked — it is the immutable bootstrap owner",
-      );
-    }
-
-    // Friendly pre-check (existence-before-write + the fast-path owner/agent errors).
+    // Friendly pre-check (existence-before-write + the fast-path owner/agent/conflict errors).
     const target = await loadUser(ctx.db, userId);
     if (target === undefined) {
       throw new DomainNotFoundError("user", userId);
     }
+    // The sole owner (D40) — the only owner-touching op allowed is the idempotent owner→owner (no-op
+    // success); any OTHER role is a demotion, refused in BOTH layers (D17 owner-immutability).
     if (target.role === OWNER_ROLE) {
+      if (role === OWNER_ROLE) {
+        return target;
+      }
       throw new DomainOperationError(
         ADMIN_OP_CODES.cannotModifyOwner,
         "the owner cannot be demoted",
@@ -49,6 +49,12 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
         ADMIN_OP_CODES.cannotModifyAgent,
         "an agent principal's role cannot be changed — its authority is the capability ceiling",
       );
+    }
+    // Promoting a NON-owner to owner would mint a SECOND owner — the `users_single_owner_unique` partial
+    // index (D40) forbids it at the DB. Surface the friendly typed CONFLICT here so the raw unique
+    // violation never escapes; ownership transfer is deliberately not supported.
+    if (role === OWNER_ROLE) {
+      throw new DomainConflictError("an owner already exists; ownership transfer is not supported");
     }
 
     const at = ctx.now();

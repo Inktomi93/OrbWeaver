@@ -24,7 +24,7 @@ import {
   registerDebugRoutes,
 } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
-import { clientIp, ipAllowlistMiddleware, parseAllowlist } from "#infra/network";
+import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
@@ -145,7 +145,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // ── Auth middleware: resolve the ONE Principal per request + refresh a slid cookie session ────────────
   app.use("*", async (c, next) => {
     const token = readSessionToken(c.req.raw.headers);
+    // The raw TCP peer address feeds the forward-header trusted-proxy gate (B1 anti-spoof — the gate keys on
+    // the socket peer, never a forgeable X-Forwarded-For). Omitted when conninfo is absent (fails closed).
+    const peer = peerIp(c);
     const { principal } = await deps.seam.resolvePrincipal(c.req.raw.headers, {
+      ...(peer !== undefined ? { peerIp: peer } : {}),
       onSessionSlide: (expiresAt: number): void => {
         // A throttled cookie slide → re-set the same token with a refreshed Max-Age (cookie modes only;
         // inert in single-user/forward-header where there is no cookie token).

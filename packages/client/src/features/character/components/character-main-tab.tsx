@@ -24,7 +24,7 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { useSpoilerBlur } from "#state";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { CHARACTER_CARD_MACROS } from "../lib/character-card-form-model";
+import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 import { parseExampleBlocks } from "../lib/example-messages";
 import { CharacterTokenCounter } from "./character-token-counter";
 

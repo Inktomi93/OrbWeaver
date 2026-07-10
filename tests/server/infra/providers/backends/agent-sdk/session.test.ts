@@ -1,6 +1,7 @@
 // The backend-internal session cache: the in-memory SessionStore (append/load/dedup) + the per-chat
-// resume map + the seed-when-stale path. The session is backend-internal — these guard the resume
-// substrate's correctness, not any domain-visible behavior.
+// resume map + the PD-7 `ensureSeededSession` resume gate (smoke — the full outcome matrix lives in
+// session/store.test.ts). The session is backend-internal — these guard the resume substrate's
+// correctness, not any domain-visible behavior.
 
 import {
   buildSeedFrames,
@@ -47,31 +48,23 @@ describe("SessionCache — per-chat resume map", () => {
   });
 });
 
-describe("SessionCache.seedFromCanon — seed + reseed-when-stale", () => {
-  test("a fresh chat seeds frames and points the chat at the session", async () => {
+describe("SessionCache.ensureSeededSession — smoke (the outcome matrix lives in session/store.test.ts)", () => {
+  test("cold cache seeds + records; an unchanged seed resumes; a changed seed reseeds IN PLACE", async () => {
     const cache = new SessionCache();
-    const written = await cache.seedFromCanon(CHAT_ID, SESSION_ID, [
-      { role: "user", content: "hello" },
+    const seed = [{ role: "user" as const, content: "hello" }];
+    const first = await cache.ensureSeededSession(CHAT_ID, seed);
+    expect(first.sessionId).not.toBeNull();
+    expect(first.disposition).toBe("seeded");
+    expect(cache.resolveResumeId(CHAT_ID)).toBe(first.sessionId);
+    expect((await cache.ensureSeededSession(CHAT_ID, seed)).disposition).toBe("resumed");
+    // A changed seed on the default (replace-capable) store reseeds IN PLACE — same id, frames swapped,
+    // so the conversation's Anthropic cache lineage survives the edit.
+    const changed = await cache.ensureSeededSession(CHAT_ID, [
+      { role: "user", content: "hello EDITED" },
     ]);
-    expect(written.length).toBeGreaterThan(0);
-    expect(cache.resolveResumeId(CHAT_ID)).toBe(SESSION_ID);
-  });
-
-  test("an UNCHANGED reseed is a no-op (returns [] — the prompt cache survives)", async () => {
-    const cache = new SessionCache();
-    const canon = [{ role: "user" as const, content: "stable" }];
-    await cache.seedFromCanon(CHAT_ID, SESSION_ID, canon);
-    const second = await cache.seedFromCanon(CHAT_ID, SESSION_ID, canon);
-    expect(second).toStrictEqual([]);
-  });
-
-  test("a CHANGED reseed rewrites frames", async () => {
-    const cache = new SessionCache();
-    await cache.seedFromCanon(CHAT_ID, SESSION_ID, [{ role: "user", content: "v1" }]);
-    const changed = await cache.seedFromCanon(CHAT_ID, SESSION_ID, [
-      { role: "user", content: "v1" },
-      { role: "assistant", content: "v2" },
-    ]);
-    expect(changed.length).toBeGreaterThan(0);
+    expect(changed.sessionId).toBe(first.sessionId);
+    expect(changed.disposition).toBe("reseeded");
+    const rows = await cache.store.load({ projectKey: "any", sessionId: changed.sessionId ?? "" });
+    expect(rows).toHaveLength(1);
   });
 });

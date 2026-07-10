@@ -34,6 +34,11 @@ vi.stubEnv("PORT", String(PORT));
 vi.stubEnv("AUTH_MODE", "single-user");
 vi.stubEnv("VLLM_DISABLED", "true");
 vi.stubEnv("ASSETS_DIR", ASSETS_DIR);
+// Boot now installs the SSRF egress firewall (infra/network/egress — the reinstated boot call), which blocks
+// private/loopback egress GLOBALLY via undici's dispatcher. This test's own `waitForHealthz`/shutdown polls
+// hit `http://localhost:PORT` through that same global fetch, so they need the operator allowlist seam — the
+// exact mechanism for "an internal host you legitimately need to reach" (here, the server under test).
+vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 
 cleanupDbFiles();
 

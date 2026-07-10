@@ -215,10 +215,12 @@ export function mapChatCompletionToTurnResult(
     reply: extractChatReply(view),
     ...(toolCalls !== undefined ? { toolCalls } : {}),
     reasoning,
+    reasoningRedacted: false,
     stopReason: chatFinish,
     terminalReason: null,
     finishReason: normalizeFinishReason(chatFinish),
     ttftMs: null,
+    warmSpareClaimed: null,
     durationApiMs: ctx.now - ctx.startedAt,
     apiErrorStatus: null,
     numTurns: 1,
@@ -279,6 +281,13 @@ export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGe
       // biome-ignore lint/performance/noAwaitInLoops: a streaming read is inherently sequential — each chunk must be awaited before the next arrives.
       const { done, value } = await reader.read();
       if (done) {
+        // Flush a final `data:` line the server never newline-terminated (a spec-sloppy BYO endpoint can
+        // end its stream with `data: {…usage/finish_reason…}` + EOF) — else the terminal usage/finish is
+        // silently lost. `parseSseLine` skips a blank/partial residue, so this is safe for well-formed SSE.
+        const tail = parseSseLine(buffer.trim());
+        if (tail.kind === "data") {
+          yield tail.value;
+        }
         break;
       }
       buffer += decoder.decode(value, { stream: true });

@@ -7,10 +7,13 @@ export type {
   AuthRoutesDeps,
   AuthSessionsPort,
   LocalAuthenticator,
+  OidcClaimMap,
   OidcMintStore,
   OidcRoutesDeps,
 } from "./auth-routes";
 export {
+  deriveRedirectUri,
+  identityFromClaims,
   registerAuthRoutes,
   serializeClearedSessionCookie,
   serializeSessionCookie,

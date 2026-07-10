@@ -169,8 +169,9 @@ export function MessageActionsRow({
   };
 
   return (
-    // UIP-305 progressive disclosure (§4.3 rule 4): the action cluster rests hidden (opacity-0 +
-    // pointer-events-none), revealed on row hover (`group-hover`, the message-row `group` hook) AND on
+    // UIP-305 progressive disclosure (§4.3 rule 4): the action cluster rests DIMMED (opacity-40, NOT
+    // hidden — `lib/message-actions-reveal.ts` documents why opacity-0 was rejected; pointer-events stay
+    // `auto`), brightened to full on row hover (`group-hover`, the message-row `group` hook) AND on
     // keyboard focus within it (`group-focus-within` — the gate-relevant keyboard-parity half), and is
     // ALWAYS visible on a coarse pointer (`pointer-coarse:` — a capability variant, not a viewport one,
     // so it's compose-legal per the no-media-queries-in-features carve-out). Right-aligned under the

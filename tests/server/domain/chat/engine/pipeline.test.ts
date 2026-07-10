@@ -15,7 +15,8 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { getLog } from "@orb/server/foundation/observability";
+import { describe, vi } from "vitest";
 import type {
   ChatToolOps,
   RunChatTurnOp,
@@ -218,6 +219,30 @@ describe("runTurnPipeline — request shaping + fit", () => {
     ]);
   });
 
+  test("F7b: an image-only user row whose every part drops keeps a NON-empty alt placeholder", async () => {
+    // Non-vision model + an image-only trailing user message → every part drops. Without a placeholder the
+    // wire row would be `[{type:"text",text:""}]`, which the runner's empty-row filter DELETES → the
+    // delivered history ends on the prior assistant row (Anthropic-with-thinking then 400s). The alt text
+    // keeps the trailing-user invariant alive.
+    const { args } = baseArgs({
+      canon: [rowOf("assistant", "prev reply"), userRow("![a cat](asset:ast_9)")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.imageDropped).toBe(true);
+    const tail = result.request.history.at(-1);
+    expect(tail?.role).toBe("user");
+    expect(tail?.content).toEqual([{ type: "text", text: "[image: a cat]" }]);
+  });
+
+  test("F7b: an image-only row with no alt text falls back to the neutral `[image omitted]` placeholder", async () => {
+    const { args } = baseArgs({
+      canon: [rowOf("assistant", "prev reply"), userRow("![](asset:ast_9)")],
+    });
+    const result = await runTurnPipeline(args);
+    const tail = result.request.history.at(-1);
+    expect(tail?.content).toEqual([{ type: "text", text: "[image omitted]" }]);
+  });
+
   test("the §8 fit drops oldest turns under a tiny window (keeps the newest)", async () => {
     // Alternate roles so squash doesn't collapse the history into one turn (then the fit has rows to drop).
     const longCanon = Array.from({ length: 12 }, (_, i) =>
@@ -346,11 +371,16 @@ describe("runTurnPipeline — history macro resolution", () => {
     expect(text).toContain("Mara nods");
   });
 
-  test("a null personaId stamp falls back to the ACTIVE persona (the ctx default, no producer entry needed)", async () => {
-    const { args } = baseArgs({ canon: [userRow("{{user}} nods")] });
+  test("a null personaId stamp falls back to the chat ANCHOR (pinnedPersona), never the active persona", async () => {
+    // Ruling A (Chat-Macro-Resolution.md §2/§4): a null-stamp history row's {{user}} resolves to the chat
+    // ANCHOR, never the per-viewer active persona (Alex, the ctxOf default) — so a greeting / AI / legacy
+    // line addresses the SAME persona for the model and every human.
+    const ctx = ctxOf({ pinnedPersona: { name: "Nyx", description: "the frozen anchor" } });
+    const { args } = baseArgs({ assembleContext: ctx, canon: [userRow("{{user}} nods")] });
     const result = await runTurnPipeline(args);
-    // `baseArgs`' ctxOf sets `activePersona: { name: "Alex", ... }` — the null-stamp floor.
-    expect(historyText(result.request)).toContain("Alex nods");
+    const text = historyText(result.request);
+    expect(text).toContain("Nyx nods");
+    expect(text).not.toContain("Alex nods");
   });
 
   test("a plain-text history row (no macros) passes through unchanged — inert for the common case", async () => {
@@ -360,14 +390,58 @@ describe("runTurnPipeline — history macro resolution", () => {
   });
 });
 
+// ── F4: the wire NAME-STAMP axis (SHAPE's authorName) is distinct from the {{user}} MACRO axis above — it
+// must ALSO derive from the row's OWN personaId, not the current active persona (else multi-human rooms
+// misattribute + "default" disambiguation is dead). Production now supplies the per-row name the unit
+// (names.test.ts) previously hand-fed.
+describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
+  test("completion mode stamps each user row's wire `name` from ITS OWN personaId, not the active persona", async () => {
+    // Active persona is Alex; the row is authored under Mara (a since-switched persona). The wire `name` must
+    // be Mara — the row's own author — not the current active (which would misattribute Mara's line to Alex).
+    const { args } = baseArgs({
+      assembleContext: ctxOf({
+        promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
+      }),
+      canon: [userRowWithPersona("hi there", MARA)],
+      historyMacroNames: macroNamesOf([], [{ id: MARA, name: "Mara" }]),
+    });
+    const result = await runTurnPipeline(args);
+    const named = result.request.history.find((m) => m.name !== undefined);
+    expect(named?.name).toBe("Mara");
+  });
+
+  test('"default" mode prefixes a user row authored under a since-switched persona (disambiguation is now LIVE)', async () => {
+    // author (Mara) ≠ the active persona (Alex) → "default" prefixes the row. Before F4 every user row was
+    // stamped with the active persona, so author always equalled speakers.user and this NEVER fired.
+    const { args } = baseArgs({
+      canon: [userRowWithPersona("hi there", MARA)],
+      historyMacroNames: macroNamesOf([], [{ id: MARA, name: "Mara" }]),
+    });
+    const result = await runTurnPipeline(args);
+    expect(historyText(result.request)).toContain("Mara: hi there");
+  });
+
+  test("a null-stamp user row still falls back to the active persona (byte-identical to pre-F4)", async () => {
+    const { args } = baseArgs({
+      assembleContext: ctxOf({
+        promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
+      }),
+      canon: [userRow("u1")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.history.find((m) => m.name !== undefined)?.name).toBe("Alex");
+  });
+});
+
 // ── task #59 S2: the two persona axes stay distinct WITHIN one real pipeline call (BUILD's card-derived
 // section vs SHAPE's history-row resolution) — not just as separate unit fixtures on assemble.ts/macros.ts.
-describe("runTurnPipeline — persona axes stay distinct (card pin vs history active-fallback)", () => {
-  test("a CARD-derived section's {{user}} resolves to the PINNED anchor while a null-stamp history row resolves to the ACTIVE persona", async () => {
+describe("runTurnPipeline — persona axes stay distinct (card pin + history anchor vs active)", () => {
+  test("a CARD section's {{user}} AND a null-stamp history row's {{user}} both resolve to the PINNED anchor, never the active persona", async () => {
     // The card's own systemPrompt overrides the (empty-by-default) main_prompt marker — a CARD-derived
-    // section (assemble.ts's dual-persona rule: CARD sections bind {{user}} to ctx.pinnedPersona, the
-    // FROZEN anchor). The canon row's {{user}} has a NULL personaId stamp, so it falls through to
-    // ctx.activePersona — never the pinned anchor (Chat-Macro-Resolution.md §4/§6).
+    // section (assemble.ts's dual-persona rule: CARD sections bind {{user}} to ctx.pinnedPersona, the FROZEN
+    // anchor). Ruling A (Chat-Macro-Resolution.md §2/§4): the canon row's {{user}} has a NULL personaId
+    // stamp, so it ALSO falls back to the chat ANCHOR (a chat invariant) — never ctx.activePersona (Zara),
+    // which drives only prompt-config sections + the triggering turn and must appear NOWHERE here.
     const ctx = ctxOf({
       character: { name: "Aria", description: "a bold knight", systemPrompt: "Dear {{user}}," },
       pinnedPersona: { name: "Nyx", description: "the frozen anchor" },
@@ -379,9 +453,9 @@ describe("runTurnPipeline — persona axes stay distinct (card pin vs history ac
     // BUILD half: the card-derived section resolved {{user}} against the PINNED anchor.
     expect(result.request.prompt.static).toContain("Dear Nyx,");
     expect(result.request.prompt.static).not.toContain("Dear Zara,");
-    // SHAPE half: the null-stamp history row resolved {{user}} against the ACTIVE persona, never the pin.
-    expect(historyText(result.request)).toContain("Zara nods");
-    expect(historyText(result.request)).not.toContain("Nyx nods");
+    // SHAPE half: the null-stamp history row ALSO resolved {{user}} against the anchor (ruling A), never active.
+    expect(historyText(result.request)).toContain("Nyx nods");
+    expect(historyText(result.request)).not.toContain("Zara nods");
   });
 });
 
@@ -481,6 +555,92 @@ describe("runTurnPipeline — RECEIVE regex + post-process", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.content).toBe("Hello");
+  });
+
+  test("F9: a watchdog trip is OBSERVABLE — the swallowed throw is logged with the placement + pattern", async () => {
+    // Fail-open (content unchanged) is by design; F9 adds the missing OBSERVABILITY — the D53 watchdog's
+    // deliberate throw must reach the operator log, not the kit executor's `onScriptFailure?.()` no-op.
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      const { args } = baseArgs({
+        applyRegexReplace: () => {
+          throw new Error("timed out");
+        },
+        runChatTurn: finalTurn("Hello"),
+        assembleContext: ctxOf({
+          hostTierRegexScripts: [script("evil", "Hello", "X", "AI_OUTPUT")],
+        }),
+      });
+      await runTurnPipeline(args);
+      expect(warnSpy).toHaveBeenCalled();
+      const [payload] = warnSpy.mock.calls[0] ?? [];
+      expect(payload).toMatchObject({ placement: "AI_OUTPUT", findRegex: "Hello" });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});
+
+describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
+  const groupCtx = (): AssembleContext =>
+    ctxOf({
+      character: { name: "Kai", description: "a rogue" },
+      cast: [
+        { name: "Kai", description: "a rogue" },
+        { name: "Aria", description: "a knight" },
+      ],
+      castMembers: [
+        { kind: "character", characterId: KAI },
+        { kind: "character", characterId: ARIA },
+      ],
+    });
+  const perSpeaker = {
+    output: "per-speaker",
+    cardScope: "merged",
+    scopedTargetId: null,
+    speakerName: "Kai",
+    speakerRef: { kind: "character", characterId: KAI },
+  } as const;
+
+  test("a per-speaker turn that drifts into a castmate's line persists ONLY the own speaker's content", async () => {
+    // The exact failure cleanPerSpeakerReply exists to fix: the model rolls Kai's turn on into Aria's line.
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("I attack the goblin.\nAria: I cast a shield."),
+      assembleContext: groupCtx(),
+      shape: perSpeaker,
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("I attack the goblin.");
+  });
+
+  test("a per-speaker turn that echoes its OWN leading label has it stripped from canon", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("Kai: I attack the goblin."),
+      assembleContext: groupCtx(),
+      shape: perSpeaker,
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("I attack the goblin.");
+  });
+
+  test("merged/narrator output is NOT cleaned — foreign labels are the intended transcript", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("I attack the goblin.\nAria: I cast a shield."),
+      assembleContext: groupCtx(),
+      shape: { ...perSpeaker, output: "narrator", speakerName: "Kai & Aria" },
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("I attack the goblin.\nAria: I cast a shield.");
+  });
+
+  test("a legitimate single-speaker reply with no drift is untouched", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("I attack the goblin and take cover."),
+      assembleContext: groupCtx(),
+      shape: perSpeaker,
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("I attack the goblin and take cover.");
   });
 });
 

@@ -142,7 +142,10 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
 //    agent runner consumes; `createAgentToolServer` is a pure factory, NOT a sealed runner symbol, so the
 //    front door surfaces it — entry can't reach `backends/agent-sdk` directly). ─────────────────────────
 export type { AgentToolResult, AgentToolSpec } from "./backends/agent-sdk";
-export { createAgentToolServer } from "./backends/agent-sdk";
+// `createAgentToolServer` = the agent-mode tool-server factory; `fetchAgentSdkModels` = the live
+// `supportedModels()` discovery (agent-sdk-fixed; connection injects it for refreshAgentSdkCatalog — the
+// daemon's family→version map, a control-channel call, not a billed turn).
+export { createAgentToolServer, fetchAgentSdkModels } from "./backends/agent-sdk";
 // ── The live OpenRouter `/models` fetch verb (OR-fixed; connection injects it for refreshCatalog) ─
 export { fetchOrCatalog } from "./backends/openrouter";
 // ── The contract surface (request/result/error/event vocab + the sealed-backend contract + re-exports) ─

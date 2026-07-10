@@ -53,6 +53,33 @@ export interface ThemeComputeStats {
   readonly digestsAssigned: number;
 }
 
+// ── distill (PD-40 write-half: character summaries + staged tag suggestions) ───────────────────────────
+/** The distilled facets parsed from ONE character's `summarize` reply (a null scalar = the model omitted it).
+ *  `subGenres`/`tags` default to `[]` (always-a-list). `tags` are the descriptive labels the pass stages as
+ *  `source:'auto', status:'pending'` tag-domain suggestions (the Accept/Reject queue); the rest fill the
+ *  `character_summaries` row. Guided-decode keeps `genre`/`tone` inside the discovery-local GENRES/TONES
+ *  grammar (verbs/distill.ts), so the db columns stay plain TEXT (schema/discovery.ts header). */
+export interface CharacterDistillation {
+  readonly genre: string | null;
+  readonly tone: string | null;
+  readonly setting: string | null;
+  readonly subGenres: string[];
+  readonly tags: string[];
+  readonly elevatorPitch: string | null;
+  readonly overview: string | null;
+}
+
+/** The `distillCharacters` pass summary (workload-runner / on-demand log line). `scanned` = cards read;
+ *  `distilled` = `character_summaries` rows upserted; `failed` = replies that didn't parse; `tagsStaged` =
+ *  pending suggestion junction rows NEWLY attached (an already-present/accepted tag doesn't re-count —
+ *  idempotent). */
+export interface DistillStats {
+  readonly scanned: number;
+  readonly distilled: number;
+  readonly failed: number;
+  readonly tagsStaged: number;
+}
+
 // ── hubness ─────────────────────────────────────────────────────────────────
 /** The `computeCharacterHubScores` summary. `rowsScored` is the total vector rows whose `hub_score` was
  *  written (reps + the content-collapsed members that inherit a rep's score); `groupsProcessed` is the

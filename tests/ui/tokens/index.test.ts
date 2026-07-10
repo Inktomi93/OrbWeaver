@@ -20,7 +20,7 @@ test("theme.css and tokens/index.ts are exactly what tokens.json derives (no dri
   expect(readFileSync(join(UI_ROOT, "src/tokens/index.ts"), "utf8")).toBe(tokensTs);
 });
 
-test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 28/34/40 (D62 P1, gate touch-target-floor)", async () => {
+test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", async () => {
   const { themeCss, tokensTs } = await generateArtifacts();
 
   // COARSE — the @theme values (the TS map's static `value` = the coarse literal): the ≥44px floor.
@@ -51,7 +51,7 @@ test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine overr
     return Number(m?.[1]);
   };
   expect(fineRem("touch-target"), "fine touch-target = 28px").toBe(1.75);
-  expect(fineRem("control-sm"), "fine control-sm = 28px").toBe(1.75);
+  expect(fineRem("control-sm"), "fine control-sm = 32px (Task #76 tap-target floor)").toBe(2);
   expect(fineRem("control-md"), "fine control-md = 34px").toBe(2.125);
   expect(fineRem("control-lg"), "fine control-lg = 40px").toBe(2.5);
   const fineFloor = fineRem("touch-target");

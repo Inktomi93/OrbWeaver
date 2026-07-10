@@ -7,7 +7,7 @@
 // and — the DRAFT case — omitting `onForceTurn` drops the Zap entirely (a draft has no turn to force).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RosterPanelStory } from "../_ct-stories";
+import { RosterPanelStory, RosterReseedStory } from "../_ct-stories";
 
 const LAST_ACTION = '[data-testid="roster-last-action"]';
 
@@ -65,4 +65,31 @@ test("a DRAFT roster (no onForceTurn) drops the Zap button — no turn to force 
   // Mute + talkativeness stay; force-turn is gone.
   await expect(component.getByRole("button", { name: "Mute Aria" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Make Bryn speak next" })).toHaveCount(0);
+});
+
+test("the thumb RE-SEEDS from the prop on a value-only roster change (bus/other-device echo)", async ({
+  mount,
+}) => {
+  const component = await mount(<RosterReseedStory />);
+  const thumb = component.getByRole("slider", { name: "Talkativeness: Aria" });
+  await expect(thumb).toHaveAttribute("aria-valuenow", "0.5");
+
+  // A value-only prop change (the row's key — member id — is unchanged, so React never remounts it).
+  await component.getByTestId("bump-aria").click();
+
+  await expect(thumb).toHaveAttribute("aria-valuenow", "0.8");
+});
+
+test("the thumb SNAPS BACK to the prop after a failed write (no stale local value)", async ({
+  mount,
+}) => {
+  const component = await mount(<RosterReseedStory />);
+  const thumb = component.getByRole("slider", { name: "Talkativeness: Aria" });
+
+  // Drag up + commit; the story's onSetTalkativeness is a no-op (a failed/busDriven write leaves the prop
+  // at 0.5), so on release the thumb must fall back to the prop — not keep the dragged value.
+  await thumb.focus();
+  await thumb.press("ArrowRight");
+
+  await expect(thumb).toHaveAttribute("aria-valuenow", "0.5");
 });

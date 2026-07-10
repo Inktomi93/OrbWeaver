@@ -37,6 +37,8 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
       id,
       handle,
       externalId: null,
+      // The owner-fallback / single-user path carries no claims — no email (SSO `provisionIdentity` owns it).
+      email: null,
       role,
       enabled: true,
       createdAt: now,

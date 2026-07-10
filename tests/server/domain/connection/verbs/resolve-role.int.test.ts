@@ -43,16 +43,44 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
   test("an agent-sdk chat roleDefault heals the model to the curated id + the curated capability", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({
-      chat: { api: "agent-sdk", source: "max-pro-sub", model: "claude-sonnet-4-6" },
+      chat: { api: "agent-sdk", source: "max-pro-sub", model: "claude-sonnet-5" },
     });
     const svc = createConnectionService(h.ctx);
 
     const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
 
     expect(conn.api).toBe("agent-sdk");
-    expect(conn.model).toBe("claude-sonnet-4-6");
+    expect(conn.model).toBe("claude-sonnet-5");
     expect(conn.credential.source).toBe("max-pro-sub");
     expect(conn.capability.reasoning.mode).toBe("effort"); // curated Sonnet
+  });
+
+  test("summarize DEFAULTS to the local vllm gen model (unchanged) with no roleDefault", async () => {
+    const h = makeConnHarness(await freshDb());
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({
+      role: "summarize",
+      principal: principal("owner_1", "owner"),
+    });
+
+    // Even the owner's summarize stays on the local engine — only chat is owner-conditional.
+    expect(conn.api).toBe("chat-completions");
+    expect(conn.credential.source).toBe("vllm");
+  });
+
+  test("a summarize override to max-pro-sub resolves via agent-sdk (the sub as a selectable summarizer)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ summarize: { source: "max-pro-sub", model: "claude-sonnet-5" } });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "summarize", principal: principal("user_1") });
+
+    // The sub summarize pairs with agent-sdk (the only coherent api for max-pro-sub) and heals its model
+    // through the curated agent-sdk heal — like the chat role.
+    expect(conn.api).toBe("agent-sdk");
+    expect(conn.model).toBe("claude-sonnet-5");
+    expect(conn.credential.source).toBe("max-pro-sub");
   });
 
   test("an incoherent (api, source) selection throws ConnectionRoutingError", async () => {

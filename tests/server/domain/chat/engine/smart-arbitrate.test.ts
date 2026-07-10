@@ -111,6 +111,40 @@ describe("smartArbitrate — the deterministic fallback", () => {
   });
 });
 
+describe("smartArbitrate — whole-word roster match (F9)", () => {
+  // "Ari" is eligible; a reply of "Arianna" (a DIFFERENT, off-roster name) must NOT false-positive on the
+  // embedded substring — the parse is whole-word, so it falls back to the deterministic pick.
+  const ariCast = [
+    { ref: charRef("ari"), name: "Ari" },
+    { ref: charRef("bran"), name: "Bran" },
+  ];
+  const ariCandidates = [candidate("ari"), candidate("bran")];
+
+  test('"Arianna" does NOT match the eligible "Ari" (substring is rejected → fallback)', async () => {
+    const out = await smartArbitrate({
+      summarize: summarizeReturning("Arianna"),
+      candidates: ariCandidates,
+      castNames: ariCast,
+      recentHistory: "...",
+      lastSpeaker: charRef("ari"), // ban-last → the fallback avoids Ari, proving no substring match
+      rng,
+    });
+    expect(out).toEqual([charRef("bran")]);
+  });
+
+  test('a whole-word "Ari." (trailing punctuation) still matches', async () => {
+    const out = await smartArbitrate({
+      summarize: summarizeReturning("Next: Ari."),
+      candidates: ariCandidates,
+      castNames: ariCast,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+    });
+    expect(out).toEqual([charRef("ari")]);
+  });
+});
+
 describe("smartArbitrate — short-circuits (no LLM call)", () => {
   test("single eligible character → returns it WITHOUT calling summarize", async () => {
     const summarize = summarizeReturning("Aria");

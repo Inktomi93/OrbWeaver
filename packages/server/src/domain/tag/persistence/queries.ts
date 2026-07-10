@@ -4,10 +4,11 @@
 // target-access) is the sibling `junctions.ts`. The row→view projection lives here (`toTagView`) — the
 // persistence layer owns the read shape.
 
-import type { TagSource, TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import {
   batchMany,
+  characters as charactersTable,
   characterTags,
   chatTags,
   fetchOwned,
@@ -16,7 +17,7 @@ import {
   tags,
   worldBookTags,
 } from "@orb/db";
-import type { TagId, UserId } from "@orb/kit/ids";
+import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
@@ -148,6 +149,178 @@ export async function setTagOrderBatch(
       .where(and(eq(tags.id, id), eq(tags.ownerId, ownerId))),
   );
   await db.batch(batchMany(stmts));
+}
+
+/**
+ * Merge one owned tag INTO another — re-point every attachment of `sourceTagId` to `targetTagId` across all
+ * five junctions, then delete the source tag, in ONE atomic libSQL batch (statements run in order, in a
+ * transaction). Dedupe is DELETE-collisions-then-REPOINT: a source junction row whose target entity is
+ * ALREADY tagged by `targetTagId` is dropped first, so the subsequent `SET tag_id = target` can never trip a
+ * composite-PK conflict. The `character_tags` junction preserves the STRONGEST status — an `accepted` source
+ * row upgrades an already-`pending` target row BEFORE the collision-delete (accepted always wins over pending);
+ * the four status-less junctions just dedupe on their non-tag PK column. `chat_tags` dedupes on `chatId` alone:
+ * its `ownerId` (the tagger) is invariant across both tags' rows — only a tag's OWNER can attach it (attach is
+ * owner-scoped) — so a same-`chatId` clash is the only possible PK collision. The verb pre-verifies both ids
+ * are owner-owned and distinct; the trailing `owner_id` predicate on the tag delete is the belt.
+ */
+export async function mergeTagBatch(
+  db: Db,
+  ownerId: UserId,
+  sourceTagId: TagId,
+  targetTagId: TagId,
+): Promise<void> {
+  const stmts = [
+    // character — strongest status: an `accepted` source row upgrades a `pending` target row (must run
+    // BEFORE the collision-delete drops the source rows).
+    db
+      .update(characterTags)
+      .set({ status: "accepted" })
+      .where(
+        and(
+          eq(characterTags.tagId, targetTagId),
+          eq(characterTags.status, "pending"),
+          inArray(
+            characterTags.characterId,
+            db
+              .select({ id: characterTags.characterId })
+              .from(characterTags)
+              .where(
+                and(eq(characterTags.tagId, sourceTagId), eq(characterTags.status, "accepted")),
+              ),
+          ),
+        ),
+      ),
+    db
+      .delete(characterTags)
+      .where(
+        and(
+          eq(characterTags.tagId, sourceTagId),
+          inArray(
+            characterTags.characterId,
+            db
+              .select({ id: characterTags.characterId })
+              .from(characterTags)
+              .where(eq(characterTags.tagId, targetTagId)),
+          ),
+        ),
+      ),
+    db
+      .update(characterTags)
+      .set({ tagId: targetTagId })
+      .where(eq(characterTags.tagId, sourceTagId)),
+
+    // chat (D30) — dedupe on chatId (ownerId is invariant across both tags' rows).
+    db
+      .delete(chatTags)
+      .where(
+        and(
+          eq(chatTags.tagId, sourceTagId),
+          inArray(
+            chatTags.chatId,
+            db
+              .select({ id: chatTags.chatId })
+              .from(chatTags)
+              .where(eq(chatTags.tagId, targetTagId)),
+          ),
+        ),
+      ),
+    db.update(chatTags).set({ tagId: targetTagId }).where(eq(chatTags.tagId, sourceTagId)),
+
+    // worldBook
+    db
+      .delete(worldBookTags)
+      .where(
+        and(
+          eq(worldBookTags.tagId, sourceTagId),
+          inArray(
+            worldBookTags.worldBookId,
+            db
+              .select({ id: worldBookTags.worldBookId })
+              .from(worldBookTags)
+              .where(eq(worldBookTags.tagId, targetTagId)),
+          ),
+        ),
+      ),
+    db
+      .update(worldBookTags)
+      .set({ tagId: targetTagId })
+      .where(eq(worldBookTags.tagId, sourceTagId)),
+
+    // persona
+    db
+      .delete(personaTags)
+      .where(
+        and(
+          eq(personaTags.tagId, sourceTagId),
+          inArray(
+            personaTags.personaId,
+            db
+              .select({ id: personaTags.personaId })
+              .from(personaTags)
+              .where(eq(personaTags.tagId, targetTagId)),
+          ),
+        ),
+      ),
+    db.update(personaTags).set({ tagId: targetTagId }).where(eq(personaTags.tagId, sourceTagId)),
+
+    // preset
+    db
+      .delete(presetTags)
+      .where(
+        and(
+          eq(presetTags.tagId, sourceTagId),
+          inArray(
+            presetTags.presetId,
+            db
+              .select({ id: presetTags.presetId })
+              .from(presetTags)
+              .where(eq(presetTags.tagId, targetTagId)),
+          ),
+        ),
+      ),
+    db.update(presetTags).set({ tagId: targetTagId }).where(eq(presetTags.tagId, sourceTagId)),
+
+    // finally: drop the now-emptied source tag (owner-scoped belt).
+    db.delete(tags).where(and(eq(tags.id, sourceTagId), eq(tags.ownerId, ownerId))),
+  ];
+  await db.batch(batchMany(stmts));
+}
+
+// ── pending-suggestion read (the Accept/Reject review queue — PD-40 distill + import staged card tags) ──
+
+/** Every `pending` character-tag suggestion for the owner (optionally narrowed to ONE character), joined to
+ *  its tag row so the review UI renders the chip WITH name + colors. Owner-scoped on the JUNCTION-OWNER side:
+ *  `character_tags` carries no ownerId (D23), so the owner gate is `characters.ownerId` (the authoritative
+ *  owner), reached via the innerJoin — a foreign character's suggestion is never returned. `accepted` rows are
+ *  excluded (the read is the STAGED queue; accepted tags read through the character's own `canonicalTagsFor`).
+ *  Ordered by name for a stable display. */
+export async function listPendingCharacterSuggestions(
+  db: Db,
+  ownerId: UserId,
+  characterId?: CharacterId,
+): Promise<TagSuggestionView[]> {
+  const conds = [eq(charactersTable.ownerId, ownerId), eq(characterTags.status, "pending")];
+  if (characterId !== undefined) {
+    conds.push(eq(characterTags.characterId, characterId));
+  }
+  const rows = await db
+    .select({
+      id: tags.id,
+      name: tags.name,
+      color: tags.color,
+      color2: tags.color2,
+      source: tags.source,
+      folderType: tags.folderType,
+      sortOrder: tags.sortOrder,
+      isHiddenOnCard: tags.isHiddenOnCard,
+      characterId: characterTags.characterId,
+    })
+    .from(characterTags)
+    .innerJoin(tags, eq(characterTags.tagId, tags.id))
+    .innerJoin(charactersTable, eq(characterTags.characterId, charactersTable.id))
+    .where(and(...conds))
+    .orderBy(tags.name);
+  return rows;
 }
 
 // ── usage rollup (FIVE independent GROUP BY queries merged in-process, NEVER a 5-way

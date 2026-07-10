@@ -148,6 +148,17 @@ export interface TagAttachmentView {
   status: TagStatus | null;
 }
 
+/** One PENDING auto/card tag suggestion staged on a character (the `pending` half of `character_tags`),
+ *  joined to its tag row so the review UI can render the chip WITH its name + colors — the bare
+ *  {@link TagAttachmentView} carries no name, and the Accept/Reject surface needs the label. Produced by
+ *  `tag.listPendingSuggestions` (the read for PD-40's distilled suggestions + import's staged card tags);
+ *  `source` is display-only provenance (`auto` = corpus distillation, `card` = a card's native tags). Accept
+ *  = `attachTag(status:'accepted')` (flips the row); Reject = `detachTag`. */
+export interface TagSuggestionView extends TagView {
+  /** The character the suggestion is staged on (the review surface is per-editor or a global inbox). */
+  characterId: CharacterId;
+}
+
 // The branded target-id union the per-type junctions FK (D24) — exported for consumers that need to name
 // the concrete id type behind `TagAttachmentView.targetId` (which stays plain `string` on the wire, since
 // the tRPC boundary parses the discriminated brand from `targetType`). Not a schema: ids are branded at

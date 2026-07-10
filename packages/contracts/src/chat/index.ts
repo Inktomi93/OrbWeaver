@@ -62,9 +62,12 @@ import type { WiBusEvent, WorldInfoScope } from "#world-info";
 // SHAPE CHECK to represent it. `observer` stays the reserved seam (the per-chat Narrative Director — watches
 // + proposes, never acts; still un-seatable, no insert path).
 // FLAG[PD-17]: the `agent` MEMBER + its DDL shape are born at AP0; a seat is UN-fillable until `chat.seatAgent`
-// (AP3). The AI-driven/user-backed derived kind-sets (`AI_DRIVEN_KINDS`/`USER_BACKED_KINDS` + `isAiDriven`) land
-// at AP2 WITH their sole consumer — the arbitration speaker-identity generalization (`select-speakers`/`round`
-// are `CharacterId`-keyed; an agent needs a speaker-ref). Deferred here per no-dead-branches until that lands.
+// (AP3). The AI-driven/user-backed derived kind-sets (`AI_DRIVEN_KINDS`/`USER_BACKED_KINDS` + `isAiDriven`/
+// `isUserBacked`) are DEFINED below (AP2). `isAiDriven` is LIVE — the arbitration speaker-identity
+// generalization consumes it (`domain/chat/verbs/turn.ts`; `select-speakers`/`round` key on a `SpeakerRef`,
+// not a bare `CharacterId`). `USER_BACKED_KINDS`/`isUserBacked` are defined ahead of their sole consumer (the
+// present-and-contributing principal-`enabled` read, AP3-2, doc 02 §1.1); the seat INSERT path itself
+// (`chat.seatAgent`) stays deferred to AP3.
 export const PARTICIPANT_KINDS = ["human", "character", "agent", "observer"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
@@ -634,6 +637,10 @@ export const CHAT_WARNING_CODES = [
   // Tools were attached but `capability.tools` is absent → dropped; the turn proceeds tool-less
   // (D48; the domain-side gate per D51's rule — the emit site is the engine's attach gate).
   "tools_unsupported",
+  // The post-turn memory build (§3a fire-and-forget) threw — group/scoped digests did NOT build this turn
+  // (a summarizer outage, a store failure, a mint failure). Emitted from the engine's memory-trigger catch so
+  // the silent-failure black hole (stickler F1/F1d) is observable; the turn's reply is unaffected.
+  "memory_build_failed",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
@@ -840,13 +847,14 @@ export type MemberCardVisibility = (typeof MEMBER_CARD_VISIBILITY_LEVELS)[number
 export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS);
 
 // ── Group config (the `chatMetadata.group` sub-blob) ──
+/** The canonical arbitration-policy union (spine §5.5 — ONE importable tuple; the derived Select items +
+ *  a total `Record` label map in `group-config-form.tsx` fail `tsc` when a member is added/renamed). The
+ *  `.catch().default()` on the schema hides `.options`, so the tuple is the shared source, not the enum. */
+export const GROUP_POLICIES = ["natural", "list", "pooled", "manual", "smart"] as const;
+export type GroupPolicy = (typeof GROUP_POLICIES)[number];
 /** Arbitration policy (WHO speaks each round). `@mention` is NOT a policy value — it is a hard override
  *  applied BEFORE the policy. `smart` (side-LLM) falls back to `natural` until wired. */
-export const groupPolicySchema = z
-  .enum(["natural", "list", "pooled", "manual", "smart"])
-  .catch("natural")
-  .default("natural");
-export type GroupPolicy = z.infer<typeof groupPolicySchema>;
+export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural");
 
 // Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (the narrator arm is `.strict()`).
 // Defaults make the OFF path byte-identical (no timer / no auto-turn / no scheduling).
@@ -1181,6 +1189,17 @@ export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
  * `<img>` — D44 §12.3). The `html-card` extraction grammar is NOT parsed here — it lands with the
  * chat-content wiring that defines how a card is embedded in a stored body (the union member is
  * born-compliant; this projection covers the markdown + media classes the D51 grammar defines).
+ *
+ * STORED-CONTENT PROJECTIONS DEGRADE, NEVER THROW (ratified doctrine). The input spans come from a
+ * persisted, arbitrary model/user-authored body (any member can type — and any model can emit —
+ * `![alt](asset:<not-a-typeid>)`; the send path neither does nor should reject body prose). The kit
+ * tokenizer cannot carry the TypeID brand (the cake), so the `asset` arm re-validates the brand at
+ * this seam — but a `.parse` throw here fires INSIDE React render with no per-row boundary, so one
+ * malformed persisted ref would crash the whole app on every open of that chat, forever (an
+ * unrecoverable state authored from stored data). A ref that fails the brand therefore DEGRADES to the
+ * raw image markdown as a text block (the author's bytes are preserved; the gated media path is
+ * reserved for well-branded refs) — matching the server twin `toContentParts`, which drops a bad/gone
+ * ref rather than throwing. This projection NEVER throws on persisted content.
  */
 export function contentSpansToBlocks(spans: readonly ContentSpan[]): MessageContentBlock[] {
   const blocks: MessageContentBlock[] = [];
@@ -1197,17 +1216,27 @@ export function contentSpansToBlocks(spans: readonly ContentSpan[]): MessageCont
       continue;
     }
     flushText();
-    blocks.push({
-      kind: "media",
-      media: "image", // the D51 grammar embeds images; native a/v arrives via html-card/native paths
-      src:
-        span.ref.kind === "asset"
-          ? // The span's assetId is a stored-canon ref parsed by the kit tokenizer (kit cannot carry
-            // the brand — the cake); the schema-validated brand cast is the sanctioned re-entry.
-            { kind: "asset", assetId: typeIdSchema(ID_PREFIX.asset).parse(span.ref.assetId) }
-          : { kind: "external", url: span.ref.url },
-      alt: span.alt,
-    });
+    if (span.ref.kind === "external") {
+      blocks.push({
+        kind: "media",
+        media: "image", // the D51 grammar embeds images; native a/v arrives via html-card/native paths
+        src: { kind: "external", url: span.ref.url },
+        alt: span.alt,
+      });
+      continue;
+    }
+    const branded = typeIdSchema(ID_PREFIX.asset).safeParse(span.ref.assetId);
+    if (branded.success) {
+      blocks.push({
+        kind: "media",
+        media: "image",
+        src: { kind: "asset", assetId: branded.data },
+        alt: span.alt,
+      });
+      continue;
+    }
+    // Degrade a malformed persisted asset ref to its literal markdown (never throw — see header).
+    blocks.push({ kind: "markdown", md: `![${span.alt}](asset:${span.ref.assetId})` });
   }
   flushText();
   return blocks;

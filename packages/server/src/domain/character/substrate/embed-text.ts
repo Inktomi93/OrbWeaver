@@ -62,7 +62,9 @@ function cleanText(text: string): string {
 /** Replace ST placeholders: `{{char}}` → the character name; `{{user}}` → a generic user name (there is no
  *  persona context at index time, so the neutral "User" is correct). Case-insensitive. */
 function normalizePlaceholders(text: string, charName: string, userName: string): string {
-  return text.replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, userName);
+  // Function-replacement form: a name containing `$$`/`$&` must splice VERBATIM (the string form
+  // interprets $-patterns — the wrapWiFormat bug class, stickler 2026-07-09).
+  return text.replace(/\{\{char\}\}/gi, () => charName).replace(/\{\{user\}\}/gi, () => userName);
 }
 
 /**

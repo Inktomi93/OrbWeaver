@@ -94,3 +94,17 @@ test("a seed offers Customize; an owned theme offers Edit + Delete", async ({ mo
   await expect(page.getByRole("menuitem", { name: "Edit" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
 });
+
+test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({
+  mount,
+  page,
+}) => {
+  await stub(page);
+  const component = await mount(<ThemePickerStory />);
+  await component.getByRole("button", { name: "My Theme actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  // The destructive confirm — no mutation has fired yet (UI-Primitives §13.8 R4).
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect(page.getByText("Delete this theme?")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+});

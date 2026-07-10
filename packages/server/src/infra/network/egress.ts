@@ -1,5 +1,6 @@
 import { lookup as dnsLookup } from "node:dns";
-import { Agent, setGlobalDispatcher } from "undici";
+import { isIP } from "node:net";
+import { Agent, buildConnector, setGlobalDispatcher } from "undici";
 import { env } from "#foundation/env";
 import { getLog, securityEvent } from "#foundation/observability";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges";
@@ -7,10 +8,16 @@ import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges";
 // SSRF egress firewall. All outbound HTTP (OpenRouter, model CDNs, OIDC discovery, and any
 // user-influenced URL like the X-Authentik-Meta-Jwks host) flows through Node's global fetch/undici.
 // Swapping `http.globalAgent` doesn't work — Node's fetch ignores it. The correct seam is
-// `undici.setGlobalDispatcher(new Agent({ connect: { lookup } }))`: a custom DNS lookup that resolves
-// the name and REJECTS private/loopback/link-local/Tailscale addresses, then passes the RESOLVED address
-// straight to connect — closing the DNS-rebinding TOCTOU (the name can't re-resolve to a different IP
-// between check and connect).
+// `undici.setGlobalDispatcher(new Agent({ connect }))`. TWO gates, because undici/Node invokes the connect
+// `lookup` ONLY for a host that needs DNS resolution:
+//   1. HOSTNAME targets → a custom DNS `lookup` that resolves the name and REJECTS
+//      private/loopback/link-local/Tailscale addresses, then passes the RESOLVED address straight to connect
+//      — closing the DNS-rebinding TOCTOU (the name can't re-resolve to a different IP between check and
+//      connect).
+//   2. IP-LITERAL targets (`http://169.254.169.254`, `http://127.0.0.1:port`, an RFC1918 host) → these
+//      SKIP `lookup` entirely (Node connects the literal directly), so the connector itself pre-checks the
+//      literal host and rejects a private one BEFORE the socket is opened. Without this, a direct-IP SSRF
+//      (every scenario in the s7 report) would sail past a lookup-only firewall.
 //
 // The blocked set = DEFAULT_TRUSTED_RANGES ∪ TRUSTED_PRIVATE_RANGES (the operator's extra private CIDRs).
 // Internal hosts an operator legitimately needs (a LAN OIDC issuer / JWKS host) go in EGRESS_ALLOWLIST
@@ -34,6 +41,16 @@ export function privateEgressRanges(): readonly string[] {
   return extra.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extra] : DEFAULT_TRUSTED_RANGES;
 }
 
+/** If `hostname` is an IP LITERAL (v4/v6, tolerating URL brackets), return the bare address; else null.
+ *  A literal target skips undici's DNS `lookup`, so the connector must recognize and gate it directly. */
+function literalHost(hostname: string): string | null {
+  const bare =
+    hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]")
+      ? hostname.slice(1, -1)
+      : hostname;
+  return isIP(bare) === 0 ? null : bare;
+}
+
 /** The pure block decision: a resolved address in `ranges` (private/loopback/operator-declared) is
  *  blocked UNLESS its hostname is on the allowlist (case-insensitive). Public addresses are always
  *  allowed. The test seam; `installEgressFirewall` is the wired surface. */
@@ -49,7 +66,9 @@ export function shouldBlockEgress(
   return !allowlist.has(hostname.toLowerCase());
 }
 
-/** Install the global undici dispatcher with a private-IP-rejecting DNS lookup. No-op when disabled. */
+/** Install the global undici dispatcher that rejects private/loopback/link-local egress at BOTH gates: a
+ *  DNS `lookup` for hostname targets (rebind-safe) and a connector pre-check for IP-literal targets (which
+ *  skip lookup). Called from `entry/lifecycle` boot. No-op when EGRESS_FIREWALL=false. */
 export function installEgressFirewall(): void {
   if (!env.EGRESS_FIREWALL) {
     return;
@@ -71,42 +90,54 @@ export function installEgressFirewall(): void {
     }
   }
 
-  setGlobalDispatcher(
-    new Agent({
-      connect: {
-        lookup(hostname, options, callback): void {
-          dnsLookup(hostname, options, (err, address, family): void => {
-            if (err) {
-              callback(err, address as string, family as number);
-              return;
-            }
-            // Two callback shapes (node:dns): `{all:true}` yields LookupAddress[]; the default yields a
-            // single address string. Block if ANY resolved address is private and the host isn't
-            // allowlisted — the connector may try any of them.
-            const addrs: string[] = Array.isArray(address)
-              ? address.map((a) => String((a as { address?: unknown }).address ?? a))
-              : [String(address)];
-            const blocked = addrs.find((a) => shouldBlockEgress(a, hostname, allowlist, ranges));
-            if (blocked !== undefined) {
-              securityEvent(
-                "egress_blocked",
-                { hostname, address: blocked },
-                "security: egress SSRF blocked (private address)",
-              );
-              callback(
-                new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`),
-                address as string,
-                family,
-              );
-              return;
-            }
-            // Hand the resolved address(es) straight through — no second resolution (rebinding-safe).
-            callback(null, address as string, family);
-          });
-        },
-      },
-    }),
-  );
+  // Gate 1 — HOSTNAME targets: resolve once, block a private resolved address, hand the resolved address
+  // straight to connect (rebinding-safe). `buildConnector` uses this lookup for names that need resolution.
+  const baseConnect = buildConnector({
+    lookup(hostname, options, callback): void {
+      dnsLookup(hostname, options, (err, address, family): void => {
+        if (err) {
+          callback(err, address as string, family as number);
+          return;
+        }
+        // Two callback shapes (node:dns): `{all:true}` yields LookupAddress[]; the default yields a
+        // single address string. Block if ANY resolved address is private and the host isn't
+        // allowlisted — the connector may try any of them.
+        const addrs: string[] = Array.isArray(address)
+          ? address.map((a) => String((a as { address?: unknown }).address ?? a))
+          : [String(address)];
+        const blocked = addrs.find((a) => shouldBlockEgress(a, hostname, allowlist, ranges));
+        if (blocked !== undefined) {
+          securityEvent(
+            "egress_blocked",
+            { hostname, address: blocked },
+            "security: egress SSRF blocked (private address)",
+          );
+          callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
+          return;
+        }
+        // Hand the resolved address(es) straight through — no second resolution (rebinding-safe).
+        callback(null, address as string, family);
+      });
+    },
+  });
+
+  // Gate 2 — IP-LITERAL targets: undici/Node SKIP the lookup above for a literal host, so the connector
+  // pre-checks the literal itself and rejects a private/loopback/link-local one before the socket opens.
+  const connect: buildConnector.connector = (options, callback): void => {
+    const literal = literalHost(options.hostname);
+    if (literal !== null && shouldBlockEgress(literal, options.hostname, allowlist, ranges)) {
+      securityEvent(
+        "egress_blocked",
+        { hostname: options.hostname, address: literal },
+        "security: egress SSRF blocked (private literal address)",
+      );
+      callback(new Error(`SSRF_BLOCKED: ${options.hostname} → ${literal}`), null);
+      return;
+    }
+    baseConnect(options, callback);
+  };
+
+  setGlobalDispatcher(new Agent({ connect }));
   getLog().info(
     { allowlist: [...allowlist] },
     "security: egress firewall installed (private egress blocked)",
@@ -130,6 +161,10 @@ export interface SafeFetchOptions {
   maxRedirects?: number;
   /** AbortSignal forwarded to fetch (caller's timeout, cancel, etc.). */
   signal?: AbortSignal;
+  /** Request headers forwarded on the initial request AND every redirect hop (e.g. a Bearer key for a
+   *  user-supplied `/models` probe). The caller owns the leak surface: these ride to the redirect target,
+   *  which the per-hop SSRF re-validation still address-gates. */
+  headers?: Record<string, string>;
 }
 
 /** Headers + a byte reader that respects the size cap. */
@@ -152,7 +187,12 @@ export async function safeFetch(
 ): Promise<SafeFetchResult> {
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
-  const response = await followRedirects(new URL(url), maxRedirects, options.signal);
+  const response = await followRedirects(
+    new URL(url),
+    maxRedirects,
+    options.signal,
+    options.headers,
+  );
   const contentType = enforceContentType(response, options.allowedContentTypes);
   let consumed = false;
   return {
@@ -197,19 +237,37 @@ export async function fetchImageBytes(url: string, maxBytes?: number): Promise<U
   }
 }
 
+// Caller headers that carry a secret (a user's provider Bearer key, a session cookie) and MUST NOT ride a
+// CROSS-ORIGIN redirect hop — a user-supplied baseUrl that 302s to an attacker host would otherwise exfil
+// the user's API key. Matches the browser/curl rule: strip credentials when the redirect changes origin.
+const CREDENTIAL_HEADERS: readonly string[] = ["authorization", "cookie", "proxy-authorization"];
+
+/** Drop credential-bearing headers (case-insensitive) — applied when a redirect crosses origin. */
+function stripCredentialHeaders(headers: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([k]) => !CREDENTIAL_HEADERS.includes(k.toLowerCase())),
+  );
+}
+
 /** Follow up to `maxRedirects` manual hops, re-validating each via the global firewall's connect lookup.
- *  Returns the terminal (non-3xx, or chain-exhausted 3xx) response for the caller to inspect. */
+ *  Returns the terminal (non-3xx, or chain-exhausted 3xx) response for the caller to inspect. Credential
+ *  headers (Authorization/Cookie) are stripped the moment a hop crosses origin (key-exfil defense). */
 async function followRedirects(
   start: URL,
   maxRedirects: number,
   signal: AbortSignal | undefined,
+  headers: Record<string, string> | undefined,
 ): Promise<Response> {
   let current = start;
+  let hopHeaders = headers;
   let lastResponse: Response | null = null;
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const init: RequestInit = { redirect: "manual" };
     if (signal) {
       init.signal = signal;
+    }
+    if (hopHeaders) {
+      init.headers = hopHeaders;
     }
     // biome-ignore lint/performance/noAwaitInLoops: redirect hops are inherently sequential — each Location depends on the prior response.
     lastResponse = await fetch(current, init);
@@ -223,7 +281,13 @@ async function followRedirects(
     }
     // Drain the intermediate 3xx body (fire-and-forget) so the socket returns to the pool, then follow.
     void lastResponse.body?.cancel().catch(() => undefined);
-    current = new URL(loc, current);
+    const next = new URL(loc, current);
+    // Cross-origin hop → strip the caller's credential headers so a user's Bearer key never rides to a
+    // redirect-chosen host (the SSRF connector still address-gates the target regardless).
+    if (hopHeaders && next.origin !== current.origin) {
+      hopHeaders = stripCredentialHeaders(hopHeaders);
+    }
+    current = next;
   }
   if (!lastResponse) {
     throw new Error("safeFetch: no response (max redirects exceeded with no terminal status)");

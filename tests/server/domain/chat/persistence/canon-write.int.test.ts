@@ -3,9 +3,11 @@
 // select-active (the pointer flip), and that `buildCommittedMessageView` equals the re-read row byte-for-byte.
 
 import type { Db } from "@orb/db";
+import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   appendVariantStatements,
@@ -162,6 +164,34 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
     expect(row?.selectedVariantIdx).toBe(0);
     expect(row?.content).toBe("first");
     expect(row?.variantCount).toBe(2);
+  });
+
+  test("F10: a committed variant row stamps maxOutputTokens + reasoningEffort (D26 provenance, not NULL)", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = ids("m1");
+    await db.batch(
+      batchMany(
+        insertCanonMessageStatements(db, {
+          messageId,
+          variantId,
+          chatId,
+          seq: 1,
+          role: "assistant",
+          now: FROZEN_AT,
+          variant: { content: "capped", maxOutputTokens: 4096, reasoningEffort: "high" },
+        }),
+      ),
+    );
+
+    const [row] = await db
+      .select({
+        maxOutputTokens: messageVariants.maxOutputTokens,
+        reasoningEffort: messageVariants.reasoningEffort,
+      })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, variantId));
+    expect(row?.maxOutputTokens).toBe(4096);
+    expect(row?.reasoningEffort).toBe("high");
   });
 
   test("append-variant with selectActive:false leaves the original selected", async () => {

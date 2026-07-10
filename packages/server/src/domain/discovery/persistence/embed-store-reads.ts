@@ -7,7 +7,9 @@
 //
 // OWNER DERIVATION (D20/D23): the vector rows carry NO ownerId. Character scope derives via
 // `characters.ownerId` (D23); digest scope derives via `digest → chat → host` — the host is the ONE chat
-// authority (D18: chats have no ownerId; the `chat_participants` row with `kind='human' AND role='host'`).
+// authority (D18: chats have no ownerId; the PRESENT `chat_participants` row with `kind='human' AND
+// role='host' AND leftSeq IS NULL` — a departed ex-host row coexists with the successor after a
+// handoff-via-leave and must NOT re-attribute the digest).
 // Reading `chat_participants`/`characters` is a downward @orb/db read, NOT a sibling-domain runtime import.
 //
 // Hub passes are CROSS-TENANT (hubness describes a vector SPACE, not a user), so
@@ -23,7 +25,7 @@ import {
   imageEmbeddings,
 } from "@orb/db";
 import type { CharacterId, ChatDigestId, UserId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 // ── row shapes (file-local; consumers infer them — no exported persistence type, `no-inline-types`) ────
 
@@ -135,8 +137,12 @@ export async function readImageHubVectors(db: Db): Promise<HubVector[]> {
 /** Every digest embedding tagged with its OWNER (the chat's `kind='human' AND role='host'` participant) +
  *  `isGroup` + `tier` + space — the theme clustering inputs. The recompute filters `isGroup=0` for solo
  *  clustering (a room's digests belong to the synthetic group character, not the host's theme space, #13)
- *  and buckets by level (`scene` = tier 0, `arc` = tier ≥ 1). A digest whose chat has no host row is
- *  dropped (the inner join), which can never happen for a real chat. */
+ *  and buckets by level (`scene` = tier 0, `arc` = tier ≥ 1). The join demands the PRESENT host
+ *  (`leftSeq IS NULL`) — mirroring the exportChat belt + canonical `requireHost`: a host who left after a
+ *  handoff-via-leave leaves a DEPARTED `role='host'` row behind (sole-host leave archives, never demotes;
+ *  a handoff demotes only the PRESENT host, D18), and that stale row must NOT re-attribute the digest to the
+ *  ex-host (it would duplicate the digest into their discovery/theme space). A real chat always has exactly
+ *  one present host, so the join drops nothing for a live chat. */
 export async function readOwnedDigestVectors(db: Db): Promise<OwnedDigestVector[]> {
   return await db
     .select({
@@ -157,6 +163,7 @@ export async function readOwnedDigestVectors(db: Db): Promise<OwnedDigestVector[
         eq(chatParticipants.chatId, chatDigests.chatId),
         eq(chatParticipants.kind, "human"),
         eq(chatParticipants.role, "host"),
+        isNull(chatParticipants.leftSeq),
       ),
     )
     .then((rows) =>

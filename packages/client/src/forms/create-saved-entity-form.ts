@@ -29,9 +29,11 @@
 // that loses the work on the next navigation. A `draftSeededRef` makes the promotion mount-once so a
 // background refetch re-render can't re-apply it (the same trap the autosave factory's `seededRef`
 // guards). A debounced form-level listener mirrors every real change (skipping the untouched seed so an
-// open never mints a draft); the mirror clears on a confirmed save AND on explicit `discard()`. No
-// `draft` supplied = byte-identical to the original button-gated behavior — every existing consumer is
-// untouched.)
+// open never mints a draft); the mirror clears on a confirmed save AND on explicit `discard()`. The
+// debounce is FLUSHED synchronously on hook unmount (an `!isDefaultValue`-guarded cleanup writes the
+// latest values immediately) so a switch-triggered remount can't drop an in-flight edit before the
+// debounce fires — the §6.5 "loses nothing" guarantee; a clean form flushes nothing. No `draft`
+// supplied = byte-identical to the original button-gated behavior — every existing consumer is untouched.)
 //
 // The persist fn (`save`) has TWO seams, exactly mirroring `createAutosaveEntityForm`: a module-scope
 // `config.save` for editors whose save needs nothing beyond `TValues`, and a CALL-time
@@ -68,6 +70,12 @@ export interface SavedEntityFormConfig<TValues extends object> {
    * module scope) can't be baked here — the surface supplies it at CALL time via
    * `SavedEntityFormArgs.save` instead (which WINS). Mirrors `createAutosaveEntityForm`'s identical
    * call-time seam (create-autosave-entity-form.ts) — the same problem, the same fix.
+   *
+   * `save` receives the FULL `TValues` — this factory does NOT diff to changed keys. A consumer whose
+   * wire wants "only changed keys" (`null`=clear vs omit=unchanged; the per-field clear semantic the
+   * factory can't know) must project at ITS OWN save seam. Reference impl: `characterUpdateDiff`
+   * (features/character/lib/character-card-form-model.ts), wired at character-editor-surface.tsx.
+   * (FINAL-Character §2, amended 2026-07-10 — the diff is the surface's job, not the factory's.)
    */
   readonly save?: (values: TValues) => Promise<TValues>;
   /**
@@ -229,6 +237,27 @@ export function createSavedEntityForm<TValues extends object>(
       // slot) so this effect RE-RUNS on a host re-render — the `draftSeededRef` guard is what stops the
       // body from re-applying the fixed mount `draftSeedRef.current` back OVER the user's live edit.
     }, [draftSeed, form]);
+
+    // Obligation 5 (OPTIONAL) — FLUSH the debounced mirror on UNMOUNT. The onChange listener above is
+    // debounced (DEFAULT_DEBOUNCE_MS), so an edit made <debounce before the editor REMOUNTS on an entity
+    // switch (`key={mountKey}`) would be DROPPED — the pending mirror write never fires and the draft is
+    // lost with ZERO warning (FINAL-Character §6.5: "switching away mid-edit loses nothing — the mirror
+    // preserves the draft and re-promotes it with the dirty pill LIT on return", the whole reason the
+    // confirm dialog was removed). The cleanup writes the LATEST form values to the mirror synchronously
+    // so a fast switch can't race the debounce. Lowering the debounce is NOT the fix (a faster switch
+    // would still race) — a synchronous flush-on-unmount is. Guarded on `!isDefaultValue`, so a
+    // clean/unchanged form flushes NOTHING: safe for every draftless consumer (persona/group-config/
+    // system-settings/appearance) and byte-identical to before when no `draft` store is supplied.
+    useEffect(() => {
+      if (config.draft === undefined) {
+        return;
+      }
+      return (): void => {
+        if (!form.state.isDefaultValue) {
+          config.draft?.setDraft(entityId, form.state.values);
+        }
+      };
+    }, [entityId, form]);
 
     // Obligation 4 — the reseed guard: a fresh serverValues identity reseeds ONLY an untouched form.
     const seededRef = useRef<TValues | undefined>(serverValues);

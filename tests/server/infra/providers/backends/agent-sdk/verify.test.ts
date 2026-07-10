@@ -6,7 +6,10 @@
 // guard throws LOUDLY at the first turn instead. We lock that EVERY malformed shape (missing/empty/
 // wrong-typed) throws, and a well-formed one passes.
 
-import { assertInitFrameShape } from "@orb/server/infra/providers/backends/agent-sdk";
+import {
+  assertInitFrameShape,
+  classifyTerminalReason,
+} from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -48,5 +51,82 @@ describe("assertInitFrameShape", () => {
 
   test("a non-object message does not silently pass (it throws rather than orphan sessions)", () => {
     expect(() => assertInitFrameShape(null)).toThrow();
+  });
+});
+
+// classifyTerminalReason — the loop-level SDK `TerminalReason` (19-member union, 0.3.206) → normalized
+// kind + retryable. It rescues the ban-risk / context-overflow / input-error causes the 4-member subtype
+// flattens. We lock one member per BUCKET (the buckets that share a mapping are asserted together).
+describe("classifyTerminalReason", () => {
+  test("blocking_limit → rate_limit, NON-retryable (a hard block — retrying courts the ban)", () => {
+    expect(classifyTerminalReason("blocking_limit")).toEqual({
+      kind: "rate_limit",
+      retryable: false,
+    });
+  });
+
+  test("rapid_refill_breaker → rate_limit, RETRYABLE (a transient breaker)", () => {
+    expect(classifyTerminalReason("rapid_refill_breaker")).toEqual({
+      kind: "rate_limit",
+      retryable: true,
+    });
+  });
+
+  test("prompt_too_long / image_error → invalid, non-retryable (a bad request, not a fault)", () => {
+    const invalid = { kind: "invalid", retryable: false };
+    expect(classifyTerminalReason("prompt_too_long")).toEqual(invalid);
+    expect(classifyTerminalReason("image_error")).toEqual(invalid);
+  });
+
+  test("model_error → server, retryable (an upstream model fault)", () => {
+    expect(classifyTerminalReason("model_error")).toEqual({ kind: "server", retryable: true });
+  });
+
+  test("the abort/hook/deferred/max-turns/background family → aborted, non-retryable", () => {
+    for (const reason of [
+      "aborted_streaming",
+      "aborted_tools",
+      "stop_hook_prevented",
+      "hook_stopped",
+      "tool_deferred",
+      "max_turns",
+      "background_requested",
+    ] as const) {
+      expect(classifyTerminalReason(reason)).toEqual({ kind: "aborted", retryable: false });
+    }
+  });
+
+  test("completed on the error path → server (contradictory; treated as a transient fault)", () => {
+    expect(classifyTerminalReason("completed")).toEqual({ kind: "server", retryable: true });
+  });
+
+  // ── The 6 members added in SDK 0.3.206 (union 13 → 19) ──────────────────────────────────────────
+
+  test("api_error / turn_setup_failed / malformed_tool_use_exhausted → server, retryable (transient generation-side faults)", () => {
+    const server = { kind: "server", retryable: true };
+    expect(classifyTerminalReason("api_error")).toEqual(server);
+    expect(classifyTerminalReason("turn_setup_failed")).toEqual(server);
+    expect(classifyTerminalReason("malformed_tool_use_exhausted")).toEqual(server);
+  });
+
+  test("budget_exhausted → billing, NON-retryable (mirrors error_max_budget_usd — never auto-retry into spend)", () => {
+    expect(classifyTerminalReason("budget_exhausted")).toEqual({
+      kind: "billing",
+      retryable: false,
+    });
+  });
+
+  test("structured_output_retry_exhausted → invalid, non-retryable (mirrors error_max_structured_output_retries)", () => {
+    expect(classifyTerminalReason("structured_output_retry_exhausted")).toEqual({
+      kind: "invalid",
+      retryable: false,
+    });
+  });
+
+  test("tool_deferred_unavailable → invalid, non-retryable (a config mismatch, unlike tool_deferred's clean stop)", () => {
+    expect(classifyTerminalReason("tool_deferred_unavailable")).toEqual({
+      kind: "invalid",
+      retryable: false,
+    });
   });
 });

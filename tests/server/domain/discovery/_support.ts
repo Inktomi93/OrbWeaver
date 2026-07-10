@@ -102,28 +102,66 @@ function seededMinter<T extends string>(prefix: string): () => T {
   };
 }
 
+/** A recording `attachCardTagByName` fake — captures each staging call (the distill pass's tag seam) and
+ *  reports it as a NEW attach (returns true). A test that wants REAL pending rows injects the actual
+ *  `tag.attachCardTagByName` instead (over the same db); this default keeps the non-distill harnesses simple. */
+export interface TagAttachRecorder {
+  readonly op: DiscoveryContext["attachCardTagByName"];
+  readonly calls: {
+    ownerId: string;
+    characterId: string;
+    tagName: string;
+    source?: string;
+    status?: string;
+  }[];
+}
+
+export function makeTagAttachRecorder(): TagAttachRecorder {
+  const calls: TagAttachRecorder["calls"] = [];
+  const op: DiscoveryContext["attachCardTagByName"] = (params) => {
+    calls.push({
+      ownerId: params.ownerId,
+      characterId: params.characterId,
+      tagName: params.tagName,
+      ...(params.source !== undefined ? { source: params.source } : {}),
+      ...(params.status !== undefined ? { status: params.status } : {}),
+    });
+    return Promise.resolve(true);
+  };
+  return { op, calls };
+}
+
 export interface DiscoveryHarness {
   readonly ctx: DiscoveryContext;
   readonly hubScores: HubScoreRecorder;
   readonly summarize: SummarizeRecorder;
+  readonly tagAttach: TagAttachRecorder;
 }
 
 /** Build a `DiscoveryContext` over a real db with seeded ids + a frozen clock + the injected fakes. */
 export function makeDiscoveryHarness(
   db: Db,
-  overrides: { readonly summarize?: SummarizeRecorder; readonly hubScores?: HubScoreRecorder } = {},
+  overrides: {
+    readonly summarize?: SummarizeRecorder;
+    readonly hubScores?: HubScoreRecorder;
+    readonly summarizerModel?: string;
+    readonly attachCardTagByName?: DiscoveryContext["attachCardTagByName"];
+  } = {},
 ): DiscoveryHarness {
   const hubScores = overrides.hubScores ?? makeHubScoreRecorder();
   const summarize = overrides.summarize ?? makeSummarizeRecorder();
+  const tagAttach = makeTagAttachRecorder();
   const ctx: DiscoveryContext = {
     db,
     now: () => FROZEN_AT,
     newDuplicateCharacterPairId: seededMinter<DuplicateCharacterPairId>("duplicate_character_pair"),
     newThemeClusterId: seededMinter<ThemeClusterId>("theme_cluster"),
     summarize: summarize.op,
+    summarizerModel: overrides.summarizerModel ?? "test-summarize-model",
+    attachCardTagByName: overrides.attachCardTagByName ?? tagAttach.op,
     writeHubScores: hubScores.op,
   };
-  return { ctx, hubScores, summarize };
+  return { ctx, hubScores, summarize, tagAttach };
 }
 
 // ── seeders (insert the rows the verbs read directly) ─────────────────────────
@@ -149,6 +187,7 @@ export async function seedCharacter(
     readonly ownerId: UserId;
     readonly name?: string;
     readonly synthetic?: boolean;
+    readonly description?: string;
   },
 ): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id);
@@ -157,6 +196,7 @@ export async function seedCharacter(
     handle: overrides.id,
     ownerId: overrides.ownerId,
     name: overrides.name ?? overrides.id,
+    ...(overrides.description !== undefined ? { description: overrides.description } : {}),
     contentHash: "card_hash",
     synthetic: overrides.synthetic ?? false,
     createdAt: FROZEN_AT,
@@ -205,6 +245,27 @@ export async function seedHostedChat(db: Db, id: string, ownerId: UserId): Promi
     joinedAt: FROZEN_AT,
   });
   return chatId;
+}
+
+/** Seed a DEPARTED `role='host'` row on an existing chat (a `leftSeq`-stamped ex-host that coexists with the
+ *  present host after a handoff-via-leave, D18). The owner derivation must NOT re-attribute the chat's digest
+ *  to this stale row. */
+export async function seedDepartedHost(
+  db: Db,
+  chatId: ChatId,
+  userId: UserId,
+  leftSeq = 5,
+): Promise<void> {
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>(`chat_participant_departed_${chatId}`),
+    chatId,
+    kind: "human",
+    userId,
+    role: "host",
+    joinSeq: -1,
+    joinedAt: FROZEN_AT,
+    leftSeq,
+  });
 }
 
 /** The synthetic group-as-character bucket for shared digests (a real `CharacterId` FK — inv 8, no `''`

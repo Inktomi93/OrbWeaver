@@ -23,7 +23,7 @@ const CTX = {
     [ALEX, { name: "Alex", description: "a developer" }],
   ]),
   speakerCharName: "Kira",
-  activePersonaName: "Alex",
+  fallbackPersonaName: "Alex",
   nowMs: NOW_MS,
 };
 

@@ -154,6 +154,24 @@ export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
  *  the host login; `connection.testClaudeAuth` is the caller). Discriminated on the USER-vocab `source`
  *  (never a backend/runner name — the seal) so future per-source verify arms narrow instead of squishing
  *  into `{ ok, details?: unknown }`. */
+/** The authenticated account's identity/plan metadata — an SDK-FREE projection of the agent-sdk
+ *  `accountInfo()` control response (every field the SDK marks optional stays optional here; the SDK
+ *  shape never crosses this boundary). Best-effort: the probe enriches the verify result with it when
+ *  the control call succeeds in time, and OMITS it on any failure/timeout (the verify turn itself must
+ *  never fail or delay on this). `apiProvider` is the active backend — `"firstParty"` is the Anthropic
+ *  OAuth login (the healthy Max-sub answer); the 3P values mean external auth (AWS/gcloud/gateway). */
+export const verifyAuthAccountSchema = z.object({
+  email: z.string().optional(),
+  organization: z.string().optional(),
+  /** The plan tier the account is on (SDK `subscriptionType`). */
+  subscriptionType: z.string().optional(),
+  /** The active API backend (SDK `apiProvider`) — the union the SDK declares. */
+  apiProvider: z
+    .enum(["firstParty", "bedrock", "vertex", "foundry", "anthropicAws", "mantle", "gateway"])
+    .optional(),
+});
+export type VerifyAuthAccount = z.infer<typeof verifyAuthAccountSchema>;
+
 export const verifyAuthResultSchema = z.object({
   source: z.literal("max-pro-sub"),
   ok: z.boolean(),
@@ -165,5 +183,8 @@ export const verifyAuthResultSchema = z.object({
   reply: z.string(),
   /** Metered-equivalent cost; on a flat-rate Max sub this is allowance, not dollars. */
   costUsd: z.number(),
+  /** The authenticated account's identity/plan metadata (agent-sdk `accountInfo()`); ABSENT when the
+   *  best-effort probe failed/timed out (never fails the verify turn). */
+  account: verifyAuthAccountSchema.optional(),
 });
 export type VerifyAuthResult = z.infer<typeof verifyAuthResultSchema>;

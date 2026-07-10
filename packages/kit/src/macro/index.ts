@@ -9,7 +9,7 @@ export {
 } from "./engine";
 export { evaluateMacros } from "./evaluator";
 export { parseMacros } from "./parser";
-export { createDefaultRegistry, SimpleMacroRegistry } from "./registry";
+export { createDefaultRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry";
 export type {
   RowCharacterName,
   RowMacroNameContext,

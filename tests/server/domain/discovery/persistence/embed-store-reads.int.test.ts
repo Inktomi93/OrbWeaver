@@ -19,6 +19,7 @@ import {
   seedCharacterEmbedding,
   seedChatDigest,
   seedChatSegment,
+  seedDepartedHost,
   seedHostedChat,
   seedImageEmbedding,
   seedUser,
@@ -60,6 +61,23 @@ describe("readOwnedDigestVectors", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ ownerId: owner, isGroup: false, tier: 0 });
     expect(rows[0]?.keywords).toEqual(["forest", "duel"]);
+  });
+
+  test("attributes ONLY to the PRESENT host — a departed ex-host row is not re-attributed (D18)", async () => {
+    const db = await freshDb();
+    const present = await seedUser(db, "user_present");
+    const exHost = await seedUser(db, "user_ex_host");
+    const chat = await seedHostedChat(db, "chat_handoff", present);
+    // A departed `role='host'` row (handed off via leave) coexists with the present host on the SAME chat.
+    await seedDepartedHost(db, chat, exHost);
+    await seedChatDigest(db, { id: "chat_digest_handoff", chatId: chat, embedding: vec(1, 0) });
+
+    const rows = await readOwnedDigestVectors(db);
+    // Without the `leftSeq IS NULL` belt the innerJoin matched BOTH host rows → the digest was duplicated and
+    // attributed to the departed ex-host too. The belt keeps exactly one row, owned by the present host.
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ digestId: "chat_digest_handoff", ownerId: present });
+    expect(rows.map((r) => r.ownerId)).not.toContain(exHost);
   });
 
   test("drops digests whose chat has no human host", async () => {

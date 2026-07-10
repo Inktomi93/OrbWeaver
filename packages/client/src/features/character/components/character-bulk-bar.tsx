@@ -1,11 +1,21 @@
 // The §4.6 bulk selection bar — tag / archive / delete the selected characters (the bulk verbs). Lives in a
-// COMPONENT (not the surface) so its picker Dialog is legal: a surface renders no outer Dialog/Sheet/Drawer
-// (client-structure surface-purity), but a component owning its own interior Dialog is fine (the
-// persona-panel-row / character-create-menu precedent). The Tag action's `bulkAddCardTag` takes a `tagName`,
-// so the entry doubles as attach-existing or create-and-attach.
+// COMPONENT (not the surface) so its interior Dialogs are legal: a surface renders no outer
+// Dialog/Sheet/Drawer (client-structure surface-purity), but a component owning its own interior
+// Dialog/AlertDialog is fine (the persona-panel-row / character-create-menu precedent). The Tag action's
+// `bulkAddCardTag` takes a `tagName`, so the entry doubles as attach-existing or create-and-attach. Delete
+// is a hard, undo-less server verb (`bulk-remove`) → it is gated behind an AlertDialog confirm stating the
+// count (§13.8 R4 / FINAL-Character §11.1 — destructive confirms are the one legal INTERRUPT modal).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import {
+  AlertDialog,
+  AlertDialogActions,
+  AlertDialogClose,
+  AlertDialogDescription,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
@@ -40,6 +50,7 @@ export function CharacterBulkBar({
   const bulkArchive = useBulkArchiveCharacters({ trpc, invalidation });
   const bulkRemove = useBulkRemoveCharacters({ trpc, invalidation });
   const [tagOpen, setTagOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [tagName, setTagName] = useState("");
   const characterIds = ids.map((id) => castId<CharacterId>(id));
 
@@ -51,6 +62,11 @@ export function CharacterBulkBar({
     bulkTag.mutate({ tagName: trimmed, characterIds });
     setTagOpen(false);
     setTagName("");
+    onClear();
+  };
+
+  const confirmDelete = (): void => {
+    bulkRemove.mutate({ characterIds });
     onClear();
   };
 
@@ -72,14 +88,7 @@ export function CharacterBulkBar({
         >
           Archive
         </Button>
-        <Button
-          intent="destructive"
-          onClick={(): void => {
-            bulkRemove.mutate({ characterIds });
-            onClear();
-          }}
-          size="sm"
-        >
+        <Button intent="destructive" onClick={(): void => setDeleteOpen(true)} size="sm">
           Delete
         </Button>
       </SelectionBar>
@@ -106,6 +115,29 @@ export function CharacterBulkBar({
           </Stack>
         </DialogPopup>
       </Dialog>
+      <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
+        <AlertDialogPopup>
+          <Stack gap="block">
+            <AlertDialogTitle>
+              {`Delete ${selectedCount} character${selectedCount === 1 ? "" : "s"}?`}
+            </AlertDialogTitle>
+            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
+            <AlertDialogDescription>
+              This permanently deletes them. This can't be undone.
+            </AlertDialogDescription>
+            <AlertDialogActions>
+              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
+              <AlertDialogClose
+                render={
+                  <Button intent="destructive" onClick={confirmDelete}>
+                    Delete
+                  </Button>
+                }
+              />
+            </AlertDialogActions>
+          </Stack>
+        </AlertDialogPopup>
+      </AlertDialog>
     </>
   );
 }

@@ -32,7 +32,7 @@ import { defineVersionedConfig } from "#versioned-config";
 
 // The chat role's `source` is the canonical `ChatSource`/`CredentialSource` axis (D31). Connection
 // re-exports the TYPE (`ChatSource`); the SCHEMA value (`credentialSourceSchema`) lives in its canonical
-// home `#credentials` — re-spelling the 4-member union inline would violate the one-home rule.
+// home `#credentials` — re-spelling the 5-member union inline would violate the one-home rule.
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 // LogLevel — the ONE tuple (foundation/env imports it DOWN for its `z.enum`; kills the hand-kept mirror).
@@ -291,7 +291,10 @@ const inferenceRoleConfigSchema = z.object({
   model: z.string().min(1).optional().catch(undefined),
 });
 const summarizeRoleConfigSchema = z.object({
-  source: z.enum(["openrouter", "vllm"]).optional().catch(undefined),
+  // summarize can additionally select `max-pro-sub`: the agent-sdk backend serves it as a
+  // schema-validated summarizer on the owner's sub quota (resolve-role.ts's `isSub` arm), on top of the
+  // two chat-completions engines below.
+  source: z.enum(["openrouter", "vllm", "max-pro-sub"]).optional().catch(undefined),
   model: z.string().min(1).optional().catch(undefined),
 });
 const openrouterOnlyRoleConfigSchema = z.object({

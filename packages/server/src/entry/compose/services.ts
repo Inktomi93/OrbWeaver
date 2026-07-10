@@ -255,6 +255,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     resolveCredential: (params): Promise<ResolvedCredential> => credentials.resolve(params),
     fetchOrCatalog: diagnostics.fetchOrCatalog,
+    // The agent-sdk daemon `supportedModels()` discovery — providers' agent-sdk diagnostic through the
+    // same sealed front door as fetchOrCatalog (agent-sdk-fixed; connection owns the SEPARATE snapshot).
+    fetchAgentSdkModels: diagnostics.fetchAgentSdkModels,
     loadUserSettings: settings.loadUserSettings,
     // The host-Claude auth verify (testClaudeAuth) — providers' agent-sdk diagnostic through the same
     // sealed front door as fetchOrCatalog.
@@ -556,6 +559,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newDuplicateCharacterPairId: minter(ID_PREFIX.duplicateCharacterPair),
     newThemeClusterId: minter(ID_PREFIX.themeCluster),
     summarize: roleClients.summarize,
+    // The distill pass (PD-40) stamps the summarize model on `character_summaries.model` and stages its
+    // labels through the tag domain's by-name chokepoint (source:'auto', status:'pending' — the review queue).
+    summarizerModel: roleClients.summarizerModel,
+    attachCardTagByName: tag.attachCardTagByName,
     writeHubScores: embeddings.writeHubScores,
   });
   const notifications = createNotificationsService({
@@ -635,12 +642,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveAgentConnection: ({ principal }): Promise<ResolvedConnection> =>
       connection.resolveRole({ role: "agent", principal }),
     agentTurn: async (req): Promise<BuddyAgentResult> => {
+      // A mode-2 (openrouter) agent turn needs the derived OR-skin tier→slug map so the env firewall holds
+      // no hardcoded model strings; mode-1 sub / mode-3 loopback ignore it. Derived from connection's two
+      // live catalogs (never throws — a cold catalog degrades to the curated shortlist).
+      const orSkinTierModels =
+        req.credential.source === "openrouter" ? await connection.getOrSkinTierModels() : undefined;
       const result = await executor.runAgentTurn({
         credential: req.credential,
         model: req.model,
         systemPrompt: req.systemPrompt,
         prompt: req.prompt,
         mcpServer: req.toolServer,
+        ...(orSkinTierModels !== undefined ? { orSkinTierModels } : {}),
         ...(req.maxTurns !== undefined ? { maxTurns: req.maxTurns } : {}),
         ...(req.maxOutputTokens !== undefined ? { maxOutputTokens: req.maxOutputTokens } : {}),
         ...(req.maxContextTokens !== undefined ? { maxContextTokens: req.maxContextTokens } : {}),

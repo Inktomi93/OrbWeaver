@@ -33,7 +33,7 @@ import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import {
   characterCardFormFromDetail,
-  characterUpdateFromForm,
+  characterUpdateDiff,
   permanentTokenCount,
   totalTokenCount,
 } from "../lib/character-card-form-model";
@@ -57,7 +57,11 @@ export function CharacterEditorSurface({ characterId }: CharacterEditorSurfacePr
         </Text>
       )}
     >
-      <CharacterEditorBody characterId={characterId} />
+      {/* key={characterId} remounts the body on a character switch so the `activeGreetingIndex` state
+          (which lives ABOVE the form's `key={mountKey}` subtree) resets to 0 — otherwise viewing
+          "Opening 4" on one character carries into the next (F17). A render-only remount, never a
+          selection-keyed effect (§5.1 / rule 12). */}
+      <CharacterEditorBody characterId={characterId} key={characterId} />
     </QueryBoundary>
   );
 }
@@ -79,7 +83,9 @@ function CharacterEditorBody({ characterId }: CharacterEditorSurfaceProps): Reac
   const save = async (values: CharacterCardFormValues): Promise<CharacterCardFormValues> => {
     const saved = await update.mutateAsync({
       characterId,
-      input: characterUpdateFromForm(values),
+      // §2: send only the keys the user CHANGED (diffed against the server row `data`), never a full-object
+      // PUT — that would silently revert a concurrent edit to an untouched field (F3).
+      input: characterUpdateDiff(values, data),
     });
     return characterCardFormFromDetail(saved);
   };
@@ -129,9 +135,26 @@ function CharacterEditorBody({ characterId }: CharacterEditorSurfaceProps): Reac
             <Button type="button" intent="ghost" onClick={discard}>
               Discard
             </Button>
-            <form.AppForm>
-              <form.SubmitButton>Save</form.SubmitButton>
-            </form.AppForm>
+            {/* Save is `primary` ONLY while dirty (not `isDefaultValue`): at rest the hero "Start chat" is
+                the region's ONE primary (§6.1 / UI-Arch §4.3 rule 3 — "one primary visible per region at
+                rest"). A local bound Button (not the shared `form.SubmitButton`, which is always-primary)
+                keeps the intent-by-dirtiness confined to this surface. F8. */}
+            <form.Subscribe
+              selector={(s): readonly [boolean, boolean, boolean] =>
+                [s.canSubmit, s.isSubmitting, s.isDefaultValue] as const
+              }
+            >
+              {([canSubmit, isSubmitting, isDefaultValue]): ReactElement => (
+                <Button
+                  type="submit"
+                  intent={isDefaultValue ? "secondary" : "primary"}
+                  disabled={!canSubmit || isSubmitting}
+                  loading={isSubmitting}
+                >
+                  Save
+                </Button>
+              )}
+            </form.Subscribe>
           </SaveBar>
 
           <CharacterHeroBand

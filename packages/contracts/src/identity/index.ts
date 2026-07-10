@@ -71,12 +71,18 @@ export const authModeSchema = z.enum(AUTH_MODES);
  * fields, BEFORE the `users` row exists. Carries NO `userId` by design (invariant #3 — infra must not
  * know row ids; the seam adds it when building `Principal`). `externalId` is the stable authentik
  * sub/uid (null for the single-user / owner-fallback path, which keys on `handle`); `groups` drives the
- * owner/admin role determination at the resolution tier.
+ * owner/admin role determination + the allowed-groups login gate at the resolution tier.
+ *
+ * `email` is a MUTABLE contact attribute carried off the SSO `email` claim (or a forward-header) —
+ * NEVER an identity/join key (identity stays keyed on `users.id` + `externalId`; a plain `string`, not a
+ * brand). `null` when the login path carried no email; the resolution tier persists it onto `users.email`
+ * and never wipes a stored email on a null (keep-on-null).
  */
 export interface ResolvedIdentity {
   externalId: ExternalId | null;
   handle: Handle;
   groups: string[];
+  email: string | null;
 }
 
 /**

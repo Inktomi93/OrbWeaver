@@ -28,6 +28,7 @@ export function makeUser(overrides: Partial<UserRow> = {}): UserRow {
     id,
     handle: castId<Handle>(id),
     externalId: null,
+    email: null,
     role: "user",
     enabled: true,
     passwordHash: null,

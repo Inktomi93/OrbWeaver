@@ -12,6 +12,7 @@ import type { Db } from "@orb/db";
 import { assets, imageryGenerations, users } from "@orb/db";
 import type { AssetId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { sniffMime } from "@orb/kit/image-sniff";
 import type { ImageryContext } from "@orb/server/domain/imagery";
 import { createImageryService } from "@orb/server/domain/imagery";
 import { eq } from "drizzle-orm";
@@ -225,5 +226,93 @@ describe("generatePicture (free mode)", () => {
     await expect(
       createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free" }),
     ).rejects.toThrow();
+  });
+});
+
+// F4 — imagery derives the claimed mime from `@orb/kit/image-sniff`, the SAME signature table assets'
+// `enforceMagic:true` re-checks against (the forked local copy DIVERGED — e.g. a 4-byte "GIF8" prefix vs the
+// kit's strict GIF87a/89a — and could send a mismatch into a PAID store). The default harness fakes storeAsset
+// without magic-checking, so that integration point was never exercised; these tests store through a fake that
+// mirrors the real `enforceMagic` (re-sniff the bytes via the shared table; reject an unrecognized signature /
+// a claimed-vs-sniffed mismatch — assets/persistence/queries.ts `storeBlob`).
+const OCTET_STREAM = "application/octet-stream";
+const MAGIC_ERROR = /magic/;
+
+/** A storeAsset fake that mirrors assets' real `enforceMagic:true` (re-sniff via the SHARED kit table; reject
+ *  an unrecognized signature / a claimed-vs-sniffed mismatch) — the integration point the default harness fakes
+ *  away (F4). */
+function enforcingStoreAsset(): ImageryContext["storeAsset"] {
+  let n = 0;
+  return async (caller, bytes, kind, mime) => {
+    const sniffed = sniffMime(bytes);
+    if (sniffed === OCTET_STREAM) {
+      throw new Error(`assets.store: unrecognized magic bytes — claimed ${mime}`);
+    }
+    if (sniffed !== mime) {
+      throw new Error(`assets.store: magic-byte mismatch — claimed ${mime}, sniffed ${sniffed}`);
+    }
+    n += 1;
+    const assetId = castId<AssetId>(`asset_${n}`);
+    await db.insert(assets).values({
+      id: assetId,
+      ownerId: caller.userId,
+      kind,
+      mime,
+      size: bytes.length,
+      hash: `h${n}`,
+    });
+    return { assetId, hash: `h${n}`, size: bytes.length, created: true };
+  };
+}
+
+describe("generatePicture — sniff ↔ assets.enforceMagic agreement (F4)", () => {
+  test("a real PNG: the claimed mime matches the shared magic check → stored (agreement)", async () => {
+    const owner = await seedOwner("owner");
+    const { ctx } = makeHarness({ storeAsset: enforcingStoreAsset() });
+
+    const result = await createImageryService(ctx).generatePicture({
+      caller: principal(owner),
+      mode: "free",
+      prompt: "a dragon",
+    });
+
+    expect(result.images).toHaveLength(1);
+    const rows = await db.select().from(assets).where(eq(assets.ownerId, owner));
+    expect(rows).toHaveLength(1);
+    // The claimed mime is what the shared kit table sniffs — so it passes `enforceMagic` byte-for-byte.
+    expect(rows[0]?.mime).toBe("image/png");
+  });
+
+  test("an unrecognized signature (e.g. AVIF) is coherently rejected by the shared check, not silently stored", async () => {
+    const owner = await seedOwner("owner");
+    // Bytes the shared table does NOT recognize (kit → octet-stream); the provider claims image/avif. The
+    // caller-policy fallback claims that mediaType, and the SAME magic check assets runs rejects it — a coherent
+    // rejection at the store boundary, never a wrong-typed asset slipped through a divergent local table.
+    const garbage = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    const { ctx } = makeHarness({
+      storeAsset: enforcingStoreAsset(),
+      generateImage: () =>
+        Promise.resolve({
+          images: [
+            {
+              base64: Buffer.from(garbage).toString("base64"),
+              mediaType: "image/avif",
+              url: undefined,
+            },
+          ],
+          model: "img-model",
+          usage: { costUsd: 0.03 },
+        }),
+    });
+
+    await expect(
+      createImageryService(ctx).generatePicture({
+        caller: principal(owner),
+        mode: "free",
+        prompt: "avif art",
+      }),
+    ).rejects.toThrow(MAGIC_ERROR);
+    // No wrong-typed asset landed.
+    expect(await db.select().from(assets).where(eq(assets.ownerId, owner))).toHaveLength(0);
   });
 });

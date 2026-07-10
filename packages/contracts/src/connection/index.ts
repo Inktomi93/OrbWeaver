@@ -39,8 +39,9 @@ export const chatApiSchema = z.enum(CHAT_APIS);
 /**
  * The provider-source axis routing picks (`source` in `{api, source, model}`). IDENTICAL to
  * {@link CredentialSource} — D31 makes `@orb/contracts/credentials` the ONE canonical home of the
- * 4-member axis (`max-pro-sub | openrouter | vllm | custom_openai`); this is a verbatim re-export, not
- * a second tuple. The domain-readable name (`source`) is preserved at the call site while the single
+ * 5-member axis (`max-pro-sub | openrouter | vllm | local-light | custom_openai`; `local-light` added
+ * D39); this is a verbatim re-export, not a second tuple. The domain-readable name (`source`) is
+ * preserved at the call site while the single
  * source of truth (and its `credentialSourceSchema`) lives down in `credentials`.
  */
 export type { CredentialSource as ChatSource } from "#credentials";
@@ -202,6 +203,34 @@ export const modelCatalogEntrySchema = z.object({
   supportedParameters: z.array(z.string()),
 });
 export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
+
+// --- The agent-sdk model catalog (the daemon's live family→version map) -------
+/**
+ * One normalized row from the Claude Agent SDK daemon's `supportedModels()` control-channel call — the
+ * cross-boundary shape the connection domain persists in its `agent-sdk-model-catalog` snapshot and reads
+ * to resolve a bare family alias (`sonnet`/`opus`/`haiku`) or a stale curated id onto the daemon's CURRENT
+ * `resolvedModel` + its capability flags. SDK-FREE by construction: the infra fetch verb maps the SDK's
+ * `ModelInfo` into this at the backend boundary (the SDK type never leaves `infra/providers`). Distinct
+ * from {@link ModelCatalogEntry} (the OpenRouter `/models` shape) — the two catalogs are separate snapshots
+ * (like OR and vLLM), never co-mingled. `effortLevels` reuses the canonical {@link EFFORT_LEVELS} subset
+ * the daemon reports (`low..max`, no `'none'` — the on/off decision is `supportsEffort`).
+ */
+export const agentSdkModelSchema = z.object({
+  /** The alias the daemon accepts in an API call (`sonnet`/`opus`/`haiku`, or a version-only id). */
+  alias: z.string(),
+  /** The canonical wire id `alias` resolves to today (`sonnet` → `claude-sonnet-5`); the family→version
+   *  fix keys on this to stop agents pinning a stale version. `null` when the daemon omits it. */
+  resolvedModel: z.string().nullable(),
+  displayName: z.string(),
+  description: z.string(),
+  /** Whether the model honors effort levels (the on/off axis for reasoning effort). */
+  supportsEffort: z.boolean(),
+  /** The model's real effort levels when `supportsEffort` — the daemon's `low..max` subset, no `'none'`. */
+  effortLevels: z.array(effortLevelSchema),
+  /** Whether Claude decides its own thinking depth (Opus-class adaptive thinking). */
+  supportsAdaptiveThinking: z.boolean(),
+});
+export type AgentSdkModel = z.infer<typeof agentSdkModelSchema>;
 
 // --- The resolved connection (the 4-tuple a turn/role runs as) ---------------
 /**

@@ -164,6 +164,38 @@ test("the verify-auth result schema parses the max-pro-sub verify arm + round-tr
   expect(verifyAuthResultSchema.parse(value)).toEqual(value);
 });
 
+test("the verify-auth result schema round-trips the optional account identity/plan enrichment", () => {
+  const value: VerifyAuthResult = {
+    source: "max-pro-sub",
+    ok: true,
+    apiKeySource: "none",
+    model: "claude-haiku-4-5-20251001",
+    reply: "ok",
+    costUsd: 0.0004,
+    account: {
+      email: "owner@example.com",
+      organization: "Acme",
+      subscriptionType: "max",
+      apiProvider: "firstParty",
+    },
+  };
+  expect(verifyAuthResultSchema.parse(value)).toEqual(value);
+});
+
+test("the verify-auth account rejects an apiProvider outside the SDK's declared union", () => {
+  expect(
+    verifyAuthResultSchema.safeParse({
+      source: "max-pro-sub",
+      ok: true,
+      apiKeySource: "none",
+      model: "m",
+      reply: "ok",
+      costUsd: 0,
+      account: { apiProvider: "notARealBackend" },
+    }).success,
+  ).toBe(false);
+});
+
 test("the verify-auth result schema rejects a non-user-vocab source (the seal: no runner names on the wire)", () => {
   expect(
     verifyAuthResultSchema.safeParse({

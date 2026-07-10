@@ -1,7 +1,9 @@
 // verb: detachFromChat — remove a book↔chat attachment (idempotent — `detached:false` when already absent).
 // Room gate: the INJECTED `requireChatHost` (D18 — host authority over room config; the book's owner is NOT
 // re-checked, so the host can always clean the room, e.g. after a host handoff left a prior host's book
-// attached). Only a real removal emits `wiBookDetached` + audits.
+// attached). Only a real removal emits `wiBookDetached` + the user-bus `worldInfoChanged` (fired to the acting
+// host — the book owner is unknown here since it's deliberately not re-checked; the header's every-mutation
+// rule; consistency with the ten sibling mutations) + audits.
 
 import { chatBooks } from "@orb/db";
 import { and, eq } from "drizzle-orm";
@@ -30,6 +32,7 @@ export function createDetachFromChat(ctx: WorldInfoContext): WorldInfoService["d
       },
       at,
     );
+    ctx.emitUserEvent(principal.userId, { type: "worldInfoChanged", bookId });
     return { detached: true };
   };
 }

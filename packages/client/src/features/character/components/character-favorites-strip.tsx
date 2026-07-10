@@ -9,11 +9,11 @@
 // "avatar-stack" wording, recorded here.
 
 import { blobUrl } from "@orb/contracts/assets";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { initialsFor } from "../lib/initials";
 
 export interface FavoriteCharacter {
   readonly id: string;

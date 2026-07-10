@@ -4,12 +4,20 @@
 // becomes host while other humans are NOT auto-joined (D16 chokepoint — FLAG[fork-humans]), and `chatCreated`
 // fires. Reached through the BUNDLE `createFork(ctx, { emit, loadParticipantViews })`.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import {
+  characters,
+  chatInjections,
+  chatParticipants,
+  chats,
+  messages,
+  messageVariants,
+} from "@orb/db";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { and, asc, eq, isNull } from "drizzle-orm";
@@ -42,6 +50,24 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 
 function principal(userId: UserId): Principal {
   return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+}
+
+/** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
+ *  only for its OWNER, `null` for a non-owner. The fork cast-drop resolver (D64 / F4) calls this per seated
+ *  character to decide which seats the forker doesn't own (→ dropped); the harness default is a bare `null`. */
+function ownedCard(): (params: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+}) => Promise<CharacterCard | null> {
+  return async ({ ownerId, characterId }) => {
+    const [row] = await db.select().from(characters).where(eq(characters.id, characterId));
+    if (row === undefined || row.ownerId !== ownerId) {
+      return null;
+    }
+    // The D64 resolver reads only null-vs-resolved; `characterParticipantView` reads only name/avatarAssetId.
+    // FABRICATION-OK: minimal `CharacterCard` double (scenario.ts precedent).
+    return { name: row.name, avatarAssetId: null } as unknown as CharacterCard;
+  };
 }
 
 /** A fake roster resolver (the root resolves `users` publics; here the name/handle derive from the id). */
@@ -87,6 +113,7 @@ describe("forkChat — canon-mutator stats push (stats.md)", () => {
     await addVariant(db, m2.messageId, 1, "a swipe");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
+      getCard: ownedCard(),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);
       },
@@ -111,7 +138,9 @@ describe("forkChat — D27 deep copy", () => {
   test("a member forks: new chat is parented, canon is copied with fresh ids, the forker is host", async () => {
     const host = await seedUser(db, "host");
     const member = await seedUser(db, "member");
-    const charA = await seedCharacter(db, host, "aria");
+    // The forker (member) OWNS the cast — the F4 cast-ownership guard requires the new host to own every
+    // seated card; a member forking a cast they DON'T own is refused (proven in the guard test below).
+    const charA = await seedCharacter(db, member, "aria");
     const chatId = await seedChat(db, "src");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -132,7 +161,10 @@ describe("forkChat — D27 deep copy", () => {
       createdAt: 1,
     });
 
-    const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
     const { chat } = await fork.forkChat({ principal: principal(member), chatId });
 
     expect(chat.parentChatId).toBe(chatId);
@@ -176,7 +208,10 @@ describe("forkChat — D27 deep copy", () => {
       content: "original",
     });
 
-    const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
     const { chat } = await fork.forkChat({ principal: principal(host), chatId });
 
     // Edit the fork's copied variant directly; the source's variant must NOT change.
@@ -202,7 +237,10 @@ describe("forkChat — D27 deep copy", () => {
     await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "kept" });
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "trimmed" });
 
-    const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
     const { chat } = await fork.forkChat({ principal: principal(host), chatId, throughSeq: 1 });
 
     const forkMsgs = await db
@@ -237,7 +275,10 @@ describe("forkChat — D27 deep copy", () => {
       .set({ variableDelta: setX("2") })
       .where(eq(messageVariants.id, b.variantId));
 
-    const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
     const { chat } = await fork.forkChat({ principal: principal(host), chatId });
 
     const [forkRow] = await db
@@ -270,7 +311,10 @@ describe("forkChat — D27 deep copy", () => {
       .set({ runtimeVariables: { hp: "2" } })
       .where(eq(chats.id, chatId));
 
-    const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
     const { chat } = await fork.forkChat({ principal: principal(host), chatId, throughSeq: 1 });
 
     const [forkRow] = await db
@@ -279,5 +323,74 @@ describe("forkChat — D27 deep copy", () => {
       .where(eq(chats.id, castId(chat.id)));
     // Only seq 1 was copied → the fork's cache re-folds to X=1, NOT the source's X=2.
     expect(forkRow?.runtimeVariables).toEqual({ hp: "1" });
+  });
+});
+
+describe("forkChat — D64 cast-drop on a non-owner fork (F4/PD-21 ruling)", () => {
+  test("a non-owner fork SUCCEEDS: it drops the un-owned character seats, keeps the forker's cast + the whole history", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    // Single-owner cast (D28): aria belongs to the source HOST, bella to the FORKER. The forker resolves bella
+    // but NOT aria → the fork keeps bella's seat, drops aria's — but the CANON (history) is copied whole.
+    const aria = await seedCharacter(db, host, "aria");
+    const bella = await seedCharacter(db, member, "bella");
+    const chatId = await seedChat(db, "src");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "ca", characterId: aria });
+    await seedParticipant(db, { chatId, key: "cb", characterId: bella });
+    await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: aria,
+      content: "from aria",
+    });
+    await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      characterId: bella,
+      content: "from bella",
+    });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
+    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+    // The fork exists (the ruling: succeed, don't refuse), the forker is host, the OTHER human is not copied.
+    expect(chat.parentChatId).toBe(chatId);
+    expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
+    expect(chat.participants.find((p) => p.role === "host")?.userId).toBe(member);
+    expect(chat.participants.some((p) => p.userId === host)).toBe(false);
+    // The forker's own character seat is KEPT; the un-owned (source host's) seat is DROPPED from the fork roster.
+    expect(chat.participants.some((p) => p.characterId === bella)).toBe(true);
+    expect(chat.participants.some((p) => p.characterId === aria)).toBe(false);
+
+    // History is copied WHOLE — even the dropped character's prior lines survive in the fork canon.
+    const forkMsgs = await db
+      .select({ content: messageVariants.content })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, castId(chat.id)))
+      .orderBy(asc(messages.seq));
+    expect(forkMsgs.map((r) => r.content)).toEqual(["from aria", "from bella"]);
+  });
+
+  test("an OWNER forking their OWN chat is unchanged: every character seat is kept", async () => {
+    const host = await seedUser(db, "host");
+    const charA = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "src");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "c", characterId: charA });
+    await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "hi" });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
+
+    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    expect(chat.parentChatId).toBe(chatId);
+    expect(chat.participants.some((p) => p.characterId === charA)).toBe(true);
+    expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
   });
 });

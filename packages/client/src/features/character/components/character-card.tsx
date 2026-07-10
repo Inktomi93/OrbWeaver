@@ -15,6 +15,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -24,7 +25,6 @@ import { Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { initialsFor } from "../lib/initials";
 
 export interface CharacterCardItem {
   readonly id: string;
@@ -121,11 +121,13 @@ export function CharacterCardTile({
       >
         <Icon icon={Star} size="sm" />
       </Button>
-      {/* The dual-purpose Chat CTA — the row's hover/:focus-within reveal (the 1-click core loop, §9c). */}
+      {/* The dual-purpose Chat CTA — the row's hover/:focus-within reveal (the 1-click core loop, §9c).
+          `ghost`, not `primary`: §4.4 calls it "quiet … non-dominant", and a primary on EVERY row (always
+          visible at pointer:coarse) would break UI-Arch §4.3 rule 3 (one primary per region at rest). F8. */}
       <Button
         aria-label={`Chat with ${character.name}`}
         className={ROW_REVEAL}
-        intent="primary"
+        intent="ghost"
         onClick={(): void => onChat(character.id)}
         size="icon"
         type="button"

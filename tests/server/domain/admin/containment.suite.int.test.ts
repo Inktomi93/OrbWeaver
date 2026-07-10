@@ -135,6 +135,7 @@ describe("agent-principal containment (AP1, unseated) — a disabled agent can d
       externalId: null,
       handle: castId<Handle>("__agent__buddy__x"),
       groups: [],
+      email: null,
     };
     await expect(sess.provisionIdentity(identity)).rejects.toThrow();
 

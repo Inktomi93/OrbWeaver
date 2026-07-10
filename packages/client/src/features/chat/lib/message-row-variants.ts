@@ -135,9 +135,10 @@ export interface BubbleDecorationArgs {
    *  (`@orb/ui/avatar` `avatarFallbackHueVar`) — used ONLY on the no-image path, where the mode's art
    *  becomes a generated hue tile. */
   readonly hueSeed: string;
-  /** The already-resolved grapheme-safe initials (`initialsForAttribution`, resolved once in
-   *  message-row.tsx) — the glyph the fallback tile shows. Empty only for a name-less row, which never
-   *  reaches a decorator (kind-gated). */
+  /** The already-resolved grapheme-safe initials (`initialsForAttribution` → `@orb/kit/initials`, whose
+   *  `Intl.Segmenter` yields whole grapheme clusters — a leading emoji/astral char stays intact, never a
+   *  split surrogate; resolved once in message-row.tsx) — the glyph the fallback tile shows. Empty only
+   *  for a name-less row, which never reaches a decorator (kind-gated). */
   readonly initial: string;
 }
 

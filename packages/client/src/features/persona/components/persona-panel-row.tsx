@@ -19,6 +19,7 @@
 // A COMPONENT, not a surface — so the inline delete <AlertDialog> is legal (surface-purity §A.7b).
 
 import { blobUrl } from "@orb/contracts/assets";
+import { initialsFor } from "@orb/kit/initials";
 import {
   AlertDialog,
   AlertDialogActions,
@@ -46,15 +47,6 @@ import { useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PersonaEditor } from "./persona-editor";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
-
-const WHITESPACE_RE = /\s+/u;
-
-function initials(name: string): string {
-  const parts = name.trim().split(WHITESPACE_RE).filter(Boolean);
-  const first = parts[0]?.[0] ?? "?";
-  const second = parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "";
-  return (first + second).toUpperCase();
-}
 
 export interface PersonaPanelRowProps {
   readonly persona: PersonaListItem;
@@ -137,7 +129,7 @@ export function PersonaPanelRow({
           size="icon"
         >
           <Avatar fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
-            {initials(persona.name)}
+            {initialsFor(persona.name)}
           </Avatar>
         </Button>
         <input
@@ -262,11 +254,10 @@ export function PersonaPanelRow({
         <AlertDialogPopup>
           <Stack gap="block">
             <AlertDialogTitle>Delete this persona?</AlertDialogTitle>
+            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
             <AlertDialogDescription>
-              <Text tone="muted">
-                This permanently deletes “{persona.name}”. Past messages you authored as it keep
-                their name and avatar. This can't be undone.
-              </Text>
+              This permanently deletes “{persona.name}”. Past messages you authored as it keep their
+              name and avatar. This can't be undone.
             </AlertDialogDescription>
             <AlertDialogActions>
               <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />

@@ -182,6 +182,43 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
     expect(out.worldInfoBefore).toContain("[Lore: Aria hoards gold]");
   });
 
+  test("F3: wiFormat wrap preserves `$$`/`$&` in entry content (function-replacement form)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    // Lore carrying `$`-patterns the string form of replaceAll would mangle ($$→$, $&→the matched marker).
+    await attachChatEntry(host, chatId, "k", { content: "charges $$50 — use $& tokens" });
+    const config = { ...DEFAULT_PROMPT_CONFIG, formatStrings: { wiFormat: "[Lore: {{entry}}]" } };
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+    });
+    // Verbatim: `$$` and `$&` survive rather than collapsing / re-injecting the `{{entry}}` marker.
+    expect(out.worldInfoBefore).toContain("[Lore: charges $$50 — use $& tokens]");
+  });
+
+  test("F2-sibling: an empty-rendering entry under a CUSTOM wiFormat injects NOTHING (no dangling scaffold)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    // The entry renders to empty (a macro with no value); a custom wiFormat would otherwise wrap `""`.
+    await attachChatEntry(host, chatId, "k", { content: "{{memory}}" });
+    const config = {
+      ...DEFAULT_PROMPT_CONFIG,
+      formatStrings: { wiFormat: "[World info:\n{{entry}}]" },
+    };
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+    });
+    // No dangling `[World info:\n]` scaffold anywhere, and the entry contributes no injection.
+    expect(out.worldInfoBefore).not.toContain("World info:");
+    expect((out.chatInjections ?? []).some((i) => i.content.includes("World info:"))).toBe(false);
+    expect(out.wiTrace?.entryIds).toEqual([]);
+  });
+
   test("position routing: always → world_info_before anchor; keyword(fired) → in_prompt; inject → in_chat", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
@@ -277,7 +314,7 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)"
     expect(out.sendUserText).toBe("I greet Aria");
   });
 
-  test("no host scripts → the raw pending text is used + the sink stays unset", async () => {
+  test("no host scripts → the sink carries the frozen composer text (macro-less ⇒ byte-identical passthrough)", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
@@ -289,7 +326,10 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)"
       inputOf(chatId, host, [charId], { pendingUserText: "a wyrm appears" }),
       out,
     );
-    expect(out.sendUserText).toBeUndefined();
+    // #77 freeze-volatile: the SEND path ALWAYS flows the composer text through the freeze pass, so the sink is
+    // set even with no host scripts — a macro-less string freezes to itself (the canon-persisted, re-render-stable
+    // value the verb writes; Chat-Macro-Resolution §0).
+    expect(out.sendUserText).toBe("a wyrm appears");
     // "wyrm" never became "dragon" → the keyword did NOT fire.
     expect(result.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
   });
@@ -661,6 +701,36 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
     const guided = out.chatInjections?.find((i) => i.content.includes("be brief"));
     expect(guided).toMatchObject({ position: "in_chat", depth: 0, role: "assistant" });
     expect(out.guidedInstruction).toBeUndefined();
+  });
+
+  test("F2: a scaffold-only action (response) with a BLANK steer injects NOTHING (no dangling scaffold)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "response", input: "" },
+    });
+    // Neither arm fires: no `{{guided_instruction}}` value and no depth-0 guided injection.
+    expect(out.guidedInstruction).toBeUndefined();
+    expect(out.chatInjections?.some((i) => i.content.includes("special consideration"))).toBe(
+      false,
+    );
+  });
+
+  test("F2: a standalone action (impersonate) with a BLANK steer STILL fires unsteered", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "impersonate", input: "" },
+    });
+    // The default impersonate template carries a standalone instruction (role system → the marker value).
+    expect(out.guidedInstruction).toBeDefined();
+    expect(out.guidedInstruction?.length ?? 0).toBeGreaterThan(0);
   });
 
   test("the per-action config role decides the DEFAULT placement (role:user → a depth-0 user injection)", async () => {

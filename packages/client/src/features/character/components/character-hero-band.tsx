@@ -13,6 +13,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -30,8 +31,8 @@ import { notify } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { initialsFor } from "../lib/initials";
 import { CharacterGreetingPreview } from "./character-greeting-preview";
+import { CharacterTagSuggestions } from "./character-tag-suggestions";
 import { CharacterTagsRow } from "./character-tags-row";
 import { CharacterTokenCounter } from "./character-token-counter";
 
@@ -98,6 +99,7 @@ export function CharacterHeroBand({
       </Row>
 
       <CharacterTagsRow characterId={detail.id} tags={detail.tags} trpc={trpc} />
+      <CharacterTagSuggestions characterId={detail.id} trpc={trpc} />
 
       <CharacterGreetingPreview
         form={form}

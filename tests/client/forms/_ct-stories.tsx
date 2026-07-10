@@ -159,6 +159,83 @@ export function AutosaveUnmountFlushStory(): ReactElement {
 }
 
 // ---------------------------------------------------------------------------------------------
+// AutosaveFailedSaveStory — pins the F4 fix (create-autosave-entity-form.ts listeners): a REJECTING
+// autosave (wire rejection / network failure) must NOT leave an unhandled promise rejection —
+// form-core's `handleSubmit` RE-THROWS an onSubmit error, so the listener's `.catch(() => undefined)`
+// is what swallows it. The `onSubmit` awaits `save` BEFORE `clearDraft`, so a failed save skips the
+// clear and the edit SURVIVES in the mirror for retry (the caller's own errorToast surfaces it once).
+const FAILED_SAVE_ENTITY_ID = "failed-save-entity";
+const FAILED_SAVE_DEBOUNCE_MS = 50;
+// A distinct slot used purely as a "save WAS called" observation channel (the same trick the unmount
+// story uses) — proves the onChange listener actually submitted, so the reject path really ran.
+const FAILED_SAVE_CALL_KEY = "failed-save-called";
+
+const failedSaveDraftStore = createEntityDraftStore<StoryValues>({
+  name: "autosave-ct-failed-save",
+});
+const failedSaveCallChannel = createEntityDraftStore<StoryValues>({
+  name: "autosave-ct-failed-save-call",
+});
+// A reactive channel the module-scope `unhandledrejection` listener writes into — the observer renders
+// its count so the CT can assert ZERO unhandled rejections survived the failed save. Fresh browser
+// context per test (see the autosave story header) → the counter starts clean.
+const rejectionCountChannel = createEntityDraftStore<StoryValues>({
+  name: "autosave-ct-rejection-count",
+});
+let rejectionCount = 0;
+globalThis.addEventListener("unhandledrejection", () => {
+  rejectionCount += 1;
+  rejectionCountChannel.setDraft("count", { text: String(rejectionCount) });
+});
+
+// VALID form (no always-invalid validator) so the onChange listener actually SUBMITS — the submit is
+// what fires the rejecting save (the whole point: prove the rejection path is unhandled-rejection-safe).
+const useFailedSaveForm = createAutosaveEntityForm<StoryValues>({
+  defaultValues: { text: "" },
+  save: (values): Promise<void> => {
+    failedSaveCallChannel.setDraft(FAILED_SAVE_CALL_KEY, values);
+    return Promise.reject(new Error("CT: simulated wire rejection"));
+  },
+  draft: failedSaveDraftStore,
+  debounceMs: FAILED_SAVE_DEBOUNCE_MS,
+});
+
+function FailedSaveFormPane(): ReactElement {
+  const { form } = useFailedSaveForm({
+    entityId: FAILED_SAVE_ENTITY_ID,
+    serverValues: { text: "" },
+  });
+  return (
+    <form.AppField name="text">
+      {(field): ReactElement => <field.TextField label="Failing text" />}
+    </form.AppField>
+  );
+}
+
+/** SIBLING observers — the surviving draft slot, the save-called signal, and the rejection counter. */
+function FailedSaveObservers(): ReactElement {
+  const draft = failedSaveDraftStore.useDraft(FAILED_SAVE_ENTITY_ID);
+  const called = failedSaveCallChannel.useDraft(FAILED_SAVE_CALL_KEY);
+  const rejections = rejectionCountChannel.useDraft("count");
+  return (
+    <div>
+      <output data-testid="failed-save-draft">{JSON.stringify(draft)}</output>
+      <output data-testid="failed-save-called">{JSON.stringify(called)}</output>
+      <output data-testid="failed-save-rejections">{rejections.text ?? "0"}</output>
+    </div>
+  );
+}
+
+export function AutosaveFailedSaveStory(): ReactElement {
+  return (
+    <div>
+      <FailedSaveFormPane />
+      <FailedSaveObservers />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
 // SavedEntityPromoteStory — pins `promote()`'s `dontUpdateMeta: true` guarantee
 // (create-saved-entity-form.ts `promote()`): a mount-time NON-USER write must change the value
 // without ever flipping the form's (persistent) `isDirty` — the meta-preservation contract the
@@ -318,6 +395,57 @@ export function SavedDraftMirrorStory(): ReactElement {
     <div>
       <SavedMirrorFormPane />
       <SavedMirrorDraftObserver />
+    </div>
+  );
+}
+
+// --- Unmount-flush: the §6.5 draft-mirror race. The mirror listener is debounced (the factory's
+// hardcoded DEFAULT_DEBOUNCE_MS = 500), and the character editor REMOUNTS on a character switch
+// (`key={mountKey}`). An edit made <debounce before the switch would be DROPPED — the pending mirror
+// write never fires, and the draft is lost with ZERO warning (breaking §6.5's "switching away
+// mid-edit loses nothing" guarantee, the whole reason the confirm dialog was removed). The fix is a
+// hook-unmount cleanup that FLUSHES the latest form values to the mirror synchronously, so a switch
+// can't race the debounce. The story unmounts the WHOLE hook (as the keyed editor body does), not
+// just a field — the flush lives at the hook level, not per-field. ---
+const SAVED_FLUSH_ENTITY_ID = "saved-flush-entity";
+const savedFlushStore = createEntityDraftStore<SavedDraftValues>({
+  name: "saved-ct-unmount-flush",
+});
+
+const useSavedFlushForm = createSavedEntityForm<SavedDraftValues>({
+  defaultValues: { text: "" },
+  save: (values): Promise<SavedDraftValues> => Promise.resolve(values),
+  draft: savedFlushStore,
+});
+
+/** Owns the saved hook + the bound field — unmounting THIS pane tears the hook down (the flush point). */
+function SavedFlushFormPane(): ReactElement {
+  const { form } = useSavedFlushForm({
+    entityId: SAVED_FLUSH_ENTITY_ID,
+    serverValues: { text: SAVED_DRAFT_SERVER_TEXT },
+  });
+  return (
+    <form.AppField name="text">
+      {(field): ReactElement => <field.TextField label="Flush text" />}
+    </form.AppField>
+  );
+}
+
+/** SIBLING observer — reactive read of the same slot (empty-key default `{}`, the story convention). */
+function SavedFlushDraftObserver(): ReactElement {
+  const draft = savedFlushStore.useDraft(SAVED_FLUSH_ENTITY_ID);
+  return <output data-testid="saved-flush-draft">{JSON.stringify(draft)}</output>;
+}
+
+export function SavedDraftUnmountFlushStory(): ReactElement {
+  const [mounted, setMounted] = useState(true);
+  return (
+    <div>
+      {mounted ? <SavedFlushFormPane /> : null}
+      <SavedFlushDraftObserver />
+      <button type="button" onClick={(): void => setMounted(false)}>
+        unmount editor
+      </button>
     </div>
   );
 }

@@ -34,8 +34,19 @@ import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroContext, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
-import { createMacroContext, processMacros, resolveRowMacros } from "@orb/kit/macro";
+import {
+  createMacroContext,
+  createVolatileOnlyRegistry,
+  processMacros,
+  resolveRowMacros,
+} from "@orb/kit/macro";
 import type { HistoryMacroNames } from "../contract/results";
+
+// The COMMIT-TIME FREEZE registry (Chat-Macro-Resolution.md §0 — the inverse of the names-only history
+// registry): resolves ONLY the nondeterministic macros ({{roll}}/{{random}}/{{pick}}/{{time}}/{{date}}/…),
+// re-emitting IDENTITY + everything else verbatim. Built ONCE (fixed restricted set) — the freeze pass fires
+// per committed user turn; a per-call rebuild would be pure waste (the row-macros.ts NAMES_ONLY precedent).
+const VOLATILE_ONLY_REGISTRY = createVolatileOnlyRegistry();
 
 /** null → undefined (the MacroContext fields are `T | undefined`, not `T | null`). A function call, so it
  *  keeps the option-builder's branch count flat (vs a `?? undefined` per field). */
@@ -151,19 +162,45 @@ export function renderMacros(
 }
 
 /**
+ * FREEZE the VOLATILE (nondeterministic — clock/PRNG) macros in `text` at COMMIT (Chat-Macro-Resolution.md
+ * §0): resolve `{{roll}}/{{random}}/{{pick}}/{{time}}/{{date}}`/… ONCE against the turn's pinned clock
+ * (`ctx.nowMs`/`ctx.timezone`) + seeded PRNG (`random`) and bake the value in; IDENTITY macros
+ * (`{{char}}/{{user}}/{{persona}}` + name aliases) and everything else pass through RAW (the volatile-only
+ * registry has no handler → the evaluator re-emits the source span verbatim) so they stay per-view /
+ * resolved-at-read (§2/§4). This is the exact inverse of `renderHistoryMacros`' names-only pass: that one
+ * bakes identity and passes volatiles through; this one bakes volatiles and passes identity through. Applied
+ * to a user turn's composer text at SEND before the row is persisted (a no-`{{` string is byte-identical
+ * passthrough) — the D51 "storage is raw" law now carries the owner-ruled exception that a COMMITTED row's
+ * nondeterministic value is frozen, never re-derived.
+ */
+export function freezeVolatileMacros(
+  text: string,
+  ctx: AssembleContext,
+  args?: { readonly random?: (() => number) | undefined },
+): string {
+  return processMacros(
+    text,
+    macroOptionsFor(ctx, ctx.activePersona, { random: args?.random }),
+    VOLATILE_ONLY_REGISTRY,
+  );
+}
+
+/**
  * Resolve `{{char}}`/`{{user}}`/`{{persona}}` in a stored CANON HISTORY row's body — the resolve-on-READ seam
  * mirroring how card fields are already macro-resolved (D26/D51: content is stored raw as a `string`, NEVER
  * mutated; every prompt build re-resolves it here). A thin chat-ctx adapter over `@orb/kit/macro`'s
  * `resolveRowMacros` — THE shared atom server ASSEMBLE (this call site) and client DISPLAY both call, so
  * they cannot diverge (Chat-Macro-Resolution.md §2/§6 — read the doctrine in full before touching this):
- *   • `{{char}}` → `stamps.characterId` resolved against `args.producer.characterNamesById` — the ROW'S OWN
- *     speaker, not the current turn's speaker (a past line by Aria stays Aria's even when Kai is the active
- *     speaker). Falls back to `args.speakerCharName` (the turn's current speaker/cast default — absent
- *     resolves to `charForSpeaker(ctx)`, this function's own floor), then the atom's literal floor.
+ *   • `{{char}}` → a VOICED row (`characterId` set) resolves against `args.producer.characterNamesById` —
+ *     the ROW'S OWN speaker, not the current turn's speaker (a past line by Aria stays Aria's even when Kai
+ *     is the active speaker), falling back to `args.speakerCharName`. A HUMAN-authored / narrator row
+ *     (`characterId === null`) resolves to the CAST (`ctx.cast`, roster order): the joined names in a
+ *     multi-character room (== `{{group}}`, ruling B), the one character in solo — matching client DISPLAY.
  *   • `{{user}}`/`{{persona}}` → `stamps.personaId` resolved against `args.producer.personaNamesById` — the
- *     ROW'S OWN author (the PD-100 send-time stamp), NEVER the pinned anchor. Falls back to
- *     `ctx.activePersona` (the null-stamp floor — a legacy/narrator row with no personaId) — this is the
- *     ONLY case history still touches "active": a stamped row always wins over it.
+ *     ROW'S OWN author (the PD-100 send-time stamp). A null stamp (a greeting / AI line / legacy row) falls
+ *     back to the chat ANCHOR (`ctx.pinnedPersona` = anchor ?? active), NEVER a per-viewer active persona —
+ *     so the model (this call) and every human (client DISPLAY) see the SAME `{{user}}` (the design
+ *     principle: identity is the row's or the chat anchor's, never the reader's). A stamped row wins.
  * Pure: one macro pass, no framing, no `<speaker>`-tag handling (the parser only touches `{{…}}`; narrator
  * tags pass through verbatim for the downstream `speakerTagsToPlain`).
  */
@@ -181,9 +218,32 @@ export function renderHistoryMacros(
     characterNamesById: args.producer.characterNamesById,
     personaNamesById: args.producer.personaNamesById,
     speakerCharName: args.speakerCharName ?? charForSpeaker(ctx),
-    activePersonaName: ctx.activePersona?.name,
+    // Ruling B: a HUMAN-authored / narrator row's `{{char}}` resolves to the CAST (group in multi, one in
+    // solo), NOT the arbitrary current speaker — so it matches client DISPLAY. The full cast in roster order.
+    cast: (ctx.cast ?? [ctx.character]).map((c) => c.name),
+    // Ruling A / the design principle: the null-stamp `{{user}}`/`{{persona}}` fallback is the chat ANCHOR
+    // (`pinnedPersona` = anchor ?? active), NEVER a per-viewer active persona — a greeting/AI line then
+    // addresses the SAME persona for the model (this call) and every human (client DISPLAY). A stamped row
+    // still wins over it (the producer lookup). `pinnedPersona` carries the null-anchor→active fallback.
+    fallbackPersonaName: ctx.pinnedPersona?.name,
+    fallbackPersonaDescription: ctx.pinnedPersona?.description,
   });
 }
+
+/** Which guided actions are PURE `{{input}}` scaffolds — their default templates carry NO standalone
+ *  instruction, so with a blank steer they render a dangling `[Take the following into special consideration…: ]`
+ *  (F2 / FINAL-Chat-Tab-Redesign risk #17.6: "inject nothing rather than an empty
+ *  scaffold"). `impersonate`/`opening` are FALSE: their templates carry standalone instructions that must
+ *  fire UNSTEERED (opening's default explicitly supports an unsteered generated opening). Exhaustive over
+ *  `GuidedActionKind` (a new action fails `tsc` here until it declares its arm). */
+const GUIDED_SCAFFOLD_ONLY_ACTIONS: Record<GuidedActionKind, boolean> = {
+  response: true,
+  swipe: true,
+  continue: true,
+  rewrite: true,
+  impersonate: false,
+  opening: false,
+};
 
 /**
  * Resolve a guided-action TEMPLATE against the turn ctx (guided steering, PD-63 routed):
@@ -208,6 +268,13 @@ export function resolveGuidedActionText(
     readonly person?: GuidedImpersonatePerson | undefined;
   },
 ): string {
+  // F2: a scaffold-only action (response/swipe/continue/rewrite) with a blank steer injects NOTHING — its
+  // template is a pure `{{input}}` frame, so rendering it empty ships a dangling scaffold to the model. The
+  // standalone actions (impersonate/opening) still fire unsteered. This is the SERVER belt (start-chat's
+  // `opening` + resolveGuidedSteer both route through here) — it survives any caller that forwards a `guided`.
+  if (GUIDED_SCAFFOLD_ONLY_ACTIONS[args.action] && args.input.trim().length === 0) {
+    return "";
+  }
   const config =
     ctx.promptConfig.guidedActions?.[args.action] ?? DEFAULT_GUIDED_ACTIONS[args.action];
   return resolveGuidedInstruction(

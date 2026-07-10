@@ -13,7 +13,7 @@
 // The `credential.source` axis is NOT redeclared here — it is `CredentialSource` from
 // `@orb/contracts/credentials` (D31), imported by the dispatch + firewall.
 
-import type { ChatApi, ModelCatalogEntry } from "@orb/contracts/connection";
+import type { AgentSdkModel, ChatApi, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth, CredentialSource } from "@orb/contracts/credentials";
 import type {
   AccountCredits,
@@ -29,6 +29,7 @@ import type { AgentTurnRequest } from "./agent";
 import type { ChatRequest, ChatResult } from "./chat";
 import type {
   AccountCreditsRequest,
+  FetchAgentSdkModelsRequest,
   FetchCatalogRequest,
   GenerationCostRequest,
   InspectRequest,
@@ -101,6 +102,11 @@ export interface ProviderBackend {
   readonly inspect?: ((req: InspectRequest) => Promise<EndpointInspection>) | undefined;
   readonly verifyAuth?: ((req: VerifyAuthRequest) => Promise<VerifyAuthResult>) | undefined;
   readonly fetchCatalog?: ((req: FetchCatalogRequest) => Promise<ModelCatalogEntry[]>) | undefined;
+  /** The agent-sdk `supportedModels()` discovery — only the agent-sdk backend serves it (OR serves
+   *  `fetchCatalog`). Distinct verb so the two catalogs never co-mingle at the dispatch. */
+  readonly fetchModels?:
+    | ((req: FetchAgentSdkModelsRequest) => Promise<AgentSdkModel[]>)
+    | undefined;
 }
 
 /** The backend registry the composition root fills (one entry per WIRED backend). A role that resolves

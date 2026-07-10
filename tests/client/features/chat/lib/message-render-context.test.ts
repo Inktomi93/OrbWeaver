@@ -3,11 +3,11 @@
 // wraps `@orb/kit/macro`'s `resolveRowMacros`, the ONE atom server ASSEMBLE also calls). Pins: the
 // producer maps pass straight through; a solo roster resolves `{{char}}`'s `speakerCharName` default; a
 // non-character participant never counts toward the solo/group split (mirrors `attribution.ts`'s
-// `isMultiCharacterRoom` discriminant); `activePersonaName` resolves the VIEWING participant's active
-// persona id against the producer — the null-stamp `{{user}}` fallback ONLY (Chat-Macro-Resolution.md
-// §4), never a row's own `personaId` (that retarget rides `resolveRowMacros`'s per-row stamps, not this
-// room-level default). Never returns `undefined` — the kit atom's own literal floors mean an empty
-// producer never erases a macro word.
+// `isMultiCharacterRoom` discriminant); `fallbackPersonaName` resolves the chat ANCHOR persona id against
+// the producer — the null-stamp `{{user}}`/`{{persona}}` fallback (ruling A / the design principle: NEVER
+// the viewer's own active persona), never a row's own `personaId` (that retarget rides `resolveRowMacros`'s
+// per-row stamps); `cast` = the full character roster in order (ruling B: a user/narrator row's `{{char}}`).
+// Never returns `undefined` — the kit atom's own literal floors mean an empty producer never erases a word.
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
@@ -60,7 +60,7 @@ test("no roster/producer threaded at all: a defined context with empty producer 
   expect(result.characterNamesById.size).toBe(0);
   expect(result.personaNamesById.size).toBe(0);
   expect(result.speakerCharName).toBeUndefined();
-  expect(result.activePersonaName).toBeUndefined();
+  expect(result.fallbackPersonaName).toBeUndefined();
 });
 
 test("a solo roster (one character) resolves {{char}}'s speakerCharName default", () => {
@@ -87,6 +87,8 @@ test("a multi-character roster omits speakerCharName (ambiguous, no guess) but k
   expect(result.speakerCharName).toBeUndefined();
   // The producer map is still fully populated — a row with its own characterId still resolves.
   expect(result.characterNamesById.get(BOB_ID)?.name).toBe("Bob");
+  // Ruling B: the full cast (roster order) IS exposed — a user/narrator row's {{char}} joins it.
+  expect(result.cast).toEqual(["Alice", "Bob"]);
 });
 
 test("a non-character participant never counts toward the solo/group split", () => {
@@ -103,36 +105,38 @@ test("a non-character participant never counts toward the solo/group split", () 
   expect(result.speakerCharName).toBe("Alice");
 });
 
-test("activePersonaName resolves the VIEWING participant's active persona id against the producer", () => {
+test("fallbackPersonaName + description resolve the chat ANCHOR persona id against the producer", () => {
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([
+    [NATE_PERSONA_ID, { name: "Alex", description: "the pinned host POV" }],
+  ]);
+  const result = resolveMessageRenderContext({
+    characterNamesById: EMPTY_CHARACTER_NAMES,
+    personaNamesById,
+    anchorPersonaId: NATE_PERSONA_ID,
+  });
+  // The null-stamp {{user}}/{{persona}} fallback is the ANCHOR (ruling A) — never the viewer's own persona.
+  expect(result.fallbackPersonaName).toBe("Alex");
+  expect(result.fallbackPersonaDescription).toBe("the pinned host POV");
+});
+
+test("no anchor persona id set: fallbackPersonaName stays undefined (kit's own floor applies later)", () => {
   const personaNamesById = new Map<PersonaId, RowPersonaName>([
     [NATE_PERSONA_ID, { name: "Alex", description: "" }],
   ]);
   const result = resolveMessageRenderContext({
     characterNamesById: EMPTY_CHARACTER_NAMES,
     personaNamesById,
-    viewerActivePersonaId: NATE_PERSONA_ID,
+    anchorPersonaId: null,
   });
-  expect(result.activePersonaName).toBe("Alex");
+  expect(result.fallbackPersonaName).toBeUndefined();
 });
 
-test("no viewer active persona id set: activePersonaName stays undefined (kit's own floor applies later)", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [NATE_PERSONA_ID, { name: "Alex", description: "" }],
-  ]);
-  const result = resolveMessageRenderContext({
-    characterNamesById: EMPTY_CHARACTER_NAMES,
-    personaNamesById,
-    viewerActivePersonaId: null,
-  });
-  expect(result.activePersonaName).toBeUndefined();
-});
-
-test("a viewer active persona id absent from the producer degrades to undefined, not a crash", () => {
+test("an anchor persona id absent from the producer degrades to undefined, not a crash", () => {
   const unknownId = castId<PersonaId>("persona_unknown");
   const result = resolveMessageRenderContext({
     characterNamesById: EMPTY_CHARACTER_NAMES,
     personaNamesById: EMPTY_PERSONA_NAMES,
-    viewerActivePersonaId: unknownId,
+    anchorPersonaId: unknownId,
   });
-  expect(result.activePersonaName).toBeUndefined();
+  expect(result.fallbackPersonaName).toBeUndefined();
 });

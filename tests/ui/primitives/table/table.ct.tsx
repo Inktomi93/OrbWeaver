@@ -5,7 +5,12 @@
 // freshly-derived-array footgun (ui-primitive-contract §13).
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BasicTableStory, PaginatedTableStory, ShrinkingDataStory } from "./table.fixtures";
+import {
+  BasicTableStory,
+  NullableSortStory,
+  PaginatedTableStory,
+  ShrinkingDataStory,
+} from "./table.fixtures";
 
 test("renders columns and rows", async ({ mount, page }) => {
   await mount(<BasicTableStory />);
@@ -45,6 +50,23 @@ test("clicking a sortable header cycles none -> asc -> desc -> none with aria-so
   await sortButton.click();
   await expect(header).toHaveAttribute("aria-sort", "none");
   await expect(bodyRows.first()).toContainText("Elara"); // back to original insertion order
+});
+
+test("blank (null) cells sort LAST in both directions, not flipped to the top under desc", async ({
+  mount,
+  page,
+}) => {
+  // Ascending: the two real values order low→high, then the two blank rows land at the bottom.
+  const asc = await mount(<NullableSortStory direction="asc" />);
+  const ascNames = await page.locator("tbody tr td:first-child").allInnerTexts();
+  expect(ascNames).toEqual(["Echo", "Alpha", "Ciel", "Bravo", "Delta"]);
+  await asc.unmount();
+
+  // Descending: the real values reverse to high→low, but the blanks STAY at the bottom (the fix —
+  // the direction sign no longer flips the null placement).
+  await mount(<NullableSortStory direction="desc" />);
+  const descNames = await page.locator("tbody tr td:first-child").allInnerTexts();
+  expect(descNames).toEqual(["Ciel", "Alpha", "Echo", "Bravo", "Delta"]);
 });
 
 test("a non-sortable column carries no aria-sort attribute at all (vs. 'none' for sortable-unsorted)", async ({

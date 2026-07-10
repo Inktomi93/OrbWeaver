@@ -1,3 +1,5 @@
+// biome-ignore-all lint/style/useNamingConvention: OIDC ID-token claim names (preferred_username, …) are
+// wire-fixed snake_case by the OIDC spec; the crafted claims objects must match that external shape.
 // entry/http/auth-routes — the auth mint routes + cookie I/O. Pins: the `__Host-orb_session` cookie shape
 // (Secure + host-only + Path=/ + HttpOnly + SameSite=Lax; Max-Age from the injected clock); local login
 // (verify → sessions.create → set cookie; 401/400 paths); logout (revoke + clear); and the mode-conditional
@@ -11,9 +13,12 @@ import type {
   AuthRoutesDeps,
   AuthSessionsPort,
   LocalAuthenticator,
+  OidcClaimMap,
   OidcRoutesDeps,
 } from "@orb/server/entry/http";
 import {
+  deriveRedirectUri,
+  identityFromClaims,
   registerAuthRoutes,
   serializeClearedSessionCookie,
   serializeSessionCookie,
@@ -121,8 +126,16 @@ function recordingSessions(): SessionRecorder {
       },
       provisionIdentity: (
         _identity: ResolvedIdentity,
-      ): Promise<{ userId: UserId; enabled: boolean; role: UserRole }> =>
-        Promise.resolve({ userId: castId<UserId>("usr_x"), enabled: true, role: "user" }),
+      ): Promise<
+        | { outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole }
+        | { outcome: "denied" }
+      > =>
+        Promise.resolve({
+          outcome: "provisioned",
+          userId: castId<UserId>("usr_x"),
+          enabled: true,
+          role: "user",
+        }),
     },
   };
   return rec;
@@ -238,12 +251,111 @@ describe("logout", () => {
   });
 });
 
+describe("OIDC claim mapping (provider-agnostic — B2)", () => {
+  const authentikClaims: OidcClaimMap = {
+    usernameClaim: "preferred_username",
+    uidClaim: "sub",
+    groupsClaim: "groups",
+    emailClaim: "email",
+  };
+
+  test("default (authentik) claims map preferred_username / sub / groups / email", () => {
+    const identity = identityFromClaims(
+      {
+        preferred_username: "alice",
+        sub: "sub-alice",
+        groups: ["staff", "admins"],
+        email: "alice@example.com",
+      },
+      authentikClaims,
+    );
+    expect(identity).toEqual({
+      externalId: "sub-alice",
+      handle: "alice",
+      groups: ["staff", "admins"],
+      email: "alice@example.com",
+    });
+  });
+
+  test("a non-default claim map (Azure AD upn/oid/roles) maps identity correctly", () => {
+    // The authentik defaults would find NOTHING in these Azure-shaped claims — the configurable names are
+    // what make it work. The `roles` claim is what OWNER_GROUP later maps to owner.
+    const azureClaims = {
+      upn: "bob@contoso.com",
+      oid: "00000000-1111-2222-3333-444444444444",
+      roles: ["orb-owners", "eng"],
+      // decoy authentik-shaped keys that MUST be ignored under the Azure map:
+      preferred_username: "should-be-ignored",
+      sub: "should-be-ignored",
+    };
+    const identity = identityFromClaims(azureClaims, {
+      usernameClaim: "upn",
+      uidClaim: "oid",
+      groupsClaim: "roles",
+      emailClaim: "email",
+    });
+    expect(identity).toEqual({
+      externalId: "00000000-1111-2222-3333-444444444444",
+      handle: "bob@contoso.com",
+      groups: ["orb-owners", "eng"],
+      email: null,
+    });
+  });
+
+  test("missing username claim → null (fail-closed point #4)", () => {
+    expect(identityFromClaims({ sub: "sub-x", groups: [] }, authentikClaims)).toBeNull();
+    expect(identityFromClaims(undefined, authentikClaims)).toBeNull();
+  });
+
+  test("no uid claim → externalId null (handle keys the row); no email → email null", () => {
+    const identity = identityFromClaims({ preferred_username: "carol" }, authentikClaims);
+    expect(identity).toEqual({ externalId: null, handle: "carol", groups: [], email: null });
+  });
+
+  test("NESTED dot-path claims (Entra/AD FS) resolve — groups at `user.memberOf`, email nested", () => {
+    const identity = identityFromClaims(
+      {
+        preferred_username: "dave",
+        user: { memberOf: ["Orb Admins", "Orb Users"] },
+        contact: { mail: "dave@corp.example" },
+        sub: "sub-dave",
+      },
+      {
+        usernameClaim: "preferred_username",
+        uidClaim: "sub",
+        groupsClaim: "user.memberOf",
+        emailClaim: "contact.mail",
+      },
+    );
+    expect(identity).toEqual({
+      externalId: "sub-dave",
+      handle: "dave",
+      groups: ["Orb Admins", "Orb Users"],
+      email: "dave@corp.example",
+    });
+  });
+
+  test("a dot-path that hits a non-object mid-walk → absent (groups [], not a crash)", () => {
+    const identity = identityFromClaims(
+      { preferred_username: "erin", groups: "not-an-object" },
+      {
+        usernameClaim: "preferred_username",
+        uidClaim: "sub",
+        groupsClaim: "groups.nested",
+        emailClaim: "email",
+      },
+    );
+    expect(identity?.groups).toEqual([]);
+  });
+});
+
 describe("OIDC route registration", () => {
   const oidcStub = (): OidcRoutesDeps =>
     ({
       getConfig: (): Promise<null> => Promise.resolve(null),
-      redirectUri: "https://app.example/cb",
+      redirectAllowlist: ["https://app.example/api/auth/oidc/callback"],
       scope: "openid profile",
+      claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups" },
       store: {
         mint: (): Promise<void> => Promise.resolve(),
         consume: (): Promise<null> => Promise.resolve(null),
@@ -263,5 +375,104 @@ describe("OIDC route registration", () => {
     const routes = routesOf(withOidc);
     expect(routes.has("GET /api/auth/oidc/login")).toBe(true);
     expect(routes.has("GET /api/auth/oidc/callback")).toBe(true);
+  });
+});
+
+describe("deriveRedirectUri — origin-flexible, allowlist-gated (open-redirect guard)", () => {
+  const FQDN = "https://chat.example.com/api/auth/oidc/callback";
+  const LAN = "https://192.168.1.10/api/auth/oidc/callback";
+  const LOCAL = "https://localhost:8788/api/auth/oidc/callback";
+  const allow = [FQDN, LAN, LOCAL];
+  const h = (init: Record<string, string>): Headers => new Headers(init);
+
+  test("public FQDN via X-Forwarded-Proto/Host → the allowlisted callback", () => {
+    const derived = deriveRedirectUri(
+      h({ "x-forwarded-proto": "https", "x-forwarded-host": "chat.example.com" }),
+      allow,
+    );
+    expect(derived).toBe(FQDN);
+  });
+
+  test("a LAN-IP origin (raw Host, no proxy headers) derives + matches", () => {
+    expect(deriveRedirectUri(h({ host: "192.168.1.10" }), allow)).toBe(LAN);
+  });
+
+  test("a localhost origin derives + matches", () => {
+    expect(deriveRedirectUri(h({ host: "localhost:8788" }), allow)).toBe(LOCAL);
+  });
+
+  test("proto is NEVER downgraded to http on an unknown origin (CVE-2024-52289 posture)", () => {
+    // No X-Forwarded-Proto ⇒ defaults https; an http-only allowlist entry can't match the https candidate.
+    const httpOnly = ["http://192.168.1.10/api/auth/oidc/callback"];
+    expect(deriveRedirectUri(h({ host: "192.168.1.10" }), httpOnly)).toBeNull();
+  });
+
+  test("an off-allowlist origin → null (never reflected)", () => {
+    expect(deriveRedirectUri(h({ "x-forwarded-host": "evil.example" }), allow)).toBeNull();
+  });
+
+  test("X-Forwarded-Host wins over Host for the derivation, but the allowlist still gates", () => {
+    // A proxy legitimately rewrites XFH to the public host; the allowlist is the real gate.
+    const derived = deriveRedirectUri(
+      h({
+        "x-forwarded-proto": "https",
+        "x-forwarded-host": "chat.example.com",
+        host: "10.0.0.5:8788",
+      }),
+      allow,
+    );
+    expect(derived).toBe(FQDN);
+  });
+
+  test("no Host header at all → null (fails closed)", () => {
+    expect(deriveRedirectUri(h({}), allow)).toBeNull();
+  });
+});
+
+describe("OIDC login — the redirect_uri allowlist gate", () => {
+  interface MintRecorder {
+    readonly deps: OidcRoutesDeps;
+    mints: number;
+  }
+  function recordingOidc(allowlist: readonly string[]): MintRecorder {
+    const rec: MintRecorder = {
+      mints: 0,
+      deps: {
+        // Must NOT run on an off-allowlist login (the 400 short-circuits before any IdP round-trip).
+        getConfig: (): Promise<never> =>
+          Promise.reject(new Error("getConfig must not run on an off-allowlist login")),
+        redirectAllowlist: allowlist,
+        scope: "openid profile email",
+        claims: {
+          usernameClaim: "preferred_username",
+          uidClaim: "sub",
+          groupsClaim: "groups",
+          emailClaim: "email",
+        },
+        store: {
+          mint: (): Promise<void> => {
+            rec.mints += 1;
+            return Promise.resolve();
+          },
+          consume: (): Promise<null> => Promise.resolve(null),
+        },
+      },
+    };
+    return rec;
+  }
+
+  test("an off-allowlist origin → 400, NO transaction minted, no discovery round-trip", async () => {
+    const rec = recordingOidc(["https://chat.example.com/api/auth/oidc/callback"]);
+    const deps: AuthRoutesDeps = {
+      sessions: recordingSessions().sessions,
+      now: (): number => NOW,
+      oidc: rec.deps,
+    };
+    const res = await handlerFor(
+      deps,
+      "GET /api/auth/oidc/login",
+    )(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
+    expect(res.status).toBe(400);
+    expect(rec.mints).toBe(0);
   });
 });

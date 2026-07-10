@@ -1,0 +1,691 @@
+// Cross-tenant IDOR sweep — THE forcing function for "a new verb forgot its owner/membership predicate."
+// Seed one-of-everything as owner A (real rows, distinctive marker NAMES), then probe EVERY id-taking tRPC
+// procedure as a STRANGER (owner B) with A's real ids, asserting a LEAK-FREE outcome: a thrown TRPCError is
+// `NOT_FOUND` (the doctrine's leak-free collapse — NEVER `FORBIDDEN`, which is an existence oracle for an
+// owned entity), and a resolved value carries NONE of A's marker names (never A's row). A post-sweep
+// integrity re-read proves no probe silently MUTATED A's world (a write-IDOR that returns void).
+//
+// It runs over the REAL composition root (`app` fixture = the whole server graph) through the REAL tRPC
+// middleware ladder + routers, so a verb that dropped its `requireOwner`/`requireParticipant`/`can()` gate
+// leaks here — nothing else covers the whole surface at once. The COMPLETENESS GUARD enumerates
+// `appRouter._def.procedures` and fails if any procedure is neither PROBED nor EXEMPT(reason) — so the sweep
+// GROWS WITH THE ROUTER: a new id-taking verb can't be added without classifying it here.
+//
+// FINDINGS PROTOCOL: any probe that returns A's data OR throws a distinguishable (non-NOT_FOUND) error is a
+// security finding — this suite goes RED and the failure is a STOP-and-report item (route to
+// security-executor), NOT something the docs/test lane fixes.
+
+import { themes, userCredentials } from "@orb/db";
+import type { ThemeId, UserCredentialId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { appRouter } from "@orb/server/transport/trpc";
+import { describe } from "vitest";
+import type { AppCaller } from "../../support/fixtures";
+import { expect, OWNER_USER_ID, test } from "../../support/fixtures";
+import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support";
+
+// ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
+//    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own
+//    empty/zeroed result may legitimately carry the id it asked about; a NAME never appears by accident). ──
+const MARK = {
+  character: "AlphaSecretHero",
+  persona: "AlphaSecretPersona",
+  preset: "AlphaSecretPreset",
+  book: "AlphaSecretBook",
+  entry: "AlphaSecretEntry",
+  tag: "alphasecrettag",
+  theme: "AlphaSecretTheme",
+  message: "AlphaSecretMessage",
+  credential: "AlphaSecretCred",
+} as const;
+const MARKERS = Object.values(MARK);
+
+/** Owner A's seeded ids — collected once, fed to every stranger probe. */
+interface OwnerIds {
+  characterId: string;
+  personaId: string;
+  presetId: string;
+  bookId: string;
+  entryId: string;
+  tagId: string;
+  credentialId: string;
+  themeId: string;
+  snapshotId: string;
+  chatId: string;
+  messageId: string;
+}
+
+/** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
+function trpcCode(e: unknown): string | null {
+  if (e instanceof Error && e.name === "TRPCError" && "code" in e) {
+    const code: unknown = (e as Error & { code?: unknown }).code;
+    return typeof code === "string" ? code : null;
+  }
+  return null;
+}
+
+/**
+ * The uniform leak-free VERDICT for ONE stranger probe (pure — the sweep collects verdicts then asserts once,
+ * so there is no branching `expect`). A probe is a LEAK (verdict `ok:false`) if it:
+ *   • throws a NON-`NOT_FOUND` error (a `FORBIDDEN` existence-oracle, a 500, a non-tRPC throw), OR
+ *   • resolves with any of owner A's marker NAMES in the serialized result.
+ * A `NOT_FOUND` throw or a benign marker-free resolve (a no-op mutation / empty list) is leak-free.
+ */
+async function leakVerdict(path: string, thunk: () => Promise<unknown>): Promise<string | null> {
+  let value: unknown;
+  try {
+    value = await thunk();
+  } catch (e) {
+    const code = trpcCode(e);
+    return code === "NOT_FOUND"
+      ? null
+      : `${path}: a stranger's rejection must be leak-free NOT_FOUND, got ${code ?? `non-tRPC ${String(e)}`}`;
+  }
+  const leaked = MARKERS.find((m) => (JSON.stringify(value) ?? "").includes(m));
+  return leaked === undefined
+    ? null
+    : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
+}
+
+/** One probe: the router path + the stranger call built from owner A's ids. */
+interface Probe {
+  readonly path: string;
+  readonly call: (stranger: AppCaller, ids: OwnerIds) => Promise<unknown>;
+}
+
+// Synthesized secondary ids — `brandedId` is `z.string().min(1)` (no prefix check), and the OWNER/MEMBER
+// gate is the chokepoint (it rejects before any secondary-id existence check), so a stranger sees NOT_FOUND
+// regardless of whether these resolve to a real row.
+const FAKE = {
+  variantId: "variant_fake",
+  injectionId: "chat_injection_fake",
+} as const;
+
+const PROBES: readonly Probe[] = [
+  // ── character (owner-scoped) ──
+  { path: "character.get", call: (c, i) => c.character.get({ characterId: i.characterId }) },
+  {
+    path: "character.getCard",
+    call: (c, i) => c.character.getCard({ characterId: i.characterId }),
+  },
+  {
+    path: "character.update",
+    call: (c, i) => c.character.update({ characterId: i.characterId, input: { name: "hacked" } }),
+  },
+  { path: "character.remove", call: (c, i) => c.character.remove({ characterId: i.characterId }) },
+  {
+    path: "character.duplicate",
+    call: (c, i) => c.character.duplicate({ characterId: i.characterId }),
+  },
+  {
+    path: "character.snapshot",
+    call: (c, i) => c.character.snapshot({ characterId: i.characterId }),
+  },
+  {
+    path: "character.listSnapshots",
+    call: (c, i) => c.character.listSnapshots({ characterId: i.characterId }),
+  },
+  {
+    path: "character.restore",
+    call: (c, i) => c.character.restore({ characterId: i.characterId, snapshotId: i.snapshotId }),
+  },
+  {
+    path: "character.bulkRemove",
+    call: (c, i) => c.character.bulkRemove({ characterIds: [i.characterId] }),
+  },
+  {
+    path: "character.bulkArchive",
+    call: (c, i) => c.character.bulkArchive({ characterIds: [i.characterId], archived: true }),
+  },
+  {
+    // biome-ignore lint/security/noSecrets: "character.bulkAddCardTag" is a router path constant, not a secret.
+    path: "character.bulkAddCardTag",
+    call: (c, i) => c.character.bulkAddCardTag({ tagName: "x", characterIds: [i.characterId] }),
+  },
+  {
+    // biome-ignore lint/security/noSecrets: "character.bulkRemoveCardTag" is a router path constant, not a secret.
+    path: "character.bulkRemoveCardTag",
+    call: (c, i) => c.character.bulkRemoveCardTag({ tagName: "x", characterIds: [i.characterId] }),
+  },
+  // ── persona (owner-scoped) ──
+  { path: "persona.get", call: (c, i) => c.persona.get({ personaId: i.personaId }) },
+  {
+    path: "persona.update",
+    call: (c, i) => c.persona.update({ personaId: i.personaId, input: { name: "hacked" } }),
+  },
+  { path: "persona.remove", call: (c, i) => c.persona.remove({ personaId: i.personaId }) },
+  { path: "persona.duplicate", call: (c, i) => c.persona.duplicate({ personaId: i.personaId }) },
+  { path: "persona.export", call: (c, i) => c.persona.export({ personaId: i.personaId }) },
+  {
+    path: "persona.createFromCharacter",
+    call: (c, i) =>
+      c.persona.createFromCharacter({ characterId: i.characterId, swapMacros: false }),
+  },
+  {
+    path: "persona.connectToCharacter",
+    call: (c, i) =>
+      c.persona.connectToCharacter({ characterId: i.characterId, personaId: i.personaId }),
+  },
+  {
+    path: "persona.disconnectFromCharacter",
+    call: (c, i) =>
+      c.persona.disconnectFromCharacter({ characterId: i.characterId, personaId: i.personaId }),
+  },
+  {
+    path: "persona.listConnectedToCharacter",
+    call: (c, i) => c.persona.listConnectedToCharacter({ characterId: i.characterId }),
+  },
+  {
+    path: "persona.setActivePersona",
+    call: (c, i) => c.persona.setActivePersona({ chatId: i.chatId, personaId: i.personaId }),
+  },
+  // ── preset (single-owner) ──
+  { path: "preset.get", call: (c, i) => c.preset.get({ id: i.presetId }) },
+  { path: "preset.update", call: (c, i) => c.preset.update({ id: i.presetId, name: "hacked" }) },
+  { path: "preset.remove", call: (c, i) => c.preset.remove({ id: i.presetId }) },
+  { path: "preset.resetToDefault", call: (c, i) => c.preset.resetToDefault({ id: i.presetId }) },
+  // ── world-info (owner-scoped) ──
+  { path: "worldInfo.getBook", call: (c, i) => c.worldInfo.getBook({ bookId: i.bookId }) },
+  {
+    path: "worldInfo.updateBook",
+    call: (c, i) => c.worldInfo.updateBook({ bookId: i.bookId, input: { name: "hacked" } }),
+  },
+  { path: "worldInfo.removeBook", call: (c, i) => c.worldInfo.removeBook({ bookId: i.bookId }) },
+  {
+    path: "worldInfo.duplicateBook",
+    call: (c, i) => c.worldInfo.duplicateBook({ bookId: i.bookId }),
+  },
+  { path: "worldInfo.listEntries", call: (c, i) => c.worldInfo.listEntries({ bookId: i.bookId }) },
+  {
+    path: "worldInfo.createEntry",
+    call: (c, i) =>
+      c.worldInfo.createEntry({ bookId: i.bookId, input: { title: "x", content: "x" } }),
+  },
+  {
+    path: "worldInfo.backfillTitles",
+    call: (c, i) => c.worldInfo.backfillTitles({ bookId: i.bookId }),
+  },
+  {
+    path: "worldInfo.applyEntryOrder",
+    call: (c, i) => c.worldInfo.applyEntryOrder({ bookId: i.bookId, orderedEntryIds: [i.entryId] }),
+  },
+  {
+    path: "worldInfo.attachGlobal",
+    call: (c, i) => c.worldInfo.attachGlobal({ bookId: i.bookId }),
+  },
+  {
+    path: "worldInfo.detachGlobal",
+    call: (c, i) => c.worldInfo.detachGlobal({ bookId: i.bookId }),
+  },
+  { path: "worldInfo.getEntry", call: (c, i) => c.worldInfo.getEntry({ entryId: i.entryId }) },
+  {
+    path: "worldInfo.updateEntry",
+    call: (c, i) => c.worldInfo.updateEntry({ entryId: i.entryId, input: { title: "hacked" } }),
+  },
+  {
+    path: "worldInfo.removeEntry",
+    call: (c, i) => c.worldInfo.removeEntry({ entryId: i.entryId }),
+  },
+  {
+    path: "worldInfo.attachToCharacter",
+    call: (c, i) =>
+      c.worldInfo.attachToCharacter({
+        characterId: i.characterId,
+        bookId: i.bookId,
+        role: "primary",
+      }),
+  },
+  {
+    path: "worldInfo.detachFromCharacter",
+    call: (c, i) =>
+      c.worldInfo.detachFromCharacter({ characterId: i.characterId, bookId: i.bookId }),
+  },
+  {
+    path: "worldInfo.listForCharacter",
+    call: (c, i) => c.worldInfo.listForCharacter({ characterId: i.characterId }),
+  },
+  {
+    path: "worldInfo.attachToPersona",
+    call: (c, i) => c.worldInfo.attachToPersona({ personaId: i.personaId, bookId: i.bookId }),
+  },
+  {
+    path: "worldInfo.detachFromPersona",
+    call: (c, i) => c.worldInfo.detachFromPersona({ personaId: i.personaId, bookId: i.bookId }),
+  },
+  {
+    path: "worldInfo.listForPersona",
+    call: (c, i) => c.worldInfo.listForPersona({ personaId: i.personaId }),
+  },
+  // ── tag (owner-scoped) ──
+  { path: "tag.getTag", call: (c, i) => c.tag.getTag({ tagId: i.tagId }) },
+  {
+    path: "tag.mergeTags",
+    call: (c, i) => c.tag.mergeTags({ sourceTagId: i.tagId, targetTagId: "tag_other_fake" }),
+  },
+  {
+    path: "tag.updateTag",
+    call: (c, i) => c.tag.updateTag({ tagId: i.tagId, patch: { name: "hacked" } }),
+  },
+  { path: "tag.removeTag", call: (c, i) => c.tag.removeTag({ tagId: i.tagId }) },
+  {
+    path: "tag.attachTag",
+    call: (c, i) =>
+      c.tag.attachTag({ tagId: i.tagId, targetType: "character", targetId: i.characterId }),
+  },
+  {
+    path: "tag.detachTag",
+    call: (c, i) =>
+      c.tag.detachTag({ tagId: i.tagId, targetType: "character", targetId: i.characterId }),
+  },
+  {
+    path: "tag.bulkAttachTag",
+    call: (c, i) =>
+      c.tag.bulkAttachTag({ tagIds: [i.tagId], targetType: "character", targetId: i.characterId }),
+  },
+  { path: "tag.setTagOrder", call: (c, i) => c.tag.setTagOrder({ orderedIds: [i.tagId] }) },
+  // The `pending` review inbox narrowed by a characterId — owner-scoped via `characters.ownerId`
+  // (list-pending-suggestions.ts), so a stranger passing A's characterId gets an empty list (leak-free).
+  {
+    path: "tag.listPendingSuggestions",
+    call: (c, i) => c.tag.listPendingSuggestions({ characterId: i.characterId }),
+  },
+  // ── discovery (owner-scoped write on a caller-supplied characterId) ──
+  // The on-demand "Suggest tags" distill: `ownerId` = the resolved principal, so a stranger's probe with A's
+  // characterId reads zero targets and short-circuits to an empty stats object BEFORE any summarize call —
+  // a leak-free no-op that never touches A's world (readCardDistillTargets gates on characters.ownerId).
+  {
+    path: "discovery.suggestCharacterTags",
+    call: (c, i) => c.discovery.suggestCharacterTags({ characterId: i.characterId }),
+  },
+  // ── credentials (owner-scoped) — only the read-shaped `fetchModels` is probed here; the mutation verbs
+  //    are EXEMPT in this harness (the keyless SecretBox trips their storage-disabled guard first, below). ──
+  {
+    path: "credentials.fetchModels",
+    call: (c, i) => c.credentials.fetchModels({ credentialId: i.credentialId }),
+  },
+  // ── settings themes (owner-scoped) ──
+  { path: "settings.getTheme", call: (c, i) => c.settings.getTheme({ id: i.themeId }) },
+  {
+    path: "settings.updateTheme",
+    call: (c, i) => c.settings.updateTheme({ id: i.themeId, input: { name: "hacked" } }),
+  },
+  { path: "settings.duplicateTheme", call: (c, i) => c.settings.duplicateTheme({ id: i.themeId }) },
+  { path: "settings.removeTheme", call: (c, i) => c.settings.removeTheme({ id: i.themeId }) },
+  // ── stats (single-owner) ──
+  { path: "stats.character", call: (c, i) => c.stats.character({ characterId: i.characterId }) },
+  // ── chat (membership-scoped; the chatId gate is the chokepoint for every secondary id) ──
+  { path: "chat.getChat", call: (c, i) => c.chat.getChat({ chatId: i.chatId }) },
+  { path: "chat.listMessages", call: (c, i) => c.chat.listMessages({ chatId: i.chatId }) },
+  {
+    path: "chat.listMessageVariants",
+    call: (c, i) => c.chat.listMessageVariants({ chatId: i.chatId, messageId: i.messageId }),
+  },
+  { path: "chat.star", call: (c, i) => c.chat.star({ chatId: i.chatId, star: true }) },
+  { path: "chat.archive", call: (c, i) => c.chat.archive({ chatId: i.chatId, archived: true }) },
+  {
+    path: "chat.updateTitle",
+    call: (c, i) => c.chat.updateTitle({ chatId: i.chatId, title: "hacked" }),
+  },
+  { path: "chat.delete", call: (c, i) => c.chat.delete({ chatId: i.chatId }) },
+  {
+    path: "chat.editMessage",
+    call: (c, i) =>
+      c.chat.editMessage({ chatId: i.chatId, messageId: i.messageId, content: "hacked" }),
+  },
+  {
+    path: "chat.setMessageHidden",
+    call: (c, i) =>
+      c.chat.setMessageHidden({ chatId: i.chatId, messageId: i.messageId, hidden: true }),
+  },
+  {
+    path: "chat.deleteMessages",
+    call: (c, i) => c.chat.deleteMessages({ chatId: i.chatId, messageIds: [i.messageId] }),
+  },
+  {
+    path: "chat.reattributePersona",
+    call: (c, i) =>
+      c.chat.reattributePersona({
+        chatId: i.chatId,
+        messageIds: [i.messageId],
+        personaId: i.personaId,
+      }),
+  },
+  { path: "chat.forkChat", call: (c, i) => c.chat.forkChat({ chatId: i.chatId }) },
+  {
+    path: "chat.setRoomOverrides",
+    call: (c, i) => c.chat.setRoomOverrides({ chatId: i.chatId, overrides: {} }),
+  },
+  { path: "chat.previewAssembly", call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId }) },
+  {
+    path: "chat.setChatInjection",
+    call: (c, i) =>
+      c.chat.setChatInjection({
+        chatId: i.chatId,
+        position: "in_chat",
+        depth: 0,
+        role: "system",
+        content: "x",
+      }),
+  },
+  {
+    path: "chat.listChatInjections",
+    call: (c, i) => c.chat.listChatInjections({ chatId: i.chatId }),
+  },
+  {
+    path: "chat.deleteChatInjection",
+    call: (c, i) => c.chat.deleteChatInjection({ chatId: i.chatId, injectionId: FAKE.injectionId }),
+  },
+  {
+    path: "chat.addCharacterToChat",
+    call: (c, i) => c.chat.addCharacterToChat({ chatId: i.chatId, characterId: i.characterId }),
+  },
+  {
+    path: "chat.setParticipantDisabled",
+    call: (c, i) =>
+      c.chat.setParticipantDisabled({
+        chatId: i.chatId,
+        characterId: i.characterId,
+        disabled: true,
+      }),
+  },
+  {
+    path: "chat.setParticipantTalkativeness",
+    call: (c, i) =>
+      c.chat.setParticipantTalkativeness({
+        chatId: i.chatId,
+        characterId: i.characterId,
+        talkativeness: 0.5,
+      }),
+  },
+  {
+    path: "chat.forceCharacterTurn",
+    call: (c, i) => c.chat.forceCharacterTurn({ chatId: i.chatId, characterId: i.characterId }),
+  },
+  { path: "chat.getGroupConfig", call: (c, i) => c.chat.getGroupConfig({ chatId: i.chatId }) },
+  {
+    path: "chat.setChatAnchorPersona",
+    call: (c, i) => c.chat.setChatAnchorPersona({ chatId: i.chatId, personaId: null }),
+  },
+  { path: "chat.abort", call: (c, i) => c.chat.abort({ chatId: i.chatId }) },
+  { path: "chat.send", call: (c, i) => c.chat.send({ chatId: i.chatId, content: "hi" }) },
+  {
+    path: "chat.swipe",
+    call: (c, i) => c.chat.swipe({ chatId: i.chatId, messageId: i.messageId }),
+  },
+  {
+    path: "chat.selectVariant",
+    call: (c, i) =>
+      c.chat.selectVariant({ chatId: i.chatId, messageId: i.messageId, variantId: FAKE.variantId }),
+  },
+  {
+    path: "chat.continueTurn",
+    call: (c, i) => c.chat.continueTurn({ chatId: i.chatId, messageId: i.messageId }),
+  },
+  { path: "chat.impersonate", call: (c, i) => c.chat.impersonate({ chatId: i.chatId }) },
+  { path: "chat.generate", call: (c, i) => c.chat.generate({ chatId: i.chatId }) },
+  {
+    path: "chat.generateImage",
+    call: (c, i) => c.chat.generateImage({ chatId: i.chatId, mode: "free", prompt: "x", n: 1 }),
+  },
+];
+
+// Every remaining procedure, with WHY it is not a cross-tenant IDOR probe. A new procedure that lands in
+// NEITHER `PROBES` nor here fails the completeness guard → it MUST be classified before it ships.
+const EXEMPT: Readonly<Record<string, string>> = {
+  // Public / unauthenticated — no owned resource, no id.
+  health: "public: no auth, no id",
+  echo: "public: no auth, no id",
+  clientError: "public: fire-and-forget log sink, no id",
+  // Self-scoped by the resolved Principal — no cross-tenant id input (returns only the caller's own world).
+  "character.create": "self-scoped: creates the caller's own row",
+  "character.list": "self-scoped: lists the caller's own rows",
+  "persona.create": "self-scoped",
+  "persona.list": "self-scoped",
+  "persona.import": "self-scoped: imports into the caller's own namespace",
+  "preset.create": "self-scoped",
+  "preset.list": "self-scoped",
+  "worldInfo.createBook": "self-scoped",
+  "worldInfo.listBooks": "self-scoped",
+  "worldInfo.listGlobal": "self-scoped: the caller's globally-attached books",
+  "tag.createTag": "self-scoped",
+  "tag.listTags": "self-scoped",
+  "tag.listTagsWithUsage": "self-scoped",
+  "tag.pruneUnusedTags": "self-scoped: prunes the caller's own unused tags",
+  "credentials.add": "self-scoped",
+  "credentials.list": "self-scoped",
+  // The credential MUTATION verbs guard on storage-enabled FIRST — the `app` fixture's SecretBox is keyless
+  // (no CREDENTIALS_KEY), so they reject BAD_REQUEST (`credentials_disabled`) before the ownership check can
+  // run. The cross-tenant gate is unreachable in this harness; owner-scoping is covered by the credentials
+  // domain int tests. (The read-shaped `fetchModels` IS probed — it degrades leak-free without a key.)
+  "credentials.setActive": "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.remove": "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.testHealth": "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.markRevokedByUser":
+    "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.clearRevoked":
+    "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "credentials.inspectEndpoint":
+    "keyless-fixture: storage-disabled guard precedes the ownership check",
+  "assets.listOwned": "self-scoped",
+  "assets.listGallery": "self-scoped",
+  // Gallery ids are strict `typeIdSchema` — a synthesized id fails WIRE validation (BAD_REQUEST) before the
+  // ownership gate, and seeding a real gallery item needs CAS bytes. Asset-ownership IDOR (the shared-avatar
+  // reference check) is covered by the assets domain's `loadCoParticipantOwner` tests.
+  "assets.addToGallery":
+    "strict-typeid input validation precedes the ownership gate; see loadCoParticipantOwner tests",
+  "assets.removeFromGallery":
+    "strict-typeid input validation precedes the ownership gate; see the assets domain tests",
+  // `groupConfigSchema` is a discriminated union — a minimal `{}` fails WIRE validation before the verb's
+  // membership gate. That IDENTICAL host/member gate IS exercised by `chat.getGroupConfig` (probed → NOT_FOUND).
+  "chat.setGroupConfig":
+    "group-config wire schema validates before the membership gate; the gate is probed via chat.getGroupConfig",
+  "chat.startChat": "self-scoped: creates a chat the caller hosts",
+  "chat.listChats": "self-scoped: only the caller's member chats",
+  "settings.getUserSettings": "self-scoped by principal.userId",
+  "settings.updateUserSettings": "self-scoped by principal.userId",
+  "settings.updateUserSettingsSection": "self-scoped by principal.userId",
+  "settings.listThemes": "self-scoped: owned ∪ seeds",
+  "settings.createTheme": "self-scoped",
+  "sessions.me": "self-scoped: projects the caller's own Principal",
+  "sessions.streamUserEvents": "self-scoped: channel key is the caller's own userId",
+  "buddy.get": "self-scoped: one buddy per caller",
+  "buddy.hatch": "self-scoped",
+  "buddy.ask": "self-scoped",
+  "buddy.confirm":
+    "not-a-cross-tenant-id: ephemeral in-memory proposal handle (per-user, 5-min TTL)",
+  "buddy.history": "self-scoped",
+  "buddy.clearChat": "self-scoped",
+  "buddy.setReactions": "self-scoped",
+  "buddy.setAgency": "self-scoped",
+  "search.knn": "self-scoped: ownerId = principal.userId",
+  "search.findCharacters": "self-scoped: ownerId = principal.userId",
+  "discovery.duplicateCharacters": "self-scoped: userId = principal.userId",
+  "discovery.themes": "self-scoped: userId = principal.userId",
+  "connection.getCatalog": "not-owned: the deployment-global model catalog",
+  "connection.getAgentSdkCatalog":
+    "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
+  "connection.getModelCapability": "not-owned: a model/source lookup, no owned id",
+  "connection.orCredits": "self-scoped: reads the caller's OWN provider key",
+  "connection.orGenerationCost": "not-owned: an upstream OpenRouter generation handle",
+  "connection.testClaudeAuth": "self-scoped: the caller's own max-pro-sub health check",
+  "notifications.list": "self-scoped by principal.userId (multi-human belt)",
+  "notifications.markRead": "self-scoped by principal.userId (inbox scoped inside the verb)",
+  "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
+  "notifications.notifications": "subscription: self-scoped per-user channel",
+  "chat.streamMessages":
+    "subscription: non-member WITHHOLDS (yields nothing), not a NOT_FOUND throw — covered by chat.int durable-replay",
+  // Stats — every verb scopes on ctx.auth.userId (single-owner); no cross-tenant id but `character` (probed).
+  "stats.overview": "self-scoped by principal.userId",
+  "stats.leaderboard": "self-scoped by principal.userId",
+  "stats.timeseries": "self-scoped by principal.userId",
+  "stats.byModel": "self-scoped by principal.userId",
+  "stats.freshness": "self-scoped by principal.userId",
+  "stats.personaUsage": "self-scoped by principal.userId",
+  "stats.wrapped": "self-scoped by principal.userId",
+  "stats.temporal": "self-scoped by principal.userId",
+  "stats.activityHeatmap": "self-scoped by principal.userId",
+  "stats.momentum": "self-scoped by principal.userId",
+  "stats.latency": "self-scoped by principal.userId",
+  // Admin-gated (LAYER-1 role gate): a plain-user stranger is refused FORBIDDEN at the ladder BEFORE any
+  // resource lookup — the role gate is the authz surface, tested by the admin-gate matrix, not IDOR.
+  "admin.listUsers": "admin-gated: role gate (not IDOR)",
+  "admin.setRole": "admin-gated: role gate",
+  "admin.setEnabled": "admin-gated: role gate",
+  "admin.createUser": "admin-gated: role gate",
+  "admin.resetPassword": "admin-gated: role gate",
+  "admin.listSessions": "admin-gated: role gate",
+  "admin.revokeSession": "admin-gated: role gate",
+  "admin.revokeUserSessions": "admin-gated: role gate",
+  "admin.vllmEngines": "admin-gated: role gate",
+  "admin.restartVllmEngine": "admin-gated: role gate",
+  "admin.embedCharacterCard": "admin-gated: role gate",
+  "workloads.start": "admin-gated: workloads are deployment-global",
+  "workloads.cancel": "admin-gated: workloads are deployment-global",
+  "workloads.retry": "admin-gated: workloads are deployment-global",
+  "workloads.get": "admin-gated: workloads are deployment-global",
+  "workloads.list": "admin-gated: workloads are deployment-global",
+  "workloads.subscribe": "admin-gated subscription: workloads are deployment-global",
+  "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
+  "connection.refreshAgentSdkCatalog":
+    "admin-gated: writes the deployment agent-sdk catalog KV snapshot",
+  "settings.getAppSettings": "admin-gated: deployment settings",
+  "settings.updateAppSettings": "admin-gated: deployment settings",
+  "settings.getGlobalSetting": "admin-gated: raw global KV",
+  "settings.setGlobalSetting": "admin-gated: raw global KV",
+};
+
+describe("cross-tenant IDOR sweep — the completeness guard (grows with the router)", () => {
+  test("EVERY router procedure is classified as either a PROBE or an EXEMPT(reason)", () => {
+    // tRPC v11 has no public procedure-enumeration API — reading `_def.procedures` (the flat
+    // path→procedure record) is the sanctioned introspection seam for a router-completeness gate.
+    const all = Object.keys(
+      // FABRICATION-OK: the tRPC `_def.procedures` introspection seam (no public enumeration API in v11).
+      (appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures,
+    ).sort();
+    const covered = new Set([...PROBES.map((p) => p.path), ...Object.keys(EXEMPT)]);
+    const uncovered = all.filter((p) => !covered.has(p));
+    expect(
+      uncovered,
+      `unclassified procedure(s) — add each to PROBES (id-taking, cross-tenant) or EXEMPT (with a reason): ${uncovered.join(", ")}`,
+    ).toEqual([]);
+    // And no stale entries pointing at deleted procedures.
+    const known = new Set(all);
+    const stale = [...covered].filter((p) => !known.has(p));
+    expect(
+      stale,
+      `stale probe/exempt entries for procedures that no longer exist: ${stale.join(", ")}`,
+    ).toEqual([]);
+  });
+});
+
+describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for a stranger", () => {
+  /** Seed owner A's one-of-everything (front door where possible; direct db for the turn-engine-bound rows). */
+  async function seedOwnerWorld(
+    owner: AppCaller,
+    db: Parameters<typeof seedChat>[0],
+  ): Promise<OwnerIds> {
+    const character = await owner.character.create({
+      input: { handle: "alpha-hero", name: MARK.character, description: "owned by A" },
+    });
+    const persona = await owner.persona.create({
+      input: { name: MARK.persona, description: "owned by A" },
+    });
+    const preset = await owner.preset.create({ name: MARK.preset, kind: "chat" });
+    const book = await owner.worldInfo.createBook({ input: { name: MARK.book } });
+    const entry = await owner.worldInfo.createEntry({
+      bookId: book.id,
+      input: { title: MARK.entry, content: "lore owned by A" },
+    });
+    const tag = await owner.tag.createTag({ input: { name: MARK.tag } });
+    const snapshot = await owner.character.snapshot({ characterId: character.id });
+
+    // The credential is seeded DIRECTLY — the `app` fixture's SecretBox is keyless (CREDENTIALS_KEY unset),
+    // so the front-door `credentials.add` is disabled. The ownership probes never decrypt; they gate on the
+    // owner. The `label` is the leak marker (a returned CredentialView would carry it).
+    const credentialId = castId<UserCredentialId>("user_credential_alpha");
+    await db.insert(userCredentials).values({
+      id: credentialId,
+      ownerId: OWNER_USER_ID,
+      provider: "openrouter",
+      ciphertext: "x",
+      iv: "x",
+      tag: "x",
+      label: MARK.credential,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    // The turn/canon rows sidestep the provider — seed them directly (owner A is the host member).
+    const chatId = await seedChat(db, "idor", { title: "AlphaSecretChatTitle" });
+    await seedParticipant(db, { chatId, key: "idor_h", userId: OWNER_USER_ID, role: "host" });
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "user",
+      authorUserId: OWNER_USER_ID,
+      content: MARK.message,
+    });
+
+    // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
+    // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
+    const themeId = castId<ThemeId>("theme_alpha");
+    await db.insert(themes).values({
+      id: themeId,
+      ownerId: OWNER_USER_ID,
+      name: MARK.theme,
+      // The ThemeOverride read seam parses leniently (per-field `.catch` → defaults) and the ownership
+      // probe never inspects the palette, only the owner.
+      // FABRICATION-OK: minimal override blob (see the note above) — the read seam degrades it to defaults.
+      override: {} as never,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    return {
+      characterId: character.id,
+      personaId: persona.id,
+      presetId: preset.id,
+      bookId: book.id,
+      entryId: entry.id,
+      tagId: tag.id,
+      credentialId,
+      themeId,
+      snapshotId: snapshot.id,
+      chatId,
+      messageId,
+    };
+  }
+
+  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({
+    db,
+    ownerCaller,
+    otherCaller,
+  }) => {
+    const ids = await seedOwnerWorld(ownerCaller, db);
+
+    // CONTROL: the owner's OWN read carries the marker — proving the detector below is not blind.
+    const ownView = JSON.stringify(
+      await ownerCaller.character.get({ characterId: ids.characterId }),
+    );
+    expect(ownView).toContain(MARK.character);
+
+    // THE SWEEP: every id-taking procedure, probed as the stranger, must be leak-free. Verdicts are
+    // collected then asserted ONCE (no branching expect) so EVERY leak surfaces in a single readable diff.
+    const leaks: string[] = [];
+    for (const probe of PROBES) {
+      // biome-ignore lint/performance/noAwaitInLoops: probes run serially against one shared graph/db (isolation + readable per-probe failures).
+      const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids));
+      if (verdict !== null) {
+        leaks.push(verdict);
+      }
+    }
+    expect(
+      leaks,
+      `cross-tenant IDOR leak(s) — STOP-and-report findings:\n${leaks.join("\n")}`,
+    ).toEqual([]);
+
+    // POST-SWEEP INTEGRITY: no probe silently MUTATED/deleted A's world (a write-IDOR returning void).
+    const stillThere = await ownerCaller.character.get({ characterId: ids.characterId });
+    expect(stillThere.name).toBe(MARK.character); // untouched by the stranger's `update`/`remove` probes
+    const chatStill = await ownerCaller.chat.getChat({ chatId: ids.chatId });
+    expect(chatStill.title).toBe("AlphaSecretChatTitle"); // untouched by the stranger's chat-mutation probes
+  });
+});

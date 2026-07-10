@@ -36,9 +36,11 @@ import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
+import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
 import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
+import { getLog } from "#foundation/observability";
 import type { ToolCallInput } from "#infra/providers";
 import type {
   ApplyRegexReplaceOp,
@@ -172,6 +174,17 @@ interface TurnPipelineResult {
  *  wire `authorName` (a SHAPE concern — `namesBehavior:"completion"`'s prefixed name) still derives from
  *  `ctx.cast`/`castCharacterIds` for an assistant row (the roster's CURRENT card name), independent of the
  *  macro producer (which may resolve a since-left/renamed character's stamped id to its OWN historical name). */
+/** THE wire `authorName` for a user/narrator row (SHAPE's name-stamp axis): the row's OWN stamped
+ *  `personaId` resolved through the per-chat producer — NOT the current active persona (F4). A null stamp
+ *  (legacy/narrator) or an unresolvable id yields `null`, so `applyNamesBehavior` falls back to
+ *  `speakers.user` (the active persona), matching the macro producer's own null-stamp floor. */
+function userRowAuthorName(
+  personaId: PersonaId | null,
+  macroNames: HistoryMacroNames,
+): string | null {
+  return personaId !== null ? (macroNames.personaNamesById.get(personaId)?.name ?? null) : null;
+}
+
 function toShapeCanon(
   canon: readonly MessageView[],
   ctx: AssembleContext,
@@ -186,8 +199,6 @@ function toShapeCanon(
       nameById.set(id, name);
     }
   });
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — `activePersona`/`pinnedPersona` are `AssemblePersona | null | undefined` (cross-package @orb/contracts/chat zod inference, the family the assemble.ts/context.ts headers document), so `?.name ?? …` is required.
-  const userName = ctx.activePersona?.name ?? ctx.pinnedPersona?.name ?? null;
   const rows: ShapeCanonRow[] = [];
   for (const m of canon) {
     if (m.excludedFromPrompt || m.role === "system") {
@@ -214,10 +225,15 @@ function toShapeCanon(
       // `{{user}}`/`{{persona}}` resolve to THIS row's own stamped `personaId` via the producer, falling back
       // to the ACTIVE persona only when the stamp is null (a legacy/narrator row) — never the pinned anchor
       // nor a global override of a stamped row (PD-100: the stamp is attribution AND the macro subject now).
+      //
+      // The wire `authorName` (SHAPE's name-stamp axis) MUST derive from the SAME per-row `personaId` — not
+      // the CURRENT active persona (F4): a row authored under a since-switched persona keeps its own name, so
+      // `namesBehavior:"default"` disambiguation fires and multi-human rooms attribute each human's lines to
+      // THEIR persona (not the triggering human's) — see `userRowAuthorName`.
       rows.push({
         role: "user",
         content: renderHistoryMacros(m.content, stamps, ctx, { producer: macroNames }),
-        authorName: userName,
+        authorName: userRowAuthorName(m.personaId, macroNames),
         messageId: m.id,
       });
     }
@@ -285,6 +301,23 @@ async function reduceStream(
  *    2. post-process on content (singleLine/dropIncomplete/trim) — AFTER the AI_OUTPUT regex (§3 rule 8).
  *    3. REASONING regex on the reasoning channel.
  *  Each host-side regex `text.replace` runs under the injected node:vm watchdog (`args.applyRegexReplace`, D53). */
+/** F1: strip a per-speaker canon row down to ONLY its own speaker's content — remove a leaked leading
+ *  self-label (`Kai:` / `<speaker>Kai`) and truncate any drift into a FOREIGN cast member's line
+ *  (`"I attack.\nAria: I cast a shield."` → `"I attack."`). Applied ONLY when the turn's output axis is
+ *  `per-speaker` (the single-speaker default AND every group per-speaker round); a `merged`/`narrator`
+ *  turn returns unchanged (its foreign labels are the intended transcript). The own speaker is the
+ *  round's resolved speaker (`shape.speakerName`, or the ctx primary for solo); the other names are the
+ *  rest of the loaded cast — solo has none, so it degenerates to the idempotent leading-strip. */
+function cleanPerSpeakerContent(content: string, args: RunTurnPipelineArgs): string {
+  if ((args.shape?.output ?? "per-speaker") !== "per-speaker") {
+    return content;
+  }
+  const ctx = args.assembleContext;
+  const speakerName = args.shape?.speakerName ?? ctx.character.name;
+  const otherNames = (ctx.cast ?? []).map((c) => c.name).filter((name) => name !== speakerName);
+  return cleanPerSpeakerReply(content, speakerName, otherNames);
+}
+
 function applyReceiveTransforms(
   reduced: { content: string; reasoning: string | null },
   args: RunTurnPipelineArgs,
@@ -312,6 +345,10 @@ function applyReceiveTransforms(
           assembleCtx: ctx,
           model: args.connection.model,
           chatId: args.chatId,
+          // F9: the macro engine's depth-cap / 1MB-output trip is fail-open (the output stays bounded) but
+          // must be OBSERVABLE — route it to the operator log (was never supplied on the live path).
+          onWarn: (msg, warnErr) =>
+            getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
         })
       : null;
   if (macroCtx !== null) {
@@ -321,11 +358,27 @@ function applyReceiveTransforms(
       placement: "AI_OUTPUT",
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
+      // F9: the D53 watchdog's deliberate throw (ReDoS timeout / bad host regex) is fail-open (the next
+      // script runs on the text as-is) but must be OBSERVABLE — the kit executor's `onScriptFailure?.()`
+      // no-op would otherwise silently eat the guard's tally.
+      onScriptFailure: (scriptErr, script) =>
+        getLog().warn(
+          { err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex },
+          "chat: host-tier regex script failed (D53 watchdog)",
+        ),
     });
   }
 
   // 2. post-process AFTER the AI_OUTPUT regex (always — independent of host scripts).
   content = applyReceivePostProcess(content, cfg.postProcess);
+
+  // 2b. per-speaker canon clean (F1) — on the PER-SPEAKER output path only: strip a leaked leading
+  //     self-label and truncate any drift into a FOREIGN cast member's line so the committed row is
+  //     EXACTLY this speaker's content (the model routinely continues as multiple characters in a merged
+  //     multi-character prompt). Merged/narrator output is intentionally left alone (its `<speaker>`
+  //     markers + inline labels are the delivered multi-character transcript). Solo (no other cast) → a
+  //     no-op truncate + the idempotent leading-self-label strip.
+  content = cleanPerSpeakerContent(content, args);
 
   if (macroCtx !== null && reasoning !== null) {
     reasoning = executeRegexScripts({
@@ -334,6 +387,12 @@ function applyReceiveTransforms(
       placement: "REASONING",
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
+      // F9: observability for the REASONING-channel host regex (mirror of the AI_OUTPUT sink above).
+      onScriptFailure: (scriptErr, script) =>
+        getLog().warn(
+          { err: scriptErr, placement: "REASONING", findRegex: script.findRegex },
+          "chat: host-tier regex script failed (D53 watchdog)",
+        ),
     });
   }
 
@@ -412,6 +471,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const imageDropped = built.some((b) => b.dropped);
   const baseRequest: TurnRequest = {
     connection: args.connection,
+    chatId: args.chatId,
     prompt: assembled,
     history,
     intent: args.intent,
@@ -623,38 +683,61 @@ function aggregateEconomics(
 
 /** Tokenize a shaped STRING body → provider content-parts (D45). Text spans pass through (empty text skipped);
  *  image spans resolve to `{type:"image",url}` — dropped (with `dropped=true`) when the model lacks vision or
- *  the ref resolves to null (gone asset / `forbidExternalMedia`). A row with no surviving parts → a single
- *  empty text part (the byte-identical text path; never an empty content array on the wire). */
+ *  the ref resolves to null (gone asset / `forbidExternalMedia`).
+ *
+ *  F7b: an IMAGE-ONLY row whose every part drops must NOT collapse to an empty text part — the runner's
+ *  empty-row wire filter deletes an empty-text row, so an image-only trailing user message would vanish and
+ *  the delivered history would end on the prior assistant row (Anthropic-with-thinking then 400s). When a
+ *  drop empties the row we substitute the dropped images' alt text (or `[image omitted]`) as a NON-empty text
+ *  part so the row — and the trailing-user invariant — survives the seam. A genuinely empty body (no image
+ *  spans) keeps the empty text part (the byte-identical text path; never an empty content array on the wire). */
+/** F7b placeholder text for a row emptied by an all-images-dropped seam: the joined alt text when present,
+ *  else a neutral `[image omitted]` marker — never `""` (an empty text row is deleted by the wire filter). */
+function droppedImagePlaceholder(droppedAlts: string[]): string {
+  return droppedAlts.length > 0 ? `[image: ${droppedAlts.join(", ")}]` : "[image omitted]";
+}
+
 async function toContentParts(
   body: string,
   visionOk: boolean,
   resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>,
 ): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
-  // Resolve every span concurrently (image refs in one row are independent) — `"dropped"` marks a stripped
-  // image, `null` an empty text span to skip.
+  // Resolve every span concurrently (image refs in one row are independent) — a `{ droppedAlt }` sentinel
+  // marks a stripped image (carrying its alt text for the F7b placeholder), `null` an empty text span to skip.
   const resolved = await Promise.all(
-    tokenizeContent(body).map(async (span): Promise<ChatContentPart | "dropped" | null> => {
-      if (span.kind === "text") {
-        return span.text.length > 0 ? { type: "text", text: span.text } : null;
-      }
-      if (!visionOk) {
-        return "dropped";
-      }
-      const url = await resolveImageUrl(span.ref);
-      return url === null ? "dropped" : { type: "image", url };
-    }),
+    tokenizeContent(body).map(
+      async (span): Promise<ChatContentPart | { droppedAlt: string } | null> => {
+        if (span.kind === "text") {
+          return span.text.length > 0 ? { type: "text", text: span.text } : null;
+        }
+        if (!visionOk) {
+          return { droppedAlt: span.alt };
+        }
+        const url = await resolveImageUrl(span.ref);
+        return url === null ? { droppedAlt: span.alt } : { type: "image", url };
+      },
+    ),
   );
   const parts: ChatContentPart[] = [];
   let dropped = false;
+  const droppedAlts: string[] = [];
   for (const r of resolved) {
-    if (r === "dropped") {
-      dropped = true;
-    } else if (r !== null) {
-      parts.push(r);
+    if (r === null) {
+      continue;
     }
+    if ("droppedAlt" in r) {
+      dropped = true;
+      if (r.droppedAlt.length > 0) {
+        droppedAlts.push(r.droppedAlt);
+      }
+      continue;
+    }
+    parts.push(r);
   }
   if (parts.length === 0) {
-    parts.push({ type: "text", text: "" });
+    // F7b: only substitute a placeholder when a DROP emptied the row (image-only content that couldn't
+    // render as parts) — a genuinely empty body keeps its empty text part.
+    parts.push({ type: "text", text: dropped ? droppedImagePlaceholder(droppedAlts) : "" });
   }
   return { parts, dropped };
 }

@@ -17,6 +17,11 @@ import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
+/** Anchored tier detector for the heal (mirrors `model-family.ts`'s anthropic anchor discipline — the
+ *  file header there — so a third-party fork like `some-org/claude-fork-sonnet` never false-matches). Matches
+ *  a bare/prefixed Claude id containing the tier token (`claude-sonnet-4-6`, `anthropic/claude-opus-4.8`). */
+const CLAUDE_TIER_RE = /(?:^|[/-])claude[-/](?<tier>opus|sonnet|haiku)(?:$|[-.])/i;
+
 // Curated numeric facts (named — noMagicNumbers). DEFER(promotion): the exact reasoning effortLevels +
 // max-output numbers are the "quality → axes mapping" deferred item (proposed/connection-capability-panel.md)
 // — fixed when the shortlist is verified against live model behaviour. The SHAPE (distinct axes,
@@ -61,14 +66,17 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
     },
   },
   {
-    id: castId<ChatModelId>("claude-sonnet-4-6"),
+    // The daemon resolves the `sonnet` alias to `claude-sonnet-5` (verified via `supportedModels()`), which
+    // supersedes the stale `claude-sonnet-4-6`. Effort mode with the daemon's full `low..max` levels +
+    // adaptive thinking (the family→version fix maps a bare `sonnet` / a stale id onto this current entry).
+    id: castId<ChatModelId>("claude-sonnet-5"),
     tier: "sonnet",
-    label: "Sonnet 4.6",
+    label: "Sonnet 5",
     capability: {
       reasoning: {
         mode: "effort",
         enabled: true,
-        effortLevels: ["low", "medium", "high", "max"],
+        effortLevels: ["low", "medium", "high", "xhigh", "max"],
         displayModes: [...CLAUDE_DISPLAY_MODES],
       },
       sampling: {},
@@ -122,4 +130,32 @@ export function getChatModel(id: ModelId | string): CuratedChatModel | undefined
   return CHAT_MODELS.find(
     (entry) => entry.id === normalized || entry.id.startsWith(`${normalized}-`),
   );
+}
+
+/**
+ * Detect the tier of a bare family alias ("opus"/"sonnet"/"haiku", case-insensitive) or a Claude id whose id
+ * contains the tier token (bare `claude-…` or `anthropic/claude-…`) — the tier-preservation heal's lookup
+ * (heal-model.ts). A non-Claude id (`gpt-4o`) or a fork whose id merely contains "claude"
+ * (`some-org/claude-fork`) returns `undefined` (the anchor discipline mirrored from `model-family.ts`).
+ */
+export function detectChatModelTier(id: string): "opus" | "sonnet" | "haiku" | undefined {
+  const bare = id.trim().toLowerCase();
+  if (bare === "opus" || bare === "sonnet" || bare === "haiku") {
+    return bare;
+  }
+  const match = CLAUDE_TIER_RE.exec(id);
+  const tier = match?.groups?.["tier"];
+  return tier === undefined ? undefined : (tier.toLowerCase() as "opus" | "sonnet" | "haiku");
+}
+
+/**
+ * The curated shortlist entry for a tier — CHAT_MODELS has exactly one entry per tier (asserted by
+ * `chat-models.test.ts`), so this lookup is total for the three known tiers.
+ */
+export function chatModelForTier(tier: "opus" | "sonnet" | "haiku"): CuratedChatModel {
+  const entry = CHAT_MODELS.find((candidate) => candidate.tier === tier);
+  if (entry === undefined) {
+    throw new Error(`no curated shortlist entry for tier "${tier}"`);
+  }
+  return entry;
 }

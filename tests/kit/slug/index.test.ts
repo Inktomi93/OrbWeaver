@@ -20,4 +20,7 @@ test("slugifyHandle NFKD-folds accents so the combining mark drops out", () => {
 test("slugifyHandle falls back to 'unnamed' when nothing slug-worthy remains", () => {
   expect(slugifyHandle("✨✨")).toBe("unnamed");
   expect(slugifyHandle("")).toBe("unnamed");
+  // Pure punctuation and pure whitespace both fold to nothing slug-worthy.
+  expect(slugifyHandle("!!!")).toBe("unnamed");
+  expect(slugifyHandle("   ")).toBe("unnamed");
 });

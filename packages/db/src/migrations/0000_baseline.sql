@@ -1339,6 +1339,7 @@ CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`handle` text NOT NULL,
 	`external_id` text,
+	`email` text,
 	`role` text DEFAULT 'user' NOT NULL,
 	`enabled` integer DEFAULT true NOT NULL,
 	`password_hash` text,

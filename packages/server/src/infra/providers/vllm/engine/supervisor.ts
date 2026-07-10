@@ -113,7 +113,8 @@ interface TickInput {
   childAlive: boolean;
   now: number;
   /** A spawn for this engine is already queued on the spawn mutex — every decision short-circuits to
-   *  none until it has actually run (see EngineState.pendingSpawn). */
+   *  none until it has SETTLED (held true through the backoff + spawn + health-wait; see
+   *  EngineState.pendingSpawn). */
   pendingSpawn: boolean;
   /** An engine LATER in the leader's sequential boot chain is healthy — proof the leader already attempted
    *  (and abandoned/lost) THIS one, so a free port means dead, not pending. Lets a fresh supervisor (a tsx
@@ -254,9 +255,11 @@ interface EngineState {
   restarts: number[];
   /** When the breaker opened (status 'failed'). */
   failedAt?: number | undefined;
-  /** A spawn is queued on the mutex chain but hasn't run yet. Gates the tick from re-queueing (and
-   *  re-charging the breaker) while an earlier engine's cold compile holds the chain — neo MEASURED:
-   *  rerank/gen burned the whole breaker budget on queued-never-run spawns behind embed's first boot. */
+  /** A spawn is queued on the mutex chain and has not SETTLED yet (held true through the backoff sleep +
+   *  spawn + health-wait, cleared in `runQueuedSpawn`'s finally). Gates the tick from re-queueing (and
+   *  re-charging the breaker) while an earlier engine's cold compile holds the chain OR this engine's own
+   *  restart backoff is still ticking — neo MEASURED: rerank/gen burned the whole breaker budget on
+   *  queued-never-run spawns behind embed's first boot. */
   pendingSpawn: boolean;
 }
 
@@ -314,12 +317,19 @@ async function probeEngine(engine: VllmEngine): Promise<Probe> {
   }
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** Start the supervisor; returns a graceful-drain closer. `now` is injected (determinism); `repoRoot` is
- *  the cwd marker the death-couple wrapper + orphan-reap use. */
-export function startVllmEngines(opts: { repoRoot: string; now: () => number }): () => void {
+ *  the cwd marker the death-couple wrapper + orphan-reap use. `sleep` is the timer seam — the same
+ *  determinism lever as `now`; the composition root omits it (the real setTimeout-backed sleep), tests
+ *  inject a controllable one to drive the restart-backoff / health-poll windows without wall-clock waits. */
+export function startVllmEngines(opts: {
+  repoRoot: string;
+  now: () => number;
+  sleep?: (ms: number) => Promise<void>;
+}): () => void {
   const { repoRoot, now } = opts;
+  const sleep = opts.sleep ?? realSleep;
   const log = getLog().child({ component: "vllm-engines" });
 
   // No GPU → no engines: idle with an honest status instead of crash-looping spawns every breaker
@@ -421,40 +431,59 @@ export function startVllmEngines(opts: { repoRoot: string; now: () => number }):
   }
 
   // The body of a queued spawn: re-probe inside the mutex, reap orphans, spawn, then wait for health.
+  // `pendingSpawn` stays TRUE for the whole body — through the backoff sleep, the spawn, and the
+  // health-wait — and is cleared in the `finally` only once the spawn has SETTLED. Clearing it early (the
+  // original bug) let a monitor tick landing in the 5-45s backoff window see `down`/`free`/`pendingSpawn:
+  // false` and queue a SECOND spawn, double-charging the breaker (opening it below the 3-restart policy)
+  // and — after both spawns ran — relabeling an engine we own as `adopted` (losing hung-recovery).
   async function runQueuedSpawn(s: EngineState, reason: string, backoffMs: number): Promise<void> {
-    s.pendingSpawn = false;
-    if (stopped) {
-      return;
-    }
-    if (backoffMs > 0) {
-      await sleep(backoffMs);
-    }
-    // Re-probe inside the mutex — the world may have changed while queued.
-    const reprobe = await probeEngine(s.engine);
-    if (reprobe !== "free") {
-      if (reprobe === "healthy") {
-        mark(s, "adopted", "spawn skipped: port became healthy while queued");
-      } else {
-        mark(s, "foreign", "spawn skipped: port occupied while queued");
+    try {
+      if (stopped) {
+        return;
       }
-      log.warn(
-        { engine: s.engine, probe: reprobe },
-        "vllm-engines: queued spawn skipped — port no longer free",
-      );
-      return;
+      if (backoffMs > 0) {
+        await sleep(backoffMs);
+      }
+      // Re-probe inside the mutex — the world may have changed while queued.
+      const reprobe = await probeEngine(s.engine);
+      if (reprobe !== "free") {
+        if (s.child !== undefined) {
+          // OWNERSHIP-AWARE skip: a live child means THIS engine is ours (an earlier queued spawn already
+          // brought the port up). Never relabel an owned engine `adopted`/`foreign` — that path loses the
+          // owned-hang → kill-our-child respawn recovery. Leave its owned/starting status untouched; the
+          // next tick reconciles it.
+          log.warn(
+            { engine: s.engine, probe: reprobe },
+            "vllm-engines: queued spawn superseded — engine already ours",
+          );
+          return;
+        }
+        if (reprobe === "healthy") {
+          mark(s, "adopted", "spawn skipped: port became healthy while queued");
+        } else {
+          mark(s, "foreign", "spawn skipped: port occupied while queued");
+        }
+        log.warn(
+          { engine: s.engine, probe: reprobe },
+          "vllm-engines: queued spawn skipped — port no longer free",
+        );
+        return;
+      }
+      // Clear any orphaned EngineCore still holding GPU memory — without this, respawns after an APIServer
+      // SIGKILL loop on negative-KV failures.
+      const reaped = await reapOrphanedEngineCores(repoRoot);
+      if (reaped.length > 0) {
+        log.warn(
+          { engine: s.engine, reaped },
+          "vllm-engines: reaped orphaned EngineCore(s) before spawn",
+        );
+        await sleep(ORPHAN_REAP_SETTLE_MS);
+      }
+      spawnOwned(s, reason);
+      await awaitHealthy(s);
+    } finally {
+      s.pendingSpawn = false;
     }
-    // Clear any orphaned EngineCore still holding GPU memory — without this, respawns after an APIServer
-    // SIGKILL loop on negative-KV failures.
-    const reaped = await reapOrphanedEngineCores(repoRoot);
-    if (reaped.length > 0) {
-      log.warn(
-        { engine: s.engine, reaped },
-        "vllm-engines: reaped orphaned EngineCore(s) before spawn",
-      );
-      await sleep(ORPHAN_REAP_SETTLE_MS);
-    }
-    spawnOwned(s, reason);
-    await awaitHealthy(s);
   }
 
   /** Queue a spawn on the mutex chain, wait for health (or deadline) before releasing. */

@@ -21,6 +21,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PersonaId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -44,11 +45,6 @@ import { useSetPersonaSeed } from "../hooks/use-persona-identity";
 import { useCreatePersona, useRemovePersona } from "../hooks/use-persona-mutations";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
-
-function initials(name: string): string {
-  const trimmed = name.trim();
-  return trimmed === "" ? "?" : trimmed.slice(0, 2).toUpperCase();
-}
 
 /** Log out via the always-present server route; hard-redirect to /login on success. */
 async function logout(): Promise<void> {
@@ -109,8 +105,12 @@ function PanelBody(): ReactElement {
     setSeed.mutate({ section: "seeds", patch: { currentPersonaId: personaId } });
   };
   const onCreate = async (): Promise<void> => {
-    const created = await create.mutateAsync({ input: { name: "New persona", description: "" } });
-    setExpandedId(created.id);
+    try {
+      const created = await create.mutateAsync({ input: { name: "New persona", description: "" } });
+      setExpandedId(created.id);
+    } catch {
+      // `createEntityMutation`'s errorToast already surfaced the failure — nothing to expand.
+    }
   };
   const onDelete = (personaId: PersonaId): void => {
     remove.mutate({ personaId });
@@ -194,7 +194,11 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
             render={
               <Button intent="ghost" size="icon" aria-label={label}>
                 <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
-                  {current === null ? <Icon icon={CircleUser} size="md" /> : initials(current.name)}
+                  {current === null ? (
+                    <Icon icon={CircleUser} size="md" />
+                  ) : (
+                    initialsFor(current.name)
+                  )}
                 </Avatar>
               </Button>
             }
@@ -248,7 +252,7 @@ function PersonaHeader({
     <Row gap="row" align="center" className="justify-between">
       <Row gap="field" align="center" className="min-w-0">
         <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="sm" {...avatarSrc}>
-          {current === null ? <Icon icon={Star} size="sm" /> : initials(current.name)}
+          {current === null ? <Icon icon={Star} size="sm" /> : initialsFor(current.name)}
         </Avatar>
         <Stack gap="field" className="min-w-0">
           <Text size="micro" tone="muted" transform="caps">

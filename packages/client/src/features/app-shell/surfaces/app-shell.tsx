@@ -224,11 +224,13 @@ export function AppShell({ sections, modals, railFoot }: AppShellProps): ReactEl
               onCollapse={(): void => layout.collapsePanel("context")}
             >
               <RegionAnchor region="context">
+                {/* No `weave` here: the CONTENT placeholder already carries the one sanctioned Weave per
+                    screen; the CONTEXT "Details" fallback keeps the muted sparkle so an unbuilt hub with
+                    its context panel open never paints a SECOND Weave (DESIGN.md restraint — F10). */}
                 {slot?.context ?? (
                   <SectionPlaceholder
                     title="Details"
                     description="Select something to see its details here."
-                    weave={true}
                   />
                 )}
               </RegionAnchor>

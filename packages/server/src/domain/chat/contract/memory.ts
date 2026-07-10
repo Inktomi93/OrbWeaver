@@ -11,7 +11,7 @@
 // NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
 
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
-import type { CharacterId, ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** The raw (partial) memory tuning — the admin-set `AppSettings.memoryDefaults` shape, every field optional.
@@ -61,13 +61,18 @@ export interface MemoryScope {
 }
 
 /** One canon message memory reads (slot ⋈ selected variant — D26). The stable speaker identity
- *  (`characterId`/`authorUserId`) folds into the content hash (rename-robust, re-attribution-aware — the
- *  self-heal esoteric); `content` is the verbatim body. */
+ *  (`characterId`/`authorUserId`) AND the authoring `personaId` (D-100 stamp) both fold into the content
+ *  hash — rename-robust but re-attribution-AWARE across BOTH axes: a `{{char}}` re-voice (characterId) and a
+ *  `{{user}}` persona reattribution (personaId) each bust the block hash so the digest self-heals (was
+ *  persona-blind before — a persona re-stamp was a silent no-op on memory). `personaId` also drives the
+ *  transcript BODY's `{{user}}`/`{{persona}}` resolution (via `resolveRowMacros`) so the summarizer/embedding
+ *  sees the real persona name, never the literal macro. `content` is the verbatim (raw-macro) body. */
 export interface MsgRow {
   readonly seq: number;
   readonly role: MessageRole;
   readonly characterId: CharacterId | null;
   readonly authorUserId: UserId | null;
+  readonly personaId: PersonaId | null;
   readonly content: string;
 }
 
@@ -133,6 +138,10 @@ export interface MemoryBuildTrace {
   /** Blocks NOT digested because the summarizer token-guard could not fit even one message (§3a — skip-and-
    *  flag, never silent truncation). */
   readonly blocksSkippedTokenGuard: number;
+  /** Blocks/consolidations whose summarizer returned EMPTY output — NOT stored (an empty digest keyed by the
+   *  block's content-hash would skip forever with blank text, silently dropping the span from `{{memory}}`).
+   *  Skip-and-flag so the NEXT build retries the block (D55(8) — degrade VISIBLY, never silent). */
+  readonly blocksSkippedEmpty: number;
   readonly ms: number;
 }
 
@@ -183,3 +192,11 @@ export interface MemoryBackfillCounts {
   readonly segments: BackfillPassCounts;
   readonly digests: BackfillPassCounts;
 }
+
+/** Resolve a host's effective memory tuning for the PD-41 corpus sweep — the SAME merge the live turn path
+ *  applies (`entry/compose/chat.ts resolveMemoryConfig`: `AppSettings.memoryDefaults` ⊕ host
+ *  `UserSettings.memory.enabled === false → mode:"off"`), extracted to ONE home so the sweep and the turn
+ *  can't drift. Injected into {@link backfillMemory} (NOT `ChatContext` — there is no settings-read op there,
+ *  engine.ts header): the sweep resolves it off each chat's HOST and SKIPS a `mode:"off"` host's chats
+ *  entirely (D36 opt-out honored on the corpus sweep, not just the live turn — #54). */
+export type ResolveBackfillMemoryConfig = (hostUserId: UserId) => Promise<MemoryConfig>;

@@ -21,6 +21,7 @@
 // is a fresh slot, the per-turn provenance need not follow).
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type { StatsDelta } from "@orb/contracts/stats";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
@@ -65,6 +66,7 @@ import {
   loadVariableDeltas,
   loadVariantDelta,
   loadVariantMessageId,
+  loadVariantsByMessageIds,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
@@ -242,6 +244,61 @@ async function resolveStatsOwner(
   return roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? fallback;
 }
 
+/** One raw `message_variants` row (a slot's stored variant — the selected one OR a swipe). */
+type VariantRow = Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
+
+/** Map a slot ⋈ one of its variants → the `canonMessageDelta` message-stream row (the rebuild's `foldMessage`
+ *  fields). Attribution (`characterId`/`role`/`createdAt`) is SLOT-level; the economics + gen bounds + `idx`
+ *  are the VARIANT's own — a swipe carries its own tokens/cost, and `variantCount`+`idx` decide the settled
+ *  `variantMessages`/`activeIdxSum` contribution. */
+function canonRowOf(
+  slot: MessageView,
+  variant: VariantRow,
+  variantCount: number,
+): Parameters<typeof canonMessageDelta>[0]["row"] {
+  return {
+    characterId: slot.characterId,
+    role: slot.role,
+    createdAt: slot.createdAt,
+    content: variant.content,
+    tokensIn: variant.tokensIn,
+    tokensOut: variant.tokensOut,
+    costUsd: variant.costUsd,
+    cacheReadTokens: variant.cacheReadTokens,
+    cacheWriteTokens: variant.cacheWriteTokens,
+    contextWindow: variant.contextWindow,
+    genStartedAt: variant.genStartedAt,
+    genFinishedAt: variant.genFinishedAt,
+    model: variant.model,
+    provider: variant.provider,
+    reasoning: variant.reasoning,
+    metadata: variant.metadata,
+    selectedIdx: variant.idx,
+    variantCount,
+  };
+}
+
+/** Map a slot ⋈ one of its variants → the `swipeVariantDelta` swipe-stream row (the rebuild's `foldSwipe`
+ *  fields — no cost/cache/context: a swipe credits the re-roll counters + scalar tokens only). */
+function swipeRowOf(
+  slot: MessageView,
+  variant: VariantRow,
+): Parameters<typeof swipeVariantDelta>[0]["row"] {
+  return {
+    characterId: slot.characterId,
+    msgCreatedAt: slot.createdAt,
+    content: variant.content,
+    tokensIn: variant.tokensIn,
+    tokensOut: variant.tokensOut,
+    genStartedAt: variant.genStartedAt,
+    genFinishedAt: variant.genFinishedAt,
+    model: variant.model,
+    provider: variant.provider,
+    reasoning: variant.reasoning,
+    metadata: variant.metadata,
+  };
+}
+
 // ── selectVariant (D26 — flip the slot's selected-variant pointer to a SIBLING swipe; zero copy) ─────────────
 /** `selectVariant` — author-or-host. Flip `messages.selectedVariantId` to a sibling swipe (a pointer move,
  *  never a content copy — D26). The variant MUST belong to the slot (the ownership belt) else a leak-free
@@ -264,12 +321,44 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
     const postEntries = currentDeltas.map((e) =>
       e.messageId === messageId ? { seq: e.seq, delta: newDelta } : e,
     );
-    await ctx.db.batch(
-      batchMany([
-        selectActiveVariantStatement(ctx.db, messageId, variantId),
-        runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(postEntries)),
-      ]),
-    );
+    const statements = [
+      selectActiveVariantStatement(ctx.db, messageId, variantId),
+      runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(postEntries)),
+    ];
+    // The canon-mutator stats push (drift gate — stats inv #3): a selection flip CHANGES what
+    // `reconcileStats` folds — the newly-selected variant becomes the message stream, the old-selected
+    // becomes a swipe. Push the SAME 4-part signed swap the engine's append-variant arm proves
+    // (engine.ts): −old-as-message, +old-as-swipe, −new-as-swipe, +new-as-message — so the live rollups
+    // match a rebuild (cost/cache/context are message-stream-only, so the swap is what keeps them honest).
+    // The full variant set loads pre-batch (both economics + idx); a no-op re-select nets exactly zero.
+    const now = ctx.now();
+    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
+    const oldVariant = variants.find((v) => v.id === slot.selectedVariantId);
+    const newVariant = variants.find((v) => v.id === variantId);
+    if (oldVariant !== undefined && newVariant !== undefined) {
+      const variantCount = variants.length;
+      const swap: StatsDelta[] = [
+        canonMessageDelta({
+          ownerId,
+          sign: -1,
+          now,
+          row: canonRowOf(slot, oldVariant, variantCount),
+        }),
+        swipeVariantDelta({ ownerId, sign: 1, now, row: swipeRowOf(slot, oldVariant) }),
+        swipeVariantDelta({ ownerId, sign: -1, now, row: swipeRowOf(slot, newVariant) }),
+        canonMessageDelta({
+          ownerId,
+          sign: 1,
+          now,
+          row: canonRowOf(slot, newVariant, variantCount),
+        }),
+      ];
+      for (const delta of swap) {
+        ctx.applyStatsDelta(statements, ctx.db, delta);
+      }
+    }
+    await ctx.db.batch(batchMany(statements));
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "variantSelected", chatId, messageId, view });
     return view;
@@ -516,7 +605,10 @@ function planResequence(
     const seq = slotSeqs[i];
     return m !== undefined && seq !== undefined ? [{ id: m.id, seq }] : [];
   });
-  return { parkLo: slotSeqs[0] ?? 0, parkHi: maxSeq, by: maxSeq + 1, assignments };
+  // parkHi is the BLOCK's own last seq (`slotSeqs.at(-1)`), NOT the chat `maxSeq`: only the affected block is
+  // lifted + re-stamped, so every row after the block keeps its seq (the invariant above). `by = maxSeq + 1`
+  // still parks the block strictly above every existing seq (collision-free) before the per-row final stamp.
+  return { parkLo: slotSeqs[0] ?? 0, parkHi: slotSeqs.at(-1) ?? 0, by: maxSeq + 1, assignments };
 }
 
 /** `moveMessage` — host-only. Reorder a slot to a new seq position (re-stamps canon order via a parked,
@@ -524,7 +616,9 @@ function planResequence(
  *  FLAG[move-vs-horizon]: the membership join/leave horizons (`chat_participants.joinSeq`/`leftSeq`) reference
  *  `messages.seq` (Part III §1) — a reorder permutes seq within the affected block, which the doc does NOT
  *  reconcile against the horizon. This re-sequence reuses the block's OWN seq values (no global renumber), so
- *  the disturbance is minimal, but the precise reorder↔horizon contract is unspecified → doc owns it. */
+ *  the disturbance is minimal, but the precise reorder↔horizon contract is unspecified → doc owns it.
+ *  D46: a reorder permutes the SEQ order that `chats.runtime_variables` folds over (seq-ordered later-op-wins),
+ *  so the cache is re-folded over the NEW order in the SAME batch (mirror `selectVariant`/`deleteMessages`). */
 function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["moveMessage"] {
   return async ({ principal, chatId, messageId, toSeq }: MoveMessageParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
@@ -534,6 +628,17 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
     if (plan === null) {
       return;
     }
+    // D46 re-fold: map each message to its POST-move seq (a block member → its assignment; every other row
+    // keeps its seq — only the block moves), then re-fold the selected-variant deltas through that permutation
+    // so `chats.runtime_variables` reflects the new order (a reorder can flip a later-op-wins variable).
+    const newSeqById = new Map<MessageId, number>(ordered.map((m) => [m.id, m.seq]));
+    for (const a of plan.assignments) {
+      newSeqById.set(a.id, a.seq);
+    }
+    const deltas = await loadVariableDeltas(ctx.db, chatId);
+    const refolded = foldChain(
+      deltas.map((e) => ({ seq: newSeqById.get(e.messageId) ?? e.seq, delta: e.delta })),
+    );
     await ctx.db.batch(
       batchMany([
         shiftSeqRangeStatement(ctx.db, {
@@ -543,6 +648,7 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
           by: plan.by,
         }),
         ...plan.assignments.map((a) => setMessageSeqStatement(ctx.db, a.id, a.seq)),
+        runtimeVariablesUpdateStatement(ctx.db, chatId, refolded),
       ]),
     );
     await emit({ type: "messagesReordered", chatId });
@@ -589,7 +695,45 @@ function createDuplicateMessage(
         terminalReason: slot.terminalReason,
       },
     };
-    await ctx.db.batch(batchMany(insertCanonMessageStatements(ctx.db, params)));
+    // The canon-mutator stats push (drift gate — stats inv #3): the dup is a fresh single-variant tail slot
+    // whose economics are COPIED from the source's selected variant, so a rebuild folds the copy (+1 turn,
+    // words, bytes, and the copied tokens/cost). Mirror it live — `canonMessageDelta(sign:+1)` over the row
+    // AS PERSISTED (idx 0, variantCount 1 ⇒ unsettled — no variantMessages/activeIdxSum; the insert copies no
+    // gen bounds / metadata ⇒ null gen-time + reasoningMs, matching what the reconcile reads). Owner = the
+    // host (D19). The dup therefore double-counts the copied economics vs the source — but LIVE == REBUILD,
+    // which is the contract (the alternative, dropping the economics copy, is a persistence change, not this).
+    const statements = insertCanonMessageStatements(ctx.db, params);
+    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    ctx.applyStatsDelta(
+      statements,
+      ctx.db,
+      canonMessageDelta({
+        ownerId,
+        sign: 1,
+        now: params.now,
+        row: {
+          characterId: slot.characterId,
+          role: slot.role,
+          createdAt: params.now,
+          content: slot.content,
+          tokensIn: slot.tokensIn,
+          tokensOut: slot.tokensOut,
+          costUsd: slot.costUsd,
+          cacheReadTokens: slot.cacheReadTokens,
+          cacheWriteTokens: slot.cacheWriteTokens,
+          contextWindow: slot.contextWindow,
+          genStartedAt: null,
+          genFinishedAt: null,
+          model: slot.model,
+          provider: slot.provider,
+          reasoning: slot.reasoning,
+          metadata: null,
+          selectedIdx: 0,
+          variantCount: 1,
+        },
+      }),
+    );
+    await ctx.db.batch(batchMany(statements));
     const view = buildCommittedMessageView(params);
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     // PD user-bus lane: the duplicated slot is a new tail message → chat-list recency moved → fan `chatsChanged`

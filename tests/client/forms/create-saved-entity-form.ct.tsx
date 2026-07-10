@@ -9,6 +9,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import {
   SavedDraftMirrorStory,
   SavedDraftRestoreStory,
+  SavedDraftUnmountFlushStory,
   SavedEntityPromoteStory,
 } from "./_ct-stories";
 
@@ -103,6 +104,26 @@ test("a confirmed save clears the mirror", async ({ mount, page }) => {
   // THE PIN: onSubmit clears the mirror after `save` resolves (a confirmed save makes the draft
   // redundant — a later crash must not resurrect it over fresher server truth).
   await expect(draftState).toHaveText("{}");
+});
+
+test("an edit unmounted before the debounce is FLUSHED to the mirror (the §6.5 switch race)", async ({
+  mount,
+  page,
+}) => {
+  await mount(<SavedDraftUnmountFlushStory />);
+
+  const draftState = page.getByTestId("saved-flush-draft");
+  await expect(draftState).toHaveText("{}");
+
+  // Edit, then IMMEDIATELY unmount the whole editor — INSIDE the 500ms mirror debounce window (the
+  // exact timing of a character switch: `key={mountKey}` remounts the body <debounce after an edit).
+  await page.getByLabel("Flush text").fill("unsaved edit");
+  await page.getByRole("button", { name: "unmount editor" }).click();
+
+  // THE PIN: the hook's unmount cleanup FLUSHES the latest values to the mirror synchronously, so a
+  // fast switch can't drop an in-flight edit. Without the flush the debounced write is lost on unmount
+  // and this stays "{}" — the silent data loss §6.5 forbids.
+  await expect(draftState).toContainText('"text":"unsaved edit"');
 });
 
 test("an explicit discard clears the mirror", async ({ mount, page }) => {

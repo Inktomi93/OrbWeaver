@@ -276,9 +276,10 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
       chatId = result.chatId;
       await deps.emit({ type: "chatUpdated", chatId });
     } else {
-      // `redeemInviteAtomic` returns undefined for an invalid/expired/exhausted invite AND for an
-      // already-present member (the upsert no-op). Recover the already-member case idempotently; otherwise
-      // it is a genuine invalid-invite NOT_FOUND.
+      // `redeemInviteAtomic` returns undefined for an invalid/expired/exhausted/FOREIGN-TARGETED invite AND
+      // for an already-present member (the upsert no-op). The already-member case is recovered idempotently
+      // below — otherwise it is a genuine not-redeemable NOT_FOUND. A non-target has no membership to recover,
+      // so a targeted invite that reached the wrong user is indistinguishable from an invalid token.
       const invite = await findInviteByTokenHash(ctx.db, tokenHash);
       if (invite === undefined) {
         throw new DomainNotFoundError("invite", "");

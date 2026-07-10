@@ -55,7 +55,7 @@ async function seedChatRow(
 async function seedMember(
   chatId: ChatId,
   key: string,
-  actor: { userId?: UserId; characterId?: string; role?: "host" | "member" },
+  actor: { userId?: UserId; characterId?: string; role?: "host" | "member"; leftSeq?: number },
 ): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chat_participant_${key}`),
@@ -66,6 +66,8 @@ async function seedMember(
     role: actor.role ?? "member",
     joinSeq: 0,
     joinedAt: FROZEN_AT,
+    // leftSeq set = a DEPARTED row (leave horizon stamped); null = present.
+    leftSeq: actor.leftSeq ?? null,
   });
 }
 
@@ -126,6 +128,26 @@ describe("exportChat — D29 host gate", () => {
       await exportChat({ principal: principal(host), chatId: castId<ChatId>("chat_missing") }),
     ).toBeNull();
     expect(await exportChat({ principal: principal(host), chatId })).not.toBeNull();
+  });
+
+  test("a DEPARTED ex-host (leftSeq set) is refused; the PRESENT host still exports", async () => {
+    // nominate → old host leaves (sole-host-leave keeps role='host', stamps leftSeq) → nominee accepts
+    // (demotes only the PRESENT host) leaves TWO role='host' rows: one departed, one present. Without the
+    // `leftSeq IS NULL` belt the departed ex-host kept permanent bulk-export access (s4 F3).
+    const { ctx } = makeHarness(db);
+    const exHost = await seedUser(db, { handle: "exhost" });
+    const newHost = await seedUser(db, { handle: "newhost" });
+    const chatId = await seedChatRow("dep");
+    // The departed host: still role='host', but leftSeq stamped → NOT present.
+    await seedMember(chatId, "old", { userId: exHost, role: "host", leftSeq: 5 });
+    // The present host after the handoff accept.
+    await seedMember(chatId, "new", { userId: newHost, role: "host" });
+    const exportChat = createExportChat(ctx);
+
+    // The departed ex-host is refused (leak-free null), even though a role='host' row bearing their id exists.
+    expect(await exportChat({ principal: principal(exHost), chatId })).toBeNull();
+    // The present host is unaffected.
+    expect(await exportChat({ principal: principal(newHost), chatId })).not.toBeNull();
   });
 });
 

@@ -44,6 +44,41 @@ export function mergeCard(base: CharacterCard, input: UpdateCharacterInput): Cha
   };
 }
 
+// The card-CONTENT field names an edit can touch (excludes `refinery` — pipeline-derived, never authored).
+// Used to report which fields an update ACTUALLY changed (audit accuracy — `undefined`/no-op edits are not
+// "changed"). One home; `changedCardFields` iterates it.
+const CARD_CONTENT_FIELDS = [
+  "name",
+  "description",
+  "personality",
+  "scenario",
+  "greetings",
+  "exampleMessages",
+  "systemPrompt",
+  "postHistoryInstructions",
+  "depthPrompt",
+  "creatorNotes",
+  "creator",
+  "cardVersion",
+  "regexScripts",
+  "extensions",
+  "residualData",
+  "avatarAssetId",
+] as const satisfies readonly (keyof CharacterCard)[];
+
+/** Value-equality for a single card field — primitives by `===`, the list/record fields by structural
+ *  compare (both sides are plain JSON, same-shaped construction ⇒ a stable `JSON.stringify`). */
+function cardFieldEqual(a: unknown, b: unknown): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** The card-content field names whose value actually differs between the current card and the merged next
+ *  card. Only PROVIDED fields can differ (`mergeCard` keeps omitted ones identical), so this is exactly the
+ *  set of card fields the update really wrote — the audit lists these, never a provided-but-unchanged field. */
+export function changedCardFields(before: CharacterCard, after: CharacterCard): string[] {
+  return CARD_CONTENT_FIELDS.filter((key) => !cardFieldEqual(before[key], after[key]));
+}
+
 /** The identity flags from a wire edit (NOT card content) — only the keys actually present. */
 export function flagEdits(input: UpdateCharacterInput): {
   starred?: boolean;

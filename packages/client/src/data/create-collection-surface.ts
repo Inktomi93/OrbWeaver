@@ -76,6 +76,10 @@ export interface CollectionSurface<TItem> {
   readonly isEmpty: boolean;
   readonly hasNextPage: boolean;
   readonly isFetchingNextPage: boolean;
+  /** Re-run the query — the enabled next-step affordance for the error state (UI-Arch §4.3 rule 1: no
+   *  dead ends). Fire-and-forget (`=> void`): a Retry button never awaits; the boundary re-derives from
+   *  `isPending`/`error` on the refetch. */
+  readonly refetch: () => void;
   readonly selection: CollectionSelection;
   /** Spread into `<VirtualList>`: the id-keyed row key + the guarded tail-fetch. */
   readonly listProps: {
@@ -115,13 +119,16 @@ export function createCollectionSurface<
 
     // Destructured so the callback deps are the exact slices (the result object is a fresh proxy
     // per render — depending on `query` itself would re-mint the callback every render).
-    const { hasNextPage, isFetching, fetchNextPage } = query;
+    const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
     const onEndApproach = useCallback((): void => {
       // The documented guard verbatim (§5): never a duplicate fetch, never a fetch past the end.
       if (hasNextPage && !isFetching) {
         void fetchNextPage();
       }
     }, [hasNextPage, isFetching, fetchNextPage]);
+    const retry = useCallback((): void => {
+      void refetch();
+    }, [refetch]);
 
     return {
       items,
@@ -131,6 +138,7 @@ export function createCollectionSurface<
       isEmpty: !query.isPending && items.length === 0,
       hasNextPage: query.hasNextPage,
       isFetchingNextPage: query.isFetchingNextPage,
+      refetch: retry,
       selection: {
         selected,
         isSelected: (id) => selected.has(id),

@@ -124,9 +124,13 @@ export interface MessageRowProps {
   /** The persona AVATAR-chrome producer (`lib/attribution` — separate from `personaNamesById`, §1
    *  names-only) — the USER-row avatar image source. */
   readonly personaAvatarsById?: ReadonlyMap<PersonaId, string | null> | undefined;
-  /** The viewing participant's currently active persona id — the fallback subject for legacy USER rows
-   *  with a null `personaId` (§4; never the chat's `anchorPersonaId` pin). */
+  /** The viewing participant's currently active persona id — the null-persona-row AVATAR/badge fallback
+   *  subject (`resolveRowAttribution`), NOT the macro fallback (ruling A moved that to the anchor). */
   readonly activePersonaId?: PersonaId | null | undefined;
+  /** The chat's ANCHOR persona id (`ChatDetail.anchorPersonaId`) — the null-stamp `{{user}}`/`{{persona}}`
+   *  MACRO fallback (ruling A / the design principle: a greeting or AI line addresses the SAME persona for
+   *  the model and every human, never the viewer's own). Distinct from `activePersonaId` (badge fallback). */
+  readonly anchorPersonaId?: PersonaId | null | undefined;
   /** The VIEWING principal's user id (D44 §12.0 render-trust — the "own input" comparand). Threaded from
    *  the surface (`resolveViewerUserId`, the first-human-seat proxy until #50). Absent/null ⇒ no row can be
    *  "own input", so everything stays untrusted (the fail-closed safe floor). */
@@ -176,6 +180,7 @@ export function MessageRow({
   personaNamesById,
   personaAvatarsById,
   activePersonaId,
+  anchorPersonaId,
   viewerUserId,
   onChatForked,
   greeting,
@@ -218,7 +223,7 @@ export function MessageRow({
     participants,
     characterNamesById,
     personaNamesById,
-    viewerActivePersonaId: activePersonaId,
+    anchorPersonaId,
     autoFixMarkdown,
   });
   // §B.2 Tide: split only when NOT editing (an in-progress edit is always one textarea) and the active
