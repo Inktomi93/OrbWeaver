@@ -10,6 +10,7 @@ import { expect, test } from "../../../support/fixtures";
 
 const ranges = DEFAULT_TRUSTED_RANGES;
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);
+const ABORT_RE = /abort/i;
 
 describe("shouldBlockEgress", () => {
   test("blocks a private resolved address for a non-allowlisted host", () => {
@@ -47,6 +48,86 @@ describe("privateEgressRanges", () => {
     for (const range of DEFAULT_TRUSTED_RANGES) {
       expect(r).toContain(range);
     }
+  });
+
+  test("with no TRUSTED_PRIVATE_RANGES set (the runner env) it is EXACTLY the built-in set — no extras leak in", () => {
+    // The empty-CSV branch: `env.TRUSTED_PRIVATE_RANGES` is unset under the runner, so split/trim/filter
+    // yields [] and the function returns DEFAULT_TRUSTED_RANGES verbatim (no accidental empty-string range,
+    // which would make isInRanges match everything). NB: the TRIM/case/extra-CIDR branch and the
+    // installEgressFirewall OIDC-issuer carve-out + EGRESS_ALLOWLIST CSV parse read the FROZEN
+    // `foundation/env` (parsed once at import; vi.stubEnv cannot mutate it) — the extra-range merge is
+    // covered by the shouldBlockEgress "operator-declared extra range" case above via a direct `ranges` arg.
+    expect([...privateEgressRanges()]).toEqual([...DEFAULT_TRUSTED_RANGES]);
+  });
+});
+
+// Multi-chunk streaming body: readCapped (internal) is exercised through safeFetch's bytes() reader. The
+// existing single-body over-cap test proves the cap; these prove the AT-CAP boundary passes and a
+// cap-CROSSING chunk (the total tips over mid-stream, on a chunk that individually fits) rejects — the
+// decompression-bomb path where no single chunk is oversized but the accumulation is.
+function streamOf(chunks: readonly Uint8Array[]): ReadableStream<Uint8Array> {
+  let i = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller): void {
+      const chunk = chunks[i];
+      if (chunk !== undefined) {
+        controller.enqueue(chunk);
+        i += 1;
+      } else {
+        controller.close();
+      }
+    },
+  });
+}
+
+describe("safeFetch readCapped — multi-chunk cap boundary", () => {
+  test("a body EXACTLY at maxBytes across several chunks passes (at-cap is not a crossing)", async () => {
+    const chunks = [new Uint8Array(40), new Uint8Array(40), new Uint8Array(20)]; // 100 total
+    vi.stubGlobal(
+      "fetch",
+      () =>
+        new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }),
+    );
+    const res = await safeFetch("https://example.com", { maxBytes: 100 });
+    expect((await res.bytes()).byteLength).toBe(100);
+    vi.unstubAllGlobals();
+  });
+
+  test("the chunk that tips the total past maxBytes rejects (each chunk fits; the accumulation does not)", async () => {
+    const chunks = [new Uint8Array(40), new Uint8Array(40), new Uint8Array(40)]; // 120 > cap on chunk 3
+    vi.stubGlobal(
+      "fetch",
+      () =>
+        new Response(streamOf(chunks), { status: 200, headers: { "content-type": "text/plain" } }),
+    );
+    const res = await safeFetch("https://example.com", { maxBytes: 100 });
+    await expect(res.bytes()).rejects.toThrow("maxBytes");
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("safeFetch — abort propagation mid-redirect-chain", () => {
+  test("an AbortSignal that fires during the chain surfaces as a rejection (the caller's timeout/cancel wins)", async () => {
+    // followRedirects forwards `options.signal` on EVERY hop. If the signal aborts between hops, the next
+    // fetch must reject with the abort — the caller's timeout/cancel propagates through the manual chain
+    // rather than being swallowed. hop0 302s to a second origin; the signal is aborted before hop1 fires.
+    const ctrl = new AbortController();
+    let hop = 0;
+    vi.stubGlobal("fetch", (u: URL | string, init?: RequestInit) => {
+      if (init?.signal?.aborted) {
+        return Promise.reject(new DOMException("aborted", "AbortError"));
+      }
+      hop += 1;
+      if (hop === 1) {
+        ctrl.abort(); // abort AFTER the first hop resolves, BEFORE the redirect follow
+        return Promise.resolve(Response.redirect(`${String(u)}/next`, 302));
+      }
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+    await expect(
+      safeFetch("https://benign.test/start", { signal: ctrl.signal, maxRedirects: 2 }),
+    ).rejects.toThrow(ABORT_RE);
+    vi.unstubAllGlobals();
   });
 });
 

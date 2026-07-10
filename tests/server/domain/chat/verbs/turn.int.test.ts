@@ -6,8 +6,6 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -16,15 +14,7 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
-import type {
-  CharacterId,
-  ChatId,
-  Handle,
-  MessageId,
-  ModelId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
@@ -51,23 +41,8 @@ import {
   seedMessage,
   seedParticipant,
   seedUser,
+  testConnection,
 } from "../_support";
-
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
-
-function connectionOf(source = "vllm"): ResolvedConnection {
-  return {
-    api: "chat-completions",
-    model: castId<ModelId>("test-model"),
-    credential: { source, credentialId: null } as unknown as ResolvedCredential,
-    capability: CAPABILITY,
-  };
-}
 
 const card = (name: string): CharacterCard =>
   ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
@@ -170,7 +145,7 @@ function harness(
     emit,
     prng: seededPrng(),
     delay: () => Promise.resolve(),
-    resolveConnection: () => Promise.resolve(connectionOf()),
+    resolveConnection: () => Promise.resolve(testConnection()),
     resolveForeignInputs: (args) => {
       over.onForeignInputs?.(args);
       return Promise.resolve({

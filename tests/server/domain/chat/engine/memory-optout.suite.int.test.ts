@@ -9,12 +9,10 @@
 // engine + REAL `generateDigests`/`generateSegments` (not fixture twins).
 
 import type { AssembleContext } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatDigests } from "@orb/db";
-import type { CharacterId, ChatId, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
@@ -35,6 +33,7 @@ import {
   seedMessage,
   seedParticipant,
   seedUser,
+  testConnection,
 } from "../_support";
 import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support";
 
@@ -43,24 +42,6 @@ const HOST = castId<UserId>("user_host");
 // blockSize 2 / verbatimWindow 0 → after the turn commits at seq 4, blocks [1-2],[3-4] are aged-out and digest.
 const BUILD_CFG: MemoryConfig = { blockSize: 2, verbatimWindow: 0, mode: "mixC" };
 const OFF_CFG: MemoryConfig = { blockSize: 2, verbatimWindow: 0, mode: "off" };
-
-// FABRICATION-OK: minimal `ModelCapability` double — the fake role (OK_TURN) never inspects it; no image parts ride this turn.
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
-
-function connectionOf(): ResolvedConnection {
-  return {
-    api: "chat-completions",
-    model: castId<ModelId>("test-model"),
-    // FABRICATION-OK: minimal `ResolvedCredential` double — only `.source` is read (§9 consent belt); the fake role never sees it.
-    credential: { source: "vllm", credentialId: null } as unknown as ResolvedCredential,
-    capability: CAPABILITY,
-  };
-}
 
 const ASSEMBLE_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
@@ -83,7 +64,7 @@ function prepOf(chatId: ChatId, over: Partial<TurnPrep>): TurnPrep {
   return {
     chatId,
     assembleContext: ASSEMBLE_CTX,
-    connection: connectionOf(),
+    connection: testConnection(),
     triggeredBy: HOST,
     runAsUserId: HOST,
     kind: "send",

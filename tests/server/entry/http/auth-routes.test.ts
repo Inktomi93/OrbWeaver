@@ -23,6 +23,7 @@ import {
   serializeClearedSessionCookie,
   serializeSessionCookie,
 } from "@orb/server/entry/http";
+import type { OidcTransaction } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -474,5 +475,92 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     )(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
     expect(res.status).toBe(400);
     expect(rec.mints).toBe(0);
+  });
+});
+
+// R7 — OIDC CALLBACK state/replay gate. The callback consumes the single-use PKCE transaction by the
+// returned `state` BEFORE any token work; a null consume (forged / replayed / TTL-expired state) 401s and
+// NEVER reaches the IdP token exchange. This is the one callback branch unit-testable without a live IdP:
+// the TOKEN-EXCHANGE side (authorizationCodeGrant → JWKS signature + issuer-mismatch + nonce/state checks)
+// is a module-level `openid-client` import, not an injected dep, and verifying it needs a real signed
+// ID-token + JWKS endpoint (a full IdP) or a banned module mock — so JWKS/issuer verification is
+// deliberately delegated to the audited `openid-client` primitive and asserted only up to this gate.
+// Downstream provisioning (denied → 401 / disabled → 403 / provisioned → mint) sits AFTER that exchange
+// and is likewise unreachable here without exercising the real grant. Flagged for a route-level int test
+// (real IdP fixture) if that coverage is wanted.
+describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)", () => {
+  const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
+  // Build a callback URL with a query so no long literal trips the noSecrets entropy heuristic.
+  const callbackUrl = (query: Record<string, string>): string => {
+    const u = new URL(CALLBACK_BASE);
+    for (const [k, v] of Object.entries(query)) {
+      u.searchParams.set(k, v);
+    }
+    return u.href;
+  };
+
+  function callbackDeps(consume: (state: string) => Promise<OidcTransaction | null>): {
+    deps: AuthRoutesDeps;
+    getConfigCalls: () => number;
+    session: SessionRecorder;
+    consumedWith: () => string | null;
+  } {
+    let getConfigCalls = 0;
+    let consumedWith: string | null = null;
+    const session = recordingSessions();
+    const deps: AuthRoutesDeps = {
+      sessions: session.sessions,
+      now: (): number => NOW,
+      oidc: {
+        // Must NOT run when the state consume fails — the 401 short-circuits before the token exchange.
+        getConfig: (): Promise<never> => {
+          getConfigCalls += 1;
+          return Promise.reject(new Error("getConfig must not run on a failed state consume"));
+        },
+        redirectAllowlist: [CALLBACK_BASE],
+        scope: "openid profile email",
+        claims: {
+          usernameClaim: "preferred_username",
+          uidClaim: "sub",
+          groupsClaim: "groups",
+          emailClaim: "email",
+        },
+        store: {
+          mint: (): Promise<void> => Promise.resolve(),
+          consume: (s: string): Promise<OidcTransaction | null> => {
+            consumedWith = s;
+            return consume(s);
+          },
+        },
+      },
+    };
+    return {
+      deps,
+      getConfigCalls: () => getConfigCalls,
+      session,
+      consumedWith: () => consumedWith,
+    };
+  }
+
+  test("a forged/replayed/expired state (consume → null) → 401, no token exchange, no session", async () => {
+    const h = callbackDeps(() => Promise.resolve(null));
+    const res = await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(makeCtx({ url: callbackUrl({ state: "forged", code: "grant" }) }));
+    expect(res.status).toBe(401);
+    expect(h.getConfigCalls()).toBe(0); // never reached the IdP token exchange
+    expect(h.session.createdFor).toBeNull(); // no session minted
+  });
+
+  test("a missing state param (empty consume key) → 401 (the callback fails closed)", async () => {
+    const h = callbackDeps(() => Promise.resolve(null));
+    const res = await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(makeCtx({ url: callbackUrl({ code: "grant" }) }));
+    expect(res.status).toBe(401);
+    expect(h.consumedWith()).toBe(""); // no `state` query → the empty-string consume key → null → 401
+    expect(h.getConfigCalls()).toBe(0);
   });
 });

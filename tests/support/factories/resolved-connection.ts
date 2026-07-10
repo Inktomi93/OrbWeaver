@@ -14,8 +14,12 @@
 
 import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import { modelCapabilitySchema } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { ModelId } from "@orb/kit/ids";
+import type {
+  CustomOpenAiCredential,
+  OpenRouterCredential,
+  ResolvedCredential,
+} from "@orb/contracts/credentials";
+import type { ModelId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 /** The keyless routing-marker sources — the credential arms carrying no secret, so a blanket default is
@@ -24,12 +28,52 @@ import { castId } from "@orb/kit/ids";
 const KEYLESS_SOURCES = ["vllm", "local-light", "max-pro-sub"] as const;
 type KeylessSource = (typeof KEYLESS_SOURCES)[number];
 
-/** A brand-protected keyless `ResolvedCredential` (default `vllm`). The brand cast is encapsulated here —
- *  the one sanctioned place outside the domain mint (contracts/credentials §128); it is the test-side
- *  analogue of that mint, and the W1h fix so ~150 call sites drop their own `as unknown as` and import this. */
+/** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint (contracts/credentials
+ *  §128); `ResolvedCredential` is brand-protected and unforgeable, so every `make*` builder below routes
+ *  its fully-typed input through this single cast. The builders' typed parameters keep each shape honest;
+ *  a missing/renamed public field breaks the object literal HERE, not silently in 150 test files. */
+function brand<C extends ResolvedCredential>(value: Omit<C, keyof CredentialBrandMarker>): C {
+  // FABRICATION-OK: the ONE sanctioned brand cast (see the JSDoc above) — ResolvedCredential is unforgeable.
+  return value as unknown as C;
+}
+// The contracts brand is a phantom `unique symbol` we can't name here; this local mirror lets `Omit` drop
+// it from the builder's input shape so callers pass ONLY the real public fields. (No runtime effect.)
+interface CredentialBrandMarker {
+  readonly [brandKey: symbol]: unknown;
+}
+
+/** A brand-protected keyless `ResolvedCredential` (default `vllm`). The keyless W1h fix so ~150 call sites
+ *  drop their own `as unknown as` and import this. */
 export function makeResolvedCredential(source: KeylessSource = "vllm"): ResolvedCredential {
-  // FABRICATION-OK: the ONE sanctioned brand cast — ResolvedCredential is unforgeable by design (§128).
-  return { source, credentialId: null } as unknown as ResolvedCredential;
+  return brand<ResolvedCredential>({ source, credentialId: null });
+}
+
+/** A brand-protected KEYED `openrouter` credential (W1h). Carries a real `apiKey`; `credentialId` defaults
+ *  to null (env-seeded) — override with `{ credentialId }` for a stored-row credential. */
+export function makeOpenRouterCredential(
+  overrides: Partial<Omit<OpenRouterCredential, "source" | keyof CredentialBrandMarker>> = {},
+): OpenRouterCredential {
+  return brand<OpenRouterCredential>({
+    source: "openrouter",
+    apiKey: overrides.apiKey ?? "sk-or-test",
+    credentialId: overrides.credentialId ?? null,
+  });
+}
+
+/** A brand-protected KEYED `custom_openai` (BYO OpenAI-compatible endpoint) credential (W1h). The active
+ *  row IS the endpoint, so `credentialId` is non-null; `baseUrl` is required. `apiKey`/`headers` are null
+ *  for a no-auth local server; `contextWindow` is the user-declared BYO ceiling (undefined until set). */
+export function makeCustomOpenAiCredential(
+  overrides: Partial<Omit<CustomOpenAiCredential, "source" | keyof CredentialBrandMarker>> = {},
+): CustomOpenAiCredential {
+  return brand<CustomOpenAiCredential>({
+    source: "custom_openai",
+    baseUrl: overrides.baseUrl ?? "https://byo.test/v1",
+    apiKey: overrides.apiKey ?? null,
+    headers: overrides.headers ?? null,
+    credentialId: overrides.credentialId ?? castId<UserCredentialId>("ucred_test"),
+    contextWindow: overrides.contextWindow,
+  });
 }
 
 const DEFAULT_CAPABILITY: ModelCapability = {
