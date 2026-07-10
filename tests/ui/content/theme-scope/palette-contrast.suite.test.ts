@@ -70,6 +70,11 @@ function compositeOver(fg: Oklch, backdrop: Rgb): Rgb {
 const rgbOf = (path: keyof typeof TOKENS): Rgb => oklchToRgb(parseOklch(TOKENS[path].value));
 
 // ── The clamp.ts derivation, recomputed numerically from the SHARED constants (THEME_DERIVATION). ──
+// DELIBERATE formula mirror, NOT a call into clamp.ts: this suite tests a PROPERTY (WCAG contrast of the
+// derived fg over every representative surface) that needs the numeric tone to compare against, so it
+// re-spells the L-derivation. Drift between this mirror and the real derivation is fenced elsewhere —
+// clamp.test.ts byte-pins clamp.ts's exact output — so the two can't silently diverge. Do NOT collapse this
+// into `clamp.ts` (it would couple the property test to the impl and lose the independent cross-check).
 const D = THEME_DERIVATION;
 const clampN = (min: number, v: number, max: number): number => Math.max(min, Math.min(max, v));
 const contrastToneL = (surfaceL: number): number =>

@@ -7,7 +7,7 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { CharacterId, ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/contract/service.ts";
 import type {
@@ -15,6 +15,7 @@ import type {
   SessionAdminView,
 } from "../../../../packages/server/src/domain/admin/contract/views.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
 interface AuditCall {
@@ -77,15 +78,11 @@ export async function seedAgent(db: Db, ownerId: UserId, id = "user_agent"): Pro
   return agentId;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). */
+/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
+ *  `support/factories/principal` — admin keeps the positional `(id, role, handle?)` convention its ~40
+ *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */
 export function principal(userId: UserId, role: UserRole, handle: string = userId): Principal {
-  return {
-    userId,
-    role,
-    handle: castId<Handle>(handle),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }
 
 export function makeHarness(db: Db): AdminHarness {

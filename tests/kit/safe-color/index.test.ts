@@ -28,6 +28,18 @@ describe("isSafeColor", () => {
     }
   });
 
+  test("NAMED is a letters-SHAPE gate, not a named-color allowlist (unknown bare words pass by design)", () => {
+    // Pins the real contract behind the comment: the predicate accepts ANY 3–20 letter word — an unknown
+    // one is a browser-INVALID color the page silently ignores, and it carries no separators/parens/escape,
+    // so it is harmless. This is deliberate (no ~150-name allowlist to maintain); this test guards against a
+    // future "tighten to an allowlist" change silently breaking the many legit CSS names it would then miss.
+    expect(isSafeColor("notacolorxx")).toBe(true);
+    expect(isSafeColor("rebeccapurple")).toBe(true);
+    // But a word with a separator/digit is NOT letters-only — it must match a functional form or be rejected.
+    expect(isSafeColor("not-a-color")).toBe(false);
+    expect(isSafeColor("color1")).toBe(false);
+  });
+
   test("rejects every injection vector outright", () => {
     // The two highest-entropy probes are token-assembled: biome noSecrets flags the literal forms
     // (they are hostile-input FIXTURES, not secrets), and biome-ignore only reaches one line.

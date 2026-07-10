@@ -24,6 +24,9 @@ describe("pairsAboveThreshold", () => {
     const pairs = pairsAboveThreshold(vecs, hubs, 0.99);
     const highHub = pairs.find((p) => p.i === 0 && p.j === 1);
     const lowHub = pairs.find((p) => p.i === 2 && p.j === 3);
+    // The `2 - a - b` here is the CSLS score DELIBERATELY spelled out by hand (cslsScore = 2·cos − hub_i −
+    // hub_j, cos=1) — an INDEPENDENT reference, not a call into the code under test. Do NOT "simplify" it
+    // into `cslsScore(...)`: that would make the expectation echo the implementation and the test tautological.
     expect(highHub?.cslsScore).toBeCloseTo(2 - 0.9 - 0.9, 6);
     expect(lowHub?.cslsScore).toBeCloseTo(2 - 0.1 - 0.1, 6);
     expect(lowHub?.cslsScore ?? 0).toBeGreaterThan(highHub?.cslsScore ?? 0);

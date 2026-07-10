@@ -98,6 +98,21 @@ function writeFixtures(): void {
   fx(`${D}/__g_types/contract/service.ts`, "export const notAnInterface = 1;\n");
   // test-presence: a verb with no mirror test.
   fx(`${D}/__g_pres/verbs/act.ts`, "export function createAct(): number {\n  return 1;\n}\n");
+  // test-presence (contracts index.ts hole, fixed 2026-07-10): a contracts domain whose zod schemas
+  // co-locate in index.ts (the convention — NOT a re-export barrel) with no .contract.test.ts mirror. The
+  // OLD gate blanket-skipped every index.ts, silently exempting whole contract domains (imagery shipped
+  // with zero tests). This fixture pins that a schema-bearing contracts index.ts is now presence-gated.
+  fx(
+    "packages/contracts/src/__g_prescontract/index.ts",
+    'import { z } from "zod";\nexport const gSchema = z.object({ n: z.number() });\n',
+  );
+  // test-presence (workloads runners/ arm, added 2026-07-10): a runner with REAL logic (touches ctx.env,
+  // no `{ deferred: true }`) and no mirror test fires. A D58 no-op stub is shape-exempt; this fixture is the
+  // non-stub case so a filled-in runner can never ship untested.
+  fx(
+    `${D}/workloads/runners/__g_runner.ts`,
+    "export const gRunner = async (ctx: { env: { op: () => Promise<void> } }): Promise<void> => {\n  await ctx.env.op();\n};\n",
+  );
   // no-inline-union-redecl: an inline ≥3-member string-literal union alias.
   fx("packages/server/src/__g_union.ts", 'export type U = "a" | "b" | "c";\n');
   // commented-code: parked code in a // comment.

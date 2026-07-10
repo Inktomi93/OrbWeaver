@@ -82,6 +82,9 @@ describe("smartArbitrate — the deterministic fallback", () => {
       rng,
     });
     expect(out).toHaveLength(1);
+    // Loose by DESIGN: the arbiter's pick is non-deterministic (the side-LLM summarize + rng), so this
+    // asserts only that the result is SOME eligible candidate — not a pinned winner. Tightening it to one
+    // expected speaker would make the test flaky against the intended non-determinism, not stronger.
     expect([charRef("aria"), charRef("bran"), charRef("cara")]).toContainEqual(out[0]);
   });
 
