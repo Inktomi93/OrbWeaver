@@ -9,7 +9,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import { users, workloads } from "@orb/db";
+import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
@@ -21,6 +21,7 @@ import type {
 } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
 import type { Cas } from "../../../../packages/server/src/infra/storage/index.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 /** A fixed instant — every timestamp in a test pins to this (no ambient clock; test-determinism §3). */
 export const T0 = 1_700_000_000_000;
@@ -35,11 +36,12 @@ export function makeService(db: Db): WorkloadService {
   return createWorkloadService({ db, now: () => T0, newWorkloadId });
 }
 
-/** Insert a `users` row (the FK parent for an owner-scoped workload). */
+/** Insert a `users` row (the FK parent for an owner-scoped workload). Thin delegate over the canonical
+ *  factory — workloads' call sites pass a bare-string `id` and want the id back, not the row. */
 export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
   const uid = castId<UserId>(id);
-  await db.insert(users).values({ id: uid, handle: castId<Handle>(id), role: "owner" });
-  return uid;
+  const seeded = await seedUserRow(db, { id: uid, handle: castId<Handle>(id), role: "owner" });
+  return seeded.id;
 }
 
 /** A fake cross-feature env: every op is a `vi.fn` with a sane default return; a test overrides a single op

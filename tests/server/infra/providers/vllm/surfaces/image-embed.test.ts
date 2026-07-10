@@ -3,15 +3,15 @@
 // empty text → null slot, vectors carry the unified dim + L2-normalization, model provenance, and the MRL
 // fallback. Independent — only `client.enginePost` is called.
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
 import { createVllmImageEmbed } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
-const CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("vllm");
 const MODEL = "Qwen/Qwen3-VL-Embedding" as ModelId;
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 

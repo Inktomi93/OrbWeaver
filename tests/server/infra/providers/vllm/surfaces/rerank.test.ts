@@ -3,14 +3,14 @@
 // empty-doc filtering, the no-scorable short-circuit, and the text vs multimodal request shapes. The
 // surface is INDEPENDENT — it only calls `client.enginePost`.
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { createVllmRerank } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
-const CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("vllm");
 const MODEL = "Qwen/Qwen3-VL-Reranker" as ModelId;
 
 interface RerankBody {

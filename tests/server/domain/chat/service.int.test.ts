@@ -24,6 +24,7 @@ import type {
 import type { TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createChatService } from "../../../../packages/server/src/domain/chat/service";
 import { freshDb } from "../../../support/db";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "./_support";
 
@@ -53,7 +54,7 @@ const card = (name: string): CharacterCard =>
   ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** A scripted role turn — a text delta + the terminal `final` carrying content/economics. */

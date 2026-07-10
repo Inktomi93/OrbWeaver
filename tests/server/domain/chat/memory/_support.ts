@@ -14,6 +14,8 @@ import type {
   StoreDigestParams,
   StoreSegmentParams,
 } from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types";
+import { seedMessage } from "../_support";
 
 export const MODEL = "test-embed-1024";
 export const DIM = 1024;
@@ -21,6 +23,26 @@ export const DIM = 1024;
 /** The synthetic group-as-character id (`scopedCharacterId` for the shared bucket — inv 8, no `''` sentinel).
  *  A FK-valid character row must be seeded (`seedCharacter(db, owner, "group")`) before seeding shared digests. */
 export const GROUP_CHAR = castId<CharacterId>("character_group");
+
+/** Seed `n` assistant messages (seq 1..n) voiced by `characterId` — byte-identical across build/segments,
+ *  build/digests (both closed over module-level `db`/`aria`; hoisted to take both as params). */
+export async function seedTurns(
+  db: Db,
+  chatId: ChatId,
+  characterId: CharacterId,
+  n: number,
+): Promise<void> {
+  for (let seq = 1; seq <= n; seq += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
+    await seedMessage(db, chatId, seq, { characterId, content: `turn ${seq}` });
+  }
+}
+
+/** The shared-bucket `MemoryScope` (group-as-character, non-group flag false) — byte-identical across
+ *  build/digests and recall/recall. */
+export function sharedScope(chatId: ChatId): MemoryScope {
+  return { chatId, scopedCharacterId: GROUP_CHAR, isGroup: false };
+}
 
 /** A zeroed F32_BLOB(1024) — memory never reads the vector column, so the value is irrelevant. */
 function dummyVector(): Float32Array {

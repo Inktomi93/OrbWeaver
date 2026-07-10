@@ -8,7 +8,6 @@
 // text embeds identically → cosine 1.0), discrimination (unrelated text < self), and MRL truncation.
 
 import process from "node:process";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
 import type { EmbedRequest, EmbedResult } from "@orb/server/infra/providers";
@@ -17,12 +16,13 @@ import {
   DEFAULT_EMBED_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
 const suite = RUN ? describe : describe.skip;
 
-const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_EMBED_MODEL as ModelId;
 const JINA_DIM = 1024;
 const DOWNLOAD_TIMEOUT_MS = 600_000;

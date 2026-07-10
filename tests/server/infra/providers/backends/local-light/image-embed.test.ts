@@ -7,7 +7,6 @@
 // image + text features in ONE space) is verified by the opt-in, network-gated `image-embed.int.test.ts`
 // (ORB_LOCAL_LIGHT_E2E=1) — CI exercises only this fake-cache seam.
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
 import type { ImageEmbedRequest, ImageEmbedResult } from "@orb/server/infra/providers";
@@ -18,9 +17,10 @@ import {
   DEFAULT_IMAGE_EMBED_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
-const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("local-light");
 const MODEL = "Xenova/test-clip" as ModelId;
 // The unified joint space — image + text vectors must both be this length to fit the F32_BLOB(1024) column.
 const VECTOR_DIM = 1024;

@@ -2,20 +2,11 @@
 // the registry of ledger-REJECTED schema/contract shapes; held out of ALL_CHECKS pending doc
 // reconciliation). Proves each registry-row KIND fires (column · column-pattern · table · interface-field ·
 // schema-field · import) and that born-compliant shapes pass.
-import { Project } from "ts-morph";
 import { schemaBannedShapes } from "../../scripts/check/gates/schema-banned-shapes.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const SCHEMA = "packages/db/src/schema/thing.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
 
 function run(files: Record<string, string>): ReturnType<typeof schemaBannedShapes.run> {
   return schemaBannedShapes.run(ctxFor(files));

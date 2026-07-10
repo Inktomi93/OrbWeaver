@@ -16,6 +16,7 @@ import {
   assertHost,
   assertParticipant,
 } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
+import { principal as makePrincipal } from "../../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const CHAT = castId<ChatId>("chat_x");
@@ -25,7 +26,7 @@ const BOB = castId<UserId>("user_bob");
 /** A chat-resource principal (role `user` — the global role is irrelevant to the chat resource axis; the
  *  authority signal is the loaded `chat_participants` role passed to the deciders). */
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** Capture a thrown value WITHOUT an expect inside the catch (biome `noConditionalExpect`). */

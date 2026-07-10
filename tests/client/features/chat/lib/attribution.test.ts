@@ -16,33 +16,11 @@ import {
   speakerThemesByName,
 } from "../../../../../packages/client/src/features/chat/lib/attribution";
 import { expect, test } from "../../../../support/fixtures";
+import { makeParticipant } from "./_support";
 
 const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");
 const NATE_PERSONA_ID = castId<PersonaId>("persona_nate");
-
-function makeParticipant(overrides: Partial<ParticipantView> = {}): ParticipantView {
-  return {
-    id: castId("participant_1"),
-    chatId: castId("chat_1"),
-    kind: "character",
-    userId: null,
-    characterId: ALICE_ID,
-    role: "member",
-    activePersonaId: null,
-    talkativeness: 1,
-    disabled: false,
-    joinedAt: 0,
-    joinSeq: 0,
-    leftSeq: null,
-    joinHistoryVisibility: "full",
-    displayName: "Alice",
-    handle: null,
-    avatarAssetId: null,
-    avatarHash: null,
-    ...overrides,
-  };
-}
 
 test("assistant row with no roster/producer threaded gets no attribution chrome (solo-chat default)", () => {
   const result = resolveRowAttribution({

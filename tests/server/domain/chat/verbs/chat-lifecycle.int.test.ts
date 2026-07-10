@@ -14,6 +14,7 @@ import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import {
   FROZEN_AT,
@@ -38,7 +39,7 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 };
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** Seed a room with a host + a plain member; returns their ids + the chat id. */

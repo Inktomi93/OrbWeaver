@@ -29,7 +29,6 @@ import {
   chatDigests,
   chatSegments,
   chats,
-  users,
 } from "@orb/db";
 import type {
   AssetId,
@@ -47,8 +46,10 @@ import type {
   SearchService,
 } from "../../../../packages/server/src/domain/search/index.ts";
 import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
 export const VECTOR_DIM = 1024;
@@ -122,18 +123,11 @@ interface SeedUserOverrides {
   readonly handle?: string;
 }
 
+/** Thin delegate over the canonical factory — search's call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? "x"}`);
-  await db.insert(users).values({
-    id,
-    handle: castId<Handle>(overrides.handle ?? id),
-    role: "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-  });
-  return id;
+  const seeded = await seedUserRow(db, { id, handle: castId<Handle>(overrides.handle ?? id) });
+  return seeded.id;
 }
 
 interface SeedCharacterOverrides {

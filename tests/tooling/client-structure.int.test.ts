@@ -7,15 +7,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Project } from "ts-morph";
 import { clientStructure } from "../../scripts/check/gates/client-structure.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-// The gate is pure fs over ctx.root — a throwaway in-memory project satisfies the type.
-function ctxAt(root: string): CheckContext {
-  return { root, project: new Project({ useInMemoryFileSystem: true }) };
-}
+import { ctxAt } from "./_support.ts";
 
 function withTree(files: Record<string, string>, fn: (root: string) => void): void {
   const root = mkdtempSync(join(tmpdir(), "orb-cstruct-"));

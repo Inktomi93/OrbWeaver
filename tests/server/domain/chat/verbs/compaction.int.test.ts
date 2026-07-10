@@ -16,6 +16,7 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
 
@@ -35,7 +36,7 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 };
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** A deterministic summarizer stub that records its inputs + returns a fixed summary text. */

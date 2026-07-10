@@ -1,7 +1,7 @@
-import type { AuthConfig } from "@orb/server/infra/auth";
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
+import { makeAuthConfig as cfg, headers } from "../_support";
 
 // `single-user` mode resolver — ALWAYS null: it never gates, never reads a cookie/header, and delegates
 // entirely to the UNCONDITIONAL owner fallback in `resolve`. The load-bearing invariant is that it does
@@ -9,22 +9,6 @@ import { expect, test } from "../../../../support/fixtures";
 // decision). Reached via MODE_RESOLVERS["single-user"] (the resolver isn't on the barrel).
 
 const resolveSingleUser = MODE_RESOLVERS["single-user"];
-
-function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
-  return {
-    mode: "single-user",
-    fallback: "owner",
-    defaultHandle: "owner",
-    verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
-    forwardTrustedProxies: [],
-    jwksAllowlist: [],
-    ...over,
-  };
-}
-
-const headers = (init: Record<string, string> = {}): Headers => new Headers(init);
 
 describe("resolveSingleUser", () => {
   test("empty headers + empty deps → null", async () => {

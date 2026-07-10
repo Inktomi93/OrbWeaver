@@ -9,6 +9,8 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { AdminService } from "@orb/server/domain/admin";
+import { createAdminService } from "@orb/server/domain/admin";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/contract/service.ts";
 import type {
   AdminEngineStatus,
@@ -83,6 +85,14 @@ export async function seedAgent(db: Db, ownerId: UserId, id = "user_agent"): Pro
  *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */
 export function principal(userId: UserId, role: UserRole, handle: string = userId): Principal {
   return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+}
+
+/** The repeated "wire the service, seed the admin caller" prologue (~7 call sites): builds a real
+ *  `AdminService` over a fresh harness and seeds a `user_adm` admin-role caller. */
+export async function seedAdminCaller(db: Db): Promise<{ svc: AdminService; admin: UserId }> {
+  const svc = createAdminService(makeHarness(db).ctx);
+  const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+  return { svc, admin };
 }
 
 export function makeHarness(db: Db): AdminHarness {

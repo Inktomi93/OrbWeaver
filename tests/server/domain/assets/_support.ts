@@ -18,13 +18,12 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatParticipants, chats, personas, users } from "@orb/db";
+import { assets, characters, chatParticipants, chats, personas } from "@orb/db";
 import type {
   AssetId,
   CharacterId,
   ChatId,
   ChatParticipantId,
-  ExternalId,
   GalleryItemId,
   Handle,
   PersonaId,
@@ -37,10 +36,12 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "../../../../packages/server/src/domain/assets/contract/service.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 
 // The PNG magic bytes — every `pngBytes(...)` starts here so `sniffMime` returns image/png. The tail makes
 // distinct images hash distinctly.
@@ -173,34 +174,26 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
-/** Insert a `users` row with deterministic defaults; returns its branded id (the FK target for assets). */
+/** Insert a `users` row with deterministic defaults; returns its branded id (the FK target for assets).
+ *  Thin delegate over the canonical factory — assets' call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? "x"}`);
-  await db.insert(users).values({
+  const seeded = await seedUserRow(db, {
     id,
     handle: castId<Handle>(overrides.handle ?? id),
     role: overrides.role ?? "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
   });
-  return id;
+  return seeded.id;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). */
+/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
+ *  `support/factories/principal` — assets keeps its existing positional `(id, role, handle?)` convention. */
 export function principal(
   userId: UserId,
   role: UserRole = "user",
   handle: string = userId,
 ): Principal {
-  return {
-    userId,
-    role,
-    handle: castId<Handle>(handle),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }
 
 /** Fake but well-formed PNG bytes: the PNG signature + a distinguishing tail (distinct tails ⇒ distinct

@@ -16,7 +16,7 @@ let svc: SessionsService;
 
 beforeEach(async () => {
   db = await freshDb();
-  svc = makeService(db);
+  ({ svc } = makeService(db));
   await db.insert(users).values([
     { id: USER_ID, handle: castId<Handle>("alice") },
     { id: OTHER_ID, handle: castId<Handle>("bob") },

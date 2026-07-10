@@ -7,7 +7,6 @@
 // batch. NOTE: the REAL jina-clip-v2 ONNX load (1024 text features) is verified by the opt-in,
 // network-gated `embed.int.test.ts` (ORB_LOCAL_LIGHT_E2E=1) — CI exercises only this fake-cache seam.
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
 import type { EmbedRequest, EmbedResult } from "@orb/server/infra/providers";
@@ -18,11 +17,12 @@ import {
   DEFAULT_EMBED_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 // Keyless local-light credential — a pure routing marker the backend never reads (the brand is
 // unconstructable from a literal, so double-cast for the test).
-const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("local-light");
 const MODEL = "Xenova/test-embed" as ModelId;
 // The unified embed space — every local-light vector must be this length to fit the F32_BLOB(1024) column.
 const VECTOR_DIM = 1024;

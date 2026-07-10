@@ -15,33 +15,11 @@ import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveMessageRenderContext } from "../../../../../packages/client/src/features/chat/lib/message-render-context";
 import { expect, test } from "../../../../support/fixtures";
+import { makeParticipant } from "./_support";
 
 const ALICE_ID = castId<CharacterId>("char_alice_render");
 const BOB_ID = castId<CharacterId>("char_bob_render");
 const NATE_PERSONA_ID = castId<PersonaId>("persona_nate_render");
-
-function makeParticipant(overrides: Partial<ParticipantView> = {}): ParticipantView {
-  return {
-    id: castId("participant_1"),
-    chatId: castId("chat_1"),
-    kind: "character",
-    userId: null,
-    characterId: ALICE_ID,
-    role: "member",
-    activePersonaId: null,
-    talkativeness: 1,
-    disabled: false,
-    joinedAt: 0,
-    joinSeq: 0,
-    leftSeq: null,
-    joinHistoryVisibility: "full",
-    displayName: "Alice",
-    handle: null,
-    avatarAssetId: null,
-    avatarHash: null,
-    ...overrides,
-  };
-}
 
 const EMPTY_CHARACTER_NAMES: ReadonlyMap<CharacterId, RowCharacterName> = new Map<
   CharacterId,

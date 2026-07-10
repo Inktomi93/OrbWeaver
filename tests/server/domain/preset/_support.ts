@@ -7,14 +7,15 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { presets, users } from "@orb/db";
+import { presets } from "@orb/db";
 import type { Handle, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PresetContext } from "../../../../packages/server/src/domain/preset/contract/service.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
-export const FROZEN_AT = 1_750_000_000_000;
+export const FROZEN_AT = FROZEN_AT_MS;
 
 interface AuditCall {
   readonly entry: Parameters<PresetContext["audit"]>[0];
@@ -26,19 +27,12 @@ export interface PresetHarness {
   readonly audits: AuditCall[];
 }
 
-/** Insert a `users` row (the FK parent for an owned preset); returns its branded id. */
+/** Insert a `users` row (the FK parent for an owned preset); returns its branded id. Thin delegate over the
+ *  canonical factory — preset's call sites pass a bare-string `handle` (the punchlist's warned variant). */
 export async function seedUser(db: Db, handle = "owner"): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
-  await db.insert(users).values({
-    id,
-    handle: castId<Handle>(handle),
-    role: "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-  });
-  return id;
+  const seeded = await seedUserRow(db, { id, handle: castId<Handle>(handle) });
+  return seeded.id;
 }
 
 interface SeedPresetOverrides {

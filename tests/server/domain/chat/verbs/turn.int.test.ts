@@ -41,6 +41,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import {
   FROZEN_AT,
@@ -72,7 +73,7 @@ const card = (name: string): CharacterCard =>
   ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** A scripted role turn — text delta + a terminal `final` carrying the content/economics. */

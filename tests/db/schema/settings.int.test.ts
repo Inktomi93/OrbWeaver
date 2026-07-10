@@ -11,19 +11,13 @@ import {
   USER_SETTINGS_SCHEMA_VERSION,
 } from "@orb/contracts/settings";
 import { themeOverrideSchema } from "@orb/contracts/theme";
-import type { Db } from "@orb/db";
 import { isConstraintViolation, settings, themes, userSettings, users } from "@orb/db";
-import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
+import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedUser(db: Db, raw = "user_settings_owner"): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
+import { seedUser } from "./_support.ts";
 
 test("the global settings KV round-trips a JSON value on its natural key", async () => {
   const db = await freshDb();
@@ -52,7 +46,7 @@ test("the global settings key PK rejects a duplicate key", async () => {
 
 test("user_settings round-trips; the schema_version COLUMN defaults to current + feeds parseUserSettings", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db);
+  const userId = await seedUser(db, { id: "user_settings_owner" });
 
   await db.insert(userSettings).values({ userId, config: DEFAULT_USER_SETTINGS });
 
@@ -69,7 +63,7 @@ test("user_settings round-trips; the schema_version COLUMN defaults to current +
 
 test("the owner-global RegexScript[] round-trips through the user_settings config blob (D53)", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db, "user_regex_owner");
+  const userId = await seedUser(db, { id: "user_regex_owner" });
 
   await db.insert(userSettings).values({
     userId,
@@ -96,7 +90,7 @@ test("the owner-global RegexScript[] round-trips through the user_settings confi
 
 test("user_settings is keyed by userId (the PK is also the FK; a duplicate collides)", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db);
+  const userId = await seedUser(db, { id: "user_settings_owner" });
   await db.insert(userSettings).values({ userId, config: DEFAULT_USER_SETTINGS });
 
   let caught: unknown;
@@ -125,7 +119,7 @@ test("the userId FK rejects a missing user", async () => {
 
 test("deleting the user cascades away their settings row", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db);
+  const userId = await seedUser(db, { id: "user_settings_owner" });
   await db.insert(userSettings).values({ userId, config: DEFAULT_USER_SETTINGS });
 
   await db.delete(users).where(eq(users.id, userId));
@@ -136,7 +130,7 @@ test("deleting the user cascades away their settings row", async () => {
 
 test("deleting the user cascades away their OWNED themes; a seed (NULL owner) survives", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db, "user_themes_owner");
+  const userId = await seedUser(db, { id: "user_themes_owner" });
   const ownedId = castId<ThemeId>("theme_owned_x");
   const seedId = castId<ThemeId>("theme_seed_x");
   await db.insert(themes).values([
@@ -170,8 +164,8 @@ test("themes.ownerId FK rejects a missing user", async () => {
 
 test("a duplicate (ownerId, name) rejects; two DIFFERENT owners may share a name", async () => {
   const db = await freshDb();
-  const a = await seedUser(db, "user_theme_a");
-  const b = await seedUser(db, "user_theme_b");
+  const a = await seedUser(db, { id: "user_theme_a" });
+  const b = await seedUser(db, { id: "user_theme_b" });
   await db.insert(themes).values({
     id: castId<ThemeId>("theme_a1"),
     ownerId: a,

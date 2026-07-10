@@ -9,11 +9,10 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { characters, chats, personas, users } from "@orb/db";
+import { characters, chats, personas } from "@orb/db";
 import type {
   CharacterId,
   ChatId,
-  ExternalId,
   Handle,
   PersonaId,
   UserId,
@@ -22,10 +21,12 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorldInfoContext } from "../../../../packages/server/src/domain/world-info/contract/service.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 
 interface AuditCall {
   readonly entry: Parameters<WorldInfoContext["audit"]>[0];
@@ -93,18 +94,15 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
+/** Thin delegate over the canonical factory — world-info's call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? "x"}`);
-  await db.insert(users).values({
+  const seeded = await seedUserRow(db, {
     id,
     handle: castId<Handle>(overrides.handle ?? id),
     role: overrides.role ?? "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
   });
-  return id;
+  return seeded.id;
 }
 
 interface SeedCharacterOverrides {
@@ -166,11 +164,5 @@ export function principal(
   role: UserRole = "user",
   handle: string = userId,
 ): Principal {
-  return {
-    userId,
-    role,
-    handle: castId<Handle>(handle),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }

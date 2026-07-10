@@ -40,6 +40,7 @@ import type { HistoryMacroNames } from "../../../../packages/server/src/domain/c
 import { createChatLifecycle } from "../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { setParticipantActivePersona } from "../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../support/db";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
 import {
   makeChatContext,
@@ -57,7 +58,7 @@ beforeEach(async () => {
 });
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** A minimal character card, description overridable — the worked examples put `{{user}}`/`{{persona}}`

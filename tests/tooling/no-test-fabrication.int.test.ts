@@ -6,21 +6,12 @@
 //
 // The fabrication CASTS below live inside STRING fixtures (not this file's own AST) — the gate detects
 // AsExpression nodes, so a cast written as a string literal is invisible to it and can't self-trip.
-import { Project } from "ts-morph";
 import {
   createNoTestFabrication,
   noTestFabrication,
 } from "../../scripts/check/gates/no-test-fabrication.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
+import { ctxFor } from "./_support.ts";
 
 const F = "tests/server/domain/widget/thing.int.test.ts";
 const DOUBLE = "export const a = {} as unknown as { n: number };\n";

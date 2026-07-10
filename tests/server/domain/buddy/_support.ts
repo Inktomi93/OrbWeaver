@@ -14,7 +14,6 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
 import type { BuddyTurnId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type {
@@ -24,8 +23,11 @@ import type {
   BuddyToolServer,
   BuddyToolSpec,
 } from "@orb/server/domain/buddy";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 const DEFAULT_WINDOW = 32_768;
 
 // Process-monotonic counters (deterministic; no clock/random — testing §3). Module-scope so ids stay
@@ -93,24 +95,22 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
-/** Insert a `users` row (the FK target for `buddies.userId`); returns its branded id. */
+/** Insert a `users` row (the FK target for `buddies.userId`); returns its branded id. Thin delegate over
+ *  the canonical factory — buddy's call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.role ?? "x"}`);
-  await db.insert(users).values({
+  const seeded = await seedUserRow(db, {
     id,
     handle: castId<Handle>(overrides.handle ?? id),
     role: overrides.role ?? "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
   });
-  return id;
+  return seeded.id;
 }
 
-/** Build a Principal for a user id + role (cookie-resolved by default). */
+/** Build a Principal for a user id + role (cookie-resolved by default). Delegates to the shared
+ *  `support/factories/principal` — buddy keeps its existing positional `(id, role)` convention. */
 export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return { userId, role, handle: castId<Handle>(userId), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { role });
 }
 
 /** Build the BuddyContext over a real db with recording fake ops + injected determinism. */

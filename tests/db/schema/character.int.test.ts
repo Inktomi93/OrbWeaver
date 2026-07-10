@@ -22,7 +22,6 @@ import {
   chats,
   isConstraintViolation,
   personas,
-  users,
 } from "@orb/db";
 import { parseRecord, parseStringArray } from "@orb/db/kit";
 import type {
@@ -31,7 +30,6 @@ import type {
   CharacterId,
   CharacterSnapshotId,
   ChatId,
-  Handle,
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
@@ -39,16 +37,11 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedUser } from "./_support.ts";
 
 // Named so the literals aren't bare magic numbers (noMagicNumbers).
 const DEPTH_PROMPT_DEPTH = 4;
 const REFINERY_SCORE = 0.85;
-
-async function seedOwner(db: Db, id: string, handle: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(handle) });
-  return ownerId;
-}
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>(id);
@@ -64,7 +57,7 @@ async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<Chara
 
 test("characters insert→select round-trips (branded id + always-a-list defaults)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_a", "char-owner-a");
+  const ownerId = await seedUser(db, { id: "user_char_a", handle: "char-owner-a" });
   const id = await seedCharacter(db, ownerId, "character_roundtrip");
 
   const rows = await db.select().from(characters).where(eq(characters.id, id));
@@ -85,7 +78,7 @@ test("characters insert→select round-trips (branded id + always-a-list default
 
 test("card-content JSON columns round-trip (greetings, extensions, residualData, depthPrompt, refinery, regexScripts)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_b", "char-owner-b");
+  const ownerId = await seedUser(db, { id: "user_char_b", handle: "char-owner-b" });
   const id = castId<CharacterId>("character_content");
   // Character's Note @ Depth — the shared {depth, role?} directive + note text.
   const depthPrompt: CardDepthPrompt = {
@@ -130,7 +123,7 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
 
 test("character_snapshots stores ONE opaque card blob and round-trips", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_c", "char-owner-c");
+  const ownerId = await seedUser(db, { id: "user_char_c", handle: "char-owner-c" });
   const characterId = await seedCharacter(db, ownerId, "character_snap");
   const card: CharacterCard = {
     name: "Aria",
@@ -169,7 +162,7 @@ test("character_snapshots stores ONE opaque card blob and round-trips", async ()
 
 test("deleting a character CASCADEs its snapshots and persona junctions", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_d", "char-owner-d");
+  const ownerId = await seedUser(db, { id: "user_char_d", handle: "char-owner-d" });
   const characterId = await seedCharacter(db, ownerId, "character_cascade");
 
   const personaId = castId<PersonaId>("persona_for_cascade");
@@ -207,7 +200,7 @@ test("deleting a character CASCADEs its snapshots and persona junctions", async 
 
 test("unique(ownerId, handle) rejects a duplicate handle for the same owner", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_handle", "char-owner-handle");
+  const ownerId = await seedUser(db, { id: "user_char_handle", handle: "char-owner-handle" });
   await db.insert(characters).values({
     id: castId<CharacterId>("character_handle_1"),
     handle: "dup-handle",
@@ -233,8 +226,8 @@ test("unique(ownerId, handle) rejects a duplicate handle for the same owner", as
 
 test("unique(ownerId, handle) allows the same handle for a DIFFERENT owner", async () => {
   const db = await freshDb();
-  const ownerA = await seedOwner(db, "user_char_hA", "char-owner-hA");
-  const ownerB = await seedOwner(db, "user_char_hB", "char-owner-hB");
+  const ownerA = await seedUser(db, { id: "user_char_hA", handle: "char-owner-hA" });
+  const ownerB = await seedUser(db, { id: "user_char_hB", handle: "char-owner-hB" });
   await db.insert(characters).values({
     id: castId<CharacterId>("character_hA"),
     handle: "shared-handle",
@@ -259,7 +252,7 @@ test("unique(ownerId, handle) allows the same handle for a DIFFERENT owner", asy
 
 test("avatar_asset_id is SET NULL when its asset is deleted (character survives)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_avatar", "char-owner-avatar");
+  const ownerId = await seedUser(db, { id: "user_char_avatar", handle: "char-owner-avatar" });
   const assetId = castId<AssetId>("asset_character_avatar");
   await db.insert(assets).values({
     id: assetId,
@@ -301,7 +294,7 @@ async function seedProposalHome(
   db: Db,
   tag: string,
 ): Promise<{ characterId: CharacterId; chatId: ChatId }> {
-  const ownerId = await seedOwner(db, `user_${tag}`, `owner-${tag}`);
+  const ownerId = await seedUser(db, { id: `user_${tag}`, handle: `owner-${tag}` });
   const characterId = await seedCharacter(db, ownerId, `character_${tag}`);
   const chatId = castId<ChatId>(`chat_${tag}`);
   await db.insert(chats).values({ id: chatId });

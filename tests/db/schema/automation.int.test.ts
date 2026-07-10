@@ -16,13 +16,13 @@ import {
   chats,
   globalVariables,
   isConstraintViolation,
-  users,
 } from "@orb/db";
-import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedChat, seedUser } from "./_support.ts";
 
 // Named lengths (`noMagicNumbers` is off in tests, but the caps are the POINT here — name them).
 const NAME_CAP = 120;
@@ -30,10 +30,8 @@ const KEY_CAP = 128;
 const VALUE_CAP_BYTES = 65_536;
 
 async function seedOwnerAndChat(db: Db, tag: string): Promise<{ ownerId: UserId; chatId: ChatId }> {
-  const ownerId = castId<UserId>(`user_${tag}`);
-  const chatId = castId<ChatId>(`chat_${tag}`);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(`auto-${tag}`) });
-  await db.insert(chats).values({ id: chatId });
+  const ownerId = await seedUser(db, { id: `user_${tag}`, handle: `auto-${tag}` });
+  const chatId = await seedChat(db, { id: `chat_${tag}` });
   return { ownerId, chatId };
 }
 

@@ -6,7 +6,7 @@
 // fires. Reached through the BUNDLE `createStartChat(ctx, deps)`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -14,9 +14,9 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type {
   TurnEngine,
@@ -25,15 +25,18 @@ import type {
 } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedUser } from "../_support";
+import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
+let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = [];
+  loadParticipantViews = makeLoadParticipantViews(db);
 });
 
 const emit = (event: ChatBusEvent): Promise<void> => {
@@ -42,7 +45,7 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 };
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** A full canonical card with a single greeting (D28 live read; the rest is empty). */
@@ -66,34 +69,6 @@ function cardWith(name: string, greeting: string): CharacterCard {
     avatarAssetId: null,
     refinery: null,
   };
-}
-
-/** Resolve the roster read-model directly off `chat_participants` (the root resolves `users` publics; here the
- *  display name derives from the id — the `fork.ts` test precedent). */
-async function loadParticipantViews(chatId: ChatId): Promise<readonly ParticipantView[]> {
-  const rows = await db
-    .select()
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
-  return rows.map((r) => ({
-    id: r.id,
-    chatId: r.chatId,
-    kind: r.kind,
-    userId: r.userId,
-    characterId: r.characterId,
-    role: r.role,
-    activePersonaId: r.activePersonaId,
-    talkativeness: r.talkativeness,
-    disabled: r.disabled,
-    joinedAt: r.joinedAt,
-    joinSeq: r.joinSeq,
-    leftSeq: r.leftSeq,
-    joinHistoryVisibility: r.joinHistoryVisibility,
-    displayName: r.userId ?? r.characterId ?? "",
-    handle: r.userId === null ? null : castId<Handle>(r.userId),
-    avatarAssetId: null,
-    avatarHash: null,
-  }));
 }
 
 /** A throwing engine/connection/assemble stub for the verbatim + none paths (they never delegate). */

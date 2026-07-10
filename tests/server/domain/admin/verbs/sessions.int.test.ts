@@ -8,13 +8,12 @@ import { createAdminService } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
 
 describe("admin session verbs", () => {
   test("listSessions delegates to the port for an admin", async () => {
     const db = await freshDb();
-    const svc = createAdminService(makeHarness(db).ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const { svc, admin } = await seedAdminCaller(db);
     const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
     const list = await svc.listSessions({ principal: principal(admin, "admin"), userId: t });
     expect(Array.isArray(list)).toBe(true);

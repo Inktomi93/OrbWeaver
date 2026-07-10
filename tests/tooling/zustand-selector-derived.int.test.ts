@@ -7,18 +7,9 @@
 // array-rebuilding .map/.filter, the vanilla `useStore(store, selector)` call shape) fires, and each
 // PASS shape (single-field, frozen-constant identifier, useShallow-wrapped — either call shape,
 // non-store calls, by-reference selectors) stays clean.
-import { Project } from "ts-morph";
 import { zustandSelectorDerived } from "../../scripts/check/gates/zustand-selector-derived.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
+import { ctxFor } from "./_support.ts";
 
 const STATE = "packages/client/src/state";
 

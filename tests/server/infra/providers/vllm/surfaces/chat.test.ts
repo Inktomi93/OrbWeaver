@@ -3,8 +3,6 @@
 // finish-reason + usage mapping, deterministic turn timing (injected `now`), and that a prompt-only
 // (agent-sdk) request is fail-closed. Independent — it only calls `client.engineStream`.
 
-import type { ModelCapability } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatRequest } from "@orb/server/infra/providers";
@@ -12,16 +10,18 @@ import { ProviderError } from "@orb/server/infra/providers";
 import { createVllmChat } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
+import {
+  makeModelCapability,
+  makeResolvedCredential,
+} from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
-const CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("vllm");
 const MODEL = "Qwen/Qwen3-VL-8B-Instruct" as ModelId;
-const CAP = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
+const CAP = makeModelCapability({
   output: { maxTokens: { min: 1, max: 4096 } },
   context: { window: 32_768 },
-} as unknown as ModelCapability;
+});
 
 // Build a ReadableStream of SSE bytes from raw chunk payloads + the [DONE] sentinel.
 function sseStream(payloads: string[]): ReadableStream<Uint8Array> {

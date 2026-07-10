@@ -3,26 +3,24 @@ import { auditLogs, sessions, users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { createSessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createTokenHasher } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
-import { createFrozenClock } from "../../../../support/clock";
+import { FROZEN_AT_MS } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
+import { makeService, PEPPER } from "../_support.ts";
 
-const PEPPER = "test-session-secret-at-least-32-chars-long";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const USER_ID = castId<UserId>("user_alice");
 const SESSION_ID_RE = /^session_/u;
 
 let db: Db;
 let svc: SessionsService;
-const clock = createFrozenClock();
 
 beforeEach(async () => {
   db = await freshDb();
-  svc = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  ({ svc } = makeService(db));
   await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice") });
 });
 
@@ -31,7 +29,7 @@ describe("sessions.create", () => {
     const result = await svc.create({ userId: USER_ID });
     expect(result.token.length).toBeGreaterThan(0);
     expect(result.sessionId).toMatch(SESSION_ID_RE);
-    expect(result.expiresAt).toBe(clock.now() + SESSION_TTL_MS);
+    expect(result.expiresAt).toBe(FROZEN_AT_MS + SESSION_TTL_MS);
   });
 
   test("persists ONLY the peppered hash — never the raw token (invariant #3)", async () => {

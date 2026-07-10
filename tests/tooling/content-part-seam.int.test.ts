@@ -2,21 +2,12 @@
 // content-part wire seam; held out of ALL_CHECKS pending doc reconciliation). Proves: an upstream
 // `ChatContentPart` import (assemble/shape/verbs) fires, the seam producer + request DTO + infra consumers
 // pass, and the centralized tests/ mirror is exempt (it tests the contract type).
-import { Project } from "ts-morph";
 import { contentPartSeam } from "../../scripts/check/gates/content-part-seam.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const IMPORT =
   'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type X = ChatContentPart;\n';
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
 
 test("fires on an upstream domain/chat import (assemble/shape)", () => {
   const up = "packages/server/src/domain/chat/assembly/context.ts";

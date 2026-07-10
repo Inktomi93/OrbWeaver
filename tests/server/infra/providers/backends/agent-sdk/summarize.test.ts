@@ -15,22 +15,17 @@
 //   • whole-batch-on-first-error: one failed item rejects the whole batch (the vLLM/OR convention).
 //   • the per-item watchdog aborts a hung turn (fake timers).
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { SummarizeRequest, SummarizeResult } from "@orb/server/infra/providers";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const MODEL = "claude-haiku-test";
 const SESSION_ID = "sess-summarize";
 
-// ResolvedCredential is a phantom-`unique symbol` BRAND — unconstructable outside the credentials mint
-// factory by design (D17); the double-cast at the fake edge is the only way to hand a test a typed
-// credential (the verify-auth.test + connection _support precedent). Only `.source` is read by summarize.
-// FABRICATION-OK: brand-protected ResolvedCredential double — only `.source` is read (mode-1 guard).
-const SUB_CRED = { source: "max-pro-sub", credentialId: null } as unknown as ResolvedCredential;
-// FABRICATION-OK: brand-protected ResolvedCredential double — the non-mode-1 source the guard rejects.
-const VLLM_CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+const SUB_CRED = makeResolvedCredential("max-pro-sub");
+const VLLM_CRED = makeResolvedCredential("vllm");
 
 const HOSTED_HINT_RE = /openrouter/u;
 

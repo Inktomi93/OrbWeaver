@@ -1,7 +1,7 @@
-import type { AuthConfig } from "@orb/server/infra/auth";
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
+import { makeAuthConfig as cfg, headers } from "../_support";
 
 // `local` mode resolver — post-D40 a pure null-returner at the infra layer: the seam validates the cookie
 // via `sessions.validate` BEFORE `resolve`, so infra never reads it (the cookie modes contribute nothing
@@ -11,21 +11,6 @@ import { expect, test } from "../../../../support/fixtures";
 
 const resolveLocal = MODE_RESOLVERS.local;
 
-function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
-  return {
-    mode: "local",
-    fallback: "owner",
-    defaultHandle: "owner",
-    verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
-    forwardTrustedProxies: [],
-    jwksAllowlist: [],
-    ...over,
-  };
-}
-
-const headers = (init: Record<string, string> = {}): Headers => new Headers(init);
 const COOKIE = { cookie: "__Host-orb_session=t" };
 
 describe("resolveLocal", () => {

@@ -1,7 +1,7 @@
-import type { AuthConfig } from "@orb/server/infra/auth";
 import { MODE_RESOLVERS, SESSION_COOKIE_NAME } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
+import { makeAuthConfig as cfg, headers } from "../_support";
 
 // Post-D40 (Route A) infra does NOT read or validate the session cookie — the seam validates it via
 // `sessions.validate` BEFORE calling `resolve` (entry/auth/seam.ts). So at the infra layer the cookie modes
@@ -10,22 +10,6 @@ import { expect, test } from "../../../../support/fixtures";
 // reader + the entry route writer). The cookie PARSE/validate coverage lives at the seam now, not here.
 
 const resolveCookie = MODE_RESOLVERS.local;
-
-function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
-  return {
-    mode: "local",
-    fallback: "owner",
-    defaultHandle: "owner",
-    verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
-    forwardTrustedProxies: [],
-    jwksAllowlist: [],
-    ...over,
-  };
-}
-
-const headers = (init: Record<string, string> = {}): Headers => new Headers(init);
 
 describe("SESSION_COOKIE_NAME", () => {
   test("is the __Host-pinned orbweaver session cookie name", () => {

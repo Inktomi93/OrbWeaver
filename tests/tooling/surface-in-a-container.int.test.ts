@@ -4,31 +4,9 @@
 // temp-dir fixture tree (the gate reads surface files via readFileSync), never the real repo tree,
 // proving fire (a surface with a raw structural root + no Container) AND no-false-positive (a surface
 // that renders a Container; the app-shell shell-tier exemption).
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { Project } from "ts-morph";
 import { surfaceInAContainer } from "../../scripts/check/gates/surface-in-a-container.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-function ctxAt(root: string): CheckContext {
-  return { root, project: new Project({ useInMemoryFileSystem: true }) };
-}
-
-function withTree(files: Record<string, string>, fn: (root: string) => void): void {
-  const root = mkdtempSync(join(tmpdir(), "orb-siac-"));
-  try {
-    for (const [rel, text] of Object.entries(files)) {
-      const abs = join(root, rel);
-      mkdirSync(join(abs, ".."), { recursive: true });
-      writeFileSync(abs, text);
-    }
-    fn(root);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
+import { ctxAt, withTree } from "./_support.ts";
 
 const S = "packages/client/src/features";
 

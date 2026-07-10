@@ -30,7 +30,6 @@ import {
   messages,
   messageVariants,
   pendingTurns,
-  users,
 } from "@orb/db";
 import { parseRecord } from "@orb/db/kit";
 import type {
@@ -41,7 +40,6 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
-  Handle,
   MessageId,
   MessageVariantId,
   PendingTurnId,
@@ -53,27 +51,16 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedChat, seedUser } from "./_support.ts";
 
 // A fixed clock value (epoch-ms number) for caller-set timestamps — deterministic, no ambient clock.
 const T0 = 1_700_000_000_000;
-
-async function seedUser(db: Db, raw: string): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
 
 async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
   const id = castId<CharacterId>(raw);
   await db
     .insert(characters)
     .values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
-  return id;
-}
-
-async function seedChat(db: Db, raw: string): Promise<ChatId> {
-  const id = castId<ChatId>(raw);
-  await db.insert(chats).values({ id });
   return id;
 }
 
@@ -95,7 +82,7 @@ async function seedMessageWithVariant(
 
 test("chats insert→select round-trips (defaults; NO ownerId — D18)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_rt");
+  const chatId = await seedChat(db, { id: "chat_rt" });
 
   const rows = await db.select().from(chats).where(eq(chats.id, chatId));
   expect(rows).toHaveLength(1);
@@ -163,7 +150,7 @@ test("chats variableValues (read-seam map) + import provenance round-trip", asyn
 
 test("the message SLOT points at its selected variant (D26 pointer + circular-FK dance)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_slot");
+  const chatId = await seedChat(db, { id: "chat_slot" });
   const { messageId, variantId } = await seedMessageWithVariant(db, {
     chatId,
     rawMsg: "message_slot",
@@ -187,7 +174,7 @@ test("the message SLOT points at its selected variant (D26 pointer + circular-FK
 
 test("a swipe APPENDs a variant and selectVariant flips the slot pointer (no content copy)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_swipe");
+  const chatId = await seedChat(db, { id: "chat_swipe" });
   const { messageId, variantId } = await seedMessageWithVariant(db, {
     chatId,
     rawMsg: "message_swipe",
@@ -215,7 +202,7 @@ test("a swipe APPENDs a variant and selectVariant flips the slot pointer (no con
 
 test("message_variants economics + JSON params round-trip (numbers, not Dates)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_econ");
+  const chatId = await seedChat(db, { id: "chat_econ" });
   const messageId = castId<MessageId>("message_econ");
   await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant" });
   const variantId = castId<MessageVariantId>("message_variant_econ");
@@ -245,7 +232,7 @@ test("message_variants economics + JSON params round-trip (numbers, not Dates)",
 
 test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-trip (number as number)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_genrec");
+  const chatId = await seedChat(db, { id: "chat_genrec" });
   const messageId = castId<MessageId>("message_genrec");
   await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant" });
   const variantId = castId<MessageVariantId>("message_variant_genrec");
@@ -292,7 +279,7 @@ test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-
 
 test("deleting a message CASCADEs its variants (D26)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_msgdel");
+  const chatId = await seedChat(db, { id: "chat_msgdel" });
   const { messageId } = await seedMessageWithVariant(db, {
     chatId,
     rawMsg: "message_del",
@@ -310,8 +297,8 @@ test("deleting a message CASCADEs its variants (D26)", async () => {
 
 test("a human participant (userId only) and a character participant (characterId only) insert", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_part_ok");
-  const chatId = await seedChat(db, "chat_part_ok");
+  const ownerId = await seedUser(db, { id: "user_part_ok" });
+  const chatId = await seedChat(db, { id: "chat_part_ok" });
   const characterId = await seedCharacter(db, ownerId, "character_part_ok");
 
   await db.insert(chatParticipants).values([
@@ -346,8 +333,8 @@ test("a human participant (userId only) and a character participant (characterId
 
 test("the kind-shape CHECK rejects a human with BOTH userId+characterId set", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_xor_both");
-  const chatId = await seedChat(db, "chat_xor_both");
+  const ownerId = await seedUser(db, { id: "user_xor_both" });
+  const chatId = await seedChat(db, { id: "chat_xor_both" });
   const characterId = await seedCharacter(db, ownerId, "character_xor_both");
 
   let caught: unknown;
@@ -369,7 +356,7 @@ test("the kind-shape CHECK rejects a human with BOTH userId+characterId set", as
 
 test("the kind-shape CHECK rejects a human with NEITHER userId nor characterId set", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_xor_neither");
+  const chatId = await seedChat(db, { id: "chat_xor_neither" });
 
   let caught: unknown;
   try {
@@ -392,8 +379,8 @@ test("the kind-shape CHECK rejects a human with NEITHER userId nor characterId s
 
 test("the kind-shape CHECK accepts an `agent` seat carrying userId (no characterId)", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_agent_ok");
-  const chatId = await seedChat(db, "chat_agent_ok");
+  const ownerId = await seedUser(db, { id: "user_agent_ok" });
+  const chatId = await seedChat(db, { id: "chat_agent_ok" });
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>("chat_participant_agent"),
     chatId,
@@ -411,8 +398,8 @@ test("the kind-shape CHECK accepts an `agent` seat carrying userId (no character
 
 test("the kind-shape CHECK rejects an `agent` seat carrying a characterId (cross-shape)", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_agent_bad");
-  const chatId = await seedChat(db, "chat_agent_bad");
+  const ownerId = await seedUser(db, { id: "user_agent_bad" });
+  const chatId = await seedChat(db, { id: "chat_agent_bad" });
   const characterId = await seedCharacter(db, ownerId, "character_agent_bad");
 
   let caught: unknown;
@@ -433,8 +420,8 @@ test("the kind-shape CHECK rejects an `agent` seat carrying a characterId (cross
 
 test("the kind-shape CHECK rejects a `character` seat carrying a userId (cross-shape)", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_char_cross");
-  const chatId = await seedChat(db, "chat_char_cross");
+  const ownerId = await seedUser(db, { id: "user_char_cross" });
+  const chatId = await seedChat(db, { id: "chat_char_cross" });
 
   let caught: unknown;
   try {
@@ -454,8 +441,8 @@ test("the kind-shape CHECK rejects a `character` seat carrying a userId (cross-s
 
 test("(chatId,userId) is UNIQUE for humans; character rows (null userId) coexist", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_uniq");
-  const chatId = await seedChat(db, "chat_uniq");
+  const ownerId = await seedUser(db, { id: "user_uniq" });
+  const chatId = await seedChat(db, { id: "chat_uniq" });
   const charA = await seedCharacter(db, ownerId, "character_uniq_a");
   const charB = await seedCharacter(db, ownerId, "character_uniq_b");
 
@@ -514,7 +501,7 @@ test("(chatId,userId) is UNIQUE for humans; character rows (null userId) coexist
 
 test("a fork's parentChatId SET NULL on parent delete (the fork outlives its parent)", async () => {
   const db = await freshDb();
-  const parentId = await seedChat(db, "chat_parent");
+  const parentId = await seedChat(db, { id: "chat_parent" });
   const forkId = castId<ChatId>("chat_fork");
   await db.insert(chats).values({ id: forkId, parentChatId: parentId, forkedAt: T0 });
 
@@ -534,7 +521,7 @@ test("a fork's parentChatId SET NULL on parent delete (the fork outlives its par
 
 test("chat_invites stores a HASHED token (no raw token column) + status defaults pending", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_inv");
+  const chatId = await seedChat(db, { id: "chat_inv" });
   const inviteId = castId<ChatInviteId>("chat_invite_1");
   await db.insert(chatInvites).values({
     id: inviteId,
@@ -555,7 +542,7 @@ test("chat_invites stores a HASHED token (no raw token column) + status defaults
 
 test("chat_invites status CHECK rejects an out-of-enum value", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_inv_bad");
+  const chatId = await seedChat(db, { id: "chat_inv_bad" });
   let caught: unknown;
   try {
     await db.insert(chatInvites).values({
@@ -604,7 +591,7 @@ test("PARTICIPANT_KINDS is the 4-member tuple; `observer` stays reserved + un-se
 
 test("chat_events accepts a known bus type and rejects an unknown one", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_evt");
+  const chatId = await seedChat(db, { id: "chat_evt" });
   await db.insert(chatEvents).values({
     id: castId<ChatEventId>("chat_event_ok"),
     chatId,
@@ -635,9 +622,9 @@ test("chat_events accepts a known bus type and rejects an unknown one", async ()
 
 test("deleting a chat CASCADEs every child table", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_cascade");
-  const hostId = await seedUser(db, "user_cascade_host");
-  const chatId = await seedChat(db, "chat_cascade");
+  const ownerId = await seedUser(db, { id: "user_cascade" });
+  const hostId = await seedUser(db, { id: "user_cascade_host" });
+  const chatId = await seedChat(db, { id: "chat_cascade" });
   const characterId = await seedCharacter(db, ownerId, "character_cascade_chat");
 
   // One row in each of the ten dependents (chats itself + nine FK-CASCADE children).

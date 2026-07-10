@@ -3,26 +3,20 @@
 // UNIQUE index, the userId FK + its cascade-on-user-delete, and the oidc_transactions natural-key KV
 // (round-trip + the PK collision).
 
-import type { Db } from "@orb/db";
 import { isConstraintViolation, oidcTransactions, sessions, users } from "@orb/db";
-import type { Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedUser } from "./_support.ts";
 
 // epoch-ms literal — timestamp columns are plain integer numbers (contracts views type timestamps as numbers).
 const EXPIRES_AT = 1_900_000_000_000;
 
-async function seedUser(db: Db, raw = "user_session_owner"): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
-
 test("a session round-trips (branded id + token_hash; raw token is never stored)", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db);
+  const userId = await seedUser(db, { id: "user_session_owner" });
   const id = castId<SessionId>("session_001");
 
   await db.insert(sessions).values({
@@ -45,7 +39,7 @@ test("a session round-trips (branded id + token_hash; raw token is never stored)
 
 test("the token_hash UNIQUE index rejects a duplicate hash", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db);
+  const userId = await seedUser(db, { id: "user_session_owner" });
 
   await db.insert(sessions).values({
     id: castId<SessionId>("session_a"),
@@ -87,7 +81,7 @@ test("the userId FK rejects a missing user", async () => {
 
 test("deleting the user cascades away their sessions", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db);
+  const userId = await seedUser(db, { id: "user_session_owner" });
   await db.insert(sessions).values({
     id: castId<SessionId>("session_cascade"),
     userId,

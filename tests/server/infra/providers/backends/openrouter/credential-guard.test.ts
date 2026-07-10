@@ -6,6 +6,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { ProviderError } from "@orb/server/infra/providers";
 import { requireOpenRouterApiKey } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 // Capture a synchronous throw without a conditional expect (the guard throws sync, so `.rejects` doesn't
@@ -31,7 +32,7 @@ describe("requireOpenRouterApiKey", () => {
   });
 
   test("fail-closes (typed invalid) on a non-openrouter source, without leaking a key", () => {
-    const cred = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+    const cred = makeResolvedCredential("vllm");
     const err = capture(() => requireOpenRouterApiKey(cred, "embed"));
     expect(err).toBeInstanceOf(ProviderError);
     const providerError = err instanceof ProviderError ? err : undefined;

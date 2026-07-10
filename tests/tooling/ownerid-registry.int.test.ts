@@ -3,20 +3,11 @@
 // over in-memory ts-morph projects (never the real tree), proving: an unlisted-table ownerId fires, an
 // allowlisted-table ownerId passes, and BOTH ratchet arms hold via an injected allowlist (the stale-entry
 // arm — a listed table with no ownerId column present).
-import { Project } from "ts-morph";
 import { createOwnerIdRegistry } from "../../scripts/check/gates/ownerid-registry.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const SCHEMA = "packages/db/src/schema/thing.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
 
 /** A schema module declaring one `sqliteTable` with the given columns body. */
 function table(sqlName: string, cols: string): string {

@@ -1,28 +1,12 @@
-import type { AuthConfig } from "@orb/server/infra/auth";
 import { resolve } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
+import { makeAuthConfig as cfg, headers } from "./_support";
 
 // VERIFICATION-only: `resolve(headers, deps)` → an `IdentityResolution` (the pre-row `ResolvedIdentity`
 // + the seam's signals). It carries NO `userId` and NO `role` (invariant #3); it does NOT upsert and
 // does NOT mint a `Principal`. The role decision (`determineRole`) + the upsert move to `domain/sessions`
 // (4c); the `Principal` mint is `entry/auth/seam.ts` (4e) — that coverage lives there, NOT here.
-
-function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
-  return {
-    mode: "single-user",
-    fallback: "owner",
-    defaultHandle: "owner",
-    verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
-    forwardTrustedProxies: [],
-    jwksAllowlist: [],
-    ...over,
-  };
-}
-
-const headers = (init: Record<string, string> = {}): Headers => new Headers(init);
 
 describe("resolve — the verification output never carries userId or role (invariant #3)", () => {
   test("single-user → the owner-fallback identity, via:'fallback', NO userId/role", async () => {

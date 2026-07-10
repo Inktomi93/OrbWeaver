@@ -4,23 +4,17 @@
 // (owner,provider) partial unique index, and the ownerId FK.
 
 import { CRED_PROVIDERS, parseProviderMetadata } from "@orb/contracts/credentials";
-import type { Db } from "@orb/db";
-import { isConstraintViolation, userCredentials, users } from "@orb/db";
-import type { Handle, UserCredentialId, UserId } from "@orb/kit/ids";
+import { isConstraintViolation, userCredentials } from "@orb/db";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedUser(db: Db, raw = "user_cred_owner"): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
+import { seedUser } from "./_support.ts";
 
 test("user_credentials insert→select round-trips (branded id + metadata JSON parses)", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db);
+  const ownerId = await seedUser(db, { id: "user_cred_owner" });
   const id = castId<UserCredentialId>("user_credential_001");
 
   await db.insert(userCredentials).values({
@@ -50,7 +44,7 @@ test("user_credentials insert→select round-trips (branded id + metadata JSON p
 
 test("test-mirror: every CRED_PROVIDERS member is accepted by the provider column", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db);
+  const ownerId = await seedUser(db, { id: "user_cred_owner" });
 
   // Distinct providers coexist for one owner (the partial unique is per-(owner,provider)).
   await db.insert(userCredentials).values(
@@ -70,7 +64,7 @@ test("test-mirror: every CRED_PROVIDERS member is accepted by the provider colum
 
 test("the provider CHECK rejects an off-enum value", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db);
+  const ownerId = await seedUser(db, { id: "user_cred_owner" });
 
   // A `string`-typed value downcast to the enum union forces an invalid value at the SQL boundary
   // (a string-literal `as` would trip TS2352 — the literal doesn't overlap the union).
@@ -94,7 +88,7 @@ test("the provider CHECK rejects an off-enum value", async () => {
 
 test("one-active-per-(owner,provider): a second active row collides; an inactive one coexists", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db);
+  const ownerId = await seedUser(db, { id: "user_cred_owner" });
 
   await db.insert(userCredentials).values({
     id: castId<UserCredentialId>("user_credential_active_a"),

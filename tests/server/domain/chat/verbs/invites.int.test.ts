@@ -6,59 +6,40 @@
 // grouped-file BUNDLE (`createInvites(ctx, deps)`).
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createInvites } from "../../../../../packages/server/src/domain/chat/verbs/invites";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
+import {
+  FROZEN_AT,
+  makeChatContext,
+  makeLoadParticipantViews,
+  seedChat,
+  seedParticipant,
+  seedUser,
+} from "../_support";
 
 let db: Db;
 let emitted: number;
+let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = 0;
+  loadParticipantViews = makeLoadParticipantViews(db);
 });
 
-function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "cookie" };
-}
-
-/** A fake roster resolver — maps present `chat_participants` rows to minimal `ParticipantView`s (the root
- *  resolves the real `users` publics; here the handle/name derive from the id). */
-async function loadParticipantViews(chatId: ChatId): Promise<readonly ParticipantView[]> {
-  const rows = await db
-    .select()
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
-  return rows.map((r) => ({
-    id: r.id,
-    chatId: r.chatId,
-    kind: r.kind,
-    userId: r.userId,
-    characterId: r.characterId,
-    role: r.role,
-    activePersonaId: r.activePersonaId,
-    talkativeness: r.talkativeness,
-    disabled: r.disabled,
-    joinedAt: r.joinedAt,
-    joinSeq: r.joinSeq,
-    leftSeq: r.leftSeq,
-    joinHistoryVisibility: r.joinHistoryVisibility,
-    displayName: r.userId ?? r.characterId ?? "",
-    handle: r.userId === null ? null : castId<Handle>(r.userId),
-    avatarAssetId: null,
-    avatarHash: null,
-  }));
+function principal(userId: UserId): ReturnType<typeof makePrincipal> {
+  return makePrincipal(userId, { handle: castId<Handle>(userId) });
 }
 
 // hashToken/newInviteId now ride the ctx (PD-61) — makeChatContext supplies the same `h:${token}` fake

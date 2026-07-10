@@ -6,14 +6,12 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 describe("clearRevoked", () => {
   test("clears revoked_at on the owner's credential", async () => {
     const db = await freshDb();
-    const svc = createCredentialsService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, owner, cred } = await seedCredential(db, makeHarness(db));
     await svc.markRevokedByUser({ principal: principal(owner), credentialId: cred.id });
     await svc.clearRevoked({ principal: principal(owner), credentialId: cred.id });
     const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));

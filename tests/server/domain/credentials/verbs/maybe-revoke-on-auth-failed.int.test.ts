@@ -7,15 +7,13 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, seedCredential } from "../_support.ts";
 
 // biome-ignore lint/security/noSecrets: "maybeRevokeOnAuthFailed" is the verb name (high camelCase entropy), not a credential.
 describe("maybeRevokeOnAuthFailed", () => {
   test("auth_failed + a BYO credentialId revokes that credential", async () => {
     const db = await freshDb();
-    const svc = createCredentialsService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, cred } = await seedCredential(db, makeHarness(db));
 
     await svc.maybeRevokeOnAuthFailed({
       credentialId: cred.id,
@@ -28,9 +26,7 @@ describe("maybeRevokeOnAuthFailed", () => {
 
   test("a non-auth_failed error is a no-op", async () => {
     const db = await freshDb();
-    const svc = createCredentialsService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, cred } = await seedCredential(db, makeHarness(db));
 
     await svc.maybeRevokeOnAuthFailed({
       credentialId: cred.id,

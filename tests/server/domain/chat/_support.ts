@@ -4,7 +4,7 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
@@ -41,23 +41,20 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/contract/context";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
-export const FROZEN_AT = 1_750_000_000_000;
+export const FROZEN_AT = FROZEN_AT_MS;
 
-/** Insert a `users` row; returns its branded id. */
+/** Insert a `users` row; returns its branded id. Thin adapter over the canonical
+ *  `factories/user.ts::seedUser` — chat's ~316 call sites pass a bare `handle` string and take the id back
+ *  directly (not the full row), so the shared factory is wrapped rather than swapped in wholesale. */
 export async function seedUser(db: Db, handle: string): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
-  await db.insert(users).values({
-    id,
-    handle: castId<Handle>(handle),
-    role: "user",
-    enabled: true,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-  });
-  return id;
+  const row = await seedUserRow(db, { id, handle: castId<Handle>(handle) });
+  return row.id;
 }
 
 /** Insert an AGENT-principal `users` row (D60 — `kind:'agent'`, owned, loginless). Satisfies the
@@ -230,6 +227,40 @@ export async function seedMessage(
   });
   await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
   return { messageId, variantId };
+}
+
+/** A fake roster resolver — maps present `chat_participants` rows to minimal `ParticipantView`s (the root
+ *  resolves the real `users` publics; here the handle/name derive from the id — the `fork.ts` test precedent).
+ *  Byte-identical across fork/invites/start-chat/read; call fresh per test (after `db = await freshDb()`) so it
+ *  closes over the current test's db. */
+export function makeLoadParticipantViews(
+  db: Db,
+): (chatId: ChatId) => Promise<readonly ParticipantView[]> {
+  return async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
+    const rows = await db
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
+    return rows.map((r) => ({
+      id: r.id,
+      chatId: r.chatId,
+      kind: r.kind,
+      userId: r.userId,
+      characterId: r.characterId,
+      role: r.role,
+      activePersonaId: r.activePersonaId,
+      talkativeness: r.talkativeness,
+      disabled: r.disabled,
+      joinedAt: r.joinedAt,
+      joinSeq: r.joinSeq,
+      leftSeq: r.leftSeq,
+      joinHistoryVisibility: r.joinHistoryVisibility,
+      displayName: r.userId ?? r.characterId ?? "",
+      handle: r.userId === null ? null : castId<Handle>(r.userId),
+      avatarAssetId: null,
+      avatarHash: null,
+    }));
+  };
 }
 
 /** Append an extra variant (swipe) to an existing slot — for the `variantCount` / `selectedVariantIdx` reads. */

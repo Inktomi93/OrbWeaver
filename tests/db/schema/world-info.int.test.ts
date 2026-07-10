@@ -28,7 +28,6 @@ import { parseRecord, parseStringArrayColumn } from "@orb/db/kit";
 import type {
   CharacterId,
   ChatId,
-  Handle,
   PersonaId,
   UserId,
   WorldBookId,
@@ -43,15 +42,10 @@ import {
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedChat, seedUser } from "./_support.ts";
 
 // A non-default injection depth (named — keeps the metadata round-trip self-documenting).
 const INJECT_DEPTH = 3;
-
-async function seedOwner(db: Db, raw: string): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
 
 async function seedBook(db: Db, ownerId: UserId, raw: string): Promise<WorldBookId> {
   const id = castId<WorldBookId>(raw);
@@ -64,12 +58,6 @@ async function seedEntry(db: Db, bookId: WorldBookId, raw: string): Promise<Worl
   await db
     .insert(worldEntries)
     .values({ id, worldBookId: bookId, title: `entry-${raw}`, content: "lore body" });
-  return id;
-}
-
-async function seedChat(db: Db, raw: string): Promise<ChatId> {
-  const id = castId<ChatId>(raw);
-  await db.insert(chats).values({ id });
   return id;
 }
 
@@ -91,7 +79,7 @@ async function seedPersona(db: Db, ownerId: UserId, raw: string): Promise<Person
 
 test("world_books insert→select round-trips (ownerId KEEP, role default, epoch-ms createdAt)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_wb_a");
+  const ownerId = await seedUser(db, { id: "user_wb_a" });
   const bookId = await seedBook(db, ownerId, "world_book_rt");
 
   const rows = await db.select().from(worldBooks).where(eq(worldBooks.id, bookId));
@@ -112,7 +100,7 @@ test("world_books insert→select round-trips (ownerId KEEP, role default, epoch
 
 test("world_entries round-trips with no ownerId (owned via book) + the always-on defaults", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_wb_b");
+  const ownerId = await seedUser(db, { id: "user_wb_b" });
   const bookId = await seedBook(db, ownerId, "world_book_entry");
   const entryId = await seedEntry(db, bookId, "world_entry_rt");
 
@@ -135,7 +123,7 @@ test("world_entries round-trips with no ownerId (owned via book) + the always-on
 
 test("world_entries.keys round-trips as a list when set", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_wb_keys");
+  const ownerId = await seedUser(db, { id: "user_wb_keys" });
   const bookId = await seedBook(db, ownerId, "world_book_keys");
   const entryId = castId<WorldEntryId>("world_entry_keys");
   await db.insert(worldEntries).values({
@@ -154,7 +142,7 @@ test("world_entries.keys round-trips as a list when set", async () => {
 
 test("world_entries.metadata round-trips {scopeMode, position, inject} via the kit resolvers", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_wb_meta");
+  const ownerId = await seedUser(db, { id: "user_wb_meta" });
   const bookId = await seedBook(db, ownerId, "world_book_meta");
   // The three per-entry knobs live INSIDE metadata (D32 inject = the shared {depth, role} directive) — they
   // are NOT db columns. EntryMetadata composes the @orb/kit tuples DOWN.
@@ -192,7 +180,7 @@ test("test-mirror: character_books.role derives WORLD_BOOK_ROLES", () => {
 
 test("character_books role CHECK rejects an out-of-enum value", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_cb_badrole");
+  const ownerId = await seedUser(db, { id: "user_cb_badrole" });
   const bookId = await seedBook(db, ownerId, "world_book_cb_badrole");
   const characterId = await seedCharacter(db, ownerId, "character_cb_badrole");
   let caught: unknown;
@@ -212,7 +200,7 @@ test("character_books role CHECK rejects an out-of-enum value", async () => {
 
 test("character_books keys on characters.id (D28 — live identity, no cv)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_cb_key");
+  const ownerId = await seedUser(db, { id: "user_cb_key" });
   const bookId = await seedBook(db, ownerId, "world_book_cb_key");
   const characterId = await seedCharacter(db, ownerId, "character_cb_key");
   await db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: "primary" });
@@ -227,7 +215,7 @@ test("character_books keys on characters.id (D28 — live identity, no cv)", asy
 
 test("a junction FK rejects a dangling scope target (chat_books needs a real chat)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_fk");
+  const ownerId = await seedUser(db, { id: "user_fk" });
   const bookId = await seedBook(db, ownerId, "world_book_fk");
   let caught: unknown;
   try {
@@ -245,11 +233,11 @@ test("a junction FK rejects a dangling scope target (chat_books needs a real cha
 
 test("deleting a book CASCADEs its entries and all four scope junctions", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_casc");
+  const ownerId = await seedUser(db, { id: "user_casc" });
   const bookId = await seedBook(db, ownerId, "world_book_cascade");
   await seedEntry(db, bookId, "world_entry_cascade");
 
-  const chatId = await seedChat(db, "chat_cascade");
+  const chatId = await seedChat(db, { id: "chat_cascade" });
   const characterId = await seedCharacter(db, ownerId, "character_cascade_wi");
   const personaId = await seedPersona(db, ownerId, "persona_cascade_wi");
   await db.insert(chatBooks).values({ chatId, worldBookId: bookId });
@@ -278,11 +266,11 @@ test("deleting a book CASCADEs its entries and all four scope junctions", async 
 
 test("deleting a scope target CASCADEs its junction rows (book survives)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_target_casc");
+  const ownerId = await seedUser(db, { id: "user_target_casc" });
   const bookId = await seedBook(db, ownerId, "world_book_target");
   const characterId = await seedCharacter(db, ownerId, "character_target");
   const personaId = await seedPersona(db, ownerId, "persona_target");
-  const chatId = await seedChat(db, "chat_target");
+  const chatId = await seedChat(db, { id: "chat_target" });
   await db.insert(characterBooks).values({ characterId, worldBookId: bookId });
   await db.insert(personaBooks).values({ personaId, worldBookId: bookId });
   await db.insert(chatBooks).values({ chatId, worldBookId: bookId });
@@ -306,7 +294,7 @@ test("deleting a scope target CASCADEs its junction rows (book survives)", async
 
 test("deleting the owner CASCADEs their world_books (D23 ownerId)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_owner_casc");
+  const ownerId = await seedUser(db, { id: "user_owner_casc" });
   const bookId = await seedBook(db, ownerId, "world_book_owner");
   await seedEntry(db, bookId, "world_entry_owner");
 

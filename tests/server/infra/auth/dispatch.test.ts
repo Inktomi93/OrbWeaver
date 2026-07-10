@@ -1,27 +1,11 @@
-import type { AuthConfig } from "@orb/server/infra/auth";
 import { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
+import { makeAuthConfig as cfg, headers } from "./_support";
 
 // The dispatch seam: the `MODE_RESOLVERS` Record (one entry per AUTH_MODE — invariant #4) + the
 // origin-gated owner-fallback predicate. Each resolver yields a pre-row `ResolvedIdentity | null`
 // (NO userId/role).
-
-function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
-  return {
-    mode: "single-user",
-    fallback: "owner",
-    defaultHandle: "owner",
-    verifyForwardJwt: false,
-    trustedLocalHosts: [],
-    trustedPrivateRanges: [],
-    forwardTrustedProxies: [],
-    jwksAllowlist: [],
-    ...over,
-  };
-}
-
-const headers = (init: Record<string, string> = {}): Headers => new Headers(init);
 
 describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
   test("has exactly the four modes (a 5th would fail tsc on the mapped-type Record)", () => {
