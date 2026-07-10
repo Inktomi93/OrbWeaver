@@ -27,6 +27,8 @@ const MSG = {
     "shared contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
   infra:
     "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (core/Spine-Testing.md §5). Pure-type + index files are exempt.",
+  runner:
+    "workloads runner with real logic has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). A D58 no-op stub (reports + returns `{ deferred: true }`, no `ctx.env` call) is exempt until it's filled in.",
 } as const;
 
 function serverSrcRel(path: string): string | undefined {
@@ -48,6 +50,15 @@ function hasSchema(text: string): boolean {
   return (
     text.includes("z.object(") || text.includes("z.enum(") || text.includes("z.discriminatedUnion(")
   );
+}
+
+// A workloads runner is a D58 no-op STUB (inert — the kind exists so `RUNNERS`/exhaustive-dispatch stay
+// green, but the real pass lands in a later wave) when its body only reports + returns the `DeferredResult`
+// and never touches its injected env. There is no behavior to regress, so it's exempt UNTIL filled in:
+// adding a real `ctx.env.*` call drops the exemption and the gate then demands a test. Detected on SOURCE
+// SHAPE, not a static list, so the 16 current stubs need no per-file allowlist and can't go stale.
+function isDeferredStubRunner(text: string): boolean {
+  return text.includes("deferred: true") && !text.includes("ctx.env");
 }
 
 // A file carries runtime LOGIC (vs only types/data) if it exports a function, a class, or a const bound
@@ -91,6 +102,13 @@ function pushDomain(root: string, rel: string, sf: SourceFile, out: Violation[])
   ) {
     out.push(missing("server", rel, MSG.contract));
   }
+  if (
+    rel.includes("/workloads/runners/") &&
+    !isDeferredStubRunner(sf.getFullText()) &&
+    !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])
+  ) {
+    out.push(missing("server", rel, MSG.runner));
+  }
 }
 
 function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
@@ -115,12 +133,15 @@ export const testPresence: Check = {
   run: ({ root, project }): Violation[] => {
     const violations: Violation[] = [];
     for (const sf of project.getSourceFiles()) {
-      if (sf.getBaseName() === "index.ts") {
-        continue;
-      }
+      const isIndex = sf.getBaseName() === "index.ts";
 
       const serverRel = serverSrcRel(sf.getFilePath());
       if (serverRel !== undefined) {
+        // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
+        // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
+        if (isIndex) {
+          continue;
+        }
         if (sf.getFilePath().includes(DOMAIN_DIR)) {
           pushDomain(root, serverRel, sf, violations);
         } else {
@@ -129,6 +150,10 @@ export const testPresence: Check = {
         continue;
       }
 
+      // Contracts arm: a schema-bearing file is presence-gated whether or not it is named `index.ts` — the
+      // contracts convention co-locates the domain's zod schemas in `index.ts`, so a blanket barrel-skip
+      // silently exempted whole domains (imagery slipped through with zero tests). A pure-type/re-export
+      // `index.ts` carries no schema and passes `hasSchema` → still exempt.
       const contractsRel = contractsSrcRel(sf.getFilePath());
       if (contractsRel !== undefined) {
         pushContracts(root, contractsRel, sf, violations);

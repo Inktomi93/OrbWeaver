@@ -72,13 +72,13 @@ logic, callees have first-party coverage); the repo-wide `audit` recording-fake 
 
 ## 3. Doctrine / doc drift (cheap fixes, docs-are-law repo)
 
-- **Spine-Testing.md §3 misdescribes the clock.** The doc claims Luxon `Settings.now` +
-  `vi.useFakeTimers` with a `toFake` allowlist; reality is a plain injected `{now, advance,
-  frozenAt}` DI object (which is sound and MORE doctrine-pure). Correct the doc to the real
-  mechanism.
-- **`isSafeColor`'s "bare named colors" comment is a shape-check in reality** —
-  `/^[a-z]{3,20}$/iu` accepts `"notacolorxx"` (verified true; letters-only, not exploitable).
-  Either correct the comment or tighten to a real allowlist; add the pinning test either way.
+- **~~Spine-Testing.md §3 misdescribes the clock.~~ \[DONE 2026-07-10]** Rewrote §3 to the real mechanism
+  (plain injected `{now, advance, frozenAt}` DI object from `support/clock.ts`; no Luxon/`vi.useFakeTimers`).
+  Also added the NON-VACUITY CONTROL paragraph (exemplars: db-batch-atomicity.suite, touch-target-floor.suite).
+- **~~`isSafeColor`'s "bare named colors" comment is a shape-check in reality~~ \[DONE 2026-07-10]** Fixed the
+  comment in `packages/kit/src/safe-color/index.ts` to tell the truth (letters-SHAPE gate, not an allowlist;
+  unknown words are browser-invalid + harmless) — behavior UNCHANGED — and pinned it with a new test case
+  (`notacolorxx`/`rebeccapurple` pass; `not-a-color`/`color1` rejected).
 - **`test-mock-doctrine` gate alias hole** — `vi.mock("@orb/...")` slips the path check; nothing
   exploits it today (zero live vi.mock sites). One-line fix + a negative-space self-test (rider
   already sent to the gates lane).
@@ -91,14 +91,17 @@ logic, callees have first-party coverage); the repo-wide `audit` recording-fake 
    genuinely untested (`chat.getRoomOverridesForChat`, `discovery.themes`); the other eight were
    dot-anchored-grep false negatives (real tests call verb closures bare or via `create<Verb>`
    factories). The replay verbs the redesign leans on ARE tested.
-2. **`@orb/contracts/imagery`** — 3 zod schemas, zero tests anywhere, and no
-   `tests/contracts/imagery/` dir; the presence gate's contracts arm apparently missed it —
-   VERIFY why (exemption, glob, or `hasSchema` heuristic miss) and fix both the gate hole and the
-   missing `.contract.test.ts`.
-3. **`workloads/runners/`** — 16 runner files with zero tests; today they are documented D58
-   no-op stubs (inert), but `test-presence` does not scan `runners/`, so a stub filled in later
-   forces no test. Add `runners/` to the gate's scan (with the stub-shape exempted, or accept the
-   16 as its DEFERRED list).
+2. **~~`@orb/contracts/imagery`~~ \[DONE 2026-07-10]** Root cause: `test-presence` blanket-`continue`d on
+   EVERY `index.ts` (barrel exemption), but contracts co-locate their schemas IN `index.ts` — so whole
+   contract domains were silently exempt (imagery slipped; the other \~29 have tests only by author diligence).
+   Fixed: the index.ts skip now applies ONLY to server barrels; a schema-bearing contracts `index.ts` is
+   presence-gated (verified all 30 contract domains still green). Added the missing
+   `tests/contracts/imagery/index.contract.test.ts` (5 tests) + a gate self-test fixture.
+3. **~~`workloads/runners/`~~ \[DONE 2026-07-10]** Added a `runners/` arm to `test-presence` with a
+   SHAPE-based stub exemption (a runner that only `report({...})`s + returns `{ deferred: true }` and never
+   touches `ctx.env` is inert → exempt UNTIL filled in; adding a real `ctx.env.*` call drops the exemption
+   and forces a test). Chose shape-detection over a static DEFERRED list so the 16 current stubs need no
+   allowlist and can't go stale. Gate green against the real tree + a non-stub self-test fixture fires.
 
 ## 5. Thoroughness gaps (the non-security tail, ranked)
 
@@ -172,10 +175,18 @@ carrying explicit NON-VACUITY controls (a positive control proving the guard pat
 the negative assert is trusted) — that control pattern is worth naming in Spine-Testing when its
 clock paragraph gets fixed (§3).
 
-**Total fix list (tiny):** R8 — delete/repin `result.test.ts`'s tautology + fix the two embeddings
-shape-pin tautologies (parse through the real zod params schema, or delete) + convert the
-workloads doc-assertion to a comment + three annotation comments (pair-cosine CSLS ·
-smart-arbitrate looseness · palette-contrast formula mirror). All mech-executor grade.
+**Total fix list (tiny):** R8 — **\[DONE 2026-07-10 except the workloads item — see note]**
+`result.test.ts` REPINNED to the TurnOutcome discriminant contract (opposite `aborted` arms · committed
+clears the reason · by-reference passthrough), not a structural echo; the `as unknown as MessageView`
+fabrication dropped (baseline entry removed). The two embeddings shape-pin tautologies (L44–118) DELETED —
+`StoreParams` is a pure TS interface union with NO zod schema to parse through, so the write shape is already
+`tsc`-enforced at every producer; the clean SOURCE\_KINDS/TEXT\_LENSES constant checks kept. Three annotation
+comments ADDED (pair-cosine CSLS · smart-arbitrate looseness · palette-contrast formula mirror).
+**Workloads `ACTIVE_WORKLOAD_STATUSES` — NOT converted (reviewer premise was wrong):** the assertion
+`expect([...ACTIVE_WORKLOAD_STATUSES]).toEqual(["queued","running","cancelling"])` compares the imported
+const against a HAND-TYPED literal — it CAN fail if the tuple changes/reorders. It is a genuine
+independent-literal pin, identical in kind to the un-flagged `WORKLOAD_STATUSES` mirror two lines above it,
+NOT a can't-fail self-equal. Deleting it would remove real regression coverage, so it was left intact.
 
 ## 8. Dispatch queue
 
@@ -184,10 +195,10 @@ smart-arbitrate looseness · palette-contrast formula mirror). All mech-executor
 | R1 | markdown/policy hostile-input suite (P0) | security-executor |
 | R2 | egress/SSRF cluster tests (redirect-to-private · installEgressFirewall · cap boundaries · CSV parsing · abort) | security-executor |
 | R3 | the four fake-vs-real fixes (§2: stats end-to-end, character→tag real wire, persona→chat real wire, openrouter chunk contract test) | executor |
-| R4 | doc drift fixes (§3: Spine-Testing clock, isSafeColor comment+test) | mech-executor |
-| R5 | presence blind spots (§4: imagery contract test + gate-arm verify, runners/ scan arm) | executor |
+| R4 | ~~doc drift fixes (§3: Spine-Testing clock, isSafeColor comment+test)~~ **DONE 2026-07-10** | mech-executor |
+| R5 | ~~presence blind spots (§4: imagery contract test + gate-arm verify, runners/ scan arm)~~ **DONE 2026-07-10** | executor |
 | R6 | thoroughness tail (§5) — bundle per tree | mech-executor / executor |
 | R7 | OIDC full-mode coverage verify-then-write | security-executor |
-| R8 | provenance fixes (§7: result.test.ts tautology · workloads doc-assertion → comment · 2 annotation comments) | mech-executor |
+| R8 | ~~provenance fixes (§7: result.test.ts tautology · embeddings shape-pins · 3 annotation comments)~~ **DONE 2026-07-10** (workloads item declined — valid literal pin, see §7 note) | mech-executor |
 
 The mock-doctrine alias fix rode the gates lane (landed). R1/R2 are the only urgent rows.

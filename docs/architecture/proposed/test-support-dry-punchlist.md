@@ -21,7 +21,15 @@ individual trees (sessions, db/schema, tooling) never grew.
 
 ## 1. Wave 1 — mechanical, low-risk (mech-executor; run the touched trees' tests per item)
 
-- **W1a — global `principal()` factory.** \~25 files define the same
+> **PRE-WAVE ENABLEMENT LANDED 2026-07-10** (`test(enablement)` commit). The shared HOMES below are BUILT,
+> each with exactly ONE exemplar consumer converted as proof; the remaining \~120-file import swaps are still
+> the mech wave's job. Built: W1a `principal()` · W1c `tests/tooling/_support.ts` · W1e sessions `_support.ts`
+> · W1f `asset.ts` + `tests/db/schema/_support.ts` · W1h typed factories (`resolved-connection.ts`). The
+> exemplar conversions: admin `_support.ts` (principal), `no-raw-egress.int` (ctxFor), sessions `list.int`
+> (makeService), `gallery.int` (seedUser), `vllm/index.test` (makeResolvedCredential, baseline 4→3).
+
+- **W1a — global `principal()` factory. \[HOME BUILT — `tests/support/factories/principal.ts`; admin
+  `_support.ts` converted as exemplar; mass swap PENDING]** \~25 files define the same
   `{userId, role, handle, externalId: null, via: "cookie"}` builder (11 byte-identical in
   `server/domain/*/_support.ts`, 14 more under `server/domain/chat/**`; variants: role param in
   guard, handle-echoes-userId in invites). CREATE `tests/support/factories/principal.ts` —
@@ -32,7 +40,8 @@ individual trees (sessions, db/schema, tooling) never grew.
   `1_750_000_000_000` (canonical: `tests/support/clock.ts::FROZEN_AT_MS`). Mechanical import
   swap; watch the two positional-arg variants (`tag`, `discovery` pass a bare string second arg —
   one-line adapter each).
-- **W1c — `tests/tooling/_support.ts` (gate-test scaffolding).** `ctxFor(files)` is byte-identical
+- **W1c — `tests/tooling/_support.ts` (gate-test scaffolding). \[HOME BUILT — `ctxFor`/`ctxAt`/`withTree`;
+  `no-raw-egress.int` converted as exemplar; remaining \~14 swaps PENDING]** `ctxFor(files)` is byte-identical
   in 12 gate tests; `ctxAt(root)` + `withTree(files, fn)` repeat in 3 more. One support file,
   15 consumers. Gate SOURCE files untouched — only tests move; run the tooling suite after.
 - **W1d — chat-domain `_support` hoists** (all into already-existing local `_support.ts` files):
@@ -40,10 +49,13 @@ individual trees (sessions, db/schema, tooling) never grew.
   `scriptedRoleTurn()` (5 files) · `makeLoadParticipantViews(db)` (20-line fake byte-identical in
   fork/invites/start-chat/read — the silent-drift hazard) · memory: hoist `seedThreeBlocks`,
   `sharedScope`, `seedTurns` · settings: `findSeedTheme(h, ownerId, name)` (5 theme-verb files).
-- **W1e — `server/domain/sessions/_support.ts` (net-new).** The ONE verb-heavy domain with no
+- **W1e — `server/domain/sessions/_support.ts` (net-new). \[HOME BUILT — `PEPPER` + `makeService(db)`;
+  `list.int` converted as exemplar; remaining 9 verb-test swaps PENDING]** The ONE verb-heavy domain with no
   `_support.ts`; 10 files hand-roll `PEPPER`, frozen clock, service construction. Match the
   sibling convention (stats/workloads/chat/preset/notifications).
-- **W1f — db/schema seed homes.** New `tests/support/factories/asset.ts` (`makeAsset`/`seedAsset`
+- **W1f — db/schema seed homes. \[HOMES BUILT — `asset.ts` (`makeAsset`/`seedAsset`) + `tests/db/schema/_support.ts`
+  (`seedUser`/`seedChat` raw FK-parents); `gallery.int` converted as exemplar; remaining \~23 schema-file
+  swaps PENDING]** New `tests/support/factories/asset.ts` (`makeAsset`/`seedAsset`
   — 3 schema files duplicate a factory that doesn't exist) + a thin `tests/db/schema/_support.ts`
   for the raw FK-parent one-liners (`seedUser`/`seedChat` row inserts, \~24 of 35 schema files);
   adopt central factories where the signature already fits, keep raw inserts local where the test
@@ -103,7 +115,11 @@ hygiene on the classic axes is near-perfect across 894 files: `as any` ×12 · b
   never knew" hole. Concentrated on \~8 types: `ResolvedCredential` ×47 (server/infra owns 72 of
   the double-casts) · `ModelCapability` ×12 · `UpdateCharacterInput` ×11 · `ChatRequest` ×8 ·
   `MessageView` ×6 · `CharacterCard` ×5 · `ResolvedConnection` ×4 · `RoleClients` ×3.
-  **Fix (W1h, mech-scale, \~235 sites):** typed factories for the top fabricated types (the
+  **Fix (W1h, mech-scale, \~235 sites): \[FACTORIES BUILT 2026-07-10 — `tests/support/factories/resolved-connection.ts`:
+  `makeResolvedCredential` (keyless sources; the ONE encapsulated brand cast, FABRICATION-OK) · `makeModelCapability`
+  (parses through the real schema) · `makeResolvedConnection`. ONE exemplar site converted (`vllm/index.test`,
+  baseline 4→3); the \~235-site burn-down + the `satisfies X` literal conversions are STILL the mass wave.]**
+  typed factories for the top fabricated types (the
   factory-contract convention + gate already exist — `makeResolvedCredential(overrides?)` etc.,
   typed RETURN so a new required field errors in ONE place and every test inherits it), plus
   convert complete-value `as X` literals to `satisfies X`. Deliberate invalid-input probes (the

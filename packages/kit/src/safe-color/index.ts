@@ -12,7 +12,12 @@ const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/iu;
 const RGB = /^rgba?\(\s*[0-9., %/]+\)$/iu;
 const HSL = /^hsla?\(\s*[0-9., %/deg]+\)$/iu;
 const OKL = /^okl(?:ch|ab)\(\s*[0-9.\-% /]+\)$/iu;
-const NAMED = /^[a-z]{3,20}$/iu; // transparent, currentColor, red, … (letters only — no separators)
+// A letters-only SHAPE check, NOT a CSS named-color allowlist: it admits any 3–20 letter word (so
+// `isSafeColor("notacolorxx") === true`). That is intentional and safe — an unknown bare word is an
+// INVALID CSS color the browser simply ignores (it can carry no url/fetch/escape: no separators, no
+// parens, injection-guarded below). The point here is to reject payload SHAPES, not to enumerate the
+// ~150 CSS names; a browser-invalid word degrades to "property unset", never to a vector.
+const NAMED = /^[a-z]{3,20}$/iu; // transparent, currentColor, red, … AND any other bare letter-word.
 // Belt: reject anything carrying a CSS-escape or fetch vector even if it slipped a shape test.
 const INJECTION = /[;{}<>()\\]|url|expression|javascript:|@import|\/\*/iu;
 
@@ -21,7 +26,8 @@ const MAX_COLOR_LEN = 64;
 
 /**
  * The D44 §12.1 color-safety predicate: a color must parse as one of the safe CSS color forms
- * (hex / rgb[a]() / hsl[a]() / oklch()/oklab() / a bare named color) and never carry an
+ * (hex / rgb[a]() / hsl[a]() / oklch()/oklab() / a bare letter-word — see `NAMED`: a shape check, not a
+ * named-color allowlist; an unknown word is browser-invalid, harmless) and never carry an
  * injection vector (`url()`, `expression()`, `javascript:`, `@import`, a `{`/`;` escape). The ONE
  * clamp every raw-color acceptor shares (`ThemeScope`, `sandbox-frame`, `color-field`) — never
  * re-derive a color regex (UI-Primitives-and-Reuse.md §13.9).

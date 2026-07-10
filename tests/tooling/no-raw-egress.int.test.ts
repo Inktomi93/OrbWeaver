@@ -2,18 +2,9 @@
 // hardened-egress guard; held out of ALL_CHECKS pending doc reconciliation). Proves: a bare `fetch(`
 // outside the sanctioned zones fires, `safeFetch(`/`x.fetch(` don't, the provider-egress + safeFetch-home
 // zones pass, and a `corsproxy.io` literal anywhere in server source fires.
-import { Project } from "ts-morph";
 import { noRawEgress } from "../../scripts/check/gates/no-raw-egress.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
+import { ctxFor } from "./_support.ts";
 
 const RAW = 'export async function f() {\n  return await fetch("https://x");\n}\n';
 

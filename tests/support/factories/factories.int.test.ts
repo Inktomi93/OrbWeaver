@@ -4,17 +4,27 @@
 // (no phantom extra rows); the chat `withX` opt-ins are explicit; and seedMessage performs the D26
 // slot→variant→pointer dance.
 
-import { characters, chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
+import {
+  assets,
+  characters,
+  chatParticipants,
+  chats,
+  messages,
+  messageVariants,
+  users,
+} from "@orb/db";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { FROZEN_AT_MS } from "../clock.ts";
 import { freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
 import {
+  makeAsset,
   makeCharacter,
   makeChat,
   makeMessage,
   makeUser,
+  seedAsset,
   seedCharacter,
   seedChat,
   seedMessage,
@@ -35,6 +45,15 @@ describe("make* — pure, deterministic builders", () => {
     expect(makeUser().createdAt).toBe(FROZEN_AT_MS);
     expect(makeChat().updatedAt).toBe(FROZEN_AT_MS);
     expect(makeMessage().createdAt).toBe(FROZEN_AT_MS);
+    expect(makeAsset().uploadedAt).toBe(FROZEN_AT_MS);
+  });
+
+  test("makeAsset defaults are fully-valid; distinct calls get distinct hashes (owner+hash unique-safe)", () => {
+    const a = makeAsset();
+    const b = makeAsset();
+    expect(a.kind).toBe("card");
+    expect(a.hash).toHaveLength(64);
+    expect(a.hash).not.toBe(b.hash);
   });
 
   test("overrides shallow-merge over fully-valid defaults", () => {
@@ -56,6 +75,15 @@ describe("seed* — the FK chain on an empty db", () => {
     expect(owners[0]?.id).toBe(row.ownerId);
     const cards = await db.select().from(characters).where(eq(characters.id, row.id));
     expect(cards).toHaveLength(1);
+  });
+
+  test("seedAsset auto-seeds its owner user (FK PRAGMA ON, no orphan insert)", async () => {
+    const db = await freshDb();
+    const row = await seedAsset(db);
+    const owners = await db.select().from(users);
+    expect(owners).toHaveLength(1);
+    expect(owners[0]?.id).toBe(row.ownerId);
+    expect(await db.select().from(assets).where(eq(assets.id, row.id))).toHaveLength(1);
   });
 
   test("an explicit ownerId is reused — no phantom extra user", async () => {

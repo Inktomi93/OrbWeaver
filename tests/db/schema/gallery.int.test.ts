@@ -6,18 +6,13 @@
 // owner-derivation-through-the-asset-FK (NO ownerId column — owner reaches via assetId → assets.ownerId).
 
 import type { Db } from "@orb/db";
-import { assets, characters, galleryItems, users } from "@orb/db";
-import type { AssetId, CharacterId, GalleryItemId, Handle, UserId } from "@orb/kit/ids";
+import { assets, characters, galleryItems } from "@orb/db";
+import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedOwner(db: Db, id: string, handle: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(handle) });
-  return ownerId;
-}
+import { seedUser } from "./_support.ts";
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>(id);
@@ -46,7 +41,7 @@ async function seedAsset(db: Db, ownerId: UserId, id: string): Promise<AssetId> 
 
 test("gallery_items: unique(assetId, subjectCharacterId) REJECTS a duplicate charactered add", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_gal_a", "gal-a");
+  const ownerId = await seedUser(db, { id: "user_gal_a", handle: "gal-a" });
   const characterId = await seedCharacter(db, ownerId, "character_gal_a");
   const assetId = await seedAsset(db, ownerId, "asset_gal_a");
 
@@ -67,7 +62,7 @@ test("gallery_items: unique(assetId, subjectCharacterId) REJECTS a duplicate cha
 
 test("gallery_items: NULL subjects are DISTINCT — duplicate un-charactered adds stay possible", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_gal_b", "gal-b");
+  const ownerId = await seedUser(db, { id: "user_gal_b", handle: "gal-b" });
   const assetId = await seedAsset(db, ownerId, "asset_gal_b");
 
   await db.insert(galleryItems).values({
@@ -87,7 +82,7 @@ test("gallery_items: NULL subjects are DISTINCT — duplicate un-charactered add
 
 test("gallery_items: character delete SET NULLs the subject (item survives un-charactered)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_gal_c", "gal-c");
+  const ownerId = await seedUser(db, { id: "user_gal_c", handle: "gal-c" });
   const characterId = await seedCharacter(db, ownerId, "character_gal_c");
   const assetId = await seedAsset(db, ownerId, "asset_gal_c");
   const itemId = castId<GalleryItemId>("gallery_item_gal_c");
@@ -102,7 +97,7 @@ test("gallery_items: character delete SET NULLs the subject (item survives un-ch
 
 test("gallery_items: asset delete CASCADEs the item (never a dangling curation row)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_gal_d", "gal-d");
+  const ownerId = await seedUser(db, { id: "user_gal_d", handle: "gal-d" });
   const assetId = await seedAsset(db, ownerId, "asset_gal_d");
   await db
     .insert(galleryItems)
@@ -116,8 +111,8 @@ test("gallery_items: asset delete CASCADEs the item (never a dangling curation r
 
 test("gallery_items: owner DERIVES through the asset FK (no ownerId column)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_gal_e", "gal-e");
-  const otherOwner = await seedOwner(db, "user_gal_e2", "gal-e2");
+  const ownerId = await seedUser(db, { id: "user_gal_e", handle: "gal-e" });
+  const otherOwner = await seedUser(db, { id: "user_gal_e2", handle: "gal-e2" });
   const assetId = await seedAsset(db, ownerId, "asset_gal_e");
   await db
     .insert(galleryItems)

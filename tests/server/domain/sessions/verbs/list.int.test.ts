@@ -3,23 +3,20 @@ import { users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { createSessionsService } from "@orb/server/domain/sessions";
 import { beforeEach, describe } from "vitest";
-import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
+import { makeService } from "../_support.ts";
 
-const PEPPER = "test-session-secret-at-least-32-chars-long";
 const USER_ID = castId<UserId>("user_alice");
 const OTHER_ID = castId<UserId>("user_bob");
 
 let db: Db;
 let svc: SessionsService;
-const clock = createFrozenClock();
 
 beforeEach(async () => {
   db = await freshDb();
-  svc = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  svc = makeService(db);
   await db.insert(users).values([
     { id: USER_ID, handle: castId<Handle>("alice") },
     { id: OTHER_ID, handle: castId<Handle>("bob") },
