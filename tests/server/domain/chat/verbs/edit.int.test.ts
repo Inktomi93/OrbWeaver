@@ -36,6 +36,7 @@ import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
@@ -76,7 +77,7 @@ const resolveForeignInputs: Parameters<typeof createEdit>[1]["resolveForeignInpu
   });
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** Seed a solo room: host + member humans, a character, and return their ids. */

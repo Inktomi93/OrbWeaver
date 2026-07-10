@@ -9,18 +9,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Project } from "ts-morph";
 import { monotonicTests } from "../../scripts/check/gates/monotonic-tests.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const NO_LONGER_EXISTS_RE = /no longer exists/u;
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(join(root, path), text);
-  }
-  return { root, project };
-}
 
 // ── Tooth 1: forbidden-skip ──────────────────────────────────────────────────────────────────────
 

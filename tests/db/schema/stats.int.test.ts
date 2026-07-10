@@ -13,26 +13,13 @@ import {
   isConstraintViolation,
   modelStats,
   ownerStats,
-  users,
 } from "@orb/db";
-import type {
-  CharacterId,
-  CharacterStatId,
-  DailyStatId,
-  Handle,
-  ModelStatId,
-  UserId,
-} from "@orb/kit/ids";
+import type { CharacterId, CharacterStatId, DailyStatId, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedOwner(db: Db, id: string, handle: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(handle) });
-  return ownerId;
-}
+import { seedUser } from "./_support.ts";
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>(id);
@@ -49,7 +36,7 @@ async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<Chara
 // ── owner_stats: natural PK round-trip + zero defaults + numeric timestamp ─────────────────────────────
 test("owner_stats round-trips on its natural ownerId PK (zero defaults, real cost, numeric computedAt)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_owner_stats", "owner-stats");
+  const ownerId = await seedUser(db, { id: "user_owner_stats", handle: "owner-stats" });
 
   // A bare insert exercises the column defaults (the all-zeros rollup reconcile always writes).
   await db.insert(ownerStats).values({ ownerId });
@@ -72,7 +59,7 @@ test("owner_stats round-trips on its natural ownerId PK (zero defaults, real cos
 
 test("owner_stats accepts explicit economics values incl. numeric extrema", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_owner_vals", "owner-vals");
+  const ownerId = await seedUser(db, { id: "user_owner_vals", handle: "owner-vals" });
   await db.insert(ownerStats).values({
     ownerId,
     characters: 3,
@@ -99,7 +86,7 @@ test("owner_stats accepts explicit economics values incl. numeric extrema", asyn
 // The natural PK is single-per-user: a second owner_stats row for the same user collides as UNIQUE.
 test("owner_stats is one row per user (the natural PK rejects a duplicate)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_owner_dup", "owner-dup");
+  const ownerId = await seedUser(db, { id: "user_owner_dup", handle: "owner-dup" });
   await db.insert(ownerStats).values({ ownerId });
 
   let caught: unknown;
@@ -125,7 +112,7 @@ test("owner_stats.ownerId FK is enforced (a missing user is rejected)", async ()
 // ── character_stats: TypeID PK + characterId FK; the D23 NO-ownerId shape ──────────────────────────────
 test("character_stats round-trips (TypeID id PK, characterId FK) and carries NO ownerId column (D23 derive)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_stats", "char-stats");
+  const ownerId = await seedUser(db, { id: "user_char_stats", handle: "char-stats" });
   const characterId = await seedCharacter(db, ownerId, "character_with_stats");
   const id = castId<CharacterStatId>("character_stat_one");
 
@@ -155,7 +142,7 @@ test("character_stats round-trips (TypeID id PK, characterId FK) and carries NO 
 // One rollup row per character — the live-delta UPSERT conflict target (unique on characterId).
 test("character_stats is one row per character (the characterId unique rejects a duplicate)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_dup", "char-dup");
+  const ownerId = await seedUser(db, { id: "user_char_dup", handle: "char-dup" });
   const characterId = await seedCharacter(db, ownerId, "character_dup_stats");
   await db
     .insert(characterStats)
@@ -188,7 +175,7 @@ test("character_stats.characterId FK is enforced (a missing character is rejecte
 
 test("deleting a character CASCADEs its character_stats row (the rollup dies with its character)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_char_cascade", "char-cascade");
+  const ownerId = await seedUser(db, { id: "user_char_cascade", handle: "char-cascade" });
   const characterId = await seedCharacter(db, ownerId, "character_cascade_stats");
   await db
     .insert(characterStats)
@@ -206,7 +193,7 @@ test("deleting a character CASCADEs its character_stats row (the rollup dies wit
 // ── daily_stats: KEEPS ownerId; owner×day unique; message-stream credit ────────────────────────────────
 test("daily_stats round-trips (KEEPS ownerId, day bucket, OR-flag default false, numeric computedAt)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_daily", "daily");
+  const ownerId = await seedUser(db, { id: "user_daily", handle: "daily" });
   const id = castId<DailyStatId>("daily_stat_one");
 
   await db.insert(dailyStats).values({
@@ -233,7 +220,7 @@ test("daily_stats round-trips (KEEPS ownerId, day bucket, OR-flag default false,
 
 test("daily_stats is one row per (owner, day) (the composite unique rejects a duplicate day)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_daily_dup", "daily-dup");
+  const ownerId = await seedUser(db, { id: "user_daily_dup", handle: "daily-dup" });
   await db
     .insert(dailyStats)
     .values({ id: castId<DailyStatId>("daily_stat_dup_a"), ownerId, day: "2026-06-26" });
@@ -267,7 +254,7 @@ test("daily_stats.ownerId FK is enforced (a missing user is rejected)", async ()
 // ── model_stats: KEEPS ownerId; the load-bearing (unknown) provider default; owner×model×provider unique ─
 test("model_stats.provider defaults to '(unknown)' when omitted (the load-bearing NOT NULL sentinel)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_model_default", "model-default");
+  const ownerId = await seedUser(db, { id: "user_model_default", handle: "model-default" });
   const id = castId<ModelStatId>("model_stat_default");
 
   // No `provider` supplied — the column default fills the sentinel so the (owner, model, provider) unique
@@ -285,7 +272,7 @@ test("model_stats.provider defaults to '(unknown)' when omitted (the load-bearin
 
 test("model_stats round-trips an explicit provider and economics", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_model_vals", "model-vals");
+  const ownerId = await seedUser(db, { id: "user_model_vals", handle: "model-vals" });
   const id = castId<ModelStatId>("model_stat_vals");
   await db.insert(modelStats).values({
     id,
@@ -307,7 +294,7 @@ test("model_stats round-trips an explicit provider and economics", async () => {
 
 test("model_stats unique is (owner, model, provider) — same triple collides, different provider coexists", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_model_unique", "model-unique");
+  const ownerId = await seedUser(db, { id: "user_model_unique", handle: "model-unique" });
   await db.insert(modelStats).values({
     id: castId<ModelStatId>("model_stat_u1"),
     ownerId,

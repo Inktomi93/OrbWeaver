@@ -3,18 +3,9 @@
 // no test invocation fires; a verb covered by a bare `verb(` call passes; a verb covered only by its
 // `create<Verb>(` factory (the alias-invoked shape) passes; the DEFERRED entries suppress their REDs;
 // *ServiceDeps interfaces + non-Service interfaces are ignored; MethodSignature members are enumerated too.
-import { Project } from "ts-morph";
 import { contractVerbPresence } from "../../scripts/check/gates/contract-verb-presence.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
+import { ctxFor } from "./_support.ts";
 
 const SVC = (domain: string): string => `packages/server/src/domain/${domain}/contract/service.ts`;
 const TEST = (domain: string, name: string): string => `tests/server/domain/${domain}/${name}`;

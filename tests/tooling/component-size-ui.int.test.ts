@@ -4,32 +4,9 @@
 // so it needs real fs), never the real repo tree, proving fire (a 451-line file) AND no-false-positive
 // (a 450-line file at the boundary; a CT/test file exempt at any size). `.int.test.ts` because it does
 // real fs I/O (mkdtemp/writeFile) — matching check-gates.int.test.ts's precedent for gate self-tests.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { Project } from "ts-morph";
 import { componentSizeUi } from "../../scripts/check/gates/component-size-ui.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-// The gate ignores ctx.project entirely (pure fs) — a throwaway in-memory project satisfies the type.
-function ctxAt(root: string): CheckContext {
-  return { root, project: new Project({ useInMemoryFileSystem: true }) };
-}
-
-function withTree(files: Record<string, string>, fn: (root: string) => void): void {
-  const root = mkdtempSync(join(tmpdir(), "orb-csui-"));
-  try {
-    for (const [rel, text] of Object.entries(files)) {
-      const abs = join(root, rel);
-      mkdirSync(join(abs, ".."), { recursive: true });
-      writeFileSync(abs, text);
-    }
-    fn(root);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
+import { ctxAt, withTree } from "./_support.ts";
 
 const line = "const x = 1;\n";
 

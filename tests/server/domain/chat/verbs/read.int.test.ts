@@ -4,7 +4,6 @@
 // prompt WITHOUT persisting or running a turn, the stream-ring reads return the resumable slice, and a
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
-import type { ParticipantView } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -13,16 +12,18 @@ import { chatParticipants, messages } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
   makeChatContext,
+  makeLoadParticipantViews,
   seedCharacter,
   seedChat,
   seedMessage,
@@ -33,41 +34,15 @@ import {
 } from "../_support";
 
 let db: Db;
+let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
 
 beforeEach(async () => {
   db = await freshDb();
+  loadParticipantViews = makeLoadParticipantViews(db);
 });
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
-}
-
-/** Resolve the roster read-model directly off `chat_participants` (the root resolves `users` publics; here the
- *  display name derives from the id — the `fork.ts` test precedent). */
-async function loadParticipantViews(chatId: ChatId): Promise<readonly ParticipantView[]> {
-  const rows = await db
-    .select()
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
-  return rows.map((r) => ({
-    id: r.id,
-    chatId: r.chatId,
-    kind: r.kind,
-    userId: r.userId,
-    characterId: r.characterId,
-    role: r.role,
-    activePersonaId: r.activePersonaId,
-    talkativeness: r.talkativeness,
-    disabled: r.disabled,
-    joinedAt: r.joinedAt,
-    joinSeq: r.joinSeq,
-    leftSeq: r.leftSeq,
-    joinHistoryVisibility: r.joinHistoryVisibility,
-    displayName: r.userId ?? r.characterId ?? "",
-    handle: r.userId === null ? null : castId<Handle>(r.userId),
-    avatarAssetId: null,
-    avatarHash: null,
-  }));
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** The read deps — the roster resolver + the (preview-only) connection/assemble resolvers. */

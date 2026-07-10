@@ -5,8 +5,8 @@ import { beforeEach, describe } from "vitest";
 import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/build/segments";
 import { freshDb } from "../../../../../support/db";
 import { expect, test } from "../../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../../_support";
-import { fakeEmbeddingsStore } from "../_support";
+import { makeChatContext, seedCharacter, seedChat, seedUser } from "../../_support";
+import { fakeEmbeddingsStore, seedTurns } from "../_support";
 
 const aria = castId<CharacterId>("character_aria");
 
@@ -17,17 +17,10 @@ beforeEach(async () => {
   await seedCharacter(db, owner, "aria"); // FK target for messages.characterId
 });
 
-async function seedTurns(chatId: Awaited<ReturnType<typeof seedChat>>, n: number): Promise<void> {
-  for (let seq = 1; seq <= n; seq += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
-    await seedMessage(db, chatId, seq, { characterId: aria, content: `turn ${seq}` });
-  }
-}
-
 describe("memory/build/segments", () => {
   test("stores a verbatim segment per complete aged-out block (lens segment + seq-span)", async () => {
     const chatId = await seedChat(db, "s");
-    await seedTurns(chatId, 4);
+    await seedTurns(db, chatId, aria, 4);
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store });
 
@@ -50,7 +43,7 @@ describe("memory/build/segments", () => {
 
   test("self-heal: a re-run over unchanged canon skips every segment", async () => {
     const chatId = await seedChat(db, "h");
-    await seedTurns(chatId, 4);
+    await seedTurns(db, chatId, aria, 4);
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store });
     const cfg = { blockSize: 2, verbatimWindow: 0 } as const;
@@ -62,7 +55,7 @@ describe("memory/build/segments", () => {
 
   test("mode 'off' is a no-op", async () => {
     const chatId = await seedChat(db, "o");
-    await seedTurns(chatId, 4);
+    await seedTurns(db, chatId, aria, 4);
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store });
     expect(await generateSegments(ctx, { chatId, config: { mode: "off" } })).toEqual({

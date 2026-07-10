@@ -4,14 +4,11 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall";
-import type {
-  MemoryLogEntry,
-  MemoryScope,
-} from "../../../../../../packages/server/src/domain/chat/memory/types";
+import type { MemoryLogEntry } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { freshDb } from "../../../../../support/db";
 import { expect, test } from "../../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedUser } from "../../_support";
-import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment } from "../_support";
+import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment, sharedScope } from "../_support";
 
 const aria = castId<CharacterId>("character_aria");
 const bram = castId<CharacterId>("character_bram");
@@ -25,14 +22,6 @@ beforeEach(async () => {
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
   await seedCharacter(db, owner, "aria");
   await seedCharacter(db, owner, "bram");
-});
-
-/** The merged/solo recall scope — the speaker IS the synthetic group char (the union dedupes to the shared
- *  bucket). `groupCharacterId` is always passed (the engine always knows the room's group char). */
-const sharedScope = (chatId: ChatId): MemoryScope => ({
-  chatId,
-  scopedCharacterId: GROUP_CHAR,
-  isGroup: false,
 });
 
 // Build the expected {{memory}} block(s) from parts (avoids a `keywords:`-shaped literal tripping noSecrets).

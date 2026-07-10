@@ -7,20 +7,11 @@
 //
 // The `vi.mock(...)` calls live inside STRING fixtures (not this file's own AST) — the gate walks AST call
 // expressions, so a call written as a string literal is invisible to it and can't self-trip.
-import { Project } from "ts-morph";
 import { testMockDoctrine } from "../../scripts/check/gates/test-mock-doctrine.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const F = "tests/server/domain/widget/thing.int.test.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
 
 const mock = (target: string): string => `import { vi } from "vitest";\nvi.mock("${target}");\n`;
 

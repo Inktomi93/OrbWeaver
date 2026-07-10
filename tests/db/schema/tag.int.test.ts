@@ -29,7 +29,6 @@ import {
 import type {
   CharacterId,
   ChatId,
-  Handle,
   PersonaId,
   PresetId,
   TagId,
@@ -40,17 +39,12 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedChat, seedUser } from "./_support.ts";
 
 // Named so the literals aren't bare magic numbers (noMagicNumbers).
 const SORT_ORDER = 5;
 // A short benign out-of-enum probe value (noSecrets) — used to trip the enum CHECKs.
 const BAD_ENUM_VALUE = "nope";
-
-async function seedOwner(db: Db, raw: string): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
 
 async function seedTag(db: Db, ownerId: UserId, raw: string, name = `tag-${raw}`): Promise<TagId> {
   const id = castId<TagId>(raw);
@@ -63,12 +57,6 @@ async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<Char
   await db
     .insert(characters)
     .values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
-  return id;
-}
-
-async function seedChat(db: Db, raw: string): Promise<ChatId> {
-  const id = castId<ChatId>(raw);
-  await db.insert(chats).values({ id });
   return id;
 }
 
@@ -100,7 +88,7 @@ async function seedPreset(db: Db, ownerId: UserId, raw: string): Promise<PresetI
 
 test("tags insert→select round-trips (ownerId KEEP, defaults, epoch-ms createdAt)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_tag_a");
+  const ownerId = await seedUser(db, { id: "user_tag_a" });
   const tagId = castId<TagId>("tag_rt");
   await db.insert(tags).values({
     id: tagId,
@@ -133,7 +121,7 @@ test("tags insert→select round-trips (ownerId KEEP, defaults, epoch-ms created
 
 test("tags defaults: null color/color2/source/sortOrder, folderType NONE, isHiddenOnCard false", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_tag_def");
+  const ownerId = await seedUser(db, { id: "user_tag_def" });
   const tagId = await seedTag(db, ownerId, "tag_def");
 
   const row = (await db.select().from(tags).where(eq(tags.id, tagId)))[0];
@@ -149,7 +137,7 @@ test("tags defaults: null color/color2/source/sortOrder, folderType NONE, isHidd
 
 test("tags unique(ownerId, name) rejects a duplicate name for the same owner", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_tag_uniq");
+  const ownerId = await seedUser(db, { id: "user_tag_uniq" });
   await seedTag(db, ownerId, "tag_uniq_1", "dup");
   let caught: unknown;
   try {
@@ -163,8 +151,8 @@ test("tags unique(ownerId, name) rejects a duplicate name for the same owner", a
 
 test("tags unique(ownerId, name) allows the same name for a DIFFERENT owner", async () => {
   const db = await freshDb();
-  const ownerA = await seedOwner(db, "user_tag_owA");
-  const ownerB = await seedOwner(db, "user_tag_owB");
+  const ownerA = await seedUser(db, { id: "user_tag_owA" });
+  const ownerB = await seedUser(db, { id: "user_tag_owB" });
   await seedTag(db, ownerA, "tag_owA", "shared");
   // Different owner, same name — a distinct namespace, no collision.
   await seedTag(db, ownerB, "tag_owB", "shared");
@@ -181,7 +169,7 @@ test("test-mirror: tags.source derives TAG_SOURCES, tags.folderType derives TAG_
 
 test("tags source CHECK rejects an out-of-enum value", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_tag_badsrc");
+  const ownerId = await seedUser(db, { id: "user_tag_badsrc" });
   let caught: unknown;
   try {
     await db.insert(tags).values({
@@ -198,7 +186,7 @@ test("tags source CHECK rejects an out-of-enum value", async () => {
 
 test("tags folderType CHECK rejects an out-of-enum value", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_tag_badfolder");
+  const ownerId = await seedUser(db, { id: "user_tag_badfolder" });
   let caught: unknown;
   try {
     await db.insert(tags).values({
@@ -221,7 +209,7 @@ test("test-mirror: character_tags.status derives TAG_STATUSES", () => {
 
 test("character_tags defaults to status 'pending' and flips to 'accepted'", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_ct_status");
+  const ownerId = await seedUser(db, { id: "user_ct_status" });
   const characterId = await seedCharacter(db, ownerId, "character_ct_status");
   const tagId = await seedTag(db, ownerId, "tag_ct_status");
   await db.insert(characterTags).values({ characterId, tagId });
@@ -253,7 +241,7 @@ test("character_tags defaults to status 'pending' and flips to 'accepted'", asyn
 
 test("character_tags status CHECK rejects an out-of-enum value", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_ct_badstatus");
+  const ownerId = await seedUser(db, { id: "user_ct_badstatus" });
   const characterId = await seedCharacter(db, ownerId, "character_ct_badstatus");
   const tagId = await seedTag(db, ownerId, "tag_ct_badstatus");
   let caught: unknown;
@@ -273,9 +261,9 @@ test("character_tags status CHECK rejects an out-of-enum value", async () => {
 
 test("D30: two taggers apply the same (chatId, tagId) independently and both rows coexist", async () => {
   const db = await freshDb();
-  const ownerA = await seedOwner(db, "user_ct_taggerA");
-  const ownerB = await seedOwner(db, "user_ct_taggerB");
-  const chatId = await seedChat(db, "chat_overlay");
+  const ownerA = await seedUser(db, { id: "user_ct_taggerA" });
+  const ownerB = await seedUser(db, { id: "user_ct_taggerB" });
+  const chatId = await seedChat(db, { id: "chat_overlay" });
   // The tag itself is owned by A but is applied to the shared chat by BOTH members.
   const tagId = await seedTag(db, ownerA, "tag_overlay");
   await db.insert(chatTags).values({ chatId, tagId, ownerId: ownerA });
@@ -294,8 +282,8 @@ test("D30: two taggers apply the same (chatId, tagId) independently and both row
 
 test("D30: chat_tags rejects a duplicate (chatId, tagId, ownerId) by the SAME tagger", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_ct_dup");
-  const chatId = await seedChat(db, "chat_dup");
+  const ownerId = await seedUser(db, { id: "user_ct_dup" });
+  const chatId = await seedChat(db, { id: "chat_dup" });
   const tagId = await seedTag(db, ownerId, "tag_dup");
   await db.insert(chatTags).values({ chatId, tagId, ownerId });
   let caught: unknown;
@@ -312,13 +300,13 @@ test("D30: chat_tags rejects a duplicate (chatId, tagId, ownerId) by the SAME ta
 
 test("the four target-derived junctions carry NO ownerId; only chat_tags does (D23/D30)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_owner_presence");
+  const ownerId = await seedUser(db, { id: "user_owner_presence" });
   const tagId = await seedTag(db, ownerId, "tag_owner_presence");
   const characterId = await seedCharacter(db, ownerId, "character_owner_presence");
   const worldBookId = await seedWorldBook(db, ownerId, "world_book_owner_presence");
   const personaId = await seedPersona(db, ownerId, "persona_owner_presence");
   const presetId = await seedPreset(db, ownerId, "preset_owner_presence");
-  const chatId = await seedChat(db, "chat_owner_presence");
+  const chatId = await seedChat(db, { id: "chat_owner_presence" });
 
   await db.insert(characterTags).values({ characterId, tagId });
   await db.insert(worldBookTags).values({ worldBookId, tagId });
@@ -344,7 +332,7 @@ test("the four target-derived junctions carry NO ownerId; only chat_tags does (D
 
 test("character_tags FK rejects a dangling tag ref", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_ct_fk");
+  const ownerId = await seedUser(db, { id: "user_ct_fk" });
   const characterId = await seedCharacter(db, ownerId, "character_ct_fk");
   let caught: unknown;
   try {
@@ -358,7 +346,7 @@ test("character_tags FK rejects a dangling tag ref", async () => {
 
 test("chat_tags FK rejects a dangling chat ref", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_chattag_fk");
+  const ownerId = await seedUser(db, { id: "user_chattag_fk" });
   const tagId = await seedTag(db, ownerId, "tag_chattag_fk");
   let caught: unknown;
   try {
@@ -374,10 +362,10 @@ test("chat_tags FK rejects a dangling chat ref", async () => {
 
 test("deleting a tag CASCADEs all five junctions", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_tag_casc");
+  const ownerId = await seedUser(db, { id: "user_tag_casc" });
   const tagId = await seedTag(db, ownerId, "tag_cascade");
   const characterId = await seedCharacter(db, ownerId, "character_tag_casc");
-  const chatId = await seedChat(db, "chat_tag_casc");
+  const chatId = await seedChat(db, { id: "chat_tag_casc" });
   const worldBookId = await seedWorldBook(db, ownerId, "world_book_tag_casc");
   const personaId = await seedPersona(db, ownerId, "persona_tag_casc");
   const presetId = await seedPreset(db, ownerId, "preset_tag_casc");
@@ -401,10 +389,10 @@ test("deleting a tag CASCADEs all five junctions", async () => {
 
 test("deleting a tagged target CASCADEs its junction rows (tag survives)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_target_casc");
+  const ownerId = await seedUser(db, { id: "user_target_casc" });
   const tagId = await seedTag(db, ownerId, "tag_target_casc");
   const characterId = await seedCharacter(db, ownerId, "character_target_casc");
-  const chatId = await seedChat(db, "chat_target_casc");
+  const chatId = await seedChat(db, { id: "chat_target_casc" });
   const worldBookId = await seedWorldBook(db, ownerId, "world_book_target_casc");
   const personaId = await seedPersona(db, ownerId, "persona_target_casc");
   const presetId = await seedPreset(db, ownerId, "preset_target_casc");
@@ -434,9 +422,9 @@ test("deleting a tagged target CASCADEs its junction rows (tag survives)", async
 
 test("deleting the tagger CASCADEs only their chat_tags overlay rows (D30)", async () => {
   const db = await freshDb();
-  const ownerA = await seedOwner(db, "user_tagger_casc_A");
-  const ownerB = await seedOwner(db, "user_tagger_casc_B");
-  const chatId = await seedChat(db, "chat_tagger_casc");
+  const ownerA = await seedUser(db, { id: "user_tagger_casc_A" });
+  const ownerB = await seedUser(db, { id: "user_tagger_casc_B" });
+  const chatId = await seedChat(db, { id: "chat_tagger_casc" });
   const tagId = await seedTag(db, ownerA, "tag_tagger_casc");
   await db.insert(chatTags).values({ chatId, tagId, ownerId: ownerB });
 

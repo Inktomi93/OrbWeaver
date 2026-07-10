@@ -4,7 +4,6 @@
 // identical discriminant); `resolveViewerActivePersonaId` proxies "the viewing participant" as the
 // first present `human` seat (no client auth/session concept exists yet — Chat-Macro-Resolution.md §4).
 
-import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
@@ -12,33 +11,11 @@ import {
   resolveViewerActivePersonaId,
 } from "../../../../../packages/client/src/features/chat/lib/roster";
 import { expect, test } from "../../../../support/fixtures";
+import { makeParticipant } from "./_support";
 
 const ALICE_ID = castId<CharacterId>("char_alice_roster");
 const BOB_ID = castId<CharacterId>("char_bob_roster");
 const NATE_PERSONA_ID = castId<PersonaId>("persona_nate_roster");
-
-function makeParticipant(overrides: Partial<ParticipantView> = {}): ParticipantView {
-  return {
-    id: castId("participant_1"),
-    chatId: castId("chat_1"),
-    kind: "character",
-    userId: null,
-    characterId: ALICE_ID,
-    role: "member",
-    activePersonaId: null,
-    talkativeness: 1,
-    disabled: false,
-    joinedAt: 0,
-    joinSeq: 0,
-    leftSeq: null,
-    joinHistoryVisibility: "full",
-    displayName: "Alice",
-    handle: null,
-    avatarAssetId: null,
-    avatarHash: null,
-    ...overrides,
-  };
-}
 
 test("buildParticipantsById keys character participants by their characterId", () => {
   const alice = makeParticipant({ characterId: ALICE_ID, displayName: "Alice" });

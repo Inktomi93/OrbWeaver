@@ -2,20 +2,11 @@
 // D24 typed-FK / the sole audit_logs.entityId soft-ref; held out of ALL_CHECKS pending doc reconciliation).
 // Proves: an id-shaped column with no `.references()` fires, a column WITH an FK passes, an allowlisted
 // no-FK column passes, and the stale-arm (an allowlisted pair that gains an FK) is RED.
-import { Project } from "ts-morph";
 import { createNoUntypedSoftRef } from "../../scripts/check/gates/no-untyped-soft-ref.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const SCHEMA = "packages/db/src/schema/thing.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
 
 function table(sqlName: string, cols: string): string {
   return `export const t = sqliteTable("${sqlName}", { ${cols} });\n`;

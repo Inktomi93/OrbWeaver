@@ -3,23 +3,17 @@
 // the FK-on-owner enforcement, the `kind` CHECK, and the test-mirror (db enum members === ASSET_KINDS).
 
 import { ASSET_KINDS } from "@orb/contracts/assets";
-import type { Db } from "@orb/db";
-import { assets, isConstraintViolation, users } from "@orb/db";
-import type { AssetId, Handle, UserId } from "@orb/kit/ids";
+import { assets, isConstraintViolation } from "@orb/db";
+import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedOwner(db: Db, id: string, handle: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(handle) });
-  return ownerId;
-}
+import { seedUser } from "./_support.ts";
 
 test("assets insert→select round-trips (branded id survives, kind/hash stored)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_assets_a", "asset-owner-a");
+  const ownerId = await seedUser(db, { id: "user_assets_a", handle: "asset-owner-a" });
   const id = castId<AssetId>("asset_roundtrip");
   await db.insert(assets).values({
     id,
@@ -40,8 +34,8 @@ test("assets insert→select round-trips (branded id survives, kind/hash stored)
 
 test("unique(owner_id, hash) is per-user: same hash collides within owner, coexists across owners", async () => {
   const db = await freshDb();
-  const ownerA = await seedOwner(db, "user_assets_b", "asset-owner-b");
-  const ownerB = await seedOwner(db, "user_assets_c", "asset-owner-c");
+  const ownerA = await seedUser(db, { id: "user_assets_b", handle: "asset-owner-b" });
+  const ownerB = await seedUser(db, { id: "user_assets_c", handle: "asset-owner-c" });
   const hash = "b".repeat(64);
 
   await db.insert(assets).values({
@@ -99,7 +93,7 @@ test("owner_id FK is enforced (insert against a missing user fails)", async () =
 
 test("the kind CHECK rejects an off-tuple value", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_assets_d", "asset-owner-d");
+  const ownerId = await seedUser(db, { id: "user_assets_d", handle: "asset-owner-d" });
   let caught: unknown;
   try {
     await db.insert(assets).values({

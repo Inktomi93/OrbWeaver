@@ -21,6 +21,27 @@ individual trees (sessions, db/schema, tooling) never grew.
 
 ## 1. Wave 1 — mechanical, low-risk (mech-executor; run the touched trees' tests per item)
 
+> **MASS WAVE LANDED 2026-07-10** (six territory-sliced mech-executors; single commit). Wave-1 status:
+> **W1a DONE** (all \~25 principal defs → factory; chat files keep thin handle-preserving wrappers where
+> tests assert `.handle`) · **W1b DONE** (all `_support` seedUser/FROZEN\_AT → canonical; residue by
+> design: stats/workloads `T0 = 1_700_000_000_000` is a DISTINCT constant, untouched; chat keeps a thin
+> `UserId`-returning adapter — \~316 call sites want the id, not the row) · **W1c DONE** (17 tooling
+> conversions; `form-factory-for-multifield` + `audit-client-tests` keep their own `ctxFor` — a
+> single-file-TEXT signature, a different shape, not a dupe) · **W1d PARTIAL** —
+> `makeLoadParticipantViews` ×4 + memory `seedTurns`/`sharedScope` + settings `findSeedTheme` DONE;
+> the capability/scripted hoist is RE-SPEC'D: the punchlist's `TEST_CAPABILITY`/`testConnection`/
+> `scriptedTurn` names were the audit's PROPOSED names, not real symbols — the real targets are the
+> `CAPABILITY` const + `connectionOf()` (claimed byte-identical across \~6-7 engine files) and
+> `scripted()`/`scriptedRole()` (\~5 files); CONFIRM byte-identity before hoisting (pending, small) ·
+> **W1e DONE** (all 10 sessions files; `makeService` now returns `{svc, clock}` so the TTL/throttle
+> test advances time) · **W1f DONE** (19 schema files; deliberate-raw kept raw: below-factory
+> constraint probes, `onConflictDoNothing` idempotent seeds, the one admin-role insert) · **W1g DONE**
+> (auth + client `_support` created + consumed; credentials `seedCredential` ×7; admin
+> `seedAdminCaller` ×9 sites — vllm/embed/list-users skipped, they need harness-recorder access ·
+> agent-sdk `_support` hoisted `streamOf` only — `initMsg`/`assistantMsg` differ per file by design) ·
+> **W1h keyless DONE** (17 files → typed factories; baseline shrunk \~16 entries, six to zero; 12
+> KEYED-credential files pend a keyed factory).
+>
 > **PRE-WAVE ENABLEMENT LANDED 2026-07-10** (`test(enablement)` commit). The shared HOMES below are BUILT,
 > each with exactly ONE exemplar consumer converted as proof; the remaining \~120-file import swaps are still
 > the mech wave's job. Built: W1a `principal()` · W1c `tests/tooling/_support.ts` · W1e sessions `_support.ts`

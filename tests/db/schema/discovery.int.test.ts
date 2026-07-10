@@ -41,6 +41,7 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedChat, seedUser } from "./_support.ts";
 
 // The one space's dim (mirrors schema CENTROID_DIM). A deterministic ramp vector (no Math-random) — every
 // value is exactly representable + round-trippable through F32_BLOB.
@@ -48,12 +49,6 @@ const DIM = 1024;
 const MODEL = "qwen3-vl";
 function rampVector(): Float32Array {
   return Float32Array.from({ length: DIM }, (_unused, i) => i / DIM);
-}
-
-async function seedOwner(db: Db, id: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(`h-${id}`) });
-  return ownerId;
 }
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
@@ -66,12 +61,6 @@ async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<Chara
     name: "Card",
   });
   return characterId;
-}
-
-async function seedChat(db: Db, id: string): Promise<ChatId> {
-  const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId });
-  return chatId;
 }
 
 async function seedDigest(db: Db, chatId: ChatId, id: string): Promise<ChatDigestId> {
@@ -136,7 +125,7 @@ test("relation lives ONLY on duplicate_chat_pairs and derives the contracts RELA
 // ── D24 duplicate_character_pairs: per-type FK round-trip + DERIVE ownerId + CASCADE ───────────────────
 test("duplicate_character_pairs round-trips a per-type FK pair (cslsScore/similarity reals, no ownerId)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dcp");
+  const ownerId = await seedUser(db, { id: "user_dcp", handle: "h-user_dcp" });
   const a = await seedCharacter(db, ownerId, "character_aaa");
   const b = await seedCharacter(db, ownerId, "character_bbb");
   const id = castId<DuplicateCharacterPairId>("duplicate_character_pair_one");
@@ -167,7 +156,7 @@ test("duplicate_character_pairs round-trips a per-type FK pair (cslsScore/simila
 
 test("deleting a character CASCADEs its duplicate_character_pairs rows (D24 — physics, no sweep)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dcp_casc");
+  const ownerId = await seedUser(db, { id: "user_dcp_casc", handle: "h-user_dcp_casc" });
   const a = await seedCharacter(db, ownerId, "character_aaa");
   const b = await seedCharacter(db, ownerId, "character_bbb");
   await db.insert(duplicateCharacterPairs).values({
@@ -186,8 +175,8 @@ test("deleting a character CASCADEs its duplicate_character_pairs rows (D24 — 
 test("duplicate_chat_pairs.relation CHECK rejects a non-member value", async () => {
   // The relation CHECK is covered on the chat table — the only one carrying the column.
   const db = await freshDb();
-  const a = await seedChat(db, "chat_aaa");
-  const b = await seedChat(db, "chat_bbb");
+  const a = await seedChat(db, { id: "chat_aaa" });
+  const b = await seedChat(db, { id: "chat_bbb" });
   let caught: unknown;
   try {
     await db.insert(duplicateChatPairs).values({
@@ -207,7 +196,7 @@ test("duplicate_chat_pairs.relation CHECK rejects a non-member value", async () 
 
 test("duplicate_character_pairs canonical CHECK rejects a non-A<B order and a self-pair", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dcp_canon");
+  const ownerId = await seedUser(db, { id: "user_dcp_canon", handle: "h-user_dcp_canon" });
   const a = await seedCharacter(db, ownerId, "character_aaa");
   const b = await seedCharacter(db, ownerId, "character_bbb");
 
@@ -246,7 +235,7 @@ test("duplicate_character_pairs canonical CHECK rejects a non-A<B order and a se
 
 test("keyword_cooccurrence canonical CHECK rejects a non-A<B order and a self-pair", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_kc_canon");
+  const ownerId = await seedUser(db, { id: "user_kc_canon", handle: "h-user_kc_canon" });
 
   // keywordA="knight" > keywordB="dragon" violates `keyword_a < keyword_b` (reversed order).
   let caughtOrder: unknown;
@@ -281,7 +270,7 @@ test("keyword_cooccurrence canonical CHECK rejects a non-A<B order and a self-pa
 
 test("duplicate_character_pairs enforces its FKs (a missing character is rejected)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dcp_fk");
+  const ownerId = await seedUser(db, { id: "user_dcp_fk", handle: "h-user_dcp_fk" });
   const a = await seedCharacter(db, ownerId, "character_aaa");
   let caught: unknown;
   try {
@@ -302,7 +291,7 @@ test("duplicate_character_pairs enforces its FKs (a missing character is rejecte
 
 test("duplicate_character_pairs unique index rejects the same canonical pair twice", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dcp_uniq");
+  const ownerId = await seedUser(db, { id: "user_dcp_uniq", handle: "h-user_dcp_uniq" });
   const a = await seedCharacter(db, ownerId, "character_aaa");
   const b = await seedCharacter(db, ownerId, "character_bbb");
   await db.insert(duplicateCharacterPairs).values({
@@ -332,8 +321,8 @@ test("duplicate_character_pairs unique index rejects the same canonical pair twi
 // ── D24 duplicate_chat_pairs: per-type FK round-trip + `forked` + CASCADE + no ownerId ─────────────────
 test("duplicate_chat_pairs round-trips a per-type FK pair (relation=forked) and CASCADEs on chat delete", async () => {
   const db = await freshDb();
-  const a = await seedChat(db, "chat_aaa");
-  const b = await seedChat(db, "chat_bbb");
+  const a = await seedChat(db, { id: "chat_aaa" });
+  const b = await seedChat(db, { id: "chat_bbb" });
   const id = castId<DuplicateChatPairId>("duplicate_chat_pair_one");
   await db.insert(duplicateChatPairs).values({
     id,
@@ -358,7 +347,7 @@ test("duplicate_chat_pairs round-trips a per-type FK pair (relation=forked) and 
 // ── D23 KEEP ownerId: keyword_cooccurrence (parentless per-user aggregate) ─────────────────────────────
 test("keyword_cooccurrence KEEPS ownerId (D23), is owner×keyword-pair unique, and FKs the owner", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_kc");
+  const ownerId = await seedUser(db, { id: "user_kc", handle: "h-user_kc" });
   const id = castId<KeywordCooccurrenceId>("keyword_cooccurrence_one");
   await db.insert(keywordCooccurrence).values({
     id,
@@ -409,7 +398,7 @@ test("keyword_cooccurrence KEEPS ownerId (D23), is owner×keyword-pair unique, a
 // ── D23 DERIVE: character_keyword_profiles (FK character; no ownerId) ──────────────────────────────────
 test("character_keyword_profiles DERIVE ownerId (no column), FK character CASCADE, unique(character,keyword)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_ckp");
+  const ownerId = await seedUser(db, { id: "user_ckp", handle: "h-user_ckp" });
   const characterId = await seedCharacter(db, ownerId, "character_ckp");
   const id = castId<CharacterKeywordProfileId>("character_keyword_profile_one");
   await db
@@ -446,7 +435,7 @@ test("character_keyword_profiles DERIVE ownerId (no column), FK character CASCAD
 // ── D23 DERIVE: character_summaries (PK characterId; no ownerId; facet JSON defaults) ──────────────────
 test("character_summaries is keyed by characterId, DERIVE ownerId (no column), and CASCADEs on character delete", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_cs");
+  const ownerId = await seedUser(db, { id: "user_cs", handle: "h-user_cs" });
   const characterId = await seedCharacter(db, ownerId, "character_cs");
   await db.insert(characterSummaries).values({
     characterId,
@@ -487,7 +476,7 @@ test("character_summaries is keyed by characterId, DERIVE ownerId (no column), a
 // ── D23 KEEP: theme_clusters (ownerId + centroid vector32 + unique(owner,level,idx)) ───────────────────
 test("theme_clusters KEEPS ownerId (D23) and round-trips the centroid vector32 (k-means MEAN, 1024-dim)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_tc");
+  const ownerId = await seedUser(db, { id: "user_tc", handle: "h-user_tc" });
   const id = await seedThemeCluster(db, {
     ownerId,
     id: "theme_cluster_one",
@@ -531,8 +520,8 @@ test("theme_clusters KEEPS ownerId (D23) and round-trips the centroid vector32 (
 // ── D23 DERIVE: digest_theme_assignments (composite PK; no ownerId; CASCADE to BOTH parents) ───────────
 test("digest_theme_assignments uses a composite PK, DERIVE ownerId, and CASCADEs from digest and cluster", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dta");
-  const chatId = await seedChat(db, "chat_dta");
+  const ownerId = await seedUser(db, { id: "user_dta", handle: "h-user_dta" });
+  const chatId = await seedChat(db, { id: "chat_dta" });
   const digestId = await seedDigest(db, chatId, "chat_digest_dta");
   const themeClusterId = await seedThemeCluster(db, {
     ownerId,
@@ -574,8 +563,8 @@ test("digest_theme_assignments uses a composite PK, DERIVE ownerId, and CASCADEs
 
 test("digest_theme_assignments CASCADEs when its digest is deleted", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dta2");
-  const chatId = await seedChat(db, "chat_dta2");
+  const ownerId = await seedUser(db, { id: "user_dta2", handle: "h-user_dta2" });
+  const chatId = await seedChat(db, { id: "chat_dta2" });
   const digestId = await seedDigest(db, chatId, "chat_digest_dta2");
   const themeClusterId = await seedThemeCluster(db, {
     ownerId,

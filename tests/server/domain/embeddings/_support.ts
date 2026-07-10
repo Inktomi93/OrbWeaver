@@ -12,7 +12,7 @@
 
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { assets, characters, chats, users } from "@orb/db";
+import { assets, characters, chats } from "@orb/db";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -32,10 +32,11 @@ import type {
   EmbeddingsIndexerContext,
   EmbeddingsService,
 } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 
 /** The test embed space `(model, dim)`. Small dim keeps vectors cheap; the model strings are the space tag. */
 export const EMBED_DIM = 8;
@@ -198,19 +199,12 @@ interface SeedUserOverrides {
   readonly handle?: string;
 }
 
-/** Insert a `users` row (the FK target for characters/assets). */
+/** Insert a `users` row (the FK target for characters/assets). Thin delegate over the canonical factory —
+ *  embeddings' call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? "x"}`);
-  await db.insert(users).values({
-    id,
-    handle: castId<Handle>(overrides.handle ?? id),
-    role: "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-  });
-  return id;
+  const seeded = await seedUserRow(db, { id, handle: castId<Handle>(overrides.handle ?? id) });
+  return seeded.id;
 }
 
 /** Insert a `characters` row (the producer FK for character_embeddings). Returns its branded id. */

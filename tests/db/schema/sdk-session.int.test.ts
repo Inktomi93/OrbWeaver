@@ -13,6 +13,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedChat } from "./_support.ts";
 
 // Named consts — the canon-coverage horizon + the staleness-gate hash + the lineage ordinals (the head and
 // the next reseed). Plain literals so the determinism gate stays green.
@@ -30,13 +31,6 @@ interface EntrySpec {
   seq: number;
 }
 
-// chats has NO ownerId (D18) — a chat seeds from its id alone.
-async function seedChat(db: Db, raw: string): Promise<ChatId> {
-  const id = castId<ChatId>(raw);
-  await db.insert(chats).values({ id });
-  return id;
-}
-
 async function insertEntry(db: Db, entry: EntrySpec): Promise<void> {
   await db.insert(sessionEntries).values({
     ...entry,
@@ -47,7 +41,7 @@ async function insertEntry(db: Db, entry: EntrySpec): Promise<void> {
 
 test("a session_entry round-trips (branded chatId; numeric timestamp; isPrimary defaults false)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_sdk_rt");
+  const chatId = await seedChat(db, { id: "chat_sdk_rt" });
   const id = castId<SessionEntryId>("session_entry_rt");
 
   await db.insert(sessionEntries).values({
@@ -94,7 +88,7 @@ test("the chatId FK rejects a session_entry for a missing chat", async () => {
 
 test("deleting the chat cascades away its session_entries (keyed by chatId, D8/D25)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_sdk_cascade");
+  const chatId = await seedChat(db, { id: "chat_sdk_cascade" });
   await insertEntry(db, {
     id: castId<SessionEntryId>("session_entry_c1"),
     chatId,
@@ -116,7 +110,7 @@ test("deleting the chat cascades away its session_entries (keyed by chatId, D8/D
 
 test("the lineage appends entries per chat — distinct seqs coexist, ordered by seq", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_sdk_lineage");
+  const chatId = await seedChat(db, { id: "chat_sdk_lineage" });
   await insertEntry(db, {
     id: castId<SessionEntryId>("session_entry_head"),
     chatId,
@@ -140,7 +134,7 @@ test("the lineage appends entries per chat — distinct seqs coexist, ordered by
 
 test("the (chatId, seq) UNIQUE rejects a duplicate lineage ordinal", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_sdk_dupseq");
+  const chatId = await seedChat(db, { id: "chat_sdk_dupseq" });
   await insertEntry(db, {
     id: castId<SessionEntryId>("session_entry_s1"),
     chatId,
@@ -164,7 +158,7 @@ test("the (chatId, seq) UNIQUE rejects a duplicate lineage ordinal", async () =>
 
 test("the sdk_session_id UNIQUE rejects a duplicate resume handle", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_sdk_dupsess");
+  const chatId = await seedChat(db, { id: "chat_sdk_dupsess" });
   await insertEntry(db, {
     id: castId<SessionEntryId>("session_entry_u1"),
     chatId,

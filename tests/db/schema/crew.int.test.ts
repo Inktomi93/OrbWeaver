@@ -32,12 +32,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedChat(db: Db, id: string): Promise<ChatId> {
-  const chatId = castId<ChatId>(id);
-  await db.insert(chats).values({ id: chatId });
-  return chatId;
-}
+import { seedChat } from "./_support.ts";
 
 async function seedVariant(
   db: Db,
@@ -66,7 +61,7 @@ test("crew_guides.role enum mirrors MESSAGE_ROLES (D32 — the one role axis)", 
 
 test("crew_chats round-trips the config blob and borns counters at 0", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_crew_cfg");
+  const chatId = await seedChat(db, { id: "chat_crew_cfg" });
   const config = crewConfigSchema.parse({ version: 1 }); // every member defaults OFF
 
   await db.insert(crewChats).values({ chatId, config });
@@ -81,7 +76,7 @@ test("crew_chats round-trips the config blob and borns counters at 0", async () 
 
 test("crew_chats + crew_plots CASCADE on chat delete (one crew per chat, no orphans)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_crew_cascade");
+  const chatId = await seedChat(db, { id: "chat_crew_cascade" });
   await db.insert(crewChats).values({ chatId });
   await db
     .insert(crewPlots)
@@ -94,7 +89,7 @@ test("crew_chats + crew_plots CASCADE on chat delete (one crew per chat, no orph
 
 test("crew_plots round-trips the twist banks (JSON string[] columns)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_crew_plot");
+  const chatId = await seedChat(db, { id: "chat_crew_plot" });
   await db.insert(crewPlots).values({
     chatId,
     arc: "a slow-burn betrayal",
@@ -114,7 +109,7 @@ test("crew_plots round-trips the twist banks (JSON string[] columns)", async () 
 
 test("crew_edit_proposals borns pending, round-trips notes, and FKs the variant", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_crew_prop");
+  const chatId = await seedChat(db, { id: "chat_crew_prop" });
   const { messageId, variantId } = await seedVariant(
     db,
     chatId,
@@ -142,7 +137,7 @@ test("crew_edit_proposals borns pending, round-trips notes, and FKs the variant"
 
 test("a second PENDING proposal on the same variant collides (replace-on-new, made durable)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_crew_dup");
+  const chatId = await seedChat(db, { id: "chat_crew_dup" });
   const { messageId, variantId } = await seedVariant(
     db,
     chatId,
@@ -167,7 +162,7 @@ test("a second PENDING proposal on the same variant collides (replace-on-new, ma
 
 test("a pending proposal coexists with RESOLVED ones on the same variant (the index is partial)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_crew_hist");
+  const chatId = await seedChat(db, { id: "chat_crew_hist" });
   const { messageId, variantId } = await seedVariant(
     db,
     chatId,
@@ -196,7 +191,7 @@ test("a pending proposal coexists with RESOLVED ones on the same variant (the in
 
 test("the status CHECK rejects a non-member status", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_crew_badstatus");
+  const chatId = await seedChat(db, { id: "chat_crew_badstatus" });
   const { messageId, variantId } = await seedVariant(
     db,
     chatId,
@@ -225,7 +220,7 @@ test("the status CHECK rejects a non-member status", async () => {
 
 test("crew_guides borns the packaged defaults (system role, labeled, enabled, no auto-refresh)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_guide_defaults");
+  const chatId = await seedChat(db, { id: "chat_guide_defaults" });
   await db.insert(crewGuides).values({
     chatId,
     guideKey: "thinking",
@@ -245,7 +240,7 @@ test("crew_guides borns the packaged defaults (system role, labeled, enabled, no
 
 test("the (chatId, guideKey) composite PK rejects a duplicate definition", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_guide_dup");
+  const chatId = await seedChat(db, { id: "chat_guide_dup" });
   const guide = { chatId, guideKey: "clothes", name: "Clothes", template: "t", depth: 1 };
   await db.insert(crewGuides).values(guide);
 
@@ -260,7 +255,7 @@ test("the (chatId, guideKey) composite PK rejects a duplicate definition", async
 
 test("deleting the linked injection NULLs injectionId and keeps the definition (flush semantics)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_guide_flush");
+  const chatId = await seedChat(db, { id: "chat_guide_flush" });
   const injectionId = castId<ChatInjectionId>("chat_injection_guide");
   await db.insert(chatInjections).values({
     id: injectionId,

@@ -14,6 +14,7 @@ import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createGenerateImage } from "../../../../../packages/server/src/domain/chat/verbs/generate-image";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
 
@@ -31,7 +32,7 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 };
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 describe("generateImage", () => {

@@ -16,7 +16,6 @@ import {
   modelStats,
   ownerStats,
   personas,
-  users,
 } from "@orb/db";
 import type {
   CharacterId,
@@ -35,6 +34,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { createFrozenClock } from "../../../support/clock.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 // The deterministic base instant — sourced from the LOCKED global fixture (testing.md §4), not a
 // self-rolled literal. Seed-row timestamps build off it as test DATA (the `msgCounter` + explicit
@@ -53,8 +53,8 @@ export async function seedUser(
   role: "owner" | "user" = "owner",
 ): Promise<UserId> {
   const uid = castId<UserId>(id);
-  await db.insert(users).values({ id: uid, handle: castId<Handle>(id), role });
-  return uid;
+  const seeded = await seedUserRow(db, { id: uid, handle: castId<Handle>(id), role });
+  return seeded.id;
 }
 
 export async function seedCharacter(

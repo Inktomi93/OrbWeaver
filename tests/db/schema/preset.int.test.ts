@@ -9,28 +9,22 @@ import {
   parsePromptConfig,
 } from "@orb/contracts/preset";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import type { Db } from "@orb/db";
 import { isConstraintViolation, presets, users } from "@orb/db";
-import type { Handle, PresetId, UserId } from "@orb/kit/ids";
+import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, isNull } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedUser } from "./_support.ts";
 
 // The system-default sentinel = the NIL TypeID. The DOMAIN owns this constant
 // (domain/preset/constants.ts, NOT contracts), so the test mirrors it locally — the schema only needs
 // owner_id to be nullable for the row to exist.
 const SYSTEM_DEFAULT_PRESET_ID = castId<PresetId>("preset_00000000000000000000000000");
 
-async function seedUser(db: Db, raw = "user_preset_owner"): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
-
 test("an owner-scoped preset round-trips (config parses, schema_version defaults to current)", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db);
+  const ownerId = await seedUser(db, { id: "user_preset_owner" });
   const id = castId<PresetId>("preset_001");
 
   await db.insert(presets).values({
@@ -56,7 +50,7 @@ test("an owner-scoped preset round-trips (config parses, schema_version defaults
 
 test("a preset-embedded RegexScript[] round-trips through the config blob (D53)", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, "user_preset_regex");
+  const ownerId = await seedUser(db, { id: "user_preset_regex" });
   const id = castId<PresetId>("preset_regex");
 
   await db.insert(presets).values({
@@ -125,7 +119,7 @@ test("the ownerId FK rejects a missing user", async () => {
 
 test("the ownerId FK is RESTRICT — deleting a user who owns a preset is blocked", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db);
+  const ownerId = await seedUser(db, { id: "user_preset_owner" });
   await db.insert(presets).values({
     id: castId<PresetId>("preset_restrict"),
     ownerId,

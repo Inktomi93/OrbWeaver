@@ -10,6 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedUser } from "./_support.ts";
 
 // The default global role a freshly-provisioned user lands on (owner/admin are granted explicitly — D17).
 const DEFAULT_ROLE = "user";
@@ -164,16 +165,9 @@ test("kind defaults to 'human' and a human carries no owner link", async () => {
   expect(row?.ownerUserId).toBeNull();
 });
 
-// Seed a human owner (the `ownerUserId` FK target for an agent row).
-async function seedOwner(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
-  const ownerId = castId<UserId>("user_agent_owner");
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("agent_owner") });
-  return ownerId;
-}
-
 test("a valid agent principal inserts: role='user', no password, no externalId, owned", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db);
+  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
   const agentId = castId<UserId>("user_agent_ok");
   await db.insert(users).values({
     id: agentId,
@@ -191,7 +185,7 @@ test("a valid agent principal inserts: role='user', no password, no externalId, 
 
 test("users_agent_shape rejects an agent with a privileged role", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db);
+  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
   let caught: unknown;
   try {
     await db.insert(users).values({
@@ -209,7 +203,7 @@ test("users_agent_shape rejects an agent with a privileged role", async () => {
 
 test("users_agent_shape rejects an agent carrying a passwordHash (loginless)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db);
+  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
   let caught: unknown;
   try {
     await db.insert(users).values({
@@ -228,7 +222,7 @@ test("users_agent_shape rejects an agent carrying a passwordHash (loginless)", a
 
 test("users_agent_shape rejects an agent carrying an externalId (no SSO subject)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db);
+  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
   let caught: unknown;
   try {
     await db.insert(users).values({
@@ -264,7 +258,7 @@ test("users_agent_shape rejects an agent with a null owner (agents are always ow
 
 test("users_human_shape rejects a human carrying an owner link", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db);
+  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
   let caught: unknown;
   try {
     await db.insert(users).values({
@@ -281,7 +275,7 @@ test("users_human_shape rejects a human carrying an owner link", async () => {
 
 test("owner hard-delete CASCADEs the agent users row (referential physics, no orphan)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db);
+  const ownerId = await seedUser(db, { id: "user_agent_owner", handle: "agent_owner" });
   const agentId = castId<UserId>("user_agent_cascade");
   await db.insert(users).values({
     id: agentId,

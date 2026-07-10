@@ -13,21 +13,16 @@ import {
   rosterPresets,
   users,
 } from "@orb/db";
-import type { CharacterId, Handle, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
+import { seedUser } from "./_support.ts";
 
 // `.toSatisfy` needs a `=> boolean`; `isConstraintViolation` returns the violation|undefined, so wrap it.
 function isConstraintErr(err: unknown): boolean {
   return isConstraintViolation(err) !== undefined;
-}
-
-async function seedOwner(db: Db, id: string, handle: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(handle) });
-  return ownerId;
 }
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
@@ -55,7 +50,7 @@ async function seedPreset(
 
 test("roster_presets round-trips + borns description/timestamps defaults", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_rp_a", "rp-a");
+  const ownerId = await seedUser(db, { id: "user_rp_a", handle: "rp-a" });
   const id = await seedPreset(db, ownerId, "roster_preset_a", "Tavern");
   const rows = await db.select().from(rosterPresets).where(eq(rosterPresets.id, id));
   expect(rows).toHaveLength(1);
@@ -68,8 +63,8 @@ test("roster_presets round-trips + borns description/timestamps defaults", async
 
 test("unique(ownerId, name): a dupe name for one owner collides; the same name across owners is fine", async () => {
   const db = await freshDb();
-  const ownerA = await seedOwner(db, "user_rp_ua", "rp-ua");
-  const ownerB = await seedOwner(db, "user_rp_ub", "rp-ub");
+  const ownerA = await seedUser(db, { id: "user_rp_ua", handle: "rp-ua" });
+  const ownerB = await seedUser(db, { id: "user_rp_ub", handle: "rp-ub" });
   await seedPreset(db, ownerA, "roster_preset_u1", "Party");
   await expect(seedPreset(db, ownerA, "roster_preset_u2", "Party")).rejects.toSatisfy(
     isConstraintErr,
@@ -80,7 +75,7 @@ test("unique(ownerId, name): a dupe name for one owner collides; the same name a
 
 test("owner delete CASCADEs the preset; persona delete SET NULLs the anchor", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_rp_c", "rp-c");
+  const ownerId = await seedUser(db, { id: "user_rp_c", handle: "rp-c" });
   const personaId = castId<PersonaId>("persona_rp_c");
   await db.insert(personas).values({ id: personaId, ownerId, name: "POV", description: "" });
   const id = castId<RosterPresetId>("roster_preset_c");
@@ -98,7 +93,7 @@ test("owner delete CASCADEs the preset; persona delete SET NULLs the anchor", as
 
 test("roster_preset_members: composite PK dupe collides; born disabled=false", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_rp_m", "rp-m");
+  const ownerId = await seedUser(db, { id: "user_rp_m", handle: "rp-m" });
   const presetId = await seedPreset(db, ownerId, "roster_preset_m", "Crew");
   const characterId = await seedCharacter(db, ownerId, "character_rp_m");
   await db.insert(rosterPresetMembers).values({ presetId, characterId, position: 0 });
@@ -115,7 +110,7 @@ test("roster_preset_members: composite PK dupe collides; born disabled=false", a
 
 test("member CASCADEs: preset delete wipes members; character delete drops the member, preset survives", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_rp_x", "rp-x");
+  const ownerId = await seedUser(db, { id: "user_rp_x", handle: "rp-x" });
   const presetId = await seedPreset(db, ownerId, "roster_preset_x", "X");
   const charA = await seedCharacter(db, ownerId, "character_rp_x1");
   const charB = await seedCharacter(db, ownerId, "character_rp_x2");

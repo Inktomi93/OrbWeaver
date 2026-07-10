@@ -9,7 +9,6 @@
 // (cosine ≈ 1.0).
 
 import process from "node:process";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
@@ -20,12 +19,13 @@ import {
 } from "@orb/server/infra/providers/backends/local-light";
 import sharp from "sharp";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
 const suite = RUN ? describe : describe.skip;
 
-const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_IMAGE_EMBED_MODEL as ModelId;
 const JINA_DIM = 1024;
 const SWATCH_SIZE = 64;

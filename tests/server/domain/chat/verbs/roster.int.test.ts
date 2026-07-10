@@ -26,6 +26,7 @@ import {
   setParticipantActivePersona,
 } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import {
   makeChatContext,
@@ -64,7 +65,7 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 };
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 const card = (name: string): CharacterCard =>

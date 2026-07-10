@@ -19,14 +19,12 @@ import {
   characters,
   characterTags,
   tags,
-  users,
   worldBooks,
   worldEntries,
 } from "@orb/db";
 import type {
   AssetId,
   CharacterId,
-  ExternalId,
   Handle,
   TagId,
   UserId,
@@ -35,8 +33,11 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ExportContext } from "../../../../packages/server/src/domain/export/contract/service.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 
 // An 8×8 PNG (distinct from the 256×256 placeholder) — a real, decodable PNG so `writeCardChunk` accepts
 // it as a base image; being distinct lets a test prove the AVATAR (not the placeholder) was embedded.
@@ -107,19 +108,16 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
+/** Thin delegate over the canonical factory — export's call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const handle = overrides.handle ?? "x";
   const id = castId<UserId>(`user_${handle}`);
-  await db.insert(users).values({
+  const seeded = await seedUserRow(db, {
     id,
     handle: castId<Handle>(handle),
     role: overrides.role ?? "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
   });
-  return id;
+  return seeded.id;
 }
 
 interface SeedAssetOverrides {
@@ -270,11 +268,5 @@ export async function seedCharacterTag(
 }
 
 export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return {
-    userId,
-    role,
-    handle: castId<Handle>(userId),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { role });
 }

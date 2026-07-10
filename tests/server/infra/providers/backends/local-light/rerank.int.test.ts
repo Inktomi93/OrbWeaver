@@ -7,7 +7,6 @@
 // caller ids.
 
 import process from "node:process";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import type { RerankRequest, RerankResult } from "@orb/server/infra/providers";
 import {
@@ -15,12 +14,13 @@ import {
   DEFAULT_RERANK_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
 const suite = RUN ? describe : describe.skip;
 
-const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("local-light");
 const MODEL = DEFAULT_RERANK_MODEL as ModelId;
 const DOWNLOAD_TIMEOUT_MS = 300_000;
 

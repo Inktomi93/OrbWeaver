@@ -13,14 +13,18 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
 import { eq } from "drizzle-orm";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 export const ALICE = castId<UserId>("user_alice");
 export const BOB = castId<UserId>("user_bob");
 export const AGENT = castId<UserId>("user_agent");
 
-/** Insert a `users` row so a notification's `recipientUserId` FK resolves (CASCADE on delete). */
+/** Insert a `users` row so a notification's `recipientUserId` FK resolves (CASCADE on delete). Thin
+ *  delegate over the canonical factory — notifications' call sites pass `(id, handle)` positionally and
+ *  discard the return (a bare-string-second-arg variant, per the punchlist). */
 export async function seedUser(db: Db, id: UserId, handle: string): Promise<void> {
-  await db.insert(users).values({ id, handle: castId<Handle>(handle), role: "user" });
+  await seedUserRow(db, { id, handle: castId<Handle>(handle) });
 }
 
 /** Insert an AGENT-principal `users` row (D60): `kind='agent'`, owned by a human, loginless (the
@@ -55,7 +59,7 @@ export function makeNotificationsService(db: Db, now: () => number): Notificatio
 
 /** A minimal `user`-role Principal for the given recipient (the caller-scope verbs read `.userId`). */
 export function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "cookie" };
+  return makePrincipal(userId);
 }
 
 /** A valid `invite` event addressed to `recipientUserId` (chat/invite ids minted to pass the union parse). */

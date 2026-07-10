@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 describe("inspectEndpoint", () => {
   test("a saved custom_openai credential is resolved and handed to the inspect op", async () => {
@@ -58,9 +58,7 @@ describe("inspectEndpoint", () => {
   test("a non-custom credential returns a non-throwing 'not a custom endpoint' result", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const svc = createCredentialsService(h.ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, owner, cred } = await seedCredential(db, h);
     const result = await svc.inspectEndpoint({
       principal: principal(owner),
       credentialId: cred.id,

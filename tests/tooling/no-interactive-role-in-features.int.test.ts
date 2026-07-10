@@ -7,13 +7,12 @@
 // and BOTH ratchet arms hold. The live BURN_DOWN went EMPTY 2026-07-09 (the founding persona-panel-row
 // entry burned down same-day), so the ratchet arms are driven through the factory with an INJECTED
 // registry (the createEnforcementRegistryParity precedent) — they stay covered regardless of live state.
-import { Project } from "ts-morph";
 import {
   createNoInteractiveRoleInFeatures,
   noInteractiveRoleInFeatures,
 } from "../../scripts/check/gates/no-interactive-role-in-features.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const FEAT = "packages/client/src/features/demo/components/thing.tsx";
 const INJECTED_ALLOWLISTED = "packages/client/src/features/demo/components/legacy-row.tsx";
@@ -21,14 +20,6 @@ const INJECTED_ALLOWLISTED = "packages/client/src/features/demo/components/legac
 /** A `<Row>` (a declared local stand-in for the layout kit) carrying the given `role=` attribute text. */
 function row(roleAttr: string): string {
   return `declare function Row(props: { role?: string; tabIndex?: number; children?: unknown }): unknown;\nexport const G = <Row ${roleAttr}>hi</Row>;\n`;
-}
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
 }
 
 /** The gate with ONE injected burn-down entry — the ratchet arms' test double. */

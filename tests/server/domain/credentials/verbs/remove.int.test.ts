@@ -4,14 +4,12 @@ import { createCredentialsService } from "@orb/server/domain/credentials";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 describe("remove", () => {
   test("deletes the owner's credential (gone from the list)", async () => {
     const db = await freshDb();
-    const svc = createCredentialsService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, owner, cred } = await seedCredential(db, makeHarness(db));
     await svc.remove({ principal: principal(owner), credentialId: cred.id });
     expect(await svc.list({ principal: principal(owner) })).toHaveLength(0);
   });

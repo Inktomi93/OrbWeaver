@@ -3,24 +3,15 @@
 // Drives the factory with an INJECTED channel over in-memory files, proving both ratchet arms: a member
 // with no emit + no DEFERRED is RED (missing), a DEFERRED member that GAINS an emit is RED (stale), a
 // member with an emit passes, and the tuple home file is excluded from its own emit corpus.
-import { Project } from "ts-morph";
 import type { WarningChannel } from "../../scripts/check/gates/warning-code-coverage.ts";
 import { createWarningCodeCoverage } from "../../scripts/check/gates/warning-code-coverage.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const HOME = "packages/server/src/infra/providers/contract/resolve.ts";
 const EMIT = "packages/server/src/infra/providers/resolve-chat.ts";
 const HOME_RE = /\/packages\/server\/src\/infra\/providers\/contract\/resolve\.ts$/u;
 const EMIT_RE = /\/packages\/server\/src\/infra\/providers\//u;
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
 
 function channel(deferred: Record<string, string>): WarningChannel {
   return { tuple: "WARNING_CODES", homeFile: HOME_RE, emitScope: EMIT_RE, deferred };

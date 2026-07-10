@@ -7,13 +7,14 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { ExternalId, Handle, ThemeId, UserId } from "@orb/kit/ids";
+import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
-import type { SettingsServiceDeps } from "@orb/server/domain/settings";
+import type { SettingsServiceDeps, ThemeView } from "@orb/server/domain/settings";
 import { createSettingsService } from "@orb/server/domain/settings";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { createFrozenClock } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
 export const FROZEN_AT = 1_750_000_000_000;
 
@@ -50,15 +51,11 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   return id;
 }
 
-/** `via` is always `"cookie"` (hardcoded, not a param). */
+/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
+ *  `support/factories/principal` — settings keeps the positional `(id, role, handle?)` convention its
+ *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */
 export function principal(userId: UserId, role: UserRole, handle: string = userId): Principal {
-  return {
-    userId,
-    role,
-    handle: castId<Handle>(handle),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }
 
 export function makeHarness(db: Db): SettingsHarness {
@@ -82,4 +79,20 @@ export function makeHarness(db: Db): SettingsHarness {
     emitUserEvent: (): void => undefined,
   };
   return { svc: createSettingsService(deps), deps, audits, clock };
+}
+
+/** Find a seed theme by name in `ownerId`'s readable set (own ∪ seeds) — the
+ *  `ensureSeedThemes` + `listThemes` + find + not-undefined-guard block 5 theme-verb tests repeated. Throws
+ *  if the name isn't found (a seed lookup that misses is a test-setup bug, not a case to assert on). */
+export async function findSeedTheme(
+  h: SettingsHarness,
+  ownerId: UserId,
+  name: string,
+): Promise<ThemeView> {
+  const views = await h.svc.listThemes({ principal: principal(ownerId, "user") });
+  const found = views.find((v) => v.name === name);
+  if (found === undefined) {
+    throw new Error(`seed theme not found: ${name}`);
+  }
+  return found;
 }

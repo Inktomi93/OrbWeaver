@@ -4,7 +4,6 @@
 // filtering, the text-only query-required throw, instruction prefixing of the query, default-model
 // fallback, and abort.
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import type { RerankRequest, RerankResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
@@ -14,9 +13,10 @@ import {
   DEFAULT_RERANK_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
-const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
+const CRED = makeResolvedCredential("local-light");
 const MODEL = "Xenova/test-rerank" as ModelId;
 
 /** A fake cache whose scorer returns the document index as the score (so order is deterministic) and

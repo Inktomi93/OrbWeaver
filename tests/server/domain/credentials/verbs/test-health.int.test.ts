@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 const MINUTE_MS = 61_000;
 
@@ -31,9 +31,7 @@ describe("testHealth", () => {
   test("a second probe within 60s is throttled (no second probe goes out)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const svc = createCredentialsService(h.ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, owner, cred } = await seedCredential(db, h);
 
     await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
     const second = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
@@ -44,9 +42,7 @@ describe("testHealth", () => {
   test("a revoked classification marks the row revoked", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const svc = createCredentialsService(h.ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, owner, cred } = await seedCredential(db, h);
 
     h.setProbeResult({ status: "revoked", checkedAt: 0, reason: "401" });
     const result = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
@@ -58,9 +54,7 @@ describe("testHealth", () => {
   test("three consecutive unreachable probes trip the breaker → revoked", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const svc = createCredentialsService(h.ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const cred = await svc.add({ principal: principal(owner), provider: "openrouter", key: "k" });
+    const { svc, owner, cred } = await seedCredential(db, h);
 
     h.setProbeResult({ status: "unreachable", checkedAt: 0, reason: "ECONNREFUSED" });
     const first = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });

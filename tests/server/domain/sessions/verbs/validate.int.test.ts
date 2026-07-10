@@ -3,7 +3,6 @@ import { sessions, users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { createSessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import {
@@ -11,11 +10,10 @@ import {
   SLIDE_THROTTLE_MS,
 } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
 import type { Clock } from "../../../../support/clock";
-import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
+import { makeService } from "../_support.ts";
 
-const PEPPER = "test-session-secret-at-least-32-chars-long";
 const USER_ID = castId<UserId>("user_alice");
 const HANDLE = castId<Handle>("alice");
 const EXTERNAL = "authentik|abc";
@@ -26,8 +24,7 @@ let clock: Clock;
 
 beforeEach(async () => {
   db = await freshDb();
-  clock = createFrozenClock();
-  svc = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  ({ svc, clock } = makeService(db));
   await db
     .insert(users)
     .values({ id: USER_ID, handle: HANDLE, externalId: castId(EXTERNAL), role: "owner" });

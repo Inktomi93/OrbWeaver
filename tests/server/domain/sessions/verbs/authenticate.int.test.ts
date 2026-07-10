@@ -6,21 +6,18 @@
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { createSessionsService } from "@orb/server/domain/sessions";
 import { createPasswordHasher } from "@orb/server/infra/auth";
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe } from "vitest";
-import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
+import { makeService, PEPPER } from "../_support.ts";
 
-const PEPPER = "test-session-secret-at-least-32-chars-long";
 const PASSWORD = "correct horse battery";
 
 let db: Db;
 let svc: SessionsService;
 let storedHash: string;
-const clock = createFrozenClock();
 
 beforeAll(async () => {
   // One real scrypt hash for the suite (the KDF is deliberately slow — hash once, reuse per test).
@@ -29,7 +26,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   db = await freshDb();
-  svc = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  ({ svc } = makeService(db));
 });
 
 describe("sessions.authenticate", () => {

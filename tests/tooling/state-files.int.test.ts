@@ -2,18 +2,9 @@
 // report.ts's ALL_CHECKS). Drives the Check directly over an in-memory ts-morph project (the gate
 // reads NO fs — it only walks ASTs by file path), never the real tree, proving each of the three rules
 // FIRES on a violation AND stays clean on a well-formed store.
-import { Project } from "ts-morph";
 import { stateFiles } from "../../scripts/check/gates/state-files.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
+import { ctxFor } from "./_support.ts";
 
 const STATE = "packages/client/src/state";
 

@@ -11,13 +11,15 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
+import { streamOf } from "./_support.ts";
 
 const MODEL = "claude-haiku-test";
 const SESSION_ID = "sess-verify";
 
-/** The max-pro-sub host mint, cast at the fake edge (the brand ctor is credentials'). */
-const SUB_CRED = { source: "max-pro-sub", credentialId: null } as unknown as ResolvedCredential;
+/** The max-pro-sub host mint. */
+const SUB_CRED = makeResolvedCredential("max-pro-sub");
 const MISSING_APIKEY_RE = /apiKeySource/u;
 
 /** The wired verify fn (the backend always sets it; the cast drops the contract's `| undefined` — the
@@ -26,16 +28,6 @@ type VerifyFn = (req: {
   readonly credential: ResolvedCredential;
   readonly model: string;
 }) => Promise<VerifyAuthResult>;
-
-function streamOf(messages: readonly unknown[]): AsyncGenerator<never> {
-  async function* gen(): AsyncGenerator<never> {
-    await Promise.resolve();
-    for (const message of messages) {
-      yield message as never;
-    }
-  }
-  return gen();
-}
 
 /** Wrap a stream into a fake SDK `Query` that ALSO exposes an `accountInfo` control method — the live-Query
  *  shape `verifyAuth` probes. A bare `streamOf` (no method) exercises the "no control channel" absence path;

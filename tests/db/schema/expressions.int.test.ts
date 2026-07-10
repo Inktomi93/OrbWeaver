@@ -4,18 +4,13 @@
 // binding); NO ownerId column (D23 — owner derives via characters.ownerId).
 
 import type { Db } from "@orb/db";
-import { assets, characterSprites, characters, users } from "@orb/db";
-import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { assets, characterSprites, characters } from "@orb/db";
+import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedOwner(db: Db, id: string, handle: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(handle) });
-  return ownerId;
-}
+import { seedUser } from "./_support.ts";
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>(id);
@@ -44,7 +39,7 @@ async function seedAsset(db: Db, ownerId: UserId, id: string): Promise<AssetId> 
 
 test("character_sprites: composite-PK (characterId,label) upsert REPLACES, never duplicates", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_sp_a", "sp-a");
+  const ownerId = await seedUser(db, { id: "user_sp_a", handle: "sp-a" });
   const characterId = await seedCharacter(db, ownerId, "character_sp_a");
   const assetA = await seedAsset(db, ownerId, "asset_sp_a1");
   const assetB = await seedAsset(db, ownerId, "asset_sp_a2");
@@ -72,7 +67,7 @@ test("character_sprites: composite-PK (characterId,label) upsert REPLACES, never
 
 test("character delete CASCADEs its sprite bindings", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_sp_c", "sp-c");
+  const ownerId = await seedUser(db, { id: "user_sp_c", handle: "sp-c" });
   const characterId = await seedCharacter(db, ownerId, "character_sp_c");
   const assetId = await seedAsset(db, ownerId, "asset_sp_c");
   await db
@@ -87,7 +82,7 @@ test("character delete CASCADEs its sprite bindings", async () => {
 
 test("asset delete CASCADEs the binding (never a dangling sprite row)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_sp_d", "sp-d");
+  const ownerId = await seedUser(db, { id: "user_sp_d", handle: "sp-d" });
   const characterId = await seedCharacter(db, ownerId, "character_sp_d");
   const assetId = await seedAsset(db, ownerId, "asset_sp_d");
   await db

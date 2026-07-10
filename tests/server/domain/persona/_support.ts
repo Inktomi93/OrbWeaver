@@ -9,14 +9,16 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { assets, characters, users } from "@orb/db";
-import type { AssetId, CharacterId, ExternalId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import { assets, characters } from "@orb/db";
+import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PersonaContext } from "../../../../packages/server/src/domain/persona/contract/service.ts";
-import { createFrozenClock } from "../../../support/clock.ts";
+import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
-const FROZEN_AT = 1_750_000_000_000;
+const FROZEN_AT = FROZEN_AT_MS;
 
 interface AuditCall {
   readonly entry: Parameters<PersonaContext["audit"]>[0];
@@ -68,19 +70,16 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
-/** Insert a `users` row with deterministic defaults; returns its branded id. */
+/** Insert a `users` row with deterministic defaults; returns its branded id. Thin delegate over the
+ *  canonical factory — persona's call sites want the id back, not the row. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? "x"}`);
-  await db.insert(users).values({
+  const seeded = await seedUserRow(db, {
     id,
     handle: castId<Handle>(overrides.handle ?? id),
     role: overrides.role ?? "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
   });
-  return id;
+  return seeded.id;
 }
 
 interface SeedAssetOverrides {
@@ -132,17 +131,12 @@ export async function seedCharacter(
   return id;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). */
+/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
+ *  `support/factories/principal` — persona keeps its existing positional `(id, role, handle?)` convention. */
 export function principal(
   userId: UserId,
   role: UserRole = "user",
   handle: string = userId,
 ): Principal {
-  return {
-    userId,
-    role,
-    handle: castId<Handle>(handle),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
 }

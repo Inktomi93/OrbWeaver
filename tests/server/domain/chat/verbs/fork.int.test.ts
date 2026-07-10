@@ -5,29 +5,24 @@
 // fires. Reached through the BUNDLE `createFork(ctx, { emit, loadParticipantViews })`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import {
-  characters,
-  chatInjections,
-  chatParticipants,
-  chats,
-  messages,
-  messageVariants,
-} from "@orb/db";
-import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import { characters, chatInjections, chats, messages, messageVariants } from "@orb/db";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork";
 import { freshDb } from "../../../../support/db";
+import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
   makeChatContext,
+  makeLoadParticipantViews,
   seedCharacter,
   seedChat,
   seedMessage,
@@ -37,10 +32,12 @@ import {
 
 let db: Db;
 let emitted: ChatBusEvent[];
+let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = [];
+  loadParticipantViews = makeLoadParticipantViews(db);
 });
 
 const emit = (event: ChatBusEvent): Promise<void> => {
@@ -49,7 +46,7 @@ const emit = (event: ChatBusEvent): Promise<void> => {
 };
 
 function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
@@ -68,33 +65,6 @@ function ownedCard(): (params: {
     // FABRICATION-OK: minimal `CharacterCard` double (scenario.ts precedent).
     return { name: row.name, avatarAssetId: null } as unknown as CharacterCard;
   };
-}
-
-/** A fake roster resolver (the root resolves `users` publics; here the name/handle derive from the id). */
-async function loadParticipantViews(chatId: ChatId): Promise<readonly ParticipantView[]> {
-  const rows = await db
-    .select()
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
-  return rows.map((r) => ({
-    id: r.id,
-    chatId: r.chatId,
-    kind: r.kind,
-    userId: r.userId,
-    characterId: r.characterId,
-    role: r.role,
-    activePersonaId: r.activePersonaId,
-    talkativeness: r.talkativeness,
-    disabled: r.disabled,
-    joinedAt: r.joinedAt,
-    joinSeq: r.joinSeq,
-    leftSeq: r.leftSeq,
-    joinHistoryVisibility: r.joinHistoryVisibility,
-    displayName: r.userId ?? r.characterId ?? "",
-    handle: r.userId === null ? null : castId<Handle>(r.userId),
-    avatarAssetId: null,
-    avatarHash: null,
-  }));
 }
 
 describe("forkChat — canon-mutator stats push (stats.md)", () => {

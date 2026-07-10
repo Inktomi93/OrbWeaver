@@ -18,6 +18,7 @@ import {
   requireParticipant,
 } from "../../../../packages/server/src/domain/chat/guard";
 import { freshDb } from "../../../support/db";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
 import { seedChat, seedParticipant, seedUser } from "./_support";
 
@@ -28,13 +29,7 @@ beforeEach(async () => {
 });
 
 function principal(userId: UserId): Principal {
-  return {
-    userId,
-    role: "user",
-    handle: castId<Handle>("h"),
-    externalId: null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
 // The guard's deps: the real db + the REAL admin `can()` (PD-1 — the unified seam, injected as the root will

@@ -4,19 +4,16 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { createSessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
+import { makeService } from "../_support.ts";
 
-const PEPPER = "test-session-secret-at-least-32-chars-long";
 const EXTERNAL = castId<ExternalId>("authentik|abc-123");
 
 let db: Db;
 let svc: SessionsService;
-const clock = createFrozenClock();
 
 function identity(over: Partial<ResolvedIdentity> = {}): ResolvedIdentity {
   return {
@@ -45,7 +42,7 @@ async function rowCount(): Promise<number> {
 
 beforeEach(async () => {
   db = await freshDb();
-  svc = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  ({ svc } = makeService(db));
 });
 
 afterEach(() => {

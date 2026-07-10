@@ -20,6 +20,9 @@ import type {
   CredentialContext,
   FetchModelsArgs,
 } from "../../../../packages/server/src/domain/credentials/contract/service.ts";
+import type { CredentialView } from "../../../../packages/server/src/domain/credentials/contract/views.ts";
+import type { CredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
+import { createCredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
 import { createSecretBox } from "../../../../packages/server/src/infra/crypto/secrets.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 
@@ -137,4 +140,33 @@ export function makeHarness(db: Db): CredentialHarness {
       clock.advance(ms);
     },
   };
+}
+
+interface SeedCredentialOverrides {
+  readonly ownerId?: string;
+  readonly role?: UserRole;
+  readonly provider?: CredentialView["provider"];
+  readonly key?: string;
+  readonly label?: string;
+}
+
+/** The repeated "seed an owner, add one credential" arrange block (~15 call sites): builds the service
+ *  over `h`, seeds a `user` owner, and adds one `openrouter` credential for it. */
+export async function seedCredential(
+  db: Db,
+  h: CredentialHarness,
+  overrides: SeedCredentialOverrides = {},
+): Promise<{ svc: CredentialsService; owner: UserId; cred: CredentialView }> {
+  const svc = createCredentialsService(h.ctx);
+  const owner = await seedUser(db, {
+    id: overrides.ownerId ?? "user_o",
+    role: overrides.role ?? "user",
+  });
+  const cred = await svc.add({
+    principal: principal(owner),
+    provider: overrides.provider ?? "openrouter",
+    key: overrides.key ?? "k",
+    ...(overrides.label !== undefined ? { label: overrides.label } : {}),
+  });
+  return { svc, owner, cred };
 }

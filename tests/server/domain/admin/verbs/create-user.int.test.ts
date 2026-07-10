@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
 
 const GOOD_PASSWORD = "correct-horse";
 
@@ -36,8 +36,7 @@ describe("createUser", () => {
 
   test("an empty handle is rejected (invalid_handle)", async () => {
     const db = await freshDb();
-    const svc = createAdminService(makeHarness(db).ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const { svc, admin } = await seedAdminCaller(db);
     await expect(
       svc.createUser({
         principal: principal(admin, "admin"),
@@ -49,8 +48,7 @@ describe("createUser", () => {
 
   test("a short password is rejected (weak_password)", async () => {
     const db = await freshDb();
-    const svc = createAdminService(makeHarness(db).ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const { svc, admin } = await seedAdminCaller(db);
     await expect(
       svc.createUser({ principal: principal(admin, "admin"), handle: "x", password: "short" }),
     ).rejects.toMatchObject({ code: "weak_password" });
@@ -58,8 +56,7 @@ describe("createUser", () => {
 
   test("minting an owner is refused (cannot_grant_owner)", async () => {
     const db = await freshDb();
-    const svc = createAdminService(makeHarness(db).ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const { svc, admin } = await seedAdminCaller(db);
     await expect(
       svc.createUser({
         principal: principal(admin, "admin"),
@@ -72,8 +69,7 @@ describe("createUser", () => {
 
   test("a duplicate handle is rejected (user_exists)", async () => {
     const db = await freshDb();
-    const svc = createAdminService(makeHarness(db).ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const { svc, admin } = await seedAdminCaller(db);
     await seedUser(db, { id: "user_dup", role: "user", handle: "taken" });
     await expect(
       svc.createUser({

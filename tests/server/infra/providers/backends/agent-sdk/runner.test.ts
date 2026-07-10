@@ -7,8 +7,6 @@
 // result throws a typed ProviderError; the init shape guard fires; and a second turn RESUMES the cached
 // session (the Max-sub prompt-cache survival) while a non-agent-sdk request fail-closes.
 
-import type { ModelCapability } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
@@ -20,7 +18,12 @@ import {
 } from "@orb/server/infra/providers/backends/agent-sdk";
 import { seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe, vi } from "vitest";
+import {
+  makeModelCapability,
+  makeResolvedCredential,
+} from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
+import { streamOf as sharedStreamOf } from "./_support.ts";
 
 /** Pull the tagged `provider.*` lines a spied pino level captured (filters out other backend chatter). */
 function providerLines(spy: ReturnType<typeof vi.spyOn>, event: string): Record<string, unknown>[] {
@@ -37,24 +40,16 @@ const MISSING_SESSION_ID_RE = /missing session_id/u;
 /** The reducer's stream param type, named without importing the SDK (its private to the backend). */
 type MessageStream = Parameters<typeof consumeTurnStream>[0];
 
-/** A vLLM (keyless, loopback) credential cast in at the fake edge — avoids touching host `.claude`. */
-const VLLM_CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+/** A vLLM (keyless, loopback) credential — avoids touching host `.claude`. */
+const VLLM_CRED = makeResolvedCredential("vllm");
 
-const CAPABILITY: ModelCapability = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
+const CAPABILITY = makeModelCapability({
   output: { maxTokens: { min: 1, max: 4096 } },
   context: { window: 200_000 },
-};
+});
 
 function streamOf(messages: readonly unknown[]): MessageStream {
-  async function* gen(): AsyncGenerator<never> {
-    await Promise.resolve();
-    for (const message of messages) {
-      yield message as never;
-    }
-  }
-  return gen() as MessageStream;
+  return sharedStreamOf(messages) as MessageStream;
 }
 
 /** The four SDK-legible aggregates `getContextUsage()` returns (the rest of the response shape — grid /

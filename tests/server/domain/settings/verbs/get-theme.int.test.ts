@@ -5,7 +5,7 @@ import { ThemeNotFoundError } from "../../../../../packages/server/src/domain/se
 import { ensureSeedThemes } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { findSeedTheme, makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("getTheme", () => {
   test("resolves the caller's own theme", async () => {
@@ -25,12 +25,7 @@ describe("getTheme", () => {
     const h = makeHarness(db);
     await ensureSeedThemes(db, () => h.clock.now());
     const a = await seedUser(db, { id: "user_a" });
-    const seeds = await h.svc.listThemes({ principal: principal(a, "user") });
-    const hearth = seeds.find((s) => s.name === "Hearth");
-    expect(hearth).toBeDefined();
-    if (hearth === undefined) {
-      throw new Error("unreachable");
-    }
+    const hearth = await findSeedTheme(h, a, "Hearth");
     const view = await h.svc.getTheme({ principal: principal(a, "user"), id: hearth.id });
     expect(view.isSeed).toBe(true);
   });

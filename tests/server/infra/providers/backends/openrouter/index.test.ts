@@ -16,6 +16,7 @@ import type {
 import type { OrClient } from "@orb/server/infra/providers/backends/openrouter";
 import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
 const FIXED_NOW = 1000;
@@ -106,7 +107,7 @@ describe("createOpenRouterBackend — firewall + dispatch", () => {
 
   test("a non-openrouter credential fail-closes the credential guard (rejected, not sync-thrown)", async () => {
     const { backend } = backendWith(() => summarizeReply("x"));
-    const vllmCred = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+    const vllmCred = makeResolvedCredential("vllm");
     const req: EmbedRequest = {
       credential: vllmCred,
       model: castId<ModelId>("qwen/embed"),

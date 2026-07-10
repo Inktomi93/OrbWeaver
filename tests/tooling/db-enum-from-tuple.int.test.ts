@@ -2,20 +2,11 @@
 // db enum derives from a contracts tuple; held out of ALL_CHECKS pending doc reconciliation). Proves: an
 // inline array-literal enum config fires, an imported-identifier config passes, and a local
 // `as const satisfies` tuple identifier passes (the sanctioned db idiom).
-import { Project } from "ts-morph";
 import { dbEnumFromTuple } from "../../scripts/check/gates/db-enum-from-tuple.ts";
-import type { CheckContext } from "../../scripts/check/harness.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxFor } from "./_support.ts";
 
 const SCHEMA = "packages/db/src/schema/thing.ts";
-
-function ctxFor(files: Record<string, string>, root = "/repo"): CheckContext {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, text] of Object.entries(files)) {
-    project.createSourceFile(`${root}/${path}`, text);
-  }
-  return { root, project };
-}
 
 test("fires on an inline array-literal enum config", () => {
   const src = 'export const t = sqliteTable("x", { role: text("role", { enum: ["a", "b"] }) });\n';

@@ -13,8 +13,10 @@ import type {
   ToolHandler,
   ToolUseContext,
 } from "../../../../packages/server/src/domain/tool-use";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
-export const FROZEN_AT = 1_750_000_000_000;
+export const FROZEN_AT = FROZEN_AT_MS;
 
 export interface ToolUseHarness {
   readonly ctx: ToolUseContext;
@@ -44,13 +46,7 @@ export function makeHarness(): ToolUseHarness {
 }
 
 export function principalOf(handle: string): Principal {
-  return {
-    userId: castId(`user_${handle}`),
-    role: "user",
-    handle: castId(handle),
-    externalId: null,
-    via: "cookie",
-  };
+  return makePrincipal(castId(`user_${handle}`), { handle: castId(handle) });
 }
 
 export function execOf(over: Partial<ToolExecutionContext> = {}): ToolExecutionContext {

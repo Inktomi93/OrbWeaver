@@ -30,12 +30,14 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 // The injected writeHubScores op type (not re-exported from the front door — derive it from the ctx).
 type WriteHubScores = DiscoveryContext["writeHubScores"];
 
 /** A fixed epoch-ms (the frozen clock instant — stable timestamp assertions). */
-export const FROZEN_AT = 1_750_000_000_000;
+export const FROZEN_AT = FROZEN_AT_MS;
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
 export const VECTOR_DIM = 1024;
 /** The default embed model the seeders tag rows with (the `(model)` space tag). */
@@ -166,18 +168,12 @@ export function makeDiscoveryHarness(
 
 // ── seeders (insert the rows the verbs read directly) ─────────────────────────
 
+/** Thin delegate over the canonical factory — discovery's call sites pass a bare-string `id` and want the
+ *  id back, not the row (the punchlist's warned bare-string-second-arg variant). */
 export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
   const userId = castId<UserId>(id);
-  await db.insert(users).values({
-    id: userId,
-    handle: castId<Handle>(id),
-    role: "user",
-    enabled: true,
-    passwordHash: null,
-    createdAt: FROZEN_AT,
-    updatedAt: FROZEN_AT,
-  });
-  return userId;
+  const seeded = await seedUserRow(db, { id: userId, handle: castId<Handle>(id) });
+  return seeded.id;
 }
 
 export async function seedCharacter(

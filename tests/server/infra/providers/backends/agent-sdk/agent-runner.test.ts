@@ -8,7 +8,6 @@
 // to `mcp__orbweaver__*`, the turn/output ceilings default + honor overrides, and the stream reduces.
 // Driven via createAgentSdkBackend().runAgentTurn with an injected fake `query` (no live spawn).
 
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
@@ -16,7 +15,9 @@ import type { AgentToolServer, AgentTurnRequest, ChatResult } from "@orb/server/
 import type { consumeTurnStream } from "@orb/server/infra/providers/backends/agent-sdk";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
+import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
+import { streamOf as sharedStreamOf } from "./_support.ts";
 
 const MODEL = "claude-agent-x";
 const SESSION_ID = "agent-sess-1";
@@ -28,7 +29,7 @@ const DEFAULT_MAX_TURNS = 8;
 const DEFAULT_MAX_OUTPUT = "4096";
 
 /** A vLLM (keyless, loopback) credential — keeps the firewall env deterministic + host-free. */
-const VLLM_CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
+const VLLM_CRED = makeResolvedCredential("vllm");
 /** An opaque MCP tool server sentinel — the core treats it as `unknown`; we assert identity passthrough. */
 const FAKE_MCP: AgentToolServer = { __sentinel: "mcp-server" };
 
@@ -70,13 +71,7 @@ function lineFor(
 }
 
 function streamOf(messages: readonly unknown[]): MessageStream {
-  async function* gen(): AsyncGenerator<never> {
-    await Promise.resolve();
-    for (const message of messages) {
-      yield message as never;
-    }
-  }
-  return gen() as MessageStream;
+  return sharedStreamOf(messages) as MessageStream;
 }
 
 const initMsg = { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "oauth" };

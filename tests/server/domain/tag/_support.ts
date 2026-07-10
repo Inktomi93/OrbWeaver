@@ -8,12 +8,11 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { characters, chats, personas, presets, tags, users, worldBooks } from "@orb/db";
+import { characters, chats, personas, presets, tags, worldBooks } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type {
   CharacterId,
   ChatId,
-  ExternalId,
   Handle,
   PersonaId,
   PresetId,
@@ -24,6 +23,8 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import type { TagContext } from "../../../../packages/server/src/domain/tag/contract/service.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
+import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
 /** The harness: the TagContext + recorders/controls for the injected membership-gate fake. */
@@ -70,27 +71,18 @@ export function makeTagHarness(db: Db): TagHarness {
   };
 }
 
-/** A cookie-resolved Principal for a user id (role defaults to `user` — tags are role-agnostic). */
+/** A cookie-resolved Principal for a user id (role defaults to `user` — tags are role-agnostic). Delegates
+ *  to the shared `support/factories/principal` — tag keeps its existing positional `(id, role)` convention. */
 export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return {
-    userId,
-    role,
-    handle: castId<Handle>(userId),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(userId, { role });
 }
 
+/** Thin delegate over the canonical factory — tag's call sites pass a bare-string `id` (the punchlist's
+ *  warned variant) and want the id back, not the row. */
 export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
   const userId = castId<UserId>(id);
-  await db.insert(users).values({
-    id: userId,
-    handle: castId<Handle>(id),
-    role: "user",
-    enabled: true,
-    passwordHash: null,
-  });
-  return userId;
+  const seeded = await seedUserRow(db, { id: userId, handle: castId<Handle>(id) });
+  return seeded.id;
 }
 
 /** Insert a `tags` row directly (the persistence-level seed; the verb path is exercised by create tests). */

@@ -24,16 +24,12 @@ import type { Principal, UserRole } from "../../../../packages/contracts/src/ide
 import type { UserSettings } from "../../../../packages/contracts/src/settings/index.ts";
 import { DEFAULT_USER_SETTINGS } from "../../../../packages/contracts/src/settings/index.ts";
 import type { Db } from "../../../../packages/db/src/client/index.ts";
-import type {
-  ExternalId,
-  Handle,
-  UserCredentialId,
-  UserId,
-} from "../../../../packages/kit/src/ids/index.ts";
+import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";
 import type { ConnectionContext } from "../../../../packages/server/src/domain/connection/contract/service.ts";
 import type { Clock } from "../../../support/clock.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
+import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
 type RoleDefaults = UserSettings["routing"]["roleDefaults"];
 
@@ -155,16 +151,11 @@ export function makeConnHarness(db: Db): ConnHarness {
 }
 
 /** A cookie-resolved Principal for a user id (role defaults to `user` — selection is role-agnostic; the
- *  owner gate lives in credentials, faked here). */
+ *  owner gate lives in credentials, faked here). Delegates to the shared `support/factories/principal` —
+ *  connection keeps its existing positional `(id, role)` convention (id is a bare string here). */
 export function principal(userId: string, role: UserRole = "user"): Principal {
   const id = castId<UserId>(userId);
-  return {
-    userId: id,
-    role,
-    handle: castId<Handle>(userId),
-    externalId: null as ExternalId | null,
-    via: "cookie",
-  };
+  return makePrincipal(id, { role, handle: castId<Handle>(userId) });
 }
 
 /** A minimal-valid agent-sdk daemon model row for cache/alias-resolution tests. Defaults to the `sonnet`

@@ -13,12 +13,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
-
-async function seedUser(db: Awaited<ReturnType<typeof freshDb>>, raw: string): Promise<UserId> {
-  const id = castId<UserId>(raw);
-  await db.insert(users).values({ id, handle: castId<Handle>(raw) });
-  return id;
-}
+import { seedUser } from "./_support.ts";
 
 // A valid `invite` event for the given recipient (real TypeIDs so it also parses via the contract).
 function inviteEvent(recipientUserId: UserId): NotificationEvent {
@@ -33,7 +28,7 @@ function inviteEvent(recipientUserId: UserId): NotificationEvent {
 
 test("notifications insert→select round-trips (payload JSON + discriminant + defaults)", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db, "user_notif_rt");
+  const userId = await seedUser(db, { id: "user_notif_rt" });
   const payload = inviteEvent(userId);
   await db.insert(notifications).values({
     id: castId<NotificationId>("notification_rt"),
@@ -71,7 +66,7 @@ test("test-mirror: the `type` column accepts EXACTLY the contract union members"
   // Every union member inserts cleanly (the column enum + CHECK derive the same set). Batched (one
   // insert) to avoid await-in-loop.
   const db = await freshDb();
-  const userId = await seedUser(db, "user_notif_types");
+  const userId = await seedUser(db, { id: "user_notif_types" });
   await db.insert(notifications).values(
     unionTypes.map((type, i) => ({
       id: castId<NotificationId>(`notification_type_${i}`),
@@ -86,7 +81,7 @@ test("test-mirror: the `type` column accepts EXACTLY the contract union members"
 
 test("notifications type CHECK rejects an out-of-union value", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db, "user_notif_badtype");
+  const userId = await seedUser(db, { id: "user_notif_badtype" });
   let caught: unknown;
   try {
     await db.insert(notifications).values({
@@ -104,8 +99,8 @@ test("notifications type CHECK rejects an out-of-union value", async () => {
 
 test("seq is monotonic-orderable per recipient and unique per (recipient, seq)", async () => {
   const db = await freshDb();
-  const a = await seedUser(db, "user_seq_a");
-  const b = await seedUser(db, "user_seq_b");
+  const a = await seedUser(db, { id: "user_seq_a" });
+  const b = await seedUser(db, { id: "user_seq_b" });
 
   // Out-of-order inserts, then read back in seq order.
   await db.insert(notifications).values([
@@ -165,7 +160,7 @@ test("seq is monotonic-orderable per recipient and unique per (recipient, seq)",
 
 test("readAt / dismissedAt flip from null on update", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db, "user_notif_read");
+  const userId = await seedUser(db, { id: "user_notif_read" });
   await db.insert(notifications).values({
     id: castId<NotificationId>("notification_read"),
     recipientUserId: userId,
@@ -198,7 +193,7 @@ test("readAt / dismissedAt flip from null on update", async () => {
 
 test("deleting the recipient cascades their notifications", async () => {
   const db = await freshDb();
-  const userId = await seedUser(db, "user_notif_cascade");
+  const userId = await seedUser(db, { id: "user_notif_cascade" });
   await db.insert(notifications).values({
     id: castId<NotificationId>("notification_cascade"),
     recipientUserId: userId,

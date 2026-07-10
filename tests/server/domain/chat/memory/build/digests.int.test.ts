@@ -15,7 +15,6 @@ import { CONSOLIDATION_SYSTEM_PROMPT } from "../../../../../../packages/server/s
 import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript";
 import type {
   MemoryLogEntry,
-  MemoryScope,
   MsgRow,
 } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { freshDb } from "../../../../../support/db";
@@ -28,7 +27,15 @@ import {
   seedPersona,
   seedUser,
 } from "../../_support";
-import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest } from "../_support";
+import {
+  fakeEmbeddingsStore,
+  fakeSummarize,
+  GROUP_CHAR,
+  MODEL,
+  seedDigest,
+  seedTurns,
+  sharedScope,
+} from "../_support";
 
 /** A summarizer that returns only whitespace — the empty-output degrade the F7 skip-and-flag guards against. */
 const emptySummarize = (): Promise<SummarizeResult> =>
@@ -82,24 +89,10 @@ function upsertingStore(database: Db): { store: EmbeddingsStoreOp; digests: Stor
   return { store, digests };
 }
 
-/** Seed `n` assistant messages (seq 1..n) voiced by `aria`. */
-async function seedTurns(chatId: Awaited<ReturnType<typeof seedChat>>, n: number): Promise<void> {
-  for (let seq = 1; seq <= n; seq += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: ordered seed inserts in a test.
-    await seedMessage(db, chatId, seq, { characterId: aria, content: `turn ${seq}` });
-  }
-}
-
-const sharedScope = (chatId: Awaited<ReturnType<typeof seedChat>>): MemoryScope => ({
-  chatId,
-  scopedCharacterId: GROUP_CHAR,
-  isGroup: false,
-});
-
 describe("memory/build/digests", () => {
   test("digests each complete aged-out block via the summarizer + stores the facets through embeddings.store", async () => {
     const chatId = await seedChat(db, "a");
-    await seedTurns(chatId, 4);
+    await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
@@ -137,7 +130,7 @@ describe("memory/build/digests", () => {
 
   test("verbatimWindow protects the tip — only aged-out blocks digest", async () => {
     const chatId = await seedChat(db, "b");
-    await seedTurns(chatId, 4); // maxSeq 4
+    await seedTurns(db, chatId, aria, 4); // maxSeq 4
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
@@ -152,7 +145,7 @@ describe("memory/build/digests", () => {
 
   test("self-heal: a second pass over unchanged canon skips everything (no summarizer spend)", async () => {
     const chatId = await seedChat(db, "c");
-    await seedTurns(chatId, 4);
+    await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
@@ -169,7 +162,7 @@ describe("memory/build/digests", () => {
 
   test("mode 'off' is a no-op (D36 global disable)", async () => {
     const chatId = await seedChat(db, "d");
-    await seedTurns(chatId, 4);
+    await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
@@ -183,7 +176,7 @@ describe("memory/build/digests", () => {
 
   test("scoped build + witnessing (§4 / inv 12): only blocks the character was present for are digested", async () => {
     const chatId = await seedChat(db, "w");
-    await seedTurns(chatId, 6); // blockSize 2 → blocks 0 (seq 1-2), 1 (seq 3-4), 2 (seq 5-6)
+    await seedTurns(db, chatId, aria, 6); // blockSize 2 → blocks 0 (seq 1-2), 1 (seq 3-4), 2 (seq 5-6)
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
@@ -224,7 +217,7 @@ describe("memory/build/digests", () => {
 
   test("emits a `memory.build` trace; a fresh chat (no aged-out block) logs the zero-work skip (inv 10)", async () => {
     const chatId = await seedChat(db, "trace");
-    await seedTurns(chatId, 2); // only ~1 block, all inside the verbatim window → nothing aged out
+    await seedTurns(db, chatId, aria, 2); // only ~1 block, all inside the verbatim window → nothing aged out
     const entries: MemoryLogEntry[] = [];
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().fn,
@@ -244,7 +237,7 @@ describe("memory/build/digests", () => {
 describe("memory/build/digests — adversarial (self-heal re-digest, tiering, token-guard, trigger discipline)", () => {
   test("a fresh chat does ZERO work: the summarize + embed fakes are NEVER touched (inv 10)", async () => {
     const chatId = await seedChat(db, "fresh");
-    await seedTurns(chatId, 2); // all inside the verbatim window → nothing aged out
+    await seedTurns(db, chatId, aria, 2); // all inside the verbatim window → nothing aged out
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
@@ -260,7 +253,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("self-heal: EDITING an aged-out block re-digests THAT block AND re-consolidates its tier-1 (anti-forgetting)", async () => {
     const chatId = await seedChat(db, "edit");
-    await seedTurns(chatId, 8); // blockSize 2 → 4 tier-0 blocks; fanOut 4 → one tier-1
+    await seedTurns(db, chatId, aria, 8); // blockSize 2 → 4 tier-0 blocks; fanOut 4 → one tier-1
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 2 } as const;
     const pass1 = upsertingStore(db);
     await generateDigests(ctx1(pass1.store), { scope: sharedScope(chatId), config: cfg });
@@ -384,7 +377,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("self-heal: editing a PROTECTED-TIP message never busts a settled digest (the protect zone shields it)", async () => {
     const chatId = await seedChat(db, "tipedit");
-    await seedTurns(chatId, 4); // maxSeq 4
+    await seedTurns(db, chatId, aria, 4); // maxSeq 4
     const cfg = { blockSize: 2, verbatimWindow: 2, fanOut: 4, maxTier: 1 } as const; // cutoff 2 → only block 0 aged out
     const store1 = fakeEmbeddingsStore(db);
     await generateDigests(
@@ -415,7 +408,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("fork-lazy / hash-keyed skip: a pre-existing digest with the MATCHING content_hash reuses (NO summarizer call)", async () => {
     const chatId = await seedChat(db, "fork");
-    await seedTurns(chatId, 4); // blocks 0 (seq 1-2), 1 (seq 3-4)
+    await seedTurns(db, chatId, aria, 4); // blocks 0 (seq 1-2), 1 (seq 3-4)
     // Pre-seed block 0's digest with the EXACT hash the build will compute (a fork copying the parent's digest);
     // block 1 has none. The build must SKIP block 0 by hash (no summarize) and only summarize the divergent block 1.
     const block0Rows: MsgRow[] = [
@@ -461,7 +454,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("tier consolidation: an INCOMPLETE fanOut group is NOT consolidated (deferred until it fills)", async () => {
     const chatId = await seedChat(db, "incomplete");
-    await seedTurns(chatId, 6); // blockSize 2 → 3 tier-0 blocks; fanOut 4 needs 4 → no tier-1 yet
+    await seedTurns(db, chatId, aria, 6); // blockSize 2 → 3 tier-0 blocks; fanOut 4 needs 4 → no tier-1 yet
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     await generateDigests(
@@ -536,7 +529,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("token-guard config floor: a below-floor summarizer context logs the soft-warning but STILL digests (degrade visible, not silent)", async () => {
     const chatId = await seedChat(db, "floor");
-    await seedTurns(chatId, 2); // one tiny aged-out block
+    await seedTurns(db, chatId, aria, 2); // one tiny aged-out block
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
     const entries: MemoryLogEntry[] = [];
@@ -561,7 +554,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("blockSize is NOT auto-resized by the summarizer context: block boundaries depend only on `blockSize`", async () => {
     const chatId = await seedChat(db, "noresize");
-    await seedTurns(chatId, 4); // blockSize 2 → blocks [0,1] regardless of context size
+    await seedTurns(db, chatId, aria, 4); // blockSize 2 → blocks [0,1] regardless of context size
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;
     const wide = fakeEmbeddingsStore(db);
     await generateDigests(
@@ -573,7 +566,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       { scope: sharedScope(chatId), config: cfg },
     );
     const chatId2 = await seedChat(db, "noresize2");
-    await seedTurns(chatId2, 4);
+    await seedTurns(db, chatId2, aria, 4);
     const tight = fakeEmbeddingsStore(db);
     await generateDigests(
       makeChatContext(db, {
@@ -591,7 +584,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("empty summarizer output is SKIP-AND-FLAGGED, not stored — the next build retries the block (F7)", async () => {
     const chatId = await seedChat(db, "emptyout");
-    await seedTurns(chatId, 2); // one aged-out block (seq 1-2)
+    await seedTurns(db, chatId, aria, 2); // one aged-out block (seq 1-2)
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;
 
     // Pass 1: the summarizer returns only whitespace → the block must NOT be stored (a blank digest keyed by
@@ -624,7 +617,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("CONSOLIDATION-site: empty summarizer output on the parent call is SKIP-AND-FLAGGED, not stored — the next build retries it (mirrors the tier-0 guard)", async () => {
     const chatId = await seedChat(db, "emptyconsolidate");
-    await seedTurns(chatId, 4); // 2 complete tier-0 blocks (seq 1-2, 3-4) → 1 complete fanOut-2 group
+    await seedTurns(db, chatId, aria, 4); // 2 complete tier-0 blocks (seq 1-2, 3-4) → 1 complete fanOut-2 group
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } as const;
 
     // Pass 1: tier-0 summarizes normally; the CONSOLIDATION call returns only whitespace → the parent digest
@@ -663,7 +656,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("mode 'off' logs the zero-work note (observability)", async () => {
     const chatId = await seedChat(db, "offnote");
-    await seedTurns(chatId, 4);
+    await seedTurns(db, chatId, aria, 4);
     const entries: MemoryLogEntry[] = [];
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().fn,
