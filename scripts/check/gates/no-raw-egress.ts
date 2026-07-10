@@ -5,7 +5,9 @@
 // (each a configured-endpoint or localhost call, a different trust class than untrusted user content):
 //   • infra/network/** — safeFetch's impl home + the `/models` catalog probe.
 //   • infra/providers/** — the sealed runner tier (vLLM loopback engine · custom-BYO configured endpoint).
-//   • domain/imagery/verbs/generate-picture.ts — downloads the provider-returned generated image URL.
+// Imagery's generated-image download was DE-SANCTIONED (2026-07-09): the URL is provider-response-controlled
+// (an OpenRouter-marketplace model provider populates it), so a raw fetch there is an SSRF hole — it now
+// routes through the `fetchImage` port → `infra/network` `fetchImageBytes` → `safeFetch` (its first consumer).
 // Untrusted-content egress (hub browse, databank scrapers, server-side D44 external media) lives OUTSIDE
 // these zones, so a raw `fetch` there is RED — route it through `safeFetch`. PLUS a literal ban on
 // `corsproxy.io` (the NAMED-REJECTED third-party proxy fallback, D61) anywhere in server source.
@@ -21,14 +23,12 @@ const CORSPROXY = "corsproxy.io";
 const FETCH_SANCTIONED: readonly RegExp[] = [
   /\/packages\/server\/src\/infra\/network\//u,
   /\/packages\/server\/src\/infra\/providers\//u,
-  /\/packages\/server\/src\/domain\/imagery\/verbs\/generate-picture\.ts$/u,
 ];
 
 const FETCH_MESSAGE =
   "bare `fetch(` outside the sanctioned provider-egress zones — route untrusted/user-influenced egress " +
   "through `safeFetch` (the self-enforcing SSRF guard, infra/network). Sanctioned raw-fetch: infra/network " +
-  "· infra/providers (vLLM/custom-BYO) · domain/imagery generate-picture. See Core-Path-Registry-D60-D61.md " +
-  "D61 (B5a).";
+  "· infra/providers (vLLM/custom-BYO). See Core-Path-Registry-D60-D61.md D61 (B5a).";
 const CORSPROXY_MESSAGE =
   "`corsproxy.io` is the NAMED-REJECTED third-party CORS proxy (D61 B5a) — never route egress through it. " +
   "See Core-Path-Registry-D60-D61.md D61.";

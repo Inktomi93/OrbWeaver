@@ -196,6 +196,25 @@ export async function attachCharacterTag(args: {
   return inserted.length > 0;
 }
 
+/** Detach ONE tag from a character, idempotently, REPORTING whether a row was removed. The mirror of
+ *  {@link attachCharacterTag}: `DELETE … RETURNING` is the idempotent-with-signal idiom — a returned row ⇒ the
+ *  `(characterId, tagId)` junction existed and is gone (true); an empty result ⇒ the character never carried
+ *  the tag (false — a true no-op). The by-name detach path (`detachCardTagByName`) uses this; the tag itself is
+ *  left intact (a tag with zero junctions is the prune-unused concern, not a detach's). */
+export async function detachCharacterTag(args: {
+  readonly db: Db;
+  readonly characterId: CharacterId;
+  readonly tagId: TagId;
+}): Promise<boolean> {
+  const deleted = await args.db
+    .delete(characterTags)
+    .where(
+      and(eq(characterTags.characterId, args.characterId), eq(characterTags.tagId, args.tagId)),
+    )
+    .returning({ tagId: characterTags.tagId });
+  return deleted.length > 0;
+}
+
 interface BulkAttachArgs {
   readonly db: Db;
   readonly targetId: string;

@@ -22,6 +22,7 @@ import { dbStructure } from "./gates/db-structure.ts";
 import { diagnosticLegibility } from "./gates/diagnostic-legibility.ts";
 import { createEnforcementRegistryParity } from "./gates/enforcement-registry-parity.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
+import { formFactoryForMultifield } from "./gates/form-factory-for-multifield.ts";
 import { infraAuthNoUserId } from "./gates/infra-auth-no-userid.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
@@ -140,6 +141,9 @@ const BASE_CHECKS: readonly Check[] = [
   // interface-level complement to test-presence + the fabrication-cast ratchet.
   contractVerbPresence,
   noTestFabrication,
+  // D54 §13.3/§13.4 form-factory gate — activated 2026-07-09 once its ONE real-tree hit
+  // (chat/components/group-config-form.tsx) was migrated onto createAutosaveEntityForm (0-violation).
+  formFactoryForMultifield,
 ];
 
 /** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which

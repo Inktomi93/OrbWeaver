@@ -220,3 +220,118 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   // Empty fields are omitted (inherit), not sent as "".
   expect(input.overrides).not.toHaveProperty("mainPrompt");
 });
+
+test("host sets the author's-note depth — the injection directive is saved (task #22)", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host"),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "chat.setRoomOverrides": () => ({ authorsNote: { prompt: "Keep it tense.", depth: 2 } }),
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+  await component.getByLabel("Author's note").fill("Keep it tense.");
+  // The NumberField seeds the house default depth; clear before typing so the value replaces, not appends.
+  await component.getByLabel("Depth").clear();
+  await component.getByLabel("Depth").fill("2");
+
+  await expect
+    .poll(() => {
+      const last = trpc.lastInput("chat.setRoomOverrides") as {
+        overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
+      } | null;
+      return last?.overrides?.authorsNote?.depth ?? null;
+    })
+    .toBe(2);
+  const input = trpc.lastInput("chat.setRoomOverrides") as {
+    overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
+  };
+  // The note is the shared directive: prompt + host-set depth + the default role (system).
+  expect(input.overrides?.authorsNote).toEqual({
+    prompt: "Keep it tense.",
+    depth: 2,
+    role: "system",
+  });
+});
+
+test("assistant role at depth 0 surfaces the author's-note prefill warning", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host"),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "chat.setRoomOverrides": () => ({}),
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+  await component.getByLabel("Author's note").fill("Whisper it.");
+  await component.getByLabel("Depth").clear();
+  await component.getByLabel("Depth").fill("0");
+  await component.getByRole("combobox", { name: "Role" }).click();
+  await page.getByRole("option", { name: "Assistant" }).click();
+
+  await expect(component.getByText("response prefill", { exact: false })).toBeVisible();
+});
+
+test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it resumes note saves", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host"),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "chat.setRoomOverrides": () => ({}),
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+  // Put the note into the invalid assistant@depth-0 prefill combo.
+  await component.getByLabel("Author's note").fill("Whisper it.");
+  await component.getByLabel("Depth").clear();
+  await component.getByLabel("Depth").fill("0");
+  await component.getByRole("combobox", { name: "Role" }).click();
+  await page.getByRole("option", { name: "Assistant" }).click();
+  await expect(component.getByText("response prefill", { exact: false })).toBeVisible();
+
+  // A sibling edit STILL persists — the whole-blob write carries scenario with the invalid note WITHHELD.
+  await component.getByLabel("Scenario").fill("A rainy dock.");
+  await expect
+    .poll(() => {
+      const last = trpc.lastInput("chat.setRoomOverrides") as {
+        overrides?: { scenario?: string; authorsNote?: unknown };
+      } | null;
+      return last?.overrides?.scenario ?? null;
+    })
+    .toBe("A rainy dock.");
+  const invalidTurn = trpc.lastInput("chat.setRoomOverrides") as {
+    overrides?: { scenario?: string; authorsNote?: unknown };
+  };
+  expect(invalidTurn.overrides?.scenario).toBe("A rainy dock.");
+  // The invalid note is not on the wire (siblings are never hostage to a field the user was warned about).
+  expect(invalidTurn.overrides).not.toHaveProperty("authorsNote");
+
+  // Fixing the combo (depth ≥ 1) resumes note saves — the directive now lands with its host-set depth/role.
+  await component.getByLabel("Depth").clear();
+  await component.getByLabel("Depth").fill("1");
+  await expect
+    .poll(() => {
+      const last = trpc.lastInput("chat.setRoomOverrides") as {
+        overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
+      } | null;
+      return last?.overrides?.authorsNote?.depth ?? null;
+    })
+    .toBe(1);
+  const fixedTurn = trpc.lastInput("chat.setRoomOverrides") as {
+    overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
+  };
+  expect(fixedTurn.overrides?.authorsNote).toEqual({
+    prompt: "Whisper it.",
+    depth: 1,
+    role: "assistant",
+  });
+});

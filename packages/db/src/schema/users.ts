@@ -60,6 +60,13 @@ export const users = sqliteTable(
     uniqueIndex("users_external_id_unique")
       .on(table.externalId)
       .where(sql`${table.externalId} is not null`),
+    // D17/D40 "exactly one owner" enforcer: a partial unique index over `role` scoped to owner rows makes a
+    // SECOND `role='owner'` row unrepresentable (the invariant `Principal`/D17 assert but nothing enforced —
+    // D40 tracked it "open, needs its enforcer"). SQLite ignores non-owner rows (the WHERE), so admin/user
+    // are unconstrained. The single owner is the immutable bootstrap identity; `admin.setRole` already
+    // refuses to grant/revoke owner, so the only writers are boot `seed-owner` + SSO `provisionIdentity`
+    // (both under the single-owner OWNER_HANDLES default) — this index is the DDL floor beneath them.
+    uniqueIndex("users_single_owner_unique").on(table.role).where(sql`${table.role} = 'owner'`),
     check("users_role_check", sql.raw(`role in (${ROLE_CHECK_LIST})`)),
     check("users_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     // The structural no-login core (agent-principal-design/01 §1/§3.1): an agent is loginless (no

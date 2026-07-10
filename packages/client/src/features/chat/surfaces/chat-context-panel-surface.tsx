@@ -99,8 +99,10 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
   // The committed persist seam for the Overrides tab (the editor is source-agnostic — a draft passes
   // `setDraftRoomOverrides` instead). The verb takes/returns the domain `RoomOverrides`.
   const setOverrides = useSetRoomOverrides({ trpc, invalidation });
+  // `.catch` swallows the autosave rejection so a failed write doesn't leak an unhandled TRPCClientError as a
+  // page error — the mutation's `meta.errorToast` already surfaces the failure to the user.
   const saveOverrides = (overrides: RoomOverrides): Promise<unknown> =>
-    setOverrides.mutateAsync({ chatId, overrides });
+    setOverrides.mutateAsync({ chatId, overrides }).catch(() => undefined);
   // The committed roster seam (the panel is source-agnostic — a draft passes store writes instead): the
   // three per-member verbs + the participants projected into the `RosterMember` view.
   const setDisabled = useSetParticipantDisabled({ trpc, invalidation });

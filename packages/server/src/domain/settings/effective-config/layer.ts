@@ -16,6 +16,7 @@ import type {
 import {
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
+  DEFAULT_MAX_IMAGE_BYTES,
 } from "@orb/contracts/settings";
 import { env } from "#foundation/env";
 
@@ -82,5 +83,6 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     nonOwnerLocalComputeBudget:
       overrides.nonOwnerLocalComputeBudget ?? NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR,
     allowNonOwnerMaxProSub: overrides.allowNonOwnerMaxProSub ?? DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
+    maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
   };
 }

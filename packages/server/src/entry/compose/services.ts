@@ -79,7 +79,7 @@ import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createImageAdapter } from "#infra/image";
-import { fetchOpenAiModels } from "#infra/network";
+import { fetchImageBytes, fetchOpenAiModels } from "#infra/network";
 import type { AgentToolSpec, BackendRegistryDeps, VllmEngineHandle } from "#infra/providers";
 import {
   createAgentToolServer,
@@ -406,6 +406,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
     // 1:1 ({ ownerId, characterId, tagName } → Promise<boolean>); ownership is pre-gated by bulkAddCardTag.
     attachCardTag: tag.attachCardTagByName,
+    // The by-name card-tag DETACH port → tag's resolve-by-name detach verb (the mirror; §12-FIX). Same 1:1
+    // shape; ownership is pre-gated by bulkRemoveCardTag.
+    detachCardTag: tag.detachCardTagByName,
   });
 
   // ── The default-card seeder (PD-32): the ONE idempotent instance boot + the app first-request hook share.
@@ -678,6 +681,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return { connection: conn, capability: conn.capability };
     },
     generateImage: (req) => executor.generateImage(req),
+    fetchImage: (url) => fetchImageBytes(url, effectiveConfig.getEffectiveConfig().maxImageBytes),
     storeAsset: (caller, bytes, kind, mime) =>
       assets.store({ principal: caller, bytes, kind, mime, enforceMagic: true }),
     recordStats: async (delta): Promise<void> => {

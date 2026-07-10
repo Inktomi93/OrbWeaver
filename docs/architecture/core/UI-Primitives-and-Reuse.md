@@ -75,7 +75,7 @@ The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft sema
 | Preset editor | `createSavedEntityForm` | many fields |
 | Prompt-manager | `createSavedEntityForm` | multi-field |
 | Connection / credential add+edit | `createSavedEntityForm` | multi-field + validation — was hand-rolled in neo |
-| Group-chat create + config | `createSavedEntityForm` | roster + overrides |
+| Group-chat create + config | `createAutosaveEntityForm` | immediate-commit chat law (no save-bar, FINAL-Chats §2); the whole-object DU rebuild lives in the save fn |
 | User-admin create / edit user | `createSavedEntityForm` | multi-field + validation |
 | D44 theme editor | `createSavedEntityForm` | the token subset (§12.1) |
 | World-info / lorebook entry | `createAutosaveEntityForm` | debounced draft |

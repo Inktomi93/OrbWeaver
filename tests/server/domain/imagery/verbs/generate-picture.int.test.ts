@@ -48,12 +48,14 @@ interface Harness {
   readonly ctx: ImageryContext;
   readonly recordedStats: StatsDelta[];
   readonly generateCalls: number[];
+  readonly fetchImageCalls: string[];
 }
 
 function makeHarness(overrides: Partial<ImageryContext> = {}): Harness {
   const ids = createSeededIds();
   const recordedStats: StatsDelta[] = [];
   const generateCalls: number[] = [];
+  const fetchImageCalls: string[] = [];
   const connection = {
     api: "chat-completions",
     model: castId<ModelId>("img-model"),
@@ -74,6 +76,10 @@ function makeHarness(overrides: Partial<ImageryContext> = {}): Harness {
         usage: { costUsd: 0.02 },
       });
     },
+    fetchImage: (url) => {
+      fetchImageCalls.push(url);
+      return Promise.resolve(null);
+    },
     storeAsset: async (caller, bytes, kind, mime) => {
       const assetId = castId<AssetId>(ids.next("asset"));
       await db.insert(assets).values({
@@ -92,7 +98,7 @@ function makeHarness(overrides: Partial<ImageryContext> = {}): Harness {
     },
     ...overrides,
   };
-  return { ctx, recordedStats, generateCalls };
+  return { ctx, recordedStats, generateCalls, fetchImageCalls };
 }
 
 describe("generatePicture (free mode)", () => {
@@ -152,6 +158,62 @@ describe("generatePicture (free mode)", () => {
       }),
     ).rejects.toThrow();
 
+    expect(await db.select().from(imageryGenerations)).toHaveLength(0);
+    expect(await db.select().from(assets)).toHaveLength(0);
+  });
+
+  test("a provider URL image is downloaded via the SSRF-safe fetchImage port, then stored", async () => {
+    const owner = await seedOwner("owner");
+    const url = "https://cdn.example/generated/dragon.png";
+    const { ctx, fetchImageCalls } = makeHarness({
+      generateImage: () =>
+        Promise.resolve({
+          images: [{ url, base64: undefined, mediaType: "image/png" }],
+          model: "img-model",
+          usage: { costUsd: 0.01 },
+        }),
+      fetchImage: (u) => {
+        fetchImageCalls.push(u);
+        return Promise.resolve(PNG_BYTES);
+      },
+    });
+
+    const result = await createImageryService(ctx).generatePicture({
+      caller: principal(owner),
+      mode: "free",
+      prompt: "a dragon over a castle",
+    });
+
+    // The provider-controlled URL rode the injected port (→ safeFetch), never a raw fetch.
+    expect(fetchImageCalls).toEqual([url]);
+    expect(result.images).toHaveLength(1);
+    const assetRows = await db.select().from(assets).where(eq(assets.ownerId, owner));
+    expect(assetRows).toHaveLength(1);
+    expect(assetRows[0]?.kind).toBe("generated");
+  });
+
+  test("a URL the SSRF-safe port rejects (null) is dropped → GenerationFailedError, no asset/row", async () => {
+    const owner = await seedOwner("owner");
+    // fetchImage returns null for an SSRF-blocked / non-2xx / oversized / failed download (the harness
+    // default) — the only image drops, so the generation fails closed and nothing is persisted.
+    const { ctx, fetchImageCalls } = makeHarness({
+      generateImage: () =>
+        Promise.resolve({
+          images: [{ url: "http://169.254.169.254/latest/meta-data/", base64: undefined }],
+          model: "img-model",
+          usage: { costUsd: null },
+        }),
+    });
+
+    await expect(
+      createImageryService(ctx).generatePicture({
+        caller: principal(owner),
+        mode: "free",
+        prompt: "exfiltrate",
+      }),
+    ).rejects.toThrow();
+
+    expect(fetchImageCalls).toEqual(["http://169.254.169.254/latest/meta-data/"]);
     expect(await db.select().from(imageryGenerations)).toHaveLength(0);
     expect(await db.select().from(assets)).toHaveLength(0);
   });

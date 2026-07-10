@@ -13,11 +13,9 @@ export type { CharacterBulkBarProps } from "./components/character-bulk-bar";
 export { CharacterBulkBar } from "./components/character-bulk-bar";
 export type { CharacterCardItem, CharacterCardTileProps } from "./components/character-card";
 export { CharacterCardTile } from "./components/character-card";
-export type {
-  CharacterDetailCardProps,
-  CharacterDetailItem,
-} from "./components/character-detail-card";
-export { CharacterDetailCard } from "./components/character-detail-card";
+// §6.1 hero band — front-door-exported so its geometry/a11y CT drives it directly.
+export type { CharacterHeroBandProps, CharacterHeroDetail } from "./components/character-hero-band";
+export { CharacterHeroBand } from "./components/character-hero-band";
 export { CharacterLibraryWelcome } from "./components/character-library-welcome";
 // The pure LIST view helpers (§4.3/§4.4/§4.5) — front-door-exported so their browser-free unit test drives
 // them directly (the CharacterCardTile props precedent), never a deep import into the slice internals.
@@ -29,7 +27,7 @@ export type {
   TagGroup,
 } from "./lib/character-list-view";
 export { filterByChips, groupByTag, resumeTargets } from "./lib/character-list-view";
-export type { CharacterDetailSurfaceProps } from "./surfaces/character-detail-surface";
-export { CharacterDetailSurface } from "./surfaces/character-detail-surface";
+export type { CharacterEditorSurfaceProps } from "./surfaces/character-editor-surface";
+export { CharacterEditorSurface } from "./surfaces/character-editor-surface";
 export type { CharacterLibrarySurfaceProps } from "./surfaces/character-library-surface";
 export { CharacterLibrarySurface } from "./surfaces/character-library-surface";

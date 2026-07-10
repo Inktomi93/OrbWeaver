@@ -1,6 +1,9 @@
 // The room-overrides editor (task #28 — the CONTEXT panel's Overrides tab). The per-chat four-field
 // host allowlist (`RoomOverrides`: mainPrompt · postHistory · scenario · authorsNote) as an autosave
 // form (§13.4 — "flip it and it saves"), the same wiring shape as `appearance-settings-surface.tsx`.
+// `authorsNote` is the shared at-depth injection directive (task #22): its textarea gains a depth
+// (NumberField) + role (SelectField) beside it, mirroring the injections-manager/persona-editor controls,
+// with the assistant@depth-0 prefill warning (the server `roomAuthorsNoteSchema` guard is the enforcer).
 //
 // SOURCE-AGNOSTIC (dual-mode, J2/J3): this editor owns the FORM + the form↔wire mapping, but NOT the
 // read or the persist target — the surface supplies `roomOverrides` (the value) + `save` (the persist
@@ -13,15 +16,31 @@
 // Empty ⇒ inherit (the map seam in `use-room-overrides-form.ts` omits empty fields on save).
 
 import type { RoomOverrides } from "@orb/contracts/chat";
-import { Stack } from "@orb/ui/layout";
+import type { MessageRole } from "@orb/kit/message-role";
+import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import { Row, Stack } from "@orb/ui/layout";
+import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { RoomOverridesFormValues } from "../hooks/use-room-overrides-form";
 import {
   fromRoomOverridesForm,
+  isAuthorsNotePrefill,
   toRoomOverridesForm,
   useRoomOverridesForm,
 } from "../hooks/use-room-overrides-form";
+
+// Labelled role options for the author's-note placement (the injections-manager/persona-editor precedent —
+// same labels, built from the one-home `MESSAGE_ROLES` tuple).
+const ROLE_LABELS: Record<MessageRole, string> = {
+  system: "System",
+  user: "User",
+  assistant: "Assistant",
+};
+const ROLE_ITEMS: SelectItems<string> = MESSAGE_ROLES.map((value) => ({
+  value,
+  label: ROLE_LABELS[value],
+}));
 
 export interface RoomOverridesFormProps {
   /** The form's stable identity for seed/remount (committed → `room-overrides:${chatId}`; draft →
@@ -98,16 +117,45 @@ export function RoomOverridesForm({
         )}
       </form.AppField>
 
-      <form.AppField name="authorsNote">
-        {(field): ReactElement => (
-          <field.TextareaField
-            label="Author's note"
-            description="A steering note injected near the end of the prompt."
-            disabled={!isHost}
-            rows={2}
-          />
-        )}
-      </form.AppField>
+      <Stack gap="field">
+        <form.AppField name="authorsNote">
+          {(field): ReactElement => (
+            <field.TextareaField
+              label="Author's note"
+              description="A steering note spliced into the chat history at the depth + role below."
+              disabled={!isHost}
+              rows={2}
+            />
+          )}
+        </form.AppField>
+        <Row gap="field">
+          <form.AppField name="authorsNoteDepth">
+            {(field): ReactElement => (
+              <field.NumberField
+                label="Depth"
+                description="0 = at the tail (just before the new turn); higher = further back."
+                min={0}
+                disabled={!isHost}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="authorsNoteRole">
+            {(field): ReactElement => (
+              <field.SelectField label="Role" items={ROLE_ITEMS} disabled={!isHost} />
+            )}
+          </form.AppField>
+        </Row>
+        <form.Subscribe selector={(state): boolean => isAuthorsNotePrefill(state.values)}>
+          {(prefill): ReactElement | null =>
+            prefill ? (
+              <Text size="micro" tone="warning">
+                Assistant role at depth 0 is a response prefill — pick depth ≥ 1, or role
+                system/user.
+              </Text>
+            ) : null
+          }
+        </form.Subscribe>
+      </Stack>
     </Stack>
   );
 }

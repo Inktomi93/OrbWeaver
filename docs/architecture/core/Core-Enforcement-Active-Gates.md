@@ -143,8 +143,9 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-raw-egress` | a bare `fetch(` in `packages/server/src` must go through `safeFetch` (the self-enforcing SSRF resolve→validate→pin guard, `infra/network`); raw `fetch` is sanctioned ONLY in the credentialed/loopback provider-egress tier + safeFetch's own home (D61 B5a) | new (ledger-gate wave) | | |
 | `contract-verb-presence` | the INTERFACE-level complement to `test-presence`'s file-mirror rule — every method a domain's exported `*Service` interface declares (MethodSignature + PropertySignature-with-FunctionType) must have an invocation-shaped match (`verb(` bare call or its `create<Verb>(` factory) in that domain's `tests/server/domain/<d>/**` tree (grep-style presence, not filename convention). Closes the "add a verb to the contract, never test it" hole (Spine-Testing.md §5). DEFERRED ratchet (2 entries, W1i): `chat.getRoomOverridesForChat` · `discovery.themes` | new (2026-07-09, test-support-dry-punchlist §5) | | |
 | `no-test-fabrication` | bans the two fabricated-entity casts in `tests/` that compile straight through a type change — `X as unknown as Y` double-casts and object/array-literal `as Y` (Y ≠ const/any/unknown); fix is a typed factory or `satisfies Y`. `// FABRICATION-OK: <reason>` escapes a deliberate invalid-input probe. Baseline-ratchet (`no-test-fabrication.baseline.json`, 235 sites / 97 files): a file is RED only when its count EXCEEDS baseline; shrink as W1h burns it down (Spine-Testing.md §5) | new (2026-07-09, test-support-dry-punchlist §5) | | |
+| `form-factory-for-multifield` | a `features/**` component hand-rolling ≥3 controlled form inputs (value/checked + an onChange-family handler) without importing an editor factory is RED — the D54 §13.4 "≥3 fields ⇒ a factory" trigger, closing the hole the `no-direct-useform` grit leaves (a form dodging Form entirely) | new (2026-07-09, D54 §13.3/§13.4) | | |
 
-The table mirrors `scripts/check/report.ts` (61 registered gates); `report.ts` is the runtime truth.
+The table mirrors `scripts/check/report.ts` (62 registered gates); `report.ts` is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
 cross-cutting property suite `tests/server/domain/chat/solo-byte-identical.suite.int.test.ts`: two
@@ -166,7 +167,6 @@ from `ALL_CHECKS`).
 | `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | W1-1 splits `table.tsx` (461 > 450), then registers it |
 | `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
 | `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
-| `form-factory-for-multifield` | a `features/**` component hand-rolling ≥3 controlled form inputs (value/checked + an onChange-family handler) without importing an editor factory is RED — the D54 §13.4 "≥3 fields ⇒ a factory" trigger, closing the hole the `no-direct-useform` grit leaves (a form dodging Form entirely) | `chat/group-config-form.tsx` (its ONE real-tree hit) either adopts `createSavedEntityForm` OR earns a doc-sanctioned exemption for its DU immediate-commit shape (see Core-Enforcement-Deferred-Dropped.md) |
 
 **Stale-name follow-up (`client-structure` RESERVED):** `features/corpus` mirrors no domain — the domain
 map renamed corpus→discovery (AGENTS §6). The `.gitkeep` stub should rename to `discovery` (or justify

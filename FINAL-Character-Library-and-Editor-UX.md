@@ -248,9 +248,12 @@ recorded) · `depthPrompt` (once its assembly wiring lands — see the flagged g
 totals compute live off the draft client-side; the persisted `token_size` column stays the whole-card
 heft (the list/sort number — a different, coarser question). It governs **exactly** the Main + Advanced draft fields. The immediate-commit surfaces (hero
 gestures, CONTEXT Appearance/Trust) are outside its scope **by construction** — that is the legibility
-guarantee (a user never changes an accent and watches the dirty pill stay dark). The editor's unsaved-draft
-guard on a section switch is the **hand-rolled in-app guard** off view-state (`useBlocker` will NOT fire on
-a reducer/section change — §6.1 trap).
+guarantee (a user never changes an accent and watches the dirty pill stay dark). **The unsaved-draft
+"guard" on a section switch IS the obligation-5 draft crash-mirror — no blocking confirm dialog
+(owner-ruled 2026-07-09, superseding this doc's earlier hand-rolled-guard line; the ST behavior):**
+switching away mid-edit loses nothing — the mirror preserves the draft and re-promotes it with the
+dirty pill LIT on return. Do not add a confirm dialog; do not reach for `useBlocker` either way (it
+will NOT fire on a reducer/section change — §6.1 trap, still true).
 
 ---
 

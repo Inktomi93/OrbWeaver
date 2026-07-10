@@ -166,6 +166,7 @@ CREATE TABLE `character_snapshots` (
 	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `character_snapshots_character_idx` ON `character_snapshots` (`character_id`);--> statement-breakpoint
 CREATE TABLE `characters` (
 	`id` text PRIMARY KEY NOT NULL,
 	`handle` text NOT NULL,
@@ -297,6 +298,7 @@ CREATE TABLE `chat_participants` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_participants_chat_user_unique` ON `chat_participants` (`chat_id`,`user_id`);--> statement-breakpoint
 CREATE INDEX `chat_participants_chat_idx` ON `chat_participants` (`chat_id`);--> statement-breakpoint
+CREATE INDEX `chat_participants_character_idx` ON `chat_participants` (`character_id`);--> statement-breakpoint
 CREATE TABLE `chat_stream_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -1353,6 +1355,7 @@ CREATE TABLE `users` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_handle_unique` ON `users` (`handle`);--> statement-breakpoint
 CREATE UNIQUE INDEX `users_external_id_unique` ON `users` (`external_id`) WHERE "users"."external_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX `users_single_owner_unique` ON `users` (`role`) WHERE "users"."role" = 'owner';--> statement-breakpoint
 CREATE TABLE `workloads` (
 	`id` text PRIMARY KEY NOT NULL,
 	`kind` text NOT NULL,

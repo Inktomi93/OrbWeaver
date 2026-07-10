@@ -38,9 +38,15 @@ test("passes raw fetch in the sanctioned provider-egress zones + safeFetch home"
   const files = {
     "packages/server/src/infra/network/openai-models.ts": RAW,
     "packages/server/src/infra/providers/vllm/engine/client.ts": RAW,
-    "packages/server/src/domain/imagery/verbs/generate-picture.ts": RAW,
   };
   expect(noRawEgress.run(ctxFor(files))).toEqual([]);
+});
+
+test("fires on a raw fetch in imagery generate-picture (de-sanctioned 2026-07-09 — the provider-returned image URL is response-controlled, so it must ride the fetchImage port → safeFetch)", () => {
+  const img = "packages/server/src/domain/imagery/verbs/generate-picture.ts";
+  const v = noRawEgress.run(ctxFor({ [img]: RAW }));
+  expect(v).toHaveLength(1);
+  expect(v[0]?.message).toContain("safeFetch");
 });
 
 test("fires on a corsproxy.io literal anywhere in server source", () => {

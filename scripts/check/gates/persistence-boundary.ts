@@ -43,9 +43,12 @@ const STORAGE_IDENTIFIER_RE = /^(?:localStorage|sessionStorage|indexedDB)$/u;
 const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
   shell: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)",
   "character-library":
-    "library sort/view/filter-chip/bulk-mode browse prefs — per-device LIST chrome, not a synced " +
-    "setting (a returning user on another device does not expect their tag-filter to follow; " +
-    "FINAL-Character §4/§12.1)",
+    "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
+    "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +
+    "screen-share spoiler-blur to follow; FINAL-Character §4/§6.1/§12.1)",
+  "character-card-draft":
+    "unsaved character-card editor draft — per-device crash-survival mirror (§13.4 obligation-5), never a " +
+    "synced setting; a confirmed Save/Discard clears it (FINAL-Character §6.5)",
 };
 
 const RAW_STORAGE_MESSAGE =

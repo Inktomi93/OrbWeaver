@@ -107,6 +107,46 @@ test("the externalId UNIQUE-when-set partial index rejects two equal non-null ex
   expect(isConstraintViolation(caught)?.kind).toBe("unique");
 });
 
+// ── D17/D40 "exactly one owner" — the users_single_owner_unique partial index ──
+// The `Principal`/D17 invariant "exactly one owner" needed its DDL enforcer (D40 tracked it open). A partial
+// unique over `role` scoped to owner rows makes a second owner unrepresentable; non-owner roles are ignored
+// by the WHERE (SQLite skips them), so admin/user are unconstrained.
+
+test("the users_single_owner_unique partial index rejects a second owner row", async () => {
+  const db = await freshDb();
+  await db.insert(users).values({
+    id: castId<UserId>("user_owner_a"),
+    handle: castId<Handle>("owner_a"),
+    role: "owner",
+  });
+
+  let caught: unknown;
+  try {
+    await db.insert(users).values({
+      id: castId<UserId>("user_owner_b"),
+      handle: castId<Handle>("owner_b"),
+      role: "owner",
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("unique");
+});
+
+test("the single-owner index leaves non-owner roles unconstrained (many admins + users coexist)", async () => {
+  const db = await freshDb();
+  await db.insert(users).values([
+    { id: castId<UserId>("user_owner_solo"), handle: castId<Handle>("owner_solo"), role: "owner" },
+    { id: castId<UserId>("user_admin_a"), handle: castId<Handle>("admin_a"), role: "admin" },
+    { id: castId<UserId>("user_admin_b"), handle: castId<Handle>("admin_b"), role: "admin" },
+    { id: castId<UserId>("user_plain_a"), handle: castId<Handle>("plain_a"), role: "user" },
+    { id: castId<UserId>("user_plain_b"), handle: castId<Handle>("plain_b"), role: "user" },
+  ]);
+
+  const rows = await db.select().from(users);
+  expect(rows).toHaveLength(5);
+});
+
 // ── D60 agent principals (agent-principal-design/01 §1): kind + ownerUserId + the three shape CHECKs ──
 // The DDL is the FIRST wall of the structural no-login guarantee — an agent is loginless / unprivileged /
 // owned as PHYSICS, not prose. These pin every arm (the sessions belts back the same guarantees at the app tier).

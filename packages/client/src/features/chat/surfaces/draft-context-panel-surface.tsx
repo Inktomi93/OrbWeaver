@@ -45,6 +45,7 @@ import { InjectionsList } from "../components/injections-manager";
 import { RoomOverridesForm } from "../components/room-overrides-form";
 import type { RosterMember } from "../components/roster-panel";
 import { RosterPanel } from "../components/roster-panel";
+import { GROUP_CONFIG_ENTITY_PREFIX } from "../hooks/use-group-config-form";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import { fromInjectionForm } from "../hooks/use-injection-row-form";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../hooks/use-room-overrides-form";
@@ -144,10 +145,14 @@ export function DraftContextPanel({
         {showRoster ? (
           <TabsPanel value="group">
             <GroupConfigForm
+              entityId={`${GROUP_CONFIG_ENTITY_PREFIX}draft:${draftKey}`}
               // The draft stores a lenient `GroupConfigInput`; parse it (defaults-filled) to the full
               // `GroupConfig` the form edits. Absent ⇒ the default room behavior.
               config={groupConfigSchema.parse(draftConfig.groupConfig ?? DEFAULT_GROUP_CONFIG)}
-              onSave={(next): void => setDraftGroupConfig(draftKey, next)}
+              save={(next): Promise<void> => {
+                setDraftGroupConfig(draftKey, next);
+                return Promise.resolve();
+              }}
             />
           </TabsPanel>
         ) : null}

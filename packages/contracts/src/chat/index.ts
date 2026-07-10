@@ -42,6 +42,7 @@ import type {
 } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
+import { injectionDirectiveSchema } from "@orb/kit/injection";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
@@ -763,15 +764,60 @@ export function isChatBusEventType(t: string): t is ChatBusEvent["type"] {
 const OVERRIDE_FIELD_MAX = 100_000;
 const overrideField = z.string().max(OVERRIDE_FIELD_MAX);
 
+// ── The ROOM author's note — a first-class at-depth injection directive (task #22) ──────────────────────
+// The room's single author's note rides the SAME shared `{depth, role?}` at-depth mechanism the card
+// `depthPrompt` (`cardDepthPromptSchema`), world-info-at-depth, and the persona description use (D32),
+// widened from a bare string so the host can set its depth + role. `depth`/`role` are OPTIONAL — the
+// assembler defaults them ({@link AUTHORS_NOTE_DEFAULT_DEPTH} / {@link AUTHORS_NOTE_DEFAULT_ROLE}); `prompt`
+// keeps the 100k override cap. MIGRATION: a `z.preprocess` coerces a LEGACY bare string (the pre-#22 stored
+// shape) → `{prompt}`, so old `chatMetadata` blobs round-trip losslessly through the same
+// `roomOverridesSchema.safeParse` read seam (`domain/chat/contract/metadata.ts`).
+/** The house author's-note register depth — "near enough to steer, far enough not to dominate"
+ *  (chat-crew-design/04); the default when the stored directive carries no `depth`. */
+export const AUTHORS_NOTE_DEFAULT_DEPTH = 4;
+/** The default author's-note role when the stored directive carries no `role`. */
+export const AUTHORS_NOTE_DEFAULT_ROLE: MessageRole = "system";
+
+// assistant @ depth 0 = a trailing assistant message = response PREFILL — unsupported across providers (the
+// SAME write guard the card `depthPrompt` (`cardDepthPromptWriteSchema`), WI, and persona injections apply).
+const AUTHORS_NOTE_PREFILL_DEPTH = 0;
+
+/** The room author's note as the shared `{depth?, role?, prompt}` directive. Mirrors
+ *  `cardDepthPromptWriteSchema`'s `assistant@depth-0` prefill rejection; a legacy bare string is coerced to
+ *  `{prompt}` by {@link roomAuthorsNoteSchema} BEFORE this runs, so the guard only ever sees the object. */
+const roomAuthorsNoteDirectiveSchema = injectionDirectiveSchema
+  .partial()
+  .extend({ prompt: overrideField })
+  .superRefine((val, ctx): void => {
+    if (val.role === "assistant" && val.depth === AUTHORS_NOTE_PREFILL_DEPTH) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["depth"],
+        message:
+          "assistant-role at depth 0 is a response prefill — unsupported across providers. Use depth >= 1, or role user/system.",
+      });
+    }
+  });
+
+/** The stored room author's note: the shared injection directive, coercing a LEGACY bare string → `{prompt}`
+ *  so pre-#22 `chatMetadata` blobs round-trip losslessly (the migration seam). */
+export const roomAuthorsNoteSchema = z.preprocess(
+  (raw) => (typeof raw === "string" ? { prompt: raw } : raw),
+  roomAuthorsNoteDirectiveSchema,
+);
+export type RoomAuthorsNote = z.infer<typeof roomAuthorsNoteSchema>;
+
 /** The host-only per-room overrides — exactly four fields ("jailbreak" IS post_history). `.strict()`
  *  default-denies a stray key (an enforcer, not prose). Each field absent ⇒ inherit the card/scope
- *  fallback (resolved in SHAPE — INERT here). Stored in `chatMetadata` (an FK-clean JSON sub-blob). */
+ *  fallback (resolved in SHAPE — INERT here). Stored in `chatMetadata` (an FK-clean JSON sub-blob).
+ *  `authorsNote` is the at-depth injection directive ({@link roomAuthorsNoteSchema}); the other three are
+ *  plain text overrides. */
 export const roomOverridesSchema = z
   .object({
     scenario: overrideField.optional(),
     mainPrompt: overrideField.optional(),
     postHistory: overrideField.optional(),
-    authorsNote: overrideField.optional(),
+    authorsNote: roomAuthorsNoteSchema.optional(),
   })
   .strict();
 export type RoomOverrides = z.infer<typeof roomOverridesSchema>;

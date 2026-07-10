@@ -106,6 +106,21 @@ export const characterRouter = t.router({
       }),
     ),
 
+  bulkRemoveCardTag: authedProcedure
+    .input(
+      z.object({
+        tagName: z.string().min(1),
+        characterIds: z.array(brandedId<CharacterId>()).min(1),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.bulkRemoveCardTag({
+        principal: ctx.auth,
+        tagName: input.tagName,
+        characterIds: input.characterIds,
+      }),
+    ),
+
   snapshot: authedProcedure
     .input(z.object({ characterId: brandedId<CharacterId>(), label: z.string().nullish() }))
     .mutation(({ ctx, input }) =>

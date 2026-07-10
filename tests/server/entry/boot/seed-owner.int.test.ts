@@ -62,6 +62,20 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
   expect(afterSecond?.updatedAt).toBe(stampedAt);
 });
 
+test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: exactly one owner)", async ({
+  clock,
+}) => {
+  const db = await freshDb();
+  await expect(
+    seedOwner({
+      db,
+      sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+      ownerHandles: ["alice", "bob"],
+      now: clock.now,
+    }),
+  ).rejects.toThrow("EXACTLY ONE owner");
+});
+
 test("leaves a non-OWNER-handle row untouched (stays role=user)", async ({ clock }) => {
   const db = await freshDb();
   await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("someone"), role: "user" });

@@ -96,6 +96,15 @@ export const APPEARANCE_SUBCATEGORY_IDS = {
 /** Persona pane subcategory ids (same one-home discipline as the appearance map). */
 export const PERSONA_SUBCATEGORY_IDS = { personas: "personas" } as const;
 
+/** System pane subcategory ids (Task #37) — the ONE home shared by the registry AND the surface's
+ *  `<Section>` anchor stamps (a typo/rename is a `tsc` error, never a stale anchor). */
+export const SYSTEM_SUBCATEGORY_IDS = {
+  mediaTrust: "media-trust",
+  compute: "compute",
+  sharedAccess: "shared-access",
+  operations: "operations",
+} as const;
+
 export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number], SettingsCategory> =
   {
     // ── USER group ──
@@ -291,8 +300,88 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       group: "app",
       label: "System",
       icon: Settings,
-      description: "Background jobs, engines, and storage.",
-      built: false,
+      description: "Deployment-wide media safety, compute, shared access, and operations.",
+      built: true,
+      subcategories: [
+        {
+          id: SYSTEM_SUBCATEGORY_IDS.mediaTrust,
+          label: "Media & trust",
+          keywords: ["security", "privacy", "safety"],
+          settings: [
+            {
+              id: "forbid-external-media",
+              label: "Block external media",
+              keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"],
+            },
+            {
+              id: "trust-html",
+              label: "Render rich HTML as trusted",
+              keywords: ["html", "mermaid", "sanitize", "xss", "cards"],
+            },
+            {
+              id: "max-image-bytes",
+              label: "Max generated-image size",
+              keywords: ["download", "megabytes", "bytes", "imagine", "cap"],
+            },
+          ],
+        },
+        {
+          id: SYSTEM_SUBCATEGORY_IDS.compute,
+          label: "Compute",
+          keywords: ["vllm", "gpu", "batch", "inference"],
+          settings: [
+            {
+              id: "vllm-embed-concurrency",
+              label: "Embedding concurrency",
+              keywords: ["vllm", "embed", "batch", "index"],
+            },
+            {
+              id: "vllm-summarize-concurrency",
+              label: "Summarize concurrency",
+              keywords: ["vllm", "summarize", "batch", "memory"],
+            },
+          ],
+        },
+        {
+          id: SYSTEM_SUBCATEGORY_IDS.sharedAccess,
+          label: "Shared access",
+          keywords: ["members", "owner", "governance", "sharing"],
+          settings: [
+            {
+              id: "allow-non-owner-local",
+              label: "Members may use shared local compute",
+              keywords: ["local", "vllm", "onnx", "members", "share"],
+            },
+            {
+              id: "non-owner-local-budget",
+              label: "Per-member local-compute budget",
+              keywords: ["budget", "limit", "count", "quota"],
+            },
+            {
+              id: "allow-non-owner-max-pro-sub",
+              label: "Members may use the hosted subscription",
+              keywords: ["max", "pro", "subscription", "hosted", "claude"],
+            },
+          ],
+        },
+        {
+          id: SYSTEM_SUBCATEGORY_IDS.operations,
+          label: "Operations",
+          keywords: ["jobs", "logging", "diagnostics"],
+          settings: [
+            {
+              id: "corpus-autoindex",
+              label: "Background corpus indexing",
+              keywords: ["index", "embeddings", "corpus", "background"],
+            },
+            {
+              id: "log-level",
+              label: "Log level",
+              keywords: ["logging", "verbosity", "debug", "trace"],
+            },
+          ],
+        },
+      ],
     },
     admin: {
       group: "app",
@@ -324,54 +413,3 @@ export function settingsAnchorId(
 ): string {
   return `settings-anchor-${categoryId}-${subId}`;
 }
-
-/** One flattened, fuzzy-searchable entry over the whole index. `subId: null` = a category-level hit
- *  (switch pane, no scroll); a non-null `subId` jumps to that subcategory's anchor. `keywords` carries
- *  every human-readable token (the cmdk `value` is the opaque id, so search matches only via keywords). */
-export interface SettingsSearchEntry {
-  readonly id: string;
-  readonly label: string;
-  readonly categoryId: (typeof SETTINGS_CATEGORY_IDS)[number];
-  readonly categoryLabel: string;
-  readonly subId: string | null;
-  readonly keywords: readonly string[];
-}
-
-function buildSettingsSearchEntries(): readonly SettingsSearchEntry[] {
-  const entries: SettingsSearchEntry[] = [];
-  for (const categoryId of SETTINGS_CATEGORY_IDS) {
-    const category = SETTINGS_CATEGORIES[categoryId];
-    entries.push({
-      id: categoryId,
-      label: category.label,
-      categoryId,
-      categoryLabel: category.label,
-      subId: null,
-      keywords: [category.label, category.description],
-    });
-    for (const sub of category.subcategories ?? []) {
-      entries.push({
-        id: `${categoryId}::${sub.id}`,
-        label: sub.label,
-        categoryId,
-        categoryLabel: category.label,
-        subId: sub.id,
-        keywords: [sub.label, ...(sub.keywords ?? []), category.label],
-      });
-      for (const setting of sub.settings ?? []) {
-        entries.push({
-          id: `${categoryId}::${sub.id}::${setting.id}`,
-          label: setting.label,
-          categoryId,
-          categoryLabel: category.label,
-          subId: sub.id,
-          keywords: [setting.label, ...(setting.keywords ?? []), sub.label, category.label],
-        });
-      }
-    }
-  }
-  return entries;
-}
-
-/** The whole index flattened for fuzzy search-to-anchor (built once at module load). */
-export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = buildSettingsSearchEntries();

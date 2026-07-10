@@ -7,8 +7,10 @@ import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 // The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
-// Rail precedent) — AppearanceSettingsSurface is mounted by SettingsShell itself, not exported standalone.
+// Rail precedent) — AppearanceSettingsSurface + SystemSettingsSurface are mounted by SettingsShell itself,
+// not exported standalone.
 import { AppearanceSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/appearance-settings-surface";
+import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
@@ -87,6 +89,19 @@ export function AppearanceSettingsNarrowStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 300 }}>
         <AppearanceSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The real System settings pane (Task #37 — the APP-tier AppSettings home) in isolation — `getAppSettings`
+ *  (the resolved effective config), `sessions.me` (the viewer's role for the D17 owner-gate), and
+ *  `updateAppSettings` (the delta-autosave write) are stubbed per-test via routeTrpc. */
+export function SystemSettingsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <SystemSettingsSurface />
       </div>
     </CtDataProviders>
   );

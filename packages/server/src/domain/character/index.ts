@@ -17,6 +17,7 @@ export {
 export type {
   BulkAddCardTagParams,
   BulkArchiveParams,
+  BulkRemoveCardTagParams,
   BulkRemoveParams,
   CharacterImportProvenance,
   CharacterListCursor,
@@ -47,6 +48,7 @@ export type {
   AttachCardTagOp,
   CharacterContext,
   CharacterService,
+  DetachCardTagOp,
   ReapAssetsOp,
 } from "./contract/service";
 export type { CharacterDetail, CharacterSummary } from "./contract/views";

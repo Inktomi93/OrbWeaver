@@ -17,9 +17,10 @@
 // click-to-jump with aria-current on the target is fully accessible. The jump itself rAF-polls for the
 // anchor node (the pane may be suspending on its settings read when switched into from another category).
 //
-// REAL vs PLACEHOLDER (J11): Appearance + Personas are the real panes (setting-row / form grammar); every
-// other category renders its distinct teaching placeholder (SettingsPanePlaceholder). Generation config
-// is NOT here (it is the Presets rail section — the governing split).
+// REAL vs PLACEHOLDER (J11): Appearance + Personas + System (the APP-tier AppSettings home, Task #37) are
+// the real panes (setting-row / form grammar); every other category renders its distinct teaching
+// placeholder (SettingsPanePlaceholder). Generation config is NOT here (it is the Presets rail section —
+// the governing split).
 
 import {
   Command,
@@ -38,17 +39,19 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFocusOnMount } from "#lib";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
-import type { SETTINGS_CATEGORY_IDS, SettingsSearchEntry } from "../lib/settings-nav";
+import type { SETTINGS_CATEGORY_IDS } from "../lib/settings-nav";
 import {
   categoryIdsForGroup,
   SETTINGS_CATEGORIES,
   SETTINGS_GROUP_LABELS,
   SETTINGS_GROUPS,
-  SETTINGS_SEARCH_ENTRIES,
   settingsAnchorId,
 } from "../lib/settings-nav";
+import type { SettingsSearchEntry } from "../lib/settings-search";
+import { SETTINGS_SEARCH_ENTRIES } from "../lib/settings-search";
 import { AppearanceSettingsSurface } from "./appearance-settings-surface";
 import { PersonaSettingsSurface } from "./persona-settings-surface";
+import { SystemSettingsSurface } from "./system-settings-surface";
 
 // The active-category id — a LOCAL (non-exported) alias derived from the tuple (an exported alias would be
 // the types-in-contract leak the nav registry avoids; local is fine).
@@ -339,7 +342,7 @@ function flashAnchor(el: HTMLElement): void {
   }, FLASH_MS);
 }
 
-/** The active pane — Appearance + Personas are real; every other category is a teaching placeholder. */
+/** The active pane — Appearance + Personas + System are real; every other category is a placeholder. */
 function SettingsPane({ category }: { readonly category: CategoryId }): ReactElement {
   const def = SETTINGS_CATEGORIES[category];
   if (category === "appearance") {
@@ -347,6 +350,9 @@ function SettingsPane({ category }: { readonly category: CategoryId }): ReactEle
   }
   if (category === "personas") {
     return <PersonaSettingsSurface />;
+  }
+  if (category === "system") {
+    return <SystemSettingsSurface />;
   }
   return <SettingsPanePlaceholder title={def.label} description={def.description} />;
 }

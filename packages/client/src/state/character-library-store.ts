@@ -5,9 +5,13 @@
 // ONE home; double-homing selection is the §12 landmine) and it does NOT home the bulk SELECTION set
 // (that is the collection surface's transient id-set — `createCollectionSurface`).
 //
-// DEVICE-LOCAL (§12.1): a sort/view/filter preference is per-device browse chrome — a returning user on
-// another device does not expect their tag-filter to follow (unlike a synced setting). Registered in
-// `scripts/check/gates/persistence-boundary.ts` DEVICE_LOCAL_REGISTRY under the same name.
+// DEVICE-LOCAL (§12.1): a sort/view/filter/spoiler-blur preference is per-device browse/editor chrome — a
+// returning user on another device does not expect their tag-filter (or their screen-share spoiler-blur) to
+// follow (unlike a synced setting). Registered in `scripts/check/gates/persistence-boundary.ts`
+// DEVICE_LOCAL_REGISTRY under the same name.
+//
+// `spoilerBlur` (§6.1, screen-share hygiene) rides this store because it is the same class of per-device
+// view pref as the sort/filter chips: pure view state, CSS-blur only, never touches card data.
 //
 // `bulkMode` is TRANSIENT (excluded from `partialize`, like shell-store's `openModal`): a reload landing
 // in bulk mode with an empty selection would be a confusing dead state, so it never resurrects.
@@ -33,6 +37,8 @@ interface CharacterLibraryState {
   readonly tagFilter: readonly TagId[];
   /** §4.6 pencil bulk-select mode. Transient (not persisted). */
   readonly bulkMode: boolean;
+  /** §6.1 spoiler-free eye toggle — blurs the editor's spoiler-bearing card text for screen-sharing. */
+  readonly spoilerBlur: boolean;
 }
 
 /** Everything but the transient `bulkMode` survives a reload. */
@@ -42,6 +48,7 @@ interface PersistedCharacterLibraryState {
   readonly favoritesOnly: boolean;
   readonly showArchived: boolean;
   readonly tagFilter: readonly TagId[];
+  readonly spoilerBlur: boolean;
 }
 
 const DEFAULT_STATE: CharacterLibraryState = {
@@ -51,6 +58,7 @@ const DEFAULT_STATE: CharacterLibraryState = {
   showArchived: false,
   tagFilter: [],
   bulkMode: false,
+  spoilerBlur: false,
 };
 
 const PERSIST_VERSION = 1;
@@ -80,6 +88,7 @@ function migrate(persisted: unknown, _version: number): CharacterLibraryState {
     showArchived: typeof p.showArchived === "boolean" ? p.showArchived : false,
     tagFilter: toTagFilter(p.tagFilter),
     bulkMode: false,
+    spoilerBlur: typeof p.spoilerBlur === "boolean" ? p.spoilerBlur : false,
   };
 }
 
@@ -95,6 +104,7 @@ const useCharacterLibraryStore = createPersistedStore<
     favoritesOnly: s.favoritesOnly,
     showArchived: s.showArchived,
     tagFilter: s.tagFilter,
+    spoilerBlur: s.spoilerBlur,
   }),
 });
 
@@ -135,6 +145,13 @@ export function clearTagFilter(): void {
 export function setBulkMode(bulkMode: boolean): void {
   useCharacterLibraryStore.setState({ bulkMode }, false, "character-library/setBulkMode");
 }
+export function toggleSpoilerBlur(): void {
+  useCharacterLibraryStore.setState(
+    (s) => ({ spoilerBlur: !s.spoilerBlur }),
+    false,
+    "character-library/toggleSpoilerBlur",
+  );
+}
 
 export function useCharacterSortMode(): CharacterListSort {
   return useCharacterLibraryStore((s) => s.sortMode);
@@ -153,4 +170,7 @@ export function useTagFilter(): readonly TagId[] {
 }
 export function useCharacterBulkMode(): boolean {
   return useCharacterLibraryStore((s) => s.bulkMode);
+}
+export function useSpoilerBlur(): boolean {
+  return useCharacterLibraryStore((s) => s.spoilerBlur);
 }

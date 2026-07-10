@@ -88,35 +88,38 @@ export function Field({
   const hasDescription = description !== undefined && description !== null;
   const hasHint = hint !== undefined && hint !== null;
 
-  const labelNode = (
+  const labelText = (
     <BaseField.Label className={slots.label()} data-slot="field-label">
-      {hasHint ? (
-        // The hint trigger is a real <button> nested inside the native <label> — per the HTML label
-        // spec, a click landing on an interactive descendant does NOT ALSO forward-activate the
-        // associated control, so this never double-fires a Switch/Checkbox underneath.
-        <span className={slots.labelRow()}>
-          {label}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  aria-label="More info"
-                  className={slots.hintTrigger()}
-                  intent="ghost"
-                  size="icon"
-                  type="button"
-                >
-                  <Icon icon={Info} size="xs" />
-                </Button>
-              }
-            />
-            <TooltipPopup side="top">{hint}</TooltipPopup>
-          </Tooltip>
-        </span>
-      ) : (
-        label
-      )}
+      {label}
     </BaseField.Label>
+  );
+  // A11y: the hint trigger is a SIBLING of `<BaseField.Label>`, NEVER a descendant of it. The W3C accname
+  // algorithm concatenates the ENTIRE subtree of a control's associated `<label>` — a button nested inside
+  // it leaked "More info" into every hinted control's accessible name ("Display name More info, edit
+  // text"). Keeping it a sibling in the same labelRow preserves the visual layout while the `<label>`
+  // subtree stays label-text-only, so the control's accname === the label alone.
+  const labelNode = hasHint ? (
+    <span className={slots.labelRow()}>
+      {labelText}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label="More info"
+              className={slots.hintTrigger()}
+              intent="ghost"
+              size="icon"
+              type="button"
+            >
+              <Icon icon={Info} size="xs" />
+            </Button>
+          }
+        />
+        <TooltipPopup side="top">{hint}</TooltipPopup>
+      </Tooltip>
+    </span>
+  ) : (
+    labelText
   );
   const descriptionNode = hasDescription ? (
     <BaseField.Description className={slots.description()} data-slot="field-description">

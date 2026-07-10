@@ -16,6 +16,7 @@ import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges";
 // Internal hosts an operator legitimately needs (a LAN OIDC issuer / JWKS host) go in EGRESS_ALLOWLIST
 // by hostname; the OIDC issuer host is always allowlisted so enabling the firewall never breaks oidc.
 
+const OK_STATUS_MIN = 200;
 const REDIRECT_STATUS_MIN = 300;
 const REDIRECT_STATUS_MAX = 400;
 // ~5 MB response cap (decompression-bomb defense). A single literal keeps it out of noMagicNumbers'
@@ -116,8 +117,9 @@ export function installEgressFirewall(): void {
 //
 // Extras for any avatar-by-URL / webhook / agent-fetch surface, on top of the global dispatcher's SSRF
 // block: a response-size cap (decompression-bomb defense), a content-type allowlist, a max-redirects cap
-// with per-hop re-validation, and a single-use body guard. Staged seam — zero callers today; reach for
-// it the moment a feature accepts a user-supplied outbound URL (unwired ≠ worthless).
+// with per-hop re-validation, and a single-use body guard. First consumer: fetchImageBytes (below) —
+// the imagery generated-image download (provider-returned URLs are third-party-authored, D61 B5a).
+// Reach for it for ANY new surface accepting a user/provider-supplied outbound URL.
 
 export interface SafeFetchOptions {
   /** Hard cap on response bytes read. Default 5 MB. */
@@ -169,6 +171,30 @@ export async function safeFetch(
       return await readCapped(reader, maxBytes);
     },
   };
+}
+
+/**
+ * Fetch a remote image URL to bytes through {@link safeFetch} — the first safeFetch consumer (D61 B5a).
+ * The imagery domain uses this to download a provider-returned generated-image URL: that URL is populated
+ * by the CHOSEN (OpenRouter-marketplace) model provider's response body, NOT first-party code, so it is
+ * attacker-influenceable and MUST NOT be fetched raw — a malicious/compromised image provider could point
+ * it at a loopback / link-local / RFC1918 target (SSRF read-and-exfil). Rides the global SSRF dispatcher
+ * (private-address block + per-redirect re-validation) plus the response byte cap. `maxBytes` overrides
+ * safeFetch's own 5 MB default — the imagery compose binding threads the `AppSettings.maxImageBytes`
+ * deployment knob here (read live via the effective-config sync getter); omitted → safeFetch's default
+ * cap. Returns the bytes on a 2xx, or `null` on any block / non-2xx / cap / network failure — the caller
+ * drops that one image, so a poisoned (or over-cap) URL is never stored.
+ */
+export async function fetchImageBytes(url: string, maxBytes?: number): Promise<Uint8Array | null> {
+  try {
+    const res = await safeFetch(url, maxBytes === undefined ? {} : { maxBytes });
+    if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
+      return null;
+    }
+    return await res.bytes();
+  } catch {
+    return null;
+  }
 }
 
 /** Follow up to `maxRedirects` manual hops, re-validating each via the global firewall's connect lookup.

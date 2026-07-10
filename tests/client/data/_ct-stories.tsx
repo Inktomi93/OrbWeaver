@@ -17,8 +17,9 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { CtDataProviders } from "../../support/ct/ct-data-providers";
 
 // The suspending read under test: a REAL procedure (`echo` — transport/trpc/router.ts loose public
@@ -231,6 +232,51 @@ export function TagCreateOptimisticStory(): ReactElement {
       >
         <TagCreateOptimisticInner />
       </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+// COLD-cache probe (the N0 rollback fix): NO `listTags` reader mounts, so that query is never
+// fetched — its snapshot in onMutate is `undefined` and the optimistic write CREATES the cache
+// entry. On failure the fix must REMOVE the entry (a v5 `setQueryData(key, undefined)` is a no-op —
+// the phantom row would otherwise stick). The `read-cache` button reads the cache directly
+// (getQueryData never fetches; onSettled's invalidate can't refetch an unobserved query) so the
+// assertion sees the raw entry: `absent` (fixed) vs `rows=N` (the phantom sticks — the old bug).
+function TagCreateColdCacheInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const queryClient = useQueryClient();
+  const mutation = useCreateTagOptimistic({ trpc, invalidation });
+  const [cacheState, setCacheState] = useState<string>("unread");
+
+  return (
+    <div>
+      {mutation.error !== null && (
+        <p role="alert">
+          {mutation.error instanceof Error ? mutation.error.message : String(mutation.error)}
+        </p>
+      )}
+      <button type="button" onClick={(): void => mutation.mutate({ input: { name: "new-tag" } })}>
+        create
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          const cached = queryClient.getQueryData<TagView[]>(trpc.tag.listTags.queryKey());
+          setCacheState(cached === undefined ? "absent" : `rows=${cached.length}`);
+        }}
+      >
+        read-cache
+      </button>
+      <p data-testid="cache-state">{cacheState}</p>
+    </div>
+  );
+}
+
+export function TagCreateColdCacheStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TagCreateColdCacheInner />
     </CtDataProviders>
   );
 }

@@ -100,3 +100,16 @@ export interface AttachCardTagByNameParams {
    */
   readonly status?: TagStatus;
 }
+
+/**
+ * The internal resolve-by-name card-tag DETACH (the `detachCardTagByName` verb) — character's injected
+ * `DetachCardTagOp` (contract/service.ts), the mirror of {@link AttachCardTagByNameParams}. Same
+ * "un-principal, by-id, owner already gated" posture: it carries the already-resolved `ownerId` (NOT a
+ * `principal`), because the caller (`character.bulkRemoveCardTag`) has ALREADY owner-verified the character.
+ * No `source`/`status` — a detach only needs to NAME the tag (resolve, no create) and drop the junction.
+ */
+export interface DetachCardTagByNameParams {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+}

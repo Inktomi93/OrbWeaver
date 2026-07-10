@@ -8,6 +8,7 @@
 // the transport seam.
 
 export {
+  fetchImageBytes,
   installEgressFirewall,
   privateEgressRanges,
   type SafeFetchOptions,

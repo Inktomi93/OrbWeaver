@@ -46,4 +46,13 @@ describe("effective-config cache", () => {
     expect(getEffectiveConfig().logLevel).toBe("debug");
     expect(logger.level).toBe("debug");
   });
+
+  test("reload flows a stored maxImageBytes override to the sync getter (the imagery-cap read path)", async () => {
+    const db = await freshDb();
+    await writeAppOverride(db, { maxImageBytes: 20_000_000, schemaVersion: 2 }, AT);
+    const cfg = await reloadEffectiveConfig(db);
+    expect(cfg.maxImageBytes).toBe(20_000_000);
+    // The sync getter the compose `fetchImage` binding reads at call time returns the live override.
+    expect(getEffectiveConfig().maxImageBytes).toBe(20_000_000);
+  });
 });

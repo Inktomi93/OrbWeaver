@@ -165,6 +165,8 @@ const envSchema = z
     // RE_DERIVE_ROLE_ON_LOGIN read lives in `sessions` (the allowlisted sole-env-reader exception), NOT
     // here — it wants per-test `vi.stubEnv` ergonomics the parsed-once `env` cannot give.
     OWNER_GROUP: z.string().min(1).optional(),
+    // EXACTLY ONE handle (D17: one owner). A multi-handle comma-list is boot-fatal (the superRefine
+    // below) — it would seed >1 owner row against `users_single_owner_unique`. Unset ⇒ [DEFAULT_USER_HANDLE].
     OWNER_HANDLES: z.string().optional(),
 
     // forward-header trust: verify the signed JWT against its JWKS (spoof-proof regardless of network
@@ -244,6 +246,24 @@ const envSchema = z
             message: `${key} is required when AUTH_MODE=local`,
           });
         }
+      }
+    }
+    // D17: the box has EXACTLY ONE owner (the box-credential/wallet holder; enforced by the DB partial
+    // unique index `users_single_owner_unique`). OWNER_HANDLES is the bootstrap-owner allowlist, but a
+    // MULTI-handle list would seed >1 owner row — the boot backfill loops every handle to role=owner and
+    // the second write hits the index as a raw UNIQUE violation (boot throw). Fail fast HERE with a clear
+    // message naming D17 + the offending handles, the AUTH_MODE boot-fatality precedent above. A single
+    // handle (or unset ⇒ [DEFAULT_USER_HANDLE]) is the only structurally valid shape.
+    if (val.OWNER_HANDLES !== undefined) {
+      const handles = val.OWNER_HANDLES.split(",")
+        .map((handle) => handle.trim())
+        .filter((handle) => handle.length > 0);
+      if (handles.length > 1) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["OWNER_HANDLES"],
+          message: `OWNER_HANDLES must name EXACTLY ONE owner (D17: the box has a single owner) — got ${handles.length}: ${handles.join(", ")}`,
+        });
       }
     }
   });

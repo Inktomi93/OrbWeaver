@@ -3,7 +3,10 @@
 // canonical flow so a call site cannot hold it wrong:
 //   • the 4-phase CACHE-flavor optimistic recipe (UI-Lib-TanStack-Query.md §2 — the official
 //     canonical): onMutate = cancelQueries → snapshot → setQueryData → return-rollback; onError
-//     restores from the RETURNED context (survives concurrent mutations); onSettled ALWAYS
+//     restores from the RETURNED context (survives concurrent mutations; a COLD-cache snapshot —
+//     undefined, the query was never fetched so the optimistic write CREATED the entry — REMOVES
+//     the poisoned entry, because v5 treats setQueryData(key, undefined) as a NO-OP and the phantom
+//     row would otherwise stick forever); onSettled ALWAYS
 //     reconciles through the central invalidation seam. Skipping cancelQueries is the classic
 //     optimistic bug (a slow in-flight GET lands after the write and reverts the UI).
 //   • the lightweight VARIABLES-render mode free on every mutation (omit `optimistic`): render
@@ -131,7 +134,17 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         return { snapshot, readKey };
       },
       onError: (_error, _vars, onMutateResult, context) => {
-        if (onMutateResult !== undefined && onMutateResult.readKey !== null) {
+        if (onMutateResult === undefined || onMutateResult.readKey === null) {
+          return;
+        }
+        // COLD cache: onMutate's getQueryData found nothing (never-fetched query), so the optimistic
+        // write CREATED the cache entry. v5 treats setQueryData(key, undefined) as a no-op, so
+        // restoring the undefined snapshot would leave the phantom optimistic row wedged forever —
+        // remove the entry instead so the next reader refetches honestly. WARM cache (snapshot
+        // defined, incl. an empty `[]`) restores the pre-mutate value.
+        if (onMutateResult.snapshot === undefined) {
+          context.client.removeQueries({ queryKey: onMutateResult.readKey });
+        } else {
           context.client.setQueryData<TRead>(onMutateResult.readKey, onMutateResult.snapshot);
         }
       },

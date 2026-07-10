@@ -7,7 +7,7 @@ import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC, useUserBus } from "#data";
 import { AppShell, RAIL_SECTIONS, useShellLayout, YouSheet } from "#features/app-shell";
 import {
-  CharacterDetailSurface,
+  CharacterEditorSurface,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
@@ -224,14 +224,15 @@ export function HomePage(): ReactElement {
                 <CharacterLibrarySurface />
               </CharacterLibraryAnchor>
             ),
-            // CONTENT branches on the selection (J9 · UI-Arch §4.2 rule 1: LIST selection drives CONTENT):
-            // a selected row shows its read-only detail card (character.get); nothing selected shows the
-            // teaching welcome. The route is the single reader of the character-selection store (§5.1).
+            // CONTENT branches on the selection (FINAL-Character §6 · UI-Arch §4.2 rule 1: LIST selection
+            // drives CONTENT): a selected row opens the character EDITOR (character.get + the draft card
+            // form); nothing selected shows the teaching welcome. The route is the single reader of the
+            // character-selection store (§5.1).
             content:
               selectedCharacterId === null ? (
                 <CharacterLibraryWelcome />
               ) : (
-                <CharacterDetailSurface characterId={selectedCharacterId} />
+                <CharacterEditorSurface characterId={selectedCharacterId} />
               ),
           },
         }}
