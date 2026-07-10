@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "85598648-8af6-4ef1-9e9a-f2ea69a5f01e",
+  "id": "abd48adc-0314-49a6-adcf-ece9511a5f34",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
@@ -1055,7 +1055,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "character_snapshots_character_idx": {
+          "name": "character_snapshots_character_idx",
+          "columns": ["character_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "character_snapshots_character_id_characters_id_fk": {
           "name": "character_snapshots_character_id_characters_id_fk",
@@ -1868,6 +1874,11 @@
         "chat_participants_chat_idx": {
           "name": "chat_participants_chat_idx",
           "columns": ["chat_id"],
+          "isUnique": false
+        },
+        "chat_participants_character_idx": {
+          "name": "chat_participants_character_idx",
+          "columns": ["character_id"],
           "isUnique": false
         }
       },
@@ -8839,6 +8850,12 @@
           "columns": ["external_id"],
           "isUnique": true,
           "where": "\"users\".\"external_id\" is not null"
+        },
+        "users_single_owner_unique": {
+          "name": "users_single_owner_unique",
+          "columns": ["role"],
+          "isUnique": true,
+          "where": "\"users\".\"role\" = 'owner'"
         }
       },
       "foreignKeys": {

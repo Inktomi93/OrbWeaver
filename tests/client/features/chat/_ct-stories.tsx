@@ -787,8 +787,12 @@ export function GroupConfigFormStory(): ReactElement {
       <div style={{ width: 380 }}>
         <div data-testid="group-config-saved">{saved}</div>
         <GroupConfigForm
+          entityId="group-config:ct"
           config={DEFAULT_GROUP_CONFIG}
-          onSave={(config): void => setSaved(JSON.stringify(config))}
+          save={(config): Promise<void> => {
+            setSaved(JSON.stringify(config));
+            return Promise.resolve();
+          }}
         />
       </div>
     </CtDataProviders>

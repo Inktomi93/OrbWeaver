@@ -19,6 +19,24 @@ const USER_SETTINGS_VIEW = {
   updatedAt: 0,
 };
 
+/** A resolved EffectiveAppConfig + owner viewer — the System pane suspends on these (Task #37). */
+const APP_CONFIG = {
+  corpusAutoindex: false,
+  importSkipCharacters: [],
+  logLevel: "info",
+  forbidExternalMedia: true,
+  trustHtml: false,
+  memoryDefaults: {},
+  memorySummarizer: {},
+  rateLimits: { general: 100, aiTurn: 10, publicIp: 50, authed: 200 },
+  vllmConcurrency: { embed: 4, summarize: 2 },
+  allowNonOwnerLocalCompute: true,
+  nonOwnerLocalComputeBudget: null,
+  allowNonOwnerMaxProSub: false,
+  maxImageBytes: 5_000_000,
+};
+const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
+
 test("renders the USER + APP group headings and the category rows", async ({ mount, page }) => {
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
@@ -90,6 +108,59 @@ test("switching to an unbuilt category shows ITS distinct teaching copy", async 
 
   await component.getByRole("button", { name: "Connections" }).click();
   await expect(component.getByText("Provider credentials and model connections.")).toBeVisible();
+});
+
+// Task #37 — the System category is now a REAL pane (the placeholder is GONE for it), while the other
+// three APP categories STAY teaching placeholders (they ride their own feature lanes).
+test("System is a real pane; Connections/Automation/Admin stay teaching placeholders", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "settings.getAppSettings": () => APP_CONFIG,
+    "sessions.me": () => OWNER_VIEWER,
+  });
+  const component = await mount(<SettingsShellStory />);
+
+  // System → the real form surface (a "Media & trust" SECTION heading), NOT the teaching copy.
+  await component.getByRole("button", { name: "System", exact: true }).click();
+  await expect(component.getByRole("heading", { name: "Media & trust" })).toBeVisible();
+  await expect(
+    component.getByText("Deployment-wide media safety, compute, shared access, and operations."),
+  ).toHaveCount(0);
+
+  // The other three APP categories still render their OWN distinct teaching copy.
+  await component.getByRole("button", { name: "Connections" }).click();
+  await expect(component.getByText("Provider credentials and model connections.")).toBeVisible();
+  await component.getByRole("button", { name: "Automation" }).click();
+  await expect(
+    component.getByText("Scheduled and triggered actions across your library."),
+  ).toBeVisible();
+  await component.getByRole("button", { name: "Admin" }).click();
+  await expect(
+    component.getByText("User administration — available on multi-user deployments."),
+  ).toBeVisible();
+});
+
+// Task #37 — the System knobs are fuzzy-searchable like everything else; a hit jumps to its pane + anchor.
+test("fuzzy search jumps to a System subcategory anchor", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "settings.getAppSettings": () => APP_CONFIG,
+    "sessions.me": () => OWNER_VIEWER,
+  });
+  const component = await mount(<SettingsShellStory />);
+
+  // "log level" matches the System › Operations › Log level setting (fuzzy over label + keywords).
+  await component.getByRole("combobox", { name: "Search settings" }).fill("log level");
+  const result = component.getByRole("option", { name: "Log level" }).first();
+  await expect(result).toBeVisible();
+  await result.click();
+
+  // The jump switched into the System pane and scrolled its Operations section into view.
+  await expect(component.getByRole("heading", { name: "Operations" })).toBeInViewport();
+  await expect(component.getByRole("button", { name: "System", exact: true })).toBeVisible();
 });
 
 test("fuzzy search surfaces a setting result and jumps its pane into view", async ({

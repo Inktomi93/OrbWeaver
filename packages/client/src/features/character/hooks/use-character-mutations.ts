@@ -54,6 +54,19 @@ export const useBulkAddCardTag = createEntityMutation<
   errorToast: "Couldn't tag the selected characters.",
 });
 
+/** §6.2 tag chip remove: detach a tag by name from a character (the by-name mirror of `bulkAddCardTag`).
+ *  `busDriven` — the verb emits `charactersChanged` (its OWN event family, unlike a generic tag detach which
+ *  would leave the character chips stale), so the bus echo reconciles the acting + other devices; NOT an
+ *  `invalidates` entry (the star-toggle precedent — a self-invalidate would double-refetch). */
+export const useBulkRemoveCardTag = createEntityMutation<
+  inferInput<Trpc["character"]["bulkRemoveCardTag"]>,
+  unknown
+>({
+  options: (trpc) => trpc.character.bulkRemoveCardTag.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't remove the tag.",
+});
+
 /** §4.6 bulk: delete many. `busDriven` — `charactersChanged` covers `character.list`. */
 export const useBulkRemoveCharacters = createEntityMutation<
   inferInput<Trpc["character"]["bulkRemove"]>,

@@ -64,7 +64,7 @@ describe("readCharacter / readLeaderboard owner-scoping (D23 — no ownerId on c
   test("character read joins on the owner and returns null for another owner's character", async () => {
     const mine = await seedCharacter(db, ownerId, { id: "character_mine", name: "Mine" });
     await seedCharacterStats(db, mine, { assistantTurns: 5 });
-    const other = await seedUser(db, "user_other");
+    const other = await seedUser(db, "user_other", "user");
     const theirs = await seedCharacter(db, other, { id: "character_theirs", name: "Theirs" });
     await seedCharacterStats(db, theirs, { assistantTurns: 9 });
 

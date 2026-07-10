@@ -5,6 +5,7 @@ import {
   appSettingsSchema,
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
+  DEFAULT_MAX_IMAGE_BYTES,
   DEFAULT_USER_SETTINGS,
   LOG_LEVELS,
   parseAppSettings,
@@ -55,8 +56,24 @@ test("appSettingsSchema admits null per field (the CLEAR sentinel)", () => {
     allowNonOwnerLocalCompute: null,
     nonOwnerLocalComputeBudget: null,
     allowNonOwnerMaxProSub: null,
+    maxImageBytes: null,
   };
   expect(appSettingsSchema.parse(cleared)).toEqual(cleared);
+});
+
+// ── maxImageBytes — the generated-image download cap (born-in-DB deployment knob) ──
+
+test("DEFAULT_MAX_IMAGE_BYTES is the 5 MB floor (unchanged out-of-the-box behavior)", () => {
+  expect(DEFAULT_MAX_IMAGE_BYTES).toBe(5_000_000);
+});
+
+test("maxImageBytes parses a valid override and self-heals out-of-bounds values (.catch → undefined)", () => {
+  expect(parseAppSettings({ maxImageBytes: 20_000_000 }).maxImageBytes).toBe(20_000_000);
+  // Below the floor and above the ceiling both swallow via `.catch` (the field drops; the resolver
+  // then reads DEFAULT_MAX_IMAGE_BYTES) — an absurd/unbounded cap can never be stored.
+  expect(parseAppSettings({ maxImageBytes: 1 }).maxImageBytes).toBeUndefined();
+  expect(parseAppSettings({ maxImageBytes: 999_999_999 }).maxImageBytes).toBeUndefined();
+  expect(parseAppSettings({ maxImageBytes: 1.5 }).maxImageBytes).toBeUndefined(); // non-int
 });
 
 // ── Lenient parse: garbage degrades to the default (never throws) ──

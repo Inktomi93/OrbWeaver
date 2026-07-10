@@ -40,6 +40,14 @@ export interface SeedOwnerDeps {
  * at `owner` is left untouched.
  */
 export async function seedOwner(deps: SeedOwnerDeps): Promise<readonly UserId[]> {
+  // D17: the box has EXACTLY ONE owner. `foundation/env` already boot-rejects a multi-handle OWNER_HANDLES,
+  // so this is the belt at the backfill seam — fail fast with the D17 message rather than loop the second
+  // handle into a raw `users_single_owner_unique` violation (a cryptic boot throw).
+  if (deps.ownerHandles.length > 1) {
+    throw new Error(
+      `seedOwner: refusing to seed ${deps.ownerHandles.length} owners (D17: the box has EXACTLY ONE owner) — OWNER_HANDLES must name one handle: ${deps.ownerHandles.join(", ")}`,
+    );
+  }
   const at = deps.now();
   const ids = await Promise.all(
     deps.ownerHandles.map(async (handle): Promise<UserId> => {

@@ -25,6 +25,7 @@ import type { AuditEntry } from "#foundation/observability";
 import type {
   BulkAddCardTagParams,
   BulkArchiveParams,
+  BulkRemoveCardTagParams,
   BulkRemoveParams,
   CreateCharacterParams,
   DuplicateCharacterParams,
@@ -65,6 +66,19 @@ export type AttachCardTagOp = (args: {
 }) => Promise<boolean>;
 
 /**
+ * Detach a tag (by NAME) from one owned character — the mirror of {@link AttachCardTagOp}. Returns `true` if a
+ * junction row was removed, `false` if the character didn't carry it / no such owner tag exists (idempotent
+ * no-op) — so `bulkRemoveCardTag` can report removed-vs-skipped without reading the tag-owned junction.
+ * Injected type-only (the runtime is the tag front door's resolve-by-name + junction delete, wired at the
+ * composition root); character never imports the tag package.
+ */
+export type DetachCardTagOp = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+}) => Promise<boolean>;
+
+/**
  * The DI bundle every character verb closes over (wired at the composition root). Explicit interface (not
  * `ReturnType<typeof create…>`) per §7.4 + the `no-context-returntype` gate.
  *   - `db` — the libSQL handle (all queries route through `persistence/`).
@@ -87,6 +101,9 @@ export interface CharacterContext {
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
+  /** The by-name tag DETACH port (tag domain, injected type-only) — `bulkRemoveCardTag` only; the mirror of
+   *  `attachCardTag`. */
+  readonly detachCardTag: DetachCardTagOp;
   /** The user-bus live-freshness emit (PD user-bus lane) — every user-facing character mutation fires
    *  `charactersChanged` with the owner's `userId` AFTER its durable write, so a second device's character
    *  list/card refetches. DISTINCT from `emit` (the in-process DomainEventBus that drives EMBEDDING re-index,
@@ -122,6 +139,10 @@ export interface CharacterService {
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
   /** Attach a tag by name to many owned characters (via the injected tag port). */
   readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<void>;
+  /** Detach a tag by name from many owned characters (via the injected tag detach port) — the mirror of
+   *  `bulkAddCardTag`; the editor tag-chip remove path. Missing/foreign characters + an already-absent tag are
+   *  skipped (idempotent), never thrown. */
+  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<void>;
 
   // ── History (git working-tree + commit-log; gates nothing — D28) ────────────
   /** Append a `character_snapshots` history blob (the live card snapshotted). Owner-gated. */

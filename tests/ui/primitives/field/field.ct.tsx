@@ -3,7 +3,7 @@
 // Also covers the R5 fix (FieldProps extends the full Field.Root surface) and R2 (FieldValidity).
 
 import { Checkbox } from "@orb/ui/checkbox";
-import { Field } from "@orb/ui/field";
+import { Field, FieldLayout } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Switch } from "@orb/ui/switch";
@@ -41,6 +41,37 @@ test("description renders muted below the control", async ({ mount, page }) => {
   );
   const description = page.getByText("Shown on your profile");
   await expect(description).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
+});
+
+test("a hinted field's control accname is the label ALONE (the More-info button is a sibling)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field hint="Saved every 30 seconds" label="Display name">
+      <Input />
+    </Field>,
+  );
+  // The W3C accname of the control is EXACTLY the label — no "More info" leaked from the hint button
+  // (which used to be nested inside the associated <label>). `exact: true` fails if the suffix is present.
+  await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toBeVisible();
+  // The hint trigger exists as its OWN control (a sibling of the label) and its tooltip still opens.
+  const info = page.getByRole("button", { name: "More info" });
+  await expect(info).toBeVisible();
+  await info.hover();
+  await expect(page.getByText("Saved every 30 seconds")).toBeVisible();
+});
+
+test("the hint accname fix holds in the horizontal orientation too", async ({ mount, page }) => {
+  await mount(
+    <FieldLayout orientation="horizontal">
+      <Field hint="Saved every 30 seconds" label="Display name">
+        <Input />
+      </Field>
+    </FieldLayout>,
+  );
+  await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "More info" })).toBeVisible();
 });
 
 test("composes Checkbox/Switch/RadioGroup — every control registers independently", async ({

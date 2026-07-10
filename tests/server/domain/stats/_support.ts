@@ -44,10 +44,16 @@ export const DAY = 86_400_000;
 
 let msgCounter = 0;
 
-/** FK parent for owner-scoped rows. */
-export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
+/** FK parent for owner-scoped rows. "Owner" here is the D23 OWNING-USER sense (characters.ownerId),
+ *  not the `owner` ROLE — the default first user takes the role for realism, but any SECOND seeded
+ *  user must pass role "user" (the D40 `users_single_owner_unique` index allows exactly one owner row). */
+export async function seedUser(
+  db: Db,
+  id = "user_owner",
+  role: "owner" | "user" = "owner",
+): Promise<UserId> {
   const uid = castId<UserId>(id);
-  await db.insert(users).values({ id: uid, handle: castId<Handle>(id), role: "owner" });
+  await db.insert(users).values({ id: uid, handle: castId<Handle>(id), role });
   return uid;
 }
 

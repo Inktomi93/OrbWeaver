@@ -140,6 +140,19 @@ export function agentMintStatements(
   ];
 }
 
+/** The current owner's id, or `undefined` if none exists yet. `provisionIdentity` reads this to enforce
+ *  the D17 "exactly one owner" singleton at the mint seam BEFORE a policy-matching second login writes
+ *  `role=owner` (which would surface as a raw `users_single_owner_unique` violation). The partial unique
+ *  index guarantees at most one owner row, so the `limit(1)` is the whole set. */
+export async function selectOwnerUserId(db: Db): Promise<UserId | undefined> {
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, "owner"))
+    .limit(1);
+  return rows.at(0)?.id;
+}
+
 /** `provisionIdentity` lookup by the stable SSO subject (the rename-safe key). */
 export async function selectForProvisionByExternalId(
   db: Db,

@@ -53,6 +53,89 @@ export function makeTagFixture(
   };
 }
 
+/** The `character.get` row shape (CharacterDetail = the full card + identity columns) — the editor read. A
+ *  plain fixture literal (see header); `routeTrpc` fulfills it as raw JSON. */
+export interface CharacterDetailFixture {
+  readonly id: string;
+  readonly handle: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly personality: string | null;
+  readonly scenario: string | null;
+  readonly greetings: readonly string[];
+  readonly exampleMessages: string | null;
+  readonly systemPrompt: string | null;
+  readonly postHistoryInstructions: string | null;
+  readonly depthPrompt: {
+    readonly prompt: string;
+    readonly depth: number;
+    readonly role?: string;
+  } | null;
+  readonly creatorNotes: string | null;
+  readonly creator: string | null;
+  readonly cardVersion: string | null;
+  readonly regexScripts: readonly Record<string, unknown>[];
+  readonly extensions: Record<string, unknown> | null;
+  readonly residualData: Record<string, unknown> | null;
+  readonly avatarAssetId: string | null;
+  readonly refinery: {
+    readonly score: number | null;
+    readonly analysis: Record<string, unknown> | null;
+  } | null;
+  readonly starred: boolean;
+  readonly archived: boolean;
+  readonly synthetic: boolean;
+  readonly forbidExternalMedia: boolean | null;
+  readonly trustHtml: boolean | null;
+  readonly themeOverride: Record<string, unknown> | null;
+  readonly importedFrom: string | null;
+  readonly importHash: string | null;
+  readonly contentHash: string;
+  readonly createdAt: number;
+  readonly avatarHash: string | null;
+  readonly tags: readonly CharacterSummaryFixtureTag[];
+}
+
+/** A fully-valid `CharacterDetail` literal (the editor read). */
+export function makeCharacterDetail(
+  overrides: Partial<CharacterDetailFixture> = {},
+): CharacterDetailFixture {
+  return {
+    id: "char_ct_1",
+    handle: "char_ct_1",
+    name: "Aria",
+    description: "A wandering cartographer.",
+    personality: null,
+    scenario: null,
+    greetings: ["Hello, traveler."],
+    exampleMessages: null,
+    systemPrompt: null,
+    postHistoryInstructions: null,
+    depthPrompt: null,
+    creatorNotes: null,
+    creator: null,
+    cardVersion: null,
+    regexScripts: [],
+    extensions: null,
+    residualData: null,
+    avatarAssetId: null,
+    refinery: null,
+    starred: false,
+    archived: false,
+    synthetic: false,
+    forbidExternalMedia: null,
+    trustHtml: null,
+    themeOverride: null,
+    importedFrom: null,
+    importHash: null,
+    contentHash: "hash_ct_1",
+    createdAt: FROZEN_AT,
+    avatarHash: null,
+    tags: [],
+    ...overrides,
+  };
+}
+
 /** A fully-valid `CharacterSummary` literal (the client read model — the library-list row). */
 export function makeCharacterSummary(
   overrides: Partial<CharacterSummaryFixture> = {},

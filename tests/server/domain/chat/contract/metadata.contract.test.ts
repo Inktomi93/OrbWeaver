@@ -74,6 +74,23 @@ describe("parseChatMetadata", () => {
     expect(parsed.roomOverrides).toBeUndefined();
   });
 
+  // task #22 MIGRATION at the REAL read seam: a legacy pre-#22 chat stored `authorsNote` as a BARE STRING.
+  // The widened `roomAuthorsNoteSchema` preprocess coerces it → `{prompt}` here, so an old chat's note still
+  // parses (and injects) with zero data migration; a widened directive round-trips its depth/role.
+  test("a LEGACY bare-string authorsNote coerces to {prompt}; a widened directive round-trips", () => {
+    const legacy = parseChatMetadata({ roomOverrides: { authorsNote: "Keep it tense." } });
+    expect(legacy.roomOverrides?.authorsNote).toEqual({ prompt: "Keep it tense." });
+
+    const widened = parseChatMetadata({
+      roomOverrides: { authorsNote: { prompt: "Whisper it.", depth: 1, role: "user" } },
+    });
+    expect(widened.roomOverrides?.authorsNote).toEqual({
+      prompt: "Whisper it.",
+      depth: 1,
+      role: "user",
+    });
+  });
+
   test("a corrupt providerRouting sub-blob heals to absent (never throws)", () => {
     expect(parseChatMetadata({ providerRouting: "nope" }).providerRouting).toBeUndefined();
     expect(parseChatMetadata({ providerRouting: 42 }).providerRouting).toBeUndefined();

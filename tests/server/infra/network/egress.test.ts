@@ -1,5 +1,6 @@
 import {
   DEFAULT_TRUSTED_RANGES,
+  fetchImageBytes,
   privateEgressRanges,
   safeFetch,
   shouldBlockEgress,
@@ -83,5 +84,69 @@ describe("safeFetch (staged response-side controls)", () => {
     vi.stubGlobal("fetch", () => Response.redirect("https://example.com/next", 302));
     const res = await safeFetch("https://example.com", { maxRedirects: 1 });
     expect(res.status).toBe(302);
+  });
+});
+
+// The imagery generated-image download — safeFetch's first consumer (D61 B5a). The provider-returned
+// image URL is response-controlled (an OpenRouter-marketplace model provider populates it), so it is
+// attacker-influenceable; fetchImageBytes must fail CLOSED (drop → null, never a raw fetch).
+describe("fetchImageBytes (SSRF-safe generated-image download)", () => {
+  test("returns the body bytes for a 2xx image response", async () => {
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
+    vi.stubGlobal(
+      "fetch",
+      () => new Response(png, { status: 200, headers: { "content-type": "image/png" } }),
+    );
+    const bytes = await fetchImageBytes("https://cdn.example/img.png");
+    expect(bytes).not.toBeNull();
+    expect([...(bytes ?? [])]).toEqual([...png]);
+  });
+
+  test("drops a non-2xx response (null — never a partial/error body stored)", async () => {
+    vi.stubGlobal("fetch", () => new Response("nope", { status: 404 }));
+    expect(await fetchImageBytes("https://cdn.example/missing.png")).toBeNull();
+  });
+
+  test("drops an SSRF-blocked internal URL (the firewall dispatcher rejects the connect) → null", async () => {
+    // This is exactly what the global egress dispatcher does to a loopback/link-local/RFC1918 target:
+    // it rejects the connect at DNS resolution (see the shouldBlockEgress tests above). fetchImageBytes
+    // must swallow that rejection and DROP the image — the SSRF response never reaches an asset.
+    vi.stubGlobal("fetch", () =>
+      Promise.reject(new Error("SSRF_BLOCKED: 169.254.169.254 → 169.254.169.254")),
+    );
+    expect(await fetchImageBytes("http://169.254.169.254/latest/meta-data/")).toBeNull();
+  });
+
+  test("drops an oversized response that trips the safeFetch byte cap → null", async () => {
+    // A ~6 MB body exceeds safeFetch's 5 MB decompression-bomb cap; bytes() throws → fetchImageBytes drops.
+    const huge = new Uint8Array(6_000_000);
+    vi.stubGlobal(
+      "fetch",
+      () => new Response(huge, { status: 200, headers: { "content-type": "image/png" } }),
+    );
+    expect(await fetchImageBytes("https://cdn.example/bomb.png")).toBeNull();
+  });
+
+  test("the maxBytes param threads to the safeFetch cap: a lowered cap drops an over-cap image", async () => {
+    // The compose binding passes AppSettings.maxImageBytes here. A 1 KB image under safeFetch's 5 MB
+    // default succeeds, but a 500-byte cap drops it — proving the knob reaches the byte cap.
+    const img = new Uint8Array(1000);
+    vi.stubGlobal(
+      "fetch",
+      () => new Response(img, { status: 200, headers: { "content-type": "image/png" } }),
+    );
+    expect(await fetchImageBytes("https://cdn.example/img.png", 500)).toBeNull();
+  });
+
+  test("the maxBytes param admits an image within a raised cap", async () => {
+    // A ~6 MB image that would trip the default 5 MB cap is admitted when the knob raises it to 8 MB.
+    const big = new Uint8Array(6_000_000);
+    vi.stubGlobal(
+      "fetch",
+      () => new Response(big, { status: 200, headers: { "content-type": "image/png" } }),
+    );
+    const bytes = await fetchImageBytes("https://cdn.example/hi-res.png", 8_000_000);
+    expect(bytes).not.toBeNull();
+    expect(bytes?.byteLength).toBe(6_000_000);
   });
 });

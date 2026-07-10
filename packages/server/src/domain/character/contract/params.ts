@@ -94,6 +94,13 @@ export interface BulkAddCardTagParams extends CharacterActorParams {
   readonly characterIds: readonly CharacterId[];
 }
 
+/** The mirror of {@link BulkAddCardTagParams} — detach a tag by name from many owned characters (the editor
+ *  tag-chip remove; the chip passes `[characterId]`). Same shape: owner-scoping skips missing/foreign ids. */
+export interface BulkRemoveCardTagParams extends CharacterActorParams {
+  readonly tagName: string;
+  readonly characterIds: readonly CharacterId[];
+}
+
 export interface SnapshotParams extends CharacterActorParams {
   readonly characterId: CharacterId;
   /** Optional human label for the history entry ("the git commit message"). */

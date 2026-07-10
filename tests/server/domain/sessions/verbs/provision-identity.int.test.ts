@@ -61,6 +61,43 @@ describe("sessions.provisionIdentity — INSERT (first SSO login)", () => {
     const result = await svc.provisionIdentity(identity({ groups: ["owners"] }));
     expect(result.role).toBe("owner");
   });
+
+  test("a SECOND owner-group member provisions as `user` — the D17 singleton, not a UNIQUE crash", async () => {
+    vi.stubEnv("OWNER_GROUP", "owners");
+    // First owner-group member logs in → owner.
+    const first = await svc.provisionIdentity(
+      identity({
+        externalId: castId<ExternalId>("authentik|alice"),
+        handle: castId<Handle>("alice"),
+        groups: ["owners"],
+      }),
+    );
+    expect(first.role).toBe("owner");
+    // A DIFFERENT owner-group member logs in → downgraded to user (an owner already exists), never a raw
+    // users_single_owner_unique violation. `admin` is NOT auto-granted (D17: admin is granted via setRole).
+    const second = await svc.provisionIdentity(
+      identity({
+        externalId: castId<ExternalId>("authentik|bob"),
+        handle: castId<Handle>("bob"),
+        groups: ["owners"],
+      }),
+    );
+    expect(second.role).toBe("user");
+    const bobRow = (await db.select().from(users).where(eq(users.id, second.userId)))[0];
+    expect(bobRow?.role).toBe("user");
+    // Exactly one owner row survived.
+    const owners = (await db.select().from(users)).filter((u) => u.role === "owner");
+    expect(owners).toHaveLength(1);
+  });
+
+  test("the SAME owner re-logging in keeps owner (singleton reconcile excludes its own row)", async () => {
+    vi.stubEnv("OWNER_GROUP", "owners");
+    vi.stubEnv("RE_DERIVE_ROLE_ON_LOGIN", "true");
+    const first = await svc.provisionIdentity(identity({ groups: ["owners"] }));
+    expect(first.role).toBe("owner");
+    const again = await svc.provisionIdentity(identity({ groups: ["owners"] }));
+    expect(again.role).toBe("owner");
+  });
 });
 
 describe("sessions.provisionIdentity — rename stability (externalId is the key)", () => {

@@ -3,6 +3,7 @@
 // `null`/absent override falls through to the floor (the null=CLEAR sentinel). Plus the D17 governance
 // floors (born-in-DB: local-compute ON, max-pro-sub OFF, budget null).
 
+import { DEFAULT_MAX_IMAGE_BYTES } from "@orb/contracts/settings";
 import { env } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { layer } from "../../../../../packages/server/src/domain/settings/effective-config/layer.ts";
@@ -60,5 +61,11 @@ describe("layer (floor-merge)", () => {
   test("a governance override wins (owner-flipped)", () => {
     expect(layer({ allowNonOwnerMaxProSub: true }).allowNonOwnerMaxProSub).toBe(true);
     expect(layer({ nonOwnerLocalComputeBudget: 7 }).nonOwnerLocalComputeBudget).toBe(7);
+  });
+
+  test("born-in-DB floor: maxImageBytes defaults to 5 MB; an admin override raises it", () => {
+    expect(layer({}).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES);
+    expect(layer({ maxImageBytes: null }).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES); // clear → floor
+    expect(layer({ maxImageBytes: 20_000_000 }).maxImageBytes).toBe(20_000_000);
   });
 });

@@ -20,7 +20,11 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories";
+import {
+  TagCreateColdCacheStory,
+  TagCreateOptimisticStory,
+  TagCreateVariablesStory,
+} from "./_ct-stories";
 
 interface FixtureTag {
   readonly id: string;
@@ -94,6 +98,30 @@ test("rollback: a failed mutation reverts the optimistic row, surfacing the stic
   // STAYS gone after the settle-triggered refetch too (the fixture never gained a row on failure).
   await expect(page.getByTestId("tag-list")).not.toContainText("new-tag");
   expect(trpc.count("tag.createTag")).toBe(1);
+});
+
+test("cold-cache rollback: a failed mutation against a never-fetched query REMOVES the phantom row", async ({
+  mount,
+  page,
+}) => {
+  // No `listTags` responder + no reader in the story → that query is never fetched (COLD). The
+  // optimistic write creates the cache entry; onError's snapshot is undefined. The old code did
+  // setQueryData(key, undefined) (a v5 no-op) and the phantom row stuck; the fix removeQueries it.
+  const trpc = await routeTrpc(page, {
+    "tag.createTag": () => trpcError({ message: "cold create failed" }),
+  });
+
+  await mount(<TagCreateColdCacheStory />);
+
+  await page.getByRole("button", { name: "create" }).click();
+  await expect(page.getByRole("alert")).toContainText("cold create failed");
+
+  // Read the cache directly (getQueryData never fetches; the unobserved query is never refetched).
+  // Fixed: the poisoned entry is gone → `absent`. Old bug: the phantom optimistic row persists.
+  await page.getByRole("button", { name: "read-cache" }).click();
+  await expect(page.getByTestId("cache-state")).toHaveText("absent");
+  expect(trpc.count("tag.createTag")).toBe(1);
+  expect(trpc.count("tag.listTags")).toBe(0);
 });
 
 test("sticky error clears on the NEXT mutate — a retried success removes the banner", async ({

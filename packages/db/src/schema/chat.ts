@@ -354,6 +354,11 @@ export const chatParticipants = sqliteTable(
     // nullable, so SQLite's UNIQUE ignores the character rows (multiple null-userId rows coexist).
     uniqueIndex("chat_participants_chat_user_unique").on(t.chatId, t.userId),
     index("chat_participants_chat_idx").on(t.chatId),
+    // The multi-human bridge's junction read (`entry/compose/emit-character-updated.ts`): "every chat where
+    // this character is a present seat" filters `characterId` with NO `chatId`, so neither the (chatId,userId)
+    // unique nor `chat_participants_chat_idx` serves it — it table-scanned. House convention: every queried
+    // characterId FK is indexed (roster_preset_members/chat_digest_speakers/gallery_items precedents).
+    index("chat_participants_character_idx").on(t.characterId),
     // The per-kind SHAPE CHECK (D60; agent-principal-design/02 §1) — born at creation, REPLACES the 2-way
     // actor XOR. Each kind fixes its identity columns; `agent` shares the `human` column shape (userId, no
     // characterId) — the columns answer "which identity table", `kind` answers "who drives it" (the bit the XOR

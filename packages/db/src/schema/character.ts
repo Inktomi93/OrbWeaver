@@ -127,18 +127,27 @@ export const characters = sqliteTable(
 // live `characters` row in-place. INVARIANT: NOTHING FKs character_snapshots — it is opaque history, not a
 // content home, so it can never pin, block, or alter card resolution. Do NOT add an inbound FK from any
 // other table to this one.
-export const characterSnapshots = sqliteTable("character_snapshots", {
-  // TypeID PK (`character_snapshot_…`); brand is type-only, SQL is plain TEXT.
-  id: text("id").$type<CharacterSnapshotId>().primaryKey(),
-  characterId: text("character_id")
-    .$type<CharacterId>()
-    .notNull()
-    .references(() => characters.id, { onDelete: "cascade" }),
-  // The full card snapshot as ONE opaque JSON blob.
-  content: text("content", { mode: "json" }).$type<CharacterCard>().notNull(),
-  label: text("label"),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const characterSnapshots = sqliteTable(
+  "character_snapshots",
+  {
+    // TypeID PK (`character_snapshot_…`); brand is type-only, SQL is plain TEXT.
+    id: text("id").$type<CharacterSnapshotId>().primaryKey(),
+    characterId: text("character_id")
+      .$type<CharacterId>()
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    // The full card snapshot as ONE opaque JSON blob.
+    content: text("content", { mode: "json" }).$type<CharacterCard>().notNull(),
+    label: text("label"),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // The per-character history listing (`domain/character/persistence/queries.ts` listSnapshots —
+    // `where(characterId) order by createdAt desc`) filters characterId; unindexed it table-scanned. Same
+    // queried-characterId-FK convention as the roster/digest-speaker/gallery precedents.
+    index("character_snapshots_character_idx").on(t.characterId),
+  ],
+);
 
 // character_personas — the M:N character↔persona junction, identity-keyed on `characters.id` (D28 — there
 // is no cv to key on; personas survive every card edit). Composite PK; both FKs CASCADE (delete either side

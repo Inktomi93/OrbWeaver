@@ -10,6 +10,7 @@ import {
   insertUser,
   selectForProvisionByExternalId,
   selectForProvisionByHandle,
+  selectOwnerUserId,
   updateUser,
 } from "../persistence/users";
 import { determineRole, reDeriveRoleOnLogin } from "../substrate/role-policy";
@@ -44,7 +45,7 @@ async function updateExisting(
   ctx: SessionsContext,
   existing: ExistingUser,
   identity: ResolvedIdentity,
-  derivedRole: UserRole,
+  resolvedRole: UserRole,
 ): Promise<ProvisionResult> {
   const changes: { handle?: Handle; externalId?: ExternalId; role?: UserRole } = {};
   if (identity.externalId !== null && existing.externalId !== identity.externalId) {
@@ -54,9 +55,9 @@ async function updateExisting(
     changes.handle = identity.handle;
   }
   let effectiveRole = existing.role;
-  if (reDeriveRoleOnLogin() && derivedRole !== existing.role) {
-    changes.role = derivedRole;
-    effectiveRole = derivedRole;
+  if (reDeriveRoleOnLogin() && resolvedRole !== existing.role) {
+    changes.role = resolvedRole;
+    effectiveRole = resolvedRole;
   }
   if (Object.keys(changes).length > 0) {
     await updateUser(ctx.db, existing.id, { ...changes, updatedAt: ctx.now() });
@@ -74,14 +75,14 @@ async function updateExisting(
 async function insertNew(
   ctx: SessionsContext,
   identity: ResolvedIdentity,
-  derivedRole: UserRole,
+  resolvedRole: UserRole,
 ): Promise<ProvisionResult> {
   const now = ctx.now();
   await insertUser(ctx.db, {
     id: newId<UserId>(),
     handle: identity.handle,
     externalId: identity.externalId,
-    role: derivedRole,
+    role: resolvedRole,
     enabled: true,
     createdAt: now,
     updatedAt: now,
@@ -103,6 +104,33 @@ async function insertNew(
   return { userId: settled.id, enabled: settled.enabled, role: settled.role };
 }
 
+/** D17 — the box has EXACTLY ONE owner (enforced by the `users_single_owner_unique` partial index). When the
+ *  owner POLICY (OWNER_GROUP/OWNER_HANDLES) would mint a SECOND owner — a policy-matching login while a
+ *  DIFFERENT owner row already exists — downgrade to `user` (warned) so the write never surfaces as a raw
+ *  UNIQUE violation (a failed login with a DB error). `admin` is deliberately NOT chosen: D17 forbids
+ *  deriving `admin` from env (it is GRANTED by the owner via `setRole`), so the second would-be owner lands
+ *  at least-privilege `user` and the owner may promote them. A re-login of the SAME owner row keeps `owner`
+ *  (and the no-owner-yet first login mints it). */
+async function reconcileOwnerSingleton(
+  ctx: SessionsContext,
+  derivedRole: UserRole,
+  existing: ExistingUser | undefined,
+  identity: ResolvedIdentity,
+): Promise<UserRole> {
+  if (derivedRole !== "owner") {
+    return derivedRole;
+  }
+  const ownerId = await selectOwnerUserId(ctx.db);
+  if (ownerId === undefined || ownerId === existing?.id) {
+    return "owner";
+  }
+  getLog().warn(
+    { handle: identity.handle, externalId: identity.externalId, existingOwnerId: ownerId },
+    "user: owner policy matched but an owner already exists (D17: exactly one owner) — provisioning as `user`; grant admin via setRole",
+  );
+  return "user";
+}
+
 export function createProvisionIdentity(
   ctx: SessionsContext,
 ): Pick<SessionsService, "provisionIdentity"> {
@@ -118,9 +146,12 @@ export function createProvisionIdentity(
     }
     const derivedRole = determineRole(identity.handle, identity.groups);
     const existing = await findExisting(ctx, identity);
+    // Reconcile the derived role against the D17 owner singleton BEFORE writing (a policy-matched second
+    // owner is downgraded to `user`, never looped into the `users_single_owner_unique` violation).
+    const resolvedRole = await reconcileOwnerSingleton(ctx, derivedRole, existing, identity);
     return existing !== undefined
-      ? await updateExisting(ctx, existing, identity, derivedRole)
-      : await insertNew(ctx, identity, derivedRole);
+      ? await updateExisting(ctx, existing, identity, resolvedRole)
+      : await insertNew(ctx, identity, resolvedRole);
   }
   return { provisionIdentity };
 }

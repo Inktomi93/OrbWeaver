@@ -76,6 +76,12 @@ export interface ImageryContext {
   readonly resolveGenerateImage: (caller: Principal) => Promise<ResolvedGenerateImage>;
   /** The sealed `infra/providers` generateImage executor role (bound at compose). */
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
+  /** Download a provider-returned generated-image URL to bytes through the SSRF-safe egress wrapper
+   *  (`infra/network` `fetchImageBytes`, bound at compose). The URL is populated by the CHOSEN
+   *  (OpenRouter-marketplace) model provider's response — attacker-influenceable, NEVER fetched raw.
+   *  `null` on any SSRF block / non-2xx / size-cap / network failure → the caller DROPS that image
+   *  (a poisoned URL is never stored; a zero-image result throws downstream). */
+  readonly fetchImage: (url: string) => Promise<Uint8Array | null>;
   /** `assets.store` — the per-user CAS write (D21). `kind` is always `"generated"` from this domain. */
   readonly storeAsset: (
     caller: Principal,

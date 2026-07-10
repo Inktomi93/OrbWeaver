@@ -4,7 +4,8 @@
 //      extraction → ImageryNotConfiguredError).
 //   6. resolve the generateImage role (no role/credential → ImageryNotConfiguredError).
 //   8. ONE `generateImage(req)` call with `n` (the provider fans out; never a per-image loop).
-//   9. materialize per returned image (base64 decode | provider-origin url fetch); sniff mime from bytes.
+//   9. materialize per returned image (base64 decode | provider-URL download via the SSRF-safe `fetchImage`
+//      port — the URL is provider-response-controlled, never fetched raw); sniff mime from bytes.
 //  10. store-THEN-provenance per image (a mid-loop crash leaves a benign orphan blob, never a dangling row).
 //  11. build one D44 media block per image.
 //  12. record economics + return.
@@ -67,18 +68,19 @@ function sniffMime(bytes: Uint8Array): string | undefined {
   return isWebp ? WEBP_MIME : undefined;
 }
 
-/** Decode one returned image to bytes: inline base64 → decode; provider URL → fetch (provider-origin). Null
- *  when the image carries neither, or a URL fetch fails (dropped; a zero-image result throws downstream). */
-async function materialize(img: GeneratedImage): Promise<DecodedImage | null> {
+/** Decode one returned image to bytes: inline base64 → decode; provider URL → download via the injected
+ *  SSRF-safe `fetchImage` port. The URL is NOT first-party — it is whatever the chosen (OpenRouter-
+ *  marketplace) model provider put in `message.images[].imageUrl.url`, so a malicious/compromised image
+ *  provider could aim it at a loopback / link-local / RFC1918 target; the port routes it through
+ *  `safeFetch` (SSRF firewall + byte cap) and returns `null` on any block/failure. Null also when the
+ *  image carries neither shape or the download fails (dropped; a zero-image result throws downstream). */
+async function materialize(ctx: ImageryContext, img: GeneratedImage): Promise<DecodedImage | null> {
   if (img.base64 !== undefined && img.base64.length > 0) {
     return { bytes: new Uint8Array(Buffer.from(img.base64, "base64")), mediaType: img.mediaType };
   }
   if (img.url !== undefined && img.url.length > 0) {
-    const res = await fetch(img.url);
-    if (!res.ok) {
-      return null;
-    }
-    return { bytes: new Uint8Array(await res.arrayBuffer()), mediaType: img.mediaType };
+    const bytes = await ctx.fetchImage(img.url);
+    return bytes === null ? null : { bytes, mediaType: img.mediaType };
   }
   return null;
 }
@@ -182,7 +184,7 @@ export function createGeneratePicture(ctx: ImageryContext): ImageryService["gene
       prompt,
       n: p.n ?? DEFAULT_IMAGE_COUNT,
     });
-    const decoded = (await Promise.all(result.images.map(materialize))).filter(
+    const decoded = (await Promise.all(result.images.map((img) => materialize(ctx, img)))).filter(
       (d): d is DecodedImage => d !== null,
     );
     if (decoded.length === 0) {

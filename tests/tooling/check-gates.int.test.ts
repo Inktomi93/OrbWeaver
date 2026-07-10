@@ -308,6 +308,13 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_persist/lib/__g_persist.ts",
     'declare function persist(init: unknown, opts: unknown): unknown;\nexport const gStore = persist(() => ({}), { name: "x" });\n',
   );
+  // form-factory-for-multifield: a feature component hand-rolling ≥3 controlled form inputs (value/checked
+  // + an onChange-family handler) while importing NEITHER editor factory — the ≥3-field form that dodges
+  // Form entirely (D54 §13.4).
+  fx(
+    "packages/client/src/features/__g_multifield/components/__g_multifield.tsx",
+    "export function GMultiField() {\n  return (\n    <div>\n      <Input value={a} onChange={set} />\n      <Select value={b} onValueChange={set} />\n      <Switch checked={c} onCheckedChange={set} />\n    </div>\n  );\n}\n",
+  );
   // ── ledger-gate wave (activated 2026-07-09) — fixtures for the newly-live gates ──
   // ownerid-registry: an ownerId column on a table NOT in the D23 OWNERID_ALLOWLIST.
   fx(
@@ -408,12 +415,9 @@ const DORMANT_GATES = new Set([
   "audit-client-tests",
   // The 8 ledger-gate-wave gates (2026-07-09) were ACTIVATED once the doc freeze lifted — they now live
   // in report.ts's BASE_CHECKS (+ their Core-Enforcement-Active-Gates.md rows), so they are no longer here.
+  // The D54 §13.3 form-factory gate (2026-07-09) was likewise ACTIVATED once its ONE real-tree hit
+  // (chat/components/group-config-form.tsx) was migrated onto createAutosaveEntityForm — no longer here.
   //
-  // D54 §13.3 form-factory gate (2026-07-09): built + self-tested
-  // (tests/tooling/form-factory-for-multifield.int.test.ts), held DORMANT because its ONE real-tree hit
-  // (chat/components/group-config-form.tsx — a deliberate DU immediate-commit exception per that file's
-  // header) belongs to another lane this wave must not fix. SYNC WITH enforcement-registry-parity.ts.
-  "form-factory-for-multifield",
   // W1-0c (2026-07-04): built + self-tested, deliberately unregistered pending its own future
   // consumer — `table.tsx` stays at 461 lines by the owner's decision until a table consumer lands and
   // the primitive naturally splits under the 450-line cap (UI-Primitives-and-Reuse.md §13.9).

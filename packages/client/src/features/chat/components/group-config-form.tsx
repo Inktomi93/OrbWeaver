@@ -1,94 +1,48 @@
 // The GROUP-CONFIG editor (P3 — the CONTEXT panel's Group tab). The room's generation behavior
-// (`GroupConfig`): a discriminated union on `output` (narrator ⇒ one merged message · per-speaker ⇒ one
-// message each). `output` changes the SHAPE of the config, so every edit goes through `buildConfig`, which
-// projects the flat editing values onto the correct arm — the narrator arm is `.strict()` and carries NO
-// `cardScope`, so field-patching the stored union would produce an invalid blob; we always rebuild it.
+// (`GroupConfig`), edited as an AUTOSAVE form (`createAutosaveEntityForm`, UI-Primitives §13.4 —
+// "Group-chat create + config"): each field flip debounces a whole-config write ("flip it and it saves"),
+// matching the sibling room-overrides tab + the immediate-commit chat law (FINAL-Chats §2 — the chats
+// section carries NO save-bar). The form machinery, the seed/remount/reseed obligations, and the mapping
+// live in `use-group-config-form.ts`; this file is the FIELDS + the copy + the progressive disclosure.
 //
-// SOURCE-AGNOSTIC (dual-mode, J2/J3): PURE — takes `config` (the current value) + `onSave` (the persist
-// seam), owning neither read nor write. COMMITTED → the `setGroupConfig` verb + the `getGroupConfig` read;
-// DRAFT → `setDraftGroupConfig` + `draftConfig.groupConfig`. IMMEDIATE-COMMIT (like the sibling room-
-// overrides/roster editors + neo's group form): each control writes the whole rebuilt object at once — a
-// discriminated-union config is a whole-object write, not a field-form, so this is the right shape (not
-// `createSavedEntityForm` — §13.4's table entry predates the DU + dual-mode requirement).
+// WHY autosave, not `createSavedEntityForm`: a save-bar on the Group tab violates the no-save-bar chat
+// law, and the shipped semantics ARE flip-and-it-saves. The `GroupConfig` DU is a whole-object write, but
+// that discipline is the WRITE SHAPE (`fromGroupConfigForm`, in the save fn), orthogonal to the form
+// machinery — the factory expresses it fine. NO draft mirror (the server row is the crash mirror — the
+// room-overrides/appearance precedent).
 //
-// PROGRESSIVE DISCLOSURE: output · speaker-tags · group-nudge are always visible; policy / card-scope /
-// auto-mode / member-visibility hide under an Advanced disclosure, each with a one-line cost/consequence
-// note. speakerTags' DEFAULT is coupled to output (narrator ⇒ on, per-speaker ⇒ off) and re-derived on a
-// mode switch so the legible default follows the mode.
+// SOURCE-AGNOSTIC (dual-mode, J2/J3): the pure `GroupConfigForm` takes `config` (the current value) +
+// `save` (the persist seam, returning a Promise), owning neither read nor write. COMMITTED → the
+// `setGroupConfig` verb + the `getGroupConfig` read (`CommittedGroupConfigTab` below); DRAFT →
+// `setDraftGroupConfig` + `draftConfig.groupConfig` (the draft surface wires it directly).
+//
+// PROGRESSIVE DISCLOSURE: output · label-speaker · group-nudge are always visible; policy / card-scope /
+// member-visibility / auto-mode hide under an Advanced disclosure. `output` is the DU discriminator — a
+// mode switch re-derives the coupled speakerTags default (via `form.setFieldValue`) so the legible default
+// follows the mode; card-scope shows only on per-speaker.
 
-import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
+import type { GroupConfig, MemberCardVisibility } from "@orb/contracts/chat";
 import { MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
-import { Select } from "@orb/ui/select";
-import { Slider } from "@orb/ui/slider";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations";
+import { GROUP_CONFIG_ENTITY_PREFIX, useGroupConfigForm } from "../hooks/use-group-config-form";
+import type { GroupConfigFormValues } from "../lib/group-config-model";
+import {
+  defaultSpeakerTags,
+  fromGroupConfigForm,
+  toGroupConfigForm,
+} from "../lib/group-config-model";
 
 type GroupOutput = GroupConfig["output"];
-
-/** The flat editing shape — a superset of both union arms. `buildConfig` projects it back onto the
- *  correct discriminated arm so `cardScope` only survives on per-speaker. */
-interface FlatGroupConfig {
-  output: GroupOutput;
-  policy: GroupPolicy;
-  cardScope: "merged" | "scoped";
-  speakerTags: boolean;
-  groupNudge: boolean;
-  autoMode: boolean;
-  autoModeMaxTurns: number;
-  autoModeDelayMs: number;
-  allowSelfResponses: boolean;
-  memberCardVisibility: MemberCardVisibility;
-}
-
-function toFlat(config: GroupConfig): FlatGroupConfig {
-  return {
-    output: config.output,
-    policy: config.policy,
-    cardScope: config.output === "per-speaker" ? config.cardScope : "merged",
-    speakerTags: config.speakerTags,
-    groupNudge: config.groupNudge,
-    autoMode: config.autoMode,
-    autoModeMaxTurns: config.autoModeMaxTurns,
-    autoModeDelayMs: config.autoModeDelayMs,
-    allowSelfResponses: config.allowSelfResponses,
-    memberCardVisibility: config.memberCardVisibility,
-  };
-}
-
-/** Project the flat values onto the correct discriminated arm — narrator drops `cardScope` (its `.strict()`
- *  arm rejects it). The single owner of the union shape on the client. */
-function buildConfig(flat: FlatGroupConfig): GroupConfig {
-  const shared = {
-    policy: flat.policy,
-    speakerTags: flat.speakerTags,
-    groupNudge: flat.groupNudge,
-    autoMode: flat.autoMode,
-    autoModeMaxTurns: flat.autoModeMaxTurns,
-    autoModeDelayMs: flat.autoModeDelayMs,
-    allowSelfResponses: flat.allowSelfResponses,
-    memberCardVisibility: flat.memberCardVisibility,
-  } as const;
-  return flat.output === "narrator"
-    ? { output: "narrator", ...shared }
-    : { output: "per-speaker", cardScope: flat.cardScope, ...shared };
-}
-
-/** speakerTags' default coupled to output — narrator labels each line by default; the per-speaker stream
- *  already attributes per message, so tags default off there. */
-function defaultSpeakerTags(output: GroupOutput): boolean {
-  return output === "narrator";
-}
 
 const POLICY_ITEMS: SelectItems<string> = [
   { value: "natural", label: "Natural" },
@@ -116,194 +70,154 @@ const DELAY_MS_MAX = 60_000;
 const DELAY_MS_STEP = 250;
 
 export interface GroupConfigFormProps {
+  /** The form's stable identity for seed/remount (committed → `group-config:${chatId}`; draft →
+   *  `group-config:draft:${draftKey}`). */
+  readonly entityId: string;
   /** The current config (committed → `getGroupConfig`; draft → `draftConfig.groupConfig ?? default`). */
   readonly config: GroupConfig;
-  /** The persist seam (fire-and-forget — the form never reads the result): committed → `setGroupConfig.mutate`
-   *  (errors surface via the mutation's own errorToast); draft → `setDraftGroupConfig`. `=> void` accepts
-   *  both a Promise-returning and a sync caller (TS void-return bivariance). Gets the whole rebuilt
-   *  `GroupConfig` (never a field patch). */
-  readonly onSave: (config: GroupConfig) => void;
+  /** The persist seam (fire-and-forget from the debounced listener; failures surface via the caller's
+   *  channel): committed → `setGroupConfig.mutateAsync`; draft → the draft store write. Gets the whole
+   *  rebuilt `GroupConfig` (never a field patch). Absent ⇒ read-only. */
+  readonly save?: ((config: GroupConfig) => Promise<unknown>) | undefined;
 }
 
-/** The Group tab body — the room's generation-behavior knobs, immediate-commit, progressively disclosed. */
-export function GroupConfigForm({ config, onSave }: GroupConfigFormProps): ReactElement {
-  // Local edit state IS the source of truth while mounted (immediate-commit keeps it === persisted ===
-  // `config`). Seeded once; a slot change / draft clear remounts the form fresh.
-  const [flat, setFlat] = useState<FlatGroupConfig>(() => toFlat(config));
+/** The Group tab body — the room's generation-behavior knobs, autosaving, progressively disclosed. */
+export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
+  // Adapt the surface's config-level `save` to the factory's form-values-level persist fn — the whole-
+  // object DU rebuild (`fromGroupConfigForm`) happens HERE so callers deal in domain `GroupConfig`.
+  const factorySave =
+    save === undefined
+      ? undefined
+      : (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
 
-  const writeConfig = (next: FlatGroupConfig): void => {
-    setFlat(next);
-    onSave(buildConfig(next));
-  };
-  const commit = (patch: Partial<FlatGroupConfig>): void => writeConfig({ ...flat, ...patch });
-  // Slider drag: update the local value every frame WITHOUT persisting; the release (`onValueCommitted`)
-  // persists once.
-  const drag = (patch: Partial<FlatGroupConfig>): void => setFlat({ ...flat, ...patch });
-
-  const setOutput = (output: GroupOutput): void => {
-    if (output === flat.output) {
-      return;
-    }
-    // Re-derive the speakerTags default for the new mode (the coupling holds on switch, not just load).
-    commit({ output, speakerTags: defaultSpeakerTags(output) });
-  };
+  const { form, mountKey } = useGroupConfigForm({
+    entityId,
+    serverValues: toGroupConfigForm(config),
+    // Read-only (no persist fn) unless a save is supplied (spread, not `undefined` — exactOptional).
+    ...(factorySave === undefined ? {} : { save: factorySave }),
+  });
 
   return (
-    <Stack gap="section" data-slot="group-config-form">
-      {/* Output — the discriminator (a whole-object mode switch). */}
-      <Stack gap="field">
-        <Text size="label" weight="medium">
-          How the cast replies
-        </Text>
-        <ToggleGroup
-          value={[flat.output]}
-          onValueChange={(value): void => {
-            const next = value[0];
-            if (next !== undefined) {
-              setOutput(next as GroupOutput);
-            }
-          }}
-          aria-label="How the cast replies"
-        >
-          {/* Concise mode names (the hint line below carries the friendly explanation) — the descriptive
-              "One message each"/"One narrator voice" truncate in the narrow CONTEXT panel. */}
-          <Toggle value="per-speaker">Per-speaker</Toggle>
-          <Toggle value="narrator">Narrator</Toggle>
-        </ToggleGroup>
-        <Text size="micro" tone="muted">
-          {flat.output === "narrator"
-            ? "One message voices everyone — you can't swipe individuals."
-            : "Each character replies in their own message — swipe them individually."}
-        </Text>
-      </Stack>
+    <Stack key={mountKey} gap="section" data-slot="group-config-form">
+      {/* Output — the DU discriminator (a whole-object mode switch). A raw single-select ToggleGroup:
+          the switch also re-derives the coupled speakerTags default, which no bound field expresses. */}
+      <form.AppField name="output">
+        {(field): ReactElement => (
+          <Stack gap="field">
+            <Text size="label" weight="medium">
+              How the cast replies
+            </Text>
+            <ToggleGroup
+              value={[field.state.value]}
+              onValueChange={(value): void => {
+                const next = value[0];
+                if (next !== undefined && next !== field.state.value) {
+                  const output = next as GroupOutput;
+                  field.handleChange(output);
+                  // The coupling holds on switch, not just load — re-derive the speakerTags default.
+                  form.setFieldValue("speakerTags", defaultSpeakerTags(output));
+                }
+              }}
+              aria-label="How the cast replies"
+            >
+              {/* Concise mode names (the hint line below carries the friendly explanation) — the
+                  descriptive labels truncate in the narrow CONTEXT panel. */}
+              <Toggle value="per-speaker">Per-speaker</Toggle>
+              <Toggle value="narrator">Narrator</Toggle>
+            </ToggleGroup>
+            <Text size="micro" tone="muted">
+              {field.state.value === "narrator"
+                ? "One message voices everyone — you can't swipe individuals."
+                : "Each character replies in their own message — swipe them individually."}
+            </Text>
+          </Stack>
+        )}
+      </form.AppField>
 
-      <Row gap="field" align="center" justify="between">
-        <Text size="label">Label each speaker</Text>
-        <Switch
-          aria-label="Label each speaker"
-          checked={flat.speakerTags}
-          onCheckedChange={(checked): void => commit({ speakerTags: checked })}
-        />
-      </Row>
+      <form.AppField name="speakerTags">
+        {(field): ReactElement => <field.SwitchField label="Label each speaker" />}
+      </form.AppField>
 
-      <Row gap="field" align="center" justify="between">
-        <Text size="label">Nudge the group to stay in character</Text>
-        <Switch
-          aria-label="Group nudge"
-          checked={flat.groupNudge}
-          onCheckedChange={(checked): void => commit({ groupNudge: checked })}
-        />
-      </Row>
+      <form.AppField name="groupNudge">
+        {(field): ReactElement => (
+          <field.SwitchField label="Nudge the group to stay in character" />
+        )}
+      </form.AppField>
 
       <Accordion>
         <AccordionItem value="advanced">
           <AccordionTrigger>Advanced</AccordionTrigger>
           <AccordionPanel>
             <Stack gap="section" className="pt-block">
-              {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-              <Select
-                label="Who speaks each round"
-                items={POLICY_ITEMS}
-                value={flat.policy}
-                onValueChange={(value): void => commit({ policy: value as GroupPolicy })}
-              />
+              <form.AppField name="policy">
+                {(field): ReactElement => (
+                  <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} />
+                )}
+              </form.AppField>
 
-              {flat.output === "per-speaker" ? (
-                <Row gap="field" align="center" justify="between">
-                  <Text size="label">Each character sees only their own card</Text>
-                  <Switch
-                    aria-label="Scoped cards"
-                    checked={flat.cardScope === "scoped"}
-                    onCheckedChange={(checked): void =>
-                      commit({ cardScope: checked ? "scoped" : "merged" })
-                    }
-                  />
-                </Row>
-              ) : null}
-
-              {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-              <Select
-                label="How much of each member the others see"
-                items={VISIBILITY_ITEMS}
-                value={flat.memberCardVisibility}
-                onValueChange={(value): void =>
-                  commit({ memberCardVisibility: value as MemberCardVisibility })
+              <form.Subscribe selector={(state): GroupOutput => state.values.output}>
+                {(output): ReactElement | null =>
+                  output === "per-speaker" ? (
+                    <form.AppField name="scopedCards">
+                      {(field): ReactElement => (
+                        <field.SwitchField label="Each character sees only their own card" />
+                      )}
+                    </form.AppField>
+                  ) : null
                 }
-              />
+              </form.Subscribe>
+
+              <form.AppField name="memberCardVisibility">
+                {(field): ReactElement => (
+                  <field.SelectField
+                    label="How much of each member the others see"
+                    items={VISIBILITY_ITEMS}
+                  />
+                )}
+              </form.AppField>
 
               <Stack gap="field">
-                <Row gap="field" align="center" justify="between">
-                  <Text size="label">Let characters reply to each other</Text>
-                  <Switch
-                    aria-label="Auto-mode"
-                    checked={flat.autoMode}
-                    onCheckedChange={(checked): void => commit({ autoMode: checked })}
-                  />
-                </Row>
-                <Text size="micro" tone="muted">
-                  They keep the conversation going on their own — each auto-turn is a full
-                  generation you pay for.
-                </Text>
-                {flat.autoMode ? (
-                  <Stack gap="field">
-                    <Row gap="field" align="center" justify="between">
-                      <Text size="label">Max turns in a row</Text>
-                      <Text size="micro" tone="muted">
-                        {flat.autoModeMaxTurns}
-                      </Text>
-                    </Row>
-                    <Slider
-                      aria-label="Max auto-turns in a row"
-                      value={flat.autoModeMaxTurns}
-                      min={MAX_TURNS_MIN}
-                      max={MAX_TURNS_MAX}
-                      step={1}
-                      onValueChange={(value): void =>
-                        drag({
-                          autoModeMaxTurns:
-                            typeof value === "number" ? value : flat.autoModeMaxTurns,
-                        })
-                      }
-                      onValueCommitted={(value): void =>
-                        commit({
-                          autoModeMaxTurns:
-                            typeof value === "number" ? value : flat.autoModeMaxTurns,
-                        })
-                      }
+                <form.AppField name="autoMode">
+                  {(field): ReactElement => (
+                    <field.SwitchField
+                      label="Let characters reply to each other"
+                      description="They keep the conversation going on their own — each auto-turn is a full generation you pay for."
                     />
-                    <Row gap="field" align="center" justify="between">
-                      <Text size="label">Delay between turns</Text>
-                      <Text size="micro" tone="muted">
-                        {flat.autoModeDelayMs} ms
-                      </Text>
-                    </Row>
-                    <Slider
-                      aria-label="Delay between auto-turns"
-                      value={flat.autoModeDelayMs}
-                      min={DELAY_MS_MIN}
-                      max={DELAY_MS_MAX}
-                      step={DELAY_MS_STEP}
-                      onValueChange={(value): void =>
-                        drag({
-                          autoModeDelayMs: typeof value === "number" ? value : flat.autoModeDelayMs,
-                        })
-                      }
-                      onValueCommitted={(value): void =>
-                        commit({
-                          autoModeDelayMs: typeof value === "number" ? value : flat.autoModeDelayMs,
-                        })
-                      }
-                    />
-                    <Row gap="field" align="center" justify="between">
-                      <Text size="label">Let a character reply to itself</Text>
-                      <Switch
-                        aria-label="Allow self responses"
-                        checked={flat.allowSelfResponses}
-                        onCheckedChange={(checked): void => commit({ allowSelfResponses: checked })}
-                      />
-                    </Row>
-                  </Stack>
-                ) : null}
+                  )}
+                </form.AppField>
+                <form.Subscribe selector={(state): boolean => state.values.autoMode}>
+                  {(autoMode): ReactElement | null =>
+                    autoMode ? (
+                      <Stack gap="field">
+                        <form.AppField name="autoModeMaxTurns">
+                          {(field): ReactElement => (
+                            <field.SliderField
+                              label="Max turns in a row"
+                              min={MAX_TURNS_MIN}
+                              max={MAX_TURNS_MAX}
+                              step={1}
+                            />
+                          )}
+                        </form.AppField>
+                        <form.AppField name="autoModeDelayMs">
+                          {(field): ReactElement => (
+                            <field.SliderField
+                              label="Delay between turns"
+                              min={DELAY_MS_MIN}
+                              max={DELAY_MS_MAX}
+                              step={DELAY_MS_STEP}
+                            />
+                          )}
+                        </form.AppField>
+                        <form.AppField name="allowSelfResponses">
+                          {(field): ReactElement => (
+                            <field.SwitchField label="Let a character reply to itself" />
+                          )}
+                        </form.AppField>
+                      </Stack>
+                    ) : null
+                  }
+                </form.Subscribe>
               </Stack>
             </Stack>
           </AccordionPanel>
@@ -328,8 +242,13 @@ export function CommittedGroupConfigTab({ chatId }: CommittedGroupConfigTabProps
 
   return (
     <GroupConfigForm
+      entityId={`${GROUP_CONFIG_ENTITY_PREFIX}${chatId}`}
       config={config}
-      onSave={(next): void => setGroupConfig.mutate({ chatId, config: next })}
+      // `.catch` swallows the autosave rejection so a failed write doesn't leak an unhandled TRPCClientError
+      // as a page error — the mutation's `meta.errorToast` already surfaces the failure to the user.
+      save={(next): Promise<unknown> =>
+        setGroupConfig.mutateAsync({ chatId, config: next }).catch(() => undefined)
+      }
     />
   );
 }

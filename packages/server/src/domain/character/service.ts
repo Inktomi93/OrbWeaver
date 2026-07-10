@@ -12,6 +12,7 @@ import type { CharacterContext, CharacterService } from "./contract/service";
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag";
 import { createBulkArchive } from "./verbs/bulk-archive";
 import { createBulkRemove } from "./verbs/bulk-remove";
+import { createBulkRemoveCardTag } from "./verbs/bulk-remove-card-tag";
 import { createCreate } from "./verbs/create";
 import { createDuplicate } from "./verbs/duplicate";
 import { createFindByHandle } from "./verbs/find-by-handle";
@@ -41,6 +42,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     bulkRemove: createBulkRemove(ctx),
     bulkArchive: createBulkArchive(ctx),
     bulkAddCardTag: createBulkAddCardTag(ctx),
+    bulkRemoveCardTag: createBulkRemoveCardTag(ctx),
     snapshot: createSnapshot(ctx),
     listSnapshots: createListSnapshots(ctx),
     restore: createRestore(ctx),

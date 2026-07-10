@@ -22,6 +22,7 @@ import type {
   AttachTagParams,
   BulkAttachTagParams,
   CreateTagParams,
+  DetachCardTagByNameParams,
   DetachTagParams,
   GetTagParams,
   ListTagsParams,
@@ -93,4 +94,13 @@ export interface TagService {
    * NOT principal-gated — it trusts the caller-resolved `ownerId` (the caller already owner-verified the row).
    */
   readonly attachCardTagByName: (params: AttachCardTagByNameParams) => Promise<boolean>;
+  /**
+   * Resolve the owner's tag BY NAME (case-insensitive, NO create) and detach it from the character — the
+   * mirror of {@link attachCardTagByName} (character's injected `DetachCardTagOp`, the by-name detach home).
+   * Returns `true` if a junction row was removed, `false` if the owner has no such tag OR the character never
+   * carried it (idempotent on absent — a detach never throws, never mints a tag). The tag row itself survives
+   * a detach (an orphaned tag is the prune-unused concern). NOT principal-gated — it trusts the
+   * caller-resolved `ownerId` (`character.bulkRemoveCardTag` already owner-verified the character).
+   */
+  readonly detachCardTagByName: (params: DetachCardTagByNameParams) => Promise<boolean>;
 }

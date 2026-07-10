@@ -52,6 +52,17 @@
  *                                          # didn't generate — wrong token namespace,
  *                                          # typo'd variant — reports as DEADCSS)
  *
+ *   TWO RECURRING FOOTGUNS (reviewers keep paying these — they cost real hand-verification rounds):
+ *   • --hover loses :hover on a list RE-RENDER. Hovering a row to reveal its actions works, but if the
+ *     list re-renders after the hover (a query settling, a virtualized row recycling), the synthetic
+ *     :hover is dropped and the revealed controls vanish before the shot. Prefer the FOCUS path
+ *     (Tab/--press to focus-within, which survives re-render) or drive TRUE hover via chrome-devtools MCP
+ *     when you specifically need the :hover visual.
+ *   • Base UI COMBOBOX accessible names flip label⇄value with timing. A combobox read mid-transition
+ *     reports the option label where you expect the committed value (or vice-versa). Always re-run --map
+ *     FRESH against the settled surface right before you target it — never reuse a name from an earlier,
+ *     pre-settle map.
+ *
  *   INTROSPECTION — the "stop dropping to the MCP browser" escape hatches. Run post-settle
  *   (after any --click/--fill/--wait-for steps), so a caller gets computed values / arbitrary
  *   DOM facts in the SAME Bash call that drove the interaction.
@@ -63,16 +74,38 @@
  *                                          # / `()=>{…}` run and return their result (no more
  *                                          # silent-undefined from an un-called async arrow;
  *                                          # you may still write `(...)()` explicitly).
- *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the FIRST match's text color
- *                                          # vs its effective ancestor background (repeatable).
- *                                          # TRANSLUCENT backdrops (glass panels, color-mix at
- *                                          # <1 alpha) are now alpha-COMPOSITED down to the first
- *                                          # opaque ancestor before measuring — the reported ratio
- *                                          # matches the visible pixels (was a false-FAIL). A
- *                                          # background-IMAGE/gradient ancestor still reports
- *                                          # INDETERMINATE (verify manually); any FAIL reddens
- *                                          # the exit code. An EMPTY input/textarea is measured at
- *                                          # its ::placeholder color (not the invisible text color —
+ *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the FIRST match's text/icon color
+ *                                          # vs its resolved backdrop (repeatable). Each line states
+ *                                          # its METHOD honestly: `css-resolve` (an opaque ancestor bg,
+ *                                          # cheap) or `pixel-sample`. TRANSLUCENT backdrops (glass,
+ *                                          # color-mix at <1 alpha) over an opaque ancestor are
+ *                                          # alpha-COMPOSITED down before measuring (was a false-FAIL).
+ *                                          # THE FALSE-FLAT BLIND SPOT IS FIXED: when the ancestor walk
+ *                                          # hits NO opaque background (a fixed/sibling layer — the app's
+ *                                          # ThemeBackgroundLayer photo, a scrim — paints behind, unseen
+ *                                          # by a DOM walk) OR hits a background-IMAGE, the probe now
+ *                                          # SCREENSHOTS the element's box and samples the real composited
+ *                                          # pixels (perimeter ring → excludes the glyphs) instead of
+ *                                          # fabricating a white baseline that passed 1.8:1 text over a
+ *                                          # bright sky. A sample that can't be taken reports UNRESOLVED
+ *                                          # (loud, reddens exit) — never a fake number. --contrast-pixel
+ *                                          # forces the pixel path for every target (verify a css number).
+ *                                          # Also fixed: when the app's bg-image is active ([data-has-bg-
+ *                                          # image]), a backdrop resolved only at the opaque <body>/<html>
+ *                                          # is DISTRUSTED (ThemeBackgroundLayer's fixed photo paints OVER
+ *                                          # body) → pixel-sample. And ancestor OPACITY dims the reading:
+ *                                          # the accumulated opacity product over the element+ancestors
+ *                                          # composites the foreground onto the backdrop before the ratio
+ *                                          # (a 40%-opacity actions row's icon reads ~11:1 raw, ~2.6:1 as
+ *                                          # seen — the line tags `dimmed α0.40`).
+ *                                          # ROLE/CONTENT-AWARE THRESHOLDS: a target with NO rendered text
+ *                                          # (icon button, graphic) is judged as a UI COMPONENT (WCAG
+ *                                          # 1.4.11, 3:1), not 4.5:1 text; a control-TRACK role (switch/
+ *                                          # slider/progressbar/scrollbar) is SKIPPED with a reason — its
+ *                                          # two states are the signal, not track-vs-page (killed the
+ *                                          # 1.71:1 Switch false-FAIL). Text keeps 4.5:1 (3:1 large). Any
+ *                                          # FAIL reddens the exit code. An EMPTY input/textarea is measured
+ *                                          # at its ::placeholder color (not the invisible text color —
  *                                          # a placeholder that fails AA was a silent false PASS).
  *   pnpm snap / --map                      # live selector map of <body>'s interactive/labeled
  *                                          # elements — role, accessible name, and the BEST
@@ -80,7 +113,11 @@
  *                                          # ancestor testid > aria-label > role=X[name="Y"] >
  *                                          # fallback path); runs post-steps, so
  *                                          # `--click X --wait-for Y --map '[role=dialog]'`
- *                                          # maps a just-revealed surface, no source-grepping
+ *                                          # maps a just-revealed surface, no source-grepping.
+ *                                          # NB: --map's accessible NAME is a geometry/discovery aid, not
+ *                                          # the truth — its naive textContent fallback double-counts
+ *                                          # hidden hover-reveal text ("NNikonikoniko · 585"). For the
+ *                                          # real accessible name use --aria (Playwright's ARIA snapshot).
  *
  *   TEXT PATH — structure as text, ~5–8× cheaper than a PNG and greppable.
  *   Reach for this FIRST; fall to pixels only when something looks off.
@@ -124,6 +161,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
+import sharp from "sharp";
 import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
 import type { CapturedRequest, LocalStorageSeed, ProbeSession } from "./_kit/browser.ts";
 import {
@@ -162,6 +200,22 @@ const EVAL_RESULT_CAP = 2000;
 // --eval block header: the expr itself, truncated so a long one-liner doesn't wrap the report.
 const EVAL_LABEL_CAP = 80;
 const BOLD_WEIGHT = 700;
+// WCAG 1.4.11 non-text contrast floor (a graphical/control boundary) — applied to a --contrast target
+// that renders NO text (an icon button, a graphical control), so a 4.5:1 text ratio isn't FALSE-flagged
+// against it. Numerically 3:1 like large-text, but a distinct concept, hence its own name.
+const UI_COMPONENT_MIN_RATIO = 3;
+// Roles whose contrast is a two-STATE signal (the track's on/off colors), NOT track-vs-page — measuring
+// the latter is meaningless and produced the 1.71:1 Switch false-FAIL. --contrast SKIPS these with a
+// stated reason (the WCAG 1.4.11 state boundary is a separate measurement this axis can't make).
+const CONTROL_TRACK_ROLES = new Set(["switch", "slider", "progressbar", "scrollbar"]);
+// Perimeter-ring pixel sampling for the pixel-sample backdrop path: glyphs/icons sit in the box
+// INTERIOR, so the outer ring is background-dominant — sampling only the ring EXCLUDES the foreground
+// by construction (the hard part), instead of hoping a whole-box median outvotes the text.
+const SAMPLE_RING_FRAC = 0.15;
+const SAMPLE_RING_MAX_PX = 6;
+// Below this accumulated ancestor opacity, composite the (dimmed) foreground over the backdrop before
+// measuring. Just under 1 so sub-pixel float noise (0.999…) never triggers a pointless composite.
+const FOREGROUND_OPACITY_EPS = 0.999;
 const NAV_TIMEOUT_MS = 15_000;
 const WAIT_SELECTOR_TIMEOUT_MS = 10_000;
 const STEP_TIMEOUT_MS = 5000;
@@ -270,6 +324,9 @@ type Args = {
   /** Selectors WCAG-contrast-checked post-settle (repeatable): text color vs effective
    *  ancestor background of the FIRST match. */
   contrast: string[];
+  /** Force PIXEL-SAMPLE for every --contrast target (even ones the css walk could resolve) — verify a
+   *  css-resolve number against the real composite, or sample when you already know a layer paints behind. */
+  contrastPixel: boolean;
   /** Emit a selector map (role · accessible name · best stable selector) of interactive/
    *  labeled elements within `mapSelector` — "how do I reach this" instead of grepping source. */
   map: boolean;
@@ -447,6 +504,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
       a.contrast.push(sel);
     }
   },
+  "--contrast-pixel": (a) => {
+    a.contrastPixel = true;
+  },
   "--map": (a, rest) => {
     mapFlag(a, rest);
   },
@@ -482,6 +542,7 @@ function parseArgs(argv: string[]): Args {
     idle: false,
     eval: [],
     contrast: [],
+    contrastPixel: false,
     map: false,
     mapSelector: "body",
   };
@@ -737,19 +798,44 @@ function buildContrastScript(selector: string): string {
     // OPAQUE one (the real base), then composite the translucent layers over it bottom-to-top. A glass
     // panel (color-mix at 0.7 alpha) over a dark base now yields the VISUAL backdrop the eye sees — the
     // old code took a translucent layer's own rgb as if opaque (the 1.11-vs-2.6 false-FAIL side-eye hit).
+    //
+    // THE FALSE-FLAT BLIND SPOT: this ancestor walk sees only the DOM chain — a FIXED-position sibling
+    // layer (the app's ThemeBackgroundLayer photo, or a scrim painting under .shell-grid) is invisible
+    // to it. If the chain resolves with NO opaque background found, the old code fabricated a white base
+    // and passed text that was actually ~1.8:1 over a bright photo. We now REFUSE that: a walk that
+    // never hits an opaque bg returns "transparent" (Node pixel-samples the real composite), and a
+    // background-image ancestor returns "indeterminate" (Node pixel-samples too) — never a fake baseline.
+    //
+    // FIXED SIBLING OVER AN OPAQUE ROOT (blind-spot round 2): ThemeBackgroundLayer paints its photo as a
+    // fixed z-base sibling OVER the opaque <body>/<html>. So an "opaque base" found only at the root is
+    // NOT what's visually behind the element — the photo occludes it. When the app's bg-image is active
+    // (its own [data-has-bg-image] shell signal), a root-level base is untrustworthy → pixel-sample.
+    // (GENERIC GAP not covered: any app that paints a fixed sibling over the body without this signal
+    // would still fool the root-base trust — a generic "root base + a fixed painted layer exists" →
+    // indeterminate rule could catch it, but is left out here as it can't be verified app-agnostically.)
+    var bgImageActive = document.querySelector("[data-has-bg-image]") !== null;
     function resolveBackdrop(node) {
       var layers = []; // element-first (topmost) → base-last (bottommost non-transparent)
-      var base = "rgb(255, 255, 255)"; // the app root paints --color-background; white only if none found
+      var base = null;
       while (node) {
         var s = getComputedStyle(node);
         if (s.backgroundImage && s.backgroundImage !== "none") return { kind: "indeterminate" };
         var bc = s.backgroundColor;
         if (!isTransparent(bc)) {
-          if (isOpaque(bc)) { base = toRgbString(bc); break; }
+          if (isOpaque(bc)) {
+            if (bgImageActive && (node === document.body || node === document.documentElement)) {
+              return { kind: "transparent" };
+            }
+            base = toRgbString(bc);
+            break;
+          }
           layers.push(bc);
         }
         node = node.parentElement;
       }
+      // No opaque base anywhere in the chain — a fixed/sibling layer may be painting behind, unseen.
+      // Don't invent white; tell Node to pixel-sample the actual rendered pixels.
+      if (base === null) return { kind: "transparent" };
       // Paint the opaque base, then the translucent layers bottom-up (reverse of the element-first array).
       var acc = base;
       for (var i = layers.length - 1; i >= 0; i--) acc = compositeOver(layers[i], acc);
@@ -767,11 +853,44 @@ function buildContrastScript(selector: string): string {
       var phColor = getComputedStyle(el, "::placeholder").color;
       if (phColor && !isTransparent(phColor)) colorSource = phColor;
     }
+    // Role/content awareness (Node applies the threshold): a target that renders NO text is a UI
+    // COMPONENT (WCAG 1.4.11, 3:1), not a 4.5:1 text target; a control-track role is skipped entirely.
+    var role = el.getAttribute("role") || "";
+    if (!role) {
+      if (tag === "INPUT") {
+        var inputType = (el.getAttribute("type") || "text").toLowerCase();
+        if (inputType === "range") role = "slider";
+        else if (inputType === "checkbox") role = "checkbox";
+      } else if (tag === "PROGRESS") role = "progressbar";
+    }
+    var hasText = (el.textContent || "").replace(/\\s+/g, " ").trim().length > 0;
+    // ANCESTOR opacity dims the FOREGROUND (blind-spot round 2): a message-actions row at opacity-40
+    // paints the whole subtree — the icon's glyph included — at 0.4 over its backdrop, but style.color
+    // still reads the UN-dimmed rgb (a ~11:1 false PASS where the eye sees ~2.6:1). CSS opacity groups
+    // multiply down the chain, so accumulate the product over the element + every ancestor. Node then
+    // composites the foreground rgb at this alpha over the resolved backdrop before the ratio (the
+    // BACKGROUND half is already handled — css-resolve/pixel-sample sees the true bg; the FOREGROUND
+    // dimming is the half only this multiply can fix). Note: a background INSIDE the dimmed group is an
+    // unhandled edge (rare) — the common case is a transparent-bg row over an opaque backdrop.
+    var foregroundOpacity = 1;
+    var opNode = el;
+    while (opNode) {
+      var opRaw = getComputedStyle(opNode).opacity;
+      var opVal = opRaw === "" ? 1 : Number(opRaw);
+      if (!Number.isNaN(opVal)) foregroundOpacity *= opVal;
+      opNode = opNode.parentElement;
+    }
+    var rect = el.getBoundingClientRect();
     return {
       color: toRgbString(colorSource),
       fontSizePx: Number.parseFloat(style.fontSize) || 16,
       fontWeight: fontWeight,
       backdrop: resolveBackdrop(el),
+      hasText: hasText,
+      role: role,
+      tag: tag,
+      foregroundOpacity: foregroundOpacity,
+      box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
     };
   })()`;
 }
@@ -780,7 +899,17 @@ type ContrastFacts = {
   color: string;
   fontSizePx: number;
   fontWeight: number;
-  backdrop: { kind: "flat"; color: string } | { kind: "indeterminate" };
+  // "flat" = a trustworthy opaque ancestor bg (css-resolve path); "transparent"/"indeterminate" = the
+  // ancestor walk couldn't see the real backdrop (a fixed sibling layer / a background-image) — Node
+  // pixel-samples the composite instead of trusting a fabricated baseline.
+  backdrop: { kind: "flat"; color: string } | { kind: "transparent" } | { kind: "indeterminate" };
+  hasText: boolean;
+  role: string;
+  tag: string;
+  /** Product of `opacity` over the element + ancestors — <1 means the foreground is painted dimmed and
+   *  must be composited at this alpha over the backdrop before measuring. */
+  foregroundOpacity: number;
+  box: { x: number; y: number; width: number; height: number };
 } | null;
 
 // buildContrastScript's toRgbString ALWAYS emits this exact "rgb(r, g, b)" shape (it composites
@@ -797,8 +926,109 @@ function parseRgbString(s: string): Rgb | null {
 }
 
 type ContrastOutcome = { line: string; failed: boolean };
+type Box = { x: number; y: number; width: number; height: number };
 
-async function checkContrast(page: Page, selector: string): Promise<ContrastOutcome> {
+function medianChannel(values: number[]): number {
+  values.sort((a, b) => a - b);
+  return values[Math.floor(values.length / 2)] ?? 0;
+}
+
+// Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
+// glyph painted inside an opacity<1 group. opacity 1 is a no-op; opacity 0 is the pure backdrop.
+function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
+  const mix = (f: number, b: number): number => Math.round(opacity * f + (1 - opacity) * b);
+  return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
+}
+
+// Per-channel median of the box's PERIMETER RING (raw RGBA from sharp). The ring is background by
+// construction (text/icon glyphs live in the interior), so this yields the composited backdrop the eye
+// sees behind the foreground — the fixed photo layer + any scrim + the element's own translucent bg all
+// baked into real pixels — without the glyphs contaminating the number.
+function ringBackdrop(data: Buffer, width: number, height: number, channels: number): Rgb {
+  const ring = Math.max(
+    1,
+    Math.min(SAMPLE_RING_MAX_PX, Math.floor(Math.min(width, height) * SAMPLE_RING_FRAC)),
+  );
+  const rs: number[] = [];
+  const gs: number[] = [];
+  const bs: number[] = [];
+  for (let y = 0; y < height; y += 1) {
+    const edgeRow = y < ring || y >= height - ring;
+    for (let x = 0; x < width; x += 1) {
+      if (!(edgeRow || x < ring || x >= width - ring)) {
+        continue;
+      }
+      const i = (y * width + x) * channels;
+      rs.push(data[i] ?? 0);
+      gs.push(data[i + 1] ?? 0);
+      bs.push(data[i + 2] ?? 0);
+    }
+  }
+  return { r: medianChannel(rs), g: medianChannel(gs), b: medianChannel(bs) };
+}
+
+// Screenshot the element's box (clamped into the viewport — an overflowing clip makes Playwright throw)
+// and read the composited backdrop from real pixels. Returns an error (never a fabricated color) when the
+// box is empty/off-screen or the shot/decode fails — the caller reports UNRESOLVED loudly.
+async function pixelSampleBackdrop(
+  page: Page,
+  box: Box,
+  viewport: Viewport,
+): Promise<{ rgb: Rgb } | { error: string }> {
+  const x = Math.max(0, Math.floor(box.x));
+  const y = Math.max(0, Math.floor(box.y));
+  const width = Math.min(Math.ceil(box.width), viewport.width - x);
+  const height = Math.min(Math.ceil(box.height), viewport.height - y);
+  if (width < 1 || height < 1) {
+    return { error: "element box is empty or fully off-screen" };
+  }
+  let buf: Buffer;
+  try {
+    buf = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
+  } catch (e) {
+    return { error: `screenshot failed: ${errorMessage(e)}` };
+  }
+  try {
+    const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
+    return { rgb: ringBackdrop(data, info.width, info.height, info.channels) };
+  } catch (e) {
+    return { error: `pixel decode failed: ${errorMessage(e)}` };
+  }
+}
+
+// Resolve the backdrop as an { rgb, method } pair — trusting the cheap css-resolve ONLY for a genuine
+// opaque ancestor; every transparent/indeterminate resolve (the false-flat blind spot) pixel-samples.
+async function resolveContrastBackdrop(
+  page: Page,
+  facts: NonNullable<ContrastFacts>,
+  forcePixel: boolean,
+  viewport: Viewport,
+): Promise<{ rgb: Rgb; method: "css-resolve" | "pixel-sample" } | { error: string }> {
+  if (!forcePixel && facts.backdrop.kind === "flat") {
+    const rgb = parseRgbString(facts.backdrop.color);
+    return rgb === null
+      ? { error: `unparseable backdrop (${facts.backdrop.color})` }
+      : { rgb, method: "css-resolve" };
+  }
+  const sampled = await pixelSampleBackdrop(page, facts.box, viewport);
+  if ("error" in sampled) {
+    const why =
+      facts.backdrop.kind === "indeterminate"
+        ? "over background-image"
+        : "transparent ancestor chain";
+    return {
+      error: `UNRESOLVED  ${why}; pixel sample failed (${sampled.error}) — refusing a fabricated flat baseline`,
+    };
+  }
+  return { rgb: sampled.rgb, method: "pixel-sample" };
+}
+
+async function checkContrast(
+  page: Page,
+  selector: string,
+  forcePixel: boolean,
+  viewport: Viewport,
+): Promise<ContrastOutcome> {
   let facts: ContrastFacts;
   try {
     facts = (await page.evaluate(buildContrastScript(selector))) as ContrastFacts;
@@ -808,26 +1038,39 @@ async function checkContrast(page: Page, selector: string): Promise<ContrastOutc
   if (facts === null) {
     return { line: `CONTRAST ${selector}: NOT FOUND`, failed: true };
   }
-  const large = isLargeText(facts.fontSizePx, facts.fontWeight);
-  const needRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
-  const fontDisplay = `${Math.round(facts.fontSizePx)}px${facts.fontWeight >= BOLD_WEIGHT ? "b" : ""}`;
-  const tail = `(font ${fontDisplay} · need ${needRatio.toFixed(1)})`;
-  if (facts.backdrop.kind === "indeterminate") {
+  // (2) Control-track roles: text-vs-page contrast is meaningless here — the two STATES are the signal,
+  // and WCAG 1.4.11 governs the state boundary (a separate measurement). Skip with a reason rather than
+  // emit the bogus 1.71:1 text-math FAIL reviewers had to learn to ignore.
+  if (CONTROL_TRACK_ROLES.has(facts.role)) {
     return {
-      line: `CONTRAST ${selector}: n/a  INDETERMINATE  ${tail} — verify manually (over image/gradient)`,
+      line: `CONTRAST ${selector}: SKIPPED  ${facts.role} track — two-state control; text-vs-page contrast N/A (WCAG 1.4.11 boundary unmeasured here)`,
       failed: false,
     };
   }
-  const fg = parseRgbString(facts.color);
-  const bg = parseRgbString(facts.backdrop.color);
-  if (fg === null || bg === null) {
-    return {
-      line: `CONTRAST ${selector}: unparseable color (${facts.color} / ${facts.backdrop.color})`,
-      failed: true,
-    };
+  const backdrop = await resolveContrastBackdrop(page, facts, forcePixel, viewport);
+  if ("error" in backdrop) {
+    return { line: `CONTRAST ${selector}: ${backdrop.error}`, failed: true };
   }
-  const ratio = contrastRatio(fg, bg);
+  const rawFg = parseRgbString(facts.color);
+  if (rawFg === null) {
+    return { line: `CONTRAST ${selector}: unparseable color (${facts.color})`, failed: true };
+  }
+  // Ancestor opacity dims the foreground — composite it at the accumulated alpha over the resolved
+  // backdrop before measuring (a 40%-opacity actions row's icon reads ~11:1 raw, ~2.6:1 as seen).
+  const dimmed = facts.foregroundOpacity < FOREGROUND_OPACITY_EPS;
+  const fg = dimmed ? compositeForeground(rawFg, backdrop.rgb, facts.foregroundOpacity) : rawFg;
+  const dimNote = dimmed ? ` · dimmed α${facts.foregroundOpacity.toFixed(2)}` : "";
+  // (2) Role/content-aware threshold: NO rendered text ⇒ a UI-COMPONENT boundary (WCAG 1.4.11, 3:1);
+  // text keeps 4.5:1 (3:1 where the size/weight qualifies it as large).
+  const isComponent = !facts.hasText;
+  const large = isLargeText(facts.fontSizePx, facts.fontWeight);
+  const textRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
+  const needRatio = isComponent ? UI_COMPONENT_MIN_RATIO : textRatio;
+  const kindLabel = isComponent ? "ui-component" : "text";
+  const fontDisplay = `${Math.round(facts.fontSizePx)}px${facts.fontWeight >= BOLD_WEIGHT ? "b" : ""}`;
+  const ratio = contrastRatio(fg, backdrop.rgb);
   const pass = ratio >= needRatio;
+  const tail = `(${kindLabel} · font ${fontDisplay} · need ${needRatio.toFixed(1)} · ${backdrop.method}${dimNote})`;
   return {
     line: `CONTRAST ${selector}: ${ratio.toFixed(2)}:1  ${pass ? "PASS" : "FAIL"}  ${tail}`,
     failed: !pass,
@@ -837,11 +1080,13 @@ async function checkContrast(page: Page, selector: string): Promise<ContrastOutc
 async function captureContrasts(
   page: Page,
   selectors: readonly string[],
+  forcePixel: boolean,
+  viewport: Viewport,
 ): Promise<ContrastOutcome[]> {
   const results: ContrastOutcome[] = [];
   for (const selector of selectors) {
     // biome-ignore lint/performance/noAwaitInLoops: argv-ordered, independent checks — same discipline as captureEvals/runSteps.
-    results.push(await checkContrast(page, selector));
+    results.push(await checkContrast(page, selector, forcePixel, viewport));
   }
   return results;
 }
@@ -1017,7 +1262,12 @@ async function capture(page: Page, opts: Args, plan: ShotPlan): Promise<CaptureO
       outcome.evalResults = await captureEvals(page, opts.eval);
     }
     if (opts.contrast.length > 0) {
-      outcome.contrastResults = await captureContrasts(page, opts.contrast);
+      outcome.contrastResults = await captureContrasts(
+        page,
+        opts.contrast,
+        opts.contrastPixel,
+        opts.viewport,
+      );
     }
     if (opts.map) {
       const mapped = await captureMap(page, opts.mapSelector);

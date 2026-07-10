@@ -11,7 +11,7 @@ import { useTRPC } from "@orb/client/data";
 import {
   CharacterBulkBar,
   CharacterCardTile,
-  CharacterDetailCard,
+  CharacterEditorSurface,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
 } from "@orb/client/features/character";
@@ -92,42 +92,17 @@ export function CharacterCardTileStory({
   );
 }
 
-// ── Detail-card story (pure render — no data layer) ────────────────────────────────────────────────
+// ── Editor surface story (§6 — the CONTENT editor; data layer, trpc stubbed at the network) ─────────
 
-export interface CharacterDetailCardStoryProps {
-  readonly name?: string;
-  readonly description?: string | null;
-  readonly creatorNotes?: string | null;
-  readonly archived?: boolean;
-  readonly tags?: readonly CharacterCardTileStoryTag[];
-}
-
-/** The bare `<CharacterDetailCard>` — drives the read-only render (conditional description/creator-notes,
- *  tags, archived badge, the disabled Edit) + the Start-chat seam (records the id into a visible marker). */
-export function CharacterDetailCardStory({
-  name = "Aria Nightshade",
-  description = "A wandering cartographer with a sharp tongue.",
-  creatorNotes = null,
-  archived = false,
-  tags = [],
-}: CharacterDetailCardStoryProps): ReactElement {
-  const [startedId, setStartedId] = useState<string | null>(null);
+/** The §6 character editor over the real data layer (`character.get` + `chat.listChats` stubbed by
+ *  routeTrpc). Fixed to one id so the CT drives the whole hero + tabs + save-bar. */
+export function CharacterEditorSurfaceStory(): ReactElement {
   return (
-    <div style={{ width: 720 }}>
-      <CharacterDetailCard
-        character={{
-          id: castId<CharacterId>("char_ct_detail"),
-          name,
-          description,
-          creatorNotes,
-          archived,
-          avatarHash: null,
-          tags: tags.map((tag) => ({ ...tag, id: castId<TagId>(tag.id) })),
-        }}
-        onStartChat={setStartedId}
-      />
-      <p data-testid="started-id">{startedId ?? ""}</p>
-    </div>
+    <CtDataProviders>
+      <div style={{ height: 640, width: 720 }}>
+        <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} />
+      </div>
+    </CtDataProviders>
   );
 }
 

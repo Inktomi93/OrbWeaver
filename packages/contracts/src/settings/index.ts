@@ -168,6 +168,17 @@ export const DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE = true;
 /** Default: non-owner members may NOT drive the owner's hosted `max-pro-sub` (ban-prone + money). */
 export const DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB = false;
 
+// ── Generated-image download cap (born-in-DB; no env source). The imagery domain downloads a
+// provider-returned image URL through the SSRF-safe `fetchImageBytes` → `safeFetch` byte cap; high-res
+// models can exceed the baked 5 MB, so the cap is a deployment knob (admin AppSettings). Bounds keep it
+// sane (`noMagicNumbers`): a floor no legit image undershoots (an absurdly-low cap would drop every
+// image) and a ceiling that blocks an unbounded-memory / decompression-bomb footgun.
+const MAX_IMAGE_BYTES_FLOOR = 100_000;
+const MAX_IMAGE_BYTES_CEIL = 100_000_000;
+/** Default generated-image download byte cap (born-in-DB floor; matches `safeFetch`'s own 5 MB default so
+ *  behavior is unchanged out of the box). An admin override raises it for high-res models; no env var. */
+export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
+
 // Every field is `.nullable()` AS WELL AS `.optional().catch(undefined)`: `null` is the documented CLEAR
 // sentinel (an admin PATCH `{ field: null }` wipes the override so the env floor reappears). On READ a
 // stored `null` behaves exactly like an absent field (`layer()` resolves both with `??`).
@@ -201,6 +212,17 @@ export const appSettingsSchema = z.object({
   /** D17 — the per-member local-compute turn/request COUNT budget (paired with the toggle above).
    *  A positive integer; absent → the domain floor (unbounded / supervisor-limited). */
   nonOwnerLocalComputeBudget: z.number().int().positive().nullable().optional().catch(undefined),
+  /** Max bytes for a generated-image download (the provider-URL fetch through `fetchImageBytes` →
+   *  safeFetch's response byte cap). Born-in-DB floor `DEFAULT_MAX_IMAGE_BYTES` (5 MB); an admin override
+   *  raises it for high-res models. Bounded `[MAX_IMAGE_BYTES_FLOOR, MAX_IMAGE_BYTES_CEIL]`. */
+  maxImageBytes: z
+    .number()
+    .int()
+    .min(MAX_IMAGE_BYTES_FLOOR)
+    .max(MAX_IMAGE_BYTES_CEIL)
+    .nullable()
+    .optional()
+    .catch(undefined),
   /** D17 — may non-owner members drive the owner's HOSTED `max-pro-sub`? Floor
    *  `DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB` (OFF — ban-prone + real money). The `max-pro-sub` MINT stays
    *  `requireOwner` regardless; this toggle is box governance, not the mint gate. */
@@ -838,4 +860,7 @@ export interface EffectiveAppConfig {
   nonOwnerLocalComputeBudget: number | null;
   /** D17 — may non-owner members drive the owner's HOSTED `max-pro-sub` (floor: OFF). */
   allowNonOwnerMaxProSub: boolean;
+  /** Max bytes for a generated-image download (born-in-DB; the imagery `fetchImage` port reads it live to
+   *  cap the provider-URL fetch). Floor: `DEFAULT_MAX_IMAGE_BYTES` (5 MB). */
+  maxImageBytes: number;
 }

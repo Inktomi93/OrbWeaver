@@ -83,3 +83,38 @@ describe("character.list — wire-through", () => {
     expect(result).toEqual(page);
   });
 });
+
+describe("character.bulkRemoveCardTag — wire-through", () => {
+  test("delegates {tagName, characterIds} with the resolved principal", async () => {
+    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: ACTOR }),
+      services: { character: { bulkRemoveCardTag } },
+    });
+    const characterIds = [castId<CharacterId>("character_00000000000000000000000000")];
+
+    await caller(ctx).character.bulkRemoveCardTag({ tagName: "hero", characterIds });
+
+    expect(bulkRemoveCardTag).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: ACTOR }),
+      tagName: "hero",
+      characterIds,
+    });
+  });
+
+  test("rejects a blank tag name at the wire boundary (min(1))", async () => {
+    const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: ACTOR }),
+      services: { character: { bulkRemoveCardTag } },
+    });
+
+    await expect(
+      caller(ctx).character.bulkRemoveCardTag({
+        tagName: "",
+        characterIds: [castId<CharacterId>("character_00000000000000000000000000")],
+      }),
+    ).rejects.toThrow();
+    expect(bulkRemoveCardTag).not.toHaveBeenCalled();
+  });
+});

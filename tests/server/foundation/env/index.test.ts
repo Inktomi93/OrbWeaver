@@ -98,6 +98,17 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     await expect(reimportEnvWith({ AUTH_MODE: "bogus" })).rejects.toThrow("AUTH_MODE");
   });
 
+  test("a multi-handle OWNER_HANDLES is boot-fatal (D17: exactly one owner)", async () => {
+    await expect(reimportEnvWith({ OWNER_HANDLES: "alice,bob" })).rejects.toThrow(
+      "OWNER_HANDLES must name EXACTLY ONE owner",
+    );
+  });
+
+  test("a whitespace/empty-padded single handle still boots (only real duplicates fail)", async () => {
+    const { env } = await reimportEnvWith({ OWNER_HANDLES: " alice , , " });
+    expect(env.OWNER_HANDLES).toBe(" alice , , ");
+  });
+
   test("SESSION_SECRET shorter than 32 chars is rejected", async () => {
     await expect(
       reimportEnvWith({

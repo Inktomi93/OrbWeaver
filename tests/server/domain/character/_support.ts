@@ -8,6 +8,7 @@
 
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterStats, characterSummaries, characters, users } from "@orb/db";
 import type {
@@ -23,6 +24,7 @@ import { castId } from "@orb/kit/ids";
 import type {
   AttachCardTagOp,
   CharacterContext,
+  DetachCardTagOp,
 } from "../../../../packages/server/src/domain/character/contract/service.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -34,7 +36,13 @@ interface AuditCall {
   readonly at: number;
 }
 
+interface UserEventCall {
+  readonly userId: UserId;
+  readonly event: UserBusEvent;
+}
+
 type TagAttachArgs = Parameters<AttachCardTagOp>[0];
+type TagDetachArgs = Parameters<DetachCardTagOp>[0];
 
 export interface CharacterHarness {
   readonly ctx: CharacterContext;
@@ -42,10 +50,15 @@ export interface CharacterHarness {
   readonly events: DomainEvent[];
   readonly reaps: AssetId[][];
   readonly tagAttaches: TagAttachArgs[];
+  readonly tagDetaches: TagDetachArgs[];
+  /** The recorded `emitUserEvent` calls (assert `charactersChanged` fires after a durable write). */
+  readonly userEvents: UserEventCall[];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
   /** Override the tag-attach port result (default: every call returns `true` = newly attached). */
   setTagAttachResult: (result: boolean) => void;
+  /** Override the tag-detach port result (default: every call returns `true` = a row was removed). */
+  setTagDetachResult: (result: boolean) => void;
 }
 
 /** Build the CharacterContext over a real db with deterministic + recording fakes. */
@@ -56,7 +69,10 @@ export function makeHarness(db: Db): CharacterHarness {
   const events: DomainEvent[] = [];
   const reaps: AssetId[][] = [];
   const tagAttaches: TagAttachArgs[] = [];
+  const tagDetaches: TagDetachArgs[] = [];
+  const userEvents: UserEventCall[] = [];
   let tagAttachResult = true;
+  let tagDetachResult = true;
 
   const ctx: CharacterContext = {
     db,
@@ -79,8 +95,14 @@ export function makeHarness(db: Db): CharacterHarness {
       tagAttaches.push(args);
       return Promise.resolve(tagAttachResult);
     },
-    // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
-    emitUserEvent: (): void => undefined,
+    detachCardTag: (args: TagDetachArgs): Promise<boolean> => {
+      tagDetaches.push(args);
+      return Promise.resolve(tagDetachResult);
+    },
+    // PD user-bus lane: records the emit so a test can assert `charactersChanged` fires after a durable write.
+    emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
+      userEvents.push({ userId, event });
+    },
   };
 
   return {
@@ -89,9 +111,14 @@ export function makeHarness(db: Db): CharacterHarness {
     events,
     reaps,
     tagAttaches,
+    tagDetaches,
+    userEvents,
     advance: (ms: number): void => clock.advance(ms),
     setTagAttachResult: (result: boolean): void => {
       tagAttachResult = result;
+    },
+    setTagDetachResult: (result: boolean): void => {
+      tagDetachResult = result;
     },
   };
 }

@@ -189,6 +189,31 @@ describe("exportChat — the D26/D28 assembly", () => {
     expect(assistantLine["swipe_id"]).toBe(1);
   });
 
+  test("jsonl: a task-#22 {prompt, depth, role} authorsNote directive exports its prompt as note_prompt", async () => {
+    const { ctx } = makeHarness(db);
+    const host = await seedUser(db, { handle: "host" });
+    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
+    const chatId = await seedChatRow("a", {
+      title: "Noir Night",
+      // The widened room note is the injection directive; export reads the prompt text off either shape.
+      metadata: {
+        roomOverrides: { authorsNote: { prompt: "keep it tense", depth: 2, role: "user" } },
+      },
+    });
+    await seedMember(chatId, "h", { userId: host, role: "host" });
+    await seedMember(chatId, "c", { characterId: aria });
+    await seedSlot({ chatId, key: "u1", seq: 1, role: "user", variantContents: ["hi"] });
+
+    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    expect(out).not.toBeNull();
+    const header = JSON.parse((out?.text ?? "").trim().split("\n")[0] ?? "") as Record<
+      string,
+      unknown
+    >;
+    // biome-ignore lint/style/useNamingConvention: the ST wire key is snake_case by format.
+    expect(header["chat_metadata"]).toMatchObject({ note_prompt: "keep it tense" });
+  });
+
   test("txt: active-variant transcript with author labels", async () => {
     const { ctx } = makeHarness(db);
     const host = await seedUser(db, { handle: "host" });

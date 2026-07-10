@@ -41,9 +41,11 @@ import type {
   AssemblePersona,
   AssembleWorldEntry,
   ChatInjection,
+  RoomAuthorsNote,
   RoomOverrides,
   SpeakerRef,
 } from "@orb/contracts/chat";
+import { AUTHORS_NOTE_DEFAULT_DEPTH, AUTHORS_NOTE_DEFAULT_ROLE } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -85,14 +87,6 @@ interface InjectionCandidate {
 }
 
 const OPERATOR_PRIORITY = Number.MAX_SAFE_INTEGER;
-
-// The house AUTHOR'S-NOTE register depth — "near enough to steer, far enough not to dominate"
-// (chat-crew-design/04). The ROOM author's note's default when its stored shape carries no depth: today
-// `roomOverrides.authorsNote` is a BARE string (no depth/role), so the room note always lands here. Making
-// depth/role USER-SETTABLE (widen the contract shape to a `{prompt, depth?, role?}` directive + a client
-// depth control) is a DELIBERATE deferral to task #22, NOT an oversight — the resolve below already reads a
-// host-set depth/role the instant the shape carries them (zero change at this seam).
-const AUTHORS_NOTE_DEFAULT_DEPTH = 4;
 
 function compareStr(a: string, b: string): number {
   if (a < b) {
@@ -667,25 +661,26 @@ function depthNoteSource(contributorNames: readonly string[]): string {
  *  SAME central injection machinery the member notes ride (an `ignoreBudget` OPERATOR_PRIORITY candidate —
  *  host steering intent, never droppable). Returns null when the rendered note is empty.
  *
- *  PLACEMENT (D32): resolved through the shared `resolveInjectionPlacement` primitive with the house
- *  AUTHOR'S-NOTE defaults ({@link AUTHORS_NOTE_DEFAULT_DEPTH}, role "system" — the assembler default). The
- *  stored note is TODAY a bare string, so it is wrapped as a `{prompt}` directive carrying no depth/role and
- *  the defaults always win; when the contract later widens `authorsNote` to a `{prompt, depth?, role?}`
- *  directive (task #22), pass the stored directive straight through and the host-set depth/role flow with
- *  ZERO change to the resolve/render calls here.
+ *  PLACEMENT (D32): resolved through the shared `resolveInjectionPlacement` primitive. The stored directive's
+ *  host-set `depth`/`role` (task #22 — the widened `roomAuthorsNoteSchema`) flow straight through; each unset
+ *  field falls back to the house AUTHOR'S-NOTE defaults ({@link AUTHORS_NOTE_DEFAULT_DEPTH} /
+ *  {@link AUTHORS_NOTE_DEFAULT_ROLE}). A legacy bare-string note is coerced to `{prompt}` at the metadata
+ *  read seam, so it arrives here carrying no depth/role and the defaults win (byte-identical to pre-#22).
  *
  *  MACRO ROUTING (matches the ROOM-OVERRIDE axis at assemble.ts — host room overrides render against the
  *  ACTIVE persona): `{{user}}` → the active persona; `{{char}}` → the base primary (the note is chat-scoped,
  *  not bound to any one cast member, so the ctx is left unmodified — `character`/`speaker` stay the primary). */
-function roomAuthorsNoteCandidate(ctx: AssembleContext, note: string): InjectionCandidate | null {
-  const directive = { prompt: note };
-  const content = renderMacros(directive.prompt, ctx, ctx.activePersona);
+function roomAuthorsNoteCandidate(
+  ctx: AssembleContext,
+  note: RoomAuthorsNote,
+): InjectionCandidate | null {
+  const content = renderMacros(note.prompt, ctx, ctx.activePersona);
   if (content.trim().length === 0) {
     return null;
   }
-  const { depth, role } = resolveInjectionPlacement(directive, {
+  const { depth, role } = resolveInjectionPlacement(note, {
     depth: AUTHORS_NOTE_DEFAULT_DEPTH,
-    role: "system",
+    role: AUTHORS_NOTE_DEFAULT_ROLE,
   });
   return {
     injection: { position: "in_chat", depth, role, content },
@@ -709,7 +704,7 @@ function authorsNoteCandidates(ctx: AssembleContext): {
   authorsNoteSource?: string;
 } {
   const roomNote = ctx.roomOverrides?.authorsNote;
-  if (roomNote !== undefined && roomNote.trim().length > 0) {
+  if (roomNote !== undefined && roomNote.prompt.trim().length > 0) {
     const candidate = roomAuthorsNoteCandidate(ctx, roomNote);
     return {
       candidates: candidate !== null ? [candidate] : [],

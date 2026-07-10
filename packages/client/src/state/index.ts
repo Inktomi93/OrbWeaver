@@ -24,12 +24,14 @@ export {
   setCharacterViewMode,
   toggleFavoritesOnly,
   toggleShowArchived,
+  toggleSpoilerBlur,
   toggleTagFilter,
   useCharacterBulkMode,
   useCharacterSortMode,
   useCharacterViewMode,
   useFavoritesOnly,
   useShowArchived,
+  useSpoilerBlur,
   useTagFilter,
 } from "./character-library-store";
 export {

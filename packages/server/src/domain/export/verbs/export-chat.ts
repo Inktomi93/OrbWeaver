@@ -211,9 +211,12 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     }
 
     const { characterName, userName, parentRef } = await loadExportMeta(ctx, chat);
-    // The ST author's note (`note_prompt`) — orbweaver's home is the room-override blob.
+    // The ST author's note (`note_prompt`) — orbweaver's home is the room-override blob's `authorsNote`
+    // injection directive (task #22). This reads the RAW (unparsed) metadata column, so a legacy pre-#22
+    // value may still be a bare string while a widened one is `{prompt, depth?, role?}` — take the prompt
+    // text from either shape.
     const rawNote = chat.metadata?.roomOverrides?.authorsNote;
-    const notePrompt = typeof rawNote === "string" ? rawNote : null;
+    const notePrompt = typeof rawNote === "string" ? rawNote : (rawNote?.prompt ?? null);
     const exportMessages = await loadExportMessages(ctx, chatId, { characterName, userName });
 
     const meta = { characterName, userName, createDate: chat.createdAt, parentRef, notePrompt };
