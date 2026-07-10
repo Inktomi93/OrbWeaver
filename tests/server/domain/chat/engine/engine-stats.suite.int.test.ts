@@ -10,7 +10,7 @@
 // `maxContextTokens` was dropped on the live path (F6). If any of those regress, `toEqual` drifts.
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -40,24 +40,17 @@ import {
   seedParticipant,
   seedPersona,
   seedUser,
+  TEST_CAPABILITY,
 } from "../_support";
 
 const HOST = castId<UserId>("user_host");
-
-// FABRICATION-OK: partial ModelCapability stub — a stats turn reads only context.window + output bounds.
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
 
 const CONNECTION: ResolvedConnection = {
   api: "chat-completions",
   model: castId<ModelId>("gpt"),
   // FABRICATION-OK: a stub ResolvedCredential — the engine reads only credential.source for the §9 belt.
   credential: { source: "vllm", credentialId: null } as unknown as ResolvedCredential,
-  capability: CAPABILITY,
+  capability: TEST_CAPABILITY,
 };
 
 const ASSEMBLE_CTX: AssembleContext = {

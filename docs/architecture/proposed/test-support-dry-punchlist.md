@@ -100,16 +100,18 @@ individual trees (sessions, db/schema, tooling) never grew.
   `session/store.test.ts` may be overlapping COVERAGE (the former predates the store split), not
   shared-fixture duplication — read both, delete the stale overlap rather than DRY it.
 
-## 3. Wave 3 — owner decision (the big lever; do not dispatch without a ruling)
+## 3. Wave 3 — RULED WONTFIX (owner, 2026-07-10)
 
-- **W3 — per-domain fixture families.** `tests/support/fixtures.ts` already exports a lazy
-  per-test `db` fixture; 232 call sites in 53 files across search/assets/tag/credentials/admin
-  do `const db = await freshDb()` + inline harness/service construction instead. Proposal on the
-  table: per-domain `test.extend` families (`searchApp`, `tagApp`, …) composing db + harness +
-  seeded owner, mirroring the existing `app`/`ownerCaller` shape. HONEST TENSION: two other
-  investigators independently ruled the same 3–4-line preambles ACCEPTABLE (below the
-  consolidation bar; inline arrange keeps tests readable as specs). The churn is \~5 domains × a
-  full-file mechanical sweep each. Owner call: big-lever consistency vs leave-the-preambles.
+- **W3 — per-domain fixture families — LEAVE AS IS.** The 232 inline `freshDb()`+harness+service
+  preambles across 53 files STAY. Owner ruling: this is **pure DRY, not drift-resistance** — the
+  only "drift" a fixture would consolidate is loud/compiler-caught (a service-constructor change
+  reds all inline sites at typecheck; it cannot silently rot the way the fabrication casts could).
+  So the fixture buys ergonomics, not safety, at a cost of ~5 domains × a full-file sweep — not
+  worth the churn or the loss of test-locality (inline arrange reads as a self-contained spec).
+  Do lazily/opportunistically at most: convert a domain's preambles to a `<domain>App` fixture
+  only when already editing that file for a real reason; never a mass sweep. Joins §4 (do not
+  re-litigate). The `test.extend` families `app`/`ownerCaller` that already exist are fine — no
+  new ones needed.
 
 ## 4. Ruled ACCEPTABLE — do not re-litigate
 

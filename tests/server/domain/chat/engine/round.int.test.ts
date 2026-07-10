@@ -13,11 +13,9 @@ import type {
   SpeakerRef,
 } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, MessageId, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
@@ -30,34 +28,25 @@ import type {
   TurnOutcome,
   TurnPrep,
   TurnRequest,
-  TurnStreamChunk,
 } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
 import { driveRound } from "../../../../../packages/server/src/domain/chat/engine/round";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedAgent, seedCharacter, seedChat, seedUser } from "../_support";
+import {
+  makeChatContext,
+  scriptedRoleTurn,
+  seedAgent,
+  seedCharacter,
+  seedChat,
+  seedUser,
+  testConnection,
+} from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });
-
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
-
-function connection(): ResolvedConnection {
-  return {
-    api: "chat-completions",
-    model: castId<ModelId>("test-model"),
-    credential: { source: "vllm", credentialId: null } as unknown as ResolvedCredential,
-    capability: CAPABILITY,
-  };
-}
 
 const ASSEMBLE_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
@@ -93,21 +82,9 @@ const NARRATOR: GroupConfig = {
   memberCardVisibility: "sheet",
 };
 
-/** A scripted role turn echoing `text` (the captured request is appended to `sink`). */
-function scriptedRole(sink: TurnRequest[]): ReturnType<typeof makeChatContext>["runChatTurn"] {
-  return (req: TurnRequest) => {
-    sink.push(req);
-    return (async function* (): AsyncGenerator<TurnStreamChunk> {
-      await Promise.resolve();
-      yield { kind: "text", text: "reply" };
-      yield { kind: "final", economics: { content: "reply", tokensIn: 2, tokensOut: 1 } };
-    })();
-  };
-}
-
 function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
   const ctx = makeChatContext(database, {
-    runChatTurn: scriptedRole(requests),
+    runChatTurn: scriptedRoleTurn(requests),
     applyStatsDelta: (): void => undefined,
   });
   return createTurnEngine(ctx, {
@@ -125,7 +102,7 @@ function base(chatId: ChatId): Omit<TurnPrep, "speakerCharacterId" | "groupNudge
   return {
     chatId,
     assembleContext: ASSEMBLE_CTX,
-    connection: connection(),
+    connection: testConnection(),
     triggeredBy: HOST,
     runAsUserId: HOST,
     kind: "auto",

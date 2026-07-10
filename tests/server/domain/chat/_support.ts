@@ -5,6 +5,8 @@
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
 import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
@@ -34,6 +36,7 @@ import type {
   Handle,
   MessageId,
   MessageVariantId,
+  ModelId,
   PendingTurnId,
   PersonaId,
   UserId,
@@ -43,6 +46,10 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/contract/context";
+import type {
+  TurnRequest,
+  TurnStreamChunk,
+} from "../../../../packages/server/src/domain/chat/contract/results";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -440,4 +447,40 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     resolvePromptVariables: () => Promise.resolve([]),
   };
   return { ...base, ...overrides };
+}
+
+/** The minimal `ModelCapability` shape the chat engine/verb int-tests inject — reasoning off, an 8k output
+ *  ceiling, a 200k window. Byte-identical across the engine/service/turn/round/solo/pipeline suites (W1d hoist).
+ *  FABRICATION-OK: only the fields the belts read are populated; the fake role never validates the full shape. */
+// FABRICATION-OK: partial ModelCapability — only the belt-read fields are set (see above).
+export const TEST_CAPABILITY = {
+  reasoning: { mode: "none", enabled: false },
+  sampling: {},
+  output: { maxTokens: { min: 1, max: 8192 } },
+  context: { window: 200_000 },
+} as unknown as ModelCapability;
+
+/** A `ResolvedConnection` over `TEST_CAPABILITY` (`source` defaults to `"vllm"`). Byte-identical `connectionOf`
+ *  in service/turn/engine.int (W1d hoist). */
+export function testConnection(source = "vllm"): ResolvedConnection {
+  return {
+    api: "chat-completions",
+    model: castId<ModelId>("test-model"),
+    // FABRICATION-OK: minimal ResolvedCredential double — only `.source` is read (§9 consent belt).
+    credential: { source, credentialId: null } as unknown as ResolvedCredential,
+    capability: TEST_CAPABILITY,
+  };
+}
+
+/** A scripted role turn that captures each `TurnRequest` into `sink` then yields a fixed `"reply"` text delta +
+ *  the terminal `final` economics. Byte-identical `scriptedRole` in solo/round (W1d hoist). */
+export function scriptedRoleTurn(sink: TurnRequest[]): ChatContext["runChatTurn"] {
+  return (req: TurnRequest) => {
+    sink.push(req);
+    return (async function* (): AsyncGenerator<TurnStreamChunk> {
+      await Promise.resolve();
+      yield { kind: "text", text: "reply" };
+      yield { kind: "final", economics: { content: "reply", tokensIn: 2, tokensOut: 1 } };
+    })();
+  };
 }

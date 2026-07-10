@@ -6,13 +6,11 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, Handle, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import type { ChatService } from "../../../../packages/server/src/domain/chat";
@@ -26,29 +24,20 @@ import { createChatService } from "../../../../packages/server/src/domain/chat/s
 import { freshDb } from "../../../support/db";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "./_support";
+import {
+  makeChatContext,
+  seedCharacter,
+  seedChat,
+  seedParticipant,
+  seedUser,
+  testConnection,
+} from "./_support";
 
 let db: Db;
 
 beforeEach(async () => {
   db = await freshDb();
 });
-
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
-
-function connectionOf(source = "vllm"): ResolvedConnection {
-  return {
-    api: "chat-completions",
-    model: castId<ModelId>("test-model"),
-    credential: { source, credentialId: null } as unknown as ResolvedCredential,
-    capability: CAPABILITY,
-  };
-}
 
 const card = (name: string): CharacterCard =>
   ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
@@ -113,7 +102,7 @@ function makeService(names: Readonly<Record<string, string>>): {
     activeTurns: createActiveTurns(),
     prng: seededPrng(),
     delay: () => Promise.resolve(),
-    resolveConnection: () => Promise.resolve(connectionOf()),
+    resolveConnection: () => Promise.resolve(testConnection()),
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,

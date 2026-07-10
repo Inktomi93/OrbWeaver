@@ -3,16 +3,15 @@
 // turnAborted-then-rethrow error path, and the pre-start belt refusals (budget / consent / locked).
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { Db } from "@orb/db";
-import { chats, messageVariants } from "@orb/db";
+import type { BatchStmt, Db } from "@orb/db";
+import { characterStats, chats, dailyStats, messageVariants, ownerStats } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { ChatId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type { ChatId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
+import { applyStatsDelta } from "@orb/server/domain/stats";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
@@ -38,26 +37,11 @@ import {
   seedMessage,
   seedParticipant,
   seedUser,
+  testConnection,
 } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const MEMBER = castId<UserId>("user_member");
-
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
-
-function connectionOf(source = "vllm"): ResolvedConnection {
-  return {
-    api: "chat-completions",
-    model: castId<ModelId>("test-model"),
-    credential: { source, credentialId: null } as unknown as ResolvedCredential,
-    capability: CAPABILITY,
-  };
-}
 
 const ASSEMBLE_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
@@ -88,7 +72,7 @@ function prepOf(chatId: ChatId, over: Partial<TurnPrep> = {}): TurnPrep {
   return {
     chatId,
     assembleContext: ASSEMBLE_CTX,
-    connection: connectionOf(),
+    connection: testConnection(),
     triggeredBy: HOST,
     runAsUserId: HOST,
     kind: "send",
@@ -304,7 +288,7 @@ describe("createTurnEngine — happy path", () => {
 
     await h.engine.runTurn(
       prepOf(chatId, {
-        connection: connectionOf("max-pro-sub"),
+        connection: testConnection("max-pro-sub"),
         triggeredBy: HOST,
         runAsUserId: HOST,
       }),
@@ -312,6 +296,65 @@ describe("createTurnEngine — happy path", () => {
 
     expect(captured).not.toBeNull();
     expect((captured as unknown as TurnRequest).ownerConsented).toBe(true);
+  });
+});
+
+describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta lands rollup rows)", () => {
+  test("a committed turn flows through the production applyStatsDelta → characterStats/ownerStats/dailyStats rows carry the turn's economics", async () => {
+    // The other engine tests inject a RECORDER for applyStatsDelta (assert the computed StatsDelta shape). This
+    // one wires the REAL `stats/write/apply-delta` — the pure batch fn the composition root injects — so the
+    // engine's own `db.batch` commits the four rollup UPSERTs alongside the canon write. It proves, from chat's
+    // real call site, that the live delta actually lands as rows (the apply≡reconcile invariant's write half).
+    const chatId = await seedChat(db, "stats");
+    await seedUser(db, "host");
+    const char = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: char });
+
+    // Bind the REAL apply exactly as compose does (chat.ts): the chat op erases batch to `unknown`, so the
+    // wrapper restores the concrete `BatchStmt[]` before calling the production fn.
+    const ctx = makeChatContext(db, {
+      runChatTurn: OK_TURN,
+      applyStatsDelta: (batch, opDb, delta) => {
+        applyStatsDelta(batch as BatchStmt[], opDb, delta);
+      },
+    });
+    const engine = createTurnEngine(ctx, {
+      emit: () => Promise.resolve(),
+      debitBudget: vi.fn(() => Promise.resolve()),
+      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+      holder: "replica-1",
+      lockTtlMs: 60_000,
+      generateSegments: async () => ({ written: 0, skipped: 0 }),
+      generateDigests: async () => ({ written: 0, skipped: 0 }),
+    });
+
+    // A character-voiced assistant turn (speakerCharacterId set) so ALL FOUR grains touch — most notably
+    // character_stats (skipped for a null character). OK_TURN's economics: content "Hi there", tokensIn 4,
+    // tokensOut 2, model "test-model".
+    const outcome = await engine.runTurn(
+      prepOf(chatId, { runAsUserId: HOST, speakerCharacterId: char }),
+    );
+    expect(outcome.aborted).toBe(false);
+
+    // ownerStats — attributed to the host (runAsUserId), the token economics folded in.
+    const [owner] = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, HOST));
+    expect(owner?.assistantTurns).toBe(1);
+    expect(owner?.tokensIn).toBe(4);
+    expect(owner?.tokensOut).toBe(2);
+
+    // characterStats — the speaker's row (NO ownerId column, D23), same assistant-turn contribution.
+    const [character] = await db
+      .select()
+      .from(characterStats)
+      .where(eq(characterStats.characterId, char));
+    expect(character?.assistantTurns).toBe(1);
+    expect(character?.tokensOut).toBe(2);
+
+    // dailyStats — the per-day point for the host; daily tokens credit the message stream.
+    const daily = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, HOST));
+    expect(daily).toHaveLength(1);
+    expect(daily[0]?.assistantTurns).toBe(1);
+    expect(daily[0]?.tokensOut).toBe(2);
   });
 });
 
@@ -511,7 +554,7 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
     await expect(
       h.engine.runTurn(
         prepOf(chatId, {
-          connection: connectionOf("max-pro-sub"),
+          connection: testConnection("max-pro-sub"),
           triggeredBy: MEMBER,
           runAsUserId: HOST,
         }),
