@@ -127,7 +127,43 @@ means gate files get zero mutation coverage — a known, accepted blind spot). T
 opportunistically, not as a sweep); one local `vi.useFakeTimers` (idle-timeout test) is legitimate;
 no `.concurrent` hazards, no floating promises, frozen-clock DI followed consistently.
 
-## 7. Dispatch queue
+## 7. Assertion-provenance matrix (2026-07-10 — "does our code use our own code, or inline its own version?")
+
+Owner's question, audited three ways. **Mechanical tier:** cross-corpus jscpd (packages+tests in
+one run, 40-token floor, 1,776 clones) found **ZERO clones crossing the tests↔packages boundary**;
+the shadow-symbol scan (4,313 prod exports vs every test-local declaration) found 19 hits / 4
+symbols, all benign (the `seedOwner` name-collision → W1f; `cardOf` builds literals where prod
+projects rows). **Semantic tier:** \~120 files audited across chat engine/assembly, all domains,
+db/schema, kit, infra, support, entry, transport — classifying every expectation's provenance as
+LITERAL · ROUNDTRIP/INVARIANT · INDEPENDENT-REFERENCE · REBUILT (private re-implementation, drift
+risk) · TAUTOLOGY (expected computed by the code under test).
+
+**Verdict: the tree already follows "real code drives, never decides."** Setup/execution goes
+through real db/verbs/services; expectations are overwhelmingly hand-derived literals (often with
+the arithmetic shown in comments) or genuine invariants/roundtrips. **REBUILT: zero confirmed**
+(every scout claim died on verification — e.g. shape.test.ts's "rebuilt squash" was an input
+fixture; fork's `ownedCard` is an injected-fake predicate, kept). **TAUTOLOGY: three, all
+trivial:** `engine/result.test.ts` (proves 3-line builders return what they're programmed to —
+hollow; delete or convert to a shape-contract pin) · workloads' `ACTIVE_WORKLOAD_STATUSES`
+self-equal assertion (a doc-assertion that can't fail — convert to a comment) · soft: compaction's
+summary-echo half-assertion (adjacent real checks carry the test). The two db/schema enum-mirror
+"tautologies" are deliberate contract-sync pins — correct, keep.
+
+**Exemplars the house should keep citing** (the pattern the owner's instinct points at, done
+right): the stats **drift-gate suite** (one canon through TWO independent production writers —
+live deltas vs full rebuild — byte-identical rollups demanded; its comments credit it with
+catching F6/F7/F8) · the **parity oracles** (`macro-identity.suite`, `pipeline-breakpoint.parity`
+— two real implementations cross-checked, divergences annotated) · the **png CRC-32 independent
+reference** (different construction, self-verified against the published check value before being
+trusted). These are "rewriting the logic again" as a WEAPON — deliberately not-in-lockstep so
+divergence screams.
+
+**Total fix list (tiny):** R8 — delete/repin `result.test.ts`'s tautology + convert the workloads
+doc-assertion to a comment + two annotation comments (pair-cosine's CSLS literal must say it
+deliberately mirrors the formula so nobody "simplifies" it into a real call; smart-arbitrate's
+loose eligible-member assertions must say the looseness is intentional). All mech-executor grade.
+
+## 8. Dispatch queue
 
 | # | Item | Lane |
 | - | - | - |
@@ -138,5 +174,6 @@ no `.concurrent` hazards, no floating promises, frozen-clock DI followed consist
 | R5 | presence blind spots (§4: imagery contract test + gate-arm verify, runners/ scan arm) | executor |
 | R6 | thoroughness tail (§5) — bundle per tree | mech-executor / executor |
 | R7 | OIDC full-mode coverage verify-then-write | security-executor |
+| R8 | provenance fixes (§7: result.test.ts tautology · workloads doc-assertion → comment · 2 annotation comments) | mech-executor |
 
-The mock-doctrine alias fix rides the in-flight gates lane. R1/R2 are the only urgent rows.
+The mock-doctrine alias fix rode the gates lane (landed). R1/R2 are the only urgent rows.
