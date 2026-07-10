@@ -102,6 +102,10 @@ function CastAvatars({
       <Avatar
         size="sm"
         fallbackDelay={0}
+        // Seed the fallback hue off the character id (the SAME seed the message row + library card use) so
+        // an imageless character reads the same color in the header as in the transcript — not the
+        // constant `alt=""` bucket every un-seeded avatar used to share.
+        hueSeed={lead.characterId}
         {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
       >
         {initialsForAttribution(lead.displayName)}

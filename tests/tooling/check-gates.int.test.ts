@@ -182,6 +182,14 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_persistb/lib/__g_flag.ts",
     'export const v = globalThis.localStorage.getItem("k");\n',
   );
+  // no-interactive-role-in-features: a feature file forging an interactive widget via a layout-kit
+  // role= passthrough (NOT in BURN_DOWN → fires). `Row` is a local `declare` — the gate matches the JSX
+  // `role="button"` attribute by AST, so the fixture parses standalone without importing @orb/ui.
+  fx(
+    "packages/client/src/features/__g_role/components/__g_role.tsx",
+    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a JSX role attribute), not a secret.
+    'declare function Row(props: { role?: string; children?: unknown }): unknown;\nexport const G = <Row role="button">hi</Row>;\n',
+  );
   // no-effect-on-shared-selection: a feature effect depping a selection-hook result (the chase).
   // The hook is a local `declare` — the gate matches by NAME (AST-only), so the fixture parses
   // standalone without importing #state.
@@ -300,7 +308,67 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_persist/lib/__g_persist.ts",
     'declare function persist(init: unknown, opts: unknown): unknown;\nexport const gStore = persist(() => ({}), { name: "x" });\n',
   );
+  // ── ledger-gate wave (activated 2026-07-09) — fixtures for the newly-live gates ──
+  // ownerid-registry: an ownerId column on a table NOT in the D23 OWNERID_ALLOWLIST.
+  fx(
+    "packages/db/src/schema/__g_ownerid.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gOwnerid = sqliteTable("__g_ownerid", { ownerId: text("owner_id").references(() => gOwnerid.ownerId) });\n',
+  );
+  // no-untyped-soft-ref: a `*Id` column with NO `.references()` FK (not in SOFT_REF_ALLOWLIST).
+  fx(
+    "packages/db/src/schema/__g_softref.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gSoftref = sqliteTable("__g_softref", { fooId: text("foo_id") });\n',
+  );
+  // db-enum-from-tuple: a drizzle enum column configured with an INLINE array literal (not a tuple ref).
+  fx(
+    "packages/db/src/schema/__g_dbenum.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gEnum = sqliteTable("__g_dbenum", { kind: text("kind", { enum: ["a", "b"] }) });\n',
+  );
+  // schema-banned-shapes: the D18 chats.ownerId shape the ledger killed by name (a re-declared table).
+  fx(
+    "packages/db/src/schema/__g_banned.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gBanned = sqliteTable("chats", { ownerId: text("owner_id") });\n',
+  );
+  // infra-auth-no-userid: a `userId` identifier under infra/auth/** (D40 — infra never yields a userId).
+  fx(
+    "packages/server/src/infra/auth/__g_userid.ts",
+    "export function gAuth(userId: string): string {\n  return userId;\n}\n",
+  );
+  // content-part-seam: a ChatContentPart import from @orb/contracts/chat OUTSIDE the D51 seam set.
+  fx(
+    "packages/server/src/domain/__g_contentpart/x.ts",
+    'import type { ChatContentPart } from "@orb/contracts/chat";\nexport const g = (p: ChatContentPart): ChatContentPart => p;\n',
+  );
+  // no-raw-egress: a bare `fetch(` in packages/server/src outside the sanctioned provider-egress zones.
+  fx(
+    "packages/server/src/domain/__g_egress.ts",
+    'export async function gFetch(): Promise<unknown> {\n  return fetch("http://example.test");\n}\n',
+  );
+  // contract-verb-presence: a __g_ domain whose contract/service.ts declares a verb on a *Service interface
+  // with NO test in tests/server/domain/__g_verbpres/ (the domain tree is empty → the verb is uncovered).
+  fx(
+    "packages/server/src/domain/__g_verbpres/contract/service.ts",
+    "export interface GVerbPresService {\n  readonly gUntested: () => Promise<void>;\n}\n",
+  );
+  // no-test-fabrication: a tests/ file with a `as unknown as` double-cast NOT in the baseline (baseline 0
+  // for a __g_ path → over budget → RED). The banned cast is ASSEMBLED so the literal never appears in THIS
+  // file's own source (which the gate also scans) — only the written fixture resolves to it (same technique
+  // as the ambient-clock fixture above).
+  fx(
+    "tests/server/__g_fab.test.ts",
+    `export const g = ({} ${["as", "unknown", "as"].join(" ")} { n: number }).n;\n`,
+  );
+  // warning-code-coverage: NOT fixtured here — it is a whole-corpus emit-coverage RATCHET (a tuple member
+  // with no emit site across the real home + emit scope). An injected `__g_` file can neither match its
+  // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture; it is
+  // proven to fire by its dedicated self-test (tests/tooling/warning-code-coverage.int.test.ts) and is
+  // exempted from the anti-drift assertion below.
 }
+
+// Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
+// trigger needs the real single-home tuple + emit corpus (removing an emit / adding a tuple member),
+// which a throwaway file can't reproduce. Each is proven to fire by its OWN self-test in tests/tooling/.
+const UNFIXTURABLE_GATES = new Set(["warning-code-coverage"]);
 
 let registry = new Set<string>();
 let fired = new Set<string>();
@@ -325,7 +393,7 @@ test("derives a non-trivial gate registry from report.ts (not silently empty)", 
 });
 
 test("every registered structural gate fires on its fixture (anti-drift)", () => {
-  const unfired = [...registry].filter((g) => !fired.has(g));
+  const unfired = [...registry].filter((g) => !(fired.has(g) || UNFIXTURABLE_GATES.has(g)));
   expect(unfired).toEqual([]);
 });
 
@@ -338,6 +406,14 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
 const DORMANT_GATES = new Set([
   "monotonic-tests",
   "audit-client-tests",
+  // The 8 ledger-gate-wave gates (2026-07-09) were ACTIVATED once the doc freeze lifted — they now live
+  // in report.ts's BASE_CHECKS (+ their Core-Enforcement-Active-Gates.md rows), so they are no longer here.
+  //
+  // D54 §13.3 form-factory gate (2026-07-09): built + self-tested
+  // (tests/tooling/form-factory-for-multifield.int.test.ts), held DORMANT because its ONE real-tree hit
+  // (chat/components/group-config-form.tsx — a deliberate DU immediate-commit exception per that file's
+  // header) belongs to another lane this wave must not fix. SYNC WITH enforcement-registry-parity.ts.
+  "form-factory-for-multifield",
   // W1-0c (2026-07-04): built + self-tested, deliberately unregistered pending its own future
   // consumer — `table.tsx` stays at 461 lines by Nate's decision until a table consumer lands and
   // the primitive naturally splits under the 450-line cap (UI-Primitives-and-Reuse.md §13.9).

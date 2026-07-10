@@ -65,7 +65,8 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       ...card,
     });
 
-    ctx.emit({ type: "character.updated", characterId: newId });
+    // A duplicate is a fresh card with copied content → embed it (contentChanged always true for duplicate).
+    ctx.emit({ type: "character.updated", characterId: newId, contentChanged: true });
     await ctx.audit(
       {
         actorUserId: ownerId,

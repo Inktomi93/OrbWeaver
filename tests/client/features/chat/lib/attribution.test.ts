@@ -55,6 +55,7 @@ test("assistant row with no roster/producer threaded gets no attribution chrome 
     kind: null,
     avatarAssetId: null,
     avatarHash: null,
+    hueSeed: "",
     tokens: null,
   });
 });
@@ -94,6 +95,7 @@ test("a characterId absent from the producer gets no chrome (not a crash, not ch
     kind: null,
     avatarAssetId: null,
     avatarHash: null,
+    hueSeed: "",
     tokens: null,
   });
 });
@@ -127,6 +129,7 @@ test("null characterId in a SOLO room (one character participant) gets no chrome
     kind: null,
     avatarAssetId: null,
     avatarHash: null,
+    hueSeed: "",
     tokens: null,
   });
 });
@@ -280,6 +283,7 @@ test("system rows never get attribution chrome", () => {
     kind: null,
     avatarAssetId: null,
     avatarHash: null,
+    hueSeed: "",
     tokens: null,
   });
 });

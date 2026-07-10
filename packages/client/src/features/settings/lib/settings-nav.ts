@@ -45,6 +45,24 @@ export const SETTINGS_CATEGORY_IDS = [
   "admin",
 ] as const;
 
+/** One searchable/jumpable setting inside a subcategory (Discord/VS-Code grammar — the leaf of the
+ *  SETTINGS_INDEX). `keywords` widen fuzzy search past the label (synonyms the user might type). */
+export interface SettingsSetting {
+  readonly id: string;
+  readonly label: string;
+  readonly keywords?: readonly string[];
+}
+
+/** A subcategory = one anchored SECTION inside a pane (the Appearance pane's `<Section>`s). The nav
+ *  renders these as indented rows under the active category; each stamps a stable anchor node
+ *  (`settingsAnchorId(categoryId, id)`) the search jumps to. */
+export interface SettingsSubcategory {
+  readonly id: string;
+  readonly label: string;
+  readonly keywords?: readonly string[];
+  readonly settings?: readonly SettingsSetting[];
+}
+
 export interface SettingsCategory {
   /** Which nav group this category renders under (drives the USER/APP micro-caps grouping). */
   readonly group: (typeof SETTINGS_GROUPS)[number];
@@ -55,7 +73,28 @@ export interface SettingsCategory {
   readonly description: string;
   /** `true` when a real surface exists for this pane (only Appearance today); false ⇒ teaching placeholder. */
   readonly built: boolean;
+  /** The pane's anchored sections, in render order. Empty for teaching placeholders (nothing to jump
+   *  to). The nav renders these as indented subcategory rows; the surface stamps each `<Section>` with
+   *  `settingsAnchorId(categoryId, sub.id)`. */
+  readonly subcategories?: readonly SettingsSubcategory[];
 }
+
+/** Appearance pane subcategory ids — the ONE home shared by the registry AND the surface's `<Section>`
+ *  anchor stamps, so a typo/rename is a `tsc` error, never a stale anchor (registry-as-data). */
+export const APPEARANCE_SUBCATEGORY_IDS = {
+  messageStyle: "message-style",
+  avatars: "avatars",
+  sizing: "sizing",
+  motion: "motion",
+  messageDetails: "message-details",
+  messageActions: "message-actions",
+  background: "background",
+  reading: "reading-typography",
+  effects: "effects",
+} as const;
+
+/** Persona pane subcategory ids (same one-home discipline as the appearance map). */
+export const PERSONA_SUBCATEGORY_IDS = { personas: "personas" } as const;
 
 export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number], SettingsCategory> =
   {
@@ -73,6 +112,24 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       icon: Drama,
       description: "Notifications + restore-from-backup. Edit personas from the rail-foot panel.",
       built: true,
+      subcategories: [
+        {
+          id: PERSONA_SUBCATEGORY_IDS.personas,
+          label: "Personas",
+          settings: [
+            {
+              id: "persona-notifications",
+              label: "Persona change notifications",
+              keywords: ["notify", "notification", "alert"],
+            },
+            {
+              id: "persona-restore",
+              label: "Restore personas from a backup",
+              keywords: ["import", "backup", "restore", "json"],
+            },
+          ],
+        },
+      ],
     },
     appearance: {
       group: "user",
@@ -80,6 +137,133 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       icon: SunMoon,
       description: "Theme, message style, and display density.",
       built: true,
+      subcategories: [
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.messageStyle,
+          label: "Message style",
+          settings: [
+            {
+              id: "chat-style",
+              label: "Chat display",
+              keywords: ["bubble", "flat", "document", "immersive", "echo", "whisper", "ripple"],
+            },
+            { id: "density", label: "Density", keywords: ["compact", "comfortable", "spacing"] },
+            {
+              id: "elevation",
+              label: "Surface elevation",
+              keywords: ["layered", "depth", "shadow", "flat"],
+            },
+            {
+              id: "auto-fix-markdown",
+              label: "Auto-fix unfinished formatting",
+              keywords: ["markdown", "italic", "bold", "asterisk"],
+            },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.avatars,
+          label: "Avatars",
+          keywords: ["portrait", "picture"],
+          settings: [
+            { id: "show-avatars", label: "Show avatars in chat" },
+            { id: "avatar-size", label: "Avatar size" },
+            { id: "avatar-shape", label: "Avatar shape" },
+            { id: "avatar-aspect", label: "Avatar aspect" },
+            { id: "avatar-ring", label: "Avatar ring" },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.sizing,
+          label: "Sizing",
+          settings: [
+            {
+              id: "chat-width",
+              label: "Chat width",
+              keywords: ["width", "column", "reading"],
+            },
+            { id: "font-scale", label: "Text size", keywords: ["font", "scale", "zoom"] },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.motion,
+          label: "Motion",
+          settings: [
+            {
+              id: "reduced-motion",
+              label: "Reduce motion",
+              keywords: ["animation", "transition", "accessibility"],
+            },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.messageDetails,
+          label: "Message details",
+          keywords: ["metadata"],
+          settings: [
+            { id: "show-timestamps", label: "Show timestamps", keywords: ["time", "date"] },
+            { id: "show-message-id", label: "Show message ID" },
+            { id: "show-model", label: "Show model" },
+            { id: "show-token-count", label: "Show token count", keywords: ["tokens", "usage"] },
+            {
+              id: "show-reasoning",
+              label: "Show reasoning icon",
+              keywords: ["thinking", "reasoning"],
+            },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.messageActions,
+          label: "Message actions",
+          settings: [
+            {
+              id: "message-actions",
+              label: "Action cluster",
+              keywords: ["edit", "delete", "fork", "copy", "hide", "hover"],
+            },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.background,
+          label: "Background",
+          keywords: ["wallpaper", "photo", "image"],
+          settings: [
+            { id: "background-image", label: "Background image", keywords: ["photo", "wallpaper"] },
+            { id: "background-dim", label: "Scrim opacity", keywords: ["darken", "overlay"] },
+            { id: "background-blur", label: "Image blur" },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.reading,
+          label: "Reading typography",
+          keywords: ["text", "prose", "font"],
+          settings: [
+            { id: "line-height", label: "Line height", keywords: ["leading", "spacing"] },
+            { id: "letter-spacing", label: "Letter spacing", keywords: ["tracking", "kerning"] },
+            { id: "paragraph-spacing", label: "Paragraph spacing" },
+            { id: "name-scale", label: "Speaker name size" },
+            { id: "body-scale", label: "Message text size" },
+            { id: "justify", label: "Justify message text", keywords: ["align", "manuscript"] },
+          ],
+        },
+        {
+          id: APPEARANCE_SUBCATEGORY_IDS.effects,
+          label: "Effects",
+          settings: [
+            {
+              id: "frosted-glass",
+              label: "Frosted glass",
+              keywords: ["blur", "glass", "backdrop"],
+            },
+            { id: "glass-blur", label: "Glass blur radius" },
+            { id: "prose-shadow", label: "Prose shadow", keywords: ["halo", "readability"] },
+            {
+              id: "accent-tint",
+              label: "Tint the UI with the accent color",
+              keywords: ["accent", "color", "border", "hairline"],
+            },
+          ],
+        },
+      ],
     },
     "chat-behavior": {
       group: "user",
@@ -131,3 +315,63 @@ export const SETTINGS_GROUP_LABELS: Record<(typeof SETTINGS_GROUPS)[number], str
   user: "User",
   app: "App",
 };
+
+/** The DOM id of a subcategory's anchor node — derived from the registry keys, never a scattered
+ *  string literal. The surface stamps this on the `<Section>`; the nav/search `scrollIntoView`s it. */
+export function settingsAnchorId(
+  categoryId: (typeof SETTINGS_CATEGORY_IDS)[number],
+  subId: string,
+): string {
+  return `settings-anchor-${categoryId}-${subId}`;
+}
+
+/** One flattened, fuzzy-searchable entry over the whole index. `subId: null` = a category-level hit
+ *  (switch pane, no scroll); a non-null `subId` jumps to that subcategory's anchor. `keywords` carries
+ *  every human-readable token (the cmdk `value` is the opaque id, so search matches only via keywords). */
+export interface SettingsSearchEntry {
+  readonly id: string;
+  readonly label: string;
+  readonly categoryId: (typeof SETTINGS_CATEGORY_IDS)[number];
+  readonly categoryLabel: string;
+  readonly subId: string | null;
+  readonly keywords: readonly string[];
+}
+
+function buildSettingsSearchEntries(): readonly SettingsSearchEntry[] {
+  const entries: SettingsSearchEntry[] = [];
+  for (const categoryId of SETTINGS_CATEGORY_IDS) {
+    const category = SETTINGS_CATEGORIES[categoryId];
+    entries.push({
+      id: categoryId,
+      label: category.label,
+      categoryId,
+      categoryLabel: category.label,
+      subId: null,
+      keywords: [category.label, category.description],
+    });
+    for (const sub of category.subcategories ?? []) {
+      entries.push({
+        id: `${categoryId}::${sub.id}`,
+        label: sub.label,
+        categoryId,
+        categoryLabel: category.label,
+        subId: sub.id,
+        keywords: [sub.label, ...(sub.keywords ?? []), category.label],
+      });
+      for (const setting of sub.settings ?? []) {
+        entries.push({
+          id: `${categoryId}::${sub.id}::${setting.id}`,
+          label: setting.label,
+          categoryId,
+          categoryLabel: category.label,
+          subId: sub.id,
+          keywords: [setting.label, ...(setting.keywords ?? []), sub.label, category.label],
+        });
+      }
+    }
+  }
+  return entries;
+}
+
+/** The whole index flattened for fuzzy search-to-anchor (built once at module load). */
+export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = buildSettingsSearchEntries();

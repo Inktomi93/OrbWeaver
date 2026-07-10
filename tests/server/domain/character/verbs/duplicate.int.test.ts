@@ -24,7 +24,9 @@ describe("duplicate", () => {
     expect(copy.handle).toBe("nyx-copy");
     expect(copy.name).toBe("Nyx");
     expect(copy.description).toBe("the original");
-    expect(h.events).toEqual([{ type: "character.updated", characterId: copy.id }]);
+    expect(h.events).toEqual([
+      { type: "character.updated", characterId: copy.id, contentChanged: true },
+    ]);
   });
 
   test("a second duplicate of the same source increments the copy handle", async () => {

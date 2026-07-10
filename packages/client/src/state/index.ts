@@ -15,6 +15,23 @@ export {
   useActiveDraftSeed,
   useActiveSessionKey,
 } from "./active-chat-store";
+export type { CharacterViewMode } from "./character-library-store";
+export {
+  CHARACTER_VIEW_MODES,
+  clearTagFilter,
+  setBulkMode,
+  setCharacterSortMode,
+  setCharacterViewMode,
+  toggleFavoritesOnly,
+  toggleShowArchived,
+  toggleTagFilter,
+  useCharacterBulkMode,
+  useCharacterSortMode,
+  useCharacterViewMode,
+  useFavoritesOnly,
+  useShowArchived,
+  useTagFilter,
+} from "./character-library-store";
 export {
   clearCharacterSelection,
   selectCharacter,

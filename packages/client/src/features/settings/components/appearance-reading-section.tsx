@@ -10,6 +10,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
+import { APPEARANCE_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
 
 const READING_LINE_HEIGHT_MIN = 1.2;
 const READING_LINE_HEIGHT_MAX = 2.2;
@@ -34,7 +35,11 @@ export function AppearanceReadingSection({
   readonly form: Omit<AppFormInstance<AppearanceSettings>, "reset">;
 }): ReactElement {
   return (
-    <Section heading="Reading typography">
+    <Section
+      divider={true}
+      heading="Reading typography"
+      id={settingsAnchorId("appearance", APPEARANCE_SUBCATEGORY_IDS.reading)}
+    >
       <form.AppField name="readingLineHeight">
         {(field): ReactElement => (
           <field.SliderField

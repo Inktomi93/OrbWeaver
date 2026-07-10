@@ -51,7 +51,8 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
       throw new CharacterNotFoundError(characterId);
     }
 
-    ctx.emit({ type: "character.updated", characterId });
+    // Restoring a snapshot rewrites the card body → re-embed it (contentChanged always true for restore).
+    ctx.emit({ type: "character.updated", characterId, contentChanged: true });
     await ctx.audit(
       {
         actorUserId: ownerId,

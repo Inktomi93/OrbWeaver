@@ -7,7 +7,9 @@
 // component that executes post-mount in the real browser context, never at the `.ct.tsx` call site —
 // the same "build the branded shape inside the story" precedent `MessageRowStory` sets for `Map`s).
 
+import { useTRPC } from "@orb/client/data";
 import {
+  CharacterBulkBar,
   CharacterCardTile,
   CharacterDetailCard,
   CharacterLibraryAnchor,
@@ -29,42 +31,62 @@ export interface CharacterCardTileStoryTag {
 
 export interface CharacterCardTileStoryProps {
   readonly name?: string;
+  readonly handle?: string;
   readonly archived?: boolean;
+  readonly starred?: boolean;
   readonly avatarHash?: string | null;
+  readonly elevatorPitch?: string | null;
   readonly tags?: readonly CharacterCardTileStoryTag[];
   readonly selected?: boolean;
+  readonly bulkMode?: boolean;
+  readonly bulkSelected?: boolean;
 }
 
-/** The bare `<CharacterCardTile>` — drives avatar-fallback/tags/archived/selected rendering in isolation,
- *  plus the start-chat action: clicking it records the id into a visible marker so a CT can assert the
- *  seam fires with the right character id (the callback closure runs in-browser, inside this story). */
+/** The bare `<CharacterCardTile>` (§4.4 row) — drives avatar/subtitle-ladder/star/accent/bulk rendering in
+ *  isolation; each action records its id into a visible marker so a CT can assert the seam fires with the
+ *  right character id (the callback closures run in-browser, inside this story). */
 export function CharacterCardTileStory({
   name = "Aria Nightshade",
+  handle = "aria-nightshade",
   archived = false,
+  starred = false,
   avatarHash = null,
+  elevatorPitch = null,
   tags = [],
   selected = false,
+  bulkMode = false,
+  bulkSelected = false,
 }: CharacterCardTileStoryProps): ReactElement {
-  const [startedId, setStartedId] = useState<string | null>(null);
-  const [toggledId, setToggledId] = useState<string | null>(null);
+  const [chattedId, setChattedId] = useState<string | null>(null);
+  const [bulkId, setBulkId] = useState<string | null>(null);
+  const [starredId, setStarredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
     <div style={{ width: 360 }}>
       <CharacterCardTile
+        bulkMode={bulkMode}
+        bulkSelected={bulkSelected}
         character={{
           id: castId<CharacterId>("char_ct_story"),
           name,
+          handle,
           archived,
+          starred,
           avatarHash,
+          elevatorPitch,
+          themeOverride: null,
+          tokenSize: 128,
           tags: tags.map((tag) => ({ ...tag, id: castId<TagId>(tag.id) })),
         }}
+        onChat={setChattedId}
         onSelect={setSelectedId}
-        onStartChat={setStartedId}
-        onToggleSelect={setToggledId}
+        onToggleBulk={setBulkId}
+        onToggleStar={(id): void => setStarredId(id)}
         selected={selected}
       />
-      <p data-testid="started-id">{startedId ?? ""}</p>
-      <p data-testid="toggled-id">{toggledId ?? ""}</p>
+      <p data-testid="chatted-id">{chattedId ?? ""}</p>
+      <p data-testid="bulk-id">{bulkId ?? ""}</p>
+      <p data-testid="starred-id">{starredId ?? ""}</p>
       <p data-testid="selected-id">{selectedId ?? ""}</p>
     </div>
   );
@@ -119,6 +141,32 @@ export function CharacterLibrarySurfaceStory(): ReactElement {
         <CharacterLibraryAnchor>
           <CharacterLibrarySurface />
         </CharacterLibraryAnchor>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── Bulk-bar story (P1: the narrow-panel clip regression) ──────────────────────────────────────────
+
+/** `<CharacterBulkBar>` under the data layer, in a NARROW (~337px) LIST panel — the width side-eye measured
+ *  the Delete button clipped at. `trpc` is read inside the provider tree (the surface's own wiring). */
+function BulkBarInner(): ReactElement {
+  const trpc = useTRPC();
+  return (
+    <CharacterBulkBar
+      ids={["char_a", "char_b", "char_c"]}
+      onClear={(): void => undefined}
+      selectedCount={3}
+      trpc={trpc}
+    />
+  );
+}
+
+export function CharacterBulkBarStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-testid="bulk-panel" style={{ width: 337 }}>
+        <BulkBarInner />
       </div>
     </CtDataProviders>
   );

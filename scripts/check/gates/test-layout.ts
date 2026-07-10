@@ -10,6 +10,7 @@ const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui"]);
 const KINDS = [
   ".suite.int.test.ts",
   ".suite.test.ts",
+  ".suite.ct.tsx",
   ".int.test.ts",
   ".contract.test.ts",
   ".parity.test.ts",
@@ -70,7 +71,10 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
   // like `.parity.test.ts` they are exempt from the 1:1 source-mirror (they still sit under a valid package
   // tree, the pkg check above). The named containment suite (agent-principal-design/07 §4) + the stats
   // drift gate (stats.md inv #3) are the first; the seat wave's seated containment re-run extends the former.
-  if (kind === ".suite.int.test.ts" || kind === ".suite.test.ts") {
+  // `.suite.ct.tsx` is the BROWSER-lane twin: a cross-cutting Playwright-CT property suite that asserts
+  // one behaviour across MANY primitives (the D62 touch-target floor over the whole interactive set) — it
+  // mirrors no single primitive, same exemption rationale as the node `.suite.*` twins.
+  if (kind === ".suite.int.test.ts" || kind === ".suite.test.ts" || kind === ".suite.ct.tsx") {
     return;
   }
   const base = name.slice(0, -kind.length);

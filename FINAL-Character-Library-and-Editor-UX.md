@@ -6,7 +6,8 @@ amended: 2026-07-09 — on-disk re-census + state-law sync: §12 CREATE correcte
          homed in state/character-selection-store — the new store is view-prefs only; the §6 editor
          SUPERSEDES the J9 detail surface, not beside it), FIX #2 gained the invalidation-map freshness
          obligation, §11 gained pain-point 12 (no effect on selection — gate-enforced), tail markup
-         corruption removed.
+         corruption removed. Same day (owner): the §6 editor tabs renamed Presence/Craft →
+         **Main/Advanced** — labels only, the split + field homes are unchanged.
 scope: the Characters RAIL section ONLY — its LIST, CONTENT, CONTEXT + the handoff jump into a chat.
        NOT the whole-app UX, NOT the Chats LANDING, NOT the chat room, NOT other rail sections.
 ```
@@ -24,7 +25,7 @@ scope: the Characters RAIL section ONLY — its LIST, CONTENT, CONTEXT + the han
 1. **Contract fixes first** (§12 BUILD LEDGER → FIX) — the three server/contract additions. Land them
    green before the client, so the client codes against real reads.
 2. **The LIST** (§4) — the library. It's the entry point and needs the fewest new parts.
-3. **The CONTENT editor** (§6) — hero band + Presence/Craft tabs + save-bar.
+3. **The CONTENT editor** (§6) — hero band + Main/Advanced tabs + save-bar.
 4. **The CONTEXT panel** (§7) — Activity / Appearance+Trust / Relations / Actions / History.
 5. **Wire the per-character theming** (§8) — the one thing to get exactly right; render side is already built.
 6. **Verify against §10 (click economy) and §11 (pain-points).**
@@ -54,11 +55,11 @@ fields the server treats as **identity edits, NOT card content**. Obey it exactl
 
 | Field(s) | Commit model | Home | Wire |
 |---|---|---|---|
-| `name`, `description`, `personality`, `scenario`, `greetings[]`, `exampleMessages`, `systemPrompt`, `postHistoryInstructions`, `depthPrompt`, `creatorNotes`, `creator`, `cardVersion`, `regexScripts[]`, `extensions`, `residualData` | **DRAFT → Save** (the card form) | **CONTENT** (Presence/Craft tabs) | `character.update({...changed})`, gated by the save-bar |
+| `name`, `description`, `personality`, `scenario`, `greetings[]`, `exampleMessages`, `systemPrompt`, `postHistoryInstructions`, `depthPrompt`, `creatorNotes`, `creator`, `cardVersion`, `regexScripts[]`, `extensions`, `residualData` | **DRAFT → Save** (the card form) | **CONTENT** (Main/Advanced tabs) | `character.update({...changed})`, gated by the save-bar |
 | `starred`, `archived`, `forbidExternalMedia`, `trustHtml`, `themeOverride` | **IMMEDIATE** (these are the 5 `flagEdits` identity fields) | header gesture (star/archive) or **CONTEXT** (theme/trust) | `character.update({field})` fired on change, **no save-bar, no dirty pill** |
 | `avatarAssetId` | **IMMEDIATE** (UX rule: upload-completes = commit) | hero portrait | `character.update({avatarAssetId})` on upload complete, outside the draft form |
 | `tags` (junction) | **IMMEDIATE** (tag-domain CRUD) | hero chip row | tag verbs (attach/detach), not the card form |
-| `refinery` (`{score, analysis}`) | **DERIVED — never authored** | Craft tab, read-only meter | not in `create`/`update`; display only |
+| `refinery` (`{score, analysis}`) | **DERIVED — never authored** | Advanced tab, read-only meter | not in `create`/`update`; display only |
 | `handle` | identity slug (set at create, default `slugify(name)`, rarely edited) | hero, muted secondary line | `character.update({handle})`; identity column, not card content |
 
 **The `update` wire discipline (LOAD-BEARING — `card-merge.ts` `keep()`):** send **only changed keys**.
@@ -170,7 +171,7 @@ Chats LANDING's job, out of scope.)
 ## 6. CONTENT — a character selected (the editor — the singular hero)
 
 ONE continuous editor for ONE character. Always-editing bound form (`createSavedEntityForm`, §13.4 — no
-read/edit toggle). Structure: a **pinned hero band** + a **2-tab body (Presence / Craft)**, ALL bound to one
+read/edit toggle). Structure: a **pinned hero band** + a **2-tab body (Main / Advanced)**, ALL bound to one
 form instance, ALL under one CONTENT save-bar. Tabbed CONTENT is explicitly legal (§4.2 — the Presets row is
 a tabbed CONTENT editor; two tabs for a character is the same physics: progressive disclosure within a
 single artifact, never two artifacts).
@@ -201,7 +202,7 @@ single artifact, never two artifacts).
 **6.2 Tags row** — chip row pinned under the hero (present in both tabs); "manage tags" opens the tag
 **picker modal** (legal). Immediate junction writes.
 
-**6.3 Presence tab (default — the immersion-loud card content; DRAFT):**
+**6.3 Main tab (default — the immersion-loud card content; DRAFT):**
 `description` · `personality` · `scenario` · `exampleMessages` (render collapsed as a formatted
 mini-transcript = a read-only Streamdown render of the parsed `<START>`-delimited blocks, with "expand to
 edit" swapping to the raw `MacroTextarea` on the same field — **the stored string is never reformatted**;
@@ -216,7 +217,7 @@ already imports it — never a second estimator). `creatorNotes` + provenance + 
 counter (never sent to the model — don't imply they cost tokens). The save-bar carries the total +
 permanent split (§6.5).
 
-**6.4 Craft tab (the quiet clerical card content; SAME form, SAME save-bar; DRAFT):**
+**6.4 Advanced tab (the quiet clerical card content; SAME form, SAME save-bar; DRAFT):**
 - **Prompt overrides** — `systemPrompt` · `postHistoryInstructions`.
 - **Note @ depth** — `depthPrompt` = `{prompt, depth, role?}` (`@orb/kit/injection` directive): a
   `MacroTextarea` for `.prompt` + a number field for `.depth` + a `Select` for `.role`
@@ -245,7 +246,7 @@ every turn when non-empty: `description` · `personality` · `scenario` · `syst
 recorded) · `depthPrompt` (once its assembly wiring lands — see the flagged gap). NON-permanent:
 `greetings` (a one-time history seed — it costs history tokens after send, never card tokens). Both
 totals compute live off the draft client-side; the persisted `token_size` column stays the whole-card
-heft (the list/sort number — a different, coarser question). It governs **exactly** the Presence + Craft draft fields. The immediate-commit surfaces (hero
+heft (the list/sort number — a different, coarser question). It governs **exactly** the Main + Advanced draft fields. The immediate-commit surfaces (hero
 gestures, CONTEXT Appearance/Trust) are outside its scope **by construction** — that is the legibility
 guarantee (a user never changes an accent and watches the dirty pill stay dark). The editor's unsaved-draft
 guard on a section switch is the **hand-rolled in-app guard** off view-state (`useBlocker` will NOT fire on
@@ -381,7 +382,7 @@ Merging happens purely by **`<ThemeScope>` nesting**:
   records the id). CONTENT renders that character's editor; CONTEXT resets to its Activity tab. **Nothing
   else reacts** — no chat jump, no panel chasing (§5.1). This is the anti-cascade rule; a chat open in
   another `<Activity>` slot is untouched.
-- **(b) Edit + save.** Presence/Craft fields write the one form → save-bar dirty pill → Save fires
+- **(b) Edit + save.** Main/Advanced fields write the one form → save-bar dirty pill → Save fires
   `character.update` with only changed keys (`null` = clear) → `reset(saved)` clears the pill. Identity
   fields (avatar/star/archive/theme/trust) never touch this pill.
 - **(c) "Chat with them" — DUAL-PURPOSE (resume-or-new).** The hero "Start chat" CTA and the LIST row hover
@@ -423,10 +424,10 @@ If any core loop exceeds ~2 gestures, the build is wrong — restructure.
 
 ## 11. Pain-points to AVOID (explicit anti-patterns — each is a way this lane gets built wrong)
 
-1. **NO section content in a modal** (rule 5). Advanced/prompt fields are CONTENT tabs; alternate greetings
-   are in-bubble pill-tabs. The ONLY modals are **pickers** (create/import chooser, tags, world-books,
-   personas) and **destructive confirms** (delete/duplicate → `AlertDialog`). Never an "Advanced Definitions"
-   dialog.
+1. **NO section content in a modal** (rule 5). Advanced/prompt fields are CONTENT tabs (the §6.4 Advanced
+   TAB is legal — the anti-pattern below is the MODAL, not the word); alternate greetings are in-bubble
+   pill-tabs. The ONLY modals are **pickers** (create/import chooser, tags, world-books, personas) and
+   **destructive confirms** (delete/duplicate → `AlertDialog`). Never an "Advanced Definitions" DIALOG.
 2. **NO selection → side-effect cascade** (§5.1). Selecting a character writes one id and renders its editor.
    It must NOT also start a chat, prefetch-and-chase, or make another panel react. No `this_chid`-chasing.
 3. **NO `if(isGroup)`** (D16). Group cases derive from `participants.length > 1`. Never branch on a flag.
@@ -434,7 +435,7 @@ If any core loop exceeds ~2 gestures, the build is wrong — restructure.
    `themeOverride` (+ avatar) commit **immediately**, outside the card form, never under the save-bar. (The
    #1 mistake — see §2.)
 5. **Do NOT put card content in CONTEXT.** `systemPrompt`/`personality`/`regexScripts`/etc. are
-   `characterCardSchema` content → CONTENT (Presence/Craft). CONTEXT holds only immediate config, relations,
+   `characterCardSchema` content → CONTENT (Main/Advanced). CONTEXT holds only immediate config, relations,
    activity, actions.
 6. **NO two-region form.** The draft `createSavedEntityForm` + save-bar are wholly in CONTENT. CONTEXT config
    is immediate-commit and never shares that form's dirty state.
@@ -530,7 +531,7 @@ store action — never an effect.
 
 - `surfaces/character-library-surface.tsx` — the LIST (§4): `createCollectionSurface` over `listCharacters`;
   header + favorites strip + flat/categorized + rows + filters + bulk.
-- `surfaces/character-editor-surface.tsx` — CONTENT selected (§6): hero band + Presence/Craft tabs +
+- `surfaces/character-editor-surface.tsx` — CONTENT selected (§6): hero band + Main/Advanced tabs +
   save-bar; one `createSavedEntityForm` over the card fields.
 - `surfaces/character-empty-surface.tsx` — CONTENT teaching state (§5). (`character-library-welcome.tsx`
   already renders a welcome — rework it to the §5 shape rather than adding a second empty surface.)
@@ -597,7 +598,7 @@ carries the ruled-in set).
 ## 14. Future-proofing seams (per-character only — one-entry adds, never a re-org)
 
 Two seams absorb any genuinely per-character expansion:
-- **The CONTENT tab strip (Presence / Craft)** — a new per-character **authoring** concern = one new tab
+- **The CONTENT tab strip (Main / Advanced)** — a new per-character **authoring** concern = one new tab
   (e.g. **expressions** — per-character emotion→sprite sets, `proposed/expressions.md`: a new "Expression"
   CONTENT tab for authoring the sprite map; the runtime sprite render is a chat-room concern, not the editor).
 - **The CONTEXT tab list (Activity / Appearance / Relations / History)** — a new per-character **config /

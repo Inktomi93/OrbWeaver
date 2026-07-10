@@ -414,6 +414,11 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-row);
+  /* The header edge divider (§4.3 · side-eye P3): ONE full-modal-width hairline HUGGING the title (a
+   * tight `--spacing-field` above it) so it reads as a header edge, not a line floating mid-gap; then a
+   * single `--spacing-block` step to the body — no compounding padding stack. */
+  padding-block-end: var(--spacing-field);
+  border-block-end: 1px solid var(--color-border);
   margin-block-end: var(--spacing-block);
 }
 

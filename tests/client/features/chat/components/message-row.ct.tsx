@@ -523,3 +523,345 @@ test("tide: a blank-line-separated body renders N stacked, non-overlapping bubbl
     expect(ys[i]).toBeGreaterThan(ys[i - 1] as number);
   }
 });
+
+// ── The no-avatar FALLBACK as a first-class avatar (owner ruling 2026-07-09) ──────────────────────
+// `alice()` already carries `avatarHash: null` — it IS the no-image character. These pin: (a) the art
+// modes paint the deterministic-hue + initial TILE at the with-image geometry (never a broken/empty
+// slot or reserved-but-empty padding), (b) one entity = ONE hue everywhere (the chip AND the immersive
+// tile, seeded off the id — never the pre-fix constant `alt=""` bucket), (c) gutter-avatar placement
+// (avatar top ≈ name-row top) holds for BOTH real and fallback, and the with-image cases are UNCHANGED
+// (the regression pins above never pass a null hash → they double as the with-art geometry lock).
+
+const EDGE_TILE = '[data-slot="message-edge-tile"]';
+const BAND = '[data-slot="message-band"]';
+const FALLBACK = '[data-slot="avatar-fallback"]';
+const LONG_BODY =
+  "Line one is fairly long.\n\nLine two.\n\nLine three.\n\nLine four.\n\nLine five.";
+
+// The hue is asserted via the RESOLVED `--color-chart-N` var read off the mounted element (never a
+// hardcoded oklch literal — the §13.7 spirit), parsed to numbers so the author-string vs engine-
+// serialized oklch formats compare equal. The bucket the SEED derives is verified out-of-band against
+// `@orb/ui/avatar`'s `avatarFallbackHue` (djb2 → mod 5): `char_alice`→5, `char_bob`→4, `""`→2 (the
+// pre-fix constant `alt=""` bucket every imageless speaker used to share). The @orb/ui/avatar import is
+// deliberately NOT pulled into this .ct.tsx — its transitive `@base-ui/react/avatar` edge fails the CT
+// rollup entry from the tests/ root; the golden bucket numbers stand in, cross-checked by the runtime.
+const ALICE_HUE_BUCKET = 5;
+const BOB_HUE_BUCKET = 4;
+const CONSTANT_ALT_BUCKET = 2; // the pre-fix shared color (hashed `alt=""`)
+async function bgOf(locator: Locator): Promise<readonly [number, number, number]> {
+  return parseOklch(await locator.evaluate((el) => getComputedStyle(el).backgroundColor));
+}
+async function chartHue(
+  locator: Locator,
+  bucket: number,
+): Promise<readonly [number, number, number]> {
+  return parseOklch(await cssVar(locator, `--color-chart-${bucket}`));
+}
+
+test("bubble: a no-avatar character's chip top-aligns with the name row + paints its DETERMINISTIC per-entity hue (not the constant bucket)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      content={LONG_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const avatar = component.locator(AVATAR);
+  // Placement: the gutter avatar pins to the TOP of the message group (aligned with the speaker name),
+  // never vertically centered against a tall multi-line bubble (the items-center footgun).
+  const avatarBox = await avatar.boundingBox();
+  const nameBox = await component.locator(NAME_ROW).boundingBox();
+  expect(Math.abs((avatarBox?.y ?? 0) - (nameBox?.y ?? 0))).toBeLessThan(2);
+  // The fallback fills a real box (never collapsed to 0), with the entity's deterministic hue — and
+  // NOT the pre-fix constant `alt=""` bucket every imageless speaker used to share.
+  expect(avatarBox?.width).toBeGreaterThan(0);
+  expect(avatarBox?.height).toBeGreaterThan(0);
+  const fallback = avatar.locator(FALLBACK);
+  expect(await bgOf(fallback)).toEqual(await chartHue(fallback, ALICE_HUE_BUCKET));
+  expect(await bgOf(fallback)).not.toEqual(await chartHue(fallback, CONSTANT_ALT_BUCKET));
+});
+
+test("bubble: a different no-avatar character resolves a DISTINCT hue (per-entity, not one shared color)", async ({
+  mount,
+}) => {
+  // Bob (a different id) lands his OWN bucket (4), not Alice's (5) — the exact defect the owner reported
+  // (every imageless speaker was the same teal `alt=""` bucket) is gone.
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={BOB_ID}
+      participants={[bob()]}
+    />,
+  );
+  const fallback = component.locator(`${AVATAR} ${FALLBACK}`);
+  expect(await bgOf(fallback)).toEqual(await chartHue(fallback, BOB_HUE_BUCKET));
+  expect(await bgOf(fallback)).not.toEqual(await chartHue(fallback, ALICE_HUE_BUCKET));
+});
+
+test("echo (no avatar): the FALLBACK edge tile IS the art — hue field + initial, SAME feather padding as with-image, aligned to the bled edge", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="assistant"
+      content={LONG_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const bubble = component.locator(BUBBLE);
+  const tile = component.locator(EDGE_TILE);
+  // The tile renders (not an empty/collapsed slot) and carries the initial in its visible zone.
+  await expect(tile).toHaveCount(1);
+  await expect(tile).toContainText("A");
+  // Owner ruling 2026-07-09 (side-eye): the initial is a scannable identity mark, sized off the
+  // hero-avatar glyph token (~4× the old 16px title), not an easter egg — RENDERED font-size, not a class.
+  const glyphPx = await tile
+    .locator('[data-slot="text"]')
+    .evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+  expect(glyphPx).toBe(remTokenPx(TOKENS["spacing.avatar-hero"].value));
+  // Reading geometry is IDENTICAL to the with-image echo (the regression pin above): text is padded
+  // clear by the feather token, never a reserved-but-empty gap.
+  const inlinePaddingRight = await bubble.evaluate((el) => (el as HTMLElement).style.paddingRight);
+  expect(inlinePaddingRight).toBe("var(--immersive-echo-feather)");
+  // The tile's field is the entity's deterministic hue — the SAME color the row's chip paints (one
+  // entity, one hue everywhere).
+  const chip = component.locator(`${AVATAR} ${FALLBACK}`);
+  expect(await bgOf(tile)).toEqual(await chartHue(tile, ALICE_HUE_BUCKET));
+  expect(await bgOf(tile)).toEqual(await bgOf(chip));
+  // Placement: the tile hugs the bubble's bled (right) edge, no broken overflow.
+  const tileBox = await tile.boundingBox();
+  const bubbleBox = await bubble.boundingBox();
+  const tileRight = (tileBox?.x ?? 0) + (tileBox?.width ?? 0);
+  const bubbleRight = (bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0);
+  expect(Math.abs(tileRight - bubbleRight)).toBeLessThan(2);
+});
+
+test("whisper (no avatar): the FALLBACK band renders at the SAME 3:1 geometry (hue field + initial), never a bare stripe or a stretched image", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="whisper"
+      messageRole="assistant"
+      content={LONG_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const band = component.locator(BAND);
+  await expect(band).toBeVisible();
+  await expect(band).toContainText("A");
+  // SAME 3:1 aspect box as the imaged band (the regression pin above) — height derives from width.
+  const box = await band.boundingBox();
+  expect(Math.abs((box?.width ?? 0) / (box?.height ?? 1) - 3)).toBeLessThan(0.1);
+  // A hue FIELD, not a banner <img> (the with-image band's `?v=banner` URL must be absent here).
+  const bgImage = await band.evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(bgImage).not.toContain("?v=banner");
+  expect(await bgOf(band)).toEqual(await chartHue(band, ALICE_HUE_BUCKET));
+});
+
+test("ripple (no avatar): the welded VN portrait falls back to the hue tile at the SAME portrait geometry (sticky, portrait width), no broken image", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      content={LONG_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const avatar = component.locator(AVATAR);
+  // No <img> renders (no hash) — the Avatar shows its fallback tile, at the UNCHANGED portrait width.
+  await expect(avatar.locator('[data-slot="avatar-image"]')).toHaveCount(0);
+  const box = await avatar.boundingBox();
+  expect(Math.round(box?.width ?? 0)).toBe(
+    remTokenPx(TOKENS["immersive.ripple-portrait-width"].value),
+  );
+  await expect(avatar).toHaveCSS("position", "sticky");
+  const fallback = avatar.locator(FALLBACK);
+  await expect(fallback).toContainText("A");
+  expect(await bgOf(fallback)).toEqual(await chartHue(fallback, ALICE_HUE_BUCKET));
+});
+
+// ── Reading scrim over a background photo (side-eye live P1, 2026-07-09) ───────────────────────────
+// Flat/Hush/Document carry no bubble fill AND the shell strips their float halo — so text landed
+// directly on the photo (2.0–2.4:1 on bright patches). When an ANCESTOR carries `data-has-bg-image`
+// (the shell grid's flag), those three back the text with the theme `--color-scrim` + backdrop-blur; on
+// a plain background the scrim is OFF (flat stays truly flat). `in-data-[has-bg-image]:` is an ancestor
+// variant, so a plain wrapping `<div data-has-bg-image>` around the mount drives the ON case.
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
+
+// BUILD-TIME SAFELIST (not runtime): the CT's Tailwind content-scan covers `tests/` + `@orb/ui/src`
+// (playwright/index.css `@source`s), NOT `packages/client/src` — so the scrim's ancestor-variant
+// utilities, authored in the client skin (message-row-variants.ts `BG_PHOTO_READING_SCRIM`), aren't
+// emitted for the CT build and the computed-style assertions below would read a missing rule. Naming the
+// exact literals in this comment makes Tailwind's byte-scanner emit them HERE (the real app's client
+// tailwind `@source`s client src, so production generates them natively — this only bridges the harness).
+// The reading scrim (bubble) + the chrome-chip variant utilities (name-row, side-eye P1 follow-up):
+//   in-data-[has-bg-image]:bg-scrim in-data-[has-bg-image]:backdrop-blur-sm
+//   in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row
+
+for (const style of ["flat", "hush", "document"] as const) {
+  test(`${style} over a bg image: the reading text's backdrop is the scrim + blur (computed), never transparent`, async ({
+    mount,
+  }) => {
+    const component = await mount(
+      <div data-has-bg-image="">
+        <MessageRowStory
+          chatStyle={style}
+          messageRole="assistant"
+          content={LONG_BODY}
+          characterId={ALICE_ID}
+          participants={[alice()]}
+        />
+      </div>,
+    );
+    const bubble = component.locator(BUBBLE).first();
+    const { bg, backdrop } = await bubble.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
+    });
+    // The nearest backdrop IS the theme scrim (resolved off the element, never a hardcoded literal),
+    // not transparent — the reading-surface floor over ANY image region.
+    expect(bg).not.toBe(TRANSPARENT);
+    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(bubble, "--color-scrim")));
+    // + the dialog-backdrop blur that collapses bright-patch peaks a flat scrim alone can't.
+    expect(backdrop).not.toBe("none");
+  });
+}
+
+test("without a bg image, flat stays truly flat — no scrim, no blur (don't scrim what doesn't need it)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="flat"
+      messageRole="assistant"
+      content={LONG_BODY}
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const bubble = component.locator(BUBBLE).first();
+  const { bg, backdrop } = await bubble.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
+  });
+  expect(bg).toBe(TRANSPARENT);
+  expect(backdrop).toBe("none");
+});
+
+// ── Chrome (name + action-icon row) backing over a bg photo (side-eye P1 follow-up) ────────────────
+// The name/actions row is a sibling ABOVE the bubble, so in the no-fill modes it floated on the raw
+// photo — the interactive action icons hit 1.83:1 (WCAG 1.4.11). Those three modes now back it with the
+// same `in-data-[has-bg-image]:` scrim + blur, as its own rounded chip.
+const ACTIONS_ROW = '[data-slot="message-actions-row"]';
+
+for (const style of ["flat", "hush", "document"] as const) {
+  test(`${style} over a bg image: the action row's nearest backdrop is the scrim chip, not the raw photo`, async ({
+    mount,
+  }) => {
+    const component = await mount(
+      <div data-has-bg-image="">
+        <MessageRowStory
+          chatStyle={style}
+          messageRole="assistant"
+          characterId={ALICE_ID}
+          participants={[alice()]}
+        />
+      </div>,
+    );
+    // The action-icon row itself paints no bg; its NEAREST backdrop is the name-row chip that wraps it.
+    const actionsRow = component.locator(ACTIONS_ROW);
+    await expect(actionsRow).toHaveCount(1);
+    const nameRow = component.locator(NAME_ROW);
+    const { bg, backdrop, radius } = await nameRow.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return {
+        bg: cs.backgroundColor,
+        backdrop: cs.backdropFilter,
+        radius: cs.borderTopLeftRadius,
+      };
+    });
+    expect(bg).not.toBe(TRANSPARENT);
+    expect(parseOklch(bg)).toEqual(parseOklch(await cssVar(nameRow, "--color-scrim")));
+    expect(backdrop).not.toBe("none");
+    // A backed CHIP (rounded), not a full-bleed band.
+    expect(Number.parseFloat(radius)).toBeGreaterThan(0);
+  });
+}
+
+test("without a bg image, the chrome row carries NO chip (unchanged) — flat", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="flat"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const nameRow = component.locator(NAME_ROW);
+  const { bg, backdrop } = await nameRow.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
+  });
+  expect(bg).toBe(TRANSPARENT);
+  expect(backdrop).toBe("none");
+});
+
+test("a FILLED mode (echo) does NOT chip its chrome — scoped to the no-fill modes (bubble anchors it)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <div data-has-bg-image="">
+      <MessageRowStory
+        chatStyle="echo"
+        messageRole="assistant"
+        characterId={ALICE_ID}
+        participants={[alice()]}
+      />
+    </div>,
+  );
+  const bg = await component
+    .locator(NAME_ROW)
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(bg).toBe(TRANSPARENT);
+});
+
+// ── The action-cluster reveal is NOT the Wave-1 opacity-0-in-flow starve (measured no-op) ──────────
+// message-actions-reveal.ts's `"hover"` posture dims the cluster to `opacity-40` at rest (VISIBLE, always
+// in-flow), NOT `opacity-0` (invisible-but-claiming-width, the Wave-1 P0). This pins the two facts that
+// make it safe: (a) the cluster is on-screen at rest (opacity 0.4, a real box) so its footprint is never
+// a surprise, and (b) opposite an icon-only cluster a normal speaker name doesn't overflow the name row.
+test("action cluster is dim-at-rest (opacity, in-flow) and never starves a normal name (Wave-1 audit no-op)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const actions = component.locator('[data-slot="message-actions-row"]');
+  const nameRow = component.locator(NAME_ROW);
+  // Dim-at-rest via OPACITY (§B.1), never display:none — a real box that's visibly dim, so its width is
+  // on-screen and intentional (the opposite of Wave-1's invisible-but-in-flow content).
+  await expect(actions).toHaveCSS("opacity", "0.4");
+  const actionsBox = await actions.boundingBox();
+  expect(actionsBox?.width).toBeGreaterThan(0); // in flow, occupying real space at rest
+  // The name row doesn't overflow its own box — the icon-only cluster leaves room for the name (no
+  // sibling-starve). scrollWidth ≤ clientWidth ⇒ nothing clipped/pushed past the edge.
+  const overflow = await nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+  expect(overflow).toBe(false);
+});

@@ -55,6 +55,13 @@ export const sectionVariants = tv({
     root: "flex flex-col gap-block",
     heading: "font-medium text-foreground text-title leading-title",
   },
+  variants: {
+    // A hairline under the section heading (UIP-404 settings panes): the heading reads as a header edge
+    // over its rows, not a floating label. Opt-in — default sections are unchanged.
+    divider: {
+      true: { heading: "border-border border-b pb-field" },
+    },
+  },
 });
 
 /**

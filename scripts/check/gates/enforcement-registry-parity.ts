@@ -34,7 +34,20 @@ const TABLE_ROW_RE = /^\|\s*`(?<name>[a-zA-Z0-9-]+)`\s*\|/gmu;
 
 // SYNC WITH tests/tooling/check-gates.int.test.ts's `DORMANT_GATES` — gates built + self-tested but
 // deliberately held out of `ALL_CHECKS` (each has its own self-test outside report.ts).
-const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests", "component-size-ui"]);
+//
+// The 8 ledger-gate-wave gates (2026-07-09) were ACTIVATED once the doc freeze lifted (added to
+// report.ts's BASE_CHECKS + their Layer-3 ACTIVE rows + the count bump in Core-Enforcement-Active-Gates
+// .md) — they are no longer here.
+const DORMANT_GATES = new Set([
+  "monotonic-tests",
+  "audit-client-tests",
+  "component-size-ui",
+  // D54 §13.3 form-factory gate (2026-07-09) — built + self-tested, held DORMANT because its ONE
+  // real-tree hit (chat/components/group-config-form.tsx) is a deliberate cross-lane exception (a
+  // discriminated-union immediate-commit form, per that file's header) this wave must not fix; activating
+  // it would ship a knowingly-red gate. Tracked in Core-Enforcement-Deferred-Dropped.md with its trigger.
+  "form-factory-for-multifield",
+]);
 
 const COUNT_MISMATCH_MESSAGE = (docCount: number, actual: number): string =>
   `${DOC_REL} declares "${docCount} registered gates" but report.ts's ALL_CHECKS has ${actual} — ` +

@@ -26,12 +26,15 @@ export interface CharacterSummaryFixture {
   readonly archived: boolean;
   readonly forbidExternalMedia: boolean | null;
   readonly trustHtml: boolean | null;
+  readonly themeOverride: Record<string, unknown> | null;
   readonly avatarAssetId: string | null;
   readonly avatarHash: string | null;
   readonly contentHash: string;
   readonly createdAt: number;
   readonly tokenSize: number;
   readonly tags: readonly CharacterSummaryFixtureTag[];
+  readonly elevatorPitch: string | null;
+  readonly lastChattedAt: number | null;
 }
 
 export function makeTagFixture(
@@ -62,12 +65,15 @@ export function makeCharacterSummary(
     archived: false,
     forbidExternalMedia: null,
     trustHtml: null,
+    themeOverride: null,
     avatarAssetId: null,
     avatarHash: null,
     contentHash: "hash_ct_1",
     createdAt: FROZEN_AT,
     tokenSize: 42,
     tags: [],
+    elevatorPitch: null,
+    lastChattedAt: null,
     ...overrides,
   };
 }

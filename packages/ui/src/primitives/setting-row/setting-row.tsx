@@ -9,6 +9,9 @@ export interface SettingRowProps {
   /** The id shared with the caller's control — wires the `<label htmlFor>` to it. */
   id: string;
   label: ReactNode;
+  /** Always-visible muted copy under the label (the Discord/VS-Code settings-row grammar — a title
+   *  plus a one-line description). For copy that should stay visible; use `hint` for a hover tooltip. */
+  description?: ReactNode;
   /** Hint copy behind an info-glyph tooltip; also becomes the glyph's accessible name. */
   hint?: string;
   /** A muted note rendered below the row — presence alone shows it (the "disabled, here's why" case). */
@@ -36,6 +39,7 @@ export interface SettingRowProps {
 export function SettingRow({
   id,
   label,
+  description,
   hint,
   disabledReason,
   children,
@@ -45,17 +49,27 @@ export function SettingRow({
   return (
     <div className={cn(slots.root(), className)} data-slot="setting-row-root">
       <div className={slots.main()} data-slot="setting-row-main">
-        <div className={slots.labelGroup()} data-slot="setting-row-label-group">
-          <label className={slots.label()} data-slot="setting-row-label" htmlFor={id}>
-            {label}
-          </label>
-          {hint === undefined ? null : (
-            <Tooltip>
-              <TooltipTrigger className={slots.hintTrigger()} data-slot="setting-row-hint-trigger">
-                <Icon icon={Info} label={hint} size="sm" />
-              </TooltipTrigger>
-              <TooltipPopup>{hint}</TooltipPopup>
-            </Tooltip>
+        <div className={slots.labelBlock()} data-slot="setting-row-label-block">
+          <div className={slots.labelGroup()} data-slot="setting-row-label-group">
+            <label className={slots.label()} data-slot="setting-row-label" htmlFor={id}>
+              {label}
+            </label>
+            {hint === undefined ? null : (
+              <Tooltip>
+                <TooltipTrigger
+                  className={slots.hintTrigger()}
+                  data-slot="setting-row-hint-trigger"
+                >
+                  <Icon icon={Info} label={hint} size="sm" />
+                </TooltipTrigger>
+                <TooltipPopup>{hint}</TooltipPopup>
+              </Tooltip>
+            )}
+          </div>
+          {description === undefined ? null : (
+            <p className={slots.description()} data-slot="setting-row-description">
+              {description}
+            </p>
           )}
         </div>
         <div className={slots.control()} data-slot="setting-row-control">

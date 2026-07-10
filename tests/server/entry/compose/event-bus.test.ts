@@ -17,13 +17,17 @@ test("emit delivers the event to a subscribed handler (the indexer subscription 
   });
 
   const characterId = castId<CharacterId>("character_abc");
-  const event: CharacterUpdatedEvent = { type: "character.updated", characterId };
+  const event: CharacterUpdatedEvent = {
+    type: "character.updated",
+    characterId,
+    contentChanged: true,
+  };
   bus.emit(event);
   // emit is fire-and-forget — flush the microtask queue before asserting.
   await Promise.resolve();
 
   expect(seen).toHaveLength(1);
-  expect(seen[0]).toEqual({ type: "character.updated", characterId });
+  expect(seen[0]).toEqual({ type: "character.updated", characterId, contentChanged: true });
 });
 
 test("a throwing subscriber is isolated — emit does not throw and other handlers still run", async () => {

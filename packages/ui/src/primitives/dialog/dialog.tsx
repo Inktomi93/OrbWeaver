@@ -10,6 +10,7 @@ import type {
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
+import { usePortalContainer } from "#lib";
 import { dialogVariants } from "./variants";
 
 const slots = dialogVariants();
@@ -40,7 +41,7 @@ export interface DialogPopupProps
   extends Omit<BasePopupProps, "className">,
     VariantProps<typeof dialogVariants> {
   className?: string;
-  /** Portal target — render the overlay into a specific container (default: document.body). */
+  /** Portal target — defaults to the themed portal root from context (usePortalContainer, D44 §12.1); an explicit node/ref overrides (ModalHost). */
   container?: BasePortalProps["container"];
   /** Keep the portal mounted while the dialog is closed (preserve DOM/animations). @defaultValue false */
   keepMounted?: BasePortalProps["keepMounted"];
@@ -60,11 +61,16 @@ export interface DialogPopupProps
  */
 export function DialogPopup(props: DialogPopupProps): ReactElement {
   const { className, children, container, keepMounted, forceRender, size, ...rest } = props;
+  // Default the Portal target to the themed root from context (D44 §12.1), so a feature-level dialog that
+  // passes no `container` still inherits the active <ThemeScope> instead of painting Hearth chrome from
+  // <body>; an explicit `container` (ModalHost) still wins. Sentinel is undefined, never null (a null
+  // container makes floating-ui WAIT — see portal-container.ts).
+  const portalContainer = usePortalContainer();
   // The size variant reshapes BOTH the viewport (full drops its gutter) and the popup (width clamp /
   // full-bleed), so compute a per-call slot set; backdrop is size-independent but reads cleanly here too.
   const sized = dialogVariants({ size });
   return (
-    <BaseDialog.Portal container={container} keepMounted={keepMounted}>
+    <BaseDialog.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
       <BaseDialog.Backdrop
         className={sized.backdrop()}
         data-slot="dialog-backdrop"

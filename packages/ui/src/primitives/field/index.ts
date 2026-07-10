@@ -1,2 +1,2 @@
-export type { FieldProps } from "./field";
-export { Field, FieldValidity } from "./field";
+export type { FieldOrientation, FieldProps } from "./field";
+export { Field, FieldLayout, FieldValidity } from "./field";

@@ -42,6 +42,10 @@ const STORAGE_IDENTIFIER_RE = /^(?:localStorage|sessionStorage|indexedDB)$/u;
  *  it belongs in the synced `user_settings` blob instead, and this is the wrong tool). */
 const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
   shell: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)",
+  "character-library":
+    "library sort/view/filter-chip/bulk-mode browse prefs — per-device LIST chrome, not a synced " +
+    "setting (a returning user on another device does not expect their tag-filter to follow; " +
+    "FINAL-Character §4/§12.1)",
 };
 
 const RAW_STORAGE_MESSAGE =

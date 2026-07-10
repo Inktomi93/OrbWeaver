@@ -55,6 +55,18 @@
 //     `renderSingleBubble`) instead of a background layer on the bubble's own message-length-dependent
 //     box — a real sub-element gives `background-size:cover` a stable box to crop against (no stretch),
 //     and because the band is a normal-flow element ABOVE the padded text, the two can never overlap.
+// THE NO-AVATAR FALLBACK IS A FIRST-CLASS AVATAR (owner ruling 2026-07-09,
+// `FINAL-Persona-and-Immersive-Chat-Visuals.md`): the deterministic-hue + first-initial tile the
+// `@orb/ui/avatar` primitive already paints for an imageless entity is NOT a degraded state — it is a
+// legitimate art source. So the art modes no longer collapse for a character with no `avatarHash`: Echo
+// and Whisper paint that same hue field (`@orb/ui/avatar` `avatarFallbackHueVar`, seeded off the entity
+// id via `RowAttribution.hueSeed` — the SAME seed the list-row chip and chat header use, so one entity =
+// one color everywhere) at the SAME geometry + feather as the image would, with the initial in the
+// visible zone (Echo → `edgeTile`, Whisper → `headerBand.initial`). Ripple already degraded cleanly —
+// its welded slot IS an `<Avatar>`, whose own fallback renders the hue tile at the portrait geometry (the
+// only fix there was seeding the hue). Hush/Tide/bubble/flat/document carry no art, only the icon-left
+// chip (also now hue-seeded). Reading geometry is byte-identical to the with-image case: only the art
+// SOURCE differs (flat hue + initial vs the sharp crop), never the padding/feather stops.
 //   - Echo bled the plain (arbitrary-aspect, uncropped) avatar behind the FULL bubble height with only a
 //     width-wise fade — a long message's text ran directly under still-bright pixels. The fix requests
 //     the sharp-cropped 2:3 `blobPortraitUrl` variant (a real face-safe portrait, not the raw original)
@@ -65,10 +77,12 @@
 
 import { blobBannerUrl, blobPortraitUrl } from "@orb/contracts/assets";
 import type { MessageRole } from "@orb/kit/message-role";
+import { avatarFallbackHueVar } from "@orb/ui/avatar";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import type { CSSProperties } from "react";
 import { cn } from "#lib";
 import type { RowAttribution } from "./attribution";
+import { BG_PHOTO_CHROME_SCRIM, BG_PHOTO_READING_SCRIM } from "./message-row-backing";
 
 type ChatStyle = (typeof THEME_SCOPE_CHAT_STYLES)[number];
 
@@ -117,6 +131,14 @@ type BubbleLayout = "single" | "trains";
 export interface BubbleDecorationArgs {
   readonly kind: RowAttribution["kind"];
   readonly avatarHash: string | null;
+  /** The stable per-entity seed (`RowAttribution["hueSeed"]`) for the deterministic fallback hue
+   *  (`@orb/ui/avatar` `avatarFallbackHueVar`) — used ONLY on the no-image path, where the mode's art
+   *  becomes a generated hue tile. */
+  readonly hueSeed: string;
+  /** The already-resolved grapheme-safe initials (`initialsForAttribution`, resolved once in
+   *  message-row.tsx) — the glyph the fallback tile shows. Empty only for a name-less row, which never
+   *  reaches a decorator (kind-gated). */
+  readonly initial: string;
 }
 
 /** Extra className/style for the bubble box — merged onto the existing `skin.inner(role)` classes. */
@@ -125,8 +147,21 @@ export interface BubbleDecoration {
   readonly style?: CSSProperties;
   /** Whisper's header-art BAND — a real block-level child rendered ABOVE the bubble's padded text
    *  (`message-row-parts.tsx` `renderSingleBubble`), not a background layer on the bubble's own box (see
-   *  the file header's readability redo). Absent for every mode but Whisper. */
-  readonly headerBand?: { readonly style: CSSProperties } | undefined;
+   *  the file header's readability redo). Absent for every mode but Whisper. `initial` is set ONLY on the
+   *  no-avatar FALLBACK band (the owner-ruled first-class tile) — the band paints the entity's hue field
+   *  + this glyph instead of the banner image; absent ⇒ the band is a pure image (aria-hidden either way). */
+  readonly headerBand?:
+    | { readonly style: CSSProperties; readonly initial?: string | undefined }
+    | undefined;
+  /** Echo's no-avatar FALLBACK edge TILE (owner ruling 2026-07-09 — the fallback tile is a first-class
+   *  avatar, so it IS Echo's art source when the character has no image): a real block-level child pinned
+   *  to the bubble's bled edge (`message-row-parts.tsx` `renderSingleBubble`), painting the entity's
+   *  deterministic hue field feathered into the bubble bg EXACTLY like the portrait would, with the
+   *  initial in the fully-visible (un-feathered) zone. Absent for the WITH-image Echo path (that stays the
+   *  tuned background-image bleed, unchanged) and every other mode. The bubble still reserves the SAME
+   *  `padding-right: var(--immersive-echo-feather)` (in `style`) so the reading geometry is identical to
+   *  the with-art case. */
+  readonly edgeTile?: { readonly style: CSSProperties; readonly initial: string } | undefined;
 }
 
 /** One row's skin: the outer alignment/width classes + the inner content-container classes (both
@@ -143,6 +178,12 @@ export interface RowSkin {
   readonly bubbleDecoration?: (args: BubbleDecorationArgs) => BubbleDecoration | null;
   /** §B.2 — Tide's per-paragraph "train" render shape; `"single"` for every other mode. */
   readonly bubbleLayout: BubbleLayout;
+  /** Side-eye P1 (2026-07-09) — the reading-scrim backing for the NAME + action-icon CHROME row (a
+   *  sibling ABOVE the bubble, message-row.tsx), applied to `data-slot="message-name-row"`. Present ONLY
+   *  for the no-fill modes (flat/hush/document), whose chrome otherwise floats on the raw photo; a filled
+   *  mode leaves it undefined (its bubble anchors the chrome — see `BG_PHOTO_CHROME_SCRIM`). Self-gated by
+   *  `in-data-[has-bg-image]:`, so it's inert without a bg image. */
+  readonly chromeBacking?: string | undefined;
 }
 
 // ── Shared base shapes (bubble-family / flat-family) — reused by the immersive modes that build on them ─
@@ -165,7 +206,11 @@ function flatOuter(): string {
   return "w-full items-stretch";
 }
 function flatInner(role: MessageRole): string {
-  return cx("w-full px-section py-row", role === "system" && "text-muted-foreground");
+  return cx(
+    "w-full px-section py-row",
+    BG_PHOTO_READING_SCRIM,
+    role === "system" && "text-muted-foreground",
+  );
 }
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
 
@@ -196,6 +241,12 @@ function hushDecoration(): BubbleDecoration {
 // message-row chip, so it earns the crisper rung.
 const ECHO_PORTRAIT_REQUEST_WIDTH = 400;
 
+/** The reading-geometry contract shared by BOTH Echo paths (with-image bleed AND the no-image fallback
+ *  tile): the bubble reserves `padding-right = var(--immersive-echo-feather)` so text can only ever start
+ *  where the art is fully dissolved into the bubble color — the ONE number that must be identical between
+ *  the two so the fallback aligns pixel-for-pixel with the tuned with-art case. */
+const ECHO_TEXT_PADDING: CSSProperties = { paddingRight: "var(--immersive-echo-feather)" };
+
 /** Echo's bled edge art: a layered `background-image` (a scrim gradient painted OVER the character's
  *  sharp-cropped 2:3 portrait — `blobPortraitUrl`, a real face-safe crop, never the raw arbitrary-aspect
  *  original — both BEHIND the bubble's own `bg-ai-bubble`, visible only where both layers are
@@ -203,16 +254,38 @@ const ECHO_PORTRAIT_REQUEST_WIDTH = 400;
  *  sitting on top of the same box). `padding-right` (an INLINE style, so it always wins the cascade over
  *  the bubble's `px-block`) reserves the SAME width as the feather stop — the reading-surface guarantee:
  *  text can only ever start where the art is already fully dissolved into the bubble color, never before.
- *  `null` for a non-character row (hide-user-portrait) or a character with no resolved avatar (nothing to
- *  bleed, and no reason to reserve the padding either). */
+ *
+ *  `null` ONLY for a non-character row (hide-user-portrait). A character with NO resolved avatar no longer
+ *  degrades to a plain bubble (the pre-2026-07-09 behavior — the mode "didn't work" for imageless
+ *  characters): per the owner ruling the fallback tile IS a first-class avatar, so it becomes Echo's art
+ *  source — an `edgeTile` painting the entity's deterministic hue field, feathered into the bubble bg with
+ *  the SAME `--immersive-echo-feather` stop and reserving the SAME padding, so the reading geometry is
+ *  byte-identical to the with-image case; only the art SOURCE differs (flat hue + initial vs portrait). */
 function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
-  if (args.kind !== "character" || args.avatarHash === null) {
+  if (args.kind !== "character") {
     return null;
+  }
+  if (args.avatarHash === null) {
+    return {
+      style: ECHO_TEXT_PADDING,
+      edgeTile: {
+        initial: args.initial,
+        // A flat hue field (the entity's `avatarFallbackHueVar`) with the SAME right→left feather the
+        // portrait uses — the gradient spans the tile's OWN width (which is `--immersive-echo-feather`
+        // wide, message-row-parts.tsx), so it reaches full bubble color at the tile's left edge = the
+        // exact stop the with-image gradient reaches, matching the fade profile. The initial rides
+        // `--color-primary-foreground` (message-row-parts.tsx className, AA-verified against all 5 hues).
+        style: {
+          backgroundColor: avatarFallbackHueVar(args.hueSeed),
+          backgroundImage: "linear-gradient(to left, transparent, var(--color-ai-bubble))",
+        },
+      },
+    };
   }
   const portraitUrl = blobPortraitUrl(args.avatarHash, ECHO_PORTRAIT_REQUEST_WIDTH);
   return {
     style: {
-      paddingRight: "var(--immersive-echo-feather)",
+      ...ECHO_TEXT_PADDING,
       backgroundImage: `linear-gradient(to left, transparent, var(--color-ai-bubble) var(--immersive-echo-feather)), url("${portraitUrl}")`,
       backgroundSize: "100% 100%, cover",
       backgroundPosition: "0 0, right center",
@@ -245,8 +318,29 @@ const WHISPER_STRIPE: CSSProperties = {
  *  bubble width changed, re-cropping the face-safe source). Still a definite box (aspect-ratio gives
  *  it height), so the anti-squish property holds regardless of message length. */
 function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
-  if (args.kind !== "character" || args.avatarHash === null) {
+  // The speaker-color stripe is chrome — always paints. Only the BAND is kind-gated (hide-user-portrait):
+  // a non-character row gets the stripe alone (no band). A character row ALWAYS gets a band now — the
+  // banner image when it has one, else the owner-ruled fallback tile (a hue field + initial at the SAME
+  // 3:1 geometry + feather), so the mode no longer collapses to a bare stripe for imageless characters.
+  if (args.kind !== "character") {
     return { style: WHISPER_STRIPE };
+  }
+  if (args.avatarHash === null) {
+    return {
+      style: WHISPER_STRIPE,
+      headerBand: {
+        initial: args.initial,
+        // The SAME 3:1 box + top→bottom feather the banner uses, over the entity's flat hue field (its
+        // `avatarFallbackHueVar`) instead of the image — the initial rides `--color-primary-foreground`
+        // in the band's visible (top) zone (message-row-parts.tsx).
+        style: {
+          aspectRatio: "var(--aspect-banner)",
+          backgroundColor: avatarFallbackHueVar(args.hueSeed),
+          backgroundImage:
+            "linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather))",
+        },
+      },
+    };
   }
   const bannerUrl = blobBannerUrl(args.avatarHash, WHISPER_BANNER_REQUEST_WIDTH);
   return {
@@ -284,13 +378,16 @@ export const MESSAGE_ROW_SKINS: Record<ChatStyle, RowSkin> = {
     inner: flatInner,
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
+    chromeBacking: BG_PHOTO_CHROME_SCRIM,
   },
   // `document` = the centered manuscript column (prose-capped ~65ch), already centered by `items-center`.
+  // Over a bg photo it too carries no fill → the same reading-scrim backing (side-eye P1).
   document: {
     outer: () => "w-full items-center",
-    inner: () => "w-full max-w-prose px-block py-row text-prose-body",
+    inner: () => cx("w-full max-w-prose px-block py-row text-prose-body", BG_PHOTO_READING_SCRIM),
     avatarTreatment: iconLeftTreatment,
     bubbleLayout: "single",
+    chromeBacking: BG_PHOTO_CHROME_SCRIM,
   },
   echo: {
     outer: bubbleOuter,
@@ -312,6 +409,7 @@ export const MESSAGE_ROW_SKINS: Record<ChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: hushDecoration,
     bubbleLayout: "single",
+    chromeBacking: BG_PHOTO_CHROME_SCRIM,
   },
   ripple: {
     outer: bubbleOuter,

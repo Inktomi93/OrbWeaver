@@ -10,6 +10,7 @@
 // model column), the dim from the declared active space (`ctx.embedDim` / `ctx.imageEmbedDim`).
 
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
+import { getLog } from "#foundation/observability";
 import type { EmbeddingsIndexerContext } from "../contract/service";
 import { generateAvatarCaption } from "./caption";
 
@@ -19,11 +20,24 @@ export async function onCharacterUpdated(
   ctx: EmbeddingsIndexerContext,
   event: CharacterUpdatedEvent,
 ): Promise<void> {
+  // `character.updated` fires on EVERY card write — including identity-flag edits (star/archive/theme,
+  // card-merge.ts) that change no embeddable content. The emit site (`character/verbs/update.ts`) already knows
+  // which it is, so it stamps `contentChanged`; a flag-only edit skips ENTIRELY here — zero canon read, zero
+  // store, zero model touch. This is the owner ruling ("starring shouldn't trigger embedding", first-time
+  // included): backfill of a never-embedded card belongs to content events + import + the PD-53 sweep, never to
+  // a star toggle. (The store's own content-hash gate remains the second belt for a same-content re-fire.)
+  if (!event.contentChanged) {
+    getLog().debug(
+      { characterId: event.characterId },
+      "embeddings indexer: flag-only edit (no content change) — skipped",
+    );
+    return;
+  }
   const text = await ctx.loadCardText(event.characterId);
   if (text === undefined) {
     return;
   }
-  await ctx.store({
+  const result = await ctx.store({
     kind: "card",
     lens: "card-text",
     characterId: event.characterId,
@@ -31,6 +45,14 @@ export async function onCharacterUpdated(
     model: ctx.roleClients.embedModel,
     dim: ctx.embedDim,
   });
+  // A content edit whose projected embed text is nonetheless unchanged (or a duplicate delivery) short-circuits
+  // in the store to `noop`; surface it at debug so an absent embed is explainable.
+  if (result.outcome === "noop") {
+    getLog().debug(
+      { characterId: event.characterId },
+      "embeddings indexer: card text unchanged — re-embed skipped",
+    );
+  }
 }
 
 /** `asset.created` → embed BOTH avatar lenses: `image-raw` (pure visual signal) then `image-captioned` (image

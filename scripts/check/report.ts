@@ -15,10 +15,14 @@ import { busOnDataNoStoreWrite } from "./gates/bus-onData-no-store-write.ts";
 import { clientStructure } from "./gates/client-structure.ts";
 import { commentedCode } from "./gates/commented-code.ts";
 import { componentSize } from "./gates/component-size.ts";
+import { contentPartSeam } from "./gates/content-part-seam.ts";
+import { contractVerbPresence } from "./gates/contract-verb-presence.ts";
+import { dbEnumFromTuple } from "./gates/db-enum-from-tuple.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { diagnosticLegibility } from "./gates/diagnostic-legibility.ts";
 import { createEnforcementRegistryParity } from "./gates/enforcement-registry-parity.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
+import { infraAuthNoUserId } from "./gates/infra-auth-no-userid.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
 import { modalBodyNotPlaceholder } from "./gates/modal-body-not-placeholder.ts";
@@ -29,7 +33,12 @@ import { noEffectOnSharedSelection } from "./gates/no-effect-on-shared-selection
 import { noFormResetInAutosave } from "./gates/no-form-reset-in-autosave.ts";
 import { noInlineInvalidateOutsideSeam } from "./gates/no-inline-invalidate-outside-seam.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
+import { noInteractiveRoleInFeatures } from "./gates/no-interactive-role-in-features.ts";
+import { noRawEgress } from "./gates/no-raw-egress.ts";
+import { noTestFabrication } from "./gates/no-test-fabrication.ts";
+import { noUntypedSoftRef } from "./gates/no-untyped-soft-ref.ts";
 import { ownerRoleSplit } from "./gates/owner-role-split.ts";
+import { ownerIdRegistry } from "./gates/ownerid-registry.ts";
 import { packageLayout } from "./gates/package-layout.ts";
 import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
 import { persistPartializeAndTotalMigrate } from "./gates/persist-partialize-and-total-migrate.ts";
@@ -37,6 +46,7 @@ import { persistenceBoundary } from "./gates/persistence-boundary.ts";
 import { placeholderCopyRegistry } from "./gates/placeholder-copy-registry.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { registryPairing } from "./gates/registry-pairing.ts";
+import { schemaBannedShapes } from "./gates/schema-banned-shapes.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
 import { serverLayout } from "./gates/server-layout.ts";
 import { soleEnvReader } from "./gates/sole-env-reader.ts";
@@ -57,6 +67,7 @@ import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
 import { userBusCoverage } from "./gates/user-bus-coverage.ts";
 import { vectorScopeDerived } from "./gates/vector-scope-derived.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
+import { warningCodeCoverage } from "./gates/warning-code-coverage.ts";
 import { zustandSelectorDerived } from "./gates/zustand-selector-derived.ts";
 import type { Check, GateResult, RunChecksResult } from "./harness.ts";
 import { runChecks } from "./harness.ts";
@@ -99,6 +110,7 @@ const BASE_CHECKS: readonly Check[] = [
   stateFiles,
   zustandSelectorDerived,
   noEffectOnSharedSelection,
+  noInteractiveRoleInFeatures,
   persistenceBoundary,
   componentSize,
   vectorScopeDerived,
@@ -114,6 +126,20 @@ const BASE_CHECKS: readonly Check[] = [
   registryPairing,
   modalBodyNotPlaceholder,
   placeholderCopyRegistry,
+  // Ledger-gate wave (2026-07-09) — activated once the doc freeze lifted + each verified 0-violation on
+  // the real tree (self-tested in tests/tooling/<gate>.int.test.ts).
+  ownerIdRegistry,
+  noUntypedSoftRef,
+  dbEnumFromTuple,
+  schemaBannedShapes,
+  warningCodeCoverage,
+  infraAuthNoUserId,
+  contentPartSeam,
+  noRawEgress,
+  // Test-coverage / type-safety ratchets (2026-07-09, test-support-dry-punchlist.md §5 / W2c) — the
+  // interface-level complement to test-presence + the fabrication-cast ratchet.
+  contractVerbPresence,
+  noTestFabrication,
 ];
 
 /** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which

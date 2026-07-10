@@ -10,6 +10,8 @@ import type {
 } from "@base-ui/react/popover";
 import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { ReactElement } from "react";
+import type { PortalContainer } from "#lib";
+import { usePortalContainer } from "#lib";
 import { popoverVariants } from "./variants";
 
 const slots = popoverVariants();
@@ -46,6 +48,12 @@ export interface PopoverPopupProps extends Omit<BasePopupProps, "className"> {
   sideOffset?: BasePositionerProps["sideOffset"];
   alignOffset?: BasePositionerProps["alignOffset"];
   /**
+   * Portal target — defaults to the themed portal root from {@link usePortalContainer} (so the popup
+   * inherits the active `<ThemeScope>` instead of `<body>`'s Hearth defaults, D44 §12.1); pass an
+   * explicit node/ref to override; unset keeps Base UI's `body` default.
+   */
+  container?: PortalContainer;
+  /**
    * Render a dismissable `bg-scrim` backdrop behind the popup (for a modal-style popover). The
    * backdrop lives inside the bundled Portal, before the Positioner (Base UI's required placement).
    * Pair with `<Popover modal>` for focus/scroll containment. @defaultValue false
@@ -68,11 +76,13 @@ export function PopoverPopup(props: PopoverPopupProps): ReactElement {
     align,
     sideOffset = DEFAULT_SIDE_OFFSET,
     alignOffset,
+    container,
     backdrop = false,
     ...rest
   } = props;
+  const portalContainer = usePortalContainer();
   return (
-    <BasePopover.Portal>
+    <BasePopover.Portal container={container ?? portalContainer}>
       {backdrop ? (
         <BasePopover.Backdrop className={slots.backdrop()} data-slot="popover-backdrop" />
       ) : null}

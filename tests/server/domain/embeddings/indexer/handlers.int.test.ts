@@ -35,7 +35,11 @@ describe("onCharacterUpdated", () => {
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
-    await indexer.onCharacterUpdated({ type: "character.updated", characterId });
+    await indexer.onCharacterUpdated({
+      type: "character.updated",
+      characterId,
+      contentChanged: true,
+    });
 
     expect(ih.loadCardText).toHaveBeenCalledWith(characterId);
     expect(storeH.roleClients.embed).toHaveBeenCalledTimes(1);
@@ -56,10 +60,120 @@ describe("onCharacterUpdated", () => {
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: undefined });
     const indexer = createEmbeddingsIndexer(ih.ctx);
 
-    await indexer.onCharacterUpdated({ type: "character.updated", characterId });
+    await indexer.onCharacterUpdated({
+      type: "character.updated",
+      characterId,
+      contentChanged: true,
+    });
 
     expect(storeH.roleClients.embed).not.toHaveBeenCalled();
     expect(await db.select().from(characterEmbeddings)).toHaveLength(0);
+  });
+});
+
+describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner ruling)", () => {
+  // Belt 1 (the emit-site discriminator): `character.updated` fires on EVERY card write, but the emit site
+  // stamps `contentChanged`. A star/archive/theme toggle is contentChanged=false → the indexer skips ENTIRELY,
+  // NEVER reading canon or touching the store — so a never-embedded card that gets starred does NOT drag in the
+  // embed backend (and its model-load crash window). Backfill belongs to content events + the PD-53 sweep.
+  test("a flag-only edit (contentChanged=false) never embeds — even a NEVER-embedded card", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const characterId = await seedCharacter(db, owner);
+    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onCharacterUpdated({
+      type: "character.updated",
+      characterId,
+      contentChanged: false,
+    });
+
+    // Zero embed AND zero canon read (the skip is BEFORE loadCardText) AND no vector row.
+    expect(storeH.roleClients.embed).not.toHaveBeenCalled();
+    expect(ih.loadCardText).not.toHaveBeenCalled();
+    expect(
+      await db
+        .select()
+        .from(characterEmbeddings)
+        .where(eq(characterEmbeddings.characterId, characterId)),
+    ).toHaveLength(0);
+  });
+
+  test("a content edit (contentChanged=true) embeds a NEVER-embedded card", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const characterId = await seedCharacter(db, owner);
+    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onCharacterUpdated({
+      type: "character.updated",
+      characterId,
+      contentChanged: true,
+    });
+
+    expect(storeH.roleClients.embed).toHaveBeenCalledTimes(1);
+    expect(
+      await db
+        .select()
+        .from(characterEmbeddings)
+        .where(eq(characterEmbeddings.characterId, characterId)),
+    ).toHaveLength(1);
+  });
+
+  // Belt 2 (the store content-hash gate): even for a content event, an UNCHANGED projected embed text (a
+  // duplicate delivery, or a field edit that doesn't alter the card-text projection) short-circuits to noop.
+  test("a content re-fire with identical embed text does not re-embed (store gate)", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const characterId = await seedCharacter(db, owner);
+    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    const event = { type: "character.updated", characterId, contentChanged: true } as const;
+    await indexer.onCharacterUpdated(event);
+    await indexer.onCharacterUpdated(event);
+
+    expect(storeH.roleClients.embed).toHaveBeenCalledTimes(1);
+  });
+
+  test("a content edit that changes the card text DOES re-embed once more", async () => {
+    const db = await freshDb();
+    const storeH = makeStoreHarness(db);
+    const svc = createEmbeddingsService(storeH.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const characterId = await seedCharacter(db, owner);
+    const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
+    const indexer = createEmbeddingsIndexer(ih.ctx);
+
+    await indexer.onCharacterUpdated({
+      type: "character.updated",
+      characterId,
+      contentChanged: true,
+    });
+    // A real content write changes the projected embed text → the store gate does NOT short-circuit.
+    ih.loadCardText.mockResolvedValue("Bryn — now a retired cartographer who forgets the sea.");
+    await indexer.onCharacterUpdated({
+      type: "character.updated",
+      characterId,
+      contentChanged: true,
+    });
+
+    expect(storeH.roleClients.embed).toHaveBeenCalledTimes(2);
+    // Still one row per (character, model) — the second embed UPSERTs the vector, it does not duplicate.
+    expect(
+      await db
+        .select()
+        .from(characterEmbeddings)
+        .where(eq(characterEmbeddings.characterId, characterId)),
+    ).toHaveLength(1);
   });
 });
 

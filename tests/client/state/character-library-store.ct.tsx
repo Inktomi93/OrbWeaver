@@ -1,0 +1,52 @@
+// character-library-store CT — drives the LIST view-prefs store (FINAL-Character §4/§12) through its module
+// actions and asserts each read hook reflects the transition on the real persisted (localStorage-backed)
+// store: the §4.5 sort, the §4.3 flat⇄categorized view, the favorites/archived filter chips, the §4.6 bulk
+// flag, and the AND-tag filter's add/remove/clear. `bulkMode` is transient (not persisted) — verified only
+// as a live transition here (a reload-persistence assertion belongs to the persist factory's own test).
+
+import { expect, test } from "@playwright/experimental-ct-react";
+import { CharacterLibraryStoreProbe } from "./_ct-stories";
+
+test("sort + view transitions reflect in the read hooks", async ({ mount }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  const state = probe.locator("output");
+  // Defaults: recency sort, flat view, no filters, no bulk.
+  await expect(state).toContainText("sort=recent view=flat fav=false archived=false bulk=false");
+
+  await probe.getByRole("button", { name: "sort alpha" }).click();
+  await expect(state).toContainText("sort=alpha");
+
+  await probe.getByRole("button", { name: "view categorized" }).click();
+  await expect(state).toContainText("view=categorized");
+});
+
+test("filter chips + bulk flag toggle independently", async ({ mount }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  const state = probe.locator("output");
+
+  await probe.getByRole("button", { name: "toggle favorites" }).click();
+  await expect(state).toContainText("fav=true");
+
+  await probe.getByRole("button", { name: "toggle archived" }).click();
+  await expect(state).toContainText("archived=true");
+
+  await probe.getByRole("button", { name: "enter bulk" }).click();
+  await expect(state).toContainText("bulk=true");
+});
+
+test("the tag filter adds, then removes (idempotent toggle) and clears", async ({ mount }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("tags=none");
+
+  await probe.getByRole("button", { name: "toggle tag" }).click();
+  await expect(state).toContainText("tags=tag_ct_probe");
+
+  // Toggling the same tag again removes it (AND-set membership toggle).
+  await probe.getByRole("button", { name: "toggle tag" }).click();
+  await expect(state).toContainText("tags=none");
+
+  await probe.getByRole("button", { name: "toggle tag" }).click();
+  await probe.getByRole("button", { name: "clear tags" }).click();
+  await expect(state).toContainText("tags=none");
+});

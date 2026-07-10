@@ -5,7 +5,8 @@ import type {
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
-import { cn } from "#lib";
+import type { PortalContainer } from "#lib";
+import { cn, usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine (the autocomplete.tsx precedent).
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants";
@@ -64,6 +65,9 @@ export interface ComboboxProps extends ComboboxPassthrough {
   align?: BasePositionerProps["align"];
   /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: BasePositionerProps["sideOffset"];
+  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
+   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  container?: PortalContainer;
 }
 
 /**
@@ -141,8 +145,10 @@ export function Combobox({
   side,
   align,
   sideOffset = POPUP_SIDE_OFFSET,
+  container,
   ...rest
 }: ComboboxProps): ReactElement {
+  const portalContainer = usePortalContainer();
   const isControlled = valueProp !== undefined;
   const [internalValue, setInternalValue] = useState<string[]>(() => [...(defaultValue ?? [])]);
   const value = isControlled ? valueProp : internalValue;
@@ -257,7 +263,7 @@ export function Combobox({
         </BaseCombobox.Chips>
       </BaseCombobox.InputGroup>
       {suggestionsEnabled ? (
-        <BaseCombobox.Portal>
+        <BaseCombobox.Portal container={container ?? portalContainer}>
           <BaseCombobox.Positioner
             align={align}
             className={slots.positioner()}

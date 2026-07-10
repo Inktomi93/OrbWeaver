@@ -4,16 +4,17 @@
 //     (`avatarAssetId`), autosaved. NO drag-drop zone.
 //   • Name click → inline rename (the name becomes an `Input` in place; Enter/blur commits via the SAME
 //     partial-patch mutation; Escape cancels).
-//   • Row-body click (anywhere but the avatar/name) = set that persona as CURRENT (#2).
+//   • Row-body click (anywhere but the avatar/name/actions) = set that persona as CURRENT (#2).
 //   • Hover-reveal actions: ♥ favorite (a `persona.update` partial patch, `starred`) · ★ set-Default
 //     (#1, gold Crown once set) · 🗑 delete (AlertDialog confirm). NO ✎ edit button.
 //   • An ALWAYS-visible ⌄ chevron is a disclosure toggle (`@orb/ui/collapsible`), not an edit
 //     button — it expands/collapses the row's DETAILS (`<PersonaEditor>`, itself fully autosaving).
-// The avatar/name controls are real `<button>`/`<input>` nested inside the row's `role="button"` click
-// target; each stops propagation on click so they never also fire "set current" (the same carve-out
-// technique the hover actions already use — see `IconAction` below). `@orb/ui/list-row`'s `title` is a
-// plain string with no room for a live edit-in-place control, so this row is hand-composed from
-// `@orb/ui/layout` + `@orb/ui/button` rather than force-fit into that primitive.
+// A11y model (side-eye item 13 / no-interactive-role-in-features): the "set current" target is a real
+// stretched `<Button>` pinned `absolute inset-0` UNDER the row's controls, NOT a hand-rolled
+// `role="button"` div wrapping them. The avatar/name/action controls are `relative` SIBLINGS layered
+// above it — every one a first-class tab stop, nothing nested inside another interactive element — so
+// the old `stopPropagation` crutches are gone (disjoint elements never fire each other). `@orb/ui/list-row`
+// is not used because its `title` is a plain string with no room for the live edit-in-place name control.
 //
 // A COMPONENT, not a surface — so the inline delete <AlertDialog> is legal (surface-purity §A.7b).
 
@@ -36,7 +37,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { KeyboardEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { uploadAsset, useInvalidation, useTRPC } from "#data";
@@ -53,14 +54,6 @@ function initials(name: string): string {
   const first = parts[0]?.[0] ?? "?";
   const second = parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "";
   return (first + second).toUpperCase();
-}
-
-/** Enter/Space synthesizes a click on the row body — mirrors `@orb/ui/list-row`'s own `activateOnKey`. */
-function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    event.currentTarget.click();
-  }
 }
 
 export interface PersonaPanelRowProps {
@@ -120,25 +113,27 @@ export function PersonaPanelRow({
   return (
     <Stack gap="field">
       <Row
-        aria-current={isCurrent ? "true" : undefined}
-        aria-label={`Switch to ${persona.name}`}
-        className="group min-h-control-md cursor-pointer rounded-control outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-selected:bg-accent"
+        align="center"
+        className="group relative min-h-control-md rounded-control transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent data-selected:bg-accent"
         data-selected={isCurrent ? "" : undefined}
         gap="row"
-        onClick={onSetCurrent}
-        onKeyDown={activateOnKey}
         padding="field"
-        role="button"
-        tabIndex={0}
       >
+        {/* The "set current" target: a real stretched <Button> pinned under the row's controls (NOT a
+            hand-rolled role="button" div). Empty — its accessible name is the aria-label; the controls
+            layered above (relative) intercept their own clicks, gaps fall through to this. */}
+        <Button
+          aria-current={isCurrent ? "true" : undefined}
+          aria-label={`Switch to ${persona.name}`}
+          className="absolute inset-0 rounded-control"
+          intent="ghost"
+          onClick={onSetCurrent}
+        />
         <Button
           aria-label="Change avatar"
-          className="shrink-0"
+          className="relative shrink-0"
           intent="ghost"
-          onClick={(event): void => {
-            event.stopPropagation();
-            fileRef.current?.click();
-          }}
+          onClick={(): void => fileRef.current?.click()}
           size="icon"
         >
           <Avatar fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
@@ -156,21 +151,21 @@ export function PersonaPanelRow({
               void onAvatarFile(file);
             }
           }}
-          onClick={(event): void => event.stopPropagation()}
           ref={fileRef}
           type="file"
         />
 
-        <Stack className="min-w-0 flex-1">
+        {/* `pointer-events-none` lets the Stack's EMPTY space (right of the short name) fall through to the
+            stretched select overlay below — only the actual name control re-enables pointer events. */}
+        <Stack className="pointer-events-none relative min-w-0 flex-1">
           {editingName ? (
             <Input
               aria-label="Persona name"
               // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus={true}
+              className="pointer-events-auto"
               onBlur={commitName}
-              onClick={(event): void => event.stopPropagation()}
               onKeyDown={(event): void => {
-                event.stopPropagation();
                 if (event.key === "Enter") {
                   event.preventDefault();
                   commitName();
@@ -185,10 +180,9 @@ export function PersonaPanelRow({
           ) : (
             <Button
               aria-label="Rename persona"
-              className="min-w-0 justify-start truncate"
+              className="pointer-events-auto min-w-0 justify-start truncate"
               intent="ghost"
-              onClick={(event): void => {
-                event.stopPropagation();
+              onClick={(): void => {
                 setDraftName(persona.name);
                 setEditingName(true);
               }}
@@ -211,7 +205,7 @@ export function PersonaPanelRow({
             hover/focus the whole cluster swaps to the action buttons below. */}
         <Row
           align="center"
-          className="shrink-0 group-hover:hidden group-focus-within:hidden"
+          className="pointer-events-none relative shrink-0 group-hover:hidden group-focus-within:hidden"
           gap="field"
         >
           {isDefault ? (
@@ -225,7 +219,7 @@ export function PersonaPanelRow({
         {/* Hover/focus: the full action cluster (favorite · set-default · delete). */}
         <Row
           align="center"
-          className="hidden shrink-0 group-hover:flex group-focus-within:flex"
+          className="pointer-events-none relative hidden shrink-0 group-hover:flex group-focus-within:flex"
           gap="field"
         >
           <IconAction
@@ -249,7 +243,7 @@ export function PersonaPanelRow({
         </Row>
 
         <IconAction
-          className="shrink-0"
+          className="relative shrink-0"
           icon={expanded ? ChevronDown : ChevronRight}
           label={expanded ? "Hide details" : "Show details"}
           onClick={onToggleExpand}
@@ -326,7 +320,8 @@ function StatusGlyph({
   );
 }
 
-/** A reveal-action icon button — stops row-body click propagation so it never sets Current by accident. */
+/** A reveal-action icon button — a `relative` sibling layered above the stretched select-Button, so it
+ *  is its own disjoint tab stop and never fires "set current" (no stopPropagation crutch needed). */
 function IconAction({
   icon,
   label,
@@ -340,13 +335,12 @@ function IconAction({
         render={
           <Button
             aria-label={label}
-            {...(className === undefined ? {} : { className })}
+            // `pointer-events-auto` re-enables clicks inside the pointer-events-none action clusters (the
+            // stretched select overlay owns the row's empty space; each control re-claims its own hit area).
+            className={`pointer-events-auto${className === undefined ? "" : ` ${className}`}`}
             disabled={disabled}
             intent="ghost"
-            onClick={(event): void => {
-              event.stopPropagation();
-              onClick();
-            }}
+            onClick={onClick}
             size="icon"
           >
             <Icon icon={icon} size="sm" />

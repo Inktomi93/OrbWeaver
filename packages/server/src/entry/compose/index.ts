@@ -6,6 +6,7 @@
 
 export type { EffectiveConfigWiring } from "./effective-config";
 export { createEffectiveConfigWiring } from "./effective-config";
+export { createCharacterUpdatedChatFan } from "./emit-character-updated";
 export { createChatChangedEmitter } from "./emit-chat-changed";
 export type { DomainEventBus } from "./event-bus";
 export { createDomainEventBus } from "./event-bus";

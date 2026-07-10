@@ -9,6 +9,7 @@ import type {
 } from "@base-ui/react/alert-dialog";
 import { AlertDialog as BaseAlertDialog } from "@base-ui/react/alert-dialog";
 import type { HTMLAttributes, ReactElement } from "react";
+import { usePortalContainer } from "#lib";
 import { alertDialogVariants } from "./variants";
 
 const slots = alertDialogVariants();
@@ -38,7 +39,7 @@ export function AlertDialogTrigger<Payload = unknown>(
 
 export interface AlertDialogPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
-  /** Portal target — render the overlay into a specific container (default: document.body). */
+  /** Portal target — defaults to the themed portal root from context (usePortalContainer, D44 §12.1); an explicit node/ref overrides (ModalHost). */
   container?: BasePortalProps["container"];
   /** Keep the portal mounted while closed (preserve DOM/animations). @defaultValue false */
   keepMounted?: BasePortalProps["keepMounted"];
@@ -58,8 +59,12 @@ export interface AlertDialogPopupProps extends Omit<BasePopupProps, "className">
  */
 export function AlertDialogPopup(props: AlertDialogPopupProps): ReactElement {
   const { className, children, container, keepMounted, forceRender, ...rest } = props;
+  // Default the Portal target to the themed root from context (D44 §12.1) so a feature-level alert-dialog
+  // inherits the active <ThemeScope> instead of Hearth chrome from <body>; an explicit `container` still
+  // wins. Sentinel is undefined, never null (see portal-container.ts).
+  const portalContainer = usePortalContainer();
   return (
-    <BaseAlertDialog.Portal container={container} keepMounted={keepMounted}>
+    <BaseAlertDialog.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
       <BaseAlertDialog.Backdrop
         className={slots.backdrop()}
         data-slot="alert-dialog-backdrop"

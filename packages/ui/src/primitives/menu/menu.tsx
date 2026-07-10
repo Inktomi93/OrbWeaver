@@ -17,6 +17,8 @@ import type {
 } from "@base-ui/react/menu";
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
+import type { PortalContainer } from "#lib";
+import { usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/ChevronRight/Icon fine (the spinner.tsx precedent).
 import { Check, ChevronRight, Icon } from "#primitives/icons";
 import { menuVariants } from "./variants";
@@ -53,6 +55,9 @@ export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
   align?: BasePositionerProps["align"];
   /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
+  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
+   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  container?: PortalContainer;
 }
 
 /**
@@ -68,10 +73,12 @@ export function MenuPopup(props: MenuPopupProps): ReactElement {
     side,
     align = "start",
     sideOffset = DEFAULT_SIDE_OFFSET,
+    container,
     ...rest
   } = props;
+  const portalContainer = usePortalContainer();
   return (
-    <BaseMenu.Portal>
+    <BaseMenu.Portal container={container ?? portalContainer}>
       <BaseMenu.Positioner
         align={align}
         className={slots.positioner()}

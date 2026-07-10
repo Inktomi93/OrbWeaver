@@ -40,12 +40,26 @@ import type { MessageRenderContext } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream";
 import type { RowAttribution } from "../lib/attribution";
+import { initialsForAttribution } from "../lib/attribution";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { renderRowAvatar } from "./message-row-parts";
 import { ReasoningBlock } from "./reasoning-block";
 
 /** The paced-reveal trickle floor (chars/sec) — a calm cadence while a stream is live. */
 const GHOST_CPS = 40;
+
+/** The no-image fallback-tile inputs (deterministic hue seed + resolved initials) a live turn feeds
+ *  `bubbleDecoration` — mirrors message-row.tsx. Module scope so the ghost component stays under the
+ *  cognitive-complexity ceiling (biome `noExcessiveCognitiveComplexity`). */
+function ghostFallbackTile(attribution: RowAttribution | undefined): {
+  readonly hueSeed: string;
+  readonly initial: string;
+} {
+  if (attribution === undefined || attribution.name === null) {
+    return { hueSeed: attribution?.hueSeed ?? "", initial: "" };
+  }
+  return { hueSeed: attribution.hueSeed, initial: initialsForAttribution(attribution.name) };
+}
 
 export interface GhostMessageRowProps {
   readonly chatId: ChatId;
@@ -113,7 +127,15 @@ export function GhostMessageRow({
   // §B.2 bubbleDecoration takes the raw CAS hash, not a prebuilt URL (see message-row.tsx) — Echo/
   // Whisper each request their OWN correctly-shaped sharp variant.
   const decorationAvatarHash = attribution === undefined ? null : attribution.avatarHash;
-  const decoration = skin.bubbleDecoration?.({ kind, avatarHash: decorationAvatarHash }) ?? null;
+  // The live ghost feeds bubbleDecoration the SAME no-image fallback inputs as the settled row (owner
+  // ruling 2026-07-09) so Echo reserves the identical reading padding while streaming (the tile child
+  // itself is a settled-row detail — the ghost only applies `decoration.style/className`).
+  const decoration =
+    skin.bubbleDecoration?.({
+      kind,
+      avatarHash: decorationAvatarHash,
+      ...ghostFallbackTile(attribution),
+    }) ?? null;
   const avatarNode =
     attribution === undefined
       ? null

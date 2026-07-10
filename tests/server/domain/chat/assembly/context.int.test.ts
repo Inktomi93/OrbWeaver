@@ -4,7 +4,7 @@
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptWriteSchema } from "@orb/contracts/character";
-import type { ChatInjection } from "@orb/contracts/chat";
+import type { ChatInjection, RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
@@ -89,6 +89,7 @@ interface InputOver {
   userInjections?: ChatInjection[];
   injectionTokenBudget?: number;
   hostTierRegexScripts?: RegexScript[];
+  roomOverrides?: RoomOverrides;
 }
 function inputOf(
   chatId: string,
@@ -112,6 +113,7 @@ function inputOf(
     ...(over.hostTierRegexScripts !== undefined
       ? { hostTierRegexScripts: over.hostTierRegexScripts }
       : {}),
+    ...(over.roomOverrides !== undefined ? { roomOverrides: over.roomOverrides } : {}),
   };
 }
 
@@ -425,6 +427,130 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     expect(
       cardDepthPromptWriteSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success,
     ).toBe(true);
+  });
+});
+
+// ── ROOM author's note (`roomOverrides.authorsNote`) → the ONE author's-note depth injection (task #18
+//    owner ruling, 2026-07-09): a non-empty room note OVERRIDES + SUPPRESSES the member card notes; unset ⇒
+//    the member notes flow unchanged (the regression pin). House default depth 4 / role system (bare string,
+//    no stored depth/role yet — settable-depth is task #22). ────────────────────────────────────────────
+describe("buildAssembleContext — room author's note (roomOverrides.authorsNote, task #18)", () => {
+  test("a non-empty room note injects once at the house depth 4 / role system + source 'room override'", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardWithNote("Aria", null));
+    const out = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [charId], { roomOverrides: { authorsNote: "Keep it tense." } }),
+    );
+
+    const notes = (out.chatInjections ?? []).filter((i) => i.content === "Keep it tense.");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ position: "in_chat", depth: 4, role: "system" });
+    expect(out.authorsNoteSource).toBe("room override");
+  });
+
+  test("the room note SUPPRESSES the per-member card notes (override-suppresses, no doubling)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const branId = await seedCharacter(db, host, "bran");
+    const ctx = ctxWithCards({
+      [ariaId]: cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
+      [branId]: cardWithNote("Bran", { prompt: "Bran owes a debt.", depth: 2, role: "system" }),
+    });
+    const out = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [ariaId, branId], {
+        roomOverrides: { authorsNote: "The room note wins." },
+      }),
+    );
+    const contents = (out.chatInjections ?? []).map((i) => i.content);
+
+    expect(contents).toContain("The room note wins.");
+    expect(contents).not.toContain("Aria stays cryptic.");
+    expect(contents).not.toContain("Bran owes a debt.");
+    expect(out.authorsNoteSource).toBe("room override");
+  });
+
+  test("an empty-string room note is treated as unset — member notes flow unchanged", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(
+      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
+    );
+    const out = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [charId], { roomOverrides: { authorsNote: "" } }),
+    );
+
+    const notes = (out.chatInjections ?? []).filter((i) => i.content === "Aria stays cryptic.");
+    expect(notes).toHaveLength(1);
+    expect(out.authorsNoteSource).toBe("from Aria");
+  });
+
+  test("a whitespace-only room note is treated as unset — member notes flow unchanged", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(
+      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
+    );
+    const out = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [charId], { roomOverrides: { authorsNote: "   " } }),
+    );
+
+    const notes = (out.chatInjections ?? []).filter((i) => i.content === "Aria stays cryptic.");
+    expect(notes).toHaveLength(1);
+    expect(out.authorsNoteSource).toBe("from Aria");
+  });
+
+  test("REGRESSION PIN: no roomOverrides ⇒ member notes are byte-identical to the no-room-note build", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const branId = await seedCharacter(db, host, "bran");
+    const cards = {
+      [ariaId]: cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
+      [branId]: cardWithNote("Bran", { prompt: "Bran owes a debt.", depth: 2, role: "user" }),
+    };
+    const bare = await buildAssembleContext(
+      ctxWithCards(cards),
+      inputOf(chatId, host, [ariaId, branId]),
+    );
+    const emptyRoom = await buildAssembleContext(
+      ctxWithCards(cards),
+      inputOf(chatId, host, [ariaId, branId], { roomOverrides: {} }),
+    );
+
+    expect(emptyRoom.chatInjections).toStrictEqual(bare.chatInjections);
+    expect(emptyRoom.authorsNoteSource).toBe(bare.authorsNoteSource);
+    expect(bare.authorsNoteSource).toBe("merged (present cast)");
+  });
+
+  test("{{char}} routes to the base primary + {{user}} to the active persona (room-override axis)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const branId = await seedCharacter(db, host, "bran");
+    const ctx = ctxWithCards({
+      [ariaId]: cardWithNote("Aria", null),
+      [branId]: cardWithNote("Bran", null),
+    });
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [ariaId, branId], {
+        roomOverrides: { authorsNote: "{{char}} listens as {{user}} speaks." },
+      }),
+      personas: { anchor: null, active: { name: "Nomi", description: "the traveller" } },
+    });
+
+    // {{char}} → the base primary (Aria, cast[0]); {{user}} → the active persona (Nomi), matching the
+    // host-room-override axis (assemble.ts renders room overrides against the ACTIVE persona).
+    const note = (out.chatInjections ?? []).find((i) => i.content.startsWith("Aria listens"));
+    expect(note?.content).toBe("Aria listens as Nomi speaks.");
   });
 });
 

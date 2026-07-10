@@ -35,7 +35,9 @@ describe("create", () => {
     expect(detail.greetings).toEqual([]);
     expect(detail.regexScripts).toEqual([]);
 
-    expect(h.events).toEqual([{ type: "character.updated", characterId: detail.id }]);
+    expect(h.events).toEqual([
+      { type: "character.updated", characterId: detail.id, contentChanged: true },
+    ]);
     expect(h.audits.map((a) => a.entry.action)).toContain("character.create");
   });
 

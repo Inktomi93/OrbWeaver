@@ -77,6 +77,24 @@ test("the focus toggle collapses both panels (immersive) then restores (command-
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
 });
 
+test("CONTEXT follows the active section (§4.2 rule 1): a rail switch swaps the panel body, never leaking the previous section's detail", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const panelText = (): Promise<string> => contextPanel.evaluate((el) => el.textContent ?? "");
+
+  // chats (the default active section) supplies a context slot in the story.
+  await expect.poll(panelText).toContain("chats context pane");
+
+  // Switch to corpus (no context slot) — the chats panel must be GONE (not merely hidden: the shell
+  // reads only sections[activeSection], so the stale body is unmounted) and the honest placeholder in.
+  await page.getByRole("button", { name: "Corpus" }).click();
+  await expect.poll(panelText).toContain("Select something to see its details here");
+  expect(await panelText()).not.toContain("chats context pane");
+});
+
 test("a footer modal trigger opens the paired MODAL_SLOTS dialog", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "Settings" }).click();
@@ -88,6 +106,24 @@ test("a footer modal trigger opens the paired MODAL_SLOTS dialog", async ({ moun
   // Close returns to no dialog.
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+// finalFocus (§13.8 R1 · side-eye P3): the store-driven modal mounts already-open (no DialogTrigger), so
+// ModalHost captures the trigger at open and hands it to Base UI's `finalFocus` — on Escape-close, focus
+// returns to the Settings control, not lost to <body>. A keyboard user's place is preserved.
+test("closing a modal returns focus to the control that opened it (finalFocus)", async ({
+  mount,
+  page,
+}) => {
+  const shell = await mount(<AppShellStory />);
+  const trigger = shell.getByRole("button", { name: "Settings" });
+  await trigger.focus();
+  await trigger.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });
 
 // ── No-window-scroll invariant (task #14) — registry-driven over MODAL_SLOTS ─────────────────────

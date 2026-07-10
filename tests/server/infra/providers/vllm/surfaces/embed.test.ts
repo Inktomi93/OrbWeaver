@@ -14,6 +14,7 @@ import { expect, test } from "../../../../../support/fixtures";
 
 const CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
 const MODEL = "Qwen/Qwen3-VL-Embedding" as ModelId;
+const TIMEOUT_ABORT_RE = /aborted/i;
 
 interface PostCall {
   readonly path: string;
@@ -149,5 +150,34 @@ describe("createVllmEmbed", () => {
     expect(calls).toHaveLength(0);
     expect(res.vectors).toEqual([null, null]);
     expect(res.usage).toEqual({ promptTokens: null, totalTokens: null });
+  });
+
+  // A warming/wedged engine accepts the socket but never answers. Pre-fix the surface passed the caller's
+  // (undefined) signal straight through, so this embed hung FOREVER — the "boot is hostage to the engine"
+  // trap. With the bounded request signal the abort fires and the call rejects instead of pinning.
+  test("aborts a hung engine request within the bounded timeout instead of hanging forever", async () => {
+    // enginePost that never resolves on its own — it only settles when the request signal aborts.
+    const hangingClient: VllmEngineClient = {
+      enginePost: <T>(_e: unknown, _p: string, _b: unknown, signal?: AbortSignal): Promise<T> =>
+        new Promise<T>((_resolve, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => reject(new Error("engine request aborted (timeout)")),
+            { once: true },
+          );
+        }),
+      engineStream: () => Promise.reject(new Error("embed must not stream")),
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const embed = createVllmEmbed({
+      client: hangingClient,
+      embedDim: 4,
+      chunkSize: 128,
+      concurrency: 4,
+      requestTimeoutMs: 50,
+    });
+    await expect(embed({ credential: CRED, model: MODEL, input: "hello" })).rejects.toThrow(
+      TIMEOUT_ABORT_RE,
+    );
   });
 });

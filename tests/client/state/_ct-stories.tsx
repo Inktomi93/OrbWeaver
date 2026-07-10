@@ -8,6 +8,7 @@
 
 import {
   clearCharacterSelection,
+  clearTagFilter,
   closeModal,
   commitDraft,
   goToLanding,
@@ -17,17 +18,29 @@ import {
   selectCharacter,
   selectChat,
   setActiveSection,
+  setBulkMode,
+  setCharacterSortMode,
+  setCharacterViewMode,
   setPanelMode,
   startNewChat,
+  toggleFavoritesOnly,
+  toggleShowArchived,
+  toggleTagFilter,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSection,
   useActiveSessionKey,
+  useCharacterBulkMode,
+  useCharacterSortMode,
+  useCharacterViewMode,
+  useFavoritesOnly,
   useOpenModal,
   usePanelOverride,
   useSelectedCharacterId,
+  useShowArchived,
+  useTagFilter,
 } from "@orb/client/state";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 
@@ -117,6 +130,48 @@ export function CharacterSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearCharacterSelection()}>
         clear selection
+      </button>
+    </div>
+  );
+}
+
+const PROBE_TAG = castId<TagId>("tag_ct_probe");
+
+/** Drives the character-library VIEW-PREFS store (FINAL-Character §4/§12) through its module actions and
+ *  renders every read hook — a CT asserts sort/view/filter/bulk transitions on the real persisted store
+ *  (localStorage needs a browser). */
+export function CharacterLibraryStoreProbe(): ReactElement {
+  const sort = useCharacterSortMode();
+  const view = useCharacterViewMode();
+  const favoritesOnly = useFavoritesOnly();
+  const showArchived = useShowArchived();
+  const bulk = useCharacterBulkMode();
+  const tags = useTagFilter();
+  return (
+    <div>
+      <output>
+        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.join(",") || "none"}`}
+      </output>
+      <button type="button" onClick={(): void => setCharacterSortMode("alpha")}>
+        sort alpha
+      </button>
+      <button type="button" onClick={(): void => setCharacterViewMode("categorized")}>
+        view categorized
+      </button>
+      <button type="button" onClick={(): void => toggleFavoritesOnly()}>
+        toggle favorites
+      </button>
+      <button type="button" onClick={(): void => toggleShowArchived()}>
+        toggle archived
+      </button>
+      <button type="button" onClick={(): void => setBulkMode(true)}>
+        enter bulk
+      </button>
+      <button type="button" onClick={(): void => toggleTagFilter(PROBE_TAG)}>
+        toggle tag
+      </button>
+      <button type="button" onClick={(): void => clearTagFilter()}>
+        clear tags
       </button>
     </div>
   );

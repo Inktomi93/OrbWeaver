@@ -110,9 +110,33 @@ test("radius: 'card' is a no-op (never a self-referential --radius-card: var(--r
   expect(clamped.vars["--radius-card"]).toBeUndefined();
 });
 
+test("the accent picker derives --color-primary-foreground off the picked accent (contrast flip)", () => {
+  // The accent picker sets --color-primary; its foreground must derive (not stay the static default) so
+  // a dark accent gets light text and a light accent dark text — never invisible on-button text. (#16)
+  const { vars } = clampThemeTokens({ accent: "oklch(0.3 0.1 300)" });
+  expect(vars["--color-primary-foreground"]).toContain("oklch(from oklch(0.3 0.1 300)");
+  // No accent ⇒ no derived primary-foreground (the static token shows through).
+  const noAccent = clampThemeTokens({ background: "oklch(0.2 0.01 60)" });
+  expect(noAccent.vars["--color-primary-foreground"]).toBeUndefined();
+});
+
+test("the hover/selected accent SURFACE + its foreground derive off the base (light-theme P2 fix)", () => {
+  // --color-accent joins the neutral ramp so a selected row tracks the theme; --color-accent-foreground
+  // derives off the SAME shifted L (single-level off base, not a nested relative-color). (#16)
+  const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 75)" });
+  expect(vars["--color-accent"]).toContain("oklch(from oklch(0.98 0.004 75) calc(l + 0.127)");
+  expect(vars["--color-accent-foreground"]).toContain("oklch(from oklch(0.98 0.004 75)");
+  expect(vars["--color-accent-foreground"]).toContain("l + 0.127");
+});
+
 test("unknown keys are stripped and a non-object input yields an empty map", () => {
   const { vars } = clampThemeTokens({ evil: "x", accent: "#abc" } as unknown);
-  expect(vars).toEqual({ "--color-primary": "#abc", "--color-ring": "#abc" });
+  // accent now also derives --color-primary-foreground (the contrast flip), alongside primary + ring.
+  expect(vars).toEqual({
+    "--color-primary": "#abc",
+    "--color-ring": "#abc",
+    "--color-primary-foreground": "oklch(from #abc clamp(0.22, (0.62 - l) * 1000, 0.96) 0 h)",
+  });
   expect(clampThemeTokens("nope").vars).toEqual({});
   expect(clampThemeTokens(null).vars).toEqual({});
 });

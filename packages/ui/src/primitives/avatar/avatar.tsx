@@ -6,32 +6,10 @@ import type {
 import { Avatar as BaseAvatar } from "@base-ui/react/avatar";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
+// The seed→hue math lives in `hue.ts` (EXPORTED for features painting fallback art outside this seal —
+// the immersive tiles); this seal consumes the SAME function so the two can never drift (§13.7).
+import { avatarFallbackHue } from "./hue";
 import { avatarVariants } from "./variants";
-
-// The 5 fallback hue buckets (the tuned chart-1..5 ramp) — the axis declared ONCE (Spine §7.5), the
-// string keys matching the `hue` variant in variants.ts.
-const AVATAR_HUES = ["1", "2", "3", "4", "5"] as const;
-type AvatarHue = (typeof AVATAR_HUES)[number];
-const HUE_BUCKETS = AVATAR_HUES.length;
-const DJB2_SEED = 5381;
-const DJB2_MULT = 33;
-// Reduce each step mod (2^31 - 1) so the running hash stays a bounded, exact integer (no bitwise ops,
-// no float-precision drift) while remaining well-mixed across the 5 buckets.
-const HASH_MOD = 2_147_483_647;
-
-/**
- * Deterministic per-entity fallback hue (D62): hash the stable seed → one of the 5 chart hues, so a
- * given character/persona ALWAYS resolves to the same fallback color. A tiny djb2-style polynomial
- * string hash — pure and deterministic (no PRNG, no bitwise, gate-clean) — folded into the 5-bucket
- * range. An empty seed still resolves stably (bucket 1), so a fallback is never uncolored.
- */
-function hashHue(seed: string): AvatarHue {
-  let h = DJB2_SEED;
-  for (const ch of seed) {
-    h = (h * DJB2_MULT + ch.charCodeAt(0)) % HASH_MOD;
-  }
-  return String((h % HUE_BUCKETS) + 1) as AvatarHue;
-}
 
 export interface AvatarProps
   extends Omit<BaseRootProps, "className">,
@@ -83,7 +61,13 @@ export function Avatar(props: AvatarProps): ReactElement {
     onLoadingStatusChange,
     ...rest
   } = props;
-  const slots = avatarVariants({ size, shape, aspect, ring, hue: hashHue(hueSeed ?? alt) });
+  const slots = avatarVariants({
+    size,
+    shape,
+    aspect,
+    ring,
+    hue: avatarFallbackHue(hueSeed ?? alt),
+  });
   return (
     <BaseAvatar.Root className={slots.root({ className })} data-slot="avatar-root" {...rest}>
       {src === undefined ? null : (

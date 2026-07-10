@@ -32,7 +32,9 @@ describe("update", () => {
 
     expect(updated.description).toBe("after");
     expect(updated.contentHash).not.toBe(created.contentHash);
-    expect(h.events).toEqual([{ type: "character.updated", characterId: created.id }]);
+    expect(h.events).toEqual([
+      { type: "character.updated", characterId: created.id, contentChanged: true },
+    ]);
   });
 
   test("null clears a nullable field; omitted fields are kept", async () => {
@@ -82,21 +84,29 @@ describe("update", () => {
     expect(h.audits).toEqual([]);
   });
 
-  test("the starred flag is updated without touching card content", async () => {
+  test("a starred-flag edit changes no card content and emits a no-content-change event", async () => {
     const db = await freshDb();
-    const svc = createCharacterService(makeHarness(db).ctx);
+    const h = makeHarness(db);
+    const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: "owner" });
     const created = await svc.create({
       principal: principal(owner),
       input: { handle: "nyx", name: "Nyx", description: "d" },
     });
+    h.events.length = 0;
+
     const updated = await svc.update({
       principal: principal(owner),
       characterId: created.id,
       input: { starred: true },
     });
+
     expect(updated.starred).toBe(true);
     expect(updated.contentHash).toBe(created.contentHash);
+    // The emit stamps contentChanged=false → the embeddings indexer skips re-embedding a star toggle.
+    expect(h.events).toEqual([
+      { type: "character.updated", characterId: created.id, contentChanged: false },
+    ]);
   });
 
   test("updating another user's character throws CharacterNotFoundError", async () => {

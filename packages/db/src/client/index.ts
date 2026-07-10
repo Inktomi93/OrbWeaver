@@ -5,7 +5,9 @@
 // (the cake), so `server/observability` passes its wrapper IN at `createDb`. node:fs/node:url are
 // sanctioned here for the NON-OPTIONAL pre-migration backup (Tier-1-DB.md "backupBeforeMigrate").
 
-import { copyFileSync, existsSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, existsSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient } from "@libsql/client";
@@ -125,6 +127,107 @@ export async function assertReferentialIntegrity(db: Db): Promise<void> {
     throw new Error(
       `@orb/db: foreign_key_check found ${violations.length} orphan FK row(s) after migration — aborting. First: ${JSON.stringify(violations[0])}`,
     );
+  }
+}
+
+/**
+ * The pre-launch baseline drift check. Compares what THIS db recorded in `__drizzle_migrations` (the
+ * `hash` + `created_at` = folderMillis drizzle's own migrator writes) against the shipped
+ * `0000_baseline.sql` (sha256 of the file + the journal `when`), computed identically to drizzle so a
+ * byte-identical baseline compares equal. Pre-launch the schema is ONE regenerated baseline (the
+ * `baseline-single-migration` gate enforces it), so any drift means the baseline was regenerated since
+ * this db was built — drizzle would then RE-APPLY it over existing tables and die on a "table already
+ * exists" error. `entry/boot/migrate.ts` reads this to decide reset-vs-fatal.
+ */
+export type BaselineCheck =
+  | { readonly status: "fresh" }
+  | { readonly status: "current" }
+  | { readonly status: "regenerated"; readonly appliedHash: string; readonly currentHash: string };
+
+/** The most-recently-applied migration's (hash, folderMillis), or undefined when `__drizzle_migrations`
+ *  doesn't exist / has no rows (a fresh db). Columns are read off a `Record` (not typed literals) to
+ *  sidestep the biome⇄tsc snake_case literal-key friction. */
+async function readAppliedBaseline(
+  db: Db,
+): Promise<{ hash: string; folderMillis: number } | undefined> {
+  const present = await db.all<Record<string, unknown>>(
+    sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'`,
+  );
+  if (present.length === 0) {
+    return;
+  }
+  const rows = await db.all<Record<string, unknown>>(
+    sql`SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC LIMIT 1`,
+  );
+  const row = rows[0];
+  if (row === undefined) {
+    return;
+  }
+  return { hash: String(row["hash"]), folderMillis: Number(row["created_at"]) };
+}
+
+// The shipped baseline's identity, computed EXACTLY as drizzle's `readMigrationFiles` records it: sha256
+// of the raw `<tag>.sql` bytes + the journal entry's `when`. Pre-launch the journal holds one entry (the
+// baseline); `.at(-1)` reads it without hard-coding the tag.
+function shippedBaselineIdentity(migrationsFolder: string): { hash: string; folderMillis: number } {
+  const journal = JSON.parse(
+    readFileSync(join(migrationsFolder, "meta", "_journal.json"), "utf-8"),
+  ) as { entries?: readonly { readonly when: number; readonly tag: string }[] };
+  const entry = journal.entries?.at(-1);
+  if (entry === undefined) {
+    throw new Error(
+      "@orb/db: migrations journal has no entries — cannot compute baseline identity",
+    );
+  }
+  const sqlText = readFileSync(join(migrationsFolder, `${entry.tag}.sql`), "utf-8");
+  return { hash: createHash("sha256").update(sqlText).digest("hex"), folderMillis: entry.when };
+}
+
+/** Classify this db against the shipped baseline (see {@link BaselineCheck}). */
+export async function checkBaseline(db: Db, migrationsFolder: string): Promise<BaselineCheck> {
+  const applied = await readAppliedBaseline(db);
+  if (applied === undefined) {
+    return { status: "fresh" };
+  }
+  const shipped = shippedBaselineIdentity(migrationsFolder);
+  if (applied.hash === shipped.hash && applied.folderMillis === shipped.folderMillis) {
+    return { status: "current" };
+  }
+  return { status: "regenerated", appliedHash: applied.hash, currentHash: shipped.hash };
+}
+
+// The order objects are dropped in: dependents (triggers/views/indexes) before the tables they hang off,
+// so a `DROP TABLE` can't be blocked by / silently orphan a dependent. `IF EXISTS` absorbs the case where
+// a table drop already cascaded its own indexes/triggers away.
+const RESET_DROP_ORDER = ["trigger", "view", "index", "table"] as const;
+
+/**
+ * Full pre-launch dev-db reset on the OPEN client (the ONE connection — no file-deletion race): drop
+ * EVERY user object (tables/views/triggers/indexes, INCLUDING `__drizzle_migrations`) with FK enforcement
+ * toggled OFF on the connection for the duration. Internal `sqlite_%` objects (autoindexes, sequence,
+ * stat tables) are managed by SQLite and left alone. Dropping `__drizzle_migrations` too means the very
+ * next `runMigrations` re-applies the fresh baseline from a clean bookkeeping slate. Called ONLY by the
+ * boot migrate step when {@link checkBaseline} reports `regenerated` and the db is not launched.
+ */
+export async function resetDevDatabase(db: Db): Promise<void> {
+  await db.run(sql`PRAGMA foreign_keys = OFF`);
+  try {
+    const objects = await db.all<Record<string, unknown>>(
+      sql`SELECT type, name FROM sqlite_master
+          WHERE type IN ('trigger', 'view', 'index', 'table') AND name NOT LIKE 'sqlite_%'`,
+    );
+    // One DDL script over the ONE connection (libSQL `executeMultiple`) rather than a per-object
+    // round-trip loop — a single teardown, not an N+1 read path.
+    const script = RESET_DROP_ORDER.flatMap((kind) =>
+      objects
+        .filter((o) => o["type"] === kind)
+        .map((o) => `DROP ${kind} IF EXISTS "${String(o["name"])}";`),
+    ).join("\n");
+    if (script.length > 0) {
+      await clientOf(db).executeMultiple(script);
+    }
+  } finally {
+    await db.run(sql`PRAGMA foreign_keys = ON`);
   }
 }
 
