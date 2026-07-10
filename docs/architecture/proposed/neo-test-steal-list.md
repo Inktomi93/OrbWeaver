@@ -14,7 +14,8 @@
 > landed with their registry rows.
 >
 > **STILL OPEN after the fork:** **N2 in full** (e2e is still ONE spec — the five ports incl.
-> multi-tab-sync remain the largest unclaimed win) · N3 #6 (rate-limiter inversion) + #7
+> multi-tab-sync remain the largest unclaimed win) · ~~N3 #6~~ (rate-limiter inversion — the
+> full-coverage sweep 2026-07-10 found the bucket-inversion failsafe test EXISTS; done) · N3 #7
 > (historyTruncated/prune verify) · N1's provider-routing passthrough pin · the harness
 > conversion sweep + kitchen-sink stress suite · and from test-quality-review\.md: **R1
 > (`markdown/policy.ts` hostile-input suite — the P0 — still zero tests)**, R3 stats real-wire

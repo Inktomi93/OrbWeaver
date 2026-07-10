@@ -133,10 +133,11 @@ Owner's question, audited three ways. **Mechanical tier:** cross-corpus jscpd (p
 one run, 40-token floor, 1,776 clones) found **ZERO clones crossing the tests↔packages boundary**;
 the shadow-symbol scan (4,313 prod exports vs every test-local declaration) found 19 hits / 4
 symbols, all benign (the `seedOwner` name-collision → W1f; `cardOf` builds literals where prod
-projects rows). **Semantic tier:** \~120 files audited across chat engine/assembly, all domains,
-db/schema, kit, infra, support, entry, transport — classifying every expectation's provenance as
-LITERAL · ROUNDTRIP/INVARIANT · INDEPENDENT-REFERENCE · REBUILT (private re-implementation, drift
-risk) · TAUTOLOGY (expected computed by the code under test).
+projects rows). **Semantic tier — FULL COVERAGE (2026-07-10): every one of the 874 test files was
+read line-by-line** (12 flat agents, disjoint manifests, union verified = the whole tree; per-file
+ledgers archived per slice) — classifying every expectation's provenance as LITERAL ·
+ROUNDTRIP/INVARIANT · INDEPENDENT-REFERENCE · REBUILT (private re-implementation, drift risk) ·
+TAUTOLOGY (expected computed by the code under test).
 
 **Verdict: the tree already follows "real code drives, never decides."** Setup/execution goes
 through real db/verbs/services; expectations are overwhelmingly hand-derived literals (often with
@@ -158,10 +159,23 @@ reference** (different construction, self-verified against the published check v
 trusted). These are "rewriting the logic again" as a WEAPON — deliberately not-in-lockstep so
 divergence screams.
 
-**Total fix list (tiny):** R8 — delete/repin `result.test.ts`'s tautology + convert the workloads
-doc-assertion to a comment + two annotation comments (pair-cosine's CSLS literal must say it
-deliberately mirrors the formula so nobody "simplifies" it into a real call; smart-arbitrate's
-loose eligible-member assertions must say the looseness is intentional). All mech-executor grade.
+**Full-coverage additions (the sweep's complete new-finding list — three items across 874
+files):** two TAUTOLOGIES in `tests/server/domain/embeddings/contract/params.contract.test.ts`
+(L44–86, L88–118 — the `DigestStoreParams`/`SegmentStoreParams` "shape pin" blocks assert fields
+of a hand-built literal against itself, no production call in the loop; the same file's
+SOURCE\_KINDS/TEXT\_LENSES constant checks are clean) · one mitigated REBUILT in
+`tests/ui/content/theme-scope/palette-contrast.suite.test.ts` (L74–83 hand-mirrors clamp.ts's
+derivation formula shape; drift is fenced by `clamp.test.ts`'s byte-exact output pin — annotate,
+don't rewrite). Positive signal worth recording: the newest suites (cross-tenant IDOR sweep,
+drift-gate, batch-atomicity, touch-target-floor) were independently graded exemplary, several
+carrying explicit NON-VACUITY controls (a positive control proving the guard path fires before
+the negative assert is trusted) — that control pattern is worth naming in Spine-Testing when its
+clock paragraph gets fixed (§3).
+
+**Total fix list (tiny):** R8 — delete/repin `result.test.ts`'s tautology + fix the two embeddings
+shape-pin tautologies (parse through the real zod params schema, or delete) + convert the
+workloads doc-assertion to a comment + three annotation comments (pair-cosine CSLS ·
+smart-arbitrate looseness · palette-contrast formula mirror). All mech-executor grade.
 
 ## 8. Dispatch queue
 
