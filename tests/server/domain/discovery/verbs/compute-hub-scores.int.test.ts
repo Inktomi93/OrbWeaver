@@ -78,6 +78,53 @@ describe("computeCharacterHubScores", () => {
       byId.get("character_embedding_character_b"),
     );
   });
+
+  // The owner ruling: csls analyzes YOUR OWN library only — owner B's vectors NEVER enter owner A's hubness.
+  test("SINGULAR csls scores ONLY the caller's own library (B's vectors never touched)", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "user_a");
+    const b = await seedUser(db, "user_b");
+    const ca = await seedCharacter(db, { id: "character_a", ownerId: a });
+    const cb = await seedCharacter(db, { id: "character_b", ownerId: b });
+    // Same space (default model), near-identical vectors — a cross-tenant read would mingle them.
+    await seedCharacterEmbedding(db, { characterId: ca, embedding: vec(1, 0), contentHash: "ha" });
+    await seedCharacterEmbedding(db, { characterId: cb, embedding: vec(1, 0), contentHash: "hb" });
+
+    const hubScores = makeHubScoreRecorder();
+    const svc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores }).ctx);
+    const stats = await svc.computeCharacterHubScores({ ownerId: a });
+
+    // Only A's ONE row is scored — B's is never written (B's vectors never entered A's hub space).
+    expect(stats.rowsScored).toBe(1);
+    const scoredIds = [...hubById(hubScores).keys()];
+    expect(scoredIds).toEqual(["character_embedding_character_a"]);
+    expect(scoredIds).not.toContain("character_embedding_character_b");
+  });
+
+  // BULK csls is a per-owner FAN-OUT — every owner's hubness computed SEPARATELY, never one cross-tenant read.
+  test("BULK csls fans out per owner (each owner's library scored in its own pass)", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "user_a");
+    const b = await seedUser(db, "user_b");
+    const ca = await seedCharacter(db, { id: "character_a", ownerId: a });
+    const cb = await seedCharacter(db, { id: "character_b", ownerId: b });
+    await seedCharacterEmbedding(db, { characterId: ca, embedding: vec(1, 0), contentHash: "ha" });
+    await seedCharacterEmbedding(db, { characterId: cb, embedding: vec(1, 0), contentHash: "hb" });
+
+    const hubScores = makeHubScoreRecorder();
+    const svc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores }).ctx);
+    const stats = await svc.computeCharacterHubScores(); // no ownerId → fan-out
+
+    // Both owners scored, but in SEPARATE per-owner passes (one writeHubScores call each — never a single
+    // cross-tenant read/write).
+    expect(stats.rowsScored).toBe(2);
+    expect(hubScores.calls).toHaveLength(2);
+    const scoredIds = [...hubById(hubScores).keys()].sort();
+    expect(scoredIds).toEqual([
+      "character_embedding_character_a",
+      "character_embedding_character_b",
+    ]);
+  });
 });
 
 describe("computeDigestHubScores", () => {

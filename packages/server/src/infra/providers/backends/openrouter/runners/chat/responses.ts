@@ -18,6 +18,7 @@ import type {
   StreamEvents,
 } from "@openrouter/sdk/models";
 import type { ChatContentPart } from "@orb/contracts/chat";
+import type { Verbosity } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type {
@@ -46,6 +47,7 @@ import { withContextCompressionPlugin } from "./context-compression";
 import type { OpenRouterChatDeps } from "./shared";
 import {
   buildReasoningRequest,
+  emitSamplingReceipt,
   isMandatoryReasoningRejection,
   joinSystemPrompt,
   mergeCustomParameters,
@@ -146,16 +148,30 @@ function buildResponsesToolChoice(choice: ToolChoice): OpenAIResponsesToolChoice
   return choice.mode;
 }
 
-// `responseFormat` → the responses `text.format` json_schema spelling (tool-use-design/04 §3).
-function buildResponsesTextFormat(format: ResponseFormat): ResponsesRequest["text"] {
+// The responses `text` block (tool-use-design/04 §3 format + D68-B verbosity — the ONE wire home for the
+// verbosity knob; the OR `ChatRequest` has no such field, SDK 0.13.19). Emits `format` (the json_schema
+// response-format spelling) and/or `verbosity` — only the halves that are set. Returns `undefined` when
+// neither is present so a plain turn stays byte-identical to pre-D68 (no empty `text: {}`).
+function buildResponsesText(
+  format: ResponseFormat | undefined,
+  verbosity: Verbosity | undefined,
+): ResponsesRequest["text"] {
+  if (format === undefined && verbosity === undefined) {
+    return;
+  }
   return {
-    format: {
-      type: "json_schema",
-      name: format.name,
-      schema: { ...format.schema },
-      strict: format.strict ?? true,
-      ...(format.description !== undefined ? { description: format.description } : {}),
-    },
+    ...(format !== undefined
+      ? {
+          format: {
+            type: "json_schema",
+            name: format.name,
+            schema: { ...format.schema },
+            strict: format.strict ?? true,
+            ...(format.description !== undefined ? { description: format.description } : {}),
+          },
+        }
+      : {}),
+    ...(verbosity !== undefined ? { verbosity } : {}),
   };
 }
 
@@ -178,6 +194,7 @@ function buildResponsesBody(
   const instructions = joinSystemPrompt(req.systemPrompt);
   const provider = resolveProviderPreferences(req.model, req.providerRouting);
   const reasoningBlock = effortToResponsesReasoning(buildReasoningRequest(resolved.reasoning));
+  const text = buildResponsesText(req.responseFormat, resolved.verbosity);
   const owned: ResponsesRequest = {
     model: req.model,
     input: buildResponsesInput(req.history),
@@ -193,6 +210,9 @@ function buildResponsesBody(
       ? { temperature: resolved.sampling.temperature }
       : {}),
     ...(resolved.sampling.topP !== undefined ? { topP: resolved.sampling.topP } : {}),
+    // The already-RESOLVED topK rider (D68 §1) — `ResponsesRequest.topK` exists; the runner mapped only
+    // temperature/topP before. resolve-chat already capability-gated it.
+    ...(resolved.sampling.topK !== undefined ? { topK: resolved.sampling.topK } : {}),
     ...(resolved.maxOutputTokens !== undefined
       ? { maxOutputTokens: resolved.maxOutputTokens }
       : {}),
@@ -204,9 +224,9 @@ function buildResponsesBody(
     ...(req.toolChoice !== undefined
       ? { toolChoice: buildResponsesToolChoice(req.toolChoice) }
       : {}),
-    ...(req.responseFormat !== undefined
-      ? { text: buildResponsesTextFormat(req.responseFormat) }
-      : {}),
+    // The responses `text` block carries BOTH the json_schema format AND the D68-B verbosity — this is the
+    // ONE OR wire that has a verbosity field. Emitted only when either half is set (else absent).
+    ...(text !== undefined ? { text } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
   return mergeCustomParameters(owned, req.customParameters);
@@ -493,6 +513,7 @@ export async function runResponsesTurn(
   });
   // Surface resolve-chat's dropped/ignored-knob notes as `warning` events (the mapper returns `events:[]`,
   // so they merge in here) and fire `onEvent` for each — never silently dropped.
+  emitSamplingReceipt(req.params, resolved);
   const warnings = warningEvents(resolved.warnings, deps.now());
   for (const event of warnings) {
     req.onEvent?.(event);

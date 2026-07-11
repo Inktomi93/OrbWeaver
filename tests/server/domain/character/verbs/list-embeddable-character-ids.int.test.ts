@@ -41,4 +41,24 @@ describe("listEmbeddableCharacterIds", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     expect(await svc.listEmbeddableCharacterIds()).toEqual([]);
   });
+
+  test("ownerId scopes the sweep to ONE owner (the workloads SINGULAR embed pass)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const alice = await seedUser(db, { handle: "alice" });
+    const bob = await seedUser(db, { handle: "bob" });
+    const aliceCard = await svc.create({
+      principal: principal(alice),
+      input: { handle: "aria", name: "Aria", description: "a curious traveler" },
+    });
+    await svc.create({
+      principal: principal(bob),
+      input: { handle: "bram", name: "Bram", description: "a grumpy blacksmith" },
+    });
+
+    // Alice's singular sweep sees ONLY her card — never bob's.
+    expect(await svc.listEmbeddableCharacterIds(alice)).toEqual([aliceCard.id]);
+    // null = the whole-corpus bulk sweep (both owners).
+    expect((await svc.listEmbeddableCharacterIds(null)).length).toBe(2);
+  });
 });

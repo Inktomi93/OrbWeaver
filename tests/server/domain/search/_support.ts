@@ -7,6 +7,7 @@
 // character_summaries / assets) directly — a test fixture may read/seed `users` (the `no-direct-users-read`
 // gate scopes only `packages/server/src/domain`).
 
+import type { ImageLens } from "@orb/contracts/embeddings";
 import type {
   EmbedResult,
   ImageEmbedResult,
@@ -26,9 +27,11 @@ import {
   characterEmbeddings,
   characterSummaries,
   characters,
+  chatDigestSpeakers,
   chatDigests,
   chatSegments,
   chats,
+  imageEmbeddings,
 } from "@orb/db";
 import type {
   AssetId,
@@ -38,6 +41,7 @@ import type {
   ChatId,
   ChatSegmentId,
   Handle,
+  ImageEmbeddingId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -55,6 +59,8 @@ const FROZEN_AT = FROZEN_AT_MS;
 export const VECTOR_DIM = 1024;
 /** The default embed model the harness scopes the scan to (the `(model, dim)` space tag). */
 export const EMBED_MODEL = "test-embed-model-1024";
+/** The default IMAGE-embed model the harness scopes the cross-modal `images` scan to. */
+export const IMAGE_EMBED_MODEL = "test-image-embed-model-1024";
 
 /** Build a 1024-dim vector with the given leading components (the rest zero) — enough for deterministic
  *  cosine ranking (e.g. `vec(1)` vs `vec(0, 1)` are orthogonal; `vec(1)` matches `vec(1)` exactly). */
@@ -69,17 +75,23 @@ export function vec(...components: readonly number[]): Float32Array<ArrayBuffer>
 export interface FakeRoleClientControls {
   /** Map the query string → its embedding (null = the embedder filtered it ⇒ empty-query path). */
   readonly embedVector?: (input: string) => Float32Array<ArrayBuffer> | null;
+  /** Map the text→image query string → its embedding in the IMAGE space (null = empty-query path). Only
+   *  the `kind: "text"` cross-modal path is exercised by the `images` verb. */
+  readonly imageEmbedVector?: (input: string) => Float32Array<ArrayBuffer> | null;
   /** The rerank impl — default returns documents in their incoming order (descending score). Override to
    *  script a custom reorder, or to reject with a not-supported throw (PD-11). */
   readonly rerank?: RoleClients["rerank"];
   readonly embedModel?: string;
+  readonly imageEmbedModel?: string;
 }
 
 /** A scripted `RoleClients` — only `embed` / `rerank` matter to search; the other roles are never called
  *  in the W2 core (typed stubs so the bundle satisfies the interface). */
 export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients {
   const embedModel = controls.embedModel ?? EMBED_MODEL;
+  const imageEmbedModel = controls.imageEmbedModel ?? IMAGE_EMBED_MODEL;
   const embedVector = controls.embedVector ?? ((): Float32Array<ArrayBuffer> => vec(1));
+  const imageEmbedVector = controls.imageEmbedVector ?? ((): Float32Array<ArrayBuffer> => vec(1));
 
   const rerank: RoleClients["rerank"] =
     controls.rerank ??
@@ -100,21 +112,32 @@ export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): Role
       });
     },
     rerank,
-    imageEmbed: (_req: ImageEmbedInput): Promise<ImageEmbedResult> =>
-      Promise.resolve({ vectors: [], model: "test-image-embed-model" }),
+    imageEmbed: (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
+      // Only the cross-modal text→image path (`kind: "text"`) is exercised by `images`.
+      const texts = req.kind === "text" && !Array.isArray(req.input) ? [req.input] : [];
+      return Promise.resolve({
+        vectors: texts.map((t) => imageEmbedVector(t)),
+        model: imageEmbedModel,
+      });
+    },
     summarize: (_inputs: SummarizeInput[]): Promise<SummarizeResult> =>
       Promise.resolve({ items: [], model: "test-summarize-model" }),
     embedModel,
     rerankModel: "test-rerank-model",
-    imageEmbedModel: "test-image-embed-model",
+    imageEmbedModel,
     summarizerModel: "test-summarize-model",
     summarizerContextTokens: 32_000,
   };
 }
 
-/** Build the search service over a real db + a scripted role-clients bundle. */
-export function makeSearch(db: Db, controls?: FakeRoleClientControls): SearchService {
-  const ctx: SearchContext = { db, roleClients: makeFakeRoleClients(controls) };
+/** Build the search service over a real db + a scripted role-clients bundle + the frozen clock. `now` is
+ *  overridable so the lexical-index TTL-freshness path can be exercised deterministically. */
+export function makeSearch(
+  db: Db,
+  controls?: FakeRoleClientControls,
+  now: () => number = (): number => FROZEN_AT_MS,
+): SearchService {
+  const ctx: SearchContext = { db, roleClients: makeFakeRoleClients(controls), now };
   return createSearchService(ctx);
 }
 
@@ -136,6 +159,8 @@ interface SeedCharacterOverrides {
   readonly name?: string;
   readonly description?: string | null;
   readonly avatarAssetId?: AssetId | null;
+  /** The hidden group-memory identity (`__group__<chatId>`) — excluded from `discover`/`similarArt` credit. */
+  readonly synthetic?: boolean;
 }
 
 /** Insert a flat `characters` row (the producer the card embedding + summary FK to). */
@@ -150,11 +175,22 @@ export async function seedCharacter(
     ownerId: overrides.ownerId,
     name: overrides.name ?? "Seed",
     description: overrides.description ?? null,
+    synthetic: overrides.synthetic ?? false,
     contentHash: "seed_content_hash",
     avatarAssetId: overrides.avatarAssetId ?? null,
     createdAt: FROZEN_AT,
   });
   return id;
+}
+
+/** Insert a `chat_digest_speakers` row (a digest CONTAINS this character — the co-star credit join
+ *  `resolveSegmentDisplay` expands for group blocks). */
+export async function seedChatDigestSpeaker(
+  db: Db,
+  digestId: ChatDigestId,
+  characterId: CharacterId,
+): Promise<void> {
+  await db.insert(chatDigestSpeakers).values({ digestId, characterId });
 }
 
 interface SeedCharacterEmbeddingOverrides {
@@ -226,6 +262,39 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
     size: 1,
     hash: overrides.hash ?? "hash_a",
     uploadedAt: FROZEN_AT,
+  });
+  return id;
+}
+
+interface SeedImageEmbeddingOverrides {
+  readonly id?: string;
+  readonly assetId: AssetId;
+  readonly embedding: Float32Array;
+  readonly lens?: ImageLens;
+  readonly caption?: string | null;
+  readonly hubScore?: number | null;
+  readonly model?: string;
+  readonly contentHash?: string;
+}
+
+/** Insert an `image_embeddings` row (the cross-modal lens the `images` verb scans; D34 lens axis). */
+export async function seedImageEmbedding(
+  db: Db,
+  o: SeedImageEmbeddingOverrides,
+): Promise<ImageEmbeddingId> {
+  const lens: ImageLens = o.lens ?? "image-captioned";
+  const id = castId<ImageEmbeddingId>(o.id ?? `image_embedding_${o.assetId}_${lens}`);
+  await db.insert(imageEmbeddings).values({
+    id,
+    assetId: o.assetId,
+    embedding: o.embedding,
+    lens,
+    caption: o.caption ?? null,
+    contentHash: o.contentHash ?? `image_hash_${o.assetId}`,
+    hubScore: o.hubScore ?? null,
+    model: o.model ?? IMAGE_EMBED_MODEL,
+    dim: VECTOR_DIM,
+    createdAt: FROZEN_AT,
   });
   return id;
 }

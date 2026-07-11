@@ -16,11 +16,9 @@ export function createGetModelCapability(
 ): ConnectionService["getModelCapability"] {
   return (params: GetModelCapabilityParams): Promise<ModelCapability> =>
     Promise.resolve(
-      resolveCapability(
-        params.model,
-        params.source,
-        getCachedOrModels(ctx.now()),
-        getCachedAgentSdkModels(ctx.now()),
-      ),
+      resolveCapability(params.model, params.source, params.api, {
+        cached: getCachedOrModels(ctx.now()),
+        agentSdkModels: getCachedAgentSdkModels(ctx.now()),
+      }),
     );
 }

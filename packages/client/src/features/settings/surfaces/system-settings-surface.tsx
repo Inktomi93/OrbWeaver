@@ -34,7 +34,8 @@ import {
   useSystemSettingsForm,
 } from "../hooks/use-system-settings-form";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
-import { SYSTEM_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
+import { SYSTEM_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { settingsAnchorId } from "../lib/settings-nav-model";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
 import {
   CONCURRENCY_MIN,
@@ -215,6 +216,26 @@ function SystemForm(): ReactElement {
                 label="Members may use the hosted subscription"
                 description="Let non-owner members drive your hosted max/pro subscription (ban-prone + real money). Off by default; only the box owner can change this."
                 disabled={ownerOnly}
+              />
+            )}
+          </form.AppField>
+        </Section>
+
+        <Section divider={true} heading="Multi-user" id={anchor(SYSTEM_SUBCATEGORY_IDS.multiUser)}>
+          <form.AppField name="localMultiUser">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Allow multiple humans (local mode)"
+                description="Let additional humans be invited and seated in rooms on a local-mode install. Off = single-human (multi-character chats always work). No effect outside local mode. Owner-only."
+                disabled={ownerOnly}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="discreetLogin">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Discreet login"
+                description="Show a blank sign-in form — no handle pre-fill on the login page (no account enumeration)."
               />
             )}
           </form.AppField>

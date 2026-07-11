@@ -17,6 +17,6 @@ export const computeThemesRunner: Runner<"compute-themes"> = async (
   const settings = await ctx.loadUserSettings();
   const k = params.k ?? settings.workloads.computeThemesK ?? DEFAULT_THEME_K;
   report({ message: `computing ${k} themes` });
-  const result = await ctx.env.discovery.computeThemes({ k, signal });
+  const result = await ctx.env.discovery.computeThemes({ ownerId: ctx.ownerId, k, signal });
   return { scanned: result.scanned, written: result.written };
 };

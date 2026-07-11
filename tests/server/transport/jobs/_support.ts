@@ -39,6 +39,7 @@ export function makeRow(
     id: overrides.id ?? castId<WorkloadId>("workload_1"),
     kind: "reconcile-stats",
     status: overrides.status ?? "queued",
+    mode: "bulk",
     ownerId: overrides.ownerId ?? null,
     dependsOn: null,
     error: null,

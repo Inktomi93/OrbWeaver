@@ -4,7 +4,7 @@
 import { describe, vi } from "vitest";
 import { importStRunner } from "../../../../../packages/server/src/domain/workloads/runners/import-st.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerContext } from "../_support.ts";
+import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 
 describe("import-st runner", () => {
   test("imports and reconciles stats post-import (real run with changes)", async () => {
@@ -16,6 +16,7 @@ describe("import-st runner", () => {
       new AbortController().signal,
     );
     expect(env.import.importAll).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       dryRun: false,
       signal: expect.any(AbortSignal),
     });

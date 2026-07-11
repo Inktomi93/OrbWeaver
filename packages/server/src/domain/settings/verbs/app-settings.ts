@@ -20,14 +20,17 @@ interface AppSettingsVerbs {
   readonly updateAppSettings: (params: UpdateAppSettingsParams) => Promise<EffectiveAppConfig>;
 }
 
-// The D17 owner-box governance fields — flipping any of these requires the box OWNER (not a delegated
+// The owner-box governance fields — flipping any of these requires the box OWNER (not a delegated
 // admin). `satisfies readonly (keyof AppSettings)[]` makes a rename/typo fail `tsc` (born-compliant).
+// `localMultiUser` joins the D17 trio (FINAL-Auth-Modes §9): opening the box to ADDITIONAL HUMANS is
+// whose-box-is-it authority — "until the OWNER flips the toggle" — not delegated-admin surface.
 const OWNER_GATED_FIELDS = [
   "allowNonOwnerLocalCompute",
   // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
   "nonOwnerLocalComputeBudget",
   // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
   "allowNonOwnerMaxProSub",
+  "localMultiUser",
 ] as const satisfies readonly (keyof AppSettings)[];
 
 /** Does this PATCH touch a governance field? Key-presence (even an explicit `null` clear is a governance

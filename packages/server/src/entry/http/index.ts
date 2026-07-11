@@ -3,6 +3,8 @@
 // cookie helpers from here, never an internal file (the directory-module rule). These compose domain front
 // doors + infra + the auth seam — they own no business logic (entry invariant #1).
 
+export type { AuthMetaDeps } from "./auth-meta";
+export { registerAuthMeta } from "./auth-meta";
 export type {
   AuthRoutesDeps,
   AuthSessionsPort,
@@ -24,6 +26,8 @@ export type { ExportDeps } from "./export";
 export { registerExport } from "./export";
 export type { HealthzDeps } from "./healthz";
 export { registerHealthz } from "./healthz";
+export type { JoinDeps } from "./join";
+export { registerJoin } from "./join";
 export { securityHeaders } from "./security-headers";
 export type { UploadAssetsPort, UploadDeps } from "./upload";
 export { registerUpload } from "./upload";

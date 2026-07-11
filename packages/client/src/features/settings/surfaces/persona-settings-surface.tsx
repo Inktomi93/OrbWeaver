@@ -29,7 +29,8 @@ import { useId, useRef } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { notify, useFocusOnMount } from "#lib";
-import { PERSONA_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
+import { PERSONA_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { settingsAnchorId } from "../lib/settings-nav-model";
 
 interface PersonaPrefsPatchVars {
   readonly section: "persona";

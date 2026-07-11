@@ -1,12 +1,13 @@
 // domain/buddy/contract/signals — the reaction engine's normalized event vocab (the observer maps raw
 // app events → ONE `BuddySignal` the reactor consumes). DOMAIN-INTERNAL (not cross-boundary): the type
-// lives here per §7.4. The pure signal BUILDERS (`workloadSignal`/`chatSignal`/…) belong with the
-// subsystem that uses them (`observer/signals.ts`, proposed/buddy-observer-reaction-engine.md) — FLAG[PD-64].
+// lives here per §7.4. This file is TYPES-ONLY: the pure signal BUILDERS (`workloadSignal`/`chatSignal`/
+// `traceSignal`/`presenceSignal`/`bucket5m`) live with the subsystem that uses them —
+// `observer/signals.ts` — per PD-64 (RESOLVED with the observer build, PD-45).
 //
 // §7.5: `BuddySignalKind` is the ONE importable canonical union (12 members). The mood/stat maps in
 // `substrate/mood.ts` are `Record<BuddySignalKind, …>` so a new kind fails `tsc`
-// (exhaustive-dispatch). Consumed today by the pure mood machine; the live reactor that emits these is the
-// DEFERRED observer subsystem (FLAG[PD-45, PD-64]) (it reacts to chat/workload buses that do not exist before chat, D38).
+// (exhaustive-dispatch). Consumed by the pure mood machine + the live reactor (`observer/react.ts`) that the
+// observer subsystem emits these onto (it reacts to the chat/workload buses that land with chat, D38).
 
 import type { UserId } from "@orb/kit/ids";
 

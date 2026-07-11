@@ -4,8 +4,9 @@
 // buddy call. This is the seam the three backend agents fulfill WITHOUT touching the role firewall.
 //
 // THE TWO SEALED AXES (infra-internal, never leak to a domain — providers.md §7.5):
-//   • BackendKey (BACKEND_KEYS) — the `runner` axis: `agent-sdk | openrouter | vllm | local-light |
-//     custom-openai`. Derived inside providers from {api, source} via `deriveRunner` / `backendForSource`;
+//   • BackendKey (BACKEND_KEYS) — the `runner` axis: `agent-sdk | anth-direct | openrouter | vllm |
+//     local-light | custom-openai`. Derived inside providers from {api, source} via `deriveRunner` /
+//     `backendForSource`;
 //     a domain never names it. NOT a `@orb/contracts` union (the runner axis stays infra-sealed entirely).
 //   • ProviderRole (PROVIDER_ROLES) — the 7 inference roles. A providers-local axis used by the
 //     firewall policy table + the registry key checks; the public surface is the role FUNCTIONS.
@@ -48,9 +49,12 @@ import type {
 // --- The sealed backend-key axis (the `runner`) ------------------------------
 /** The sealed backend keys a role dispatches to. `custom-openai` (hyphen) is the runner key; the
  *  credential source is `custom_openai` (underscore) — they are deliberately distinct spellings.
- *  `local-light` is the in-process transformers.js/ONNX backend (D39 — embed/rerank/imageEmbed only). */
+ *  `local-light` is the in-process transformers.js/ONNX backend (D39 — embed/rerank/imageEmbed only).
+ *  `anth-direct` (D67) is the direct Anthropic-Messages chat backend — the `anthropic-messages` api over
+ *  the DIRECT transport (we own the body), reached ONLY through the `openrouter` source in v1. */
 export const BACKEND_KEYS = [
   "agent-sdk",
+  "anth-direct",
   "openrouter",
   "vllm",
   "local-light",

@@ -8,9 +8,22 @@
 // (ownerId, handle) match oracle.
 
 import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatParticipantId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImportContext } from "../../../../packages/server/src/domain/import/contract/service.ts";
+import type {
+  ImportContext,
+  ImportProfileDeps,
+} from "../../../../packages/server/src/domain/import/contract/service.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 // A format-VALID asset TypeID (26-char crockford-base32 suffix) — the create schema validates
@@ -130,4 +143,71 @@ export function makeHarness(): ImportHarness {
       existingByHandle.set(handle, characterId);
     },
   };
+}
+
+// ── the PROFILE-wave harness (PD-77): a REAL `freshDb`-backed `ImportContext` with `ctx.profile` wired ─────
+// (RULING A). The card ops are inert no-ops (the chats/personas verbs never touch them); the profile deps are
+// real — a fixed clock + counter-minted (deterministic + unique) ids + a live `personaByUserName` map + the
+// PD-78 ops recording their calls. Seed the owner + character with the test factories, then drive
+// `importChats`/`importPersonas` over `db`.
+
+/** A fixed clock for the profile harness (deterministic — no unseeded time under tests/). */
+export const IMPORT_NOW = 1_700_000_000_000;
+
+export interface ProfileHarness {
+  readonly ctx: ImportContext;
+  readonly profile: ImportProfileDeps;
+  /** Every `enqueueBackfill` call the run issued (the PD-78 gate assertion surface). */
+  readonly backfills: { readonly ownerId: UserId }[];
+  /** Every inline `reconcileStats` call the run issued. */
+  readonly reconciles: { readonly ownerId: UserId }[];
+}
+
+/** Build a profile-wave `ImportContext` over a real `db`, owned by `ownerId`. Ids are counter-minted so the
+ *  bulk writes are unique AND deterministic (test-determinism — no `mintTypeId`/clock under tests/). */
+export function makeProfileHarness(db: Db, ownerId: UserId): ProfileHarness {
+  const backfills: { ownerId: UserId }[] = [];
+  const reconciles: { ownerId: UserId }[] = [];
+  let n = 0;
+  const counter = (): string => {
+    n += 1;
+    return String(n).padStart(26, "0");
+  };
+  const profile: ImportProfileDeps = {
+    db,
+    now: (): number => IMPORT_NOW,
+    personaByUserName: new Map<string, PersonaId>(),
+    newChatId: (): ChatId => castId<ChatId>(`chat_${counter()}`),
+    newMessageId: (): MessageId => castId<MessageId>(`message_${counter()}`),
+    newVariantId: (): MessageVariantId => castId<MessageVariantId>(`message_variant_${counter()}`),
+    newParticipantId: (): ChatParticipantId =>
+      castId<ChatParticipantId>(`chat_participant_${counter()}`),
+    newPersonaId: (): PersonaId => castId<PersonaId>(`persona_${counter()}`),
+    newWorldBookId: () => castId("world_book_0"),
+    newWorldEntryId: () => castId("world_entry_0"),
+    enqueueBackfill: ({ ownerId: o }): Promise<void> => {
+      backfills.push({ ownerId: o });
+      return Promise.resolve();
+    },
+    reconcileStats: ({ ownerId: o }): Promise<void> => {
+      reconciles.push({ ownerId: o });
+      return Promise.resolve();
+    },
+  };
+  const inert = (): never => {
+    throw new Error(
+      "import profile harness: card op not wired (chats/personas verbs must not call it)",
+    );
+  };
+  const ctx: ImportContext = {
+    ownerId,
+    createCharacter: inert,
+    findByImportHash: inert,
+    findByHandle: inert,
+    updateCharacter: inert,
+    storeAsset: inert,
+    attachCardTag: inert,
+    profile,
+  };
+  return { ctx, profile, backfills, reconciles };
 }

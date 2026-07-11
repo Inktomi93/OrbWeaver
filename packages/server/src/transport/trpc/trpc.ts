@@ -99,20 +99,23 @@ const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
 
 export const authedProcedure = publicProcedure.use(authMiddleware);
 
-// multiHumanProcedure: the AUTH_MODE capability belt (PD-106; Tier-4 §"multi-human surface"). Every
-// multi-human procedure (the invites/roster/notifications surfaces + the notifications subscription)
-// rides this rung: in a `single-user` deployment the surface is refused AS NONEXISTENT — a uniform
-// NOT_FOUND ("404 in single-user"), never a FORBIDDEN/coded 400 that would advertise the capability. The
-// belt fires BEFORE the auth gate so even an anonymous probe sees the same shape tRPC gives an unmounted
-// procedure. `ctx.singleUserMode` is derived ONCE at the entry mount from the frozen env (transport reads
-// no env). The chat `single_user_mode` op-code (CHAT_OP_CODES) stays the DOMAIN-side discriminator for
-// verb-level refusals inside chat; the transport shape is deliberately the leak-free 404.
+// multiHumanProcedure: the multi-human capability belt (PD-106; Tier-4 §"multi-human surface"; the B4
+// gating axis per FINAL-Auth-Modes §9). Every multi-human procedure (the invites/roster/notifications
+// surfaces + the notifications subscription) rides this rung: while the deployment cannot seat a second
+// HUMAN (`ctx.multiHumanCapable === false` — single-user, or local with `LOCAL_MULTI_USER` off) the
+// surface is refused AS NONEXISTENT — a uniform NOT_FOUND, never a FORBIDDEN/coded 400 that would
+// advertise the capability. The belt fires BEFORE the auth gate so even an anonymous probe sees the same
+// shape tRPC gives an unmounted procedure. `ctx.multiHumanCapable` is derived PER-REQUEST at the entry
+// mount (the local arm reads a runtime AppSetting — transport reads no env/settings itself). The chat
+// `single_user_mode` op-code (CHAT_OP_CODES) stays the DOMAIN-side discriminator for verb-level refusals
+// inside chat; the transport shape is deliberately the leak-free 404. Multi-CHARACTER rooms are NEVER
+// gated here — `chat.startChat` rides `authedProcedure` (§9 ruling 3).
 const multiHumanMiddleware = t.middleware(({ ctx, path, next }) => {
-  if (ctx.singleUserMode) {
+  if (!ctx.multiHumanCapable) {
     securityEvent(
-      "single_user_mode",
+      "multi_human_unavailable",
       { path },
-      "security: multi-human surface refused in single-user mode",
+      "security: multi-human surface refused (deployment not multi-human capable)",
     );
     throw new TRPCError({ code: "NOT_FOUND", message: `No procedure found on path "${path}"` });
   }

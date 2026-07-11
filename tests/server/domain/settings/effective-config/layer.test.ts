@@ -63,6 +63,16 @@ describe("layer (floor-merge)", () => {
     expect(layer({ nonOwnerLocalComputeBudget: 7 }).nonOwnerLocalComputeBudget).toBe(7);
   });
 
+  test("auth-modes floors (FINAL-Auth-Modes §9): localMultiUser OFF, discreetLogin OFF; overrides win", () => {
+    const cfg = layer({});
+    // A fresh local install is SINGLE-human until the owner flips the toggle (ruling 2 — static/config).
+    expect(cfg.localMultiUser).toBe(false);
+    expect(cfg.discreetLogin).toBe(false);
+    expect(layer({ localMultiUser: true }).localMultiUser).toBe(true);
+    expect(layer({ discreetLogin: true }).discreetLogin).toBe(true);
+    expect(layer({ localMultiUser: null }).localMultiUser).toBe(false); // null = clear → floor
+  });
+
   test("born-in-DB floor: maxImageBytes defaults to 5 MB; an admin override raises it", () => {
     expect(layer({}).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES);
     expect(layer({ maxImageBytes: null }).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES); // clear → floor

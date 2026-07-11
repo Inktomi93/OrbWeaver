@@ -39,6 +39,7 @@ import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
 import type {
+  AcceptInviteParams,
   CreateInviteParams,
   DeclineInviteParams,
   PreviewInviteParams,
@@ -49,9 +50,11 @@ import type { ChatService } from "../contract/service";
 import type { ChatDetail } from "../contract/views";
 import { requireHost } from "../guard";
 import {
+  acceptInviteByIdAtomic,
   countPresentMembers,
   createInvite as createInvitePersist,
   declineInviteById,
+  findInviteById,
   findInviteByTokenHash,
   redeemInviteAtomic,
   revokeInvite as revokeInvitePersist,
@@ -70,7 +73,12 @@ interface InviteDeps {
 /** The invite slice of `ChatService` this grouped file owns (the bundle the composition root spreads in). */
 type InviteVerbs = Pick<
   ChatService,
-  "createInvite" | "previewInvite" | "redeemInvite" | "revokeInvite" | "declineInvite"
+  | "createInvite"
+  | "previewInvite"
+  | "redeemInvite"
+  | "acceptInvite"
+  | "revokeInvite"
+  | "declineInvite"
 >;
 
 /**
@@ -84,6 +92,7 @@ export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
     createInvite: createCreateInvite(ctx),
     previewInvite: createPreviewInvite(ctx, deps),
     redeemInvite: createRedeemInvite(ctx, deps),
+    acceptInvite: createAcceptInvite(ctx, deps),
     revokeInvite: createRevokeInvite(ctx),
     declineInvite: createDeclineInvite(ctx),
   };
@@ -282,6 +291,70 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
       // so a targeted invite that reached the wrong user is indistinguishable from an invalid token.
       const invite = await findInviteByTokenHash(ctx.db, tokenHash);
       if (invite === undefined) {
+        throw new DomainNotFoundError("invite", "");
+      }
+      const existing = await loadMemberChat(ctx.db, invite.chatId, principal.userId);
+      if (existing === undefined) {
+        throw new DomainNotFoundError("invite", "");
+      }
+      chatId = invite.chatId;
+    }
+
+    const chat = await loadChatRow(ctx.db, chatId);
+    if (chat === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    const participants = await deps.loadParticipantViews(chatId);
+    const participant = participants.find((p) => p.userId === principal.userId);
+    if (participant === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
+    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    return {
+      chat: toChatDetail({
+        chat,
+        participants,
+        macroNames,
+        personaAvatars,
+        viewerUserId: principal.userId,
+      }),
+      participant,
+    };
+  };
+}
+
+/** `acceptInvite` — the token-free in-app accept of a TARGETED invite by id (the notification→accept loop —
+ *  closes it with no raw token leaving the app). SELF-AUTHORIZING: the caller's authenticated `principal.userId`
+ *  IS the authorization — the atomic `acceptInviteByIdAtomic` demands an EXACT `invitedUserId === caller` match
+ *  (a share-link invite is token-only → not acceptable by id; a foreign targeted invite is never confirmed).
+ *  Every failure — invalid id / foreign / expired / exhausted / declined / revoked / share-link — collapses to
+ *  the SAME leak-free NOT_FOUND (no oracle). On success: the same atomic seat as redeem (server-forced `member`
+ *  at the canon head, use burned, TOCTOU closed) → emit `chatUpdated`. Idempotent for an already-present member
+ *  (recover their existing membership, not a phantom error), keyed by id + gated on the target match so the
+ *  recovery path leaks nothing to a non-target. Returns `{ chat, participant }` — identical to `redeemInvite`. */
+function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["acceptInvite"] {
+  return async ({ principal, inviteId }: AcceptInviteParams) => {
+    const at = ctx.now();
+    const result = await acceptInviteByIdAtomic(ctx.db, {
+      inviteId,
+      userId: principal.userId,
+      participantId: ctx.newParticipantId(),
+      now: at,
+    });
+
+    let chatId: ChatId;
+    if (result !== undefined) {
+      chatId = result.chatId;
+      await deps.emit({ type: "chatUpdated", chatId });
+    } else {
+      // The atomic returns undefined for an invalid/foreign/expired/exhausted/declined/revoked/share-link invite
+      // AND for an already-present member (the seat no-op). Recover ONLY the already-member case — and ONLY for
+      // the bound target (`invitedUserId === caller`), so a non-target's probe leaks nothing: a foreign invite
+      // fails the target check exactly as a missing one does (both NOT_FOUND). A non-member has no membership to
+      // recover, so a not-yet-acceptable targeted invite is indistinguishable from an invalid id.
+      const invite = await findInviteById(ctx.db, inviteId);
+      if (invite === undefined || invite.invitedUserId !== principal.userId) {
         throw new DomainNotFoundError("invite", "");
       }
       const existing = await loadMemberChat(ctx.db, invite.chatId, principal.userId);

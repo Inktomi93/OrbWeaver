@@ -11,8 +11,10 @@
 //     to one rep should still be a named theme.
 //   • centroids are k-means-normalized (#6) and stored as the `vector32` rollup (a MEAN, not an embed call).
 //
-// FLAG[PD-39]: `digest_theme_assignments.msgMidAt` (the position-median story-time stamp) → the
-// themeDrift wave (it powers themeDrift only; the column is nullable, so assignments write without it now).
+// PD-39 (BUILT — tier-0/scene): after the atomic assignment replace, `backfillMsgMidAt` stamps
+// `digest_theme_assignments.msgMidAt` (the position-median story-time stamp that powers `themeDrift`). Written
+// null in the replace batch, then stamped in a second pass (the stamp is advisory + nullable). Tier-k (arc)
+// stamping still DEFERS (needs the memory bridge-coverage `fanOut` seam — themes/backfill.ts header).
 
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
@@ -23,13 +25,15 @@ import {
   rowsPerInsert,
   themeClusters,
 } from "@orb/db";
-import type { ThemeClusterId } from "@orb/kit/ids";
+import type { ThemeClusterId, UserId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import type { ComputeThemesOptions, ThemeLevel } from "../contract/params";
 import type { ThemeComputeStats } from "../contract/results";
 import type { ComputeThemesDeps, Summarize } from "../contract/service";
 import { readOwnedDigestVectors } from "../persistence/embed-store-reads";
 import { collapseByHash } from "../substrate/collapse";
 import { kmeans } from "../substrate/kmeans";
+import { backfillMsgMidAt } from "./backfill";
 import { parseThemeName } from "./utils";
 
 // The default k-means++ seeding seed (overridable via opts.seed) — pins the clustering for reproducibility.
@@ -213,7 +217,7 @@ export async function computeThemes(
   opts: ComputeThemesOptions = {},
 ): Promise<ThemeComputeStats> {
   const seed = opts.seed ?? DEFAULT_SEED;
-  const all = await readOwnedDigestVectors(db);
+  const all = await readOwnedDigestVectors(db, opts.ownerId);
   const solo = all.filter((r) => !r.isGroup);
   const { drafts, owners } = buildDrafts(solo, opts, seed);
   const names = await nameDrafts(drafts, deps.summarize);
@@ -243,7 +247,10 @@ export async function computeThemes(
     }
   }
 
-  await replaceAll(db, clusterRows, assignRows);
+  await replaceAll(db, clusterRows, assignRows, opts.ownerId);
+  // PD-39: stamp the position-median story-time (`msgMidAt`) on the freshly-written tier-0 assignments so
+  // `themeDrift` reads them (idempotent; the replace wrote them null). Same owner scope as the recompute.
+  await backfillMsgMidAt(db, opts.ownerId);
   return {
     ownersProcessed: owners.size,
     clustersWritten: clusterRows.length,
@@ -251,14 +258,21 @@ export async function computeThemes(
   };
 }
 
-// Atomic full replace: ONE db.batch of [delete-all clusters (CASCADE clears assignments), ...chunked cluster
-// inserts, ...chunked assignment inserts] — clusters before assignments (the FK order).
+// Atomic replace: ONE db.batch of [delete clusters (CASCADE clears assignments), ...chunked cluster inserts,
+// ...chunked assignment inserts] — clusters before assignments (the FK order). `ownerId` scopes the DELETE to
+// that owner's clusters (the SINGULAR pass — never wipes another owner's themes); omitted/null = delete-ALL
+// (the BULK global rebuild).
 async function replaceAll(
   db: Db,
   clusterRows: readonly ClusterRow[],
   assignRows: readonly AssignRow[],
+  ownerId?: UserId | null,
 ): Promise<void> {
-  const stmts: BatchStmt[] = [db.delete(themeClusters)];
+  const del =
+    ownerId === undefined || ownerId === null
+      ? db.delete(themeClusters)
+      : db.delete(themeClusters).where(eq(themeClusters.ownerId, ownerId));
+  const stmts: BatchStmt[] = [del];
   for (const chunk of chunkRows(clusterRows, rowsPerInsert(CLUSTER_COLS))) {
     stmts.push(db.insert(themeClusters).values(chunk));
   }

@@ -5,8 +5,8 @@
 // constant trades recall for latency.
 //
 // W2 CORE defines the constants the built verbs (`knn`/`findCharacters`/`digests`/`segments`/`corpus`)
-// consume, including `SCOPED_POOL_K` (the chat-memory full-pool cap). The discover budgets
-// (`DISCOVER_SEGMENT_POOL_*`, `CSLS_POOL_FACTOR`) land with their deferred verbs.
+// consume, including `SCOPED_POOL_K` (the chat-memory full-pool cap). The `discover` budgets
+// (`DISCOVER_*`) land here with the `discover` verb (PD-35).
 
 /** Over-fetch multiplier for the initial owner-scoped vector scan: fetch `OWNER_OVERFETCH × topN`
  *  candidates so CSLS hub-adjust + rerank can reorder a deep-enough pool without truncating real hits. */
@@ -21,3 +21,19 @@ export const RERANK_POOL_FACTOR = 3;
  *  the owner's materialized set — bounded at this corpus scale. When `candidates` is present the cap is the
  *  candidate count (the tiered bridge already bounds the scan). */
 export const SCOPED_POOL_K = 200;
+
+/** `discover` over-fetch multiplier: the verbatim-segment pool is `topN × DISCOVER_SEGMENT_POOL_FACTOR`
+ *  segments (grouped-by-character AFTER ranking, so a wide segment pool is needed to yield `topN` distinct
+ *  characters once co-star blocks share evidence). Capped at {@link DISCOVER_SEGMENT_POOL_CAP}. */
+export const DISCOVER_SEGMENT_POOL_FACTOR = 20;
+
+/** The hard ceiling on `discover`'s segment pool (`min(topN × FACTOR, CAP)`) — the OOM/latency bound on the
+ *  owner-wide verbatim scan (an exact cosine scan is cheap, but the rerank + grouping over it are not). */
+export const DISCOVER_SEGMENT_POOL_CAP = 400;
+
+/** How many evidence segments `discover` keeps per grouped character (the best `N` by rank; `matchCount`
+ *  still counts every crediting segment). */
+export const DISCOVER_SEGMENTS_PER_CHAR = 3;
+
+/** The max characters a `discover` evidence snippet carries (the verbatim block text is sliced to this). */
+export const SNIPPET_CHARS = 280;

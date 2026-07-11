@@ -63,9 +63,13 @@ export interface AppShellProps {
    *  replaces the static account avatar in the desktop rail foot; the shell forwards a ReactNode slot,
    *  never importing the persona feature (the same seam as `modals`). Undefined ⇒ the account button. */
   readonly railFoot?: ReactNode;
+  /** Route-composed topbar TRAIL chrome (the notifications bell — multi-human invites lane). Rendered
+   *  first in the topbar's trail group; the shell forwards a ReactNode slot, never importing a feature
+   *  (the same seam as `railFoot`/`modals`). Undefined ⇒ nothing extra. */
+  readonly topbarTrail?: ReactNode;
 }
 
-export function AppShell({ sections, modals, railFoot }: AppShellProps): ReactElement {
+export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellProps): ReactElement {
   const layout = useShellLayout();
   // The synced appearance prefs + the resolved active theme (D44 §12.1). All display axes stamp from
   // these; the shell degrades to defaults (never suspends) if unauth/pending.
@@ -194,6 +198,7 @@ export function AppShell({ sections, modals, railFoot }: AppShellProps): ReactEl
               <ShellTopbar
                 title={layout.activeSectionLabel}
                 header={slot?.header}
+                trail={topbarTrail}
                 listMode={layout.listMode}
                 contextMode={layout.contextMode}
                 immersive={layout.immersive}

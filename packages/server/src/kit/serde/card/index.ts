@@ -387,6 +387,125 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
   // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 }
 
+// ── the lorebook IN half (PD-77) — the byte-identical inverse of `exportBookEntry`, co-located here ────
+// so the WI-entry round-trip is a one-file invariant (the OPEN call in `import-st-profile-waves.md` §"the
+// lorebook wave" — co-locate the IN half next to the OUT half rather than split a world-entry module).
+// `cardFromJson` deliberately DROPS the embedded lorebook (a junction, not a card column); this half reads
+// it OFF the raw card (same pattern as the built import `extractCardTags`) so the import lorebook writer can
+// land `world_books`/`world_entries`/`character_books`. PURE — no DB, no domain types.
+
+/** The `world_entries` column projection derived from ONE ST `character_book` entry (everything but the
+ *  `metadata` blob, which {@link loreEntryMetadata} builds). `keys` is filtered to strings (ST keys are
+ *  free-form JSON); the writer null-collapses an empty list to honor the `world_entries.keys` NULL-vs-`[]`
+ *  asymmetry. `title`/`description`/`content`/`enabled`/`priority`/`ignoreBudget` mirror the typed columns. */
+export interface LoreEntryColumns {
+  readonly title: string;
+  readonly description: string | null;
+  readonly content: string;
+  readonly keys: string[];
+  readonly enabled: boolean;
+  readonly priority: number;
+  readonly ignoreBudget: boolean;
+}
+
+/** `character_book.entries` is a dict OR a list in the wild (ST V2 used a keyed object, V3 a list) — return
+ *  every entry OBJECT, order-preserving, dropping non-object junk. */
+export function extractLorebook(book: unknown): Record<string, unknown>[] {
+  if (!isPlainObject(book)) {
+    return [];
+  }
+  const entries = book["entries"];
+  let list: unknown[];
+  if (Array.isArray(entries)) {
+    list = entries;
+  } else if (isPlainObject(entries)) {
+    list = Object.values(entries);
+  } else {
+    return [];
+  }
+  return list.filter((e): e is Record<string, unknown> => isPlainObject(e));
+}
+
+/** Pick the best `character_book` when a card carries MULTIPLE candidates (V3 cards in the wild sometimes
+ *  embed a book at BOTH `data.character_book` AND the root `character_book`, one a real book + one an empty
+ *  stub). Most-NAMED-entries wins (a non-empty `name`), then most entries, then the first non-empty. Returns
+ *  `undefined` when no candidate holds any entries. */
+export function selectBestCharacterBook(...candidates: unknown[]): unknown {
+  let best: { book: unknown; named: number; total: number } | undefined;
+  for (const candidate of candidates) {
+    if (!isPlainObject(candidate)) {
+      continue;
+    }
+    const entries = extractLorebook(candidate);
+    if (entries.length === 0) {
+      continue;
+    }
+    const named = entries.filter(
+      (e) => typeof e["name"] === "string" && e["name"].trim().length > 0,
+    ).length;
+    if (
+      best === undefined ||
+      named > best.named ||
+      (named === best.named && entries.length > best.total)
+    ) {
+      best = { book: candidate, named, total: entries.length };
+    }
+  }
+  return best?.book;
+}
+
+/** Project one ST `character_book` entry → the `world_entries` typed columns. ST uses `comment` (falling
+ *  back to `name`, then the first key) as the author-facing memo → our `title`; when `comment` differs from
+ *  the resolved title it is ALSO kept as `description` (lossless). `insertion_order` → `priority`. */
+export function loreEntryColumns(entry: Record<string, unknown>): LoreEntryColumns {
+  const keys = Array.isArray(entry["keys"])
+    ? entry["keys"].filter((k): k is string => typeof k === "string")
+    : [];
+  const comment = typeof entry["comment"] === "string" ? entry["comment"] : "";
+  const name = typeof entry["name"] === "string" ? entry["name"] : "";
+  const title = firstNonEmpty(comment, name, keys[0] ?? "") ?? "Untitled";
+  const order = Number(entry["insertion_order"]);
+  return {
+    title,
+    // `comment` doubles as the memo only when it is NOT already the title (else a null description).
+    description: comment.length > 0 && comment !== title ? comment : null,
+    content: typeof entry["content"] === "string" ? entry["content"] : "",
+    keys,
+    enabled: entry["enabled"] !== false,
+    priority: Number.isFinite(order) ? order : 0,
+    // App-specific field round-tripped through export (vanilla ST cards never carry it → false).
+    ignoreBudget: entry["ignoreBudget"] === true,
+  };
+}
+
+/** Build the stored `world_entries.metadata` blob: the WHOLE original ST entry (lossless — `exportBookEntry`
+ *  reads it back as the base), PLUS the two runtime fields derived from ST's encoding when absent:
+ *    • `constant: true` → `scopeMode: "always"` — the runtime reads `scopeMode`, NOT `constant`, so a KEYED
+ *      constant entry would otherwise silently demote to keyword scope on import (load-bearing).
+ *    • `extensions.{position:4, depth, role}` (ST's at-depth placement) → `metadata.inject` (role via the
+ *      `@orb/kit/message-role` bimap). 4 is ST's `WORLD_INFO_POSITION.atDepth` — the ONE encoding site.
+ *  An explicit `scopeMode`/`inject` already on the entry (a re-import of our OWN export) WINS (idempotent). */
+export function loreEntryMetadata(entry: Record<string, unknown>): Record<string, unknown> {
+  const meta: Record<string, unknown> = { ...entry };
+  if (meta["scopeMode"] === undefined && entry["constant"] === true) {
+    meta["scopeMode"] = "always";
+  }
+  if (meta["inject"] === undefined) {
+    const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
+    const depth = Number(ext?.["depth"]);
+    if (
+      ext !== undefined &&
+      Number(ext["position"]) === ST_POSITION_AT_DEPTH &&
+      Number.isInteger(depth) &&
+      depth >= 0
+    ) {
+      const role = messageRoleFromSt(ext["role"]);
+      meta["inject"] = { depth, ...(role !== null ? { role } : {}) };
+    }
+  }
+  return meta;
+}
+
 /**
  * Build the strict ST V3 character card (the OUT emitter). The typed columns OWN their `extensions` keys:
  * any stale `depth_prompt`/`regex_scripts` in the preserved blob is stripped first, then the columns'

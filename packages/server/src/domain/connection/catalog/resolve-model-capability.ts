@@ -14,12 +14,29 @@
 // (infra→domain is illegal upward). Reasoning/sampling/verbosity/output/context are DISTINCT axes; nothing
 // here collapses them into a cascade, and `effortLevels` never carries a `'none'` member.
 
-import type { AgentSdkModel, ChatSource, ModelCapability, Range } from "@orb/contracts/connection";
+import type {
+  AgentSdkModel,
+  ChatApi,
+  ChatSource,
+  ModelCapability,
+  Range,
+} from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { getChatModel } from "./chat-models";
 import type { MODEL_FAMILIES } from "./model-family";
 import { detectModelFamily } from "./model-family";
 import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias";
+import {
+  NON_CACHING_TURNS,
+  refineAnthDirectSampling,
+  refineCuratedTurns,
+  synthesizeAnthropicTurns,
+} from "./turns";
+import type { WIRE_SHAPES } from "./wire-shape";
+import { deriveWireShape } from "./wire-shape";
+
+/** The resolver-internal wire-shape key (re-derived from the tuple; no-inline-types keeps it file-local). */
+type WireShape = (typeof WIRE_SHAPES)[number];
 
 // ── Named bounds (noMagicNumbers). DEFER(promotion): the exact synthesized ranges are the "quality →
 //    axes mapping" deferred item (proposed/connection-capability-panel.md) — the SHAPE (per-knob ranges, distinct
@@ -129,15 +146,21 @@ function synthesizeSampling(supported: ReadonlySet<string>): ModelCapability["sa
 }
 
 /** The OpenRouter synthesis arm — supportedParameters + family → the descriptor. `contextLength` /
- *  `supportedParameters` come from the catalog entry connection holds (no provider internals). */
+ *  `supportedParameters` come from the catalog entry connection holds (no provider internals). The `turns`
+ *  cell is family-gated (D66, ruling 3): anthropic ⇒ `explicitPromptCache:true` + per-version cacheMinTokens
+ *  (matches today's Anthropic-family cache emit); every other family ⇒ NON_CACHING_TURNS. */
 function synthesizeOpenRouter(
   model: string,
+  wireShape: WireShape,
   entry: { contextLength: number | null; supportedParameters: readonly string[] } | undefined,
 ): ModelCapability {
   const family = detectModelFamily(model);
   const supported = new Set(entry?.supportedParameters ?? []);
   const window = entry?.contextLength ?? OR_DEFAULT_WINDOW;
-  const sampling = synthesizeSampling(supported);
+  // The OR openai-compat synthesis (temperature/top_p/…). On the anthropic-direct shape it is refined to the
+  // fail-closed per-model seed (D68-C): a synthesized anthropic Claude on the DIRECT wire honors no sampling
+  // knob until the probe opens its entry, so the runner never sends a value the Messages wire would 400.
+  const sampling = refineAnthDirectSampling(model, wireShape, synthesizeSampling(supported));
   const verbosity =
     family === "openai" && supported.has("verbosity")
       ? (["low", "medium", "high"] as const)
@@ -148,6 +171,10 @@ function synthesizeOpenRouter(
     ...(verbosity ? { verbosity: [...verbosity] } : {}),
     output: { maxTokens: { min: MIN_OUTPUT, max: Math.min(window, OUTPUT_CAP) } },
     context: { window },
+    turns:
+      family === "anthropic"
+        ? synthesizeAnthropicTurns(model, wireShape)
+        : { ...NON_CACHING_TURNS },
   };
 }
 
@@ -172,40 +199,73 @@ function staticProfile(window: number, fullSampling: boolean): ModelCapability {
     sampling,
     output: { maxTokens: { min: MIN_OUTPUT, max: Math.min(window, OUTPUT_CAP) } },
     context: { window },
+    // Static arms (vllm / local-light / custom-openai / cold max-pro-sub) never explicit-cache-place today
+    // — the non-caching floor is behavior-neutral (a curated Claude never reaches here; §4b static column).
+    turns: { ...NON_CACHING_TURNS },
+  };
+}
+
+/** Attach the shape-refined curated `turns` cell + the direct-transport `sampling` seed to a curated
+ *  descriptor. `turns` is refined per wire-shape (part 01 §3.3); `sampling` is refined ONLY on the
+ *  `anthropic-direct` shape (D68-C / part 03 §3 — the direct wire is the one place a curated Claude honors
+ *  any sampling knob, seeded fail-closed `{}` until the W9 probe opens an entry). Every OTHER axis
+ *  (reasoning/output/context) is shape-invariant, so the curated-first short-circuit stays correct for them
+ *  and the cli/openai curated sampling stays the curated `{}`. */
+function withCuratedTurns(
+  curated: { readonly capability: ModelCapability },
+  id: ModelId | string,
+  wireShape: WireShape,
+): ModelCapability {
+  return {
+    ...curated.capability,
+    sampling: refineAnthDirectSampling(id, wireShape, curated.capability.sampling),
+    turns: refineCuratedTurns(id, wireShape),
   };
 }
 
 /**
- * Resolve the ONE capability descriptor for a `(model, source)`. The curated lookup runs FIRST (so a
- * Claude id — bare OR version-only via OR — gets its curated profile, not synthesis); otherwise dispatch
- * on the source (exhaustive — a new source is a `tsc` error here). `orEntry` is the OpenRouter catalog
- * entry connection holds in its snapshot/cache, threaded in by the caller (no provider internals).
+ * Resolve the ONE capability descriptor for a `(model, source)` on the `api`-implied WIRE-SHAPE. The
+ * curated lookup runs FIRST (so a Claude id — bare OR version-only via OR — gets its curated profile, not
+ * synthesis); otherwise dispatch on the source (exhaustive — a new source is a `tsc` error here). `orEntry`
+ * is the OpenRouter catalog entry connection holds in its snapshot/cache, threaded in by the caller (no
+ * provider internals).
+ *
+ * THE FINDING-1 FIX (part 01 §3): `api` threads in so `deriveWireShape(api, source)` produces the wire-shape
+ * the per-shape `turns` cell keys on — the curated-first short-circuit now refines `turns` per shape while
+ * every other axis stays shape-invariant.
  */
 export function resolveModelCapability(
   model: ModelId | string,
   source: ChatSource,
-  orEntry?: { contextLength: number | null; supportedParameters: readonly string[] } | undefined,
-  agentSdkModels?: readonly AgentSdkModel[] | null | undefined,
+  api: ChatApi,
+  caches?: {
+    readonly orEntry?:
+      | { contextLength: number | null; supportedParameters: readonly string[] }
+      | undefined;
+    readonly agentSdkModels?: readonly AgentSdkModel[] | null | undefined;
+  },
 ): ModelCapability {
+  const wireShape = deriveWireShape(api, source);
   const curated = getChatModel(model);
   if (curated !== undefined) {
-    return curated.capability;
+    return withCuratedTurns(curated, model, wireShape);
   }
   switch (source) {
     case "max-pro-sub": {
       // The family→version fix: a bare family alias (`sonnet`/`opus`/`haiku`) or a stale/uncurated id that
       // the curated lookup above missed resolves via the DAEMON's live map (`resolveAgentSdkAlias`) to the
       // current version + its reported capability flags — DAEMON-owned, so identical for the sub + OR-skin.
-      const daemon = resolveAgentSdkAlias(model, agentSdkModels ?? null);
+      // A daemon Claude is an anthropic model on the anthropic-cli wire — attach the family turns cell.
+      const daemon = resolveAgentSdkAlias(model, caches?.agentSdkModels ?? null);
       if (daemon !== undefined) {
-        return daemon.capability;
+        return { ...daemon.capability, turns: synthesizeAnthropicTurns(model, wireShape) };
       }
       // No curated match AND no daemon row (cold cache / unknown id) — a conservative no-reasoning profile
       // rather than synthesis (a max-pro-sub turn is Claude-only; synthesis would fabricate the wrong axes).
       return staticProfile(OR_DEFAULT_WINDOW, false);
     }
     case "openrouter":
-      return synthesizeOpenRouter(model, orEntry);
+      return synthesizeOpenRouter(model, wireShape, caches?.orEntry);
     case "vllm":
       return staticProfile(VLLM_GEN_CONTEXT_WINDOW, true);
     case "local-light":

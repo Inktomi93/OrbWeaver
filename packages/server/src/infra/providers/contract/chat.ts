@@ -126,6 +126,8 @@ interface ChatRequestCommon {
  * The discriminated input every sealed chat backend consumes. Discriminator: `api`.
  *   - `agent-sdk` — a single prompt string (history is implicit in the backend's resumed session).
  *   - `chat-completions` / `responses` — an assembled `history` array (OpenAI-spec).
+ *   - `anthropic-messages` — an assembled `history` array for the anth-direct DIRECT-transport backend
+ *     (D67); tool-less + runner-owned body (no preset-injectable wire fields).
  * `historyCacheBreakpointFromEnd` is the offset-from-end the chat pipeline COMPUTES; the runner PLACES
  * the Anthropic `cache_control` there (Anthropic models only). `runner`/`family` never appear.
  */
@@ -169,6 +171,19 @@ export type ChatRequest = ChatRequestCommon &
         readonly toolChoice?: ToolChoice | undefined;
         readonly responseFormat?: ResponseFormat | undefined;
       }
+    | {
+        // The anth-direct DIRECT-transport arm (D67, part 02 §2). Mirrors `chat-completions`: an assembled
+        // `history` array + the SHAPE-computed rolling breakpoint offset. Deliberately carries NO
+        // tools/toolChoice/responseFormat (anth-direct is TOOL-LESS by charter) and NO
+        // providerRouting/customParameters (the body is 100% runner-owned — a preset cannot inject wire
+        // fields; part 02 §2). Each field lands on this arm WITH its first consumer (the agent-sdk-arm
+        // precedent).
+        readonly api: "anthropic-messages";
+        readonly history: readonly ChatHistoryMessage[];
+        /** SHAPE-computed rolling breakpoint offset-from-end — same field/semantics as the
+         *  chat-completions arm (R1: computed in SHAPE, placed by the runner as the PAIR — part 02 §5d). */
+        readonly historyCacheBreakpointFromEnd?: number | undefined;
+      }
   );
 // The `agent-sdk` arm carries NO tools/toolChoice/responseFormat by design: tools ride `mcpServers`
 // via `project-mcp` (the SDK owns its loop — D47/D8), and no committed agent-sdk consumer requests
@@ -179,6 +194,9 @@ export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenRouterChatRequest = ChatRequest & {
   readonly api: "chat-completions" | "responses";
 };
+/** The anth-direct DIRECT-transport arm (D67) — the tool-less Anthropic-Messages request the sealed
+ *  anth-direct backend consumes. */
+export type AnthropicMessagesChatRequest = ChatRequest & { readonly api: "anthropic-messages" };
 
 /** Normalized cross-backend "why did generation stop?" vocab. Each backend speaks its own dialect
  *  (Anthropic stop_reason, OpenAI finish_reason, Responses status); this is the ONE normalized signal.

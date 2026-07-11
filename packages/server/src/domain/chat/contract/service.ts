@@ -25,6 +25,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type {
   AbortParams,
   AcceptHostHandoffParams,
+  AcceptInviteParams,
   AddCharacterToChatParams,
   ArchiveChatParams,
   ChatEventBoundsParams,
@@ -273,6 +274,10 @@ export interface ChatService {
   /** Redeem an invite — THE participant-insert chokepoint (atomic; `role` server-forced `member`, `joinSeq`
    *  stamped; the re-add upsert lives here). The ONLY public human-join path (no standalone `join` verb). */
   readonly redeemInvite: (params: RedeemInviteParams) => Promise<RedeemInviteResult>;
+  /** Accept a targeted invite by id — the token-free in-app join (self-authorizing: bound to `invitedUserId`).
+   *  Reuses the redeem chokepoint's atomic seat + idempotent already-member recovery; the seat is server-forced
+   *  `member`. A share-link / foreign / invalid / spent invite is a leak-free NOT_FOUND. */
+  readonly acceptInvite: (params: AcceptInviteParams) => Promise<RedeemInviteResult>;
   /** Revoke an outstanding invite (host-only; status → `revoked`). */
   readonly revokeInvite: (params: RevokeInviteParams) => Promise<void>;
   /** Decline a targeted invite the caller was notified about (status → `declined`). */

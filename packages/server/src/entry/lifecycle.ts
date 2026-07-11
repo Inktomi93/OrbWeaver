@@ -20,6 +20,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
+import { startBuddyObserver } from "#domain/buddy";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import {
   loadWorkload,
@@ -30,6 +31,7 @@ import {
 } from "#domain/workloads";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
+import { createPasswordHasher } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -49,6 +51,7 @@ import {
   seedThemes,
 } from "./boot";
 import { createServices } from "./compose";
+import { createBuddyObserverEnv } from "./compose/buddy-observer";
 import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
 import { createRateLimitGate } from "./rate-limit-gate";
 
@@ -78,6 +81,8 @@ export function createLifecycle(): Lifecycle {
   let stopOidcGc: (() => void) | null = null;
   // The workloads worker loop runs until its AbortSignal fires; shutdown aborts it to drain the in-flight row.
   let stopWorker: AbortController | null = null;
+  // The buddy observer reaction engine (PD-45) — a supervised out-of-band loop; shutdown tears it down.
+  let stopBuddyObserver: (() => void) | null = null;
   // The vLLM supervisor's graceful-drain closer is SYNCHRONOUS (VllmEngineHandle.start → () => void).
   let drainVllm: (() => void) | null = null;
   let booted = false;
@@ -112,7 +117,25 @@ export function createLifecycle(): Lifecycle {
       now,
       sessionSecret: env.SESSION_SECRET ?? null,
     });
-    const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
+    // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy (no
+    // owner-fallback) isn't locked out. The password + the ONE hashing seam are passed ONLY in local mode
+    // (oidc/forward-header owners authenticate via the IdP/proxy; SSO/single-user rows carry no password).
+    // env's superRefine guarantees LOCAL_INITIAL_PASSWORD + SESSION_SECRET are set in local mode. The seed is
+    // first-boot-only + non-clobbering (guarded on `password_hash IS NULL` — see seed-owner).
+    const localPasswordSeed =
+      env.AUTH_MODE === "local" && env.LOCAL_INITIAL_PASSWORD !== undefined
+        ? {
+            initialPassword: env.LOCAL_INITIAL_PASSWORD,
+            hashPassword: createPasswordHasher(env.SESSION_SECRET).hash,
+          }
+        : {};
+    const ownerIds = await seedOwner({
+      db,
+      sessions: bootSessions,
+      ownerHandles: handles,
+      now,
+      ...localPasswordSeed,
+    });
     const ownerId = ownerIds[0];
     if (ownerId === undefined) {
       throw new Error("boot: seedOwner returned no owner id (OWNER_HANDLES resolved empty)");
@@ -236,6 +259,21 @@ export function createLifecycle(): Lifecycle {
       );
     });
 
+    //   • buddy observer (PD-45/PD-64): the reaction engine — a SUPERVISED out-of-band loop (NOT a service
+    //     verb) that taps the workloads + chat firehoses and the observability ring, reacting one normalized
+    //     signal → one quip + mood/stat/bond shift onto the per-user reaction bus. `ownerId`'s buddy reacts to
+    //     SYSTEM-health traces (request-scoped, not user-attributed). SIGTERM tears it down (unsubscribe +
+    //     clear the sweeps).
+    stopBuddyObserver = startBuddyObserver(
+      createBuddyObserverEnv({
+        db,
+        now,
+        ownerUserId: ownerId,
+        summarize: built.roleClients.summarize,
+        scheduleInterval: scheduleTimer,
+      }),
+    ).stop;
+
     // 10. The auth modes. Local mode wires the sessions `authenticate` verb (PD-83 — the resolution
     // moved into `domain/sessions`; the entry no longer reads `users`/runs the KDF itself); OIDC mode
     // mints the discovery fetcher.
@@ -346,6 +384,7 @@ export function createLifecycle(): Lifecycle {
     });
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the graceful-drain teardown is a flat sequence of independent null-guarded stops (server, schedulers, worker, observer, vLLM, db) — one cohesive shutdown, splitting it hides the ordering.
   async function shutdown(): Promise<void> {
     if (isShuttingDown) {
       return;
@@ -375,6 +414,10 @@ export function createLifecycle(): Lifecycle {
       // Aborts the poll loop AND the in-flight row's run (the signal threads into runWorkload → cancelled).
       stopWorker.abort();
       stopWorker = null;
+    }
+    if (stopBuddyObserver !== null) {
+      stopBuddyObserver();
+      stopBuddyObserver = null;
     }
     if (drainVllm !== null) {
       drainVllm();

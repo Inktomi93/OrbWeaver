@@ -7,6 +7,11 @@
 
 import { DomainOperationError } from "@orb/kit/errors";
 
+// The chats wave (`importChats` into a non-owned/missing character) throws the SHARED `DomainNotFoundError`
+// (`@orb/kit/errors`) — the verb imports it from kit directly (the `noBarrelFile` gate forbids re-exporting it
+// through this module; transport already discriminates the shared kit error, so no import-domain re-home is
+// needed). This note is the pointer the spec's "re-export here" line intended.
+
 export type ImportCardErrorCode = "card_unreadable" | "card_invalid";
 
 /** The supplied bytes are not a readable/valid character card (see header for the `code` split). */

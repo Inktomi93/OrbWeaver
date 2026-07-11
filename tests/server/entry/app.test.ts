@@ -4,6 +4,7 @@
 // tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -14,6 +15,7 @@ import {
   recentRequests,
 } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
+import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
 import { createApp } from "../../../packages/server/src/entry/app.ts";
 import { expect, test } from "../../support/fixtures";
@@ -36,6 +38,7 @@ function hit(app: ReturnType<typeof createApp>, req: Request): Promise<Response>
 
 const OK = 200;
 const UNAUTHORIZED = 401;
+const NOT_FOUND = 404;
 const SERVICE_UNAVAILABLE = 503;
 const INTERNAL_ERROR = 500;
 
@@ -60,14 +63,20 @@ function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam
 }
 
 /** Build `AppDeps` with inert fakes; overrides patch in the per-test seam / getters. The unhit ports are
- *  typed stubs (the routes that would touch them are covered by their own slice tests). */
+ *  typed stubs (the routes that would touch them are covered by their own slice tests). `services` carries
+ *  a real `settings.getEffectiveConfig` slice — the auth-meta/join registrars + the tRPC context read it
+ *  per request (the env-only floor is the honest default: discreetLogin/localMultiUser both false). */
 function deps(overrides: Partial<AppDeps>): AppDeps {
   const stub = {} as never;
+  // FABRICATION-OK: the app tests exercise only the settings read; the other 16 domain services are deliberately absent (their routes are covered by slice tests).
+  const services = {
+    settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) },
+  } as unknown as AppDeps["services"];
   return {
     now: (): number => FROZEN_NOW,
     db: {} as unknown as Db,
     seam: fakeSeam(null),
-    services: stub,
+    services,
     rateLimit: { enforce: (): Promise<void> => Promise.resolve() },
     presence: {
       connect: (): void => {
@@ -143,6 +152,45 @@ describe("createApp", () => {
     );
     await hit(app, new Request("http://localhost/healthz"));
     expect(seeded).toHaveLength(0);
+  });
+
+  // FINAL-Auth-Modes §7 P0 — the public bootstrap surface is assembled onto the app. Test env runs the
+  // default AUTH_MODE (single-user), so /config reports the no-login mode and /me reflects whatever the
+  // seam resolved for THIS request (the drift-free same-resolver property: the route reads the
+  // middleware-stashed principal, so the "resolves EXACTLY ONCE" pin above covers it too).
+  test("GET /api/auth/config → the injected mode + flags (anonymous, pre-tRPC)", async () => {
+    const app = createApp(deps({}));
+    const res = await hit(app, new Request("http://localhost/api/auth/config"));
+    expect(res.status).toBe(OK);
+    expect(await res.json()).toEqual({
+      mode: "single-user",
+      requiresLogin: false,
+      localEnabled: false,
+      oidcEnabled: false,
+      discreetLogin: false,
+      defaultHandle: "owner",
+      // single-user can never seat a second human (the PD-106 MULTI_HUMAN_CAPABLE map's fixed arm).
+      multiHumanCapable: false,
+    });
+  });
+
+  test("GET /api/auth/me reflects the seam-resolved principal (and anonymous → authenticated:false)", async () => {
+    const authed = createApp(deps({ seam: fakeSeam(OWNER) }));
+    const meRes = await hit(authed, new Request("http://localhost/api/auth/me"));
+    expect(meRes.status).toBe(OK);
+    expect(await meRes.json()).toEqual({ authenticated: true, handle: "owner", role: "owner" });
+
+    const anon = createApp(deps({ seam: fakeSeam(null) }));
+    const anonRes = await hit(anon, new Request("http://localhost/api/auth/me"));
+    expect(await anonRes.json()).toEqual({ authenticated: false, handle: null, role: null });
+  });
+
+  // §7 P1 — the /join landing is gated on the multi-human capability (single-user test env → false → the
+  // leak-free 404, matching the tRPC belt's unmounted shape).
+  test("GET /join/:token → 404 while not multi-human capable (single-user env)", async () => {
+    const app = createApp(deps({}));
+    const res = await hit(app, new Request("http://localhost/join/some-token"));
+    expect(res.status).toBe(NOT_FOUND);
   });
 
   // PD-118: `observability` is mounted in the chain — every response carries X-Request-Id, and the

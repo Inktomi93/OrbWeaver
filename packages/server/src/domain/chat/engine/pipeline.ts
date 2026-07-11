@@ -445,6 +445,12 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     namesBehavior: ctx.promptConfig.namesBehavior ?? "default",
     speakers,
     groupNudge: args.groupNudge ?? null,
+    // D66 (W5/W6): the resolved turn-shaping facts carried off the connection. `assistantPrefill` gates the
+    // CONTINUATION_NUDGE + the splice assistant@0 floor (SHAPE reads the capability flag, D45/D48 pattern);
+    // `roleHandling` (user knob) is clamped at SHAPE against the model `roleHandlingFloor` (part 01 §6).
+    assistantPrefill: args.connection.capability.turns?.assistantPrefill === true,
+    roleHandling: args.connection.roleHandling,
+    roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
   });
 
   // 3. FIT — the §8 history-budget tail (offset-from-end survives the front-drop).

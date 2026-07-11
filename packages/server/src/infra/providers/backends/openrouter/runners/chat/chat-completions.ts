@@ -6,6 +6,7 @@
 // kit chunk before the reducer sees it. Imports `backends/kit` DOWN; never reaches a sibling backend.
 
 import type { ChatMessages, ChatRequest, ChatStreamChunk } from "@openrouter/sdk/models";
+import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -15,8 +16,10 @@ import { resolveChat } from "../../../../resolve-chat";
 import type { ChatCompletionResult, StreamReduceOptions } from "../../../kit";
 import {
   cacheControlBlock,
+  computeCacheBreakpointOffsets,
   effortToOpenAIReasoning,
   isAnthropicModel,
+  logProviderCache,
   mapChatCompletionToTurnResult,
   providerErrorFromHttp,
   reduceChatCompletionStream,
@@ -33,27 +36,28 @@ import {
   buildToolChoice,
   buildWireTools,
   chatSamplingFields,
+  emitSamplingReceipt,
   isMandatoryReasoningRejection,
   mergeCustomParameters,
   reshapeChatStreamChunk,
   resolveProviderPreferences,
   warningEvents,
+  withVerbosityDrop,
 } from "./shared";
 
-// Anthropic's minimum cacheable prefix (~1024 tokens for Claude). A breakpoint below it only burns one of
-// the four breakpoint slots without forming a cache entry, so the placement is gated on this floor.
-const ANTHROPIC_CACHE_MIN_TOKENS = 1024;
 // The off-switch wire value — drives the mandatory-reasoning detection (a `none` request that 400s on a
 // reasoning-required endpoint is the strip-and-replay trigger).
 const REASONING_OFF = "none";
 
 /**
- * Place the rolling-tail Anthropic cache breakpoint (Esoteric §5): convert the message at
- * `offsetFromEnd` (the offset the chat pipeline computed; robust to the empty-content filter) into the
- * per-block `cache_control` form, gated on `cacheMinTokens` (the estimated prefix up to and including the
- * target must clear the floor, else the breakpoint is skipped). The system block is the FIRST breakpoint;
- * this is the SECOND — both stay under Anthropic's 4-breakpoint cap. Returns the array unchanged when the
- * offset is out of range, the target content isn't a plain string, or the prefix is below the floor.
+ * Place the rolling-tail Anthropic cache PAIR (Esoteric §5 / R1): from the ONE safe `offsetFromEnd` SHAPE
+ * computed, pin `cache_control` at `depth` AND `depth+2` (the pure positional decision comes from the
+ * kit-hoisted {@link computeCacheBreakpointOffsets}, gated on the per-model `cacheMinTokens` floor). Each
+ * qualifying offset whose target content is a plain string is converted to the OpenAI-compat per-block
+ * `cache_control` form. The system block is the FIRST of the ≤4 breakpoints; this pair is #2/#3. The PAIR
+ * keeps a cache hit inside Anthropic's 20-block lookback window that a single breakpoint drops on a long
+ * conversation (both sit on already-cached stable content, so the deeper read is FREE). Returns the array
+ * unchanged when no offset clears the floor or its target content isn't a plain string.
  */
 export function placeHistoryCacheBreakpoint(
   messages: ChatMessages[],
@@ -61,26 +65,89 @@ export function placeHistoryCacheBreakpoint(
   offsetFromEnd: number,
   cacheMinTokens: number,
 ): ChatMessages[] {
-  const targetIdx = messages.length - 1 - offsetFromEnd;
-  if (targetIdx < 0) {
-    return messages;
-  }
-  const target = messages.at(targetIdx);
-  if (target === undefined || typeof target.content !== "string") {
-    return messages;
-  }
-  let prefixTokens = estimateTokens(systemStatic);
-  for (const message of messages.slice(0, targetIdx + 1)) {
-    if (typeof message.content === "string") {
-      prefixTokens += estimateTokens(message.content);
-    }
-  }
-  if (prefixTokens < cacheMinTokens) {
+  const offsets = computeCacheBreakpointOffsets({
+    messageTokens: messages.map((m) =>
+      typeof m.content === "string" ? estimateTokens(m.content) : 0,
+    ),
+    systemStaticTokens: estimateTokens(systemStatic),
+    offsetFromEnd,
+    cacheMinTokens,
+  });
+  if (offsets.length === 0) {
     return messages;
   }
   const replaced = messages.slice();
-  replaced[targetIdx] = { ...target, content: [cacheControlBlock(target.content)] };
+  for (const offset of offsets) {
+    const targetIdx = messages.length - 1 - offset;
+    const target = replaced.at(targetIdx);
+    if (target !== undefined && typeof target.content === "string") {
+      replaced[targetIdx] = { ...target, content: [cacheControlBlock(target.content)] };
+    }
+  }
   return replaced;
+}
+
+// The per-model minimum cacheable prefix for THIS request — the resolved `turns.cacheMinTokens`, fail-closed
+// to `CACHE_MIN_FLOOR` when the capability didn't seed an exact floor (part 01 §4b). Read only when the
+// history-breakpoint gate qualifies (`explicitPromptCache`), so an unseeded arm never under-caches.
+function historyCacheMinTokens(req: OpenRouterChatRequest): number {
+  return req.capability.turns?.cacheMinTokens ?? CACHE_MIN_FLOOR;
+}
+
+// The OR history-cache gate (part 01 §5 explicit-cache row): OUR domain-computed PAIR placement is worth
+// it iff the resolver says `explicitPromptCache` (an ANTHROPIC-family fact, ruling 3 — NOT an in-runner
+// model-id sniff) AND SHAPE handed a safe offset. Replaces the old `isAnthropicModel(req.model)` + hardcoded
+// 1024. Returns the SHAPE-computed safe offset when the gate qualifies, else `undefined`. The sealed
+// wire-dialect `isAnthropicModel` still gates the STATIC system-block cache + the provider pin below — this
+// gate only governs the rolling history breakpoint.
+function historyCacheGateOffset(req: OpenRouterChatRequest): number | undefined {
+  if (req.capability.turns?.explicitPromptCache !== true || req.api !== "chat-completions") {
+    return;
+  }
+  return req.historyCacheBreakpointFromEnd;
+}
+
+// The history-cache PAIR offsets this turn actually placed — the SAME positional decision `buildChatBody`
+// applied, recomputed for the `provider.cache` receipt (deterministic; no wire branch at the emit site).
+// Empty when the gate didn't apply or no offset cleared the floor.
+function historyCacheOffsets(req: OpenRouterChatRequest): readonly number[] {
+  const offsetFromEnd = historyCacheGateOffset(req);
+  if (offsetFromEnd === undefined) {
+    return [];
+  }
+  const messages = buildHistoryMessages(req.history);
+  return computeCacheBreakpointOffsets({
+    messageTokens: messages.map((m) =>
+      typeof m.content === "string" ? estimateTokens(m.content) : 0,
+    ),
+    systemStaticTokens: estimateTokens(req.systemPrompt.static),
+    offsetFromEnd,
+    cacheMinTokens: historyCacheMinTokens(req),
+  });
+}
+
+// Emit the per-turn `provider.cache` receipt (part 05 §3a) — THE cache-rot signal: a collapsed `hitRatio`
+// with a spiked `cacheWriteTokens` IS the ~12.7k re-bill, greppable as `provider:true event:provider.cache`.
+// Decoupled: reads RESOLVED facts (usage counts + the placer's returned offsets + the resolved floor), no
+// model-id/wire branch. Only Anthropic-cache turns qualify (the static system block counts as breakpoint #1
+// on an Anthropic model; the history pair adds #2/#3), so a non-caching turn emits nothing.
+function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult): void {
+  if (req.capability.turns?.explicitPromptCache !== true) {
+    return;
+  }
+  const offsets = historyCacheOffsets(req);
+  const cacheReadTokens = turn.usage.cacheReadTokens;
+  const cacheWriteTokens = turn.usage.cacheWriteTokens;
+  const total = cacheReadTokens + cacheWriteTokens;
+  logProviderCache("openrouter", {
+    cacheReadTokens,
+    cacheWriteTokens,
+    // The static system block is breakpoint #1 on an Anthropic model; the rolling pair adds the rest.
+    breakpointsPlaced: (isAnthropicModel(req.model) ? 1 : 0) + offsets.length,
+    breakpointOffsets: offsets,
+    hitRatio: total > 0 ? cacheReadTokens / total : 0,
+    minCacheTokens: historyCacheMinTokens(req),
+  });
 }
 
 // Assemble the typed `ChatRequest` body from the capability-RESOLVED knobs (`resolve-chat` already gated
@@ -92,15 +159,15 @@ function buildChatBody(
   resolved: ResolvedChatKnobs,
   includeReasoning: boolean,
 ): ChatRequest {
-  const isAnthropic = isAnthropicModel(req.model);
-  const systemMessage = buildSystemMessage(req.systemPrompt, isAnthropic);
+  const systemMessage = buildSystemMessage(req.systemPrompt, isAnthropicModel(req.model));
+  const cacheOffset = historyCacheGateOffset(req);
   const history =
-    isAnthropic && req.api === "chat-completions" && req.historyCacheBreakpointFromEnd !== undefined
+    cacheOffset !== undefined
       ? placeHistoryCacheBreakpoint(
           buildHistoryMessages(req.history),
           req.systemPrompt.static,
-          req.historyCacheBreakpointFromEnd,
-          ANTHROPIC_CACHE_MIN_TOKENS,
+          cacheOffset,
+          historyCacheMinTokens(req),
         )
       : buildHistoryMessages(req.history);
   const messages: ChatMessages[] = systemMessage !== null ? [systemMessage, ...history] : history;
@@ -254,9 +321,13 @@ export async function runChatCompletionTurn(
     maxOutputTokens: req.capability.output.maxTokens.max,
     reasoning: result.reasoning,
   });
+  emitCacheReceipt(req, turn);
+  emitSamplingReceipt(req.params, resolved);
   // Surface resolve-chat's dropped/ignored-knob notes as `warning` events (the mapper returns `events:[]`,
-  // so they merge in here) and fire `onEvent` for each — never silently dropped.
-  const warnings = warningEvents(resolved.warnings, deps.now());
+  // so they merge in here) and fire `onEvent` for each — never silently dropped. The chat-completions wire
+  // has NO verbosity field (SDK 0.13.19), so a RESOLVED verbosity (the model listed it, the funnel kept it)
+  // is dropped LOUDLY here — a second, wire-specific `verbosity_dropped` note (D68-B, verify-then-add).
+  const warnings = warningEvents(withVerbosityDrop(resolved), deps.now());
   for (const event of warnings) {
     req.onEvent?.(event);
   }

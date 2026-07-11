@@ -12,7 +12,7 @@
 // runtime by BOTH the chat builders AND `reconcileStats` so the live delta can't drift) — NOT re-homed here.
 // Ported from neo-tavern `_shared/stats-tally.ts` (the wire-type half only).
 
-import type { UserId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -105,3 +105,42 @@ export type StatsDelta = z.infer<typeof statsDeltaSchema>;
  * returns nothing.
  */
 export type ApplyStatsDelta<Batch, Db> = (batch: Batch, db: Db, delta: StatsDelta) => void;
+
+// ── the stats↔discovery economics PROJECTION (PD-22, the seam's Tier 2) ─────────────────────────────────
+// The NARROWED, already-aggregated economics results the stats domain hands to a consumer (discovery's
+// Tier-3 insights) through an injected op. These are the ONLY economics shapes that cross the stats fence:
+// each is a per-grain ROLLUP (the raw `message_variants` economics row — tokens/cost/cache/timing — is
+// UNSPELLABLE outside `domain/stats/persistence/messages-economics.ts`, so a consumer can NEVER re-sum a
+// column itself; it receives these summed results and composes its own SEMANTIC ranking around them). The
+// economics are the D26-correct SELECTED-variant totals (economics live on `message_variants`, not
+// `messages`). Kept in `@orb/contracts/stats` (kit-only, db-free) — the same DAG-root home as the chat↔stats
+// wire — so discovery references the RESULT type without any path into the stats schema-read.
+
+/** Per-character economics rollup (the SELECTED assistant-variant totals, owner-scoped) — the cost/usage
+ *  dimension `forgottenGems` attaches to its semantic revisit ranking. Absent characters (no assistant
+ *  generation) simply don't appear. */
+export interface CharacterEconomics {
+  readonly characterId: CharacterId;
+  /** Assistant generations counted (selected variants of the character's assistant messages). */
+  readonly generations: number;
+  readonly tokensIn: number;
+  readonly tokensOut: number;
+  readonly costUsd: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+}
+
+/** Per-(character, model) economics rollup — the grain `modelRouting` re-groups by the character's distilled
+ *  genre (discovery owns the genre → model attribution; stats owns which model performed how). `genTimeMs` is
+ *  the SUM of wall-clock generation durations over `genSamples` variants that carried both timestamps (so a
+ *  consumer derives a mean without a null-skew); `provider` is null when the generation recorded none. */
+export interface CharacterModelEconomics {
+  readonly characterId: CharacterId;
+  readonly model: string;
+  readonly provider: string | null;
+  readonly generations: number;
+  readonly tokensOut: number;
+  readonly genTimeMs: number;
+  readonly genSamples: number;
+  readonly costUsd: number;
+}

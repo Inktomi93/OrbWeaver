@@ -15,7 +15,7 @@
 // hoist is safe; the registry/executor still precede every consumer (credentials/connection) that needs them.
 //
 // FLAGGED INERT WIRES (no backing front-door verb in the current slices — see the report, not papered over):
-//   • character.reapAssets — assets GC is PD-26 (best-effort no-op until then; called on every delete).
+//   • character.reapAssets — assets `reapIfOrphan` (PD-26 wave built); best-effort, called on every delete.
 //   • tag.requireParticipant — chat membership gate is PD-19 (chat is P5).
 //   • import — its service is PER-OWNER (`ImportContext.ownerId`), built by the `entry/import` driver later.
 
@@ -44,7 +44,7 @@ import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { can, createAdminService, requireAdmin, requireOwner } from "#domain/admin";
+import { can, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { BuddyAgentResult, BuddyToolServer } from "#domain/buddy";
@@ -404,8 +404,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     emit: eventBus.emit,
     emitUserEvent: publishUserEvent,
-    // INERT (flagged): assets GC is PD-26 — best-effort reap is a no-op until the GC verbs land.
-    reapAssets: (): Promise<void> => Promise.resolve(),
+    // The avatar-orphan reap port → assets' `reapIfOrphan` (PD-26 wave built). Best-effort by contract:
+    // `remove`/`bulk-remove` wrap it in try/catch, so a reap failure never fails the delete — the orphan
+    // self-heals on the next `collectGarbage` sweep. The op's rich `ReapResult` is dropped to `void` here (the
+    // character verbs only need "attempted"); assets never sideways-imports character (injected type-only).
+    reapAssets: async (assetIds): Promise<void> => {
+      await assets.reapIfOrphan(assetIds);
+    },
     // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
     // 1:1 ({ ownerId, characterId, tagName } → Promise<boolean>); ownership is pre-gated by bulkAddCardTag.
     attachCardTag: tag.attachCardTagByName,
@@ -552,18 +557,26 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emitUserEvent: publishUserEvent,
   });
   const stats = createStatsService(db);
-  const search = createSearchService({ db, roleClients });
+  const search = createSearchService({ db, roleClients, now });
   const discovery = createDiscoveryService({
     db,
     now,
     newDuplicateCharacterPairId: minter(ID_PREFIX.duplicateCharacterPair),
     newThemeClusterId: minter(ID_PREFIX.themeCluster),
+    newKeywordCooccurrenceId: minter(ID_PREFIX.keywordCooccurrence),
+    newCharacterKeywordProfileId: minter(ID_PREFIX.characterKeywordProfile),
+    newDuplicateChatPairId: minter(ID_PREFIX.duplicateChatPair),
     summarize: roleClients.summarize,
     // The distill pass (PD-40) stamps the summarize model on `character_summaries.model` and stages its
     // labels through the tag domain's by-name chokepoint (source:'auto', status:'pending' — the review queue).
     summarizerModel: roleClients.summarizerModel,
     attachCardTagByName: tag.attachCardTagByName,
     writeHubScores: embeddings.writeHubScores,
+    // PD-22 the stats↔discovery economics seam (Tier 2 → Tier 3): the stats-OWNED economics projections
+    // discovery's `forgottenGems`/`modelRouting` compose. discovery receives only the NARROWED results — the
+    // raw `message_variants` economics columns never cross the fence (Knowledge-Cluster inv #5).
+    characterEconomics: stats.characterEconomics,
+    characterModelEconomics: stats.characterModelEconomics,
   });
   const notifications = createNotificationsService({
     db,
@@ -580,7 +593,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return rows[0]?.kind === "agent";
     },
   });
-  const workloads = createWorkloadService({ db, now, newWorkloadId: minter(ID_PREFIX.workload) });
+  const workloads = createWorkloadService({
+    db,
+    now,
+    newWorkloadId: minter(ID_PREFIX.workload),
+    // MODE authz seam (D17/spine #6): `requireOwner` gates a BULK start/retry (BOX-OWNER only); `isAdmin`
+    // chooses the per-user read scope (owner∪admin → all; a user → own).
+    requireOwner,
+    isAdmin,
+  });
 
   const admin = createAdminService({
     db,
@@ -673,7 +694,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
           kind === "find-duplicates"
             ? { kind: "find-duplicates", params: {} }
             : { kind: "embed-corpus", params: {} };
-        const started = await workloads.start({ input, ownerId });
+        // A TRUSTED internal trigger (the agent-env is a backend principal, not a request) — `caller: null`
+        // bypasses the mode gate. SINGULAR on the agent's OWNING user (no global bulk bypass): the pass scopes
+        // to that owner's own data only (the ruling — the buddy acts for its owner, never across all owners).
+        const started = await workloads.start({ input, caller: null, mode: "singular", ownerId });
         return { workloadId: started.id };
       },
     },
@@ -759,6 +783,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     discovery,
     connection,
     embeddings,
+    assets,
     memoryBackfill: chatCompose.backfill.memory,
     groupCharacterBackfill: chatCompose.backfill.groupCharacters,
   });

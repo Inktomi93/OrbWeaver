@@ -230,6 +230,7 @@ describe("toView (poison tolerance)", () => {
     await insertWorkload(db, {
       id: castId<WorkloadId>("workload_rt"),
       kind: "compute-themes",
+      mode: "singular",
       params: { k: 7 },
       ownerId: null,
       dependsOn: null,

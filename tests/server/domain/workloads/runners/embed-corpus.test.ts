@@ -3,7 +3,7 @@
 import { describe, vi } from "vitest";
 import { embedCorpusRunner } from "../../../../../packages/server/src/domain/workloads/runners/embed-corpus.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerContext } from "../_support.ts";
+import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 
 describe("embed-corpus runner", () => {
   test("forces re-embed and projects counts", async () => {
@@ -15,6 +15,7 @@ describe("embed-corpus runner", () => {
       new AbortController().signal,
     );
     expect(env.embeddings.embedCorpus).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       force: true,
       signal: expect.any(AbortSignal),
     });
@@ -25,6 +26,7 @@ describe("embed-corpus runner", () => {
     const env = fakeEnv();
     await embedCorpusRunner(makeRunnerContext(env), {}, vi.fn(), new AbortController().signal);
     expect(env.embeddings.embedCorpus).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       force: false,
       signal: expect.any(AbortSignal),
     });

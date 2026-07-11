@@ -14,9 +14,10 @@
 // only. The OR effort/max_tokens XOR is NOT here (that is a per-API wire SHAPE the kit owns); the runner
 // still calls `backends/kit` for it. resolve-chat decides the on/off + depth; the kit shapes the wire.
 
-import type { EffortLevel, ModelCapability, Range } from "@orb/contracts/connection";
+import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import type {
+  DynamicContextChannel,
   ResolvedChatKnobs,
   ResolvedReasoning,
   ResolvedSampling,
@@ -29,6 +30,15 @@ const EFFORT_OFF = "none";
 // The adaptive guard note (Esoteric §8): an explicit budget on an adaptive model 400s the request.
 const ADAPTIVE_BUDGET_WARNING =
   "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
+// The demotion note (D66): a `message-tail` request on a model whose wire-shape has no mid-conv-system
+// authority — the channel falls back to the cached system block (the message-tail row would be authority-
+// less, or 400 the wrong wire).
+const DYNAMIC_CONTEXT_DEMOTED_WARNING =
+  "dynamic context 'hook' ignored: model does not honor a mid-conversation system channel — using the system block";
+// The verbosity-drop note (D68-B): the model lists no `verbosity` vocabulary (or the requested level is not
+// among the listed levels). The message is the SAME regardless of wire — the RUNNER additionally drops it
+// loudly when the resolved wire (chat-completions) has no verbosity field, but that is a per-wire concern.
+const VERBOSITY_DROPPED_WARNING = "verbosity ignored: model does not expose a verbosity level";
 
 /** Clamp a user value into `[min, max]`. */
 function clampRange(value: number, range: Range): number {
@@ -189,6 +199,7 @@ function resolveSampling(
     s.repetitionPenalty,
     warnings,
   );
+  const minP = resolveNumeric("minP", params.minP, s.minP, warnings);
   const seed = resolveFlag("seed", params.seed, s.seed, warnings);
   const logitBias = resolveFlag("logitBias", params.logitBias, s.logitBias, warnings);
   const stop = resolveFlag("stop", params.stop, s.stop, warnings);
@@ -199,22 +210,75 @@ function resolveSampling(
     ...(freq !== undefined ? { frequencyPenalty: freq } : {}),
     ...(pres !== undefined ? { presencePenalty: pres } : {}),
     ...(rep !== undefined ? { repetitionPenalty: rep } : {}),
+    ...(minP !== undefined ? { minP } : {}),
     ...(seed !== undefined ? { seed } : {}),
     ...(logitBias !== undefined ? { logitBias } : {}),
     ...(stop !== undefined ? { stop } : {}),
   };
 }
 
+/** The verbosity dial (D68-B), gated to the model's published `verbosity` levels: kept iff the model lists
+ *  the requested level; DROPPED + warned otherwise (no vocab, or the level isn't listed). The APPLY side is
+ *  per-wire — the responses runner maps `text.verbosity`; a chat-completions runner drops it a SECOND time
+ *  (loudly) because that wire has no field. This resolver only decides "does the MODEL honor it". */
+function resolveVerbosity(
+  wanted: UserIntent["verbosity"],
+  levels: readonly Verbosity[] | undefined,
+  warnings: ResolvedWarning[],
+): Verbosity | undefined {
+  if (wanted === undefined) {
+    return;
+  }
+  if (levels?.includes(wanted) !== true) {
+    warnings.push({ code: "verbosity_dropped", message: VERBOSITY_DROPPED_WARNING });
+    return;
+  }
+  return wanted;
+}
+
+/**
+ * Resolve WHERE the volatile dynamic system-prompt half rides (D66), from the user `dynamicContext` knob ×
+ * the model's `turns.midConversationSystem` gate. The rule (part 01 §5):
+ *   • user knob SET ⇒ it wins — `"system"` ⇒ `system-block`; `"hook"` ⇒ `message-tail` WHEN the model
+ *     honors mid-conv-system, else DEMOTED to `system-block` (+ a `dynamic_context_demoted` warning);
+ *   • user knob ABSENT ⇒ `message-tail` iff the model honors mid-conv-system, else `system-block`.
+ * `capability.turns` absent ⇒ the conservative floor (`midConversationSystem:false` ⇒ `system-block`).
+ * Pure — the demotion warning is pushed onto the shared `warnings` accumulator resolveChat threads.
+ */
+export function resolveDynamicContext(
+  params: UserIntent,
+  capability: ModelCapability,
+  warnings: ResolvedWarning[],
+): DynamicContextChannel {
+  const midConvCapable = capability.turns?.midConversationSystem ?? false;
+  const knob = params.advanced?.dynamicContext;
+  if (knob === "system") {
+    return "system-block";
+  }
+  if (knob === "hook") {
+    if (midConvCapable) {
+      return "message-tail";
+    }
+    warnings.push({ code: "dynamic_context_demoted", message: DYNAMIC_CONTEXT_DEMOTED_WARNING });
+    return "system-block";
+  }
+  // Absent: the model's honor fact decides — capable ⇒ the cache-safe tail, else the system block.
+  return midConvCapable ? "message-tail" : "system-block";
+}
+
 /**
  * Project provider-agnostic `UserIntent` × the `ModelCapability` descriptor into the resolved wire knobs
  * both sealed chat runners consume. ALL the gating lives here: reasoning on/off + effort-clamp + the
- * adaptive/budget guard + the display gate, sampling capability-gating, and the output-cap clamp. The
- * per-backend WIRE mapping (kit `ReasoningRequest`/`ThinkingConfig`, the OR XOR) stays in the runners.
+ * adaptive/budget guard + the display gate, sampling capability-gating, the dynamic-context channel, and
+ * the output-cap clamp. The per-backend WIRE mapping (kit `ReasoningRequest`/`ThinkingConfig`, the OR XOR,
+ * the hook-vs-joined system prompt) stays in the runners.
  */
 export function resolveChat(params: UserIntent, capability: ModelCapability): ResolvedChatKnobs {
   const warnings: ResolvedWarning[] = [];
   const reasoning = resolveReasoning(params, capability, warnings);
   const sampling = resolveSampling(params, capability, warnings);
+  const dynamicContextChannel = resolveDynamicContext(params, capability, warnings);
+  const verbosity = resolveVerbosity(params.verbosity, capability.verbosity, warnings);
   const maxOutputTokens =
     params.maxOutputTokens !== undefined
       ? clampRange(params.maxOutputTokens, capability.output.maxTokens)
@@ -222,7 +286,9 @@ export function resolveChat(params: UserIntent, capability: ModelCapability): Re
   return {
     reasoning,
     sampling,
+    dynamicContextChannel,
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+    ...(verbosity !== undefined ? { verbosity } : {}),
     warnings,
   };
 }

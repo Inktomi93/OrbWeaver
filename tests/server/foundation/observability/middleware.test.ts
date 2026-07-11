@@ -132,6 +132,43 @@ describe("the /api/_debug trace-skip (introspection doesn't evict real traces)",
   });
 });
 
+// The `/join/<token>` invite landing carries a bearer capability (it redeems room membership) in its path.
+// The redaction (`redactSensitivePath` → `/join/:token`) applies to the single `path` variable that feeds
+// EVERY sink — the trace root name (`/api/_debug/traces`), the request ring (`/api/_debug/logs`), and the
+// pino `request` line (silenced in tests) — so the raw token never persists (entry/http/join.ts's claim).
+describe("invite-token path redaction (F1 — the bearer token is never persisted raw)", () => {
+  // biome-ignore lint/security/noSecrets: a fabricated invite token literal for the leak assertion, not a real secret.
+  const rawToken = "s3cr3t-invite-token-abc123";
+
+  test("GET /join/<token> redacts the token in BOTH the request ring and the trace root name", async () => {
+    initTracing();
+    const incomingId = "join-redact-req";
+    const { nextCalled } = await run({ path: `/join/${rawToken}`, incomingId });
+    expect(nextCalled).toBe(true);
+
+    // Sink 1 — the trace root (readable via /api/_debug/traces): the route shape, token stripped.
+    const trace = getTraceByRequestId(incomingId);
+    if (trace === undefined) {
+      throw new Error("expected a recorded trace for the /join landing");
+    }
+    expect(trace.rootName).toBe("http GET /join/:token");
+    expect(trace.rootName).not.toContain(rawToken);
+
+    // Sink 2 — the request ring (readable via /api/_debug/logs): the redacted path, token absent.
+    const record = recentRequests(200).find((r) => r.id === incomingId);
+    expect(record?.path).toBe("/join/:token");
+    expect(JSON.stringify(record)).not.toContain(rawToken);
+  });
+
+  test("a sibling path outside /join/ is NOT over-redacted (prefix-anchored)", async () => {
+    initTracing();
+    const incomingId = "join-sibling-req";
+    await run({ path: "/joined/room", incomingId });
+    const record = recentRequests(200).find((r) => r.id === incomingId);
+    expect(record?.path).toBe("/joined/room");
+  });
+});
+
 // A minimal Hono-Context stand-in: `observabilityErrorHandler` only touches `c.text(body, status)` (the
 // same posture the middleware test above uses for its mock Context). `c.text` returns a real Response so
 // the 500 shape can be asserted without pulling Hono into the test.

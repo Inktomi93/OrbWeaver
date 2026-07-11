@@ -31,6 +31,15 @@ export interface MaintenanceResult {
   readonly dryRun: boolean;
 }
 
+/** The assets `fsck` integrity report projected for the workload row (PD-26) — the three fault counts the
+ *  admin UI surfaces. Workload-OWNED (the domain's richer `FsckResult` also carries the scanned populations;
+ *  the runner projects into this — the adapter discipline, no cross-domain result import). */
+export interface FsckReport {
+  readonly danglingRows: number;
+  readonly corruptBlobs: number;
+  readonly orphanBlobs: number;
+}
+
 /** The stats reconcile rebuild — owners/characters whose rollups were rewritten from canon. */
 export interface ReconcileStatsWorkloadResult {
   readonly owners: number;
@@ -85,6 +94,8 @@ export interface ResultByKind {
   "find-duplicates": AnalyticsResult;
   csls: AnalyticsResult;
   "assets-backfill": MaintenanceResult;
+  "assets-gc": MaintenanceResult;
+  "assets-fsck": FsckReport;
   "import-st": MaintenanceResult;
   "reconcile-stats": ReconcileStatsWorkloadResult;
   "refresh-model-catalog": CatalogRefreshResult;

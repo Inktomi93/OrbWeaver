@@ -61,13 +61,16 @@ export const MODAL_SLOTS: Record<ModalSlotId, ModalDef> = {
       />
     ),
   },
+  // The quick identity card + sign-out (FINAL-Auth-Modes §7 P0). Route-composed over this placeholder
+  // via `AppShellProps.modals` (home-page.tsx `account` slot → features/auth `<AccountSurface>`) — the
+  // static render below is the honest fallback that never runs when the route injects the real body.
   account: {
     title: "Account",
     placeholder: true,
     render: (): ReactElement => (
       <SectionPlaceholder
         title="Account"
-        description="Your profile + sign-out land with the auth feature."
+        description="Your identity and sign-out — route-composed from the auth feature."
       />
     ),
   },

@@ -3,8 +3,10 @@
 // `AppRouter`. The procedure ladder (`trpc.ts`) is internal — routers import it relatively, never the barrel.
 
 // The per-chat live fan-out (`bus.emit (durable, returns seq) → publishChatEvent (live)`; PD-46 stream half).
+// The buddy reaction bus singleton (PD-45): the observer's `emit` + the `buddy.stream` reads.
+export { publishBuddyEvent, snapshotBuddy, subscribeBuddy } from "./buddy-bus";
 export type { ChatLiveEvent } from "./chat-events-bus";
-export { publishChatEvent, subscribeChatEvents } from "./chat-events-bus";
+export { publishChatEvent, subscribeAllChatEvents, subscribeChatEvents } from "./chat-events-bus";
 export type { Context, RateLimitDecision, RateLimitGate, Services } from "./context";
 export { createContext } from "./context";
 // The pure `DomainError → tRPC code` classifier — exported for its isolation test (Invariant #5) + any

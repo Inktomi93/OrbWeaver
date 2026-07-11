@@ -150,12 +150,11 @@ test("static seed tokens (theme.css :root) — every body-text pairing clears WC
 });
 
 test("static seed tokens — solid semantic-intent surfaces clear the 3:1 UI/large-text floor", () => {
-  // destructive/success/warning/highlight/primary are SOLID accent buttons+badges (medium/bold labels =
-  // the WCAG large-text carve). destructive is the deliberately-accepted 3.65:1 (UIP-101 kept the seed
-  // value as the better of two sub-AA-normal options); the rest clear 4.5 comfortably.
+  // primary/success/warning/highlight are SOLID accent buttons+badges (medium/bold labels = the WCAG
+  // large-text carve); all clear 4.5 comfortably. destructive is NO LONGER in this group — it now clears
+  // AA-NORMAL as both a solid button AND as `text-destructive`, asserted in the dedicated test below.
   const buttonPairs: ReadonlyArray<readonly [keyof typeof TOKENS, keyof typeof TOKENS]> = [
     ["color.primary-foreground", "color.primary"],
-    ["color.destructive-foreground", "color.destructive"],
     ["color.success-foreground", "color.success"],
     ["color.warning-foreground", "color.warning"],
     ["color.highlight-foreground", "color.highlight"],
@@ -164,6 +163,26 @@ test("static seed tokens — solid semantic-intent surfaces clear the 3:1 UI/lar
     const ratio = contrastRatio(rgbOf(fg), rgbOf(bg));
     expect(ratio, `${fg} on ${bg}`).toBeGreaterThanOrEqual(LARGE_MIN_RATIO);
   }
+});
+
+test("static destructive clears WCAG AA-NORMAL 4.5:1 in BOTH roles it renders in", () => {
+  // destructive renders two ways, and the seed values (destructive 0.65 + a DARK destructive-foreground)
+  // are tuned so NORMAL-size text clears 4.5:1 in each — the fix for the side-eye receipts (old 0.62 gave
+  // 4.49:1 text-on-card + 3.65:1 pill, both sub-AA-normal; a single red couldn't clear both — white-on-red
+  // wants a darker red, red-text-on-dark a lighter one — so the foreground flipped dark, palette-family
+  // convention). Theme-independent: destructive is a STATIC semantic token (token-classification suite),
+  // so these ratios hold under every theme, light or dark.
+  //   role 1 — `text-destructive` (validation error / danger label) on the darkest CHROME surfaces it can
+  //     sit on (background/card/popover — popover 0.245 is the lightest chrome = the worst case).
+  for (const surface of ["color.background", "color.card", "color.popover"] as const) {
+    const ratio = contrastRatio(rgbOf("color.destructive"), rgbOf(surface));
+    expect(ratio, `text-destructive on ${surface}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  }
+  //   role 2 — the solid `bg-destructive` + `text-destructive-foreground` button/badge/pill.
+  const pill = contrastRatio(rgbOf("color.destructive-foreground"), rgbOf("color.destructive"));
+  expect(pill, "destructive-foreground on destructive (solid pill)").toBeGreaterThanOrEqual(
+    NORMAL_MIN_RATIO,
+  );
 });
 
 test("clamp DERIVED neutral chrome clears AA on every realistic light + dark base", () => {

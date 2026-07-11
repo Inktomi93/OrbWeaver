@@ -70,16 +70,12 @@ export const entryMetadataSchema = z.looseObject({
 });
 export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
 
-// Depth at which a trailing `assistant` injection becomes a response PREFILL (unsupported across
-// providers) — rejected at write. 0 = the tail, after the new user turn.
-const PREFILL_DEPTH = 0;
-
 /** Write-side metadata guard. The blob stays a lenient open record — callers building arbitrary blobs keep
  *  compiling against `Record<string, unknown>` and unknown keys ride through — but the load-bearing fields
  *  are validated when present (a typo'd `scopeMode`/`inject` is rejected at WRITE instead of silently
- *  disabling the entry's behavior at READ), AND a `assistant`-role injection at depth 0 (a trailing
- *  assistant message = response prefill) is rejected. The read path stays lenient (kit's `resolveEntry*`
- *  normalizes legacy/ST-imported entries at run time). */
+ *  disabling the entry's behavior at READ). The read path stays lenient (kit's `resolveEntry*` normalizes
+ *  legacy/ST-imported entries at run time). D66-B (W5): the assistant\@depth-0 prefill WRITE-reject is
+ *  REMOVED — authored prefill is persistable; SHAPE normalizes it at delivery. */
 export const entryMetadataWriteSchema = z
   .record(z.string(), z.unknown())
   .superRefine((val, ctx): void => {
@@ -88,17 +84,10 @@ export const entryMetadataWriteSchema = z
       for (const issue of known.error.issues) {
         ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
       }
-      return;
     }
-    const inj = known.data.inject;
-    if (inj !== undefined && inj.role === "assistant" && inj.depth === PREFILL_DEPTH) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["inject"],
-        message:
-          "assistant-role at depth 0 is a response prefill — unsupported across providers. Use depth >= 1, or role user/system.",
-      });
-    }
+    // D66-B (W5, ruling A): the assistant@depth-0 prefill WRITE-reject is REMOVED — authored prefill is
+    // persistable; the SHAPE delivery gate normalizes it on a `assistantPrefill:false` model
+    // (`assembly/injections.ts` + `assembly/shape.ts`). Shape validation only.
   });
 
 export const createEntrySchema = z.object({

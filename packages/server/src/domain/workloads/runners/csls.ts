@@ -7,6 +7,6 @@ import type { Runner } from "../contract/runner";
 
 export const cslsRunner: Runner<"csls"> = async (ctx, _params, report, signal) => {
   report({ message: "computing hub scores (CSLS)" });
-  const result = await ctx.env.discovery.computeHubScores({ signal });
+  const result = await ctx.env.discovery.computeHubScores({ ownerId: ctx.ownerId, signal });
   return { scanned: result.scanned, written: result.written };
 };

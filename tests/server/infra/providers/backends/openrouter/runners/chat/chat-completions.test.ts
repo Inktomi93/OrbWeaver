@@ -11,6 +11,7 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { logger } from "@orb/server/foundation/observability";
 import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
 import {
   placeHistoryCacheBreakpoint,
@@ -159,6 +160,71 @@ describe("runChatCompletionTurn — wire shaping", () => {
     expect(captured.chatRequest?.["reasoning"]).toEqual({ effort: "low" });
     expect(captured.chatRequest?.["model"]).toBe(ANTHROPIC_MODEL);
     expect(captured.chatRequest?.["top_a"]).toBe(0.5);
+  });
+
+  test("emits the resolved minP as the first-class SDK `minP` field (D68-A)", async () => {
+    const { client, captured } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(
+      client,
+      makeRequest({
+        capability: {
+          ...CAPABILITY,
+          sampling: { ...CAPABILITY.sampling, minP: { min: 0, max: 1 } },
+        },
+        params: { minP: 0.05, effort: "high" },
+      }),
+      DEPS,
+    );
+    expect(captured.chatRequest?.["minP"]).toBe(0.05);
+  });
+
+  test("verbosity: the chat-completions wire has NO field — a resolved verbosity drops LOUDLY (D68-B)", async () => {
+    const onEvent = vi.fn();
+    const { client, captured } = streamingClient(OK_STREAM);
+    const result = await runChatCompletionTurn(
+      client,
+      makeRequest({
+        capability: { ...CAPABILITY, verbosity: ["low", "medium", "high"] },
+        params: { verbosity: "high", effort: "high" },
+        onEvent,
+      }),
+      DEPS,
+    );
+    // Never on the wire body.
+    expect(captured.chatRequest?.["verbosity"]).toBeUndefined();
+    // Dropped loudly — a `verbosity_dropped` warning event fired.
+    const warnings = result.events.filter((e) => e.kind === "warning");
+    expect(warnings).toContainEqual({
+      kind: "warning",
+      at: FIXED_NOW,
+      code: "verbosity_dropped",
+      message: "verbosity ignored: the chat-completions wire has no verbosity field",
+    });
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ code: "verbosity_dropped" }));
+  });
+
+  test("emits the provider.sampling receipt (requested vs applied vs dropped, part 05 §3d)", async () => {
+    const spy = vi.spyOn(logger, "debug");
+    const { client } = streamingClient(OK_STREAM);
+    // temperature applies; seed is dropped (CAPABILITY exposes no seed flag).
+    await runChatCompletionTurn(
+      client,
+      makeRequest({ params: { temperature: 0.3, effort: "high", seed: 5 } }),
+      DEPS,
+    );
+    const line = spy.mock.calls.find(
+      (c) => (c[0] as { event?: string }).event === "provider.sampling",
+    );
+    expect(line).toBeDefined();
+    const fields = line?.[0] as Record<string, unknown>;
+    expect(fields["backend"]).toBe("openrouter");
+    expect(fields["provider"]).toBe(true);
+    expect(fields["requested"]).toEqual({ temperature: 0.3, seed: 5 });
+    expect(fields["applied"]).toEqual({ temperature: 0.3 });
+    expect(fields["dropped"]).toContainEqual({
+      knob: "seed",
+      reason: "model does not support seed",
+    });
   });
 
   test("disables OpenRouter middle-out by default via the context-compression plugin", async () => {
@@ -382,6 +448,28 @@ describe("the history cache breakpoint placement", () => {
     expect(Array.isArray(placed[0]?.content)).toBe(true);
   });
 
+  test("emits the R1 PAIR — cache_control at `depth` AND `depth+2` on a long conversation", () => {
+    // 6 long messages so both offset 1 (idx 4) and offset 3 (idx 2) clear the floor and are in range.
+    const placed = placeHistoryCacheBreakpoint(
+      asMessages([
+        { role: "user", content: longText },
+        { role: "assistant", content: longText },
+        { role: "user", content: longText },
+        { role: "assistant", content: longText },
+        { role: "user", content: longText },
+        { role: "assistant", content: longText },
+      ]),
+      "",
+      1,
+      CACHE_MIN,
+    );
+    // depth = offset 1 → idx 4; depth+2 = offset 3 → idx 2. Exactly two blocks placed, no third.
+    const blocked = placed.filter((m) => Array.isArray(m.content)).length;
+    expect(blocked).toBe(2);
+    expect(Array.isArray(placed[4]?.content)).toBe(true);
+    expect(Array.isArray(placed[2]?.content)).toBe(true);
+  });
+
   test("leaves the array unchanged when the prefix is below the floor", () => {
     const placed = placeHistoryCacheBreakpoint(
       asMessages([{ role: "user", content: "tiny" }]),
@@ -395,5 +483,102 @@ describe("the history cache breakpoint placement", () => {
   test("leaves the array unchanged when the offset is out of range", () => {
     const messages = asMessages([{ role: "user", content: longText }]);
     expect(placeHistoryCacheBreakpoint(messages, "", 5, CACHE_MIN)).toBe(messages);
+  });
+});
+
+// The turns cell that turns the OR history-cache gate ON (an ANTHROPIC-family fact — ruling 3). The runner
+// reads `explicitPromptCache` + `cacheMinTokens` off the capability, NOT `isAnthropicModel` + a hardcoded
+// 1024 (W3). `historyCacheBreakpointFromEnd` is the ONE safe offset SHAPE computes.
+const CACHE_TURNS = (cacheMinTokens: number): NonNullable<ModelCapability["turns"]> => ({
+  assistantPrefill: false,
+  midConversationSystem: false,
+  roleHandlingFloor: "strict",
+  explicitPromptCache: true,
+  cacheMinTokens,
+});
+
+describe("the OR cache-placement gate reads the resolved turns flags (W3)", () => {
+  const longText = "word ".repeat(1500); // ~1875 tokens per message
+
+  function longHistory(rows: number): OpenRouterChatRequest["history"] {
+    return Array.from({ length: rows }, (_, i) => ({
+      role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      content: [{ type: "text" as const, text: longText }],
+    }));
+  }
+
+  function cacheReq(cacheMinTokens: number, rows: number): OpenRouterChatRequest {
+    return makeRequest({
+      capability: { ...CAPABILITY, turns: CACHE_TURNS(cacheMinTokens) },
+      history: longHistory(rows),
+      historyCacheBreakpointFromEnd: 1,
+    });
+  }
+
+  function blockCount(captured: Captured): number {
+    const messages = captured.chatRequest?.["messages"];
+    if (!Array.isArray(messages)) {
+      return 0;
+    }
+    // messages[0] is the system message (always a cache block on Anthropic) — count history blocks only.
+    return messages.slice(1).filter((m) => Array.isArray((m as { content: unknown }).content))
+      .length;
+  }
+
+  test("Opus-4.8 floor (1024): a modest history clears the floor and gets the pair", async () => {
+    const { client, captured } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(client, cacheReq(1024, 6), DEPS);
+    expect(blockCount(captured)).toBe(2); // the R1 pair (depth + depth+2)
+  });
+
+  test("Haiku-4.5 floor (4096): a two-message prefix stays BELOW the floor → no breakpoint (stops undercaching)", async () => {
+    // Two ~1875-token messages ⇒ prefix ~3750 < 4096 at depth idx, so the pair is skipped: Haiku no longer
+    // places a breakpoint that would burn a slot without forming a cache entry (the old hardcoded 1024 bug).
+    const { client, captured } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(client, cacheReq(4096, 2), DEPS);
+    expect(blockCount(captured)).toBe(0);
+  });
+
+  test("no turns cell (explicitPromptCache absent) ⇒ the gate does NOT place a history breakpoint", async () => {
+    const { client, captured } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(
+      client,
+      makeRequest({ history: longHistory(6), historyCacheBreakpointFromEnd: 1 }),
+      DEPS,
+    );
+    expect(blockCount(captured)).toBe(0);
+  });
+
+  test("emits the provider.cache receipt with the placed offsets + minCacheTokens (part 05 §3a)", async () => {
+    const spy = vi.spyOn(logger, "info");
+    const { client } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(client, cacheReq(1024, 6), DEPS);
+    const cacheLine = spy.mock.calls.find(
+      (c) => (c[0] as { event?: string }).event === "provider.cache",
+    );
+    expect(cacheLine).toBeDefined();
+    const fields = cacheLine?.[0] as Record<string, unknown>;
+    expect(fields["backend"]).toBe("openrouter");
+    expect(fields["provider"]).toBe(true);
+    expect(fields["breakpointsPlaced"]).toBe(3); // 1 system + the R1 pair
+    expect(fields["breakpointOffsets"]).toEqual([1, 3]);
+    expect(fields["minCacheTokens"]).toBe(1024);
+    // OK_STREAM reports cachedTokens: 8, no cacheWrite ⇒ hitRatio 1.
+    expect(fields["cacheReadTokens"]).toBe(8);
+    expect(fields["hitRatio"]).toBe(1);
+  });
+
+  test("a non-cache turn (explicitPromptCache false) emits NO provider.cache line", async () => {
+    const spy = vi.spyOn(logger, "info");
+    const { client } = streamingClient(OK_STREAM);
+    await runChatCompletionTurn(
+      client,
+      makeRequest({ model: castId<ModelId>(OPENAI_MODEL) }),
+      DEPS,
+    );
+    const cacheLine = spy.mock.calls.find(
+      (c) => (c[0] as { event?: string }).event === "provider.cache",
+    );
+    expect(cacheLine).toBeUndefined();
   });
 });

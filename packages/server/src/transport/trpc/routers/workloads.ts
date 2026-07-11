@@ -1,21 +1,32 @@
-// transport/trpc/routers/workloads — the workloads ops surface (core/Tier-4-Transport.md). Every procedure is
-// `adminProcedure` (workloads are deployment-global; §7.1). Thin: validate → enter the
-// `workloads` front door → map errors. `ownerId` is the acting user (audit subject, not authz yet); `null`
-// would be a system/scheduler trigger (the jobs driver's concern, not transport's).
+// transport/trpc/routers/workloads — the workloads ops surface (core/Tier-4-Transport.md). MODE model: every
+// verb rides `authedProcedure` — the AUTHORIZATION is per-MODE + per-OWNER, resolved server-authoritatively in
+// the domain verbs, not by a blanket procedure gate:
+//   • `start` — a BULK run requires the BOX OWNER (LAYER-1 gate HERE on the payload's `mode`; the verb
+//     re-checks as LAYER-2 + validates the kind supports the mode); a SINGULAR run is any authed caller and
+//     stamps `ownerId = caller`. A bulk CREATE-kind carries a `targetOwnerId` (the mint destination).
+//   • `list`/`get`/`cancel`/`retry`/`subscribe` — IDOR-scoped in the verb to the caller's own `ownerId`
+//     (a non-admin), or across ALL owners (owner∪admin = the deployment-wide view). A foreign/absent id →
+//     leak-free NOT_FOUND. The `caller` Principal (`ctx.auth`, resolved once at the edge) is threaded in.
+// Thin: validate → LAYER-1 owner gate for bulk → enter the front door → map errors.
 //
-// `subscribe` mirrors the SSE replay-then-live shape: replay the in-memory progress ring
-// (`getRecentWorkloadEvents`, 60s TTL — overlap is idempotent on the client), then live-tail the
-// per-process `workloadStreamEmitter`, filtered to the one `workloadId`. `withSubscriptionErrors` maps a
-// thrown domain error (the `get` existence check) into a typed frame — a subscription bypasses the
-// domain-error middleware (Esoteric #5).
+// `subscribe` mirrors the SSE replay-then-live shape: the generator's existence check is the OWNER-scoped
+// `get` (a stranger's foreign id throws NOT_FOUND, mapped to a typed frame by `withSubscriptionErrors`), then
+// replay the in-memory progress ring (`getRecentWorkloadEvents`, 60s TTL — overlap is idempotent on the
+// client) and live-tail the per-process `workloadStreamEmitter`, filtered to the one `workloadId`.
 
 import { on } from "node:events";
-import { workloadKindSchema, workloadStatusSchema } from "@orb/contracts/workloads";
-import type { WorkloadId } from "@orb/kit/ids";
+import type { Principal } from "@orb/contracts/identity";
+import {
+  workloadKindSchema,
+  workloadModeSchema,
+  workloadStatusSchema,
+} from "@orb/contracts/workloads";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
+import { requireOwner } from "#domain/admin";
 import type { WorkloadEvent, WorkloadService } from "#domain/workloads";
 import {
   getRecentWorkloadEvents,
@@ -23,49 +34,56 @@ import {
   workloadStreamEmitter,
 } from "#domain/workloads";
 import { withSubscriptionErrors } from "../subscriptions";
-import { adminProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc";
 
 // The (unexported) bus channel `emitWorkloadEvent` publishes on — mirrored here so the live tail listens
 // on the same channel. The progress-bus is single-process (single-replica) by design.
 const WORKLOAD_EVENT_CHANNEL = "workload";
 
 export const workloadsRouter = t.router({
-  start: adminProcedure
+  start: authedProcedure
     .input(
       z.object({
         input: startWorkloadInput,
+        // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
+        mode: workloadModeSchema.default("singular"),
+        targetOwnerId: brandedId<UserId>().optional(),
         dependsOn: z.array(brandedId<WorkloadId>()).optional(),
         scheduledAt: z.number().optional(),
       }),
     )
-    .mutation(({ ctx, input }) =>
-      ctx.services.workloads.start({
+    .mutation(({ ctx, input }) => {
+      // LAYER-1: a BULK run is BOX-OWNER-only. `requireOwner` throws FORBIDDEN for a non-owner; the verb
+      // re-gates as LAYER-2 (and validates the kind supports the mode + resolves the target).
+      if (input.mode === "bulk") {
+        requireOwner(ctx.auth);
+      }
+      return ctx.services.workloads.start({
         input: input.input,
+        caller: ctx.auth,
+        mode: input.mode,
         ownerId: ctx.auth.userId,
+        ...(input.targetOwnerId !== undefined ? { targetOwnerId: input.targetOwnerId } : {}),
         ...(input.dependsOn !== undefined ? { dependsOn: input.dependsOn } : {}),
         ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
-      }),
-    ),
+      });
+    }),
 
-  cancel: adminProcedure
+  cancel: authedProcedure
     .input(z.object({ id: brandedId<WorkloadId>() }))
     .mutation(({ ctx, input }) =>
-      ctx.services.workloads.cancel({ id: input.id, ownerId: ctx.auth.userId }),
+      ctx.services.workloads.cancel({ id: input.id, caller: ctx.auth }),
     ),
 
-  retry: adminProcedure
+  retry: authedProcedure
     .input(z.object({ id: brandedId<WorkloadId>() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.workloads.retry({ id: input.id, ownerId: ctx.auth.userId }),
-    ),
+    .mutation(({ ctx, input }) => ctx.services.workloads.retry({ id: input.id, caller: ctx.auth })),
 
-  get: adminProcedure
+  get: authedProcedure
     .input(z.object({ id: brandedId<WorkloadId>() }))
-    .query(({ ctx, input }) =>
-      ctx.services.workloads.get({ id: input.id, ownerId: ctx.auth.userId }),
-    ),
+    .query(({ ctx, input }) => ctx.services.workloads.get({ id: input.id, caller: ctx.auth })),
 
-  list: adminProcedure
+  list: authedProcedure
     .input(
       z
         .object({
@@ -78,6 +96,7 @@ export const workloadsRouter = t.router({
     )
     .query(({ ctx, input }) =>
       ctx.services.workloads.list({
+        caller: ctx.auth,
         ...(input?.kind !== undefined ? { kind: input.kind } : {}),
         ...(input?.status !== undefined ? { status: input.status } : {}),
         ...(input?.since !== undefined ? { since: input.since } : {}),
@@ -85,21 +104,24 @@ export const workloadsRouter = t.router({
       }),
     ),
 
-  subscribe: adminProcedure
+  subscribe: authedProcedure
     .input(z.object({ workloadId: brandedId<WorkloadId>() }))
     .subscription(({ ctx, input, signal }) =>
-      withSubscriptionErrors(workloadEvents(ctx.services.workloads, input.workloadId, signal)),
+      withSubscriptionErrors(
+        workloadEvents(ctx.services.workloads, ctx.auth, input.workloadId, signal),
+      ),
     ),
 });
 
 async function* workloadEvents(
   service: WorkloadService,
+  caller: Principal,
   workloadId: WorkloadId,
   signal: AbortSignal | undefined,
 ): AsyncGenerator<TrackedEnvelope<WorkloadEvent>> {
-  // Existence check — throws `DomainNotFoundError` for a bad id, which the wrapper converts to a typed
-  // frame (NOT a 500). `ownerId` is the audit subject only (workloads are admin-global).
-  await service.get({ id: workloadId, ownerId: null });
+  // Existence + OWNER-scoped check — throws `DomainNotFoundError` for a bad id OR a foreign workload (a
+  // stranger can't tail someone else's run), which the wrapper converts to a typed frame (NOT a 500).
+  await service.get({ id: workloadId, caller });
 
   let seq = 0;
   for (const event of getRecentWorkloadEvents(workloadId)) {

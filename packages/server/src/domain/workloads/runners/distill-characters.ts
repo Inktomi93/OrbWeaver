@@ -10,6 +10,6 @@ export const distillCharactersRunner: Runner<"distill-characters"> = async (
   signal,
 ) => {
   report({ message: "distilling character summaries" });
-  const result = await ctx.env.discovery.distillCharacters({ signal });
+  const result = await ctx.env.discovery.distillCharacters({ ownerId: ctx.ownerId, signal });
   return { scanned: result.scanned, written: result.written };
 };

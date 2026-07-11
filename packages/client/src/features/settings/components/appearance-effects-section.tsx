@@ -17,7 +17,8 @@ import { useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds";
 import { BLUR_SURFACE_ITEMS } from "../lib/appearance-select-items";
-import { APPEARANCE_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
+import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { settingsAnchorId } from "../lib/settings-nav-model";
 
 /** One label-left / switch-right effect row. The label association is the shared `id` SettingRow wires
  *  via `htmlFor` — a real (runtime) association the linter can't see across the component boundary. */

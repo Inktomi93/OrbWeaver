@@ -458,12 +458,13 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     expect(spliced.findIndex((m) => m.content.includes("Aria stays cryptic."))).toBe(3);
   });
 
-  test("assembly needs no prefill special-case: assistant@depth-0 is rejected at the WRITE boundary", () => {
-    // The assumption the assembler relies on (it emits the note verbatim, no prefill branch): a
-    // response-prefill note can never be authored, so it never reaches assembly. The gate is the write schema.
+  test("D66-B: assistant@depth-0 is ACCEPTED at the WRITE boundary; safety moved to the SHAPE delivery gate", () => {
+    // The write-reject was REMOVED (W5, ruling A) — authored prefill is persistable. A stored
+    // assistant@depth-0 note now round-trips the write schema; the SHAPE splice normalizes it to depth 1
+    // (the only assistant placement both runners express) unless the model's `assistantPrefill` is honored.
     expect(
       cardDepthPromptWriteSchema.safeParse({ prompt: "x", depth: 0, role: "assistant" }).success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       cardDepthPromptWriteSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success,
     ).toBe(true);

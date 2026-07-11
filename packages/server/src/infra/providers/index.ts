@@ -4,9 +4,10 @@
 //
 // infra/providers — FRONT DOOR (the CORE: roles + the sealed-backend contract + the credential
 // firewall). `createProviderExecutor(deps)` binds the wired {@link BackendRegistry} into the bound role
-// surface ({@link ProviderExecutor}) connection/chat/buddy call. The three backend agents (openrouter /
-// agent-sdk / vllm+local-light) each export a `ProviderBackend` factory and `entry/` wires them into the
-// registry — they fulfill the {@link ProviderBackend} contract WITHOUT touching this core.
+// surface ({@link ProviderExecutor}) connection/chat/buddy call. The backend agents (openrouter /
+// agent-sdk / anth-direct / custom-byo / vllm+local-light) each export a `ProviderBackend` factory and
+// `entry/` wires them into the registry — they fulfill the {@link ProviderBackend} contract WITHOUT touching
+// this core.
 //
 // The diagnostic FRONT DOOR (`createProviderDiagnostics` — probe/accountCredits/generationCost/inspect/
 // fetchOrCatalog) is composed here too. NOT here yet (separate slices): the sealed backends (`backends/`,
@@ -14,6 +15,8 @@
 
 import type { AgentSdkBackendDeps } from "./backends/agent-sdk";
 import { createAgentSdkBackend } from "./backends/agent-sdk";
+import type { AnthDirectBackendDeps } from "./backends/anth-direct";
+import { createAnthDirectBackend } from "./backends/anth-direct";
 import { createCustomByoBackend } from "./backends/custom-byo";
 import { createLocalLightBackend } from "./backends/local-light";
 import type { OpenRouterBackendDeps } from "./backends/openrouter";
@@ -64,6 +67,9 @@ export interface BackendRegistryDeps {
   // ── Pass-through DI seams (production durable overrides + test fakes; the sealed door's only channel) ──
   readonly random?: OpenRouterBackendDeps["random"];
   readonly getClient?: OpenRouterBackendDeps["getClient"];
+  /** The anth-direct per-key belted `@anthropic-ai/sdk` client resolver — production defaults to the real
+   *  belted LRU; a test injects a fake `AnthClient` (the sealed door's only channel, mirrors `getClient`). */
+  readonly getAnthClient?: AnthDirectBackendDeps["getClient"];
   readonly query?: AgentSdkBackendDeps["query"];
   readonly sessionStore?: AgentSdkBackendDeps["sessionStore"];
   readonly vllmClient?: VllmBackendDeps["client"];
@@ -88,6 +94,12 @@ function openRouterDeps(deps: BackendRegistryDeps): OpenRouterBackendDeps {
     ...(deps.getClient !== undefined ? { getClient: deps.getClient } : {}),
   };
 }
+function anthDirectDeps(deps: BackendRegistryDeps): AnthDirectBackendDeps {
+  return {
+    now: deps.now,
+    ...(deps.getAnthClient !== undefined ? { getClient: deps.getAnthClient } : {}),
+  };
+}
 function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
   return {
     now: deps.now,
@@ -109,8 +121,9 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
 /**
  * Build the wired backend registry BEHIND the front door — the seal (`providers-runner-seal` /
  * `providers-public-surface-only`) forbids `entry/` from importing `backends/<x>` or `vllm/`, and the
- * `BackendKey` axis is sealed, so the registry MUST be keyed here off each backend's own `.key`. The four
- * remote/in-process backends are always constructed; the local vLLM engine is constructed ONLY when not
+ * `BackendKey` axis is sealed, so the registry MUST be keyed here off each backend's own `.key`. The five
+ * remote/in-process backends (openrouter · agent-sdk · anth-direct · custom-byo · local-light) are always
+ * constructed; the local vLLM engine is constructed ONLY when not
  * disabled (the §D3 escape hatch — when disabled it is absent from the map and a role that resolves to it
  * fail-closes, which is correct). Returns the engine handle so the boot lifecycle can supervise it.
  */
@@ -118,6 +131,7 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
   const backends: ProviderBackend[] = [
     createOpenRouterBackend(openRouterDeps(deps)),
     createAgentSdkBackend(agentSdkDeps(deps)),
+    createAnthDirectBackend(anthDirectDeps(deps)),
     createCustomByoBackend({
       now: deps.now,
       ...(deps.random !== undefined ? { random: deps.random } : {}),

@@ -1,15 +1,17 @@
 import type { Db } from "@orb/db";
 import { chatInvites } from "@orb/db";
-import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId } from "@orb/kit/ids";
+import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
+  acceptInviteByIdAtomic,
   countPresentMembers,
   createInvite,
   declineInvite,
   declineInviteById,
   deletePendingTurn,
+  findInviteById,
   findInviteByTokenHash,
   listInvitesForChat,
   loadPendingTurns,
@@ -179,6 +181,122 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
+  });
+});
+
+// The token-free accept-by-id sibling — SAME chokepoint physics as the redeem, but keyed on the invite PK +
+// SELF-AUTHORIZING (an EXACT `invitedUserId === caller` match, NOT the redeem's untargeted-or-match). A
+// share-link invite is token-only → never seatable by id; a foreign target matches nothing.
+describe("persistence/invites — the atomic accept-by-id (token-free sibling)", () => {
+  async function seedTargetedInvite(
+    chatId: ChatId,
+    key: string,
+    invitedUserId: UserId,
+    overrides: { readonly maxUses?: number | null; readonly expiresAt?: number | null } = {},
+  ): Promise<ChatInviteId> {
+    await seedInvite(db, chatId, key, overrides);
+    const inviteId = castId<ChatInviteId>(`chat_invite_${key}`);
+    await db.update(chatInvites).set({ invitedUserId }).where(eq(chatInvites.id, inviteId));
+    return inviteId;
+  }
+
+  test("the bound target is seated at the canon head + a use is burned; findInviteById round-trips", async () => {
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedMessage(db, chatId, 1);
+    await seedMessage(db, chatId, 2);
+    const inviteId = await seedTargetedInvite(chatId, "i", target, { maxUses: 5 });
+
+    const result = await acceptInviteByIdAtomic(db, {
+      inviteId,
+      userId: target,
+      participantId: castId<ChatParticipantId>("chat_participant_t"),
+      now: FROZEN_AT,
+    });
+    expect(result?.chatId).toBe(chatId);
+    expect(result?.participant.role).toBe("member");
+    expect(result?.participant.joinSeq).toBe(2);
+    expect((await findInviteById(db, inviteId))?.uses).toBe(1);
+  });
+
+  test("a SHARE-LINK invite (invitedUserId null) is never seatable by id — undefined, no use burned", async () => {
+    const anyone = await seedUser(db, "anyone");
+    const chatId = await seedChat(db, "a");
+    await seedInvite(db, chatId, "i", { maxUses: 5 }); // untargeted
+    const inviteId = castId<ChatInviteId>("chat_invite_i");
+
+    const result = await acceptInviteByIdAtomic(db, {
+      inviteId,
+      userId: anyone,
+      participantId: castId<ChatParticipantId>("chat_participant_x"),
+      now: FROZEN_AT,
+    });
+    expect(result).toBeUndefined();
+    expect((await findInviteById(db, inviteId))?.uses).toBe(0);
+    expect((await findInviteById(db, inviteId))?.status).toBe("pending");
+  });
+
+  test("a FOREIGN target matches nothing (leak-free) — the invite is untouched for its real target", async () => {
+    const target = await seedUser(db, "target");
+    const attacker = await seedUser(db, "attacker");
+    const chatId = await seedChat(db, "a");
+    const inviteId = await seedTargetedInvite(chatId, "i", target);
+
+    const result = await acceptInviteByIdAtomic(db, {
+      inviteId,
+      userId: attacker,
+      participantId: castId<ChatParticipantId>("chat_participant_a"),
+      now: FROZEN_AT,
+    });
+    expect(result).toBeUndefined();
+    const inv = await findInviteById(db, inviteId);
+    expect(inv?.uses).toBe(0);
+    expect(inv?.status).toBe("pending"); // still redeemable by its real target
+  });
+
+  test("an expired invite is refused", async () => {
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    const inviteId = await seedTargetedInvite(chatId, "i", target, { expiresAt: FROZEN_AT - 1 });
+
+    const result = await acceptInviteByIdAtomic(db, {
+      inviteId,
+      userId: target,
+      participantId: castId<ChatParticipantId>("chat_participant_t"),
+      now: FROZEN_AT,
+    });
+    expect(result).toBeUndefined();
+  });
+
+  test("accept of an ALREADY-present member is a no-op (undefined), no use consumed", async () => {
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "t", userId: target, role: "member" });
+    const inviteId = await seedTargetedInvite(chatId, "i", target, { maxUses: 5 });
+
+    const result = await acceptInviteByIdAtomic(db, {
+      inviteId,
+      userId: target,
+      participantId: castId<ChatParticipantId>("chat_participant_dup"),
+      now: FROZEN_AT,
+    });
+    expect(result).toBeUndefined();
+    expect((await findInviteById(db, inviteId))?.uses).toBe(0);
+  });
+
+  test("closes the maxUses TOCTOU: the single-use invite flips to accepted after the target seats", async () => {
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    const inviteId = await seedTargetedInvite(chatId, "i", target, { maxUses: 1 });
+
+    const first = await acceptInviteByIdAtomic(db, {
+      inviteId,
+      userId: target,
+      participantId: castId<ChatParticipantId>("chat_participant_t"),
+      now: FROZEN_AT,
+    });
+    expect(first).toBeDefined();
+    expect((await findInviteById(db, inviteId))?.status).toBe("accepted");
   });
 });
 

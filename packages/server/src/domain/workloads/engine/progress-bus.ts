@@ -56,6 +56,19 @@ export function getRecentWorkloadEvents(workloadId: WorkloadId): readonly Worklo
 }
 
 /**
+ * Subscribe to the FULL event payload — `listener` fires with every `WorkloadEvent` (the buddy observer's
+ * workload source, PD-45: it needs the `type`/`workloadId` to react, not just the wake `subscribeWorkloadWake`
+ * delivers). Returns the unsubscribe. The observer is a long-lived process supervisor (not a per-request SSE
+ * generator), so this is the callback form the front door hands the composition root.
+ */
+export function subscribeWorkloadEvents(listener: (event: WorkloadEvent) => void): () => void {
+  workloadStreamEmitter.on(WORKLOAD_EVENT_CHANNEL, listener);
+  return () => {
+    workloadStreamEmitter.off(WORKLOAD_EVENT_CHANNEL, listener);
+  };
+}
+
+/**
  * Subscribe to the wake signal — `listener` fires on EVERY workload event (the worker re-polls the queue on
  * any lifecycle change). Returns the unsubscribe. This is the front-door wake seam the `transport/jobs`
  * worker driver consumes as its `subscribeWake` op, so the driver never imports the emitter or the private

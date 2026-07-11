@@ -16,6 +16,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
+import type { IsAdmin, RequireOwner } from "../../admin/contract/guard";
 import type {
   CancelWorkloadParams,
   CancelWorkloadResult,
@@ -52,6 +53,11 @@ export interface WorkloadServiceContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newWorkloadId: NewWorkloadId;
+  /** MODE authz seam (injected from `#domain/admin` at entry — the sole role-comparison site, D17/spine #6):
+   *  `requireOwner` gates a BULK run (BOX-OWNER only); `isAdmin` chooses the read scope (owner∪admin → all
+   *  owners; a user → own `ownerId`). Verb-tier gate = layer 2 (transport is layer 1). */
+  readonly requireOwner: RequireOwner;
+  readonly isAdmin: IsAdmin;
 }
 
 /** What `createWorkloadService` receives from the entry root (identical to the context — no transform). */
@@ -81,13 +87,16 @@ export interface WorkloadRunnerDeps {
 
 /**
  * The per-dispatch bundle a `Runner<K>` closes over (built by the engine for EACH claimed row). `userId` is
- * the resolved acting user (`row.ownerId` or the synthetic system id); `roleClients` is PRE-BOUND for that
- * user; `loadUserSettings` is the cached reader bound to the same user; `env` is the cross-feature hub; `now`
- * is the injected clock. A runner does pure per-kind work over these — it NEVER touches the row lifecycle.
+ * the resolved acting user (`row.ownerId` or the synthetic system id — for `roleClients`/settings binding);
+ * `ownerId` is the RAW row owner (`null` for a BULK all-owners sweep) — the ENUMERATION SCOPE a runner passes
+ * to its `env` op (singular = one owner; null = all). `roleClients` is PRE-BOUND for `userId`; `loadUserSettings`
+ * is cached to `userId`; `env` is the cross-feature hub; `now` is the injected clock. A runner does pure
+ * per-kind work over these — it NEVER touches the row lifecycle.
  */
 export interface WorkloadRunnerContext {
   readonly db: Db;
   readonly userId: UserId;
+  readonly ownerId: UserId | null;
   readonly roleClients: RoleClients;
   readonly loadUserSettings: () => Promise<UserSettings>;
   readonly env: WorkloadRunnerEnv;
@@ -100,7 +109,9 @@ export interface WorkloadRunnerContext {
  * The `WorkloadService` surface. `start` enqueues (catching the kind-active conflict
  * → `DomainConflictError`); `cancel` is race-safe + idempotent (returns the transition, aborts async);
  * `retry` clones (never mutates the audit row); `get`/`list` project typed rows. Every verb threads the
- * acting user for audit + the F3 hook, but it is NOT an authorization input yet (the procedure gate is).
+ * `caller` Principal as the F3 AUTHORIZATION subject (server-authoritative — a deployment-scope kind requires
+ * admin; reads/mutations are IDOR-scoped to a non-admin caller's own `ownerId`), a `null` caller being a
+ * trusted system/scheduler/agent trigger.
  */
 export interface WorkloadService {
   readonly start: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>;

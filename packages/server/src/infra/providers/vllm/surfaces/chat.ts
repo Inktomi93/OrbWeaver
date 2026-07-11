@@ -132,6 +132,7 @@ function buildBody(req: VllmChatTurn): Record<string, unknown> {
     frequencyPenalty: p.frequencyPenalty,
     presencePenalty: p.presencePenalty ?? CARD_DEFAULT_PRESENCE_PENALTY,
     repetitionPenalty: p.repetitionPenalty,
+    minP: p.minP,
     seed: p.seed,
     logitBias: p.logitBias,
     stop: p.stop,
@@ -203,12 +204,14 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
 /** Bind the chat role to the engine client. */
 export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promise<ChatResult> {
   return async (req) => {
-    if (req.api === "agent-sdk") {
-      // vLLM speaks the stateless OpenAI chat-completions wire — it has no agent-sdk (prompt-only) arm.
+    if (req.api === "agent-sdk" || req.api === "anthropic-messages") {
+      // vLLM speaks the stateless OpenAI chat-completions wire only — no agent-sdk (prompt-only) arm and
+      // no Anthropic-Messages arm (that wire is agent-sdk/anth-direct's; anth-direct is OR-skin-only, so a
+      // vLLM anthropic-messages turn never resolves here — this guard keeps the surface's arm honest).
       throw new ProviderError({
         kind: "invalid",
         retryable: false,
-        message: `vllm chat surface received a non-history request (api="${req.api}")`,
+        message: `vllm chat surface does not serve the "${req.api}" api`,
       });
     }
     const turn: VllmChatTurn = req;

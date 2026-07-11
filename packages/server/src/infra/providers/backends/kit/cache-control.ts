@@ -9,11 +9,13 @@
 // model can land on an endpoint that silently ignores cache_control → 0 cache writes), so for Anthropic
 // models we pin the Anthropic provider, order-only (fallbacks stay on → no reliability cost).
 //
-// PLACEMENT SPLIT (Esoteric §5): the chat domain COMPUTES the breakpoint offset; the RUNNER PLACES it.
-// The openrouter runner's `placeHistoryCacheBreakpoint` (which message/offset + the cacheMinTokens gate)
-// lives WITH that runner — it is per-strategy wire-shaping. THIS module provides the mechanical primitive
-// the runner builds on: turning a content string into the cache_control-bearing block. So "the runner
-// places" and "kit provides the placement helper" both hold.
+// PLACEMENT SPLIT (Esoteric §5 / R1): the chat domain COMPUTES the ONE safe breakpoint offset; the RUNNER
+// PLACES the rolling PAIR (`depth` AND `depth+2`). The pure positional core — `computeCacheBreakpointOffsets`
+// (which offsets clear the per-model `cacheMinTokens` floor) — is HOISTED HERE so BOTH the openrouter
+// chat-completions runner and the anth-direct runner reuse it (backends never import each other, invariant
+// #2); each runner then emits its own wire dialect (`ChatContentText` per-block vs the SDK's
+// `CacheControlEphemeral`) at the returned offsets. THIS module also provides the block primitive
+// (`cacheControlBlock`). So "the runner places" and "kit provides the placement core" both hold.
 
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 
@@ -68,4 +70,46 @@ export function effectiveProviderRouting(
  *  breakpoint emit the identical shape. */
 export function cacheControlBlock(text: string): CacheControlTextBlock {
   return { type: "text", text, cacheControl: ANTHROPIC_CACHE_5M };
+}
+
+/**
+ * The pure positional core of the R1 rolling cache PAIR (part 01 §1d / part 02 §5d). From the ONE safe
+ * offset-from-end SHAPE computed, return the pair of offsets `depth` AND `depth+2` whose cumulative prefix
+ * (systemStatic + every message up to and including the target) clears the per-model `cacheMinTokens`
+ * floor. Both breakpoints sit on already-cached stable content, so the deeper (`depth+2`) read is FREE —
+ * it keeps a cache hit inside Anthropic's 20-block lookback window that a single breakpoint drops on a long
+ * conversation. Drops the deeper offset when it runs off the front of the array or its prefix is below the
+ * floor; drops BOTH (returns `[]`) when even `depth` is below the floor. No wire types — each runner maps
+ * the returned offsets to its own block dialect (the openrouter `ChatContentText` per-part form, the
+ * anth-direct `CacheControlEphemeral` block). The single-breakpoint code this replaces was the regression.
+ */
+export function computeCacheBreakpointOffsets(args: {
+  /** Per-message prefix token contribution, in message order (0 for a message with no cacheable text). */
+  readonly messageTokens: readonly number[];
+  /** The static system-block tokens — they count toward the prefix floor (the system block is first). */
+  readonly systemStaticTokens: number;
+  /** The ONE safe offset-from-end SHAPE computed (the last stable message). */
+  readonly offsetFromEnd: number;
+  /** The per-model minimum cacheable prefix (tokens); a breakpoint below it burns a slot for no cache. */
+  readonly cacheMinTokens: number;
+}): readonly number[] {
+  const { messageTokens, systemStaticTokens, offsetFromEnd, cacheMinTokens } = args;
+  const len = messageTokens.length;
+  const placed: number[] = [];
+  // `depth` first (the nearer breakpoint), then `depth+2` (the deeper, more-stable one). The deeper is
+  // FURTHER from the end, so it is only worth placing when the nearer one already qualified.
+  for (const offset of [offsetFromEnd, offsetFromEnd + 2]) {
+    const targetIdx = len - 1 - offset;
+    if (targetIdx < 0) {
+      continue;
+    }
+    let prefixTokens = systemStaticTokens;
+    for (let i = 0; i <= targetIdx; i += 1) {
+      prefixTokens += messageTokens[i] ?? 0;
+    }
+    if (prefixTokens >= cacheMinTokens) {
+      placed.push(offset);
+    }
+  }
+  return placed;
 }

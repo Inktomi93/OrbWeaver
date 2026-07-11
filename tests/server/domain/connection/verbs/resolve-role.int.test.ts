@@ -6,7 +6,7 @@ import { ConnectionRoutingError, createConnectionService } from "@orb/server/dom
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeConnHarness, principal } from "../_support.ts";
+import { makeConnHarness, makeOrEntry, principal } from "../_support.ts";
 
 describe("resolveRole — honors roleDefaults (PD-9)", () => {
   test("an embed role pointed at local-light resolves to a local-light credential (no vllm hard-pin)", async () => {
@@ -86,6 +86,46 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
   test("an incoherent (api, source) selection throws ConnectionRoutingError", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "vllm" } }); // agent-sdk can't run on vllm
+    const svc = createConnectionService(h.ctx);
+
+    await expect(
+      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+    ).rejects.toBeInstanceOf(ConnectionRoutingError);
+  });
+});
+
+// The anth-direct (D67, W7) protocol pairing — `assertCoherent`'s new arm. The v1 PRIMARY path rides the
+// existing `openrouter` credential (ZERO new credential); the free Max sub can NEVER reach it (§3d, the
+// load-bearing sub-exclusion invariant).
+describe("resolveRole — the anthropic-messages (anth-direct) coherence pairing (D67 §3a/§3d)", () => {
+  test("anthropic-messages × openrouter is COHERENT (the v1 PRIMARY path, rides the OR credential)", async () => {
+    const h = makeConnHarness(await freshDb());
+    // The OR catalog carries an anthropic slug so the openrouter chat-model heal picks it.
+    h.setOrCatalog([makeOrEntry({ id: "anthropic/claude-opus-4.8" })]);
+    h.setRoleDefaults({
+      chat: { api: "anthropic-messages", source: "openrouter", model: "anthropic/claude-opus-4.8" },
+    });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.api).toBe("anthropic-messages");
+    expect(conn.credential.source).toBe("openrouter");
+  });
+
+  test("THE SUB-EXCLUSION: anthropic-messages × max-pro-sub throws ConnectionRoutingError (§3d)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "anthropic-messages", source: "max-pro-sub" } });
+    const svc = createConnectionService(h.ctx);
+
+    await expect(
+      svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") }),
+    ).rejects.toBeInstanceOf(ConnectionRoutingError);
+  });
+
+  test("anthropic-messages × vllm is INCOHERENT in v1 (the Anthropic wire is OR-skin-only)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "anthropic-messages", source: "vllm" } });
     const svc = createConnectionService(h.ctx);
 
     await expect(

@@ -25,6 +25,9 @@ const emitter = new EventEmitter();
 emitter.setMaxListeners(0);
 
 const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
+// The FIREHOSE channel — EVERY chat event, regardless of chat. The buddy observer taps this (PD-45) to react
+// to turn lifecycle across all rooms; a per-chat subscriber never sees it (they attach to `channelFor`).
+const ALL_CHATS_CHANNEL = "chat:*";
 
 /** One live-bus entry — the durable per-chat cursor + the room-public event (the same `{seq, event}`
  *  shape `chat.replayChatEvents` returns, so replay + live yields are uniform). */
@@ -37,6 +40,17 @@ export interface ChatLiveEvent {
  *  wrapper AFTER the domain bus's `chat_events` INSERT returned the `seq` (durable-first). */
 export function publishChatEvent(entry: ChatLiveEvent): void {
   emitter.emit(channelFor(entry.event.chatId), entry);
+  emitter.emit(ALL_CHATS_CHANNEL, entry);
+}
+
+/** Subscribe to the ALL-CHATS firehose (the buddy observer's chat source, PD-45); returns the unsubscribe.
+ *  Callback-style (not the async-iterator the per-chat subscription uses) — the observer is a long-lived
+ *  process supervisor, not a per-request SSE generator. */
+export function subscribeAllChatEvents(listener: (entry: ChatLiveEvent) => void): () => void {
+  emitter.on(ALL_CHATS_CHANNEL, listener);
+  return () => {
+    emitter.off(ALL_CHATS_CHANNEL, listener);
+  };
 }
 
 /**

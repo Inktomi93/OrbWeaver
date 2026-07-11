@@ -19,6 +19,7 @@ import type {
   SectionPreview,
 } from "@orb/contracts/chat";
 import {
+  acceptInviteSchema,
   buildCharacterNameMap,
   buildPersonaNameMap,
   CHAT_BUS_EVENT_TYPES,
@@ -240,18 +241,19 @@ test("roomOverridesSchema accepts a directive with just a prompt (depth/role lef
   expect(parsed.authorsNote).toEqual({ prompt: "just text" });
 });
 
-// task #22 PREFILL GUARD (mirrors `cardDepthPromptWriteSchema`): assistant @ depth 0 is a response prefill,
-// unsupported across providers — the widened note carries the same rejection.
-test("roomOverridesSchema rejects an assistant@depth-0 authorsNote (prefill guard) but allows depth>=1", () => {
+// D66-B (W5, ruling A): the assistant@depth-0 WRITE-reject is REMOVED — authored prefill is persistable;
+// SHAPE normalizes the trailing assistant at delivery on a `assistantPrefill:false` model. Shape
+// validation stays.
+test("roomOverridesSchema ACCEPTS an assistant@depth-0 authorsNote (normalized at SHAPE delivery, D66-B)", () => {
   expect(
     roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "assistant" } })
       .success,
-  ).toBe(false);
+  ).toBe(true);
   expect(
     roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 1, role: "assistant" } })
       .success,
   ).toBe(true);
-  // system/user at depth 0 are fine (only assistant@0 is the prefill).
+  // system/user at depth 0 stay valid.
   expect(
     roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "system" } })
       .success,
@@ -287,6 +289,17 @@ test("preview/redeem invite params require a token", () => {
   expect(previewInviteSchema.parse({ token: "share-token" })).toEqual({ token: "share-token" });
   expect(redeemInviteSchema.parse({ token: "share-token" })).toEqual({ token: "share-token" });
   expect(redeemInviteSchema.safeParse({}).success).toBe(false);
+});
+
+test("acceptInviteSchema requires a branded inviteId (token-free accept-by-id)", () => {
+  expect(acceptInviteSchema.parse({ inviteId: SAMPLE_INVITE_ID })).toEqual({
+    inviteId: SAMPLE_INVITE_ID,
+  });
+  // No token field is accepted (the strip-unknown backstop) and the id is mandatory.
+  expect(acceptInviteSchema.safeParse({}).success).toBe(false);
+  expect(acceptInviteSchema.parse({ inviteId: SAMPLE_INVITE_ID, token: "x" })).toEqual({
+    inviteId: SAMPLE_INVITE_ID,
+  });
 });
 
 test("InviteView / InvitePreview pin the host + accept-flow shapes (no token leaks)", () => {

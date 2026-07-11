@@ -27,7 +27,7 @@ export function createStore(ctx: AssetsContext): AssetsService["store"] {
     });
     // Emit ONLY on a new asset. `created:false` is a within-user dedup hit — the existing asset was already
     // emitted (and indexed); re-emitting would re-embed identical bytes. (In the coherent slice flow a new
-    // row ⟺ a new blob ⟺ `created`; the orphan-blob edge belongs to DR rebuild, FLAG[PD-84].)
+    // row ⟺ a new blob ⟺ `created`; the orphan-blob edge is handled by DR rebuild — `rebuildFromTree`, PD-84.)
     if (stored.created) {
       ctx.emit({ type: "asset.created", assetId: stored.assetId });
     }

@@ -1,10 +1,14 @@
-// verb: createUser — mint a loginable LOCAL human. admin-gated (owner ∪ admin). Mints humans
+// verb: createUser — mint a loginable LOCAL human. Authority is ROLE-DEPENDENT (`requireMintAuthority`):
+// minting a regular `user` is admin-gated (owner ∪ admin); minting an `admin` is OWNER-ONLY — the SAME
+// owner gate `setRole` uses (D17), so a delegated (non-owner) admin can't mint an admin outright and
+// bypass the owner-only `setRole` (the create/set-role privilege asymmetry). Mints humans
 // ONLY (loginable: a password hash, no agent kind — agent principals are sessions' `provisionAgentPrincipal`,
-// not this path). Guards: invalid_handle (empty), cannot_grant_owner (the owner is never minted here),
+// not this path). Guards: invalid_handle (empty), cannot_grant_owner (the owner is never minted here — the
+// single-owner invariant refuses it for EVERYONE, owner included, AFTER the owner passes the authority gate),
 // weak_password (below the auth floor), user_exists (the handle is taken — BOTH the friendly pre-SELECT
 // and the TOCTOU `INSERT`-conflict race translate to the same typed code).
 
-import type { UserRole } from "@orb/contracts/identity";
+import type { Principal, UserRole } from "@orb/contracts/identity";
 import { isConstraintViolation, users } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
@@ -15,21 +19,39 @@ import { ADMIN_OP_CODES } from "../contract/errors";
 import type { CreateUserParams } from "../contract/params";
 import type { AdminContext, AdminService } from "../contract/service";
 import type { AdminUserView } from "../contract/views";
-import { requireAdmin } from "../guard";
+import { requireAdmin, requireOwner } from "../guard";
 import { userCols } from "../persistence/queries";
 
 const OWNER_ROLE = "owner";
 const DEFAULT_ROLE = "user";
 const LIMIT_ONE = 1;
 
-/** Validate the create params into a clean `{ handle, role }`, throwing the typed reason on each failure. */
-function validateCreate(params: CreateUserParams): { handle: string; role: UserRole } {
+/** The authority required to MINT the requested role — closes the create/set-role privilege asymmetry.
+ *  Minting a regular `user` is delegated-admin work (owner ∪ admin, `requireAdmin`). Minting anything
+ *  ELEVATED (`admin` — or `owner`, which `validateCreate` then refuses for EVERYONE via cannot_grant_owner)
+ *  is OWNER-ONLY: the SAME owner gate `setRole` uses (D17 — only the box owner grants the delegated-admin
+ *  axis). Fail-closed by default — any non-`user` role routes to `requireOwner`, so a delegated (non-owner)
+ *  admin requesting `admin` gets a `DomainForbiddenError` and can never bypass the owner-only `setRole` by
+ *  minting an admin outright. This is a gate SELECTION over the requested role (input data), not a second
+ *  owner⊇admin comparison — the verdict still routes through the sole `can()` seam (spine #6). */
+function requireMintAuthority(principal: Principal, role: UserRole): void {
+  if (role === DEFAULT_ROLE) {
+    requireAdmin(principal);
+    return;
+  }
+  requireOwner(principal);
+}
+
+/** Validate the create params into a clean `handle`, throwing the typed reason on each failure. The
+ *  requested `role` is derived + authorized by `requireMintAuthority` BEFORE this runs. */
+function validateCreate(params: CreateUserParams, role: UserRole): string {
   const handle = params.handle.trim();
   if (handle.length === 0) {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must not be empty");
   }
-  const role = params.role ?? DEFAULT_ROLE;
-  // The owner is the immutable bootstrap row — it is never minted through admin (D17).
+  // The owner is the immutable bootstrap row — it is never minted through admin (D17/D40 single-owner). The
+  // owner is the only caller that reaches here with `role === owner` (a non-owner was already refused by the
+  // authority gate); this refuses the owner too, so a SECOND owner can never be minted.
   if (role === OWNER_ROLE) {
     throw new DomainOperationError(
       ADMIN_OP_CODES.cannotGrantOwner,
@@ -42,7 +64,7 @@ function validateCreate(params: CreateUserParams): { handle: string; role: UserR
       `password must be at least ${MIN_PASSWORD_LENGTH} characters`,
     );
   }
-  return { handle, role };
+  return handle;
 }
 
 const handleTaken = (handle: string): DomainOperationError =>
@@ -97,8 +119,11 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert): Promise
 
 export function createCreateUser(ctx: AdminContext): AdminService["createUser"] {
   return async (params: CreateUserParams) => {
-    requireAdmin(params.principal);
-    const { handle, role } = validateCreate(params);
+    const role = params.role ?? DEFAULT_ROLE;
+    // Authorize BEFORE validating: the requested role selects the gate (user → admin-gated; admin → owner-
+    // only). A non-owner requesting `admin`/`owner` fails closed here, never reaching validation.
+    requireMintAuthority(params.principal, role);
+    const handle = validateCreate(params, role);
 
     // Friendly pre-check — the fast-path user_exists. The unique index + the TOCTOU translation in
     // insertLocalUser are the real defense against a racing create taking the handle.

@@ -8,7 +8,7 @@
 // `persistence/` imports it; the front door re-exports it. The PROJECTION FUNCTION (`toView`) stays in
 // `persistence/` (it touches the row).
 
-import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { ParamsByKind } from "./workload-params";
 import type { ResultByKind } from "./workload-result";
@@ -17,6 +17,9 @@ import type { ResultByKind } from "./workload-result";
 export interface WorkloadRowBase {
   readonly id: WorkloadId;
   readonly status: WorkloadStatus;
+  /** The run mode — `singular` (one owner) vs `bulk` (owner-triggered global/create). Drives the single-active
+   *  lock partition + `retry`'s re-authorization. */
+  readonly mode: WorkloadMode;
   /** The acting/triggering user (`null` for a scheduler/system row — the runner maps it to a synthetic id).
    *  SET NULL on user delete so the never-deleted audit row outlives the user. */
   readonly ownerId: UserId | null;

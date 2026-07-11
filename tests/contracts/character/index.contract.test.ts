@@ -133,14 +133,16 @@ test("updateCharacterSchema makes content optional and adds the identity-only fl
   expect(parsed.name).toBeUndefined();
 });
 
-// ── depthPrompt write guard (D32 prefill rejection) ──
-test("cardDepthPromptWriteSchema rejects an assistant-role note at depth 0 (response prefill)", () => {
+// ── depthPrompt write guard (D66-B, W5 ruling A: prefill-reject REMOVED) ──
+// The assistant@depth-0 WRITE-reject is gone — authored prefill is persistable; SHAPE normalizes it at
+// delivery on a `assistantPrefill:false` model. The write schema keeps only shape validation.
+test("cardDepthPromptWriteSchema ACCEPTS an assistant-role note at depth 0 (normalized at SHAPE delivery, D66-B)", () => {
   const prefill = { prompt: "prefilled line", depth: 0, role: "assistant" };
-  expect(cardDepthPromptWriteSchema.safeParse(prefill).success).toBe(false);
-  // The same note at depth 1 is accepted.
+  expect(cardDepthPromptWriteSchema.safeParse(prefill).success).toBe(true);
+  // The same note at depth 1 stays valid.
   const ok = { prompt: "prefilled line", depth: 1, role: "assistant" };
   expect(cardDepthPromptWriteSchema.safeParse(ok).success).toBe(true);
-  // system role at depth 0 is fine.
+  // system role at depth 0 stays valid.
   const sys = { prompt: "a note", depth: 0, role: "system" };
   expect(cardDepthPromptWriteSchema.safeParse(sys).success).toBe(true);
 });

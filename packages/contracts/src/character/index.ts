@@ -52,22 +52,11 @@ export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
 });
 export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 
-// assistant @ depth 0 = a trailing assistant message = response PREFILL — unsupported across providers (the
-// SAME write guard world-info + persona injections apply). The read path stays lenient (the serde normalizes
-// a legacy/imported value), so this guard layers only on the WRITE side.
-const PREFILL_DEPTH = 0;
-
-/** Write-side depth-prompt guard: validates the directive shape AND rejects the `assistant@depth-0` prefill. */
-export const cardDepthPromptWriteSchema = cardDepthPromptSchema.superRefine((val, ctx): void => {
-  if (val.role === "assistant" && val.depth === PREFILL_DEPTH) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["depth"],
-      message:
-        "assistant-role at depth 0 is a response prefill — unsupported across providers. Use depth >= 1, or role user/system.",
-    });
-  }
-});
+/** Write-side depth-prompt guard: validates the directive shape. D66-B (W5, ruling A): the
+ *  assistant\@depth-0 prefill WRITE-reject is REMOVED — authored prefill is persistable, and safety moved to
+ *  the SHAPE delivery gate (a `assistantPrefill:false` model normalizes the trailing assistant at delivery).
+ *  Kept as a distinct export (consumers reference it) though it now equals the base directive shape. */
+export const cardDepthPromptWriteSchema = cardDepthPromptSchema;
 
 // ── Refinery signals (the CardRefinery pipeline output — local, not on the ST wire) ────
 // Derived corpus-pipeline signals carried on the flat card row (D28 `refinery*`): a numeric score and an

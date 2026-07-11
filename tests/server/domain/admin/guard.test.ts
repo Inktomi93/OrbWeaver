@@ -7,7 +7,7 @@ import type { AgentActor, UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { can, canAgent, requireAdmin, requireOwner } from "@orb/server/domain/admin";
+import { can, canAgent, isAdmin, requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 import { principal } from "./_support.ts";
@@ -41,6 +41,15 @@ describe("requireAdmin (owner ∪ admin)", () => {
 
   test("denies a plain user", () => {
     expect(() => requireAdmin(pr("user"))).toThrow(DomainForbiddenError);
+  });
+});
+
+// The BOOLEAN form (F3 role-aware scoping) — the same owner∪admin decision, caught into a verdict.
+describe("isAdmin (owner ∪ admin, boolean)", () => {
+  test("true for owner and admin, false for a plain user", () => {
+    expect(isAdmin(pr("owner"))).toBe(true);
+    expect(isAdmin(pr("admin"))).toBe(true);
+    expect(isAdmin(pr("user"))).toBe(false);
   });
 });
 

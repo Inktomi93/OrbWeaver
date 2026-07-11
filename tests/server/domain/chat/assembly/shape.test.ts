@@ -72,11 +72,23 @@ describe("shape — the breakpoint", () => {
     ).toBeUndefined();
   });
 
-  test("ABORT #2: a depth-1 assistant injection squash-merges the boundary → undefined", () => {
-    expect(
-      shape(soloInput({ injections: [inChat({ depth: 1, role: "assistant", content: "cont" })] }))
-        .cacheBreakpointFromEnd,
-    ).toBeUndefined();
+  // D66-C (W6) — the prefix-stable fix supersedes the old ABORT #2 for this case. A depth-1 assistant
+  // injection landing same-role against the last stable canon row is RE-FRAMED at the splice to a user
+  // operator note (`[Note from user: …]`), so it NEVER folds into the cached prefix. The stable prefix is
+  // byte-identical → the breakpoint is now VALID (offset 1), not aborted, and the whole-conversation
+  // re-bill (part 01 §1c) is prevented.
+  test("W6 prefix-stable: a depth-1 assistant injection re-frames to a user note; the breakpoint HOLDS (offset 1)", () => {
+    const out = shape(
+      soloInput({ injections: [inChat({ depth: 1, role: "assistant", content: "cont" })] }),
+    );
+    expect(out.cacheBreakpointFromEnd).toBe(1);
+    // The stable prefix is untouched; the re-framed note rides on the volatile user tail.
+    expect(out.history).toEqual([
+      { role: "assistant", content: "greeting" },
+      { role: "user", content: "u1" },
+      { role: "assistant", content: "a1 tip" },
+      { role: "user", content: "[Note from user: cont]\n\nu2 volatile" },
+    ]);
   });
 
   test("ABORT #3: a group nudge appends a second volatile tail → undefined", () => {
@@ -306,5 +318,116 @@ describe("computeHistoryBreakpoint — direct math", () => {
     expect(offset).toBe(2);
     // The tag must pin u2 (the last real message), NOT the per-turn injection at index 4.
     expect(final.at(-(offset ?? 0) - 1)).toEqual({ role: "user", content: "u2" });
+  });
+});
+
+// D66 (W5) — prefill at SHAPE (ruling A): the CONTINUATION_NUDGE + the splice assistant@0 floor are gated
+// on the resolved `turns.assistantPrefill`. The trailing-user invariant asserts BOTH arms.
+describe("shape — W5 assistantPrefill gates the trailing-user invariant", () => {
+  // A canon that ENDS ON ASSISTANT with no appended user turn (a force/auto round).
+  const trailingAssistantInput = (assistantPrefill: boolean): Parameters<typeof shape>[0] =>
+    soloInput({ canon: SOLO_CANON, appendUserTurn: null, assistantPrefill });
+
+  test("assistantPrefill=false (default floor): a trailing-assistant history gets the CONTINUATION_NUDGE (ends on user)", () => {
+    const out = shape(trailingAssistantInput(false));
+    expect(out.history.at(-1)).toEqual({ role: "user", content: "[Continue the conversation.]" });
+  });
+
+  test("assistantPrefill=true: the trailing assistant is DELIVERED verbatim (no nudge — the model continues the prefill)", () => {
+    const out = shape(trailingAssistantInput(true));
+    expect(out.history.at(-1)).toEqual({ role: "assistant", content: "a1 tip" });
+    // No injected user continuation cue anywhere.
+    expect(out.history.some((r) => r.content.includes("Continue the conversation"))).toBe(false);
+  });
+
+  test("assistantPrefill=true: an assistant@depth-0 injection STAYS at depth 0 (the honored prefill tail)", () => {
+    // With prefill on + a trailing user turn, the assistant@0 injection is the LAST wire row (the prefill).
+    const out = shape(
+      soloInput({
+        injections: [inChat({ depth: 0, role: "assistant", content: "The night was" })],
+        assistantPrefill: true,
+      }),
+    );
+    expect(out.history.at(-1)).toEqual({ role: "assistant", content: "The night was" });
+  });
+
+  test("assistantPrefill=false: an assistant@depth-0 injection is FLOORED to depth 1 (never a trailing prefill)", () => {
+    const out = shape(
+      soloInput({
+        injections: [inChat({ depth: 0, role: "assistant", content: "The night was" })],
+        assistantPrefill: false,
+      }),
+    );
+    // The note floors to depth 1 (before the user tail) — and since it now lands same-role against the
+    // assistant stable tail ("a1 tip"), the W6 prefix-stable re-frame converts it to a user operator note
+    // riding on the volatile user tail. Either way it is NEVER a trailing assistant prefill row.
+    expect(out.history.at(-1)).toEqual({
+      role: "user",
+      content: "[Note from user: The night was]\n\nu2 volatile",
+    });
+    expect(out.history.at(-1)?.role).toBe("user");
+  });
+});
+
+// D66-C (W6) — the role-handling knob at SHAPE: `none` skips ALL merging; the prefix-stable re-frame keeps
+// the cached prefix byte-identical under every merging strategy.
+describe("shape — W6 role-handling strategy + prefix-stable goldens", () => {
+  test("roleHandling=none: adjacent same-role group rows are NOT merged (rows stay standalone)", () => {
+    const groupCanon = [
+      { role: "user" as const, content: "u1", authorName: "Alex" },
+      { role: "assistant" as const, content: "First.", authorName: "Aria", characterId: ARIA },
+      { role: "assistant" as const, content: "Second.", authorName: "Kai", characterId: KAI },
+    ];
+    const out = shape(
+      soloInput({
+        canon: groupCanon,
+        appendUserTurn: null,
+        namesBehavior: "none",
+        roleHandling: "none",
+        roleHandlingFloor: "none",
+      }),
+    );
+    // No merge: the two adjacent assistant rows remain separate.
+    expect(out.history.filter((r) => r.role === "assistant")).toEqual([
+      { role: "assistant", content: "First." },
+      { role: "assistant", content: "Second." },
+    ]);
+  });
+
+  test("roleHandling=merge (default floor): the same adjacent assistant rows MERGE (today-behavior)", () => {
+    const groupCanon = [
+      { role: "user" as const, content: "u1", authorName: "Alex" },
+      { role: "assistant" as const, content: "First.", authorName: "Aria", characterId: ARIA },
+      { role: "assistant" as const, content: "Second.", authorName: "Kai", characterId: KAI },
+    ];
+    const out = shape(
+      soloInput({
+        canon: groupCanon,
+        appendUserTurn: null,
+        namesBehavior: "none",
+        roleHandling: "merge",
+        roleHandlingFloor: "merge",
+      }),
+    );
+    expect(out.history.filter((r) => r.role === "assistant")).toEqual([
+      { role: "assistant", content: "First.\n\nSecond." },
+    ]);
+  });
+
+  test("prefix-stable golden: the STABLE prefix bytes are IDENTICAL with and without an active boundary injection", () => {
+    // The re-frame keeps the cached prefix byte-for-byte the same whether or not the depth-1 assistant note
+    // is active — the whole-conversation re-bill (part 01 §1c) is prevented.
+    const clean = shape(soloInput({ injections: [] }));
+    const withNote = shape(
+      soloInput({ injections: [inChat({ depth: 1, role: "assistant", content: "steer" })] }),
+    );
+    // The stable prefix (everything but the last, volatile, row) is identical.
+    expect(withNote.history.slice(0, -1)).toEqual(clean.history.slice(0, -1));
+    // Only the volatile tail differs (the re-framed note rides on it), and the breakpoint still holds.
+    expect(withNote.cacheBreakpointFromEnd).toBe(1);
+    expect(withNote.history.at(-1)).toEqual({
+      role: "user",
+      content: "[Note from user: steer]\n\nu2 volatile",
+    });
   });
 });

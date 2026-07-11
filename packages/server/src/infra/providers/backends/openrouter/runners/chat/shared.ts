@@ -21,11 +21,13 @@ import type {
 } from "@openrouter/sdk/models";
 import type { ChatContentPart } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
+import type { UserIntent } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import type {
   ChatCompletionStreamChunk,
   ChatToolCallDelta,
+  ProviderSamplingDrop,
   ReasoningRequest,
 } from "../../../../backends/kit";
 import {
@@ -33,10 +35,12 @@ import {
   chatHistoryText,
   effectiveProviderRouting,
   extractHttpErrorDiagnostic,
+  logProviderSampling,
 } from "../../../../backends/kit";
 import type {
   ChatEvent,
   ChatHistoryMessage,
+  ResolvedChatKnobs,
   ResolvedReasoning,
   ResolvedSampling,
   ResolvedWarning,
@@ -222,6 +226,7 @@ export function chatSamplingFields(
     ...(sampling.repetitionPenalty !== undefined
       ? { repetitionPenalty: sampling.repetitionPenalty }
       : {}),
+    ...(sampling.minP !== undefined ? { minP: sampling.minP } : {}),
     ...(sampling.seed !== undefined ? { seed: sampling.seed } : {}),
     ...(sampling.logitBias !== undefined ? { logitBias: sampling.logitBias } : {}),
     ...(sampling.stop !== undefined ? { stop: [...sampling.stop] } : {}),
@@ -251,6 +256,86 @@ export function buildReasoningRequest(reasoning: ResolvedReasoning): ReasoningRe
  *  the resolved `at`). Both OR chat runners (chat-completions + responses) share this one builder. */
 export function warningEvents(warnings: readonly ResolvedWarning[], at: number): ChatEvent[] {
   return warnings.map(({ code, message }) => ({ kind: "warning", at, code, message }));
+}
+
+// ── provider.sampling (part 05 §3d) + the chat-completions verbosity drop (D68-B) ───────────────────
+// The sampling knob names carried on the `provider.sampling` receipt — the `UserIntent`/`ResolvedSampling`
+// fields that actually reach a wire (penalties + minP + the min/max dials). ONE list so requested/applied
+// stay symmetric; verbosity rides its own `applied` slot (it is not a `ResolvedSampling` member).
+const SAMPLING_KNOBS = [
+  "temperature",
+  "topP",
+  "topK",
+  "frequencyPenalty",
+  "presencePenalty",
+  "repetitionPenalty",
+  "minP",
+  "seed",
+  "logitBias",
+  "stop",
+] as const;
+
+// The wire-specific verbosity-drop note the chat-completions runner appends: the model listed verbosity and
+// the funnel KEPT it, but the OR `ChatRequest` has no field (SDK 0.13.19) — a LOUD drop, verify-then-add.
+const CHAT_VERBOSITY_DROPPED =
+  "verbosity ignored: the chat-completions wire has no verbosity field";
+
+/** Pick only the SET sampling knobs off a knob blob (requested = `UserIntent`, applied = `ResolvedSampling`)
+ *  into a flat record for the `provider.sampling` receipt (metadata only — user-authored values, part 05 §5). */
+function pickSampling(source: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const knob of SAMPLING_KNOBS) {
+    const value = source[knob];
+    if (value !== undefined) {
+      out[knob] = value;
+    }
+  }
+  return out;
+}
+
+/** The funnel's dropped sampling knobs → the receipt's `dropped` list (the `sampling_knob_dropped` +
+ *  `verbosity_dropped` notes carry the descriptor-range reason in their `message`). */
+function samplingDrops(warnings: readonly ResolvedWarning[]): ProviderSamplingDrop[] {
+  const drops: ProviderSamplingDrop[] = [];
+  for (const w of warnings) {
+    if (w.code === "sampling_knob_dropped" || w.code === "verbosity_dropped") {
+      // The message is `"<knob> ignored: <reason>"` — split once on " ignored:" for the knob/reason pair.
+      const [knob, reason] = w.message.split(" ignored:", 2);
+      drops.push({ knob: knob ?? w.code, reason: (reason ?? w.message).trim() });
+    }
+  }
+  return drops;
+}
+
+/** Emit the per-turn `provider.sampling` receipt (part 05 §3d) — requested vs applied vs dropped-with-reason,
+ *  so a silently-dropped knob is greppable. DECOUPLED: reads the RESOLVED facts (requested `UserIntent` ×
+ *  applied `ResolvedSampling` + verbosity × the funnel's dropped warnings) — no model-id / wire branch. Both
+ *  OR chat runners call this after the funnel. */
+export function emitSamplingReceipt(params: UserIntent, resolved: ResolvedChatKnobs): void {
+  const applied = pickSampling(resolved.sampling as Record<string, unknown>);
+  if (resolved.verbosity !== undefined) {
+    applied["verbosity"] = resolved.verbosity;
+  }
+  const requested = pickSampling(params as Record<string, unknown>);
+  if (params.verbosity !== undefined) {
+    requested["verbosity"] = params.verbosity;
+  }
+  logProviderSampling("openrouter", {
+    requested,
+    applied,
+    dropped: samplingDrops(resolved.warnings),
+  });
+}
+
+/** The chat-completions warnings, PLUS the wire-specific verbosity drop (D68-B): the funnel kept `verbosity`
+ *  (the model lists it) but the chat-completions wire has no field, so it drops LOUDLY here — a second note
+ *  the responses runner never needs (its wire carries `text.verbosity`). Returns the funnel warnings unchanged
+ *  when no resolved verbosity survived to this wire. */
+export function withVerbosityDrop(resolved: ResolvedChatKnobs): readonly ResolvedWarning[] {
+  if (resolved.verbosity === undefined) {
+    return resolved.warnings;
+  }
+  return [...resolved.warnings, { code: "verbosity_dropped", message: CHAT_VERBOSITY_DROPPED }];
 }
 
 // ── Provider routing (the cache-pin, Esoteric §5/§7) ───────────────────────────────────────────────

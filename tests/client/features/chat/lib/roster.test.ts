@@ -8,6 +8,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
   buildParticipantsById,
+  resolveHumanParticipants,
   resolveViewerActivePersonaId,
 } from "../../../../../packages/client/src/features/chat/lib/roster";
 import { expect, test } from "../../../../support/fixtures";
@@ -71,4 +72,31 @@ test("resolveViewerActivePersonaId returns null when no human participant is pre
 
 test("resolveViewerActivePersonaId returns null for an empty roster", () => {
   expect(resolveViewerActivePersonaId([])).toBeNull();
+});
+
+test("resolveHumanParticipants keeps only PRESENT human seats (characters + departed humans excluded)", () => {
+  const alice = makeParticipant({ characterId: ALICE_ID });
+  const host = makeParticipant({
+    id: castId("participant_host"),
+    kind: "human",
+    characterId: null,
+    role: "host",
+    displayName: "Alex",
+  });
+  const departed = makeParticipant({
+    id: castId("participant_left"),
+    kind: "human",
+    characterId: null,
+    displayName: "Ghost",
+    // leftSeq set = departed (kicked/left) — a historical row, not a room member.
+    leftSeq: 12,
+  });
+  const humans = resolveHumanParticipants([alice, host, departed]);
+  expect(humans.map((p) => p.displayName)).toEqual(["Alex"]);
+});
+
+test("resolveHumanParticipants returns [] for an all-character roster", () => {
+  const alice = makeParticipant({ characterId: ALICE_ID });
+  const bob = makeParticipant({ characterId: BOB_ID });
+  expect(resolveHumanParticipants([alice, bob])).toEqual([]);
 });

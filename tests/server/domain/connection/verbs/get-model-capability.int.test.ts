@@ -18,7 +18,11 @@ afterEach(() => {
 describe("getModelCapability", () => {
   test("a curated id returns the curated descriptor (no cache needed)", async () => {
     const svc = createConnectionService(makeConnHarness(await freshDb()).ctx);
-    const cap = await svc.getModelCapability({ model: "claude-opus-4-8", source: "max-pro-sub" });
+    const cap = await svc.getModelCapability({
+      model: "claude-opus-4-8",
+      source: "max-pro-sub",
+      api: "agent-sdk",
+    });
     expect(cap.reasoning.mode).toBe("adaptive");
   });
 
@@ -30,7 +34,11 @@ describe("getModelCapability", () => {
     );
     const svc = createConnectionService(h.ctx);
 
-    const cap = await svc.getModelCapability({ model: "openai/gpt-5", source: "openrouter" });
+    const cap = await svc.getModelCapability({
+      model: "openai/gpt-5",
+      source: "openrouter",
+      api: "chat-completions",
+    });
     expect(cap.sampling.topK).toEqual({ min: 0, max: 200 });
   });
 });

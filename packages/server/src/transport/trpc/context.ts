@@ -99,10 +99,12 @@ export interface Context {
   /** The transport presence registry (PD-70). SSE subscriptions call `presence.connect(userId, signal)` to
    *  ref-count device liveness; the read side is injected into chat as `presence.read` at the compose root. */
   readonly presence: PresenceRegistry;
-  /** TRUE when the deployment runs `AUTH_MODE=single-user` — the multi-human capability belt (PD-106):
-   *  `multiHumanProcedure` refuses its surfaces with NOT_FOUND while set. Derived ONCE at the entry mount
-   *  from the frozen env (transport reads no env — `foundation/env` is the sole `process.env` reader). */
-  readonly singleUserMode: boolean;
+  /** TRUE when ≥2 humans can authenticate on this deployment (FINAL-Auth-Modes §9 / B4): single-user →
+   *  false; local → the `LOCAL_MULTI_USER` AppSettings toggle; forward-header/oidc → true. The multi-human
+   *  capability belt (PD-106): `multiHumanProcedure` refuses its surfaces with NOT_FOUND while this is
+   *  FALSE. Derived PER-REQUEST at the entry mount (mode is frozen env, but the local toggle is a runtime
+   *  AppSetting — it can NOT be a boot constant; transport still reads no env/settings itself). */
+  readonly multiHumanCapable: boolean;
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
 }
@@ -117,7 +119,7 @@ export function createContext(parts: {
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
   readonly presence: PresenceRegistry;
-  readonly singleUserMode: boolean;
+  readonly multiHumanCapable: boolean;
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
 }): Context {
@@ -126,7 +128,7 @@ export function createContext(parts: {
     services: parts.services,
     rateLimit: parts.rateLimit,
     presence: parts.presence,
-    singleUserMode: parts.singleUserMode,
+    multiHumanCapable: parts.multiHumanCapable,
     csrfHeaderPresent: parts.csrfHeaderPresent,
     clientIp: parts.clientIp,
   };

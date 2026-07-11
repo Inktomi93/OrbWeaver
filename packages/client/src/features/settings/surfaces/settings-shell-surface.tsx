@@ -39,25 +39,28 @@ import { Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { useSettingsTarget } from "#state";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
+import { categoryIdsForGroup, SETTINGS_CATEGORIES } from "../lib/settings-nav";
 import {
-  categoryIdsForGroup,
-  SETTINGS_CATEGORIES,
   SETTINGS_CATEGORY_IDS,
   SETTINGS_GROUP_LABELS,
   SETTINGS_GROUPS,
   settingsAnchorId,
-} from "../lib/settings-nav";
+} from "../lib/settings-nav-model";
 import type { SettingsSearchEntry } from "../lib/settings-search";
 import { SETTINGS_SEARCH_ENTRIES } from "../lib/settings-search";
+import { AdminSettingsSurface } from "./admin-settings-surface";
 import { AppearanceSettingsSurface } from "./appearance-settings-surface";
 import { PersonaSettingsSurface } from "./persona-settings-surface";
 import { SystemSettingsSurface } from "./system-settings-surface";
 import { TagsSettingsSurface } from "./tags-settings-surface";
+import { WorkloadsSettingsSurface } from "./workloads-settings-surface";
 
 // The active-category id — a LOCAL (non-exported) alias derived from the tuple (an exported alias would be
 // the types-in-contract leak the nav registry avoids; local is fine).
@@ -75,6 +78,16 @@ export function SettingsShell(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+
+  // ADMIN-GATE (UX honesty — the server's `adminProcedure` is the floor): `adminOnly` categories render
+  // in the nav/search only for owner ∪ admin viewers. A plain, NON-suspense read so the shell never
+  // blocks on it — while it resolves (or for a plain user) the gated rows simply aren't there.
+  const trpc = useTRPC();
+  const viewerQuery = useQuery(trpc.sessions.me.queryOptions());
+  const isAdminViewer =
+    viewerQuery.data?.globalRole === "owner" || viewerQuery.data?.globalRole === "admin";
+  const visibleCategory = (id: CategoryId): boolean =>
+    SETTINGS_CATEGORIES[id].adminOnly !== true || isAdminViewer;
 
   // A cross-feature deep-link (e.g. the character editor's "Manage tags") can request a specific pane via the
   // shell store's opaque `settingsCategory` seam; honor it as the initial pane + whenever it changes (an
@@ -235,21 +248,23 @@ export function SettingsShell(): ReactElement {
                 <CommandList className="max-h-(--container-cq-sm)">
                   <CommandStatus />
                   <CommandEmpty>{`No settings match “${query.trim()}”.`}</CommandEmpty>
-                  {SETTINGS_SEARCH_ENTRIES.map((entry) => (
-                    <CommandItem
-                      key={entry.id}
-                      keywords={[...entry.keywords]}
-                      onSelect={(): void => jumpToEntry(entry)}
-                      value={entry.id}
-                    >
-                      <Text size="body">{entry.label}</Text>
-                      {entry.label === entry.categoryLabel ? null : (
-                        <Text size="micro" tone="muted">
-                          {entry.categoryLabel}
-                        </Text>
-                      )}
-                    </CommandItem>
-                  ))}
+                  {SETTINGS_SEARCH_ENTRIES.filter((entry) => visibleCategory(entry.categoryId)).map(
+                    (entry) => (
+                      <CommandItem
+                        key={entry.id}
+                        keywords={[...entry.keywords]}
+                        onSelect={(): void => jumpToEntry(entry)}
+                        value={entry.id}
+                      >
+                        <Text size="body">{entry.label}</Text>
+                        {entry.label === entry.categoryLabel ? null : (
+                          <Text size="micro" tone="muted">
+                            {entry.categoryLabel}
+                          </Text>
+                        )}
+                      </CommandItem>
+                    ),
+                  )}
                 </CommandList>
               ) : null}
             </Command>
@@ -270,35 +285,37 @@ export function SettingsShell(): ReactElement {
                   <Text size="micro" weight="semibold" tone="muted" transform="caps">
                     {SETTINGS_GROUP_LABELS[group]}
                   </Text>
-                  {categoryIdsForGroup(group).map((id) => {
-                    const category = SETTINGS_CATEGORIES[id];
-                    const isActive = active === id;
-                    const subs = category.subcategories ?? [];
-                    return (
-                      <Stack key={id} gap="field">
-                        <ListRow
-                          clickable={true}
-                          leading={<Icon icon={category.icon} size="sm" />}
-                          onClick={(): void => selectCategory(id)}
-                          selected={isActive}
-                          title={category.label}
-                        />
-                        {isActive && subs.length > 0 ? (
-                          <Stack className="ps-(--spacing-section)" gap="field">
-                            {subs.map((sub) => (
-                              <ListRow
-                                key={sub.id}
-                                clickable={true}
-                                onClick={(): void => selectSub(id, sub.id)}
-                                selected={activeSub === sub.id}
-                                title={sub.label}
-                              />
-                            ))}
-                          </Stack>
-                        ) : null}
-                      </Stack>
-                    );
-                  })}
+                  {categoryIdsForGroup(group)
+                    .filter(visibleCategory)
+                    .map((id) => {
+                      const category = SETTINGS_CATEGORIES[id];
+                      const isActive = active === id;
+                      const subs = category.subcategories ?? [];
+                      return (
+                        <Stack key={id} gap="field">
+                          <ListRow
+                            clickable={true}
+                            leading={<Icon icon={category.icon} size="sm" />}
+                            onClick={(): void => selectCategory(id)}
+                            selected={isActive}
+                            title={category.label}
+                          />
+                          {isActive && subs.length > 0 ? (
+                            <Stack className="ps-(--spacing-section)" gap="field">
+                              {subs.map((sub) => (
+                                <ListRow
+                                  key={sub.id}
+                                  clickable={true}
+                                  onClick={(): void => selectSub(id, sub.id)}
+                                  selected={activeSub === sub.id}
+                                  title={sub.label}
+                                />
+                              ))}
+                            </Stack>
+                          ) : null}
+                        </Stack>
+                      );
+                    })}
                 </Stack>
               ))}
             </Stack>
@@ -369,7 +386,9 @@ function flashAnchor(el: HTMLElement): void {
   }, FLASH_MS);
 }
 
-/** The active pane — Appearance + Personas + System are real; every other category is a placeholder. */
+/** The active pane — Appearance + Personas + Tags + System + Admin are real; every other category is a
+ *  placeholder. Admin needs no extra guard here: the nav/search hide it from non-admin viewers, and a
+ *  forced deep-link just hits the pane's own "administrators only" QueryBoundary error (server-gated). */
 function SettingsPane({ category }: { readonly category: CategoryId }): ReactElement {
   const def = SETTINGS_CATEGORIES[category];
   if (category === "appearance") {
@@ -381,8 +400,14 @@ function SettingsPane({ category }: { readonly category: CategoryId }): ReactEle
   if (category === "tags") {
     return <TagsSettingsSurface />;
   }
+  if (category === "workloads") {
+    return <WorkloadsSettingsSurface />;
+  }
   if (category === "system") {
     return <SystemSettingsSurface />;
+  }
+  if (category === "admin") {
+    return <AdminSettingsSurface />;
   }
   return <SettingsPanePlaceholder title={def.label} description={def.description} />;
 }

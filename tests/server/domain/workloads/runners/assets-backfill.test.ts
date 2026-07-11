@@ -4,7 +4,7 @@
 import { describe, vi } from "vitest";
 import { assetsBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/assets-backfill.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerContext } from "../_support.ts";
+import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 
 describe("assets-backfill runner", () => {
   test("backfills avatars and echoes dryRun", async () => {
@@ -16,6 +16,7 @@ describe("assets-backfill runner", () => {
       new AbortController().signal,
     );
     expect(env.assets.backfillAvatars).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       dryRun: true,
       signal: expect.any(AbortSignal),
     });

@@ -1,0 +1,114 @@
+// transport/trpc/routers/invites — the multi-HUMAN membership surface (PD-106 burn-down; FINAL-Auth-Modes
+// §7 P1; core/Tier-4-Transport.md §"multi-human surface"). PURE WIRING: the invite lifecycle + the
+// human-membership-lifecycle verbs (domain/chat/verbs/{invites,roster}.ts) were built + tested + classified
+// in the authority matrix long before this router existed — every procedure here is a thin
+// validate → `ctx.services.chat.<verb>` pass-through; authority (requireHost / requireParticipant / the
+// nominee self-check) lives INSIDE each verb (the sibling chat-router shape).
+//
+// EVERY procedure rides `multiHumanProcedure` (the B4 capability belt): while the deployment cannot seat
+// a second human the whole router answers NOT_FOUND, leak-free. This router carries ONLY human-seat
+// verbs — character seating (`chat.addCharacterToChat`) and agent seating (`chat.seatAgent` when wired)
+// stay on the ungated chat surface (§9 ruling 3: multi-CHARACTER rooms work in every mode).
+//
+// TOKEN-CARRYING procedures (`previewInvite`/`redeemInvite`) are `.mutation()` even though preview is
+// semantically a read: tRPC queries ride GET with the input in the URL, which would put the RAW invite
+// token into access logs/history — the `fetchModels` precedent (Tier-4 Esoteric #9: transport shape
+// chosen for the security property, not the read/write semantics). The domain stores only the peppered
+// token HASH; these bodies + the `/join/:token` redirect are the token's only transit points.
+
+import {
+  acceptInviteSchema,
+  createInviteSchema,
+  previewInviteSchema,
+  redeemInviteSchema,
+} from "@orb/contracts/chat";
+import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
+import { z } from "zod";
+import { multiHumanProcedure, t } from "../trpc";
+
+const createSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  input: createInviteSchema,
+});
+
+const revokeSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  inviteId: brandedId<ChatInviteId>(),
+});
+
+const declineSchema = z.object({ inviteId: brandedId<ChatInviteId>() });
+
+const kickSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  userId: brandedId<UserId>(),
+});
+
+const chatScopedSchema = z.object({ chatId: brandedId<ChatId>() });
+
+const nominateSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  userId: brandedId<UserId>(),
+});
+
+export const invitesRouter = t.router({
+  // Host mints a share-link or targeted invite; the RAW token returns exactly once (the /join link).
+  createInvite: multiHumanProcedure
+    .input(createSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.createInvite({ principal: ctx.auth, ...input }),
+    ),
+
+  // Token-authenticated preview-then-confirm read (a mutation for the token-in-URL reason — header).
+  previewInvite: multiHumanProcedure
+    .input(previewInviteSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.previewInvite({ principal: ctx.auth, input })),
+
+  // THE one human-join path (the atomic participant-insert chokepoint).
+  redeemInvite: multiHumanProcedure
+    .input(redeemInviteSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.redeemInvite({ principal: ctx.auth, input })),
+
+  // The token-FREE in-app accept of a TARGETED invite by id (the notification→accept loop) — self-authorizing
+  // (the invite is bound to `ctx.auth.userId`); a share-link / foreign / spent invite is a leak-free NOT_FOUND.
+  acceptInvite: multiHumanProcedure
+    .input(acceptInviteSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.acceptInvite({ principal: ctx.auth, inviteId: input.inviteId }),
+    ),
+
+  revokeInvite: multiHumanProcedure
+    .input(revokeSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input }),
+    ),
+
+  declineInvite: multiHumanProcedure
+    .input(declineSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.declineInvite({ principal: ctx.auth, inviteId: input.inviteId }),
+    ),
+
+  // Host removes a HUMAN member (character mute/remove is the ungated chat surface, not here).
+  kick: multiHumanProcedure
+    .input(kickSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.kick({ principal: ctx.auth, ...input })),
+
+  selfLeave: multiHumanProcedure
+    .input(chatScopedSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.selfLeave({ principal: ctx.auth, chatId: input.chatId }),
+    ),
+
+  nominateHostHandoff: multiHumanProcedure
+    .input(nominateSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.nominateHostHandoff({ principal: ctx.auth, ...input }),
+    ),
+
+  acceptHostHandoff: multiHumanProcedure
+    .input(chatScopedSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.acceptHostHandoff({ principal: ctx.auth, chatId: input.chatId }),
+    ),
+});

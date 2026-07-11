@@ -15,21 +15,31 @@ import {
   chatSegments,
   chats,
   imageEmbeddings,
+  messages,
+  messageVariants,
   users,
 } from "@orb/db";
 import type {
   AssetId,
   CharacterId,
+  CharacterKeywordProfileId,
   ChatId,
   ChatParticipantId,
   DuplicateCharacterPairId,
+  DuplicateChatPairId,
   Handle,
   ImageEmbeddingId,
+  KeywordCooccurrenceId,
+  MessageId,
+  MessageVariantId,
   ThemeClusterId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
+import { eq } from "drizzle-orm";
 import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
+import { createStatsService } from "../../../../packages/server/src/domain/stats/service.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -148,20 +158,32 @@ export function makeDiscoveryHarness(
     readonly hubScores?: HubScoreRecorder;
     readonly summarizerModel?: string;
     readonly attachCardTagByName?: DiscoveryContext["attachCardTagByName"];
+    readonly characterEconomics?: DiscoveryContext["characterEconomics"];
+    readonly characterModelEconomics?: DiscoveryContext["characterModelEconomics"];
   } = {},
 ): DiscoveryHarness {
   const hubScores = overrides.hubScores ?? makeHubScoreRecorder();
   const summarize = overrides.summarize ?? makeSummarizeRecorder();
   const tagAttach = makeTagAttachRecorder();
+  // The injected `stats` economics seam (PD-22) — default to the REAL stats reads over the SAME db (the
+  // "inject the real dep at the root" doctrine; the composition root wires `stats.characterEconomics`).
+  const stats = createStatsService(db);
   const ctx: DiscoveryContext = {
     db,
     now: () => FROZEN_AT,
     newDuplicateCharacterPairId: seededMinter<DuplicateCharacterPairId>("duplicate_character_pair"),
     newThemeClusterId: seededMinter<ThemeClusterId>("theme_cluster"),
+    newKeywordCooccurrenceId: seededMinter<KeywordCooccurrenceId>("keyword_cooccurrence"),
+    newCharacterKeywordProfileId: seededMinter<CharacterKeywordProfileId>(
+      "character_keyword_profile",
+    ),
+    newDuplicateChatPairId: seededMinter<DuplicateChatPairId>("duplicate_chat_pair"),
     summarize: summarize.op,
     summarizerModel: overrides.summarizerModel ?? "test-summarize-model",
     attachCardTagByName: overrides.attachCardTagByName ?? tagAttach.op,
     writeHubScores: hubScores.op,
+    characterEconomics: overrides.characterEconomics ?? stats.characterEconomics,
+    characterModelEconomics: overrides.characterModelEconomics ?? stats.characterModelEconomics,
   };
   return { ctx, hubScores, summarize, tagAttach };
 }
@@ -184,6 +206,7 @@ export async function seedCharacter(
     readonly name?: string;
     readonly synthetic?: boolean;
     readonly description?: string;
+    readonly avatarAssetId?: AssetId;
   },
 ): Promise<CharacterId> {
   const id = castId<CharacterId>(overrides.id);
@@ -193,6 +216,7 @@ export async function seedCharacter(
     ownerId: overrides.ownerId,
     name: overrides.name ?? overrides.id,
     ...(overrides.description !== undefined ? { description: overrides.description } : {}),
+    ...(overrides.avatarAssetId !== undefined ? { avatarAssetId: overrides.avatarAssetId } : {}),
     contentHash: "card_hash",
     synthetic: overrides.synthetic ?? false,
     createdAt: FROZEN_AT,
@@ -339,6 +363,8 @@ export async function seedChatSegment(
     readonly chatId: ChatId;
     readonly embedding: Float32Array;
     readonly blockIdx?: number;
+    readonly seqStart?: number;
+    readonly seqEnd?: number;
     readonly text?: string;
     readonly model?: string;
     readonly contentHash?: string;
@@ -348,8 +374,8 @@ export async function seedChatSegment(
     id: castId(overrides.id),
     chatId: overrides.chatId,
     blockIdx: overrides.blockIdx ?? 0,
-    seqStart: 0,
-    seqEnd: 1,
+    seqStart: overrides.seqStart ?? 0,
+    seqEnd: overrides.seqEnd ?? 1,
     text: overrides.text ?? `segment ${overrides.id}`,
     embedding: overrides.embedding,
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
@@ -357,6 +383,61 @@ export async function seedChatSegment(
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
+}
+
+/** Seed a canon message at `seq` in `chatId` with a given `createdAt` (the msgMidAt backfill median input).
+ *  `characterId` attributes an assistant slot to a character (the forgotten-gems / economics reads scope on
+ *  it). Content/economics live on `message_variants` (D26) — pass `variant` to seed the SELECTED one. */
+export async function seedMessage(
+  db: Db,
+  overrides: {
+    readonly id: string;
+    readonly chatId: ChatId;
+    readonly seq: number;
+    readonly createdAt: number;
+    readonly role?: MessageRole;
+    readonly characterId?: CharacterId;
+    readonly variant?: {
+      readonly model?: string | null;
+      readonly provider?: string | null;
+      readonly tokensIn?: number;
+      readonly tokensOut?: number;
+      readonly costUsd?: number;
+      readonly genStartedAt?: number;
+      readonly genFinishedAt?: number;
+    };
+  },
+): Promise<void> {
+  const messageId = castId<MessageId>(overrides.id);
+  await db.insert(messages).values({
+    id: messageId,
+    chatId: overrides.chatId,
+    seq: overrides.seq,
+    role: overrides.role ?? "assistant",
+    ...(overrides.characterId !== undefined ? { characterId: overrides.characterId } : {}),
+    createdAt: overrides.createdAt,
+  });
+  if (overrides.variant !== undefined) {
+    const variantId = castId<MessageVariantId>(`${overrides.id}_v0`);
+    await db.insert(messageVariants).values({
+      id: variantId,
+      messageId,
+      idx: 0,
+      content: "",
+      model: overrides.variant.model ?? null,
+      provider: overrides.variant.provider ?? null,
+      tokensIn: overrides.variant.tokensIn ?? null,
+      tokensOut: overrides.variant.tokensOut ?? null,
+      costUsd: overrides.variant.costUsd ?? null,
+      genStartedAt: overrides.variant.genStartedAt ?? null,
+      genFinishedAt: overrides.variant.genFinishedAt ?? null,
+      createdAt: overrides.createdAt,
+    });
+    await db
+      .update(messages)
+      .set({ selectedVariantId: variantId })
+      .where(eq(messages.id, messageId));
+  }
 }
 
 export async function seedAsset(db: Db, id: string, ownerId: UserId): Promise<AssetId> {
@@ -381,13 +462,18 @@ export async function seedImageEmbedding(
     readonly embedding: Float32Array;
     readonly model?: string;
     readonly contentHash?: string;
+    readonly lens?: "image-raw" | "image-captioned";
+    readonly caption?: string;
+    readonly captionMeta?: Record<string, unknown>;
   },
 ): Promise<void> {
   await db.insert(imageEmbeddings).values({
     id: castId<ImageEmbeddingId>(overrides.id),
     assetId: overrides.assetId,
     embedding: overrides.embedding,
-    lens: "image-raw",
+    lens: overrides.lens ?? "image-raw",
+    ...(overrides.caption !== undefined ? { caption: overrides.caption } : {}),
+    ...(overrides.captionMeta !== undefined ? { captionMeta: overrides.captionMeta } : {}),
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
     model: overrides.model ?? EMBED_MODEL,
     dim: VECTOR_DIM,

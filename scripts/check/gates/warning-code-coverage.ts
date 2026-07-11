@@ -34,6 +34,9 @@ const CHANNELS: readonly WarningChannel[] = [
     tuple: "WARNING_CODES",
     homeFile: /\/packages\/server\/src\/infra\/providers\/contract\/resolve\.ts$/u,
     emitScope: /\/packages\/server\/src\/infra\/providers\//u,
+    // `verbosity_dropped` (D68-B) is now WIRED (W2): the funnel `resolveVerbosity` pass drops it when the
+    // model lists no verbosity vocab, and the chat-completions runner drops it a SECOND time (the wire has
+    // no field) — both in the emit scope, so the ratchet counts it emitted (its W1 deferred entry is gone).
     deferred: {},
   },
   {

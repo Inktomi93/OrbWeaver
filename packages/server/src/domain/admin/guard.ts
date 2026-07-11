@@ -20,7 +20,7 @@ import type {
   UserRole,
 } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { RequireAdmin, RequireOwner } from "./contract/guard";
+import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
 
 // The role set that satisfies each global action — the SOLE encoding of `owner ⊇ admin`. A mapped Record over
 // the action axis (exhaustive: a new `GlobalAction` member fails `tsc` here — no silently-ungated action).
@@ -114,4 +114,16 @@ export const requireAdmin: RequireAdmin = (principal) => {
 export const requireOwner: RequireOwner = (principal) => {
   can(principal, "owner", { kind: "global" });
   return principal.userId;
+};
+
+// The boolean form of the global admin gate (owner∪admin) — the SAME `can()` decision, caught into a
+// verdict so a role-AWARE SCOPING caller (workloads' F3 list/get/cancel/retry) can branch without a throw
+// being control flow. `can` is the sole decision function (spine #6); this never re-compares `role` itself.
+export const isAdmin: IsAdmin = (principal) => {
+  try {
+    can(principal, "admin", { kind: "global" });
+    return true;
+  } catch {
+    return false;
+  }
 };

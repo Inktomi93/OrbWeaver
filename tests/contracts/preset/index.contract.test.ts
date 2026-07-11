@@ -1,3 +1,5 @@
+// biome-ignore-all lint/style/useNamingConvention: SillyTavern wire field names (snake_case) — `min_p` etc.
+// are exactly what an ST preset blob carries (the D68-A import mapping tests below).
 import type { GuidedActionKind, PromptConfig } from "@orb/contracts/preset";
 import {
   CONFIG_LIFTS,
@@ -6,6 +8,7 @@ import {
   DEFAULT_PROMPT_CONFIG,
   GUIDED_ACTION_KINDS,
   guidedActionsSchema,
+  importStChatCompletionPreset,
   NEO_PRESET_SCHEMA_KIND,
   PROMPT_CONFIG_SCHEMA_VERSION,
   parseNeoPresetFile,
@@ -145,6 +148,20 @@ test("a clean params blob parses through unchanged (the catch only fires on fail
 
 test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds hold)", () => {
   expect(userIntentSchema.safeParse({ temperature: OUT_OF_RANGE_TEMPERATURE }).success).toBe(false);
+});
+
+// --- D68 slots: minP + verbosity on UserIntent (no consumer until W2) ---------
+
+test("userIntentSchema accepts minP within [0,1] (D68-A slot)", () => {
+  expect(userIntentSchema.parse({ minP: 0.05 })).toEqual({ minP: 0.05 });
+  expect(userIntentSchema.safeParse({ minP: 1.5 }).success).toBe(false);
+  expect(userIntentSchema.safeParse({ minP: -0.1 }).success).toBe(false);
+});
+
+test("userIntentSchema accepts a verbosity member (D68-B slot; vocab from connection)", () => {
+  expect(userIntentSchema.parse({ verbosity: "low" })).toEqual({ verbosity: "low" });
+  expect(userIntentSchema.parse({ verbosity: "high" })).toEqual({ verbosity: "high" });
+  expect(userIntentSchema.safeParse({ verbosity: "verbose" }).success).toBe(false);
 });
 
 test("guidedActionsSchema round-trips DEFAULT_GUIDED_ACTIONS over all six actions", () => {
@@ -334,4 +351,30 @@ test("an unengaged reasoningParse (all-default form) is omitted — round-trips 
     DEFAULT_PROMPT_CONFIG,
   );
   expect(config.reasoningParse).toBeUndefined();
+});
+
+// The SillyTavern chat-completions preset importer's sampling mapping (D68-A). `min_p` (was DROPPED with "no
+// neo sampling vocab") now maps → params.minP; ST's 0-default = "off" is NOT carried (the top_a/top_k
+// sentinel discipline). Quoted keys keep the ST wire snake_case off the naming lint. The importer throws
+// unless the blob is a recognizable ST preset (prompts[]/prompt_order) — the empty `prompts` isolates sampling.
+function stBlob(fields: Record<string, unknown>): Record<string, unknown> {
+  return { prompts: [], ...fields };
+}
+
+test("importStChatCompletionPreset (D68-A): a non-default min_p maps onto params.minP", () => {
+  const result = importStChatCompletionPreset(stBlob({ min_p: 0.07 }));
+  expect(result.config.params.minP).toBe(0.07);
+  expect(result.dropped.some((d) => d.field === "min_p")).toBe(false);
+});
+
+test("importStChatCompletionPreset (D68-A): ST's default min_p (0 = off) is NOT carried", () => {
+  const result = importStChatCompletionPreset(stBlob({ min_p: 0 }));
+  expect(result.config.params.minP).toBeUndefined();
+  expect(result.dropped.some((d) => d.field === "min_p")).toBe(false);
+});
+
+test("importStChatCompletionPreset (D68-A): an absent min_p produces no minP field", () => {
+  const result = importStChatCompletionPreset(stBlob({ temperature: 0.8 }));
+  expect(result.config.params.minP).toBeUndefined();
+  expect(result.config.params.temperature).toBe(0.8);
 });

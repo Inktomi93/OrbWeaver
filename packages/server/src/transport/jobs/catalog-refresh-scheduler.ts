@@ -69,7 +69,9 @@ export interface CatalogRefreshSchedulerDeps {
 export async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promise<void> {
   const log = getLog().child({ component: LOG_COMPONENT });
 
-  const rows = await deps.service.list({ kind: "refresh-model-catalog", limit: 1 });
+  // A TRUSTED system trigger (`caller: null`) — the scheduler drives the deployment-wide catalog refresh, so
+  // it bypasses the per-kind admin gate + sees the deployment-wide list (F3).
+  const rows = await deps.service.list({ caller: null, kind: "refresh-model-catalog", limit: 1 });
   const latest = rows[0];
   if (latest !== undefined) {
     if (isActiveStatus(latest.status)) {
@@ -84,7 +86,14 @@ export async function runCatalogCheck(deps: CatalogRefreshSchedulerDeps): Promis
   }
 
   try {
-    const { id } = await deps.service.start({ input: REFRESH_INPUT, ownerId: deps.ownerId });
+    const { id } = await deps.service.start({
+      input: REFRESH_INPUT,
+      caller: null,
+      // refresh-model-catalog is a BULK-only kind (a global provider catalog — no per-owner concept). The
+      // scheduler is a trusted system trigger (`caller: null` bypasses the owner gate).
+      mode: "bulk",
+      ownerId: deps.ownerId,
+    });
     log.info({ workloadId: id }, "catalog-refresh: enqueued refresh-model-catalog");
   } catch (err) {
     // Single-active-per-kind conflict = another replica's tick (or an admin clicking Run) beat us. That IS

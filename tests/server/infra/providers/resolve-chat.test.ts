@@ -8,6 +8,7 @@
 // test reaches it by relative path rather than the `@orb/server/*` barrel exports map.
 
 import type { ModelCapability } from "@orb/contracts/connection";
+import { VERBOSITY_LEVELS } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveChat } from "../../../../packages/server/src/infra/providers/resolve-chat.ts";
 import { expect, test } from "../../../support/fixtures";
@@ -182,6 +183,103 @@ describe("resolveChat — sampling capability-gating", () => {
     const out = resolveChat({}, FULL);
     expect(out.sampling).toEqual({});
     expect(out.warnings).toEqual([]);
+  });
+});
+
+describe("resolveChat — minP (D68-A)", () => {
+  test("PASS: a listed minP rides through when the model exposes a range", () => {
+    const cap = withSampling({ minP: { min: 0, max: 1 } });
+    expect(resolveChat({ minP: 0.05 }, cap).sampling.minP).toBe(0.05);
+  });
+
+  test("CLAMP: an over-range minP is clamped down to the model max", () => {
+    const cap = withSampling({ minP: { min: 0, max: 0.5 } });
+    expect(resolveChat({ minP: 0.9 }, cap).sampling.minP).toBe(0.5);
+  });
+
+  test("DROP: a minP the model omits is dropped + warned (no silent no-op)", () => {
+    // FULL exposes no minP range.
+    const out = resolveChat({ minP: 0.1 }, FULL);
+    expect(out.sampling.minP).toBeUndefined();
+    expect(out.warnings).toContainEqual({
+      code: "sampling_knob_dropped",
+      message: "minP ignored: model does not expose a minP range",
+    });
+  });
+});
+
+describe("resolveChat — verbosity (D68-B)", () => {
+  const cap = {
+    ...FULL,
+    verbosity: [...VERBOSITY_LEVELS] satisfies (typeof VERBOSITY_LEVELS)[number][],
+  };
+
+  test("PASS: a listed verbosity rides through when the model lists it", () => {
+    expect(resolveChat({ verbosity: "high" }, cap).verbosity).toBe("high");
+  });
+
+  test("DROP: a model with NO verbosity vocab drops + warns", () => {
+    const out = resolveChat({ verbosity: "high" }, FULL);
+    expect(out.verbosity).toBeUndefined();
+    expect(out.warnings).toContainEqual({
+      code: "verbosity_dropped",
+      message: "verbosity ignored: model does not expose a verbosity level",
+    });
+  });
+
+  test("absent verbosity ⇒ no field, no warning", () => {
+    const out = resolveChat({}, cap);
+    expect(out.verbosity).toBeUndefined();
+    expect(out.warnings.some((w) => w.code === "verbosity_dropped")).toBe(false);
+  });
+});
+
+describe("resolveChat — the dynamic-context channel (D66)", () => {
+  // A model whose wire-shape HONORS mid-conversation-system authority (Opus 4.8 on anthropic-messages).
+  const Capable: ModelCapability = {
+    ...FULL,
+    turns: {
+      assistantPrefill: false,
+      midConversationSystem: true,
+      roleHandlingFloor: "strict",
+      explicitPromptCache: true,
+    },
+  };
+  // A model that does NOT honor it (the FULL default has NO `turns`, so it floors to false too).
+  const Incapable = FULL;
+
+  test("user knob 'system' wins → system-block, regardless of capability", () => {
+    const out = resolveChat({ advanced: { dynamicContext: "system" } }, Capable);
+    expect(out.dynamicContextChannel).toBe("system-block");
+    expect(out.warnings.some((w) => w.code === "dynamic_context_demoted")).toBe(false);
+  });
+
+  test("user knob 'hook' wins → message-tail when the model honors mid-conv-system", () => {
+    const out = resolveChat({ advanced: { dynamicContext: "hook" } }, Capable);
+    expect(out.dynamicContextChannel).toBe("message-tail");
+    expect(out.warnings.some((w) => w.code === "dynamic_context_demoted")).toBe(false);
+  });
+
+  test("user knob 'hook' on an INCAPABLE model is DEMOTED to system-block + warned", () => {
+    const out = resolveChat({ advanced: { dynamicContext: "hook" } }, Incapable);
+    expect(out.dynamicContextChannel).toBe("system-block");
+    expect(out.warnings.some((w) => w.code === "dynamic_context_demoted")).toBe(true);
+  });
+
+  test("absent knob + capable model ⇒ message-tail (the cache-safe default), no warning", () => {
+    const out = resolveChat({}, Capable);
+    expect(out.dynamicContextChannel).toBe("message-tail");
+    expect(out.warnings.some((w) => w.code === "dynamic_context_demoted")).toBe(false);
+  });
+
+  test("absent knob + incapable model ⇒ system-block, no warning (not a user request to demote)", () => {
+    const out = resolveChat({}, Incapable);
+    expect(out.dynamicContextChannel).toBe("system-block");
+    expect(out.warnings.some((w) => w.code === "dynamic_context_demoted")).toBe(false);
+  });
+
+  test("capability with no `turns` floors to system-block (conservative)", () => {
+    expect(resolveChat({}, FULL).dynamicContextChannel).toBe("system-block");
   });
 });
 

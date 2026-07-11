@@ -6,10 +6,10 @@
 // — server-only (the route reads it to set Content-Type/Content-Length, no client redeclaration), so it
 // stays a domain-internal contract type.
 //
-// The maintenance verbs' results (BackfillResult/GcResult/FsckResult/ReapResult) are NOT here yet —
-// FLAG[PD-26] with their verbs to the GC/backfill wave (see contract/service.ts). The error slot is
-// deliberately empty: assets failures are plain `Error` (magic mismatch, missing-row-after-upsert);
-// ownership denial surfaces as `undefined` (→ 404) from `getMetadata`, not a typed error.
+// The maintenance verbs' params/results (Backfill/Gc/Fsck/Reap/Rebuild) live in `contract/maintenance.ts`
+// (grouped with the wave, domain-internal — CLI/workload only). The error slot is deliberately empty: assets
+// failures are plain `Error` (magic mismatch, missing-row-after-upsert); ownership denial surfaces as
+// `undefined` (→ 404) from `getMetadata`, not a typed error.
 
 import type { UserId } from "@orb/kit/ids";
 

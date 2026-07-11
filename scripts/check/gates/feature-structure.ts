@@ -28,8 +28,11 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *    ensureSystemDefaultPreset — too small to be its own subsystem).
  *  - settings: `constants.ts` (the theme seed sentinel TypeIDs, domain-internal), `seed-themes.ts`
  *    (boot-time `ensureSeedThemes` — the preset `seed.ts` precedent, named `-themes` since the domain
- *    root's `seed.ts` slot may host a different concern later — themes-design.md §5). */
+ *    root's `seed.ts` slot may host a different concern later — themes-design.md §5).
+ *  - buddy: `bus.ts` (the observer's per-user reaction feed emitter + replay ring — the chat/bus.ts
+ *    precedent; a feature-root collaborator the observer emits onto, PD-45). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
+  buddy: ["bus.ts"],
   chat: ["bus.ts", "active-turns.ts", "connected-persona.ts"],
   preset: ["constants.ts", "seed.ts"],
   settings: ["constants.ts", "seed-themes.ts"],

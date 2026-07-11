@@ -203,6 +203,7 @@ function samplingFromIntent(params: UserIntent): OpenAiSamplingInput {
     frequencyPenalty: params.frequencyPenalty,
     presencePenalty: params.presencePenalty,
     repetitionPenalty: params.repetitionPenalty,
+    minP: params.minP,
     seed: params.seed,
     logitBias: params.logitBias,
     stop: params.stop,

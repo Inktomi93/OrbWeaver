@@ -43,7 +43,7 @@ describe("embedCorpus — the bulk card-text sweep", () => {
     const h = makeStoreHarness(db, { characterIds: seeded.ids, cardTexts: seeded.texts });
     const svc = createEmbeddingsService(h.ctx);
 
-    const result = await svc.embedCorpus({ force: false, signal: signal() });
+    const result = await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });
 
     expect(result).toEqual({ embedded: 2, skipped: 0 });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
@@ -56,8 +56,8 @@ describe("embedCorpus — the bulk card-text sweep", () => {
     const h = makeStoreHarness(db, { characterIds: seeded.ids, cardTexts: seeded.texts });
     const svc = createEmbeddingsService(h.ctx);
 
-    await svc.embedCorpus({ force: false, signal: signal() });
-    const rerun = await svc.embedCorpus({ force: false, signal: signal() });
+    await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });
+    const rerun = await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });
 
     expect(rerun).toEqual({ embedded: 0, skipped: 2 });
     // The staleness gate short-circuited BEFORE the embed — still only the first sweep's two calls.
@@ -71,8 +71,8 @@ describe("embedCorpus — the bulk card-text sweep", () => {
     const h = makeStoreHarness(db, { characterIds: seeded.ids, cardTexts: seeded.texts });
     const svc = createEmbeddingsService(h.ctx);
 
-    await svc.embedCorpus({ force: false, signal: signal() });
-    const forced = await svc.embedCorpus({ force: true, signal: signal() });
+    await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });
+    const forced = await svc.embedCorpus({ ownerId: null, force: true, signal: signal() });
 
     expect(forced).toEqual({ embedded: 2, skipped: 0 });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(4);
@@ -89,7 +89,7 @@ describe("embedCorpus — the bulk card-text sweep", () => {
     });
     const svc = createEmbeddingsService(h.ctx);
 
-    const result = await svc.embedCorpus({ force: false, signal: signal() });
+    const result = await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });
 
     expect(result).toEqual({ embedded: 0, skipped: 2 });
     expect(h.roleClients.embed).not.toHaveBeenCalled();
@@ -103,7 +103,11 @@ describe("embedCorpus — the bulk card-text sweep", () => {
     const controller = new AbortController();
     controller.abort();
 
-    const result = await svc.embedCorpus({ force: false, signal: controller.signal });
+    const result = await svc.embedCorpus({
+      ownerId: null,
+      force: false,
+      signal: controller.signal,
+    });
 
     expect(result).toEqual({ embedded: 0, skipped: 0 });
     expect(h.loadCardText).not.toHaveBeenCalled();
@@ -128,12 +132,12 @@ describe("embedCorpus — the bulk card-text sweep", () => {
         usage: { promptTokens: null, totalTokens: null },
       });
 
-    await expect(svc.embedCorpus({ force: false, signal: signal() })).rejects.toBeInstanceOf(
-      EmbedFailedError,
-    );
+    await expect(
+      svc.embedCorpus({ ownerId: null, force: false, signal: signal() }),
+    ).rejects.toBeInstanceOf(EmbedFailedError);
     // The first card's row landed and is durable — the rerun resumes from it (hash-gated skip).
     expect(await db.select().from(characterEmbeddings)).toHaveLength(1);
-    const rerun = await svc.embedCorpus({ force: false, signal: signal() });
+    const rerun = await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });
     expect(rerun).toEqual({ embedded: 1, skipped: 1 });
   });
 });

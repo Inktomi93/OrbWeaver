@@ -30,6 +30,10 @@ export interface ShellTopbarProps {
   readonly title: string;
   /** Per-section header node the route may supply (defaults to just the title — UIP-202). */
   readonly header?: ReactNode;
+  /** Route-composed TRAIL chrome (the notifications bell) — rendered first in the trail group, before
+   *  the ⌘K chip. Section-agnostic, always-present chrome; the shell forwards a ReactNode slot and
+   *  never imports a feature (the `railFoot` seam, §4.1). */
+  readonly trail?: ReactNode;
   readonly listMode: PanelMode;
   readonly contextMode: PanelMode;
   /** Both panels collapsed = immersive-ST (UI-Arch §4.1) — drives the focus-toggle affordance. */
@@ -80,6 +84,7 @@ function TopbarIconButton({
 export function ShellTopbar({
   title,
   header,
+  trail,
   listMode,
   contextMode,
   immersive,
@@ -113,6 +118,9 @@ export function ShellTopbar({
       </div>
 
       <div className="shell-topbar-trail">
+        {/* Route-composed trail chrome (the notifications bell) — before the ⌘K chip so the shell's own
+            controls keep their fixed tail order. */}
+        {trail}
         {/* ⌘K jump chip (UIP-203) — a bordered pill (P5 `secondary`, muted until hover) with a kbd-styled
             shortcut + a "jump" label; opens the command modal. */}
         <Tooltip>

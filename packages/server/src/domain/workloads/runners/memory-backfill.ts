@@ -12,7 +12,7 @@ export const memoryBackfillRunner: Runner<"memory-backfill"> = async (
   signal,
 ) => {
   report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
-  const counts = await ctx.env.memory.backfill({ signal });
+  const counts = await ctx.env.memory.backfill({ ownerId: ctx.ownerId, signal });
   report({
     message: `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)`,
   });

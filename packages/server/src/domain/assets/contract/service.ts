@@ -7,13 +7,13 @@
 //                     (domain-no-cross-feature — infra handles + the event op arrive type-only here).
 //   • AssetsService   the verb interface (the front door re-exports the type).
 //
-// SCOPE (4c W1 — the upload/fetch/variant core path): `store` (+ the `asset.created` emit), `getMetadata`
-// (the owner-gated blob-serve gate), `resolveVariant` (the snap → cache → transform variant pipeline).
-// FLAG[PD-26]: backfillAvatars · collectGarbage · reapIfOrphan · fsck · rebuildFromTree (+ the
-// avatar-ref registry) → the assets GC/backfill wave, when `character.remove` can inject `reapIfOrphan`
-// and the workloads runner can inject the backfill slice (both are OTHER domains' composition roots —
-// building those verbs now would either ship dead, unwired code or collapse tiers). The maintenance-wave
-// target is `docs/architecture/proposed/assets-maintenance.md`.
+// SCOPE: the upload/fetch/variant core path — `store` (+ the `asset.created` emit), `getMetadata` (the
+// owner-gated blob-serve gate), `resolveVariant` (the snap → cache → transform variant pipeline) — plus the
+// gallery verbs AND the maintenance/DR wave (PD-26 + PD-84): `backfillAvatars` · `collectGarbage` ·
+// `reapIfOrphan` · `fsck` · `rebuildFromTree`, over the asset-ref registry (`persistence/asset-refs.ts`) +
+// the drop-row-before-blob primitive (`substrate/purge-asset.ts`). The maintenance verbs are UN-PRINCIPAL
+// (CLI/workload/DR callers, not user-facing); their param/result types are domain-internal
+// (`contract/maintenance.ts`). As-built rationale: `docs/architecture/proposed/assets-maintenance.md`.
 //
 // Every surface is OWNER-SCOPED off `principal.userId` (§7.1 — never a `users` read; the
 // `no-direct-users-read` chokepoint). Assets predate the permission model: there is NO admin/owner guard
@@ -24,6 +24,17 @@ import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
+import type {
+  BackfillParams,
+  BackfillResult,
+  FsckOptions,
+  FsckResult,
+  GcOptions,
+  GcResult,
+  ReapResult,
+  RebuildOptions,
+  RebuildResult,
+} from "./maintenance";
 import type {
   GalleryAddParams,
   GalleryListParams,
@@ -110,10 +121,11 @@ export interface AssetsService {
    *  `loadAssetBytes` posture. A pure row lookup (no bytes, no gate); the chat `resolveImageRefToUrl` seam
    *  uses `ownerId` for a chat-scoped reference-check + `mime` for the data-URI. `undefined` when gone. */
   readonly assetCasRefById: (assetId: AssetId) => Promise<AssetCasRef | undefined>;
-  /** Every IMAGE asset id (`mime LIKE 'image/%'`), ALL owners (the embeddings BULK embed pass's enumeration —
-   *  PD-53). UN-PRINCIPAL like `loadAssetBytes` (D20): a trusted SYSTEM sweep, never a user-facing surface;
-   *  wired only into the embeddings service at the composition root. A read — never throws. */
-  readonly listImageAssetIds: () => Promise<readonly AssetId[]>;
+  /** Every IMAGE asset id (`mime LIKE 'image/%'`) — `ownerId` scopes to ONE owner (the embeddings SINGULAR
+   *  sweep: embed MY assets), omitted/null = ALL owners (the BULK dev sweep, PD-53). UN-PRINCIPAL like
+   *  `loadAssetBytes` (D20): a trusted SYSTEM sweep, never a user-facing surface; wired only into the
+   *  embeddings service at the composition root. A read — never throws. */
+  readonly listImageAssetIds: (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
   /** Gallery v1 (§1.2): the caller's own assets, newest-first, keyset-paged. Owner-scoped off
    *  `principal.userId`; optional `kind` filter. Returns a plain array (the client derives the next cursor
    *  from the last row's `(uploadedAt, assetId)`) — a short page is end-of-list. */
@@ -130,4 +142,30 @@ export interface AssetsService {
   /** Gallery v2 (§1.3): the caller's gallery, newest-first, keyset-paged by `(createdAt, galleryItemId)`.
    *  Owner-scoped via the asset join (no stamped owner column); optional `subjectCharacterId` filter. */
   readonly listGallery: (params: GalleryListParams) => Promise<GalleryItemView[]>;
+
+  // ── Maintenance / DR (PD-26 + PD-84) — CLI/workload-driven, NOT user-facing (no principal gate). ──
+
+  /** (PD-26) Re-link staged card PNGs to the flat `characters.avatarAssetId` (D28): store each card's bytes
+   *  through the coherence writer, then batch-UPDATE the avatar pointer — but ONLY where the stored blob's
+   *  hash matches the card's recorded `importHash` (a mismatch is a wrong/corrupt staging file, counted not
+   *  linked). Bounded-concurrency store; `dryRun` validates without writing. */
+  readonly backfillAvatars: (params: BackfillParams) => Promise<BackfillResult>;
+  /** (PD-26) Mark-sweep GC over the WHOLE per-user CAS against the live reference set (the asset-ref
+   *  registry): a blob whose asset id is referenced by NO registry column, AND older than the grace window
+   *  (mtime — guards the put→link gap), is reclaimed drop-row-BEFORE-blob. Distinct from `reapIfOrphan` (this
+   *  sweeps everything, with grace). Script/workload-driven; `dryRun` reports without deleting. */
+  readonly collectGarbage: (options: GcOptions) => Promise<GcResult>;
+  /** (PD-26) Targeted reap of a KNOWN id set with NO grace — correct ONLY because the caller
+   *  (`character.remove` / bulk-remove) just deleted these assets' references and proved they're gone. For
+   *  each id still referenced by NO registry column: delete row, then blob, then variants. */
+  readonly reapIfOrphan: (assetIds: readonly AssetId[]) => Promise<ReapResult>;
+  /** (PD-26) Read-only integrity report: dangling rows (row, no blob — the ordering makes this
+   *  never-supposed-to-happen), corrupt blobs (`cas.verify` re-hash mismatch), orphan blobs (blob, no row).
+   *  Mutates nothing. */
+  readonly fsck: (options?: FsckOptions) => Promise<FsckResult>;
+  /** (PD-84) Disaster recovery: re-derive index rows for orphan blobs by walking + hashing the per-user tree,
+   *  `sniffMime` supplying a best-effort mime, the given `kind` stamped on every rebuilt row. Goes through the
+   *  coherence writer; does NOT emit `asset.created` (the embeddings `content_hash` catch-up sweep re-covers
+   *  the vectors — FLAG[PD-84]). Returns rows created vs blobs that already had a row. */
+  readonly rebuildFromTree: (options: RebuildOptions) => Promise<RebuildResult>;
 }

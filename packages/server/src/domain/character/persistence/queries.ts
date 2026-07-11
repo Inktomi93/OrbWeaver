@@ -358,11 +358,17 @@ export async function loadCharacterRowById(
  *  happens un-principal, exactly like `loadCharacterRowById` above. Synthetic group buckets are excluded at
  *  the source (they have no card text and are never embedded). NOT a user-facing
  *  surface; the only caller is `listEmbeddableCharacterIds` (the bulk pass's enumeration read). */
-export async function listEmbeddableCharacterIdRows(db: Db): Promise<CharacterId[]> {
-  const rows = await db
-    .select({ id: characters.id })
-    .from(characters)
-    .where(eq(characters.synthetic, false));
+export async function listEmbeddableCharacterIdRows(
+  db: Db,
+  ownerId?: UserId | null,
+): Promise<CharacterId[]> {
+  // `ownerId` scopes the sweep to ONE owner (the workloads SINGULAR mode — embed MY corpus); omitted/null =
+  // every owner (the BULK dev sweep, D20 un-principal). Owner-scoping stays in the WHERE, never a post-filter.
+  const scope =
+    ownerId === undefined || ownerId === null
+      ? eq(characters.synthetic, false)
+      : and(eq(characters.synthetic, false), eq(characters.ownerId, ownerId));
+  const rows = await db.select({ id: characters.id }).from(characters).where(scope);
   return rows.map((r) => r.id);
 }
 

@@ -4,6 +4,8 @@
 
 import { users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -54,7 +56,44 @@ describe("createUser", () => {
     ).rejects.toMatchObject({ code: "weak_password" });
   });
 
-  test("minting an owner is refused (cannot_grant_owner)", async () => {
+  test("even the OWNER cannot mint a second owner (cannot_grant_owner — the single-owner invariant)", async () => {
+    const db = await freshDb();
+    const svc = createAdminService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    // The owner passes the authority gate (requireOwner) but is still refused at validation — a SECOND
+    // owner can never be minted here (D40 single-owner; ownership transfer is out of scope).
+    await expect(
+      svc.createUser({
+        principal: principal(owner, "owner"),
+        handle: "x",
+        password: GOOD_PASSWORD,
+        role: "owner",
+      }),
+    ).rejects.toMatchObject({ code: "cannot_grant_owner" });
+  });
+
+  test("a delegated admin CANNOT mint an admin — fail-closed forbidden (closes the create/set-role asymmetry)", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    // The escalation vector: `setRole` is owner-only, so an admin creating a role:"admin" account outright
+    // would bypass it. `createUser` now gates `role:"admin"` on requireOwner — the admin is refused.
+    await expect(
+      svc.createUser({
+        principal: principal(admin, "admin"),
+        handle: "shadow-admin",
+        password: GOOD_PASSWORD,
+        role: "admin",
+      }),
+    ).rejects.toThrow(DomainForbiddenError);
+    // Nothing was written — the handle is free.
+    const rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.handle, castId<Handle>("shadow-admin")));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("a delegated admin CANNOT mint an owner — forbidden before the owner-refusal even runs", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
     await expect(
@@ -64,7 +103,27 @@ describe("createUser", () => {
         password: GOOD_PASSWORD,
         role: "owner",
       }),
-    ).rejects.toMatchObject({ code: "cannot_grant_owner" });
+    ).rejects.toThrow(DomainForbiddenError);
+  });
+
+  test("the OWNER mints an admin (the owner-only elevation path succeeds, audited)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createAdminService(h.ctx);
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+
+    const view = await svc.createUser({
+      principal: principal(owner, "owner"),
+      handle: "trusted",
+      password: GOOD_PASSWORD,
+      role: "admin",
+    });
+    expect(view.role).toBe("admin");
+    expect(h.audits.map((a) => a.entry.action)).toContain("admin.createUser");
+    // The row landed as a real admin human.
+    const rows = await db.select().from(users).where(eq(users.id, view.id));
+    expect(rows[0]?.role).toBe("admin");
+    expect(rows[0]?.kind).toBe("human");
   });
 
   test("a duplicate handle is rejected (user_exists)", async () => {

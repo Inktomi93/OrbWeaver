@@ -4,7 +4,7 @@
 import { describe, vi } from "vitest";
 import { groupCharacterBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/group-character-backfill.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerContext } from "../_support.ts";
+import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 
 describe("group-character-backfill runner", () => {
   test("runs the group-room sweep and returns its counts", async () => {
@@ -16,6 +16,7 @@ describe("group-character-backfill runner", () => {
       new AbortController().signal,
     );
     expect(env.character.backfillGroupCharacters).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       signal: expect.any(AbortSignal),
     });
     expect(result).toEqual({ scanned: 5, changed: 1 });

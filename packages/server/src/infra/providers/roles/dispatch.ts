@@ -92,6 +92,33 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
         default:
           return assertNever(source);
       }
+    case "anthropic-messages":
+      // The anth-direct DIRECT-transport backend (D67, part 02). v1 rides the existing `openrouter`
+      // credential (SDK baseURL:openrouter.ai/api + Bearer) — the ONLY coherent source. The first-party
+      // `anthropic` source is deferred to W11.
+      switch (source) {
+        case "openrouter":
+          return "anth-direct";
+        case "max-pro-sub":
+          // THE SUB-EXCLUSION (§3d — load-bearing, non-negotiable): the free Max sub can NEVER drive a
+          // paid HTTP endpoint (the st-claude-proxy ban shape). Fail-closed BEFORE any spawn/dispatch.
+          throw new ProviderError({
+            kind: "invalid",
+            retryable: false,
+            message:
+              'the "max-pro-sub" credential can never drive the direct Anthropic-Messages api (the sub stays on the agent-sdk CLI)',
+          });
+        case "vllm":
+        case "local-light":
+        case "custom_openai":
+          throw new ProviderError({
+            kind: "invalid",
+            retryable: false,
+            message: 'the "anthropic-messages" api is served only by the OpenRouter skin in v1',
+          });
+        default:
+          return assertNever(source);
+      }
     default:
       return assertNever(api);
   }

@@ -56,7 +56,9 @@ test("a hinted field's control accname is the label ALONE (the More-info button 
   // (which used to be nested inside the associated <label>). `exact: true` fails if the suffix is present.
   await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toBeVisible();
   // The hint trigger exists as its OWN control (a sibling of the label) and its tooltip still opens.
-  const info = page.getByRole("button", { name: "More info" });
+  // Its accname is derived from the field's label so multiple hinted fields on one surface don't
+  // collide on a single generic "More info" name (a screen-reader buttons list must disambiguate).
+  const info = page.getByRole("button", { name: "More info about Display name" });
   await expect(info).toBeVisible();
   await info.hover();
   await expect(page.getByText("Saved every 30 seconds")).toBeVisible();
@@ -71,7 +73,37 @@ test("the hint accname fix holds in the horizontal orientation too", async ({ mo
     </FieldLayout>,
   );
   await expect(page.getByRole("textbox", { name: "Display name", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "More info" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "More info about Display name" })).toBeVisible();
+});
+
+test("two hinted fields on one surface get DISTINCT hint-trigger accnames", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <>
+      <Field hint="Shown on your profile" label="Display name">
+        <Input />
+      </Field>
+      <Field hint="Only visible to the GM" label="Notes">
+        <Input />
+      </Field>
+    </>,
+  );
+  await expect(page.getByRole("button", { name: "More info about Display name" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "More info about Notes" })).toBeVisible();
+});
+
+test("a hinted field with no label falls back to the plain 'More info' name", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field hint="Saved every 30 seconds" label="">
+      <Input />
+    </Field>,
+  );
+  await expect(page.getByRole("button", { name: "More info", exact: true })).toBeVisible();
 });
 
 test("composes Checkbox/Switch/RadioGroup — every control registers independently", async ({

@@ -86,6 +86,10 @@ catalog:
   # mode). Its env firewall is the load-bearing credential seam (providers.md Esoteric §1).
   # `^0.3.206` floor — owner-approved force past the age gate 2026-07-10 (see minimumReleaseAgeExclude).
   "@anthropic-ai/claude-agent-sdk": ^0.3.206
+  # @anthropic-ai/sdk: the anth-direct backend (D67) — the direct Anthropic-Messages wire over the
+  # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
+  # to a direct dep to name the existing surface (installs nothing new).
+  "@anthropic-ai/sdk": ^0.106.0
   # @openrouter/sdk: the openrouter backend (stateless chat.send / beta.responses + embed/rerank/image).
   # `^0.13.0` (not pinned to .20) so the minimumReleaseAge guard auto-picks the latest >24h-old 0.13.x.
   "@openrouter/sdk": ^0.13.0

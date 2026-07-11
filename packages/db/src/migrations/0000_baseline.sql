@@ -1361,6 +1361,7 @@ CREATE TABLE `workloads` (
 	`id` text PRIMARY KEY NOT NULL,
 	`kind` text NOT NULL,
 	`status` text DEFAULT 'queued' NOT NULL,
+	`mode` text DEFAULT 'singular' NOT NULL,
 	`params` text DEFAULT '{}' NOT NULL,
 	`result` text,
 	`owner_id` text,
@@ -1370,11 +1371,13 @@ CREATE TABLE `workloads` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "workloads_kind_check" CHECK(kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit', 'expressions-sprite-sheet', 'databank-ingest', 'databank-reindex', 'rpg-world-gen', 'rpg-recap', 'rpg-session-distill', 'rpg-director', 'rpg-lorebook-upkeep', 'rpg-illustration', 'rpg-npc-portrait', 'rpg-scene-plan', 'rpg-scene-distill', 'rpg-recruit-card')),
-	CONSTRAINT "workloads_status_check" CHECK(status in ('queued', 'running', 'succeeded', 'failed', 'cancelling', 'cancelled', 'worker_died'))
+	CONSTRAINT "workloads_kind_check" CHECK(kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit', 'expressions-sprite-sheet', 'databank-ingest', 'databank-reindex', 'rpg-world-gen', 'rpg-recap', 'rpg-session-distill', 'rpg-director', 'rpg-lorebook-upkeep', 'rpg-illustration', 'rpg-npc-portrait', 'rpg-scene-plan', 'rpg-scene-distill', 'rpg-recruit-card')),
+	CONSTRAINT "workloads_status_check" CHECK(status in ('queued', 'running', 'succeeded', 'failed', 'cancelling', 'cancelled', 'worker_died')),
+	CONSTRAINT "workloads_mode_check" CHECK(mode in ('singular', 'bulk'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `workloads_kind_active` ON `workloads` (`kind`) WHERE status in ('queued', 'running', 'cancelling');--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_singular` ON `workloads` (`kind`,`owner_id`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular';--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_bulk` ON `workloads` (`kind`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'bulk';--> statement-breakpoint
 CREATE TABLE `character_books` (
 	`character_id` text NOT NULL,
 	`world_book_id` text NOT NULL,

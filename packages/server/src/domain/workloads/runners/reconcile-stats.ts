@@ -10,6 +10,7 @@ export const reconcileStatsRunner: Runner<"reconcile-stats"> = async (
   signal,
 ) => {
   report({ message: "reconciling stats from canon" });
-  const result = await ctx.env.stats.reconcileStats({ signal });
+  // `ownerId` scopes to ONE owner (SINGULAR — rebuild MY rollups); null = every owner (BULK).
+  const result = await ctx.env.stats.reconcileStats({ ownerId: ctx.ownerId, signal });
   return { owners: result.owners, characters: result.characters };
 };

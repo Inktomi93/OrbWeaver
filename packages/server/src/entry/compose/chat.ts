@@ -212,9 +212,13 @@ export interface ChatComposeResult {
   /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx — the workloads runner-env's memory/character
    *  backfill ops (the env is built AFTER chat at the root so these can be handed straight in). */
   readonly backfill: {
-    readonly memory: (args: { signal: AbortSignal }) => ReturnType<typeof backfillMemory>;
+    readonly memory: (args: {
+      signal: AbortSignal;
+      ownerId?: UserId | null;
+    }) => ReturnType<typeof backfillMemory>;
     readonly groupCharacters: (args: {
       signal: AbortSignal;
+      ownerId?: UserId | null;
     }) => ReturnType<typeof backfillGroupCharacters>;
   };
 }

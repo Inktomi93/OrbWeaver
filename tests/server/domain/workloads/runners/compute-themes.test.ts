@@ -5,7 +5,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { describe, vi } from "vitest";
 import { computeThemesRunner } from "../../../../../packages/server/src/domain/workloads/runners/compute-themes.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerContext } from "../_support.ts";
+import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 
 describe("compute-themes runner", () => {
   test("uses the per-run k", async () => {
@@ -17,6 +17,7 @@ describe("compute-themes runner", () => {
       new AbortController().signal,
     );
     expect(env.discovery.computeThemes).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       k: 5,
       signal: expect.any(AbortSignal),
     });
@@ -27,6 +28,7 @@ describe("compute-themes runner", () => {
     const env = fakeEnv();
     await computeThemesRunner(makeRunnerContext(env), {}, vi.fn(), new AbortController().signal);
     expect(env.discovery.computeThemes).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       k: 12,
       signal: expect.any(AbortSignal),
     });
@@ -43,6 +45,7 @@ describe("compute-themes runner", () => {
     });
     await computeThemesRunner(ctx, {}, vi.fn(), new AbortController().signal);
     expect(env.discovery.computeThemes).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       k: 7,
       signal: expect.any(AbortSignal),
     });
@@ -59,6 +62,7 @@ describe("compute-themes runner", () => {
     });
     await computeThemesRunner(ctx, { k: 3 }, vi.fn(), new AbortController().signal);
     expect(env.discovery.computeThemes).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       k: 3,
       signal: expect.any(AbortSignal),
     });
