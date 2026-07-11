@@ -35,6 +35,7 @@ import type {
   ChatDigestId,
   ChatSegmentId,
   ImageEmbeddingId,
+  UserId,
 } from "@orb/kit/ids";
 import type {
   ClearTableParams,
@@ -53,13 +54,15 @@ export type LoadCardText = (characterId: CharacterId) => Promise<string | undefi
  *  and the handler. Provided by `assets` at the composition root. */
 export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
 
-/** Enumerate every NON-synthetic character id, all owners (the PD-53 corpus sweep universe). Provided by
- *  `character` (`listEmbeddableCharacterIds`) at the composition root — un-principal, D20. */
-export type ListCharacterIds = () => Promise<readonly CharacterId[]>;
+/** Enumerate NON-synthetic character ids — `ownerId` scopes to ONE owner (the SINGULAR sweep), omitted/null =
+ *  all owners (the BULK sweep universe). Provided by `character` (`listEmbeddableCharacterIds`) at the
+ *  composition root — un-principal, D20. */
+export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
 
-/** Enumerate every image asset id (`mime LIKE 'image/%'`), all owners (the PD-53 asset sweep universe).
- *  Provided by `assets` (`listImageAssetIds`) at the composition root — un-principal, D20. */
-export type ListImageAssetIds = () => Promise<readonly AssetId[]>;
+/** Enumerate image asset ids (`mime LIKE 'image/%'`) — `ownerId` scopes to ONE owner (the SINGULAR sweep),
+ *  omitted/null = all owners (the BULK sweep universe). Provided by `assets` (`listImageAssetIds`) at the
+ *  composition root — un-principal, D20. */
+export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
 
 // ── the store/maintenance DI bundle (the `store` / `writeHubScores` / `clearTable` verbs close over) ──
 /**

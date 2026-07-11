@@ -2,7 +2,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC, useUserBus } from "#data";
 import {
@@ -12,6 +12,7 @@ import {
   useShellLayout,
   YouSheet,
 } from "#features/app-shell";
+import { AccountSurface, useAuthConfig } from "#features/auth";
 import {
   CharacterActionsMenu,
   CharacterActivityTab,
@@ -32,11 +33,15 @@ import {
   ChatListSurface,
   ChatRoomSurface,
   CommandPaletteSurface,
+  clearJoinParam,
   DraftChatHeader,
   DraftContextPanel,
+  JoinInviteDialog,
   NewChatPicker,
+  readJoinToken,
 } from "#features/chat";
-import { PersonaPanelSurface } from "#features/persona";
+import { NotificationBell } from "#features/notifications";
+import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
 import { SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   chatStream,
@@ -81,6 +86,19 @@ import {
 export function HomePage(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  // The PD-106 capability read (`/api/auth/config.multiHumanCapable`) — the HONEST gate for the three
+  // multi-human surfaces (the bell, the People tab, the /join landing): single-user renders none of
+  // them. `false` until the config lands (chrome appears once known-capable, never flashes-then-yanks).
+  const { data: authConfig } = useAuthConfig();
+  const multiHumanCapable = authConfig?.multiHumanCapable === true;
+  // The one-shot `?join=<token>` handoff from the server's /join/:token redirect — captured at mount,
+  // then immediately scrubbed from the address bar (a raw invite token must not linger in history).
+  const [joinToken, setJoinToken] = useState(readJoinToken);
+  useEffect(() => {
+    if (joinToken !== null) {
+      clearJoinParam();
+    }
+  }, [joinToken]);
   const invalidation = createInvalidation({ queryClient, trpc });
   const busDeps: ChatBusDeps = { stream: chatStream, invalidate: invalidation.invalidate };
   // PD user-bus lane: the ALWAYS-ON per-user entity-changed stream — device B's write to any owned
@@ -156,7 +174,7 @@ export function HomePage(): ReactElement {
   // leaving a stale chat panel mounted beside foreign CONTENT.
   const chatsContext = ((): ReactElement | null => {
     if (activeChatId !== null) {
-      return <ChatContextPanel chatId={activeChatId} />;
+      return <ChatContextPanel chatId={activeChatId} multiHumanCapable={multiHumanCapable} />;
     }
     if (handle.kind === "draft") {
       return <DraftContextPanel draftKey={handle.draftKey} characterIds={draftCharacterIds} />;
@@ -189,6 +207,10 @@ export function HomePage(): ReactElement {
       <AriaAnnouncer message={routeAnnouncement} />
       <AppShell
         railFoot={<PersonaPanelSurface />}
+        // The durable-inbox bell (multi-human invites lane) — topbar chrome, mounted ONLY while the
+        // deployment can seat a second human (the PD-106 capability gate above); single-user has no
+        // inbox surface at all. The bell owns its own reads + live subscription.
+        topbarTrail={multiHumanCapable ? <NotificationBell /> : undefined}
         sections={{
           chats: {
             // The Chats topbar identity + CONTEXT panel ride the SAME section entry as LIST/CONTENT
@@ -270,11 +292,26 @@ export function HomePage(): ReactElement {
           settings: <SettingsShell />,
           newChat: <NewChatPicker />,
           command: <CommandPaletteSurface goToSections={goToSections} />,
+          // The quick identity card + mode-aware sign-out (FINAL-Auth-Modes §7 P0) — replaces the
+          // reserved `account` placeholder (modal-slots.tsx) via the same route-compose seam.
+          account: <AccountSurface />,
           // The mobile "You" bottom sheet (L6/J12) — a shell-tier body the route composes over the `you`
           // slot (the same seam as the four above), keeping app-shell's modal-slots lib component-free.
           you: <YouSheet />,
         }}
       />
+      {/* The first-run persona gate (owner-directed FUE) — renders nothing once the viewer owns a
+          persona; forces the ST-style "name your {{user}}" create on a fresh account. An AppShell
+          SIBLING (not a MODAL_SLOTS entry: it has no rail trigger — the registry pairing stays a
+          bijection of user-openable modals). */}
+      <FirstRunPersonaDialog />
+      {/* The `/join` link landing (preview→confirm) — an AppShell SIBLING like the first-run gate (no
+          rail trigger, so not a MODAL_SLOTS entry). Mounts only when a token arrived AND the deployment
+          is capable (an incapable server never issues the redirect; a hand-typed token on one would only
+          NOT_FOUND — the dialog is simply absent instead). */}
+      {multiHumanCapable && joinToken !== null ? (
+        <JoinInviteDialog token={joinToken} onDone={(): void => setJoinToken(null)} />
+      ) : null}
     </>
   );
 }

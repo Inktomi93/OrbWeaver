@@ -1,0 +1,339 @@
+// CT: the real Admin settings pane (Settings → Admin — the Users + Engines sections over the built
+// admin verbs). Drives the PRODUCTION path: `admin.listUsers` + `sessions.me` seed the pane
+// (QueryBoundary + suspense); the row controls fire the real mutations (recorded via routeTrpc); the
+// owner-only role gate (`setRole` is `requireOwner`) renders DISABLED for a delegated admin; the
+// self/owner/agent affordances mirror the server guards; the create / reset-password / sessions
+// dialogs submit the real wire inputs.
+
+import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc";
+import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { AdminSettingsStory } from "../_ct-stories";
+
+const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" };
+const ADMIN_VIEWER = { userId: "user_mira", handle: "mira", globalRole: "admin" };
+
+const USERS = [
+  {
+    id: "user_owner",
+    handle: "root",
+    externalId: null,
+    role: "owner",
+    enabled: true,
+    kind: "human",
+    ownerHandle: null,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+  },
+  {
+    id: "user_mira",
+    handle: "mira",
+    externalId: null,
+    role: "admin",
+    enabled: true,
+    kind: "human",
+    ownerHandle: null,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+  },
+  {
+    id: "user_kes",
+    handle: "kes",
+    externalId: null,
+    role: "user",
+    enabled: true,
+    kind: "human",
+    ownerHandle: null,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+  },
+  {
+    id: "user_agent",
+    handle: "buddy-agent",
+    externalId: null,
+    role: "user",
+    enabled: true,
+    kind: "agent",
+    ownerHandle: "root",
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+  },
+];
+
+const ENGINES = {
+  embed: { status: "owned", detail: "port 8101", updatedAt: 1_700_000_000_000 },
+  rerank: { status: "failed", detail: "exited 137", updatedAt: 1_700_000_000_000 },
+};
+
+const ENGINE_DETAIL_RE = /exited 137/u;
+
+const SESSIONS = [
+  {
+    id: "sess_live",
+    userId: "user_kes",
+    expiresAt: 1_700_009_000_000,
+    lastSeenAt: 1_700_000_500_000,
+    revokedAt: null,
+    userAgent: "Firefox on Linux",
+    createdAt: 1_700_000_000_000,
+  },
+  {
+    id: "sess_dead",
+    userId: "user_kes",
+    expiresAt: 1_700_009_000_000,
+    lastSeenAt: 1_700_000_400_000,
+    revokedAt: 1_700_000_450_000,
+    userAgent: "Safari on iOS",
+    createdAt: 1_700_000_000_000,
+  },
+];
+
+function stub(
+  page: Page,
+  viewer: typeof OWNER_VIEWER,
+  extra: TrpcRoutes = {},
+): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "admin.listUsers": () => USERS,
+    "sessions.me": () => viewer,
+    "admin.vllmEngines": () => ENGINES,
+    ...extra,
+  });
+}
+
+test("renders the user table + the engines list", async ({ mount, page }) => {
+  await stub(page, OWNER_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  await expect(component.getByText("4 accounts")).toBeVisible();
+  await expect(component.getByText("root", { exact: true })).toBeVisible();
+  await expect(component.getByText("kes", { exact: true })).toBeVisible();
+  // The agent row names its owner (the D60 containment surface never hides agents).
+  await expect(component.getByText("Agent — owned by root")).toBeVisible();
+  // Engines: name + status badge + detail line.
+  await expect(component.getByText("embed", { exact: true })).toBeVisible();
+  await expect(component.getByText("failed", { exact: true })).toBeVisible();
+  await expect(component.getByText(ENGINE_DETAIL_RE)).toBeVisible();
+});
+
+test("as the owner, changing a member's role fires setRole", async ({ mount, page }) => {
+  const trpc = await stub(page, OWNER_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  const roleSelect = component.getByRole("combobox", { name: "Role — kes" });
+  await expect(roleSelect).toBeEnabled();
+  await roleSelect.click();
+  await page.getByRole("option", { name: "Admin" }).click();
+
+  await expect
+    .poll(() => trpc.lastInput("admin.setRole"))
+    .toEqual({ userId: "user_kes", role: "admin" });
+});
+
+test("as a delegated admin, the role controls are DISABLED (requireOwner honesty)", async ({
+  mount,
+  page,
+}) => {
+  await stub(page, ADMIN_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  await expect(component.getByRole("combobox", { name: "Role — kes" })).toBeDisabled();
+  // The owner row exposes NO role control at all (owner-immutability), nor does the agent row (D60).
+  await expect(component.getByRole("combobox", { name: "Role — root" })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: "Role — buddy-agent" })).toHaveCount(0);
+  // Non-role controls stay live for the delegated admin.
+  await expect(component.getByRole("switch", { name: "Enabled — kes" })).toBeEnabled();
+});
+
+test("disabling an account is confirm-gated and fires setEnabled(false)", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stub(page, OWNER_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByRole("switch", { name: "Enabled — kes" }).click();
+  // Nothing fires until the destructive confirm.
+  expect(trpc.count("admin.setEnabled")).toBe(0);
+  await page.getByRole("button", { name: "Disable", exact: true }).click();
+
+  await expect
+    .poll(() => trpc.lastInput("admin.setEnabled"))
+    .toEqual({ userId: "user_kes", enabled: false });
+});
+
+test("the self + owner guards: no enabled switch on the owner row, own switch disabled", async ({
+  mount,
+  page,
+}) => {
+  await stub(page, ADMIN_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  // The owner row renders no enabled switch (the owner is immutable).
+  await expect(component.getByRole("switch", { name: "Enabled — root" })).toHaveCount(0);
+  // The acting admin's own row is disabled (cannot_disable_self).
+  await expect(component.getByRole("switch", { name: "Enabled — mira" })).toBeDisabled();
+});
+
+test("the create-user dialog submits handle + password (+ admin role when picked)", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stub(page, OWNER_VIEWER, { "admin.createUser": () => USERS[2] });
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByTestId("admin-create-user").click();
+  const dialog = page.getByTestId("admin-create-user-dialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("textbox", { name: "Handle" }).fill("nova");
+  await dialog.getByLabel("Password").fill("hunter2hunter2");
+  await dialog.getByRole("combobox", { name: "Role" }).click();
+  await page.getByRole("option", { name: "Admin" }).click();
+  await page.getByTestId("admin-create-user-submit").click();
+
+  await expect
+    .poll(() => trpc.lastInput("admin.createUser"))
+    .toEqual({ handle: "nova", password: "hunter2hunter2", role: "admin" });
+  // Success closes the dialog.
+  await expect(dialog).toHaveCount(0);
+});
+
+test("as a delegated admin, the create-user dialog offers NO Admin role (owner-only mint honesty)", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stub(page, ADMIN_VIEWER, { "admin.createUser": () => USERS[2] });
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByTestId("admin-create-user").click();
+  const dialog = page.getByTestId("admin-create-user-dialog");
+  await expect(dialog).toBeVisible();
+
+  // No Role picker at all — `createUser` gates role:"admin" on requireOwner, so a delegated admin can
+  // only mint regular users. The affordance that would 403 is never offered.
+  await expect(dialog.getByRole("combobox", { name: "Role" })).toHaveCount(0);
+
+  // The plain-user create still works, and never sends role:"admin".
+  await dialog.getByRole("textbox", { name: "Handle" }).fill("nova");
+  await dialog.getByLabel("Password").fill("hunter2hunter2");
+  await page.getByTestId("admin-create-user-submit").click();
+
+  await expect
+    .poll(() => trpc.lastInput("admin.createUser"))
+    .toEqual({ handle: "nova", password: "hunter2hunter2" });
+});
+
+test("as the owner, the create-user dialog DOES offer the Admin role", async ({ mount, page }) => {
+  await stub(page, OWNER_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByTestId("admin-create-user").click();
+  const dialog = page.getByTestId("admin-create-user-dialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("combobox", { name: "Role" }).click();
+  await expect(page.getByRole("option", { name: "Admin" })).toBeVisible();
+});
+
+test("the create-user dialog teaches the password floor instead of submitting", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stub(page, OWNER_VIEWER);
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByTestId("admin-create-user").click();
+  const dialog = page.getByTestId("admin-create-user-dialog");
+  await dialog.getByRole("textbox", { name: "Handle" }).fill("nova");
+  await dialog.getByLabel("Password").fill("short");
+  await page.getByTestId("admin-create-user-submit").click();
+
+  // `exact` — the password field's DESCRIPTION also starts with this copy; the exact match is the
+  // field-error slot the failed validator populated.
+  await expect(dialog.getByText("At least 8 characters.", { exact: true })).toBeVisible();
+  expect(trpc.count("admin.createUser")).toBe(0);
+});
+
+test("reset password: the row menu opens the dialog and submits the new password", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stub(page, OWNER_VIEWER, { "admin.resetPassword": () => ({ ok: true }) });
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByRole("button", { name: "kes actions" }).click();
+  await page.getByRole("menuitem", { name: "Reset password…" }).click();
+  const dialog = page.getByTestId("admin-reset-password-dialog");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByLabel("New password").fill("correct-horse-9");
+  await page.getByTestId("admin-reset-password-submit").click();
+
+  await expect
+    .poll(() => trpc.lastInput("admin.resetPassword"))
+    .toEqual({ userId: "user_kes", password: "correct-horse-9" });
+  await expect(dialog).toHaveCount(0);
+});
+
+test("reset password: submit is clickable, and a too-short password shows an inline error", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stub(page, OWNER_VIEWER, { "admin.resetPassword": () => ({ ok: true }) });
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByRole("button", { name: "kes actions" }).click();
+  await page.getByRole("menuitem", { name: "Reset password…" }).click();
+  const dialog = page.getByTestId("admin-reset-password-dialog");
+  const submit = page.getByTestId("admin-reset-password-submit");
+  await expect(submit).toBeEnabled();
+
+  await dialog.getByLabel("New password").fill("short");
+  await submit.click();
+
+  await expect(dialog.getByText("Password must be at least 8 characters.")).toBeVisible();
+  expect(trpc.count("admin.resetPassword")).toBe(0);
+});
+
+test("sessions: the dialog lists sessions and revokes one / all", async ({ mount, page }) => {
+  const trpc = await stub(page, OWNER_VIEWER, {
+    "admin.listSessions": () => SESSIONS,
+    "admin.revokeSession": () => ({ ok: true }),
+    "admin.revokeUserSessions": () => ({ revoked: 1 }),
+  });
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByRole("button", { name: "kes actions" }).click();
+  await page.getByRole("menuitem", { name: "Sessions…" }).click();
+  const dialog = page.getByTestId("admin-sessions-dialog");
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => trpc.lastInput("admin.listSessions")).toEqual({ userId: "user_kes" });
+
+  await expect(dialog.getByText("Firefox on Linux")).toBeVisible();
+  await expect(dialog.getByText("1 active / 2 total")).toBeVisible();
+  // The revoked row has no Revoke affordance; the live one revokes.
+  await dialog.getByRole("button", { name: "Revoke session — Firefox on Linux" }).click();
+  await expect
+    .poll(() => trpc.lastInput("admin.revokeSession"))
+    .toEqual({ sessionId: "sess_live" });
+
+  // Revoke-all is confirm-gated.
+  await dialog.getByRole("button", { name: "Revoke all" }).click();
+  expect(trpc.count("admin.revokeUserSessions")).toBe(0);
+  await page.getByRole("alertdialog").getByRole("button", { name: "Revoke all" }).click();
+  await expect
+    .poll(() => trpc.lastInput("admin.revokeUserSessions"))
+    .toEqual({ userId: "user_kes" });
+});
+
+test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount, page }) => {
+  const trpc = await stub(page, ADMIN_VIEWER, {
+    "admin.restartVllmEngine": () => "restart 1/3",
+  });
+  const component = await mount(<AdminSettingsStory />);
+
+  await component.getByRole("button", { name: "Restart engine — rerank" }).click();
+  await expect.poll(() => trpc.lastInput("admin.restartVllmEngine")).toEqual({ engine: "rerank" });
+});

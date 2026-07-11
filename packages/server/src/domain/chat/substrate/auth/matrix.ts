@@ -114,6 +114,7 @@ export const CHAT_VERB_AUTHORITY = {
   createInvite: "host",
   previewInvite: "non-chat-scoped", // token-authenticated, PRE-membership (the accept = preview-then-confirm flow)
   redeemInvite: "non-chat-scoped", // the join chokepoint: token-gated, PRE-membership (role server-forced `member`)
+  acceptInvite: "non-chat-scoped", // token-FREE join-by-id: SELF-authorizing (invite bound to `invitedUserId`), PRE-membership (role server-forced `member`)
   revokeInvite: "host",
   declineInvite: "non-chat-scoped", // self/token: the invited user (may not be a member yet)
   kick: "host", // host-only

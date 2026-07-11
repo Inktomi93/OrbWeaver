@@ -45,7 +45,7 @@ describe("embedAssets — the bulk image sweep", () => {
     const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
     const svc = createEmbeddingsService(h.ctx);
 
-    const result = await svc.embedAssets({ force: false, signal: signal() });
+    const result = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
 
     expect(result).toEqual({ embedded: 1, skipped: 0 });
     expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
@@ -64,8 +64,8 @@ describe("embedAssets — the bulk image sweep", () => {
     const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
     const svc = createEmbeddingsService(h.ctx);
 
-    await svc.embedAssets({ force: false, signal: signal() });
-    const rerun = await svc.embedAssets({ force: false, signal: signal() });
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+    const rerun = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
 
     expect(rerun).toEqual({ embedded: 0, skipped: 1 });
     // The verb's hash pre-check short-circuited — the first sweep's calls are still the only ones.
@@ -79,8 +79,8 @@ describe("embedAssets — the bulk image sweep", () => {
     const h = makeStoreHarness(db, { imageAssetIds: seeded.ids, assetBytes: seeded.bytes });
     const svc = createEmbeddingsService(h.ctx);
 
-    await svc.embedAssets({ force: false, signal: signal() });
-    const forced = await svc.embedAssets({ force: true, signal: signal() });
+    await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
+    const forced = await svc.embedAssets({ ownerId: null, force: true, signal: signal() });
 
     expect(forced).toEqual({ embedded: 1, skipped: 0 });
     expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(4);
@@ -105,7 +105,7 @@ describe("embedAssets — the bulk image sweep", () => {
       dim: EMBED_DIM,
     });
 
-    const result = await svc.embedAssets({ force: false, signal: signal() });
+    const result = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
 
     expect(result).toEqual({ embedded: 1, skipped: 0 });
     // Raw was current (store's internal gate noops it); the captioned half was built.
@@ -122,7 +122,7 @@ describe("embedAssets — the bulk image sweep", () => {
     const h = makeStoreHarness(db, { imageAssetIds: seeded.ids });
     const svc = createEmbeddingsService(h.ctx);
 
-    const result = await svc.embedAssets({ force: false, signal: signal() });
+    const result = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
 
     expect(result).toEqual({ embedded: 0, skipped: 1 });
     expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
@@ -137,7 +137,11 @@ describe("embedAssets — the bulk image sweep", () => {
     const controller = new AbortController();
     controller.abort();
 
-    const result = await svc.embedAssets({ force: false, signal: controller.signal });
+    const result = await svc.embedAssets({
+      ownerId: null,
+      force: false,
+      signal: controller.signal,
+    });
 
     expect(result).toEqual({ embedded: 0, skipped: 0 });
     expect(h.loadAssetBytes).not.toHaveBeenCalled();

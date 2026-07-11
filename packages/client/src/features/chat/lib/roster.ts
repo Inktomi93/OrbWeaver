@@ -60,19 +60,14 @@ export function resolveViewerUserId(participants: readonly ParticipantView[]): U
   return null;
 }
 
-/** Whether the VIEWING participant is the room host (drives the CONTEXT-panel host gate — task #28:
- *  host → full editing; member → read-only overrides + injections, preview hidden). Same "first present
- *  human seat" proxy as {@link resolveViewerActivePersonaId} (no client auth/session yet — task #50;
- *  today's rooms carry exactly one human, the owner, who is host). `false` when no human is present
- *  (a fully-AI preview) — the safe read-only floor, never a false host grant. When real viewer identity
- *  lands, this resolves against the authenticated participant instead of the first seat. */
-export function resolveViewerIsHost(participants: readonly ParticipantView[]): boolean {
-  for (const participant of participants) {
-    if (participant.kind === "human") {
-      return participant.role === "host";
-    }
-  }
-  return false;
+/** The PRESENT human seats (multi-human invites lane) — the "People" section's rows, differentiated
+ *  from the seated cast (`buildParticipantsById`'s character filter). `leftSeq === null` is the
+ *  "present-and-contributing" predicate (`ParticipantView` header): a kicked/left human keeps a
+ *  historical row but must not render as a room member. */
+export function resolveHumanParticipants(
+  participants: readonly ParticipantView[],
+): readonly ParticipantView[] {
+  return participants.filter((p) => p.kind === "human" && p.leftSeq === null);
 }
 
 /** Whether this room is a real GROUP (more than 1 character participant) — the D16 "roster-of-1 is degenerate,

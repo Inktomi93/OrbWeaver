@@ -1,9 +1,12 @@
-import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadModePolicy, WorkloadStatus } from "@orb/contracts/workloads";
 import {
   ACTIVE_WORKLOAD_STATUSES,
+  WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
+  WORKLOAD_MODES,
   WORKLOAD_STATUSES,
   workloadKindSchema,
+  workloadModeSchema,
   workloadStatusSchema,
 } from "@orb/contracts/workloads";
 import { expect, test } from "../../support/fixtures";
@@ -11,7 +14,7 @@ import { expect, test } from "../../support/fixtures";
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the pinned 31-member kind axis (incl. the reserved/crew/expressions/databank stubs + the 10 rpg-* stubs)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 33-member kind axis (incl. the assets GC/fsck maintenance kinds, the reserved/crew/expressions/databank stubs + the 10 rpg-* stubs)", () => {
   expect(WORKLOAD_KINDS).toEqual([
     "embed-corpus",
     "embed-assets",
@@ -23,6 +26,8 @@ test("WORKLOAD_KINDS is exactly the pinned 31-member kind axis (incl. the reserv
     "find-duplicates",
     "csls",
     "assets-backfill",
+    "assets-gc",
+    "assets-fsck",
     "import-st",
     "reconcile-stats",
     "refresh-model-catalog",
@@ -108,6 +113,8 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "find-duplicates": true,
   csls: true,
   "assets-backfill": true,
+  "assets-gc": true,
+  "assets-fsck": true,
   "import-st": true,
   "reconcile-stats": true,
   "refresh-model-catalog": true,
@@ -146,4 +153,90 @@ const STATUS_SEEN: Record<WorkloadStatus, true> = {
 };
 test("WorkloadStatus has no member beyond the tuple", () => {
   expect(Object.keys(STATUS_SEEN).sort()).toEqual([...WORKLOAD_STATUSES].sort());
+});
+
+// ── The WorkloadMode axis + the per-kind MODE POLICY map (WORKLOAD_KIND_MODES) — the ONE declarative home ─
+test("WORKLOAD_MODES is exactly [singular, bulk]", () => {
+  expect(WORKLOAD_MODES).toEqual(["singular", "bulk"]);
+  expect(workloadModeSchema.options).toEqual(WORKLOAD_MODES);
+});
+
+// The FULL classification, pinned. SWEEP-kinds = both modes, no bulk target; CREATE-kind (import-st) = both,
+// bulk REQUIRES a target; BULK-ONLY = the global rollup/catalog/corpus analytics; stubs = bulk-only
+// (fail-closed owner-only) until their real runner lands + is re-classified.
+test("WORKLOAD_KIND_MODES classifies every kind to its expected mode policy", () => {
+  const sweepBoth: WorkloadModePolicy = {
+    singular: true,
+    bulk: true,
+    bulkRequiresTarget: false,
+    stub: false,
+  };
+  const createBoth: WorkloadModePolicy = {
+    singular: true,
+    bulk: true,
+    bulkRequiresTarget: true,
+    stub: false,
+  };
+  // BUILT bulk-only (a genuinely-global pass) vs a not-yet-built STUB — same mode shape, split by `stub`.
+  const bulkOnlyBuilt: WorkloadModePolicy = {
+    singular: false,
+    bulk: true,
+    bulkRequiresTarget: false,
+    stub: false,
+  };
+  const bulkOnlyStub: WorkloadModePolicy = {
+    singular: false,
+    bulk: true,
+    bulkRequiresTarget: false,
+    stub: true,
+  };
+  const expected: Record<WorkloadKind, WorkloadModePolicy> = {
+    "embed-corpus": sweepBoth,
+    "embed-assets": sweepBoth,
+    "distill-characters": sweepBoth,
+    "compute-themes": sweepBoth,
+    "memory-backfill": sweepBoth,
+    "group-character-backfill": sweepBoth,
+    "compute-cooccurrence": bulkOnlyBuilt,
+    "find-duplicates": sweepBoth,
+    csls: sweepBoth,
+    "assets-backfill": sweepBoth,
+    "assets-gc": bulkOnlyBuilt,
+    "assets-fsck": bulkOnlyBuilt,
+    "import-st": createBoth,
+    "reconcile-stats": sweepBoth,
+    "refresh-model-catalog": bulkOnlyBuilt,
+    "reconcile-world-state": bulkOnlyStub,
+    "crew-lorebook-keeper": bulkOnlyStub,
+    "crew-card-evolution": bulkOnlyStub,
+    "crew-director": bulkOnlyStub,
+    "crew-prose-audit": bulkOnlyStub,
+    "expressions-sprite-sheet": bulkOnlyStub,
+    "databank-ingest": bulkOnlyStub,
+    "databank-reindex": bulkOnlyStub,
+    "rpg-world-gen": bulkOnlyStub,
+    "rpg-recap": bulkOnlyStub,
+    "rpg-session-distill": bulkOnlyStub,
+    "rpg-director": bulkOnlyStub,
+    "rpg-lorebook-upkeep": bulkOnlyStub,
+    "rpg-illustration": bulkOnlyStub,
+    "rpg-npc-portrait": bulkOnlyStub,
+    "rpg-scene-plan": bulkOnlyStub,
+    "rpg-scene-distill": bulkOnlyStub,
+    "rpg-recruit-card": bulkOnlyStub,
+  };
+  expect(WORKLOAD_KIND_MODES).toEqual(expected);
+});
+
+test("every kind supports at least one mode + only import-st requires a bulk target", () => {
+  for (const kind of WORKLOAD_KINDS) {
+    const policy = WORKLOAD_KIND_MODES[kind];
+    // A kind with NO supported mode would be unstartable — every kind must allow singular OR bulk.
+    expect(policy.singular || policy.bulk).toBe(true);
+    // A bulk target only makes sense for a bulk-capable kind (an implication, no conditional expect).
+    expect(!policy.bulkRequiresTarget || policy.bulk).toBe(true);
+  }
+  // import-st is the ONLY create-kind (bulk mints owner-owned rows → needs a target).
+  const needsTarget = WORKLOAD_KINDS.filter((k) => WORKLOAD_KIND_MODES[k].bulkRequiresTarget);
+  expect(needsTarget).toEqual(["import-st"]);
 });

@@ -26,7 +26,6 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { initialsForAttribution } from "../lib/attribution";
-import { resolveViewerIsHost } from "../lib/roster";
 import { ChatOptionsMenu } from "./chat-options-menu";
 
 export interface ChatHeaderSurfaceProps {
@@ -59,7 +58,11 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   // and silently falls back to the non-narrowing one. `isCharacter` still does the real runtime filtering.
   const cast = (chat?.participants ?? []).filter(isCharacter) as readonly CharacterParticipant[];
   const characterIds: readonly CharacterId[] = cast.map((c) => c.characterId);
-  const isHost = chat === undefined ? false : resolveViewerIsHost(chat.participants);
+  // Host gate: the server-resolved, per-viewer `ChatDetail.viewerIsHost` (the ONE honest source, shared
+  // with the CONTEXT panel) — `=== true` so a load-window `undefined` / a member reads NON-host and the
+  // host-only ⋯ actions never flash. NOT the first-human-seat proxy, which mis-grants once a 2nd human
+  // is seated.
+  const isHost = chat?.viewerIsHost === true;
 
   return (
     <Row gap="row" align="center" justify="between" className="min-w-0">

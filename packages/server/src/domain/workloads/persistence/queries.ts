@@ -11,7 +11,7 @@
 // Determinism: every timestamp write takes the INJECTED `now` (no ambient `Date.now()` / db-clock default on
 // the write path). The typed projection `toView` lives here (it touches the row); the TYPE is in `contract/`.
 
-import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -19,7 +19,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { CancelWorkloadResult, ListWorkloadsParams } from "../contract/params";
+import type { CancelWorkloadResult } from "../contract/params";
 import { parseParamsForKind } from "../contract/workload-params";
 import type { WorkloadRowAnyKind } from "../contract/workload-row";
 
@@ -47,6 +47,7 @@ const LIST_HARD_CAP = 500;
 interface WorkloadInsert {
   readonly id: WorkloadId;
   readonly kind: WorkloadKind;
+  readonly mode: WorkloadMode;
   readonly params: Record<string, unknown>;
   readonly ownerId: UserId | null;
   readonly dependsOn: readonly WorkloadId[] | null;
@@ -56,6 +57,18 @@ interface WorkloadInsert {
 
 /** The raw Drizzle select row (the JSON columns are still `unknown`/`Record` before `toView` narrows them). */
 type WorkloadSelectRow = typeof workloads.$inferSelect;
+
+/** The persistence-facing list filter — the COLUMN predicates only (file-local; the verb resolves the
+ *  server-authoritative `ownerId` scope from the caller BEFORE calling in, so persistence never sees a
+ *  Principal — it is pure data access). `ownerId: null` filters to system/scheduler rows; `undefined` = no
+ *  owner filter (the deployment-wide view). */
+interface WorkloadListFilter {
+  readonly kind?: WorkloadKind;
+  readonly status?: WorkloadStatus;
+  readonly ownerId?: UserId | null;
+  readonly since?: number;
+  readonly limit?: number;
+}
 
 const isKnownKind = (kind: string): kind is WorkloadKind =>
   (WORKLOAD_KINDS as readonly string[]).includes(kind);
@@ -82,6 +95,7 @@ export function toView(row: WorkloadSelectRow): WorkloadRowAnyKind | null {
     id: row.id,
     kind: row.kind,
     status: row.status,
+    mode: row.mode,
     params,
     result: row.result ?? null,
     ownerId: row.ownerId,
@@ -99,6 +113,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
   await db.insert(workloads).values({
     id: row.id,
     kind: row.kind,
+    mode: row.mode,
     params: row.params,
     ownerId: row.ownerId,
     dependsOn: row.dependsOn,
@@ -236,7 +251,7 @@ export async function loadWorkload(db: Db, id: WorkloadId): Promise<WorkloadRowA
  *  500s the read). `ownerId: null` filters to system/scheduler rows; `undefined` applies no owner filter. */
 export async function listWorkloads(
   db: Db,
-  params: ListWorkloadsParams,
+  params: WorkloadListFilter,
 ): Promise<WorkloadRowAnyKind[]> {
   const filters: SQL[] = [];
   if (params.kind !== undefined) {

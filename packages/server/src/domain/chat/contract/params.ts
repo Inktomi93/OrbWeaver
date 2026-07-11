@@ -471,6 +471,14 @@ export interface DeclineInviteParams extends ChatActorParams {
   readonly inviteId: ChatInviteId;
 }
 
+/** `acceptInvite` — the in-app accept of a TARGETED invite the caller was notified about: the token-free twin
+ *  of `redeemInvite`. Keyed by `inviteId` (carried in the notification), SELF-AUTHORIZING — the invite must be
+ *  bound to the caller (`invitedUserId === principal.userId`); a share-link / foreign / invalid / spent invite
+ *  is a leak-free NOT_FOUND. Reuses the redeem chokepoint's atomic seat + idempotent already-member recovery. */
+export interface AcceptInviteParams extends ChatActorParams {
+  readonly inviteId: ChatInviteId;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // membership lifecycle (host-gated where authority — Part III §1/§2)
 // ─────────────────────────────────────────────────────────────────────────────

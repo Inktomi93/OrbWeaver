@@ -9,6 +9,9 @@ catalogs:
     '@anthropic-ai/claude-agent-sdk':
       specifier: ^0.3.206
       version: 0.3.206
+    '@anthropic-ai/sdk':
+      specifier: ^0.106.0
+      version: 0.106.0
     '@base-ui/react':
       specifier: ^1.6.0
       version: 1.6.0
@@ -303,6 +306,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 'catalog:'
         version: 0.3.206(@anthropic-ai/sdk@0.106.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
+      '@anthropic-ai/sdk':
+        specifier: 'catalog:'
+        version: 0.106.0(zod@4.4.3)
       '@biomejs/biome':
         specifier: 'catalog:'
         version: 2.5.1
@@ -591,6 +597,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 'catalog:'
         version: 0.3.206(@anthropic-ai/sdk@0.106.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
+      '@anthropic-ai/sdk':
+        specifier: 'catalog:'
+        version: 0.106.0(zod@4.4.3)
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.0.6(hono@4.12.27)
@@ -636,6 +645,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.12.27
+      minisearch:
+        specifier: 'catalog:'
+        version: 7.2.0
       openid-client:
         specifier: 'catalog:'
         version: 6.8.4

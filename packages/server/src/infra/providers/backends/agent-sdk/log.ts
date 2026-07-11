@@ -1,56 +1,26 @@
-// infra/providers/backends/agent-sdk/log — THE `provider.*` structured-log taxonomy for the agent-sdk
-// backend. A thin tagged-`getLog()` sink mirroring `foundation/observability/memory-log` (the
-// `memory: true` shape) and `securityEvent` (`security: true`): every call emits ONE pino line tagged
-// `provider: true` + `backend: "agent-sdk"` + an `event` string, so the whole backend trail is greppable
-// as `provider:true`, filterable per-backend, and per-event via `event`. The pino ring + `/api/_debug/logs`
-// pick these up for free (the ringStream feeds them).
-//
-// The `backend` constant is carried on every line so the shape GENERALIZES to other backends later (an
-// openrouter/vllm sink would emit the same taxonomy with its own `backend`) WITHOUT building that
-// generalization now — this file is agent-sdk-family-local until a second backend needs it.
+// infra/providers/backends/agent-sdk/log — the agent-sdk backend's `provider.*` event WRAPPERS. The thin
+// tagged-`getLog()` sink core (`providerLog`, `PROVIDER_LOG_LEVELS`, `ProviderTurnUsage`) now lives in the
+// shared `backends/kit/provider-log` (hoisted for the second backend — anth-direct — per part 05 §2); this
+// file holds the agent-sdk-SPECIFIC event shapes + wrappers, each passing this backend's `BACKEND` tag to
+// the kit core. Every call still emits ONE pino line tagged `provider: true` + `backend: "agent-sdk"` + an
+// `event` string, greppable as `provider:true`, filterable per-backend + per-event. The pino ring +
+// `/api/_debug/logs` pick these up for free.
 //
 // DOCTRINE (Tier-2-Foundation esoteric #12): logs are METADATA — ids, counts, classifications, model
 // names, timings, CLI runtime diagnostics. NEVER prompt / RP / system-prompt content on a log line. Every
 // field below is metadata; the one string that carries subprocess output (`stderrTail`) is CLI runtime
 // diagnostics (spawn/auth failures), bounded + truncated at the call site, never model-generated text.
 
-import { getLog } from "#foundation/observability";
-import type { ContextUsage, ProviderError } from "../../contract";
+import type { ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
+import { providerLog } from "@orb/server/infra/providers/backends/kit";
+import type { ContextUsage, DynamicContextChannel, ProviderError } from "../../contract";
 import type { SeededSessionDecision } from "./session";
 
-/** This backend's tag on every taxonomy line (see the header — the seam that lets the shape generalize). */
+// Re-exported so the agent-sdk barrel + its consumers keep the same import surface after the kit hoist.
+export type { ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
+
+/** This backend's tag on every taxonomy line, passed to the shared kit sink per-call. */
 const BACKEND = "agent-sdk";
-
-/** The pino levels a `provider.*` event can ride — the axis declared once as a tuple (Spine §7.5),
- *  the type derived. `getLog()` returns a child bound to the request scope (requestId/userId) when
- *  inside one, else the base logger — so these lines correlate to their request. */
-export const PROVIDER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
-type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];
-
-/**
- * The taxonomy core: emit ONE tagged pino line. `event` is BOTH the greppable tag field and the log
- * message (the memory-log / securityEvent shape). Never throws — an observability call must not break the
- * turn that fired it (pino itself does not throw on the happy path; this stays a pure fire-and-forget).
- */
-function providerLog(
-  level: ProviderLogLevel,
-  event: string,
-  fields: Record<string, unknown> = {},
-): void {
-  getLog()[level]({ provider: true, backend: BACKEND, event, ...fields }, event);
-}
-
-/** The per-turn usage sub-object on a `provider.turn` line — token/cost economics + the cold-start canary.
- *  All optional so a turn that never reached a result frame (an early throw) still logs a coherent line. */
-export interface ProviderTurnUsage {
-  readonly tokensIn?: number;
-  readonly tokensOut?: number;
-  readonly reasoningTokens?: number | null;
-  readonly cacheReadTokens?: number;
-  readonly cacheWriteTokens?: number;
-  readonly costUsd?: number;
-  readonly warmSpareClaimed?: boolean | null;
-}
 
 /** The one-line-per-turn anchor (`provider.turn`, info) — success OR failure. Carries the turn's identity
  *  (chat/session/model), the resume disposition, the terminal classification, timings, and the usage
@@ -77,7 +47,7 @@ export interface ProviderTurnLog {
 
 /** ONE line per completed turn (success or failure) — the debug anchor. */
 export function logProviderTurn(entry: ProviderTurnLog): void {
-  providerLog("info", "provider.turn", { ...entry });
+  providerLog(BACKEND, "info", "provider.turn", { ...entry });
 }
 
 /** The session-decision line (`provider.session`, debug) — emitted only when the decision was NOT a plain
@@ -87,7 +57,7 @@ export function logProviderSession(entry: {
   readonly sessionId: string | null;
   readonly disposition: SeededSessionDecision["disposition"];
 }): void {
-  providerLog("debug", "provider.session", { ...entry });
+  providerLog(BACKEND, "debug", "provider.session", { ...entry });
 }
 
 /** A classified `ProviderError` (`provider.error`, error) via its full provenance (`toLog()`). On a
@@ -96,7 +66,7 @@ export function logProviderError(
   err: ProviderError,
   extra?: { readonly stderrTail?: string },
 ): void {
-  providerLog("error", "provider.error", {
+  providerLog(BACKEND, "error", "provider.error", {
     ...err.toLog(),
     ...(extra?.stderrTail !== undefined ? { stderrTail: extra.stderrTail } : {}),
   });
@@ -105,13 +75,13 @@ export function logProviderError(
 /** A rate-limit snapshot (`provider.rate_limit`) — warn when overage is in play or the window is exhausted
  *  (the ban-risk canary), debug when healthy. Carries the snapshot fields (all metadata). */
 export function logProviderRateLimit(banRisk: boolean, fields: Record<string, unknown>): void {
-  providerLog(banRisk ? "warn" : "debug", "provider.rate_limit", fields);
+  providerLog(BACKEND, banRisk ? "warn" : "debug", "provider.rate_limit", fields);
 }
 
 /** An api-retry (`provider.retry`, warn) — the runtime backed off + retried; carries the attempt fields +
  *  the classified kind so a retry storm is greppable by classification. */
 export function logProviderRetry(fields: Record<string, unknown>): void {
-  providerLog("warn", "provider.retry", fields);
+  providerLog(BACKEND, "warn", "provider.retry", fields);
 }
 
 /** Model drift (`provider.drift`, warn) — the served/billed model differs from the requested one (overage
@@ -120,7 +90,7 @@ export function logProviderDrift(entry: {
   readonly requested: string;
   readonly billed: readonly string[];
 }): void {
-  providerLog("warn", "provider.drift", { ...entry });
+  providerLog(BACKEND, "warn", "provider.drift", { ...entry });
 }
 
 /** A safety-classifier refusal (`provider.refusal`, warn) — the category + whether a fallback retried.
@@ -129,7 +99,7 @@ export function logProviderRefusal(entry: {
   readonly category: string | null;
   readonly retried: boolean;
 }): void {
-  providerLog("warn", "provider.refusal", { ...entry });
+  providerLog(BACKEND, "warn", "provider.refusal", { ...entry });
 }
 
 /** A firewall breach (`provider.leak`, error) — a tool leaked past the locked tool-less config. Only the
@@ -138,13 +108,13 @@ export function logProviderLeak(entry: {
   readonly model: string;
   readonly toolNames: readonly string[];
 }): void {
-  providerLog("error", "provider.leak", { ...entry });
+  providerLog(BACKEND, "error", "provider.leak", { ...entry });
 }
 
 /** A compaction outcome (`provider.compaction`, warn) — emitted when the runtime's context compaction
  *  FAILED (the healthy compact-boundary stays on the existing info line). */
 export function logProviderCompaction(fields: Record<string, unknown>): void {
-  providerLog("warn", "provider.compaction", fields);
+  providerLog(BACKEND, "warn", "provider.compaction", fields);
 }
 
 /** An interactive-dialog fail-close (`provider.dialog`, warn) — the SDK asked the host to answer an MCP
@@ -157,7 +127,7 @@ export function logProviderDialog(entry: {
   readonly source: "elicitation" | "user-dialog";
   readonly kind: string;
 }): void {
-  providerLog("warn", "provider.dialog", { ...entry });
+  providerLog(BACKEND, "warn", "provider.dialog", { ...entry });
 }
 
 /** A summarize-batch outcome (`provider.summarize`, info) — ONE line per batch. METADATA only: the input
@@ -169,7 +139,20 @@ export function logProviderSummarize(entry: {
   readonly fail: number;
   readonly durationMs: number;
 }): void {
-  providerLog("info", "provider.summarize", { ...entry });
+  providerLog(BACKEND, "info", "provider.summarize", { ...entry });
+}
+
+/** The volatile-content channel decision (`provider.channel`, debug — part 05 §3b). A DECOUPLED emitter:
+ *  it reads RESOLVED facts (the funnel's `dynamicContextChannel` + the gating `turns.midConversationSystem`
+ *  + whether the user knob was demoted) and writes them — NO model-id / wire branch at the emit site (the
+ *  §1 decoupling rule). Answers "which channel, and why" — the gating-flag value IS the why. `demoted:true`
+ *  mirrors the `dynamic_context_demoted` funnel warning (a `message-tail` request an incapable model got). */
+export function logProviderChannel(entry: {
+  readonly channel: DynamicContextChannel;
+  readonly midConvCapable: boolean;
+  readonly demoted: boolean;
+}): void {
+  providerLog(BACKEND, "debug", "provider.channel", { ...entry });
 }
 
 /** An MCP-server health snapshot (`provider.mcp`) — warn when a configured server is NOT healthy
@@ -185,5 +168,5 @@ export function logProviderMcp(entry: {
   readonly unhealthy: boolean;
   readonly servers: readonly ProviderMcpServerHealth[];
 }): void {
-  providerLog(entry.unhealthy ? "warn" : "debug", "provider.mcp", { ...entry });
+  providerLog(BACKEND, entry.unhealthy ? "warn" : "debug", "provider.mcp", { ...entry });
 }

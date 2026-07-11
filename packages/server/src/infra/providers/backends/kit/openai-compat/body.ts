@@ -20,6 +20,7 @@ export interface OpenAiSamplingInput {
   readonly frequencyPenalty?: number | undefined;
   readonly presencePenalty?: number | undefined;
   readonly repetitionPenalty?: number | undefined;
+  readonly minP?: number | undefined;
   readonly seed?: number | undefined;
   readonly logitBias?: Readonly<Record<string, number>> | undefined;
   readonly stop?: readonly string[] | undefined;
@@ -46,6 +47,7 @@ export function buildOpenAiSamplingFields(input: OpenAiSamplingInput): Record<st
     ...(input.repetitionPenalty !== undefined
       ? { repetition_penalty: input.repetitionPenalty }
       : {}),
+    ...(input.minP !== undefined ? { min_p: input.minP } : {}),
     ...(input.seed !== undefined ? { seed: input.seed } : {}),
     ...(input.logitBias !== undefined ? { logit_bias: input.logitBias } : {}),
     ...(input.stop !== undefined ? { stop: input.stop } : {}),

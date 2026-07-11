@@ -140,4 +140,35 @@ describe("computeThemes", () => {
     const clusters = await db.select().from(themeClusters);
     expect(clusters).toHaveLength(1); // not doubled
   });
+
+  // The SINGULAR-mode security invariant: a per-owner recompute reads + REPLACES only that owner's clusters —
+  // it must NEVER wipe another owner's themes (the delete is scoped by `themeClusters.ownerId`).
+  test("a SINGULAR (owner-scoped) recompute leaves ANOTHER owner's clusters untouched", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "user_a");
+    const b = await seedUser(db, "user_b");
+    const chatA = await seedHostedChat(db, "chat_a", a);
+    const chatB = await seedHostedChat(db, "chat_b", b);
+    await seedChatDigest(db, { id: "da1", chatId: chatA, embedding: vec(1, 0), blockIdx: 0 });
+    await seedChatDigest(db, { id: "da2", chatId: chatA, embedding: vec(1, 0), blockIdx: 1 });
+    await seedChatDigest(db, { id: "db1", chatId: chatB, embedding: vec(0, 1), blockIdx: 0 });
+    await seedChatDigest(db, { id: "db2", chatId: chatB, embedding: vec(0, 1), blockIdx: 1 });
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+
+    // Seed both owners' clusters via a global (bulk) recompute first.
+    await svc.computeThemes({ k: 1 });
+    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(
+      1,
+    );
+
+    // Now recompute ONLY owner A (singular) — B's clusters must survive untouched.
+    const stats = await svc.computeThemes({ k: 1, ownerId: a });
+    expect(stats.ownersProcessed).toBe(1);
+    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, a))).toHaveLength(
+      1,
+    );
+    expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(
+      1,
+    ); // NOT wiped by A's singular run
+  });
 });

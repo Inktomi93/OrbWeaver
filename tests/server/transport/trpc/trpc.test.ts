@@ -6,10 +6,11 @@
 // documented single-user-refused surface list and stays open in multi-user mode.
 
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { NotificationId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import type { BuddyService } from "@orb/server/domain/buddy";
+import type { ChatService } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
@@ -125,6 +126,9 @@ describe("the injected rate-limit gate", () => {
 });
 
 const notificationId = castId<NotificationId>("notification_1");
+const chatId = castId<ChatId>("chat_1");
+const inviteId = castId<ChatInviteId>("chatinvite_1");
+const kickTarget = castId<UserId>("user_target");
 
 /** One documented single-user-refused surface (Tier-4 §"multi-human surface"). `probe` proves the
  *  multi-user path got through the belt: the domain verb for the CRUD trio, the `presence.connect` spy
@@ -139,9 +143,37 @@ interface BeltSurface {
   readonly drive: (ctx: Context) => Promise<unknown>;
 }
 
+/** A belt row for one invites-router verb: the probe is the chat-service verb mock — proving both the
+ *  belt refusal (never called) and the capable-path wiring (called once). */
+function inviteSurface(
+  verb: keyof ChatService,
+  drive: (ctx: Context) => Promise<unknown>,
+): BeltSurface {
+  return {
+    path: `invites.${verb}`,
+    make: (): ReturnType<BeltSurface["make"]> => {
+      const fn = vi.fn(async () => ({}) as never);
+      return { services: { chat: { [verb]: fn } }, presence: inertPresence, probe: fn };
+    },
+    drive,
+  };
+}
+
 // The full multi-human surface list at transport today — the notifications CRUD trio + the notifications
-// subscription (the chat-P5 invite/roster procedures adopt the same rung as they land).
+// subscription + the invites/membership router (FINAL-Auth-Modes §7 P1 — the PD-106 burn-down).
 const beltSurfaces: readonly BeltSurface[] = [
+  inviteSurface("createInvite", (ctx) => caller(ctx).invites.createInvite({ chatId, input: {} })),
+  inviteSurface("previewInvite", (ctx) => caller(ctx).invites.previewInvite({ token: "tok" })),
+  inviteSurface("redeemInvite", (ctx) => caller(ctx).invites.redeemInvite({ token: "tok" })),
+  inviteSurface("acceptInvite", (ctx) => caller(ctx).invites.acceptInvite({ inviteId })),
+  inviteSurface("revokeInvite", (ctx) => caller(ctx).invites.revokeInvite({ chatId, inviteId })),
+  inviteSurface("declineInvite", (ctx) => caller(ctx).invites.declineInvite({ inviteId })),
+  inviteSurface("kick", (ctx) => caller(ctx).invites.kick({ chatId, userId: kickTarget })),
+  inviteSurface("selfLeave", (ctx) => caller(ctx).invites.selfLeave({ chatId })),
+  inviteSurface("nominateHostHandoff", (ctx) =>
+    caller(ctx).invites.nominateHostHandoff({ chatId, userId: kickTarget }),
+  ),
+  inviteSurface("acceptHostHandoff", (ctx) => caller(ctx).invites.acceptHostHandoff({ chatId })),
   {
     path: "notifications.list",
     make: () => {
@@ -184,13 +216,13 @@ const beltSurfaces: readonly BeltSurface[] = [
   },
 ];
 
-describe("multiHumanProcedure — the single-user 404 belt (PD-106)", () => {
+describe("multiHumanProcedure — the multi-human capability 404 belt (PD-106 / B4)", () => {
   for (const surface of beltSurfaces) {
-    test(`${surface.path}: single-user mode → NOT_FOUND (the surface looks unmounted)`, async () => {
+    test(`${surface.path}: not multi-human capable → NOT_FOUND (the surface looks unmounted)`, async () => {
       const { services, presence, probe } = surface.make();
       const ctx = makeContext({
         auth: principal("user"),
-        singleUserMode: true,
+        multiHumanCapable: false,
         services,
         presence,
       });
@@ -198,11 +230,11 @@ describe("multiHumanProcedure — the single-user 404 belt (PD-106)", () => {
       expect(probe).not.toHaveBeenCalled();
     });
 
-    test(`${surface.path}: multi-user mode → reachable`, async () => {
+    test(`${surface.path}: multi-human capable → reachable`, async () => {
       const { services, presence, probe } = surface.make();
       const ctx = makeContext({
         auth: principal("user"),
-        singleUserMode: false,
+        multiHumanCapable: true,
         services,
         presence,
       });
@@ -211,13 +243,33 @@ describe("multiHumanProcedure — the single-user 404 belt (PD-106)", () => {
     });
   }
 
-  test("fires BEFORE the auth gate: an anonymous probe in single-user mode sees NOT_FOUND, not UNAUTHORIZED", async () => {
-    const ctx = makeContext({ auth: null, singleUserMode: true });
+  test("fires BEFORE the auth gate: an anonymous probe while not capable sees NOT_FOUND, not UNAUTHORIZED", async () => {
+    const ctx = makeContext({ auth: null, multiHumanCapable: false });
     await expect(caller(ctx).notifications.list()).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  test("multi-user mode still requires auth (the belt adds no anonymous bypass)", async () => {
-    const ctx = makeContext({ auth: null, singleUserMode: false });
+  test("multi-human capable still requires auth (the belt adds no anonymous bypass)", async () => {
+    const ctx = makeContext({ auth: null, multiHumanCapable: true });
     await expect(caller(ctx).notifications.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  // §9 ruling 3 (CRUCIAL): the belt gates only the second-HUMAN seat. Multi-CHARACTER group chat —
+  // founding a room and seating characters — must work while NOT multi-human capable (single-user AND
+  // local-single-human). A regression here breaks the product for every local/single-user install.
+  test("multi-CHARACTER chat is NOT gated: startChat + addCharacterToChat reachable while not capable", async () => {
+    const startChat = vi.fn<ChatService["startChat"]>();
+    const addCharacterToChat = vi.fn<ChatService["addCharacterToChat"]>();
+    const ctx = makeContext({
+      auth: principal("user"),
+      multiHumanCapable: false,
+      services: { chat: { startChat, addCharacterToChat } },
+    });
+    await caller(ctx).chat.startChat({ characterIds: [] });
+    await caller(ctx).chat.addCharacterToChat({
+      chatId,
+      characterId: castId<CharacterId>("character_1"),
+    });
+    expect(startChat).toHaveBeenCalledTimes(1);
+    expect(addCharacterToChat).toHaveBeenCalledTimes(1);
   });
 });

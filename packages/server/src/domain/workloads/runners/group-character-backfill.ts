@@ -11,7 +11,7 @@ export const groupCharacterBackfillRunner: Runner<"group-character-backfill"> = 
   signal,
 ) => {
   report({ message: "group-character backfill: sweeping group rooms" });
-  const counts = await ctx.env.character.backfillGroupCharacters({ signal });
+  const counts = await ctx.env.character.backfillGroupCharacters({ ownerId: ctx.ownerId, signal });
   report({
     message: `group-character backfill: ${counts.scanned} group rooms scanned, ${counts.changed} minted`,
   });

@@ -35,9 +35,27 @@
 // change was needed for either.
 
 import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatParticipantId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  UserId,
+  WorldBookId,
+  WorldEntryId,
+} from "@orb/kit/ids";
 import type { ImportCharacterInput } from "./params";
-import type { ImportCharacterResult, ImportedCharacterRef } from "./results";
+import type {
+  ImportCharacterResult,
+  ImportChatsResult,
+  ImportedCharacterRef,
+  ImportPersonasResult,
+} from "./results";
+import type { ImportChatsInput, ImportPersonaInput } from "./views";
 
 /**
  * Create a character from a flattened+validated import, stamping the import provenance. Injected type-only;
@@ -115,6 +133,45 @@ export type AttachImportedCardTag = (args: {
 }) => Promise<boolean>;
 
 /**
+ * PD-78 op — enqueue ONE `memory-backfill` workload for the owner, over the freshly imported chats (the
+ * backfill sweep itself scopes to the owner's `real_conversation`-bucketed chats). Injected type-only; the
+ * composition root binds it to `workloads.start({ kind:"memory-backfill", ownerId })` — import never
+ * sideways-imports `domain/workloads`. Called ONCE per import run (or per `importChats`), only when ≥1
+ * `real_conversation` chat was written (the gate invariant: canon-write ⇒ downstream index runs).
+ */
+export type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Promise<void>;
+
+/** PD-78 op — the inline post-import stats rollup rebuild (economics is not event-driven). Injected
+ *  type-only; the root binds it to the `reconcileStats` write substrate (owner-scoped). */
+export type ReconcileImportStats = (args: { readonly ownerId: UserId }) => Promise<void>;
+
+/**
+ * The PROFILE-wave deps (RULING A): the chats/personas/lorebook writers write against `@orb/db` DIRECTLY
+ * (the sanctioned bulk-serializer exemption export's reads use — the row shapes are chat's
+ * `persistence/roster.ts` + world-info's tables), so this bundle carries the `db` handle + the injected
+ * clock + the caller-minted ids (determinism — the composition root is the mint site) + the cross-verb
+ * `personaByUserName` attribution state + the PD-78 ops. ABSENT for the card-only slice: the built
+ * `importCharacter` verb reads NONE of it (RULING A — "zero db access" → "the card verbs use zero db"),
+ * so the card-slice harness needs no change. The chats/personas verbs assert it is present.
+ */
+export interface ImportProfileDeps {
+  readonly db: Db;
+  readonly now: () => number;
+  /** Cross-verb attribution: `importPersonas` populates it (lowercased display name → persona id); the
+   *  chat writer reads it to attribute each imported chat's `user_name` to the persona the user RP'd as. */
+  readonly personaByUserName: Map<string, PersonaId>;
+  readonly newChatId: () => ChatId;
+  readonly newMessageId: () => MessageId;
+  readonly newVariantId: () => MessageVariantId;
+  readonly newParticipantId: () => ChatParticipantId;
+  readonly newPersonaId: () => PersonaId;
+  readonly newWorldBookId: () => WorldBookId;
+  readonly newWorldEntryId: () => WorldEntryId;
+  readonly enqueueBackfill: EnqueueImportBackfill;
+  readonly reconcileStats: ReconcileImportStats;
+}
+
+/**
  * The DI bundle every import verb closes over (wired at `service.ts` / the composition root). Explicit
  * interface (not `ReturnType<typeof …>`) per §7.4 + the `no-context-returntype` gate.
  *   - `ownerId` — the resolved principal id (ImportServiceDeps, collapsed — identity is
@@ -122,6 +179,8 @@ export type AttachImportedCardTag = (args: {
  *   - `createCharacter` / `findByImportHash` / `findByHandle` / `updateCharacter` / `storeAsset` /
  *     `attachCardTag` — the injected cross-feature ops (type-only; the root binds the character / assets /
  *     tag runtimes).
+ *   - `profile` — the PD-77 profile-wave deps (db + clock + minters + attribution + PD-78 ops). ABSENT for
+ *     the card-only slice (RULING A); the chats/personas verbs require it, the card verb ignores it.
  */
 export interface ImportContext {
   readonly ownerId: UserId;
@@ -131,6 +190,7 @@ export interface ImportContext {
   readonly updateCharacter: UpdateImportedCharacter;
   readonly storeAsset: StoreImportAsset;
   readonly attachCardTag: AttachImportedCardTag;
+  readonly profile?: ImportProfileDeps;
 }
 
 export interface ImportService {
@@ -146,4 +206,20 @@ export interface ImportService {
    * @throws {@link ImportCardError} When the bytes carry no readable/valid card.
    */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
+  /**
+   * Import a list of loose ST chat `.jsonl` files into an EXISTING owned character (PD-77): dup-skip by
+   * `chats.importHash`, write chats→messages→variants + the founding roster, resolve branch parents
+   * (filename → parent chat id), then enqueue ONE `memory-backfill` when any `real_conversation` chat was
+   * written. Requires `ctx.profile`.
+   * @throws The shared kit `DomainNotFoundError` when the character isn't owned by the caller.
+   */
+  readonly importChats: (input: ImportChatsInput) => Promise<ImportChatsResult>;
+  /**
+   * Import a profile's settings.json personas (PD-77): dedup-by-name (a name collision reuses the existing
+   * persona), write the new rows, and POPULATE `ctx.profile.personaByUserName` so the chat importers can
+   * attribute their `user_name`s. MUST run BEFORE the chat importers. Requires `ctx.profile`.
+   */
+  readonly importPersonas: (input: {
+    readonly personas: readonly ImportPersonaInput[];
+  }) => Promise<ImportPersonasResult>;
 }

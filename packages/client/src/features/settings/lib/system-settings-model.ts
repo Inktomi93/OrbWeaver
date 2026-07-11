@@ -64,6 +64,8 @@ export interface SystemSettingsForm {
   readonly allowNonOwnerLocalCompute: boolean;
   readonly nonOwnerLocalComputeBudget: number | null;
   readonly allowNonOwnerMaxProSub: boolean;
+  readonly localMultiUser: boolean;
+  readonly discreetLogin: boolean;
 }
 
 /** Project the resolved effective config into the editable form (bytes → MB for the image cap). */
@@ -79,6 +81,8 @@ export function projectSystemForm(config: EffectiveAppConfig): SystemSettingsFor
     allowNonOwnerLocalCompute: config.allowNonOwnerLocalCompute,
     nonOwnerLocalComputeBudget: config.nonOwnerLocalComputeBudget,
     allowNonOwnerMaxProSub: config.allowNonOwnerMaxProSub,
+    localMultiUser: config.localMultiUser,
+    discreetLogin: config.discreetLogin,
   };
 }
 
@@ -102,6 +106,8 @@ const NULLABLE_SCALAR_KEYS = [
   "nonOwnerLocalComputeBudget",
   // biome-ignore lint/security/noSecrets: an AppSettings field name (D17 governance toggle), not a secret.
   "allowNonOwnerMaxProSub",
+  "localMultiUser",
+  "discreetLogin",
 ] as const;
 type NullableScalarKey = (typeof NULLABLE_SCALAR_KEYS)[number];
 

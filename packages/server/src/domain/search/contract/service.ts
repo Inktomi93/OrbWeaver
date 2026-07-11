@@ -25,17 +25,26 @@
 // issues that query). No `domain/embeddings` file is touched or imported.
 //
 // ── DEFERRAL LEDGER ─────────────────────────────────────────────────────────────────────────────────────
-// FLAG[PD-35]: `discover` verb (the DISCOVERY-domain character-discovery consumer, NOT memory —
-//   PD-39/40 territory) and its `DiscoverParams`/`DiscoverCharacter`/`DiscoverSegment` types.
+// PD-35 (BUILT 2026-07-10): `discover` + the similarity trio — the THIRD retrieval lens and its two seed-vector
+//   siblings, all SEARCH verbs (D55: "membership-gated retrieval are search verbs"; neo homes `discover` in
+//   `search/verbs/core.ts` — NOT discovery-domain; the prior "DISCOVERY-domain" label here was doc defect F1/F2,
+//   corrected per `reports/stickler/discovery-search-untangle.md`):
+//     • `discover` — text query → owner-wide verbatim `chat_segments` scan → CSLS → rerank-before-group →
+//       segment→character credit (`resolveSegmentDisplay`, co-star aware) → group by character. Query-only
+//       (no seed id); `DiscoverParams`/`DiscoverCharacter`/`DiscoverSegment` + the `DISCOVER_*` constants.
+//     • `similarCharacters` — seed-vector top-k over the CARD space (stored seed vector, owner-belted, CSLS).
+//     • `similarArt` — seed-vector top-k over the IMAGE space (avatar↔avatar, CSLS APPLIES — same-space).
 //   Note: `digests`/`segments`/`corpus` are BUILT (the chat-memory retrieval the `recall` path depends on
 //   — `persistence/{scope,digest-rows}.ts` + `substrate/dedupe.ts`).
 //   Open sub-flags inside the built verbs: `recencyBias`/`verbatimWindow` are accepted-but-not-applied on
 //   `digests` (verbatimWindow shapes memory's pre-call query; recencyBias needs a formula); `corpus` drops a
 //   segment-only block (no matching digest ⇒ unkeyable). See each verb header.
-// FLAG[PD-36]: the cross-modal `images` verb → a later wave when the `imageEmbed` text→image path +
-//   the cross-modal-CSLS-skip exception are wired (proposed/search-deferred-verbs.md §PD-36).
-// FLAG[PD-37]: the lexical BM25 `fields`/`suggest` engine → a later wave (needs the `minisearch`
-//   dependency, not in the workspace — a separate engine, not vector retrieval).
+// PD-36 (BUILT): the cross-modal `images` verb — text→image over `image_embeddings`, RAW-distance rank
+//   (the CSLS-skip invariant), lens-gated, caption rerank. See `verbs/images.ts`.
+// PD-37 (BUILT): the lexical BM25 `fields`/`suggest` engine — a per-owner MiniSearch index over card text
+//   fields, TTL+LRU cached (`substrate/field-index.ts`), fed by `persistence/cards.ts`. The `minisearch`
+//   dep is sealed to `field-index.ts` (the `search-minisearch-seal` dep-cruiser rule). A SECOND retrieval
+//   surface on this domain (vector is the first); callers pick the surface by verb, never a backend.
 // FLAG[PD-38]: the unified `search(UnifiedSearchParams)` dispatch + `SearchScope` axis → when the
 //   full verb set exists (the 7-branch result union + exhaustive `assertNever` dispatch is premature with
 //   a partial surface).
@@ -45,16 +54,27 @@ import type { ReadOnlyDb } from "@orb/db";
 import type {
   CorpusParams,
   DigestsParams,
+  DiscoverParams,
+  FieldSearchParams,
   FindCharactersParams,
+  ImagesParams,
   KnnParams,
   SegmentsParams,
+  SimilarArtParams,
+  SimilarCharactersParams,
+  SuggestParams,
 } from "./params";
 import type {
   CharacterCardHit,
   CorpusHit,
   DigestSearchHit,
+  DiscoverCharacter,
+  FieldSearchHit,
+  ImageSearchHit,
   SearchHit,
+  SearchSuggestion,
   SegmentSearchHit,
+  SimilarArtHit,
 } from "./results";
 
 /**
@@ -68,6 +88,10 @@ import type {
 export interface SearchContext {
   readonly db: ReadOnlyDb;
   readonly roleClients: RoleClients;
+  /** The injected wall-clock (`no-raw-clock`: the domain never calls `Date.now()`). Consumed ONLY by the
+   *  lexical `fields`/`suggest` engine's per-owner BM25 index cache (TTL freshness — `substrate/field-index.ts`);
+   *  the vector verbs are time-free. */
+  readonly now: () => number;
 }
 
 /** What `createSearchService` receives from the entry root. Identical to {@link SearchContext} — no
@@ -76,9 +100,10 @@ export type SearchServiceDeps = SearchContext;
 
 /**
  * The search surface — the one parameterized retrieval engine (knowledge-cluster invariant #4).
- * W2 CORE: `knn` (the generic within-space card scan → raw hits) + `findCharacters` (the same pipeline + distilled-facet enrichment,
- * the primitive `discovery` consumes). The memory/discover/image/lexical verbs join as they land (see the
- * deferral ledger above).
+ * `knn` (the generic within-space card scan → raw hits) + `findCharacters` (the same pipeline + distilled-facet
+ * enrichment) + the chat-memory lenses (`digests`/`segments`/`corpus`) + cross-modal `images` + lexical
+ * `fields`/`suggest` + the PD-35 discovery lens (`discover`) and its seed-vector siblings
+ * (`similarCharacters`/`similarArt`). Only the unified `search()` dispatch (PD-38) remains deferred.
  */
 export interface SearchService {
   readonly knn: (params: KnnParams) => Promise<SearchHit[]>;
@@ -90,4 +115,23 @@ export interface SearchService {
   readonly segments: (params: SegmentsParams) => Promise<SegmentSearchHit[]>;
   /** Cross-chat hybrid corpus retrieval (owner-wide; joint digest+segment rerank + block/content collapse). */
   readonly corpus: (params: CorpusParams) => Promise<CorpusHit[]>;
+  /** Cross-modal text→image retrieval (PD-36; owner-scoped over `image_embeddings`, ONE lens). RANKS ON RAW
+   *  COSINE DISTANCE — the image↔image `hub_score` is deliberately NOT applied on this cross-modal path
+   *  (`verbs/images.ts` CSLS-skip invariant). */
+  readonly images: (params: ImagesParams) => Promise<ImageSearchHit[]>;
+  /** Lexical BM25 card search (PD-37) — the complementary (non-vector) retrieval surface over the owner's
+   *  per-owner MiniSearch index (`substrate/field-index.ts`). `score` is a BM25 score (HIGHER = better). */
+  readonly fields: (params: FieldSearchParams) => Promise<FieldSearchHit[]>;
+  /** Autocomplete over the same per-owner card index (PD-37) — completes a partial query into suggestions. */
+  readonly suggest: (params: SuggestParams) => Promise<SearchSuggestion[]>;
+  /** Character discovery by best-segment neighbourhood (PD-35) — the THIRD retrieval lens: text query →
+   *  owner-wide verbatim `chat_segments` scan → CSLS → rerank-before-group → segment→character credit
+   *  (co-star aware) → grouped, evidence-carrying `DiscoverCharacter`s. */
+  readonly discover: (params: DiscoverParams) => Promise<DiscoverCharacter[]>;
+  /** "More like this character" (PD-35) — seed-vector top-k over the CARD space (stored seed vector,
+   *  owner-belted, CSLS). Same enrichment as `findCharacters` ⇒ returns `CharacterCardHit`s. */
+  readonly similarCharacters: (params: SimilarCharactersParams) => Promise<CharacterCardHit[]>;
+  /** "More like this avatar" (PD-35) — seed-vector top-k over the IMAGE space (avatar↔avatar; CSLS APPLIES,
+   *  same-space, unlike the cross-modal `images` verb). Returns the visually-nearest characters. */
+  readonly similarArt: (params: SimilarArtParams) => Promise<SimilarArtHit[]>;
 }

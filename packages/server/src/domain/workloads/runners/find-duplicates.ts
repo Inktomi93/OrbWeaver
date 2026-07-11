@@ -10,6 +10,6 @@ export const findDuplicatesRunner: Runner<"find-duplicates"> = async (
   signal,
 ) => {
   report({ message: "finding duplicate pairs" });
-  const result = await ctx.env.discovery.findDuplicates({ signal });
+  const result = await ctx.env.discovery.findDuplicates({ ownerId: ctx.ownerId, signal });
   return { scanned: result.scanned, written: result.written };
 };

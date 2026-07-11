@@ -18,6 +18,17 @@ const INTERNAL_ERROR_STATUS = 500;
 // Mismatch → a fresh UUID is generated. (core/Tier-2-Foundation.md esoteric #11.)
 const SAFE_REQUEST_ID = /^[A-Za-z0-9_.\-:]{1,128}$/u;
 
+// The `/join/<token>` invite landing carries a BEARER capability in its path — the raw token redeems room
+// membership, so it must NEVER be persisted raw (entry/http/join.ts + transport invites.ts). Every sink
+// below (the pino `request` line, the request ring, the trace root name) records `path`, so redact the
+// token segment to the route shape `/join/:token` BEFORE it reaches any of them. The redirect form
+// (`/?join=<token>`) already stays out — `c.req.path` excludes the query string. Prefix-anchored so sibling
+// paths (`/joined`, `/api/join-anything`) are untouched.
+const JOIN_TOKEN_PREFIX = "/join/";
+function redactSensitivePath(path: string): string {
+  return path.startsWith(JOIN_TOKEN_PREFIX) ? `${JOIN_TOKEN_PREFIX}:token` : path;
+}
+
 /**
  * Per-request observability: assigns a request id, echoes it as `X-Request-Id` (so a caller can grab it
  * and query /api/_debug/logs?requestId=… or /traces/:requestId), binds a request-scoped logger AND the
@@ -34,14 +45,18 @@ export const observability: MiddlewareHandler = (c, next) => {
   const start = performance.now();
 
   return runInRequest(requestId, async () => {
-    const path = c.req.path;
+    const rawPath = c.req.path;
     const method = c.req.method;
     // The introspection API skips both the log line AND the trace root — without it every /api/_debug/* GET
-    // would land in the trace ring and evict an earlier real trace while the operator browses them.
-    if (path.startsWith(DEBUG_PREFIX)) {
+    // would land in the trace ring and evict an earlier real trace while the operator browses them. This
+    // check uses the RAW path (a /join landing never lives under /api/_debug); redaction is display-only.
+    if (rawPath.startsWith(DEBUG_PREFIX)) {
       await next();
       return;
     }
+    // The path that reaches every sink (trace name/attr, the pino line, the request ring) — invite-token
+    // segment redacted so the bearer token is never persisted raw.
+    const path = redactSensitivePath(rawPath);
 
     // The root span covers the WHOLE request, so the rendered durations cover the actual wall clock between
     // request-in and response-out.

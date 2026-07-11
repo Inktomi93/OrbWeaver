@@ -4,9 +4,10 @@
 // WRITE, search reads (the hub_score seam — `domains/memory.md` §8). NO `db.update` on a vector table here.
 //
 // LOAD-BEARING:
-//   • CROSS-TENANT grouping (#5): hubness describes a vector SPACE, not a user — there is NO owner filter.
-//     The group key is the space tag: `model` for character/segment/image; `(tier, model)` for digests (a
-//     card and a chat segment have very different vector distributions).
+//   • OWNER-SCOPED, always (owner ruling): csls analyzes YOUR OWN library only — it NEVER compares against
+//     another owner's vectors. Every pass runs per owner (SINGULAR = one owner; BULK = a fan-out over every
+//     owner), and WITHIN an owner the group key is the space tag: `model` for character/segment/image;
+//     `(tier, model)` for digests (a card and a chat segment have very different vector distributions).
 //   • content-collapse before the all-pairs math (#3): byte-identical fork/import copies collapse to one rep
 //     so they don't mutually inflate each other's top-K mean to ≈1; collapsed members INHERIT the rep's hub.
 //   • dense-vs-streaming is `hub-math`'s concern (esoteric #1) — `writeHubScores` is a bulk UPDATE that
@@ -22,11 +23,16 @@
 // `csls` runner drives them without the whole service. `CSLS_K` is re-exported for the runner's log line.
 
 import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import type { VectorTable } from "#domain/embeddings";
 import type { ComputeHubScoresOptions } from "../contract/params";
 import type { HubStats } from "../contract/results";
 import type { ComputeHubScoresDeps, DiscoveryContext, DiscoveryService } from "../contract/service";
 import {
+  distinctCharacterHubOwners,
+  distinctDigestHubOwners,
+  distinctImageHubOwners,
+  distinctSegmentHubOwners,
   readCharacterHubVectors,
   readDigestHubVectors,
   readImageHubVectors,
@@ -63,8 +69,46 @@ function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, 
   return groups;
 }
 
+// The owner set a hub pass runs over: `ownerId` set → just that owner (SINGULAR); omitted/null → every owner
+// with rows in the table (the BULK per-owner FAN-OUT — never a cross-tenant whole-space read).
+async function hubOwners(
+  db: Db,
+  ownerId: UserId | null | undefined,
+  distinct: (db: Db) => Promise<UserId[]>,
+): Promise<UserId[]> {
+  if (ownerId === undefined || ownerId === null) {
+    return await distinct(db);
+  }
+  return [ownerId];
+}
+
+// Run the hub pass for EACH owner separately (the owner-local hub space) and fold the counts — csls never
+// compares one owner's vectors against another's (owner ruling). Sequential: each owner's writeHubScores is
+// independent + a parallel fan-out would stampede the write seam.
+async function fanOutHubPass<T extends HubRow>(
+  owners: readonly UserId[],
+  readForOwner: (ownerId: UserId) => Promise<T[]>,
+  cfg: {
+    readonly table: VectorTable;
+    readonly groupKeyOf: (row: T) => string;
+    readonly deps: ComputeHubScoresDeps;
+    readonly opts: ComputeHubScoresOptions;
+  },
+): Promise<HubStats> {
+  let rowsScored = 0;
+  let groupsProcessed = 0;
+  for (const owner of owners) {
+    // biome-ignore lint/performance/noAwaitInLoops: a per-owner FAN-OUT — each owner's hub space is independent; sequential keeps the writeHubScores backpressure bounded (never a whole-store read).
+    // biome-ignore lint/plugin/no-await-db-in-loop: the bulk csls fan-out is inherently per-owner (owner-local hubness); parallel would stampede the write seam.
+    const stats = await runHubPass(await readForOwner(owner), cfg);
+    rowsScored += stats.rowsScored;
+    groupsProcessed += stats.groupsProcessed;
+  }
+  return { rowsScored, groupsProcessed };
+}
+
 // Compute every group's hub scores (content-collapsed, CSLS top-K mean) and write them through the seam.
-// Returns the rows scored + the groups processed. groupKeyOf is the SPACE partition (cross-tenant, #5).
+// Returns the rows scored + the groups processed. groupKeyOf is the SPACE partition WITHIN one owner (#5).
 async function runHubPass<T extends HubRow>(
   rows: readonly T[],
   cfg: {
@@ -101,14 +145,15 @@ async function runHubPass<T extends HubRow>(
   return { rowsScored: updates.length, groupsProcessed: groups.size };
 }
 
-/** Card hub scores — grouped per embedding space (`model`). */
+/** Card hub scores — per owner (owner-local space), grouped per embedding space (`model`). SINGULAR = the
+ *  caller's own cards; BULK (null) = a per-owner fan-out over every owner with card embeddings. */
 export async function computeCharacterHubScores(
   db: Db,
   deps: ComputeHubScoresDeps,
   opts: ComputeHubScoresOptions = {},
 ): Promise<HubStats> {
-  const rows = await readCharacterHubVectors(db);
-  return await runHubPass(rows, {
+  const owners = await hubOwners(db, opts.ownerId, distinctCharacterHubOwners);
+  return await fanOutHubPass(owners, (owner) => readCharacterHubVectors(db, owner), {
     table: "character_embeddings",
     groupKeyOf: (r) => r.model,
     deps,
@@ -116,14 +161,14 @@ export async function computeCharacterHubScores(
   });
 }
 
-/** Digest hub scores — grouped per `(tier, model)` (digests, esoteric #5). Returns rows scored. */
+/** Digest hub scores — per owner, grouped per `(tier, model)` (digests, esoteric #5). Returns rows scored. */
 export async function computeDigestHubScores(
   db: Db,
   deps: ComputeHubScoresDeps,
   opts: ComputeHubScoresOptions = {},
 ): Promise<number> {
-  const rows = await readDigestHubVectors(db);
-  const stats = await runHubPass(rows, {
+  const owners = await hubOwners(db, opts.ownerId, distinctDigestHubOwners);
+  const stats = await fanOutHubPass(owners, (owner) => readDigestHubVectors(db, owner), {
     table: "chat_digests",
     groupKeyOf: (r) => `${r.tier} ${r.model}`,
     deps,
@@ -132,14 +177,14 @@ export async function computeDigestHubScores(
   return stats.rowsScored;
 }
 
-/** Segment hub scores — grouped per embedding space (`model`). Returns rows scored. */
+/** Segment hub scores — per owner, grouped per embedding space (`model`). Returns rows scored. */
 export async function computeSegmentHubScores(
   db: Db,
   deps: ComputeHubScoresDeps,
   opts: ComputeHubScoresOptions = {},
 ): Promise<number> {
-  const rows = await readSegmentHubVectors(db);
-  const stats = await runHubPass(rows, {
+  const owners = await hubOwners(db, opts.ownerId, distinctSegmentHubOwners);
+  const stats = await fanOutHubPass(owners, (owner) => readSegmentHubVectors(db, owner), {
     table: "chat_segments",
     groupKeyOf: (r) => r.model,
     deps,
@@ -148,14 +193,14 @@ export async function computeSegmentHubScores(
   return stats.rowsScored;
 }
 
-/** Image hub scores — grouped per embedding space (`model`); image↔image ONLY (#2). Returns rows scored. */
+/** Image hub scores — per owner, grouped per embedding space (`model`); image↔image ONLY (#2). Returns rows scored. */
 export async function computeImageHubScores(
   db: Db,
   deps: ComputeHubScoresDeps,
   opts: ComputeHubScoresOptions = {},
 ): Promise<number> {
-  const rows = await readImageHubVectors(db);
-  const stats = await runHubPass(rows, {
+  const owners = await hubOwners(db, opts.ownerId, distinctImageHubOwners);
+  const stats = await fanOutHubPass(owners, (owner) => readImageHubVectors(db, owner), {
     table: "image_embeddings",
     groupKeyOf: (r) => r.model,
     deps,

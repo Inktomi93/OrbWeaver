@@ -102,6 +102,18 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
     /** agent-sdk seed shaping: leave the prompt-tail set (depth-0 user-effective) OUT of the splice —
      *  the dispatcher appends those to the `prompt:` param instead. */
     excludePromptTail?: boolean;
+    /** D66 (W5): the resolved `turns.assistantPrefill`. `true` ⇒ keep an assistant\@depth-0 injection at
+     *  depth 0 (the trailing-assistant prefill the model honors); `false`/absent ⇒ floor it to depth 1 (the
+     *  only assistant placement a non-prefill wire can express — a trailing assistant 400s there). */
+    allowAssistantPrefill?: boolean;
+    /** D66-C (W6) — the prefix-stable re-frame boundary: the number of STABLE cached rows (rows
+     *  `[0, prefixBoundaryLen)` in `history` = the committed prefix minus the volatile tail). A depth-1
+     *  ASSISTANT-role injection landing same-role against the last stable canon row would, once squashed,
+     *  rewrite bytes INSIDE the cached prefix → the content-keyed Anthropic prefix cache misses and the whole
+     *  conversation re-bills (part 01 §1c). When set, such an injection is RE-FRAMED to a user operator
+     *  `[Note from …]` row so it lands STANDALONE, never folding into the stable row. Absent ⇒ no re-frame
+     *  (the BUILD/no-prefix callers). */
+    prefixBoundaryLen?: number | undefined;
   } = {},
 ): (T | { role: WireRole; content: string })[] {
   // Generic over the row shape (orbweaver's sound upgrade over neo's `{role,content}` erasure): the
@@ -123,9 +135,11 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   // order". (A per-splice clamp against the GROWING result would floor over-deep insertAts to 0,
   // REVERSING their relative order.)
   const clamped = inChat.map((inj) => {
-    // assistant @ depth 0 would be a TRAILING assistant message = response PREFILL — normalize to
-    // depth 1 (before the user turn), the only assistant placement both runners can express.
-    const floor = inj.role === "assistant" ? 1 : 0;
+    // assistant @ depth 0 is a TRAILING assistant message = response PREFILL. On a `assistantPrefill:false`
+    // wire (default) it is normalized to depth 1 (before the user turn) — the only assistant placement a
+    // non-prefill wire can express (a trailing assistant HARD-400s). W5: `allowAssistantPrefill` keeps it at
+    // depth 0 so the model honors the authored prefill.
+    const floor = inj.role === "assistant" && opts.allowAssistantPrefill !== true ? 1 : 0;
     return { inj, depth: Math.min(Math.max(inj.depth, floor), history.length) };
   });
   // Primary: depth DESC (deepest splices first, from the back). Secondary: `order` DESC — within one
@@ -134,9 +148,19 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   const sorted = clamped.sort(
     (a, b) => b.depth - a.depth || (b.inj.order ?? defaultOrder) - (a.inj.order ?? defaultOrder),
   );
+  // The last stable canon row (part 01 §1c): a depth-1 assistant injection landing same-role against it
+  // would mutate the cached prefix once squashed → re-frame it to a user operator note instead.
+  const boundaryLen = opts.prefixBoundaryLen;
+  const stableTailRole =
+    boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
   const result: (T | { role: WireRole; content: string })[] = [...history];
   for (const { inj, depth } of sorted) {
-    const effectiveRole: WireRole = inj.role === "system" ? "user" : inj.role;
+    // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
+    // canon row. When that row is ALSO assistant, keeping the injection assistant-role would fold it into
+    // the cached prefix (part 01 §1c) → re-frame it through the one-home operator channel to a user note.
+    const wouldMutatePrefix =
+      inj.role === "assistant" && depth === 1 && stableTailRole === "assistant";
+    const effectiveRole: WireRole = inj.role === "system" || wouldMutatePrefix ? "user" : inj.role;
     const originalRole = inj.role === "system" ? "system" : undefined;
     const framed = frameInjection(effectiveRole, resolveContent(inj.content), originalRole);
     if (framed.length === 0) {

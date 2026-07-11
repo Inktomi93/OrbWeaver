@@ -23,6 +23,8 @@ describe("catalog-refresh-scheduler decision", () => {
     expect(deps.service.start).toHaveBeenCalledTimes(1);
     expect(deps.service.start).toHaveBeenCalledWith({
       input: { kind: "refresh-model-catalog", params: {} },
+      caller: null,
+      mode: "bulk",
       ownerId: deps.ownerId,
     });
   });

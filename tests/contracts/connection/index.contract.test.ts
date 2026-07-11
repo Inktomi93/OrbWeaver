@@ -1,5 +1,6 @@
 import type { ChatSource, ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
 import {
+  CACHE_MIN_FLOOR,
   CHAT_APIS,
   chatApiSchema,
   EFFORT_LEVELS,
@@ -9,7 +10,10 @@ import {
   openRouterProviderRoutingSchema,
   parseProviderRouting,
   REASONING_MODES,
+  ROLE_HANDLING,
   reasoningModeSchema,
+  roleHandlingSchema,
+  TURNS_FLOOR,
   VERBOSITY_LEVELS,
   verbositySchema,
 } from "@orb/contracts/connection";
@@ -34,7 +38,9 @@ test("chatApiSchema round-trips every protocol member", () => {
   for (const api of CHAT_APIS) {
     expect(chatApiSchema.parse(api)).toBe(api);
   }
-  expect(CHAT_APIS).toEqual(["agent-sdk", "chat-completions", "responses"]);
+  // `anthropic-messages` (D67, W7) — the anth-direct DIRECT-transport protocol, distinct from agent-sdk's
+  // CLI transport over the same wire.
+  expect(CHAT_APIS).toEqual(["agent-sdk", "chat-completions", "responses", "anthropic-messages"]);
 });
 
 test("chatApiSchema rejects a non-member", () => {
@@ -121,6 +127,59 @@ test("modelCapabilitySchema — the gate axes are optional (a no-tools/no-vision
   expect(parsed.input).toBeUndefined();
   expect(parsed.tools).toBeUndefined();
   expect(parsed.output.structured).toBeUndefined();
+});
+
+// --- D66: the `turns` axis + ROLE_HANDLING + TURNS_FLOOR + CACHE_MIN_FLOOR ----
+
+test("roleHandlingSchema round-trips every ROLE_HANDLING member (none < merge < semi-strict < strict)", () => {
+  for (const value of ROLE_HANDLING) {
+    expect(roleHandlingSchema.parse(value)).toBe(value);
+  }
+  expect(ROLE_HANDLING).toEqual(["none", "merge", "semi-strict", "strict"]);
+  // `developer` is a reserved DYNAMIC-CONTEXT role (D66-D), NOT a role-handling member (a separate axis).
+  expect((ROLE_HANDLING as readonly string[]).includes("developer")).toBe(false);
+});
+
+test("modelCapabilitySchema round-trips a full turns cell (D66)", () => {
+  const capability: ModelCapability = {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    output: { maxTokens: { min: 1, max: 8192 } },
+    context: { window: 200_000 },
+    turns: {
+      assistantPrefill: false,
+      midConversationSystem: true,
+      roleHandlingFloor: "strict",
+      explicitPromptCache: true,
+      cacheMinTokens: 1024,
+    },
+  };
+  expect(modelCapabilitySchema.parse(capability)).toEqual(capability);
+});
+
+test("turns is optional — an existing descriptor without it stays valid", () => {
+  const capability: ModelCapability = {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    output: { maxTokens: { min: 1, max: 4096 } },
+    context: { window: 8192 },
+  };
+  expect(modelCapabilitySchema.parse(capability).turns).toBeUndefined();
+});
+
+test("TURNS_FLOOR is the conservative today-behavior cell (explicitPromptCache false)", () => {
+  expect(TURNS_FLOOR).toEqual({
+    assistantPrefill: false,
+    midConversationSystem: false,
+    roleHandlingFloor: "strict",
+    explicitPromptCache: false,
+  });
+  // It parses as a valid turns cell (cacheMinTokens optional — absent ⇒ CACHE_MIN_FLOOR at the runner).
+  expect(modelCapabilitySchema.shape.turns.parse(TURNS_FLOOR)).toEqual(TURNS_FLOOR);
+});
+
+test("CACHE_MIN_FLOOR is the conservative highest-common floor (4096)", () => {
+  expect(CACHE_MIN_FLOOR).toBe(4096);
 });
 
 // --- ModelCatalogEntry — explicit shape, nullable prices ---------------------

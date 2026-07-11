@@ -22,11 +22,21 @@ const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade
 const ONE_CHARACTER = { items: [ARIA], nextCursor: null };
 const NO_CHARACTERS = { items: [], nextCursor: null };
 
+// A non-empty `persona.list` — the route mounts `<FirstRunPersonaDialog>` as an AppShell sibling,
+// which forces a blocking, undismissable gate open whenever the viewer owns zero personas. These
+// tests are about the home page's normal (has-persona) render, so a seeded persona keeps the gate
+// closed and out of the way.
+const PERSONAS = [{ id: "persona_home", name: "Nate", avatarHash: null, starred: true }];
+
 test("the default chats section renders the landing surface, not an empty room (J1)", async ({
   mount,
   page,
 }) => {
-  await routeTrpc(page, { "chat.listChats": [], "character.list": NO_CHARACTERS });
+  await routeTrpc(page, {
+    "chat.listChats": [],
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+  });
   const component = await mount(<HomePageStory />);
 
   // At rest = the landing hero, never a dead composer. An empty DB teaches the first step.
@@ -51,6 +61,7 @@ test("picking a character in the library starts a chat with it (the library→ch
       name: "Aria Nightshade",
       greetings: ["The night market hums."],
     },
+    "persona.list": PERSONAS,
   });
 
   const component = await mount(<HomePageStory />);

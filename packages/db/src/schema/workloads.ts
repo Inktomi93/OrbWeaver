@@ -2,22 +2,31 @@
 // job; the unit of audit + retry + observability. Rows are NEVER deleted — they accumulate as the
 // historical record.
 //
-// The `kind` + `status` enum columns DERIVE the canonical tuples from `@orb/contracts/workloads` (D34 —
-// the axes were promoted out of `domain/workloads/contract` so `@orb/db` can import them; db deps are
+// The `kind` + `status` + `mode` enum columns DERIVE the canonical tuples from `@orb/contracts/workloads`
+// (D34 — the axes were promoted out of `domain/workloads/contract` so `@orb/db` can import them; db deps are
 // kit + contracts + drizzle only). Each column carries both the drizzle `{ enum }` (type-side) AND a
 // CHECK built from the same tuple (SQL-side) — never a re-spelled union. A `.int` test-mirror pins the
 // column enum === the contracts tuple (workloads.int.test.ts).
 //
-// The load-bearing concurrency guard is the `workloads_kind_active` PARTIAL UNIQUE INDEX on (kind) WHERE
-// status IN (active) — at most one {queued,running,cancelling} row per kind. It is the cross-replica
-// single-active lock (a second start() of an active kind collides at INSERT, no leader election). The
-// `WHERE` list is DERIVED from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over the tuple — same no-respell
-// discipline as users.ts's role CHECK); the named tuple is the mirror of this predicate and the two
-// cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash).
+// The load-bearing concurrency guard is a PAIR of PARTIAL UNIQUE INDEXes, split by the run's `mode` column
+// (singular vs bulk):
+//   • `workloads_mode_active_singular` — unique on (kind, owner_id) WHERE status IN (active) AND
+//     mode='singular': at most one active {queued,running,cancelling} SINGULAR row per (kind, owner), so two
+//     different users each run their OWN embed-corpus concurrently, but one user can't start a 2nd.
+//   • `workloads_mode_active_bulk` — unique on (kind) WHERE status IN (active) AND mode='bulk': the global
+//     single-active lock (at most one bulk pass per kind deployment-wide) — a shared owner-triggered rebuild
+//     can't run twice at once.
+// The two WHERE `mode = …` predicates are DISJOINT (every row is exactly one mode), so any row is covered by
+// EXACTLY ONE index. Both `WHERE status` lists DERIVE from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over the tuple
+// — the same no-respell discipline as users.ts's role CHECK); the named tuple is the mirror of the predicate
+// and cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash). NOTE: a singular
+// row with a NULL owner (a rare system/scheduler trigger) does NOT self-lock — SQLite treats NULLs as distinct
+// in a unique index; singular runs are user-triggered (non-null owner) in practice, and runners are idempotent.
 
 import {
   ACTIVE_WORKLOAD_STATUSES,
   WORKLOAD_KINDS,
+  WORKLOAD_MODES,
   WORKLOAD_STATUSES,
 } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
@@ -27,12 +36,15 @@ import { users } from "./users";
 
 // The default lifecycle state of a freshly-enqueued row (start() inserts a `queued` row).
 const DEFAULT_STATUS = "queued";
+// The default run mode (a plain enqueue is a singular, one-owner run; bulk is opt-in + owner-gated).
+const DEFAULT_MODE = "singular";
 
 // CHECK lists derived from the canonical tuples (NOT re-spelled). A CHECK is static DDL and cannot carry
 // bound parameters, so it is built as a raw fragment from the tuple members (users.ts pattern).
 const KIND_CHECK_LIST = WORKLOAD_KINDS.map((kind) => `'${kind}'`).join(", ");
 const STATUS_CHECK_LIST = WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
-// The active-status set the partial unique index keys on — derived from ACTIVE_WORKLOAD_STATUSES so the
+const MODE_CHECK_LIST = WORKLOAD_MODES.map((mode) => `'${mode}'`).join(", ");
+// The active-status set the partial unique indexes key on — derived from ACTIVE_WORKLOAD_STATUSES so the
 // index predicate and the named tuple can never drift.
 const ACTIVE_STATUS_LIST = ACTIVE_WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
 
@@ -45,6 +57,9 @@ export const workloads = sqliteTable(
     kind: text("kind", { enum: WORKLOAD_KINDS }).notNull(),
     // The lifecycle state — derives WORKLOAD_STATUSES (D34); defaults to `queued` at enqueue.
     status: text("status", { enum: WORKLOAD_STATUSES }).notNull().default(DEFAULT_STATUS),
+    // The run mode — derives WORKLOAD_MODES; `singular` (one owner) vs `bulk` (owner-triggered global/create).
+    // Drives which single-active index a row locks on (singular = per (kind, owner); bulk = per (kind)).
+    mode: text("mode", { enum: WORKLOAD_MODES }).notNull().default(DEFAULT_MODE),
     // Per-kind params (the ParamsByKind blob; the runner re-parses against its Zod schema at the read
     // seam). Always an object (a tunable-less kind uses `{}`), so notNull with an empty-object default.
     params: text("params", { mode: "json" })
@@ -76,14 +91,20 @@ export const workloads = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (table) => [
-    // The single-active-per-kind lock: at most one {queued,running,cancelling} row per kind. The WHERE
-    // list is derived from ACTIVE_WORKLOAD_STATUSES (no hand re-spell). Terminal rows (succeeded/failed/
-    // cancelled/worker_died) are NOT covered, so the historical record accumulates freely.
-    uniqueIndex("workloads_kind_active")
+    // SINGULAR lock: at most one active {queued,running,cancelling} SINGULAR row per (kind, owner_id) — two
+    // users each run their own instance concurrently; one user can't start a 2nd of the same kind. Partitioned
+    // by the `mode` column (disjoint from the bulk index). Terminal rows are NOT covered.
+    uniqueIndex("workloads_mode_active_singular")
+      .on(table.kind, table.ownerId)
+      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular'`)),
+    // BULK lock: the global single-active lock (at most one bulk pass per kind deployment-wide) on (kind).
+    // An owner-triggered shared rebuild/create can't run twice at once.
+    uniqueIndex("workloads_mode_active_bulk")
       .on(table.kind)
-      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST})`)),
+      .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'bulk'`)),
     // SQL-side enum enforcement derived from the tuples (mirrors the drizzle `{ enum }` type-side).
     check("workloads_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     check("workloads_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
+    check("workloads_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),
   ],
 );

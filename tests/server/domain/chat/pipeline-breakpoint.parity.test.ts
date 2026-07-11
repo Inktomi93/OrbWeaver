@@ -125,7 +125,21 @@ const NEO_QUIRK_DIVERGENT = "scoped-egocentric-history";
 // injected / squashed) + the breakpoint are byte-identical (a per-row label never changes role-adjacency);
 // the divergence is the name-stamp output only.
 const F2_ATTRIBUTION_DIVERGENT = "group-per-speaker-nudge-abort";
-const DIVERGENT: ReadonlySet<string> = new Set([NEO_QUIRK_DIVERGENT, F2_ATTRIBUTION_DIVERGENT]);
+
+// W6 — the THIRD deliberate divergence (D66-C, part 01 §1c/§6b; the blast-radius re-baseline, part 04).
+// neo MERGED a depth-1 assistant boundary injection INTO the last stable canon row
+// (`"a1 the prior tip\n\n...continues"`), mutating bytes inside the content-keyed Anthropic prefix cache →
+// the WHOLE conversation re-bills every turn the note is active, and neo then ABORTED the breakpoint
+// (targetIdx null). orbweaver's prefix-stable fix RE-FRAMES that volatile injection to a user operator note
+// (`[Note from user: ...continues]`) at the SPLICE, so it never touches the stable prefix — the prefix is
+// byte-identical turn-over-turn and the breakpoint HOLDS (offset 1). This is a DELIBERATE bytes + breakpoint
+// divergence, called out here (never a silent fixture update).
+const W6_PREFIX_STABLE_DIVERGENT = "depth1-assistant-boundary-squash-abort";
+const DIVERGENT: ReadonlySet<string> = new Set([
+  NEO_QUIRK_DIVERGENT,
+  F2_ATTRIBUTION_DIVERGENT,
+  W6_PREFIX_STABLE_DIVERGENT,
+]);
 
 describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`, () => {
   for (const c of fixture.cases.filter((x) => !DIVERGENT.has(x.name))) {
@@ -180,6 +194,36 @@ describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`
     const orbAsst = orb.history.find((r) => r.role === "assistant" && r.content.includes("Aria's"));
     expect(neoAsst?.content).toBe("Aria: Aria's line\n\nKai's line");
     expect(orbAsst?.content).toBe("Aria: Aria's line\n\nKai: Kai's line");
+  });
+
+  test(`${W6_PREFIX_STABLE_DIVERGENT}: neo mutates the cached prefix + aborts; orbweaver re-frames + the breakpoint HOLDS (W6)`, () => {
+    const c = req(
+      fixture.cases.find((x) => x.name === W6_PREFIX_STABLE_DIVERGENT),
+      W6_PREFIX_STABLE_DIVERGENT,
+    );
+    const neo = req(reference.cases[W6_PREFIX_STABLE_DIVERGENT], W6_PREFIX_STABLE_DIVERGENT);
+    const orb = runOrbweaverShape(c);
+    // withTail (the pre-splice canon + volatile tail) is byte-identical — the divergence is the SPLICE fix.
+    expect(orb.withTail).toEqual(neo.withTail);
+
+    // neo folded the depth-1 assistant note INTO the last stable canon row (prefix MUTATION) and aborted.
+    const neoStableTip = neo.history[2];
+    expect(neoStableTip).toEqual({
+      role: "assistant",
+      content: "a1 the prior tip\n\n...continues",
+    });
+    expect(neo.cacheBreakpointFromEnd).toBeNull();
+    expect(neo.targetIdx).toBeNull();
+
+    // orbweaver keeps the stable tip BYTE-IDENTICAL (no mutation) and re-frames the note to a user operator
+    // row on the volatile tail → the prefix caches, the breakpoint holds at offset 1.
+    expect(orb.history[2]).toEqual({ role: "assistant", content: "a1 the prior tip" });
+    expect(orb.history.at(-1)).toEqual({
+      role: "user",
+      content: "[Note from user: ...continues]\n\nu2 the new turn (volatile)",
+    });
+    expect(orb.cacheBreakpointFromEnd).toBe(1);
+    expect(orb.targetIdx).toBe(orb.history.length - 2);
   });
 
   test("the rolling pair byte-matches + the cacheWrite/read delta is preserved", () => {

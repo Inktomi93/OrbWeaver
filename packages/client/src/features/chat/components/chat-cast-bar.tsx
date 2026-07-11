@@ -26,7 +26,6 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
 import { initialsForAttribution } from "../lib/attribution";
-import { resolveViewerIsHost } from "../lib/roster";
 import { AddMemberPopover } from "./add-member-popover";
 
 export interface ChatCastBarProps {
@@ -63,8 +62,10 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
   }
 
   // J7 add-member: the trailing "+" is HOST-only (the verb is host-gated server-side; mirror it so a
-  // member never sees an affordance that would only NOT_FOUND). `chat` is defined here (cast came from it).
-  const isHost = chat !== undefined && resolveViewerIsHost(chat.participants);
+  // member never sees an affordance that would only NOT_FOUND). The server-resolved, per-viewer
+  // `ChatDetail.viewerIsHost` (the ONE honest source, shared with the CONTEXT panel) — `=== true` so a
+  // member reads NON-host; NOT the first-human-seat proxy, which mis-grants once a 2nd human is seated.
+  const isHost = chat?.viewerIsHost === true;
   const existingCharacterIds: readonly CharacterId[] = cast.map((member) => member.characterId);
 
   return (

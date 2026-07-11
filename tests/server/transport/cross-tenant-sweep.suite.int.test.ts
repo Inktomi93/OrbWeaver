@@ -15,8 +15,8 @@
 // security finding — this suite goes RED and the failure is a STOP-and-report item (route to
 // security-executor), NOT something the docs/test lane fixes.
 
-import { themes, userCredentials } from "@orb/db";
-import type { ThemeId, UserCredentialId } from "@orb/kit/ids";
+import { themes, userCredentials, workloads } from "@orb/db";
+import type { ThemeId, UserCredentialId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
@@ -37,6 +37,7 @@ const MARK = {
   theme: "AlphaSecretTheme",
   message: "AlphaSecretMessage",
   credential: "AlphaSecretCred",
+  workload: "AlphaSecretWorkload",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -50,6 +51,7 @@ interface OwnerIds {
   tagId: string;
   credentialId: string;
   themeId: string;
+  workloadId: string;
   snapshotId: string;
   chatId: string;
   messageId: string;
@@ -99,6 +101,9 @@ interface Probe {
 const FAKE = {
   variantId: "variant_fake",
   injectionId: "chat_injection_fake",
+  inviteId: "chatinvite_fake",
+  // A raw invite token that hashes to nothing — token-authenticated probes collapse to NOT_FOUND.
+  inviteToken: "stranger-guess-token",
 } as const;
 
 const PROBES: readonly Probe[] = [
@@ -297,12 +302,51 @@ const PROBES: readonly Probe[] = [
     path: "discovery.suggestCharacterTags",
     call: (c, i) => c.discovery.suggestCharacterTags({ characterId: i.characterId }),
   },
+  // discovery.characterKeywords takes a caller-supplied characterId — a stranger's probe with A's id reads
+  // zero rows (the owner belt joins `characters.ownerId = principal`), a leak-free empty.
+  {
+    path: "discovery.characterKeywords",
+    call: (c, i) => c.discovery.characterKeywords({ characterId: i.characterId }),
+  },
+  // discovery.compareCharacters takes two caller-supplied characterIds — a stranger comparing A's card (idA)
+  // against any id gets null (each card's owner belt joins `characters.ownerId = principal`; distinct ids so
+  // the `idA === idB` short-circuit doesn't mask the belt), a leak-free non-answer.
+  {
+    path: "discovery.compareCharacters",
+    call: (c, i) =>
+      c.discovery.compareCharacters({ idA: i.characterId, idB: "character_other_fake" }),
+  },
+  // discovery.similarChats takes a caller-supplied chatId — a stranger's probe with A's chat reads zero target
+  // segments (the present-host owner belt joins `chat_participants.userId = principal AND role='host' AND
+  // leftSeq IS NULL`), so the centroid scan finds no target space → a leak-free empty list.
+  {
+    path: "discovery.similarChats",
+    call: (c, i) => c.discovery.similarChats({ chatId: i.chatId }),
+  },
+  // ── search similarity (seed-id-taking) — the seed read is owner-belted (characters.ownerId ∩, for art,
+  //    assets.ownerId), so a stranger seeding with A's characterId reads NO seed vector and short-circuits to
+  //    an empty list (leak-free; never A's neighbourhood — the neo V2-2 cross-tenant-seed refusal). `discover`
+  //    is query-only (no seed id) → EXEMPT (self-scoped ownerId). ──
+  {
+    path: "search.similarCharacters",
+    call: (c, i) => c.search.similarCharacters({ characterId: i.characterId, topN: 5 }),
+  },
+  {
+    path: "search.similarArt",
+    call: (c, i) => c.search.similarArt({ characterId: i.characterId, topN: 5 }),
+  },
   // ── credentials (owner-scoped) — only the read-shaped `fetchModels` is probed here; the mutation verbs
   //    are EXEMPT in this harness (the keyless SecretBox trips their storage-disabled guard first, below). ──
   {
     path: "credentials.fetchModels",
     call: (c, i) => c.credentials.fetchModels({ credentialId: i.credentialId }),
   },
+  // ── workloads (F3 per-user owner-scoped; get/cancel/retry take a workloadId) — a non-admin stranger must
+  //    see a leak-free NOT_FOUND on a foreign workload (its `error` carries A's marker, so a broken gate that
+  //    resolved A's row would leak it here). `list`/`start`/`subscribe` are EXEMPT (see below). ──
+  { path: "workloads.get", call: (c, i) => c.workloads.get({ id: i.workloadId }) },
+  { path: "workloads.cancel", call: (c, i) => c.workloads.cancel({ id: i.workloadId }) },
+  { path: "workloads.retry", call: (c, i) => c.workloads.retry({ id: i.workloadId }) },
   // ── settings themes (owner-scoped) ──
   { path: "settings.getTheme", call: (c, i) => c.settings.getTheme({ id: i.themeId }) },
   {
@@ -408,6 +452,50 @@ const PROBES: readonly Probe[] = [
   },
   { path: "chat.abort", call: (c, i) => c.chat.abort({ chatId: i.chatId }) },
   { path: "chat.send", call: (c, i) => c.chat.send({ chatId: i.chatId, content: "hi" }) },
+  // ── invites / human-membership (FINAL-Auth-Modes §7 P1 — host/member-gated inside the verbs; the
+  //    token-carrying verbs are token-authenticated: a guessed token is a leak-free NOT_FOUND, and a
+  //    targeted/foreign invite collapses to the same shape). The fixture context is multi-human capable,
+  //    so the PD-106 belt is OPEN and the real authority gates are what these probes exercise. ──
+  {
+    path: "invites.createInvite",
+    call: (c, i) => c.invites.createInvite({ chatId: i.chatId, input: {} }),
+  },
+  {
+    path: "invites.previewInvite",
+    call: (c) => c.invites.previewInvite({ token: FAKE.inviteToken }),
+  },
+  {
+    path: "invites.redeemInvite",
+    call: (c) => c.invites.redeemInvite({ token: FAKE.inviteToken }),
+  },
+  {
+    path: "invites.revokeInvite",
+    call: (c, i) => c.invites.revokeInvite({ chatId: i.chatId, inviteId: FAKE.inviteId }),
+  },
+  {
+    path: "invites.declineInvite",
+    call: (c) => c.invites.declineInvite({ inviteId: FAKE.inviteId }),
+  },
+  // Accept-by-id is SELF-AUTHORIZING (bound to `invitedUserId`): a stranger accepting a foreign / unknown
+  // inviteId matches nothing in the atomic seat → the verb throws the same leak-free NOT_FOUND (never confirms
+  // the invite exists, never seats the stranger).
+  {
+    path: "invites.acceptInvite",
+    call: (c) => c.invites.acceptInvite({ inviteId: FAKE.inviteId }),
+  },
+  {
+    path: "invites.kick",
+    call: (c, i) => c.invites.kick({ chatId: i.chatId, userId: OWNER_USER_ID }),
+  },
+  { path: "invites.selfLeave", call: (c, i) => c.invites.selfLeave({ chatId: i.chatId }) },
+  {
+    path: "invites.nominateHostHandoff",
+    call: (c, i) => c.invites.nominateHostHandoff({ chatId: i.chatId, userId: OWNER_USER_ID }),
+  },
+  {
+    path: "invites.acceptHostHandoff",
+    call: (c, i) => c.invites.acceptHostHandoff({ chatId: i.chatId }),
+  },
   {
     path: "chat.swipe",
     call: (c, i) => c.chat.swipe({ chatId: i.chatId, messageId: i.messageId }),
@@ -497,10 +585,48 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "buddy.clearChat": "self-scoped",
   "buddy.setReactions": "self-scoped",
   "buddy.setAgency": "self-scoped",
+  "buddy.stream": "self-scoped: SSE reaction feed keyed to the caller's own userId (no id input)",
   "search.knn": "self-scoped: ownerId = principal.userId",
   "search.findCharacters": "self-scoped: ownerId = principal.userId",
+  "search.images":
+    "self-scoped: ownerId = principal.userId (owner via assets.ownerId; query text, no id)",
+  "search.fields":
+    "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
+  "search.suggest":
+    "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
+  "search.discover":
+    "self-scoped: ownerId = principal.userId (owner-wide verbatim scan derived via characters.ownerId; query text, no id)",
   "discovery.duplicateCharacters": "self-scoped: userId = principal.userId",
+  "discovery.duplicateChats":
+    "self-scoped: userId = principal.userId (owner via present-host EXISTS)",
   "discovery.themes": "self-scoped: userId = principal.userId",
+  "discovery.browseCharacters":
+    "self-scoped: userId = principal.userId (owner via characters join)",
+  "discovery.characterFacets": "self-scoped: userId = principal.userId",
+  "discovery.catalog": "self-scoped: userId = principal.userId (owner via characters join)",
+  "discovery.archetypes": "self-scoped: userId = principal.userId",
+  "discovery.corpusProjection": "self-scoped: userId = principal.userId",
+  "discovery.topKeywords": "self-scoped: userId = principal.userId (owner via characters join)",
+  "discovery.cooccurringKeywords":
+    "self-scoped: userId = principal.userId; `keyword` is a free string, not an owned id",
+  "discovery.themeDrift":
+    "self-scoped: userId = principal.userId (owner via theme_clusters.ownerId)",
+  "discovery.unusedCharacters": "self-scoped: userId = principal.userId",
+  "discovery.forgottenGems":
+    "self-scoped: userId = principal.userId (owner via characters join + the self-scoped stats economics op)",
+  "discovery.modelRouting":
+    "self-scoped: userId = principal.userId (owner via characters join + the self-scoped stats economics op)",
+  "discovery.similarityGraph":
+    "self-scoped: userId = principal.userId (no id input; owner via characters join)",
+  "discovery.imageDuplicates": "self-scoped: userId = principal.userId",
+  "discovery.visualArchetypes": "self-scoped: userId = principal.userId",
+  "discovery.portraitAlignment": "self-scoped: userId = principal.userId",
+  "discovery.imageFacets": "self-scoped: userId = principal.userId",
+  "discovery.charactersByImageFacet":
+    "self-scoped: userId = principal.userId; facet/value are allowlisted strings, not an owned id",
+  "discovery.home": "self-scoped: userId = principal.userId",
+  "discovery.themeDetail":
+    "self-scoped: userId = principal.userId; clusterIdx is a facet index, not an owned id (the theme list is owner-scoped)",
   "connection.getCatalog": "not-owned: the deployment-global model catalog",
   "connection.getAgentSdkCatalog":
     "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
@@ -539,12 +665,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "admin.vllmEngines": "admin-gated: role gate",
   "admin.restartVllmEngine": "admin-gated: role gate",
   "admin.embedCharacterCard": "admin-gated: role gate",
-  "workloads.start": "admin-gated: workloads are deployment-global",
-  "workloads.cancel": "admin-gated: workloads are deployment-global",
-  "workloads.retry": "admin-gated: workloads are deployment-global",
-  "workloads.get": "admin-gated: workloads are deployment-global",
-  "workloads.list": "admin-gated: workloads are deployment-global",
-  "workloads.subscribe": "admin-gated subscription: workloads are deployment-global",
+  // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
+  "workloads.start":
+    "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
+  "workloads.list":
+    "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
+  "workloads.subscribe":
+    "subscription: the existence check is the OWNER-scoped `get` (throws NOT_FOUND on first pull, not on call) — the gate is probed via workloads.get + the F3 authz int tests",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
   "connection.refreshAgentSdkCatalog":
     "admin-gated: writes the deployment agent-sdk catalog KV snapshot",
@@ -624,6 +751,21 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       content: MARK.message,
     });
 
+    // A workload owned by A — a USER-scope kind, `failed` so `retry` is meaningful. Its `error` carries A's
+    // marker (a leaked `get`/`retry` result would surface it), so the probe has teeth (F3 owner-scoping).
+    const workloadId = castId<WorkloadId>("workload_alpha");
+    await db.insert(workloads).values({
+      id: workloadId,
+      kind: "embed-corpus",
+      status: "failed",
+      mode: "singular",
+      ownerId: OWNER_USER_ID,
+      error: MARK.workload,
+      scheduledAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
     // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
     // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
     const themeId = castId<ThemeId>("theme_alpha");
@@ -648,6 +790,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       tagId: tag.id,
       credentialId,
       themeId,
+      workloadId,
       snapshotId: snapshot.id,
       chatId,
       messageId,

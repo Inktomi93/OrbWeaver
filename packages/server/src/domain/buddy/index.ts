@@ -11,11 +11,13 @@
 // The taxonomy (`CompanionBones`, `Mood`, `Rarity`, …) is NOT re-exported here — it lives in
 // `@orb/contracts/buddy` (the ONE cross-boundary home); db/client/this domain import it from there directly.
 //
-// DEFERRED (FLAG[PD-45, PD-64], NOT exported yet): the live reaction feed (`bus.ts`), `BuddyObserverEnv`,
-// `createBuddyObserverReads`, `startBuddyObserver` — the observer reaction engine reacts to chat/workload
-// event sources that do not exist before chat (D38: buddy builds first to expose the agent-turn seam);
-// it lands as a follow-on with chat.
+// THE OBSERVER reaction engine (PD-45/PD-64 — SHIPPED with chat's event sources, D38): the per-user live
+// reaction feed (`bus.ts` → `createBuddyBus`), the injected env + lite event/bus shapes
+// (`BuddyObserverEnv`/`BuddyBusEvent`/`LiteWorkloadEvent`/`LiteChatEvent`/`LiteTrace`), and the supervised
+// loop `startBuddyObserver` the composition root starts out-of-band (NOT a service verb). The tRPC
+// `buddy.stream` subscription (transport) consumes the bus; the client feed is a separate follow-on.
 
+export { createBuddyBus } from "./bus";
 export type { BuddyAgentEnv, BuddyWorkloadKind } from "./contract/agent-env";
 export type {
   AgentTurnOp,
@@ -26,7 +28,18 @@ export type {
   BuddyToolSpec,
   BuildToolServerOp,
 } from "./contract/agent-turn";
+export type {
+  BuddyBus,
+  BuddyBusEvent,
+  BuddyObserverEnv,
+  BuddyObserverHandle,
+  BuddyObserverReads,
+  LiteChatEvent,
+  LiteTrace,
+  LiteWorkloadEvent,
+} from "./contract/observer-env";
 export type { BuddyProposal, BuddyTurnView } from "./contract/results";
 export type { BuddyContext, BuddyService, BuddyServiceDeps } from "./contract/service";
 export type { BuddyView } from "./contract/views";
+export { startBuddyObserver } from "./observer/start";
 export { createBuddyService } from "./service";

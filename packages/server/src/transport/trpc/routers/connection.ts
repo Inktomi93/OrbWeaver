@@ -4,6 +4,7 @@
 // verbs are internal (chat's turn path, P5) — NOT exposed here. `source` derives from the credentials axis
 // (`ChatSource` = `CredentialSource`).
 
+import { chatApiSchema } from "@orb/contracts/connection";
 import { credentialSourceSchema } from "@orb/contracts/credentials";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc";
@@ -14,9 +15,15 @@ export const connectionRouter = t.router({
   ),
 
   getModelCapability: authedProcedure
-    .input(z.object({ model: z.string().min(1), source: credentialSourceSchema }))
+    .input(
+      z.object({ model: z.string().min(1), source: credentialSourceSchema, api: chatApiSchema }),
+    )
     .query(({ ctx, input }) =>
-      ctx.services.connection.getModelCapability({ model: input.model, source: input.source }),
+      ctx.services.connection.getModelCapability({
+        model: input.model,
+        source: input.source,
+        api: input.api,
+      }),
     ),
 
   refreshCatalog: adminProcedure.mutation(({ ctx, signal }) =>

@@ -2,8 +2,11 @@
 // panel. A prop-free @container CONSUMER the ROUTE injects into the app-shell rail-foot slot (mirrors the
 // modal-slots seam — no feature→feature import). The rail avatar shows your CURRENT persona (#2); clicking
 // opens a generous inline Popover (Discord account-panel energy; NOT a modal, §A.7b):
-//   • ACCOUNT strip — a working Log out (`POST /api/auth/logout`) + a reserved identity spot (the client
-//     whoami/account UI is the deferred auth feature #50 — NOT built here).
+//   • ACCOUNT strip — opens the real `account` modal (features/auth `<AccountSurface>`, route-composed
+//     over MODAL_SLOTS.account at home-page.tsx) via `openModal("account")` — the identity card + the
+//     ONE mode-aware sign-out (POST /api/auth/logout lives there, `auth-bootstrap.ts`; this panel no
+//     longer ships a second copy of that security-sensitive call). The cross-feature reach is a `#state`
+//     write, never a `#features/auth` import (the sanctioned seam — the modal-slots pattern).
 //   • PERSONA header — "playing as <current>" + ＋ New persona.
 //   • the persona LIST — each row sets Current on body-click, with inline avatar/name edit + set-Default /
 //     delete / a details disclosure (persona-panel-row.tsx).
@@ -19,14 +22,13 @@
 // All SERVER state via trpc (persona.* / settings / chat / worldInfo), zero Zustand.
 
 import { blobUrl } from "@orb/contracts/assets";
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PersonaId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the add-member-popover precedent).
-import { CircleUser, Drama, Icon, Plus, Star } from "@orb/ui/icons";
+import { ChevronRight, CircleUser, Drama, Icon, Plus, Star } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
@@ -38,30 +40,13 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { openModal } from "#state";
 import { PersonaPanelRow } from "../components/persona-panel-row";
 import { PersonaThisChatSection } from "../components/persona-this-chat-section";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity";
 import { useCreatePersona, useRemovePersona } from "../hooks/use-persona-mutations";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
-
-/** Log out via the always-present server route; hard-redirect to /login on success. */
-async function logout(): Promise<void> {
-  try {
-    const res = await fetch("/api/auth/logout", {
-      method: "POST",
-      headers: { [CSRF_HEADER]: "1" },
-    });
-    if (res.ok) {
-      globalThis.location.assign("/login");
-      return;
-    }
-  } catch {
-    // fall through to the toast
-  }
-  notify.error("Couldn't log out — try again.");
-}
 
 /** The rail-foot account + persona panel (route-injected into the app-shell rail-foot slot). */
 export function PersonaPanelSurface(): ReactElement {
@@ -210,31 +195,24 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
   );
 }
 
-/** The account strip — a reserved identity spot (auth #50) + a working Log out. */
+/** The account strip — opens the real `account` modal (features/auth `<AccountSurface>`: identity + role/
+ *  mode badges + the ONE mode-aware sign-out). A `#state` write (`openModal`), never a `#features/auth`
+ *  import — the sanctioned cross-feature seam (this panel holds no auth logic of its own). */
 function AccountStrip(): ReactElement {
   return (
-    <Row gap="row" align="center" className="justify-between">
+    <Button
+      intent="ghost"
+      className="w-full justify-between"
+      onClick={(): void => openModal("account")}
+    >
       <Row gap="field" align="center" className="min-w-0">
         <Avatar fallbackDelay={0} size="sm">
           <Icon icon={CircleUser} size="sm" />
         </Avatar>
-        <Stack gap="field" className="min-w-0">
-          <Text weight="medium">Account</Text>
-          <Text size="micro" tone="muted">
-            Sign-in details arrive with accounts.
-          </Text>
-        </Stack>
+        <Text weight="medium">Account</Text>
       </Row>
-      <Button
-        intent="ghost"
-        size="sm"
-        onClick={(): void => {
-          void logout();
-        }}
-      >
-        Log out
-      </Button>
-    </Row>
+      <Icon icon={ChevronRight} size="sm" />
+    </Button>
   );
 }
 

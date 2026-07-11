@@ -13,11 +13,14 @@
 // renders as one bounded Tabs section (not a full-panel takeover), so the move is a straight lift with no
 // rework when it's picked up.
 //
-// HOST GATE (UI-Arch §5.1 viewer proxy — no client auth/session yet, task #50): "am I host" resolves
-// from `ChatDetail.participants` via `resolveViewerIsHost` (the first present human seat — the owner,
-// who is host, in today's single-human rooms). Host → full editing across all tabs + the Preview tab;
-// member → read-only Overrides + Injections, and Preview is HIDDEN (previewAssembly is host-only
-// server-side; a member-scoped previewSection affordance is deferred — task #28 flag).
+// HOST GATE (UI-Arch §5.1): "am I host" resolves per-viewer from the server-resolved
+// `ChatDetail.viewerIsHost` — the ONE honest source EVERY tab (incl. the People tab's invite controls)
+// shares. `=== true` guards the load window: default NON-host until the chat read resolves, so host UI
+// never flashes for a member. Host → full editing across all tabs + the Preview tab; member → read-only
+// Overrides + Injections, and Preview is HIDDEN (previewAssembly is host-only server-side; a
+// member-scoped previewSection affordance is deferred — task #28 flag). This SUPERSEDED the interim
+// first-human-seat `resolveViewerIsHost` proxy (task #50), which mis-granted host UI to a non-host
+// member once a SECOND human was seated — reachable the moment the Model-B invite lane shipped.
 //
 // ROSTER GATE (D16 — roster-of-1 is degenerate, not an `isGroup` branch): the Roster tab is HOST-AND-
 // GROUP gated (`resolveIsGroupChat`, ../lib/roster.ts) — mute/talkativeness/force-turn are meaningless
@@ -40,6 +43,7 @@ import { setContextTab, useContextTab } from "#state";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { CommittedGroupConfigTab } from "../components/group-config-form";
 import { InjectionsManager } from "../components/injections-manager";
+import { PeoplePanel } from "../components/people-panel";
 import { RoomOverridesForm } from "../components/room-overrides-form";
 import type { RosterMember } from "../components/roster-panel";
 import { RosterPanel } from "../components/roster-panel";
@@ -50,7 +54,7 @@ import {
   useSetParticipantTalkativeness,
 } from "../hooks/use-roster-mutations";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
-import { resolveIsGroupChat, resolveViewerIsHost } from "../lib/roster";
+import { resolveHumanParticipants, resolveIsGroupChat } from "../lib/roster";
 
 /** Project a committed chat's character participants into the source-agnostic `RosterMember` view. */
 function toRosterMembers(participants: readonly ParticipantView[]): RosterMember[] {
@@ -71,10 +75,17 @@ export interface ChatContextPanelProps {
   /** A COMMITTED chat id — the route passes this only when a committed chat is active (a draft has no
    *  server row for the reads/writes to target). */
   readonly chatId: ChatId;
+  /** `/api/auth/config.multiHumanCapable` (route-threaded — the honest PD-106 capability signal). TRUE
+   *  ⇒ the People tab (present humans + the host's invite affordances) exists; single-user deployments
+   *  never render it. Never derived from a probed NOT_FOUND. */
+  readonly multiHumanCapable?: boolean;
 }
 
 /** The CONTEXT panel front door — suspends on the chat read (roster + overrides), then the tabs. */
-export function ChatContextPanel({ chatId }: ChatContextPanelProps): ReactElement {
+export function ChatContextPanel({
+  chatId,
+  multiHumanCapable = false,
+}: ChatContextPanelProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading chat details…</Text>}
@@ -87,18 +98,25 @@ export function ChatContextPanel({ chatId }: ChatContextPanelProps): ReactElemen
         </Text>
       )}
     >
-      <ChatContextPanelBody chatId={chatId} />
+      <ChatContextPanelBody chatId={chatId} multiHumanCapable={multiHumanCapable} />
     </QueryBoundary>
   );
 }
 
-function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
+function ChatContextPanelBody({
+  chatId,
+  multiHumanCapable = false,
+}: ChatContextPanelProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   // The chat read carries BOTH the roster (host detection) and the current room overrides — one query,
   // already the shell's chat read (no new fetch for the overrides tab).
   const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const isHost = resolveViewerIsHost(chat.participants);
+  // The ONE host gate for the whole surface: the server-resolved, per-viewer `ChatDetail.viewerIsHost`
+  // (`=== true` → NON-host while the read is in-flight/absent, the safe read-only floor). Drives every
+  // tab — Overrides/Preview/Injections editing, the Roster/Group host gate, and the People invite
+  // controls — so no tab can disagree with another on who the host is.
+  const isHost = chat.viewerIsHost === true;
   // The committed persist seam for the Overrides tab (the editor is source-agnostic — a draft passes
   // `setDraftRoomOverrides` instead). The verb takes/returns the domain `RoomOverrides`.
   const setOverrides = useSetRoomOverrides({ trpc, invalidation });
@@ -112,6 +130,14 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
   const setTalkativeness = useSetParticipantTalkativeness({ trpc, invalidation });
   const forceTurn = useForceCharacterTurn({ trpc, invalidation });
   const rosterMembers = toRosterMembers(chat.participants);
+  // The People tab (multi-human invites lane): capability-gated on the honest `/api/auth/config`
+  // signal — a single-user deployment renders NO people surface at all. Visible to every member when
+  // capable (who's in the room is member-visible, like the cast bar); the INVITE controls inside are
+  // additionally host-gated on the same `isHost` (the surface-wide `viewerIsHost` gate above). NOT
+  // group-gated: inviting a buddy into a solo (1-character) room is the core flow, so People exists
+  // even where Roster does not.
+  const showPeople = multiHumanCapable;
+  const humans = resolveHumanParticipants(chat.participants);
   // D16 roster-of-1 is degenerate, not a group — mute/talkativeness/force-turn are meaningless for one
   // character, so a solo chat must not show the Roster tab even to its host (mirrors ChatCastBar's
   // identical `cast.length <= 1 → null` gate for the member-visible glance strip).
@@ -128,6 +154,9 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
     // meaningless for a solo chat).
     visibleTabs.add("roster");
     visibleTabs.add("group");
+  }
+  if (showPeople) {
+    visibleTabs.add("people");
   }
   if (isHost) {
     visibleTabs.add("preview");
@@ -152,6 +181,9 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
             bar (chat-room-surface) is the member-visible glance surface, size-gated the same way. */}
           {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
           {showRoster ? <TabsTab value="group">Group</TabsTab> : null}
+          {/* People (multi-human invites lane) — capability-gated, member-visible, NOT group-gated
+              (see the `showPeople` derivation above). */}
+          {showPeople ? <TabsTab value="people">People</TabsTab> : null}
           {isHost ? <TabsTab value="preview">Preview</TabsTab> : null}
           <TabsTab value="injections">Injections</TabsTab>
           <TabsIndicator />
@@ -196,6 +228,12 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
             >
               <CommittedGroupConfigTab chatId={chatId} />
             </QueryBoundary>
+          </TabsPanel>
+        ) : null}
+
+        {showPeople ? (
+          <TabsPanel value="people">
+            <PeoplePanel chatId={chatId} humans={humans} viewerIsHost={isHost} />
           </TabsPanel>
         ) : null}
 

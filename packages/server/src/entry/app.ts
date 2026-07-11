@@ -12,7 +12,8 @@
 // (PD-118) is mounted immediately after auth, wrapping the tRPC mount + every registrar below in its
 // request-root span.
 
-import type { Principal } from "@orb/contracts/identity";
+import type { AuthMode, Principal } from "@orb/contracts/identity";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { Hono } from "hono";
@@ -37,10 +38,12 @@ import type {
   UploadAssetsPort,
 } from "./http";
 import {
+  registerAuthMeta,
   registerAuthRoutes,
   registerBlob,
   registerExport,
   registerHealthz,
+  registerJoin,
   registerUpload,
   securityHeaders,
   serializeSessionCookie,
@@ -95,6 +98,20 @@ export interface AppDeps {
   readonly oidc?: OidcRoutesDeps;
 }
 
+// The multi-human capability derivation (FINAL-Auth-Modes §9 / B4 — the PD-106 belt's axis): can ≥2
+// humans authenticate on this deployment? single-user → never; local → the runtime `LOCAL_MULTI_USER`
+// AppSettings toggle (default OFF — a fresh local install is single-human until the owner flips it);
+// forward-header/oidc → always (the proxy/IdP is the account source). A mapped `Record` over `AuthMode`
+// so a new AUTH_MODES member fails `tsc` (spine invariant #4 style). Resolved PER-REQUEST (the local arm
+// reads a runtime AppSetting — it cannot be a frozen boot constant); `getEffectiveConfig` is the sync
+// settings cache, reloaded after every admin write, so a toggle flip takes effect on the next request.
+const MULTI_HUMAN_CAPABLE: Record<AuthMode, (cfg: EffectiveAppConfig) => boolean> = {
+  "single-user": () => false,
+  local: (cfg) => cfg.localMultiUser,
+  "forward-header": () => true,
+  oidc: () => true,
+};
+
 /** Read our opaque session token from the Cookie header (the same minimal base64url parse the seam +
  *  auth-routes use — there is no shared exported reader; a value that can't decode can't be ours). */
 function readSessionToken(headers: Headers): string | null {
@@ -120,6 +137,12 @@ function readSessionToken(headers: Headers): string | null {
 
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+
+  // The ONE per-request multi-human capability closure (PD-106) — shared by every non-tRPC consumer
+  // (`/join/:token`, `/api/auth/config`) so the belt cannot drift between surfaces; the tRPC mount below
+  // runs the same map inline per request.
+  const multiHumanCapable = (): boolean =>
+    MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig());
 
   // ── Uncaught-throw observability (PD-118): Hono's onError is the SINGLE origin-frame hook for a request
   // handler that THROWS (returns no Response). Hono's compose() catches such a throw at the throwing
@@ -190,9 +213,12 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           services: deps.services,
           rateLimit: deps.rateLimit,
           presence: deps.presence,
-          // The PD-106 multi-human capability belt keys on this flag (derived HERE from the frozen env —
-          // transport reads no env; `multiHumanProcedure` 404s its surfaces while it is set).
-          singleUserMode: env.AUTH_MODE === "single-user",
+          // The PD-106 multi-human capability belt keys on this flag (derived HERE, per request — the
+          // frozen env mode × the runtime `LOCAL_MULTI_USER` AppSetting; transport reads no env/settings.
+          // `multiHumanProcedure` 404s its surfaces while it is FALSE).
+          multiHumanCapable: MULTI_HUMAN_CAPABLE[env.AUTH_MODE](
+            deps.services.settings.getEffectiveConfig(),
+          ),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c),
         }),
@@ -223,6 +249,18 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
     ...(deps.oidc !== undefined ? { oidc: deps.oidc } : {}),
   });
+  // The PUBLIC auth bootstrap surface (/api/auth/{config,me} — FINAL-Auth-Modes §7 P0). `/me` reads the
+  // principal the auth middleware above resolved (same-seam, drift-free); typed on the AppEnv app so it
+  // sees `c.get("principal")`. Mode is the frozen env; discreet-login is a runtime AppSetting read.
+  registerAuthMeta(app, {
+    mode: env.AUTH_MODE,
+    defaultHandle: env.DEFAULT_USER_HANDLE,
+    discreetLogin: () => deps.services.settings.getEffectiveConfig().discreetLogin,
+    multiHumanCapable,
+  });
+  // The `/join/:token` invite landing (§7 P1) — gated on the SAME per-request capability derivation the
+  // tRPC mount uses (PD-106 leak-free 404 while not multi-human capable).
+  registerJoin(plain, { multiHumanCapable });
 
   // ── The /api/_debug introspection surface (admin-cookie OR DEBUG_TOKEN gate; no assets fsck — PD-26) ──
   registerDebugRoutes(plain, {

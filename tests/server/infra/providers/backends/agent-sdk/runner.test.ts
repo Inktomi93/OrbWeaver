@@ -48,6 +48,19 @@ const CAPABILITY = makeModelCapability({
   context: { window: 200_000 },
 });
 
+// A model whose wire-shape HONORS mid-conversation-system authority (Opus 4.8 on the anthropic-messages
+// shape) — the only capability on which the resolved channel reaches `message-tail` (the hook path).
+const MID_CONV_CAPABILITY = makeModelCapability({
+  output: { maxTokens: { min: 1, max: 4096 } },
+  context: { window: 200_000 },
+  turns: {
+    assistantPrefill: false,
+    midConversationSystem: true,
+    roleHandlingFloor: "strict",
+    explicitPromptCache: true,
+  },
+});
+
 function streamOf(messages: readonly unknown[]): MessageStream {
   return sharedStreamOf(messages) as MessageStream;
 }
@@ -635,7 +648,7 @@ describe("createAgentSdkBackend", () => {
     expect(fakeQuery.mock.calls[1]?.[0]?.options?.resume).toBe(SESSION_ID);
   });
 
-  test("dynamic-context knob default ('system') JOINS static+dynamic into ONE leak-free systemPrompt string, no hooks", async () => {
+  test("resolved 'system-block' channel JOINS static+dynamic into ONE leak-free systemPrompt string, no hooks", async () => {
     const fakeQuery = vi.fn(
       (_args: {
         options?: { systemPrompt?: string | string[]; hooks?: Record<string, unknown[]> };
@@ -643,6 +656,8 @@ describe("createAgentSdkBackend", () => {
     );
     const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
     const run = backend.runChatTurn as ChatTurn;
+    // CAPABILITY has no `turns` → floors to midConversationSystem:false → the channel resolves to
+    // system-block regardless of the knob (the funnel-driven default).
     await run({
       ...buildReq("chat-sys"),
       systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
@@ -654,7 +669,7 @@ describe("createAgentSdkBackend", () => {
     expect(opts?.hooks).toBeUndefined();
   });
 
-  test("dynamic-context knob 'hook' sends STATIC-only systemPrompt + injects the dynamic half via a hook", async () => {
+  test("resolved 'message-tail' channel (knob 'hook' + capable model) sends STATIC-only systemPrompt + a hook", async () => {
     const fakeQuery = vi.fn(
       (_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
         streamOf([initMsg, assistantMsg, successResult]),
@@ -663,14 +678,33 @@ describe("createAgentSdkBackend", () => {
     const run = backend.runChatTurn as ChatTurn;
     await run({
       ...buildReq("chat-hook"),
+      capability: MID_CONV_CAPABILITY,
       systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
-      params: { advanced: { agentSdkDynamicContext: "hook" } },
+      params: { advanced: { dynamicContext: "hook" } },
     });
     const opts = fakeQuery.mock.calls[0]?.[0]?.options;
     // Static half rides the (cached) system prompt; dynamic half is off it entirely.
     expect(opts?.systemPrompt).toBe("STATIC-HALF");
     // The dynamic half rides a UserPromptSubmit hook (cache-safe injection).
     expect(opts?.hooks?.["UserPromptSubmit"]).toHaveLength(1);
+  });
+
+  test("knob 'hook' on an INCAPABLE model is DEMOTED → joined system-block, no hook", async () => {
+    const fakeQuery = vi.fn(
+      (_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
+        streamOf([initMsg, assistantMsg, successResult]),
+    );
+    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const run = backend.runChatTurn as ChatTurn;
+    // CAPABILITY floors mid-conv-system to false → the funnel demotes the tail request to system-block.
+    await run({
+      ...buildReq("chat-demote"),
+      systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
+      params: { advanced: { dynamicContext: "hook" } },
+    });
+    const opts = fakeQuery.mock.calls[0]?.[0]?.options;
+    expect(opts?.systemPrompt).toBe("STATIC-HALF\n\nDYNAMIC-HALF");
+    expect(opts?.hooks).toBeUndefined();
   });
 
   test("contextUsage: a best-effort getContextUsage probe surfaces on the ChatResult", async () => {
@@ -878,6 +912,41 @@ describe("provider.* observability taxonomy", () => {
     const sessions = providerLines(debug, "provider.session");
     expect(sessions).toHaveLength(1);
     expect((sessions[0] as Record<string, unknown>)["disposition"]).toBe("seeded");
+  });
+
+  test("provider.channel (debug) records the RESOLVED channel + gating flag on a capable model", async () => {
+    const debug = vi.spyOn(logger, "debug");
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const run = backend.runChatTurn as ChatTurn;
+    // Absent knob + capable model ⇒ the funnel picks the cache-safe message-tail; nothing was demoted.
+    await run({ ...buildReq("chat-chan"), capability: MID_CONV_CAPABILITY });
+    const channels = providerLines(debug, "provider.channel");
+    expect(channels).toHaveLength(1);
+    expect(channels[0]).toMatchObject({
+      channel: "message-tail",
+      midConvCapable: true,
+      demoted: false,
+    });
+  });
+
+  test("provider.channel records demoted:true when a 'hook' request hits an incapable model", async () => {
+    const debug = vi.spyOn(logger, "debug");
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const run = backend.runChatTurn as ChatTurn;
+    // CAPABILITY floors mid-conv-system to false → the tail request is demoted to system-block.
+    await run({
+      ...buildReq("chat-chan-demote"),
+      params: { advanced: { dynamicContext: "hook" } },
+    });
+    const channels = providerLines(debug, "provider.channel");
+    expect(channels).toHaveLength(1);
+    expect(channels[0]).toMatchObject({
+      channel: "system-block",
+      midConvCapable: false,
+      demoted: true,
+    });
   });
 
   test("a spawn-death attaches a bounded stderrTail to provider.error; a healthy turn logs none", async () => {

@@ -27,6 +27,8 @@ const BASE: SystemSettingsForm = {
   allowNonOwnerLocalCompute: true,
   nonOwnerLocalComputeBudget: null,
   allowNonOwnerMaxProSub: false,
+  localMultiUser: false,
+  discreetLogin: false,
 };
 
 const form = (overrides: Partial<SystemSettingsForm>): SystemSettingsForm => ({

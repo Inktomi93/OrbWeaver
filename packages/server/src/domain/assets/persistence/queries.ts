@@ -73,8 +73,14 @@ export async function loadAssetCasRefById(
  *  enumeration happens un-principal, exactly like `loadAssetCasRefById` above. The mime filter is the
  *  "can the imageEmbed role handle it" gate — non-image assets (export zips) are never embedded. NOT a
  *  user-facing surface; the only caller is `listImageAssetIds` (the bulk pass's enumeration read). */
-export async function listImageAssetIdRows(db: Db): Promise<AssetId[]> {
-  const rows = await db.select({ id: assets.id }).from(assets).where(like(assets.mime, "image/%"));
+export async function listImageAssetIdRows(db: Db, ownerId?: UserId | null): Promise<AssetId[]> {
+  // `ownerId` scopes the sweep to ONE owner (the workloads SINGULAR mode — embed MY assets); omitted/null =
+  // every owner (the BULK dev sweep, D20 un-principal). The mime filter always applies (image-only).
+  const scope =
+    ownerId === undefined || ownerId === null
+      ? like(assets.mime, "image/%")
+      : and(like(assets.mime, "image/%"), eq(assets.ownerId, ownerId));
+  const rows = await db.select({ id: assets.id }).from(assets).where(scope);
   return rows.map((r) => r.id);
 }
 

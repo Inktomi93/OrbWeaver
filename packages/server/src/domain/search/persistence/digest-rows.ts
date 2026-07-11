@@ -12,7 +12,7 @@ import type { BlockKey } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest";
 import { digestScopeCond, segmentScopeCond } from "./scope";
 
@@ -73,6 +73,25 @@ export async function nearestDigests(
     .orderBy(distance)
     .limit(params.limit);
   return rows.map((r) => ({ ...r, keywords: r.keywords ?? [] }));
+}
+
+/** The owner's MATERIALIZED chat set — the distinct chats that hold a digest owned by `ownerId` in `model`'s
+ *  space (owner DERIVES via the producer card: `chat_digests.scopedCharacterId` FKs `characters.id`, whose
+ *  `ownerId` is the owner — D20; NO `chats.ownerId` (D18), NO `chat_participants`). `discover`'s verbatim
+ *  segment scan (the segment lens carries no owner column) is bounded to this set. `groupBy` yields the
+ *  distinct set (`ReadOnlyDb` has no `selectDistinct`). */
+export async function ownedChatIds(
+  db: ReadOnlyDb,
+  ownerId: UserId,
+  model: string,
+): Promise<ChatId[]> {
+  const rows = await db
+    .select({ chatId: chatDigests.chatId })
+    .from(chatDigests)
+    .innerJoin(characters, eq(chatDigests.scopedCharacterId, characters.id))
+    .where(and(eq(chatDigests.model, model), eq(characters.ownerId, ownerId)))
+    .groupBy(chatDigests.chatId);
+  return rows.map((r) => r.chatId);
 }
 
 /** One segment-lens neighbour: the chat + block + raw cosine distance + advisory hub + the verbatim `text`

@@ -6,10 +6,11 @@ updated: 2026-07-03
 
 # Proposed — the stats↔discovery economics/semantics seam (unbuilt tiers)
 
-> **Status: proposed.** Salvaged from the 2026-07 `stats.md` gutting audit. The `stats` domain is BUILT
-> (code is the source of truth — `packages/server/src/domain/stats/`); tier 1 of the seam (stats touches
-> zero vector tables) is LIVE via the `stats-no-vector-tables` dep-cruiser rule. What remains unbuilt is
-> the *discovery-side* of the type-enforced economics/semantics line and two small hardening ideas. The
+> **Status: Tiers 1–3 BUILT; only the two hardening ideas remain proposed.** Salvaged from the 2026-07
+> `stats.md` gutting audit. Tier 1 (stats touches zero vector tables) is LIVE via the `stats-no-vector-tables`
+> dep-cruiser rule. Tier 2 (the stats-owned economics projection, PD-22) + Tier 3 (the two economics-composed
+> discovery insights, PD-40) are BUILT — see the tier sections below (code is the source of truth). What
+> remains unbuilt: the proposed `discovery-no-stats-rollups` lint backstop + the ST-parity validation probe. The
 > DEFERRALS are already owned by **PD-22** (the stats `messages-economics` read) and **PD-40** (the rest
 > of the discovery corpus surface, incl. `forgottenGems`/`modelRouting`) in
 > `core/Core-Audits-and-Debt.md` — this doc holds only the DESIGN leans that would otherwise be lost, not
@@ -20,21 +21,26 @@ share no tables; discovery computes no usage rollup.** Promoted to `Core-0` §6 
 enforced. Tiers 2–3 below are the discovery-side pieces that land when the discovery corpus surface is
 built (PD-40) and the stats economics read is built (PD-22).
 
-## Tier 2 — the disjoint `messages` projections (the compile-time half)
+## Tier 2 — the disjoint `messages` projections (the compile-time half) — **BUILT (PD-22)**
 
 The economics columns of `messages` (`tokens_in/out`, `cost_usd`, `cache_*`, `gen_*`, `ttft_ms`,
 `context_window`) must be reachable ONLY through a stats-owned economics projection; discovery reads
 `messages` through a SEMANTIC projection (`role`/`content`/`model`/`characterId`/`createdAt`) that never
 names the economics columns — so a discovery query that SUMs `tokens_out` fails to type-check.
 
-**Lean (the open decision from the old doc, recorded so it isn't re-litigated):**
-- The economics-projection **constructor** lives in `domain/stats/persistence/messages-economics.ts`
-  (stats-internal; the only shape that carries token/cost/cache/timing columns of a `messages` row).
-- The **result shape discovery receives** (a narrowed, already-aggregated economics result — NOT the raw
-  row) lives in `@orb/contracts/stats`, so discovery's injected `stats` op can return it without discovery
-  ever being able to name the raw economics row.
-- **D26 caveat:** economics live on `message_variants`, NOT `messages` — the read MUST be the D26-aware
-  read (mirrors PD-22's note in `discovery/contract/service.ts`).
+**As-built (code is the source of truth):**
+- The economics projection lives in `domain/stats/persistence/messages-economics.ts` (stats-internal). The
+  raw economics ROW shape (`EconomicsRow`/`ModelEconomicsRow`) is MODULE-PRIVATE — never exported — so no
+  consumer can name a `tokens_out` column; the file aggregates in SQL and returns only pre-summed results.
+  Exposed on `StatsService` as `characterEconomics` + `characterModelEconomics` (NOT tRPC-routed — they are
+  the injected ops for discovery).
+- The **result shapes discovery receives** — `CharacterEconomics` + `CharacterModelEconomics` (narrowed,
+  already-aggregated) — live in `@orb/contracts/stats`, so discovery's injected `stats` op returns them
+  without discovery ever naming the raw economics row.
+- The discovery SIDE reads `messages` through `domain/discovery/persistence/message-reads.ts`
+  (`readForgottenGemCandidates`) — role/createdAt/characterId only, no economics column.
+- **D26:** economics live on `message_variants`, NOT `messages` — the read aggregates the SELECTED variant of
+  each assistant slot (`messages.selected_variant_id`), so an unselected swipe never double-counts.
 
 **Proposed lint backstop — `discovery-no-stats-rollups`:** a dep-cruiser rule forbidding
 `domain/discovery/**` from importing any of the four rollup tables (`owner_stats` / `character_stats` /
@@ -42,18 +48,24 @@ names the economics columns — so a discovery query that SUMs `tokens_out` fail
 structurally stops discovery importing a rollup table today; only the (unbuilt) disjoint-projection
 discipline would. Recommend adding it as a forward rule the way `stats-no-vector-tables` already is.
 
-## Tier 3 — the insights gray zone resolves by composition (owned by PD-40)
+## Tier 3 — the insights gray zone resolves by composition — **BUILT (PD-40/PD-22)**
 
-- `forgottenGems` (revisit candidates): keeps its SEMANTIC ranking (message-volume COUNT + recency) in
-  discovery, but its `tokensOut` field comes from `character_stats.tokensOut` via an injected `stats` op —
-  never a raw `messages` SUM.
-- `modelRouting` (which model per genre): a composition-root wiring — discovery supplies `genre` (its
-  `character_summaries` facet), stats supplies the per-`(model)` tallies.
-- `themeDrift` / `unusedCharacters`: purely semantic, stay wholly in discovery.
+As-built in `domain/discovery/verbs/economics-insights.ts` (`createEconomicsInsights`); the injected ops are
+wired at the entry root (`entry/compose/services.ts`: `characterEconomics`/`characterModelEconomics` ←
+`stats`).
 
-Enforcement: the economics field can only arrive through the injected `stats` op's typed result; the
-raw-`messages` economics SUM is unspellable in discovery (tier 2). This whole surface is deferred under
-PD-40 — captured here only for the composition shape.
+- `forgottenGems` (revisit candidates): keeps its SEMANTIC ranking (assistant-message-volume COUNT + recency)
+  in discovery (`readForgottenGemCandidates`); its `tokensOut`/`costUsd` come from the injected
+  `characterEconomics` op (the D26 SELECTED-variant totals) — never a raw `messages` SUM. (Note: as-built the
+  economics come from the D26 message-variant aggregation, NOT `character_stats.tokensOut` — the older lean —
+  because PD-22 built the `messages-economics` read the task specified.)
+- `modelRouting` (which model per genre): discovery maps each character to its `character_summaries.genre`
+  and re-groups the injected per-`(character, model)` economics (`characterModelEconomics`) into `(genre,
+  model)` rows.
+- `themeDrift` / `unusedCharacters`: purely semantic, stay wholly in discovery (built earlier).
+
+Enforcement: the economics fields can only arrive through the injected `stats` op's typed result; the
+raw-`messages` economics SUM is unspellable in discovery (tier 2 — the raw row is stats-module-private).
 
 ## Hardening idea — the ST-parity validation probe
 

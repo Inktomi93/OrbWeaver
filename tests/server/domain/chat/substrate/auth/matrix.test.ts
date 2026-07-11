@@ -42,6 +42,7 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.startChat).toBe("non-chat-scoped");
     expect(CHAT_VERB_AUTHORITY.listChats).toBe("non-chat-scoped");
     expect(CHAT_VERB_AUTHORITY.redeemInvite).toBe("non-chat-scoped");
+    expect(CHAT_VERB_AUTHORITY.acceptInvite).toBe("non-chat-scoped");
     expect(CHAT_VERB_AUTHORITY.previewInvite).toBe("non-chat-scoped");
     expect(CHAT_VERB_AUTHORITY.declineInvite).toBe("non-chat-scoped");
     expect(CHAT_VERB_AUTHORITY.reapTemporaryChats).toBe("non-chat-scoped");

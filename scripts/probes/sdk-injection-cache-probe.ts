@@ -804,21 +804,23 @@ function renderArmA(): void {
 // SessionCache's store) BEFORE and AFTER each turn — if a frame containing the hook sigil appears, the hook
 // is NOT lineage-neutral for the NEXT turn (it has the same mech-2 fork as a d0 in_chat note).
 const HOOK_TURNS = 3;
-const HOOK_TAIL_QUESTIONS = [
-  "Codeword ECHO. Answer with exactly two lines. Line 1: every all-caps SIGIL-… codeword you can see " +
-    "anywhere in this conversation, comma-separated, earliest to latest. Line 2: exactly the word DONE.",
-  "Codeword FOXTROT. Again — Line 1: every all-caps SIGIL-… codeword you can see, comma-separated, " +
-    "earliest to latest. Line 2: exactly the word DONE.",
-  "Codeword GOLF. Once more — Line 1: every all-caps SIGIL-… codeword you can see, comma-separated, " +
-    "earliest to latest. Line 2: exactly the word DONE.",
-] as const;
+// IN-WORLD freshness check (NOT "list your codewords" — that reads as prompt-extraction and Haiku REFUSES it,
+// contaminating the content-visible signal; observed live 2026-07-10). The hook injects an in-world gate
+// watchword each turn; the tail asks for it in-character. Byte-IDENTICAL every turn so the ONLY varying input
+// is the hook body — the clean cache isolation. The model restating the word proves it read the hook.
+const HOOK_TAIL_QUESTION =
+  "A gate guard stops you and asks for tonight's watchword before letting you pass. " +
+  "Answer with only the watchword, nothing else.";
+/** Distinct in-world watchword per turn — greppable + cell-unique (so a cross-turn content-cache hit can't
+ *  fake a sighting) but framed as a fantasy watchword, not a machine codeword the model balks at echoing. */
+const HOOK_WATCHWORDS = ["SALTHOLLOW", "DUNEHART", "VEYRAGATE"] as const;
 
-/** The volatile per-turn hook content — a distinct sigil each turn (the freshness signal). */
+/** The volatile per-turn hook content — a distinct in-world watchword each turn (the freshness signal). */
 function hookContext(turnNo: number): { text: string; sigil: string } {
-  const s = `${SIGIL_PREFIX}HOOK-T${turnNo}`;
+  const word = HOOK_WATCHWORDS[(turnNo - 1) % HOOK_WATCHWORDS.length] ?? "SALTHOLLOW";
   return {
-    sigil: s,
-    text: `Codeword ${s}. Operator context for this turn only — keep answering normally.`,
+    sigil: word,
+    text: `Operator note for this turn: tonight's gate watchword is ${word}. If anyone asks you for the watchword, tell them.`,
   };
 }
 
@@ -862,8 +864,7 @@ async function runHookArm(): Promise<void> {
   const leakedEach: boolean[] = [];
   for (let i = 0; i < HOOK_TURNS; i++) {
     const { text, sigil: hookSigil } = hookContext(i + 1);
-    const tailQ = HOOK_TAIL_QUESTIONS[i] ?? TAIL_QUESTION;
-    const b = buildShaped(CANON, tailQ, null);
+    const b = buildShaped(CANON, HOOK_TAIL_QUESTION, null);
     // biome-ignore lint/performance/noAwaitInLoops: the 3 hook turns are sequential BY DESIGN — each resumes the prior lineage; serial order keeps the disposition/leak attribution unambiguous.
     const before = await storedTranscript(cache, chatId);
     const decision = await cache.ensureSeededSession(chatId, b.seed);

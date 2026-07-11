@@ -46,8 +46,29 @@ describe("deriveRunner — ChatApi × CredentialSource → the sealed backend ke
     }
   });
 
+  test("the anthropic-messages api (anth-direct, W7): the OR skin is the v1 PRIMARY path", () => {
+    expect(deriveRunner("anthropic-messages", "openrouter")).toBe("anth-direct");
+  });
+
+  test("THE SUB-EXCLUSION (part 02 §3d): max-pro-sub × anthropic-messages is a fail-closed invalid", () => {
+    // The free Max sub can NEVER drive the paid direct endpoint — the st-claude-proxy ban shape.
+    expect(() => deriveRunner("anthropic-messages", "max-pro-sub")).toThrow(ProviderError);
+  });
+
+  test("the anthropic-messages api rejects every non-openrouter source in v1 (§3a routing table)", () => {
+    // vllm/local-light/custom_openai never carry the Anthropic-Messages wire; anthropic (first-party) is W11.
+    for (const source of ["vllm", "local-light", "custom_openai"] as const) {
+      expect(() => deriveRunner("anthropic-messages", source)).toThrow(ProviderError);
+    }
+  });
+
   test("local-light is never a chat/agent runner (it serves only embed/rerank/imageEmbed)", () => {
-    for (const api of ["agent-sdk", "chat-completions", "responses"] as const) {
+    for (const api of [
+      "agent-sdk",
+      "chat-completions",
+      "responses",
+      "anthropic-messages",
+    ] as const) {
       expect(() => deriveRunner(api, "local-light")).toThrow(ProviderError);
     }
   });

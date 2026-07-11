@@ -14,7 +14,7 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
-import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
 // ── SourceKind (the producer-class dispatch axis) ─────────────────────────────
 /** The producer classes whose content the store verb embeds: `card` (a character card), `avatar` (an asset
@@ -169,6 +169,10 @@ export type StoreParams =
 export interface EmbedPassParams {
   readonly force: boolean;
   readonly signal: AbortSignal;
+  /** Scope the enumeration to ONE owner (the workloads SINGULAR sweep — embed MY producers); `null` = every
+   *  owner (the BULK dev sweep). The vector rows themselves stay owner-less (D20); this only narrows WHICH
+   *  producers the pass re-reads + embeds. */
+  readonly ownerId: UserId | null;
 }
 
 // ── writeHubScores params (the discovery → embeddings hub-score write seam) ────

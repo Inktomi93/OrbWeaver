@@ -1,8 +1,13 @@
 // Integration: the read-only SELECTs over the embeddings vector store — synthetic exclusion + owner
-// derivation (characters.ownerId / digest→chat→host) + cross-tenant hub reads.
+// derivation (characters.ownerId / digest→chat→host) + the OWNER-SCOPED hub reads (csls analyzes YOUR OWN
+// library only — never cross-tenant; the bulk fan-out iterates `distinct*HubOwners`).
 
 import { describe } from "vitest";
 import {
+  distinctCharacterHubOwners,
+  distinctDigestHubOwners,
+  distinctImageHubOwners,
+  distinctSegmentHubOwners,
   readCharacterHubVectors,
   readDigestHubVectors,
   readImageHubVectors,
@@ -91,8 +96,8 @@ describe("readOwnedDigestVectors", () => {
   });
 });
 
-describe("hub reads are cross-tenant (no owner filter, esoteric #5)", () => {
-  test("character / digest / segment / image hub reads return every row", async () => {
+describe("hub reads are OWNER-SCOPED (csls analyzes YOUR OWN library only — never cross-tenant)", () => {
+  test("each hub read returns ONLY the given owner's rows (B's vectors never leak into A's read)", async () => {
     const db = await freshDb();
     const a = await seedUser(db, "user_a");
     const b = await seedUser(db, "user_b");
@@ -100,15 +105,37 @@ describe("hub reads are cross-tenant (no owner filter, esoteric #5)", () => {
     const cb = await seedCharacter(db, { id: "character_b", ownerId: b });
     await seedCharacterEmbedding(db, { characterId: ca, embedding: vec(1, 0) });
     await seedCharacterEmbedding(db, { characterId: cb, embedding: vec(0, 1) });
-    const chat = await seedHostedChat(db, "chat_1", a);
-    await seedChatDigest(db, { id: "chat_digest_1", chatId: chat, embedding: vec(1, 0) });
-    await seedChatSegment(db, { id: "chat_segment_1", chatId: chat, embedding: vec(1, 0) });
-    const asset = await seedAsset(db, "asset_1", a);
-    await seedImageEmbedding(db, { id: "image_embedding_1", assetId: asset, embedding: vec(1, 0) });
+    const chatA = await seedHostedChat(db, "chat_a", a);
+    const chatB = await seedHostedChat(db, "chat_b", b);
+    await seedChatDigest(db, { id: "chat_digest_a", chatId: chatA, embedding: vec(1, 0) });
+    await seedChatDigest(db, { id: "chat_digest_b", chatId: chatB, embedding: vec(1, 0) });
+    await seedChatSegment(db, { id: "chat_segment_a", chatId: chatA, embedding: vec(1, 0) });
+    await seedChatSegment(db, { id: "chat_segment_b", chatId: chatB, embedding: vec(1, 0) });
+    const assetA = await seedAsset(db, "asset_a", a);
+    const assetB = await seedAsset(db, "asset_b", b);
+    await seedImageEmbedding(db, {
+      id: "image_embedding_a",
+      assetId: assetA,
+      embedding: vec(1, 0),
+    });
+    await seedImageEmbedding(db, {
+      id: "image_embedding_b",
+      assetId: assetB,
+      embedding: vec(1, 0),
+    });
 
-    expect(await readCharacterHubVectors(db)).toHaveLength(2); // both owners' cards
-    expect(await readDigestHubVectors(db)).toHaveLength(1);
-    expect(await readSegmentHubVectors(db)).toHaveLength(1);
-    expect(await readImageHubVectors(db)).toHaveLength(1);
+    // A's reads see ONLY A's rows (never B's) — the owner-local hub space.
+    expect((await readCharacterHubVectors(db, a)).map((r) => r.id)).toEqual([
+      "character_embedding_character_a",
+    ]);
+    expect((await readDigestHubVectors(db, a)).map((r) => r.id)).toEqual(["chat_digest_a"]);
+    expect((await readSegmentHubVectors(db, a)).map((r) => r.id)).toEqual(["chat_segment_a"]);
+    expect((await readImageHubVectors(db, a)).map((r) => r.id)).toEqual(["image_embedding_a"]);
+
+    // The BULK fan-out universe: both owners have rows in every table.
+    expect([...(await distinctCharacterHubOwners(db))].sort()).toEqual([a, b].sort());
+    expect([...(await distinctDigestHubOwners(db))].sort()).toEqual([a, b].sort());
+    expect([...(await distinctSegmentHubOwners(db))].sort()).toEqual([a, b].sort());
+    expect([...(await distinctImageHubOwners(db))].sort()).toEqual([a, b].sort());
   });
 });

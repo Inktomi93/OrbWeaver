@@ -18,7 +18,7 @@
 import type { ReadOnlyDb } from "@orb/db";
 import { characterEmbeddings, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 /** One card-space neighbour: the character + its raw cosine distance + the advisory hub score (for CSLS)
  *  + the rerankable `sourceText` (the card's name + description). File-local — verbs consume it by
@@ -38,6 +38,9 @@ interface NearestCharactersParams {
   readonly model: string;
   /** The over-fetched pool size (`OWNER_OVERFETCH × topN`). */
   readonly limit: number;
+  /** Optional self-exclusion: the seed character to omit (the `similarCharacters` "more like this" scan —
+   *  a character is never its own neighbour). Omitted by `knn`/`findCharacters` (no seed). */
+  readonly excludeCharacterId?: CharacterId | undefined;
 }
 
 /** Wrap a `Float32Array` as the raw little-endian blob libSQL's `vector32()` reads (custom-types §1).
@@ -65,7 +68,15 @@ export async function nearestCharacters(
     })
     .from(characterEmbeddings)
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(and(eq(characters.ownerId, params.ownerId), eq(characterEmbeddings.model, params.model)))
+    .where(
+      and(
+        eq(characters.ownerId, params.ownerId),
+        eq(characterEmbeddings.model, params.model),
+        params.excludeCharacterId === undefined
+          ? undefined
+          : ne(characterEmbeddings.characterId, params.excludeCharacterId),
+      ),
+    )
     .orderBy(distance)
     .limit(params.limit);
 
@@ -77,4 +88,24 @@ export async function nearestCharacters(
     // only whitespace description is still scorable on its name.
     sourceText: `${r.name} ${r.description ?? ""}`.trim(),
   }));
+}
+
+/** The stored card embedding + its space tag for ONE owned seed character — the `similarCharacters` seed
+ *  read. OWNER-BELTED (`characters.ownerId`, D20): a foreign/unknown/unembedded seed resolves to `null`, so
+ *  a stranger can never seed the scan with another tenant's vector (the neo V2-2 cross-tenant-seed lesson).
+ *  The seed's OWN `model` is returned so the caller scans within that one space (a mid-swap corpus with rows
+ *  from two embedders never mixes half-spaces). */
+export async function readSeedCharacterVector(
+  db: ReadOnlyDb,
+  ownerId: UserId,
+  characterId: CharacterId,
+): Promise<{ readonly embedding: Float32Array; readonly model: string } | null> {
+  const rows = await db
+    .select({ embedding: characterEmbeddings.embedding, model: characterEmbeddings.model })
+    .from(characterEmbeddings)
+    .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
+    .where(and(eq(characterEmbeddings.characterId, characterId), eq(characters.ownerId, ownerId)))
+    .limit(1);
+  const row = rows[0];
+  return row === undefined ? null : { embedding: row.embedding, model: row.model };
 }

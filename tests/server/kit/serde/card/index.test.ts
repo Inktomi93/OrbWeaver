@@ -18,6 +18,10 @@ import {
   cardContentHash,
   cardFromJson,
   exportBookEntry,
+  extractLorebook,
+  loreEntryColumns,
+  loreEntryMetadata,
+  selectBestCharacterBook,
 } from "@orb/server/kit/serde/card";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
@@ -391,5 +395,101 @@ describe("exportBookEntry", () => {
     expect(ext["role"]).toBe(messageRoleToSt("assistant"));
     expect(ext["custom"]).toBe(1);
     expect(out["ignoreBudget"]).toBe(true);
+  });
+});
+
+// ── the lorebook IN half: extractLorebook / selectBestCharacterBook / loreEntryColumns/Metadata (PD-77) ──
+
+describe("extractLorebook", () => {
+  test("accepts entries as a LIST or a keyed DICT, dropping non-objects", () => {
+    const asList = extractLorebook({ entries: [{ content: "a" }, 7, { content: "b" }] });
+    expect(asList.map((e) => e["content"])).toEqual(["a", "b"]);
+    const asDict = extractLorebook({ entries: { "0": { content: "a" }, "1": { content: "b" } } });
+    expect(asDict.map((e) => e["content"])).toEqual(["a", "b"]);
+    expect(extractLorebook(null)).toEqual([]);
+    expect(extractLorebook({})).toEqual([]);
+  });
+});
+
+describe("selectBestCharacterBook", () => {
+  test("picks the candidate with the most NAMED entries over an empty stub", () => {
+    const stub = { entries: [{ content: "x" }] };
+    const real = {
+      entries: [
+        { name: "Dragons", content: "lore" },
+        { name: "Elves", content: "e" },
+      ],
+    };
+    expect(selectBestCharacterBook(stub, real)).toBe(real);
+    expect(selectBestCharacterBook(undefined, null)).toBeUndefined();
+  });
+});
+
+describe("the WI-entry round-trip (IN ∘ OUT is the exact inverse — byte-identical after normalization)", () => {
+  test("constant:true → scopeMode:always; extensions.{position:4,depth,role} → inject; OUT re-emits both", () => {
+    // A keyed, CONSTANT, at-depth ST entry (the two derivations that would otherwise silently drop).
+    const stEntry: Record<string, unknown> = {
+      keys: ["dragon", "wyrm"],
+      content: "Dragons hoard gold.",
+      comment: "Dragons",
+      insertion_order: 5,
+      enabled: true,
+      constant: true,
+      extensions: { position: 4, depth: 2, role: 1, vendor: "kept" },
+    };
+    const columns = loreEntryColumns(stEntry);
+    const metadata = loreEntryMetadata(stEntry);
+
+    expect(columns).toEqual({
+      title: "Dragons",
+      description: null,
+      content: "Dragons hoard gold.",
+      keys: ["dragon", "wyrm"],
+      enabled: true,
+      priority: 5,
+      ignoreBudget: false,
+    });
+    // constant → scopeMode:always (else a KEYED constant would demote to keyword scope at runtime).
+    expect(metadata["scopeMode"]).toBe("always");
+    // ST role 1 → "user" (the @orb/kit/message-role bimap).
+    expect(metadata["inject"]).toEqual({ depth: 2, role: "user" });
+    // lossless: the whole original ST entry rides through (constant + the raw extensions blob preserved).
+    expect(metadata["constant"]).toBe(true);
+    expect((metadata["extensions"] as Record<string, unknown>)["vendor"]).toBe("kept");
+
+    // OUT: the exported ST entry re-derives constant + the at-depth extensions from the stored metadata.
+    const out = exportBookEntry({
+      keys: columns.keys,
+      content: columns.content,
+      enabled: columns.enabled,
+      priority: columns.priority,
+      title: columns.title,
+      ignoreBudget: columns.ignoreBudget,
+      metadata,
+    });
+    expect(out["constant"]).toBe(true);
+    expect(out["insertion_order"]).toBe(5);
+    expect(out["comment"]).toBe("Dragons");
+    const ext = out["extensions"] as Record<string, unknown>;
+    expect(ext["position"]).toBe(4);
+    expect(ext["depth"]).toBe(2);
+    expect(ext["role"]).toBe(messageRoleToSt("user"));
+    expect(ext["vendor"]).toBe("kept");
+
+    // IN again on the OUT — idempotent (the second normalization changes nothing load-bearing).
+    const cols2 = loreEntryColumns(out);
+    const meta2 = loreEntryMetadata(out);
+    expect(cols2).toEqual(columns);
+    expect(meta2["scopeMode"]).toBe("always");
+    expect(meta2["inject"]).toEqual({ depth: 2, role: "user" });
+  });
+
+  test("a plain keyword entry: no constant, no inject, title falls back through comment→name→key", () => {
+    expect(loreEntryColumns({ keys: ["k"], content: "c" }).title).toBe("k");
+    expect(loreEntryColumns({ content: "c", name: "Named" }).title).toBe("Named");
+    expect(loreEntryColumns({ content: "c" }).title).toBe("Untitled");
+    const meta = loreEntryMetadata({ keys: ["k"], content: "c" });
+    expect(meta["scopeMode"]).toBeUndefined();
+    expect(meta["inject"]).toBeUndefined();
   });
 });

@@ -43,6 +43,9 @@ export const PARAMS_SCHEMAS = {
   "find-duplicates": noParams,
   csls: noParams,
   "assets-backfill": maintenanceParams,
+  // GC takes `dryRun` (report what it WOULD reclaim); fsck is read-only (no tunables).
+  "assets-gc": maintenanceParams,
+  "assets-fsck": noParams,
   "import-st": maintenanceParams,
   "reconcile-stats": noParams,
   "refresh-model-catalog": noParams,
@@ -99,6 +102,8 @@ export const startWorkloadInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("find-duplicates"), params: PARAMS_SCHEMAS["find-duplicates"] }),
   z.object({ kind: z.literal("csls"), params: PARAMS_SCHEMAS.csls }),
   z.object({ kind: z.literal("assets-backfill"), params: PARAMS_SCHEMAS["assets-backfill"] }),
+  z.object({ kind: z.literal("assets-gc"), params: PARAMS_SCHEMAS["assets-gc"] }),
+  z.object({ kind: z.literal("assets-fsck"), params: PARAMS_SCHEMAS["assets-fsck"] }),
   z.object({ kind: z.literal("import-st"), params: PARAMS_SCHEMAS["import-st"] }),
   z.object({ kind: z.literal("reconcile-stats"), params: PARAMS_SCHEMAS["reconcile-stats"] }),
   z.object({

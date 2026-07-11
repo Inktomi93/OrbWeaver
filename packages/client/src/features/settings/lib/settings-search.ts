@@ -4,7 +4,8 @@
 // on a hit, JUMPS to that pane + subcategory anchor (settings-shell-surface.tsx). The registry (settings-
 // nav.ts) stays the ONE home for the geography; this is a pure derivation of it.
 
-import { SETTINGS_CATEGORIES, SETTINGS_CATEGORY_IDS } from "./settings-nav";
+import { SETTINGS_CATEGORIES } from "./settings-nav";
+import { SETTINGS_CATEGORY_IDS } from "./settings-nav-model";
 
 /** One flattened, fuzzy-searchable entry over the whole index. `subId: null` = a category-level hit
  *  (switch pane, no scroll); a non-null `subId` jumps to that subcategory's anchor. `keywords` carries

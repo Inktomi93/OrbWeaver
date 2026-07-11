@@ -3,7 +3,7 @@
 import { describe, vi } from "vitest";
 import { embedAssetsRunner } from "../../../../../packages/server/src/domain/workloads/runners/embed-assets.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerContext } from "../_support.ts";
+import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 
 describe("embed-assets runner", () => {
   test("embeds assets and projects counts", async () => {
@@ -15,6 +15,7 @@ describe("embed-assets runner", () => {
       new AbortController().signal,
     );
     expect(env.embeddings.embedAssets).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
       force: false,
       signal: expect.any(AbortSignal),
     });

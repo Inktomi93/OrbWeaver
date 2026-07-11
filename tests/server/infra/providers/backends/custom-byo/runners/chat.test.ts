@@ -126,6 +126,20 @@ describe("createCustomByoBackend — request mapping", () => {
     ]);
   });
 
+  test("projects the user's minP onto the min_p wire field (D68-A)", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      capturedBody =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse([
+        'data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}',
+        "data: [DONE]",
+      ]);
+    });
+    await runTurn(makeRequest({ params: { minP: 0.04 } }));
+    expect(capturedBody["min_p"]).toBe(0.04);
+  });
+
   test("a __proto__/constructor-carrying customParameters does not pollute Object.prototype, legit keys still merge (PD-101 Layer 2)", async () => {
     let capturedBody: Record<string, unknown> = {};
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {

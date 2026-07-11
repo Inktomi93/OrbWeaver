@@ -81,15 +81,18 @@ test("personaMetadataWriteSchema rejects a typo'd descriptionPosition at write",
   );
 });
 
-// D32 / cross-injector write guard: assistant @ depth 0 is a response prefill — rejected at write.
-test("personaMetadataWriteSchema rejects the assistant@depth-0 prefill", () => {
+// D66-B (W5, ruling A): the assistant@depth-0 WRITE-reject is REMOVED — authored prefill is now
+// persistable; safety moved from the write guard to the SHAPE delivery gate (a `assistantPrefill:false`
+// model normalizes the trailing assistant at delivery, else it 400s). The write schema keeps only shape
+// validation.
+test("personaMetadataWriteSchema ACCEPTS an assistant@depth-0 prefill (normalized at SHAPE delivery, D66-B)", () => {
   expect(
     personaMetadataWriteSchema.safeParse({
       descriptionPosition: "at_depth",
       inject: { depth: 0, role: "assistant" },
     }).success,
-  ).toBe(false);
-  // The same depth/role is fine once it is NOT a prefill (assistant at depth >= 1 is allowed).
+  ).toBe(true);
+  // assistant at depth >= 1 stays valid too.
   expect(
     personaMetadataWriteSchema.safeParse({
       inject: { depth: 1, role: "assistant" },

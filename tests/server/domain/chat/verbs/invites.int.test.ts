@@ -417,6 +417,161 @@ describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () =>
   });
 });
 
+// acceptInvite — the token-FREE in-app accept-by-id (the notification→accept loop). SELF-AUTHORIZING: the
+// caller's authenticated identity is the authorization (the invite is BOUND to `invitedUserId`). Every failure
+// mode — foreign / share-link / expired / exhausted / declined / revoked / unknown id — collapses to the SAME
+// leak-free NOT_FOUND (no oracle). The seat is server-forced `member`, never host.
+describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
+  test("the bound target accepts by id → seated as a server-forced member at the canon head", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const result = await invites.acceptInvite({ principal: principal(target), inviteId });
+
+    expect(result.chat.id).toBe(chatId);
+    expect(result.participant.userId).toBe(target);
+    expect(result.participant.role).toBe("member"); // NEVER host
+    const [row] = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, target));
+    expect(row?.role).toBe("member");
+    expect(row?.leftSeq).toBeNull(); // present
+    const [inv] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
+    expect(inv?.uses).toBe(1);
+    expect(emitted).toBe(1); // chatUpdated (roster changed)
+  });
+
+  test("a FOREIGN user accepting someone else's targeted invite is a leak-free NOT_FOUND — burns no use", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const attacker = await seedUser(db, "attacker");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await expect(
+      invites.acceptInvite({ principal: principal(attacker), inviteId }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+
+    const attackerRows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, attacker));
+    expect(attackerRows).toHaveLength(0);
+    const [inv] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
+    expect(inv?.uses).toBe(0); // untouched — still acceptable by its real target
+    expect(inv?.status).toBe("pending");
+  });
+
+  test("a SHARE-LINK invite (no invitedUserId) is NOT acceptable by id — token-only → NOT_FOUND", async () => {
+    const host = await seedUser(db, "host");
+    const anyone = await seedUser(db, "anyone");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok"); // untargeted share-link
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await expect(
+      invites.acceptInvite({ principal: principal(anyone), inviteId }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    const rows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, anyone));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("an EXPIRED targeted invite → NOT_FOUND", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
+    await db
+      .update(chatInvites)
+      .set({ expiresAt: FROZEN_AT - 1 })
+      .where(eq(chatInvites.id, inviteId));
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await expect(
+      invites.acceptInvite({ principal: principal(target), inviteId }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
+  test("an EXHAUSTED targeted invite (uses == maxUses) → NOT_FOUND", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target, maxUses: 1 });
+    await db
+      .update(chatInvites)
+      .set({ uses: 1, status: "accepted" })
+      .where(eq(chatInvites.id, inviteId));
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await expect(
+      invites.acceptInvite({ principal: principal(target), inviteId }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
+  test("a DECLINED or REVOKED targeted invite → NOT_FOUND", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const declinedId = await seedInvite(chatId, "d", { invitedUserId: target });
+    const revokedId = await seedInvite(chatId, "r", { invitedUserId: target });
+    await db.update(chatInvites).set({ status: "declined" }).where(eq(chatInvites.id, declinedId));
+    await db.update(chatInvites).set({ status: "revoked" }).where(eq(chatInvites.id, revokedId));
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await expect(
+      invites.acceptInvite({ principal: principal(target), inviteId: declinedId }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(
+      invites.acceptInvite({ principal: principal(target), inviteId: revokedId }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
+  test("an unknown inviteId → NOT_FOUND (never confirms existence)", async () => {
+    const stranger = await seedUser(db, "stranger");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+    await expect(
+      invites.acceptInvite({
+        principal: principal(stranger),
+        inviteId: castId<ChatInviteId>("chat_invite_ghost"),
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
+  test("an already-present member re-accepting is idempotent — recovers their existing membership, no burn", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target, maxUses: 2 });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const first = await invites.acceptInvite({ principal: principal(target), inviteId });
+    expect(first.participant.userId).toBe(target);
+    // Re-fire while still present — must NOT burn a second use, and must recover the existing membership.
+    const again = await invites.acceptInvite({ principal: principal(target), inviteId });
+    expect(again.participant.userId).toBe(target);
+    expect(again.participant.role).toBe("member");
+
+    const [inv] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
+    expect(inv?.uses).toBe(1); // NOT 2 — the re-accept burned nothing
+    expect(inv?.status).toBe("pending");
+  });
+});
+
 describe("revokeInvite / declineInvite — status transitions", () => {
   test("the host revokes a pending invite", async () => {
     const host = await seedUser(db, "host");

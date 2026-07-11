@@ -16,6 +16,8 @@
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import type { Runner } from "../contract/runner";
 import { assetsBackfillRunner } from "../runners/assets-backfill";
+import { assetsFsckRunner } from "../runners/assets-fsck";
+import { assetsGcRunner } from "../runners/assets-gc";
 import { computeCooccurrenceRunner } from "../runners/compute-cooccurrence";
 import { computeThemesRunner } from "../runners/compute-themes";
 import { crewCardEvolutionRunner } from "../runners/crew-card-evolution";
@@ -60,6 +62,8 @@ export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {
   "find-duplicates": findDuplicatesRunner,
   csls: cslsRunner,
   "assets-backfill": assetsBackfillRunner,
+  "assets-gc": assetsGcRunner,
+  "assets-fsck": assetsFsckRunner,
   "import-st": importStRunner,
   "reconcile-stats": reconcileStatsRunner,
   "refresh-model-catalog": refreshModelCatalogRunner,

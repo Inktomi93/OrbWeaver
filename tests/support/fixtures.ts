@@ -96,7 +96,7 @@ async function callerFor(app: ServicesResult, auth: Principal | null): Promise<A
       services: app.services,
       rateLimit: ALLOW_ALL_RATE_LIMIT,
       presence: app.presence,
-      singleUserMode: false,
+      multiHumanCapable: true,
       csrfHeaderPresent: false,
       clientIp: "127.0.0.1",
     }),

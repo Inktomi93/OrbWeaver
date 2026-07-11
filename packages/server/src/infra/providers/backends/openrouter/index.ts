@@ -170,11 +170,13 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
     // async so a synchronous guard throw (wrong api / wrong credential source) surfaces as a rejected
     // promise — the contract method must always be awaitable.
     runChatTurn: async (req: ChatRequest): Promise<ChatResult> => {
-      if (req.api === "agent-sdk") {
+      // The OR backend serves only the OpenAI-spec apis (chat-completions/responses). The Anthropic-Messages
+      // wire is anth-direct's charter (agent-sdk over the CLI transport; anth-direct over DIRECT) — never OR.
+      if (req.api === "agent-sdk" || req.api === "anthropic-messages") {
         throw new ProviderError({
           kind: "invalid",
           retryable: false,
-          message: 'openrouter backend does not serve the "agent-sdk" api',
+          message: `openrouter backend does not serve the "${req.api}" api`,
         });
       }
       const narrowed: OpenRouterChatRequest = req;

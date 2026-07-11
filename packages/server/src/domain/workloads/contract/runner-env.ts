@@ -17,12 +17,14 @@
 // result types are workload-OWNED (`contract/workload-result`) on BOTH sides of the seam — the runner still
 // PROJECTS into `ResultByKind` (it does not re-export a sibling's internal result type; invariant intact).
 
+import type { UserId } from "@orb/kit/ids";
 import type { Cas } from "#infra/storage";
 import type {
   AnalyticsResult,
   BackfillPassResult,
   CatalogRefreshResult,
   EmbedPassResult,
+  FsckReport,
   MemoryBackfillResult,
   ReconcileStatsWorkloadResult,
 } from "./workload-result";
@@ -33,39 +35,72 @@ export interface MaintenancePassCounts {
   readonly changed: number;
 }
 
+// F3/MODE convention: every op a SINGULAR-capable kind drives carries an `ownerId: UserId | null` — `null` =
+// the BULK all-owners/cross-tenant pass (the neo global sweep), a `UserId` = the SINGULAR pass scoped to that
+// one owner's producers (the runner passes the row's raw `ownerId`; the source domain filters its
+// enumeration/read + scopes its writes). Bulk-ONLY ops (reconcile-stats/refresh-model-catalog/cooccurrence)
+// carry NO `ownerId` — they have no per-owner concept. For the CREATE-kind `import.importAll`, `ownerId` is the
+// TARGET user (bulk = import INTO X; singular = the caller's own).
+
 /** embeddings.* — the ONE vector write path's bulk passes. `force` re-embeds matched rows (else resumable
- *  skip). Provided by the `embeddings` domain at the root. Consumed by `embed-corpus` / `embed-assets`. */
+ *  skip). `ownerId` scopes the enumeration (null = all owners). Consumed by `embed-corpus` / `embed-assets`. */
 export interface WorkloadEmbeddingsEnv {
-  readonly embedCorpus: (args: { force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
-  readonly embedAssets: (args: { force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
+  readonly embedCorpus: (args: {
+    ownerId: UserId | null;
+    force: boolean;
+    signal: AbortSignal;
+  }) => Promise<EmbedPassResult>;
+  readonly embedAssets: (args: {
+    ownerId: UserId | null;
+    force: boolean;
+    signal: AbortSignal;
+  }) => Promise<EmbedPassResult>;
 }
 
 /** discovery.* — the semantics passes. `computeHubScores` is the CSLS write-back: discovery COMPUTES then
- *  calls `embeddings.writeHubScores` (the column owner) internally — workloads sees one op. Provided by
- *  `discovery`. Consumed by `compute-themes`/`distill-characters`/`compute-cooccurrence`/`find-duplicates`/`csls`. */
+ *  calls `embeddings.writeHubScores` (the column owner) internally — workloads sees one op. `ownerId` scopes
+ *  to one owner (null = all/cross-tenant). `computeCooccurrence` is bulk-only (no per-owner concept). Consumed
+ *  by `compute-themes`/`distill-characters`/`compute-cooccurrence`/`find-duplicates`/`csls`. */
 export interface WorkloadDiscoveryEnv {
-  readonly computeThemes: (args: { k: number; signal: AbortSignal }) => Promise<AnalyticsResult>;
-  readonly distillCharacters: (args: { signal: AbortSignal }) => Promise<AnalyticsResult>;
+  readonly computeThemes: (args: {
+    ownerId: UserId | null;
+    k: number;
+    signal: AbortSignal;
+  }) => Promise<AnalyticsResult>;
+  readonly distillCharacters: (args: {
+    ownerId: UserId | null;
+    signal: AbortSignal;
+  }) => Promise<AnalyticsResult>;
   readonly computeCooccurrence: (args: { signal: AbortSignal }) => Promise<AnalyticsResult>;
-  readonly findDuplicates: (args: { signal: AbortSignal }) => Promise<AnalyticsResult>;
-  readonly computeHubScores: (args: { signal: AbortSignal }) => Promise<AnalyticsResult>;
+  readonly findDuplicates: (args: {
+    ownerId: UserId | null;
+    signal: AbortSignal;
+  }) => Promise<AnalyticsResult>;
+  readonly computeHubScores: (args: {
+    ownerId: UserId | null;
+    signal: AbortSignal;
+  }) => Promise<AnalyticsResult>;
 }
 
-/** import.* — the ST bulk import loop (collect → import each → post-import reconcile). Provided by `import`.
- *  Consumed by `import-st`. */
+/** import.* — the ST bulk import loop (collect → import each → post-import reconcile). `ownerId` is the TARGET
+ *  the imported rows are minted under (a CREATE-kind — singular = the caller's own, bulk = the designated
+ *  user X; never `null` for import). Provided by `import`. Consumed by `import-st`. */
 export interface WorkloadImportEnv {
   readonly importAll: (args: {
+    ownerId: UserId;
     dryRun: boolean;
     signal: AbortSignal;
   }) => Promise<MaintenancePassCounts>;
 }
 
-/** assets.* — the GC/backfill maintenance verbs that RUN AS WORKLOADS (PD-26). `backfillAvatars` re-pairs
- *  avatar refs; `collectGarbage`/`reapIfOrphan`/`fsck` are the sweep/verify passes. Provided by `assets` at
- *  the root once its PD-26 wave lands; consumed by `assets-backfill` (and the GC verbs when their kinds add).
- *  workloads declares the SEAM now (the wiring this domain owns); the op bodies are assets' composition root. */
+/** assets.* — the GC/backfill/fsck maintenance verbs that RUN AS WORKLOADS (PD-26). `backfillAvatars`
+ *  re-pairs avatar refs (`ownerId` scopes to one owner, null = all — the SWEEP-kind); `collectGarbage` is the
+ *  grace-windowed mark-sweep GC; `fsck` is the read-only integrity report. GC/fsck are global BOX-OWNER passes
+ *  (no per-owner concept). Provided by `assets` at the root; consumed by `assets-backfill`/`assets-gc`/
+ *  `assets-fsck`. The op result types are workload-OWNED (the runner PROJECTS the domain's richer result). */
 export interface WorkloadAssetsEnv {
   readonly backfillAvatars: (args: {
+    ownerId: UserId | null;
     dryRun: boolean;
     signal: AbortSignal;
   }) => Promise<MaintenancePassCounts>;
@@ -73,13 +108,17 @@ export interface WorkloadAssetsEnv {
     dryRun: boolean;
     signal: AbortSignal;
   }) => Promise<MaintenancePassCounts>;
-  readonly fsck: (args: { signal: AbortSignal }) => Promise<MaintenancePassCounts>;
+  readonly fsck: (args: { signal: AbortSignal }) => Promise<FsckReport>;
 }
 
-/** stats.* — the full rollup rebuild from canon (the `reconcile-stats` workload + the import post-settle).
- *  Provided by `stats` (`reconcileStats`). Consumed by `reconcile-stats`. */
+/** stats.* — the rollup rebuild from canon (the `reconcile-stats` workload + the import post-settle).
+ *  `ownerId` scopes to ONE owner (SINGULAR — rebuild MY rollups; the underlying pass is per-owner-native);
+ *  null = every owner (BULK). Provided by `stats` (`reconcileStats`). Consumed by `reconcile-stats`/`import-st`. */
 export interface WorkloadStatsEnv {
-  readonly reconcileStats: (args: { signal: AbortSignal }) => Promise<ReconcileStatsWorkloadResult>;
+  readonly reconcileStats: (args: {
+    ownerId: UserId | null;
+    signal: AbortSignal;
+  }) => Promise<ReconcileStatsWorkloadResult>;
 }
 
 /** connection.* — the provider catalog snapshot refreshes, COUNTS ONLY (no provider entry shapes cross
@@ -97,7 +136,10 @@ export interface WorkloadConnectionEnv {
  * `ChatContext` — summarizer/embeddings/regex ops — so the env is built AFTER chat).
  */
 export interface WorkloadMemoryEnv {
-  readonly backfill: (args: { signal: AbortSignal }) => Promise<MemoryBackfillResult>;
+  readonly backfill: (args: {
+    ownerId: UserId | null;
+    signal: AbortSignal;
+  }) => Promise<MemoryBackfillResult>;
 }
 
 /**
@@ -106,7 +148,10 @@ export interface WorkloadMemoryEnv {
  * idempotent via the find-first short-circuit).
  */
 export interface WorkloadCharacterEnv {
-  readonly backfillGroupCharacters: (args: { signal: AbortSignal }) => Promise<BackfillPassResult>;
+  readonly backfillGroupCharacters: (args: {
+    ownerId: UserId | null;
+    signal: AbortSignal;
+  }) => Promise<BackfillPassResult>;
 }
 
 /**

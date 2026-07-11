@@ -8,8 +8,9 @@
 // `@orb/contracts/assets`; `isAssetHash` is `@orb/kit/assets`; `BLOB_WIDTHS`/`snapBlobWidth` are
 // domain-internal POLICY (`substrate/variant-policy`, imported down by the entry blob route) — none re-exported.
 //
-// FLAG[PD-26]: the maintenance verbs' result/param types (Backfill/Gc/Fsck/Reap) join this surface
-// with their verbs in the GC/backfill wave (see service.ts).
+// The maintenance/DR verbs (PD-26 + PD-84) are on `AssetsService`, but their param/result types
+// (Backfill/Gc/Fsck/Reap/Rebuild) are DOMAIN-INTERNAL (`contract/maintenance.ts`) — CLI/workload consumers
+// only, no client — so they are NOT re-exported here (a workload imports the service type; see service.ts).
 
 export type { AssetMetadata } from "./contract/results";
 export type { AssetsService } from "./contract/service";

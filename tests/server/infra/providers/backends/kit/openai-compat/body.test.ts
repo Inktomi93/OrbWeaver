@@ -34,6 +34,7 @@ describe("buildOpenAiSamplingFields", () => {
         frequencyPenalty: 0.1,
         presencePenalty: 0.2,
         repetitionPenalty: 1.1,
+        minP: 0.05,
         logitBias: { "123": -1 },
         stop: ["END"],
       }),
@@ -42,9 +43,14 @@ describe("buildOpenAiSamplingFields", () => {
       frequency_penalty: 0.1,
       presence_penalty: 0.2,
       repetition_penalty: 1.1,
+      min_p: 0.05,
       logit_bias: { "123": -1 },
       stop: ["END"],
     });
+  });
+
+  test("emits min_p (D68-A) — the vLLM/BYO wire slot for the minP knob", () => {
+    expect(buildOpenAiSamplingFields({ minP: 0.02 })).toEqual({ min_p: 0.02 });
   });
 });
 

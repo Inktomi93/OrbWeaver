@@ -5,22 +5,21 @@
 // SETTINGS_CATEGORIES — the ONE home for the settings overlay's left-nav geography (ux-flow-revamp J11 ·
 // UI-Arch §4.2 region map: the `settings` modal's USER/APP groups). A registry-as-data map so the shell
 // renders the nav from it (never bespoke JSX per row) and adding/renaming a category is a data edit. The
-// category-id + group unions are DERIVED INLINE from the tuples (`(typeof …)[number]`) — NOT exported as
-// `type` aliases (a feature-lib type leak the `types-in-contract` plugin flags; the rail-slots.ts pattern:
-// export the tuple + interface, derive the union inline). Every category carries its own DISTINCT teaching
+// SHAPE vocabulary (tuples, interfaces, `settingsAnchorId`) lives in settings-nav-model.ts (the §2.1
+// component-size split — this file holds the DATA). Every category carries its own DISTINCT teaching
 // copy (the same honesty discipline as the section placeholders, J10) so a deferred pane reads as "this
 // specific thing isn't built yet", never a generic sparkle.
 //
 // SCOPE (J11 — the governing split): settings holds ONLY user/app PREFERENCES. Generation config is NOT
 // here — it is the Presets rail section (a later lane); do not add a generation/preset category.
-// TODAY: Appearance is the one REAL pane (the #31 surface migrates in as the exemplar, `built: true`);
+// Real panes today: Appearance · Personas · Tags · System · Admin (owner ∪ admin only — `adminOnly`);
 // every other category is an honest "not built yet" pane that lands with its own feature lane.
 
-import type { LucideIcon } from "@orb/ui/icons";
 import {
   CircleUser,
   Drama,
   ExternalLink,
+  Gauge,
   Hash,
   Lock,
   MessagesSquare,
@@ -28,58 +27,9 @@ import {
   SunMoon,
   Zap,
 } from "@orb/ui/icons";
-
-/** The two nav GROUPS (UI-Arch §4.2 — the settings region's USER + APP micro-caps labels). The union is
- *  derived inline where needed (`(typeof SETTINGS_GROUPS)[number]`), never an exported alias. */
-export const SETTINGS_GROUPS = ["user", "app"] as const;
-
-/** Every settings category, in render order (grouped below). Adding one = a tuple member + a map entry;
- *  the `Record<…, SettingsCategory>` then forces the copy (a missing category is a tsc error). */
-export const SETTINGS_CATEGORY_IDS = [
-  "account",
-  "personas",
-  "appearance",
-  "tags",
-  "chat-behavior",
-  "connections",
-  "automation",
-  "system",
-  "admin",
-] as const;
-
-/** One searchable/jumpable setting inside a subcategory (Discord/VS-Code grammar — the leaf of the
- *  SETTINGS_INDEX). `keywords` widen fuzzy search past the label (synonyms the user might type). */
-export interface SettingsSetting {
-  readonly id: string;
-  readonly label: string;
-  readonly keywords?: readonly string[];
-}
-
-/** A subcategory = one anchored SECTION inside a pane (the Appearance pane's `<Section>`s). The nav
- *  renders these as indented rows under the active category; each stamps a stable anchor node
- *  (`settingsAnchorId(categoryId, id)`) the search jumps to. */
-export interface SettingsSubcategory {
-  readonly id: string;
-  readonly label: string;
-  readonly keywords?: readonly string[];
-  readonly settings?: readonly SettingsSetting[];
-}
-
-export interface SettingsCategory {
-  /** Which nav group this category renders under (drives the USER/APP micro-caps grouping). */
-  readonly group: (typeof SETTINGS_GROUPS)[number];
-  readonly label: string;
-  /** The nav-row glyph (a lucide icon from the icons barrel). */
-  readonly icon: LucideIcon;
-  /** Distinct teaching copy for the pane — real panes ignore it; deferred panes render it (J11/J10). */
-  readonly description: string;
-  /** `true` when a real surface exists for this pane (only Appearance today); false ⇒ teaching placeholder. */
-  readonly built: boolean;
-  /** The pane's anchored sections, in render order. Empty for teaching placeholders (nothing to jump
-   *  to). The nav renders these as indented subcategory rows; the surface stamps each `<Section>` with
-   *  `settingsAnchorId(categoryId, sub.id)`. */
-  readonly subcategories?: readonly SettingsSubcategory[];
-}
+// `SETTINGS_GROUPS` rides the type import — this file only ever uses it in `typeof` type positions.
+import type { SETTINGS_GROUPS, SettingsCategory } from "./settings-nav-model";
+import { SETTINGS_CATEGORY_IDS } from "./settings-nav-model";
 
 /** Appearance pane subcategory ids — the ONE home shared by the registry AND the surface's `<Section>`
  *  anchor stamps, so a typo/rename is a `tsc` error, never a stale anchor (registry-as-data). */
@@ -107,7 +57,17 @@ export const SYSTEM_SUBCATEGORY_IDS = {
   mediaTrust: "media-trust",
   compute: "compute",
   sharedAccess: "shared-access",
+  multiUser: "multi-user",
   operations: "operations",
+} as const;
+
+/** Workloads pane subcategory ids (the per-user background-jobs pane; same one-home discipline). */
+export const WORKLOADS_SUBCATEGORY_IDS = { jobs: "jobs" } as const;
+
+/** Admin pane subcategory ids (the user-administration + ops pane; same one-home discipline). */
+export const ADMIN_SUBCATEGORY_IDS = {
+  users: "users",
+  engines: "engines",
 } as const;
 
 export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number], SettingsCategory> =
@@ -293,6 +253,27 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
         },
       ],
     },
+    workloads: {
+      group: "user",
+      label: "Workloads",
+      icon: Gauge,
+      description: "Run and monitor background jobs over your library.",
+      built: true,
+      subcategories: [
+        {
+          id: WORKLOADS_SUBCATEGORY_IDS.jobs,
+          label: "Jobs",
+          keywords: ["jobs", "background", "queue", "tasks", "progress", "retry", "cancel"],
+          settings: [
+            {
+              id: "run-workload",
+              label: "Run a workload",
+              keywords: ["start", "embed", "import", "backfill", "themes", "duplicates", "bulk"],
+            },
+          ],
+        },
+      ],
+    },
     "chat-behavior": {
       group: "user",
       label: "Chat behavior",
@@ -384,6 +365,15 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
           ],
         },
         {
+          id: SYSTEM_SUBCATEGORY_IDS.multiUser,
+          label: "Multi-user",
+          keywords: ["auth", "login", "invite", "accounts", "humans", "discreet"],
+          settings: [
+            { id: "local-multi-user", label: "Allow multiple humans (local mode)" },
+            { id: "discreet-login", label: "Discreet login" },
+          ],
+        },
+        {
           id: SYSTEM_SUBCATEGORY_IDS.operations,
           label: "Operations",
           keywords: ["jobs", "logging", "diagnostics"],
@@ -406,8 +396,45 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       group: "app",
       label: "Admin",
       icon: Lock,
-      description: "User administration — available on multi-user deployments.",
-      built: false,
+      description: "Accounts, sessions, and the local inference engines on this deployment.",
+      built: true,
+      adminOnly: true,
+      subcategories: [
+        {
+          id: ADMIN_SUBCATEGORY_IDS.users,
+          label: "Users",
+          keywords: ["accounts", "people", "members", "roles", "agents"],
+          settings: [
+            {
+              id: "create-user",
+              label: "Create user",
+              keywords: ["add", "invite", "account", "handle", "password"],
+            },
+            {
+              id: "user-roles",
+              label: "Roles & access",
+              keywords: ["role", "admin", "owner", "promote", "demote", "disable", "enable"],
+            },
+            {
+              id: "user-sessions",
+              label: "Sessions",
+              keywords: ["devices", "revoke", "sign out", "kick", "password reset"],
+            },
+          ],
+        },
+        {
+          id: ADMIN_SUBCATEGORY_IDS.engines,
+          label: "Engines",
+          keywords: ["vllm", "gpu", "inference", "restart", "supervisor", "health"],
+          settings: [
+            {
+              id: "engine-restart",
+              label: "Restart an engine",
+              keywords: ["vllm", "bounce", "hung", "failed", "embed", "rerank"],
+            },
+          ],
+        },
+      ],
     },
   };
 
@@ -416,19 +443,4 @@ export function categoryIdsForGroup(
   group: (typeof SETTINGS_GROUPS)[number],
 ): readonly (typeof SETTINGS_CATEGORY_IDS)[number][] {
   return SETTINGS_CATEGORY_IDS.filter((id) => SETTINGS_CATEGORIES[id].group === group);
-}
-
-/** The human label for each group's micro-caps nav heading. */
-export const SETTINGS_GROUP_LABELS: Record<(typeof SETTINGS_GROUPS)[number], string> = {
-  user: "User",
-  app: "App",
-};
-
-/** The DOM id of a subcategory's anchor node — derived from the registry keys, never a scattered
- *  string literal. The surface stamps this on the `<Section>`; the nav/search `scrollIntoView`s it. */
-export function settingsAnchorId(
-  categoryId: (typeof SETTINGS_CATEGORY_IDS)[number],
-  subId: string,
-): string {
-  return `settings-anchor-${categoryId}-${subId}`;
 }

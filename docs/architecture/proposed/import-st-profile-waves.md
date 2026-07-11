@@ -1,10 +1,54 @@
 ---
 kind: spec
 status: draft
-updated: 2026-07-03
+updated: 2026-07-10
 ---
 
 # Import — the ST-profile waves (PD-77 + PD-78): chats · personas · lorebook · loader · backfill
+
+> **PARTIAL BUILD (2026-07-10) — the PURE FOUNDATION landed; the DB-integration waves remain.**
+> BUILT + test-pinned (the load-bearing parser esoterica, all pure / zero-I/O):
+> - `domain/import/substrate/chat.ts` — `parseChatJsonl` + `parseStDate` + `buildVariants` (empty-swipe
+>   drop + active-index remap) + the `ChatBucket` classifier (esoterica 1 filename-date-wins + 3
+>   empty-swipe-drop carried verbatim). Test: `tests/server/domain/import/substrate/chat.test.ts`.
+> - `domain/import/substrate/persona.ts` — `parseStPersonas` + the ST position→placement normalization
+>   (`@orb/kit/persona` + the message-role bimap). Test: `.../substrate/persona.test.ts`.
+> - `#kit/serde/card` — the lorebook IN serde co-located next to the OUT half: `extractLorebook` /
+>   `selectBestCharacterBook` / `loreEntryColumns` / `loreEntryMetadata` (`constant→scopeMode:always`;
+>   `extensions.{position:4,depth,role}→inject`). Byte-identical round-trip pinned in
+>   `tests/server/kit/serde/card/index.test.ts`. (Resolves the §"lorebook wave" OPEN — co-located, NOT a
+>   split world-entry module.)
+> - `domain/import/contract/views.ts` — the parser return contracts (`ParsedChat`/`ParsedChatMessage`/
+>   `ParsedVariant`/`ChatBucket`+`CHAT_BUCKETS` tuple/`ParsedPersona`/`ParsedPersonas`/`CollectResult` +
+>   the `CollectedCard`/`CollectedChat`/`CollectedPersona`/`ImportPersonaInput`/`ImportChatsInput` shapes).
+>
+> BUILT (2026-07-10, the domain CORE — RULING A: ONE `ImportContext`, gaining an OPTIONAL `profile`
+> bundle carrying the `db` handle + clock + minters + `personaByUserName` + the PD-78 ops; the card verbs
+> read NONE of it, so the card slice + its harness are unchanged):
+> - `persistence/chat-writer.ts` — the D26 slot⋈variant 3-step writer + inline founding roster (chat's
+>   roster.ts row shape — import can't sideways-import chat) + branch resolution (pass-2, character-seat
+>   scoped) + esoterica 2 (`updatedAt = Math.max(send_dates)`) + 4 (`importHash` dedup pre-fetch + mid-loop).
+>   ONE `db.batch` per chat; `db.transaction()` banned.
+> - `verbs/import-chats.ts` (ownership gate → chat-writer → PD-78 backfill enqueue on `real_conversation`) +
+>   `verbs/import-personas.ts` (dedup-by-name, populates `personaByUserName`). `require-profile.ts` guards the
+>   profile deps. Wired into `service.ts`. Int-tests: `tests/server/domain/import/verbs/import-{chats,
+>   personas}.int.test.ts` (chats→messages→variants+roster+branch+dedup+backfill-gate; persona dedup+attribution).
+> - `loader/collect.ts` (`collectBundlesFromDir` — slug pairing, collision disambig, `IMPORT_SKIP_CHARACTERS`,
+>   fuzzy pairing; I/O via the injected `ImportFsPort` — `node:fs`/`node:path` stay at the composition tier).
+>   The port TYPE lives in `contract/views.ts` (the type-home gate forbids `loader/fs-port.ts` holding an
+>   exported type — the file was dropped; the node impl is built at `entry/`).
+> - `contract/{views,results,service}.ts` grew the profile contracts + `ImportProfileDeps` + the PD-78 op types.
+>
+> STILL UNBUILT (the ENTRY-composition wave + the lorebook writer — the `FLAG[PD-77]`/`FLAG[PD-78]` markers in
+> `run-profile-import.ts` / `runner-env.ts` STAY until these land):
+> - the `run-profile-import.ts` driver extension (personas-first → `collectBundlesFromDir` → per-character
+>   store→`importCharacter`→`importChats` → inline `reconcileStats`) + the `env.import.importAll` bind
+>   (runner-env.ts + threading character/assets/tag/persona/workloads.start into the runner-env at services.ts)
+>   + the real `ImportFsPort` (`node:fs`) at `entry/`. The PROFILE-DIR SOURCE is the deferred delivery layer
+>   (#104 — zip/upload/onboarding); `importAll` binds once a dir trigger exists.
+> - `persistence/lorebook-writer.ts` — the `world_books`/`world_entries`/`character_books` write (the IN serde
+>   `extractLorebook`/`loreEntryColumns`/`loreEntryMetadata` is BUILT + round-trip-pinned; only the DB write +
+>   its driver step remain). Independent of chats/personas/backfill (character-embedded WI).
 
 > **Status: unbuilt design (blocked:later).** Carved out of the gutted `domains/import.md` when the
 > built card slice went code-is-truth. The BUILT surface — `parseCardPng`/`parseCardJson` →

@@ -173,6 +173,11 @@ function writeAllFixtures(): void {
     "packages/ui/src/__dc/minisearch-sealbreach.ts",
     `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`,
   );
+  // search-minisearch-seal: minisearch (server side) belongs to domain/search/substrate/field-index.ts only.
+  fx(
+    "packages/server/src/domain/search/__dc/minisearch-sealbreach.ts",
+    `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`,
+  );
 
   // ── The @orb/ui INTERNAL cake (groups → primitives → lib/tokens) ──
   fx("packages/ui/src/primitives/__dc_prim/i.ts", VAL);

@@ -80,10 +80,11 @@ export function createEmbedAssets(
   ctx: EmbeddingsContext,
   deps: EmbedAssetsDeps,
 ): EmbeddingsService["embedAssets"] {
-  return async ({ force, signal }: EmbedPassParams): Promise<BulkEmbedResult> => {
+  return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;
-    for (const assetId of await ctx.listImageAssetIds()) {
+    // `ownerId` scopes the sweep to ONE owner (SINGULAR — embed MY assets); `null` = every owner (BULK).
+    for (const assetId of await ctx.listImageAssetIds(ownerId)) {
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }

@@ -7,6 +7,8 @@
 
 export type { ChatListAnchorProps } from "./anchors/chat-list-anchor";
 export { ChatListAnchor } from "./anchors/chat-list-anchor";
+export type { JoinInviteDialogProps } from "./anchors/join-invite-dialog";
+export { JoinInviteDialog } from "./anchors/join-invite-dialog";
 export type { MessageThreadAnchorProps } from "./anchors/message-thread-anchor";
 export { MessageThreadAnchor } from "./anchors/message-thread-anchor";
 export type { ChatHeaderSurfaceProps, DraftChatHeaderProps } from "./components/chat-header";
@@ -22,6 +24,7 @@ export { useSendMessage } from "./hooks/use-send-message";
 export type { UseStopTurnResult } from "./hooks/use-stop-turn";
 export { useStopTurn } from "./hooks/use-stop-turn";
 export { isContinueEligible } from "./lib/continue-on-empty";
+export { clearJoinParam, readJoinToken } from "./lib/join-token";
 export type { ChatContextPanelProps } from "./surfaces/chat-context-panel-surface";
 export { ChatContextPanel } from "./surfaces/chat-context-panel-surface";
 export type { ChatLandingSurfaceProps } from "./surfaces/chat-landing-surface";

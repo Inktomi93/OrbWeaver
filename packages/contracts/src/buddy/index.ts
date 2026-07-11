@@ -73,8 +73,10 @@ export const STAT_NAMES = ["LORE", "WIT", "WARMTH", "MISCHIEF", "FOCUS"] as cons
 export type StatName = (typeof STAT_NAMES)[number];
 export const statNameSchema = z.enum(STAT_NAMES);
 
-const STAT_MIN = 1;
-const STAT_MAX = 100;
+/** The per-stat clamp bounds (1–100). Exported so the reactor's stat nudge (domain/buddy/observer) clamps
+ *  to the SAME range the schema validates — one home for the axis. */
+export const STAT_MIN = 1;
+export const STAT_MAX = 100;
 /** Exhaustive over `StatName` (zod 4 `z.record` of an enum key → full, non-partial `Record`). */
 export const companionStatsSchema = z.record(
   statNameSchema,

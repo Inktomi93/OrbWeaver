@@ -19,6 +19,7 @@ import { chatRouter } from "./routers/chat";
 import { connectionRouter } from "./routers/connection";
 import { credentialsRouter } from "./routers/credentials";
 import { discoveryRouter } from "./routers/discovery";
+import { invitesRouter } from "./routers/invites";
 import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
 import { presetRouter } from "./routers/preset";
@@ -78,6 +79,7 @@ export const appRouter = t.router({
   connection: connectionRouter,
   credentials: credentialsRouter,
   discovery: discoveryRouter,
+  invites: invitesRouter,
   notifications: notificationsRouter,
   persona: personaRouter,
   preset: presetRouter,

@@ -7,33 +7,39 @@ updated: 2026-07-03
 # Proposed: workloads — deferred designs (per-user authz, DAG scheduler, kind collapse)
 
 > **Status: proposed / deferred-with-criteria.** Salvaged from the gutted `domains/workloads.md`
-> (2026-07-03). The workloads domain is BUILT; these are the three genuinely-unbuilt designs that were
-> locked with explicit trigger criteria. Everything else the old doc described is carried by the code
-> (`domain/workloads/*` headers, `@orb/db/schema/workloads.ts`, `@orb/contracts/workloads`, the test
-> suites).
+> (2026-07-03). The workloads domain is BUILT. Of the three designs this doc locked, **§1 (per-user
+> workloads / F3) LANDED 2026-07-10** — recorded below as as-built, not deferred. §2 (DAG scheduler) and
+> §3 (kind collapse) remain genuinely unbuilt with their trigger criteria. Everything else is carried by
+> the code (`domain/workloads/*` headers, `@orb/db/schema/workloads.ts`, `@orb/contracts/workloads`, the
+> test suites).
 
-## 1. Per-user workloads (F3) — the verb-level ownership assertion
+## 1. Per-user workloads (F3) — BUILT (2026-07-10), as a `singular | bulk` MODE axis
 
-Today every workload verb is `adminProcedure`-gated at tRPC and workloads are deployment-global.
-`ownerId`/`userId` is threaded through the verbs and the runner context as the **audit subject only**
-— it is NOT an authorization input (`contract/params.ts` + `contract/service.ts` say so). Do not
-remove the field; it is the forward-compat hook.
+Landed beyond the originally-locked "ownership assertion in the verbs": every run now carries a **mode**.
+The as-built (the code is the law — `@orb/contracts/workloads` `WORKLOAD_KIND_MODES`, `verbs/start.ts`
+`authorizeAndResolveOwner`):
 
-**Criterion:** when non-admin workload triggers land.
-
-**The locked design:**
-
-- Wire the ownership assertion **in the verbs** (replacing sole reliance on the procedure gate):
-  `workload.ownerId === principal.userId || can(principal, 'admin', global)` — owner∪admin via the
-  `can()` seam, never a bare `role === 'admin'` check (D17).
-- `bindRoleClients(ownerId)` already resolves the owning user's per-role credential/model pins, so the
-  runner bodies do not change (`await ctx.roleClients.<role>(…)` is already owner-scoped), and the
-  runner bodies are already `ctx.userId`-scoped.
-- Agents-as-principals already enqueue through the injected `WorkloadService.start`, so an
-  agent-triggered workload simply carries the agent's `users` row id as `ownerId`.
-
-**Open question to settle at build time:** the `cancel`/`get`/`list` authz model — admin-sees-all vs
-owner-scoped listing.
+- **`singular`** — a normal authed caller (`authedProcedure`) runs over their OWN `ownerId` (`start`
+  stamps `ownerId = caller`; a request can't stamp a foreign owner). `list`/`get`/`cancel`/`retry`/
+  `subscribe` are IDOR-scoped to the caller's own rows (foreign id → leak-free NOT_FOUND); admin∪owner
+  get the deployment-wide view (the settled answer to the old open question — **owner-scoped for users,
+  admin-sees-all**), role decided via the `can()` seam (D17), never a bare `role === 'admin'`.
+- **`bulk`** — BOX-OWNER-only (`requireOwner`, double-gated router + verb; a `null` caller = a trusted
+  system/scheduler trigger). A SWEEP-kind bulk runs across all owners (`ownerId = null`); a CREATE-kind
+  bulk (`import-st`) MINTS into a required `targetOwnerId` ("import INTO user X").
+- **Per-kind mode policy is the ONE home** — `WORKLOAD_KIND_MODES` (`singular`/`bulk`/`bulkRequiresTarget`
+  /`stub`), tsc-exhaustive; consumers read the flags, never branch on a kind id. `stub:true` marks a
+  not-yet-built runner (hidden from the run UI). Single-active lock is per-`(kind, ownerId)` for singular,
+  per-`(kind)` for bulk.
+- **CORRECTION to this doc's original claim** ("the runner bodies are already `ctx.userId`-scoped"):
+  they were NOT — the neo-ported `embed-corpus`/`memory-backfill`/analytics runners enumerated ALL owners'
+  producers (a global-corpus assumption). The rekey threaded `ownerId` into the enumeration/analytics ops
+  so a singular run touches only the caller-owner's producers (and its writes; e.g. themes/duplicates
+  delete-scope by owner). `csls` is ALWAYS owner-scoped (never a cross-tenant whole-space read; bulk = a
+  per-owner fan-out) — the previously-unscoped hub read was deleted.
+- Client: a per-user **Workloads** settings category (all authed users see their own; the owner also gets
+  a "Maintenance" group for bulk-only built kinds). Agents-as-principals enqueue through the injected
+  `WorkloadService.start` carrying the agent's `ownerId`, unchanged.
 
 ## 2. `dependsOn` enforcement — the DAG scheduler
 

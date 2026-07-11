@@ -71,6 +71,9 @@ async function buildRunnerContext(
   return {
     db: deps.db,
     userId,
+    // The RAW row owner — the enumeration scope (`null` = a BULK all-owners sweep; a `UserId` = the SINGULAR
+    // one-owner pass). Distinct from `userId` (which maps null → the synthetic system id for role binding).
+    ownerId: row.ownerId,
     roleClients: await deps.bindRoleClients(userId),
     loadUserSettings: () => deps.loadUserSettings(userId),
     env: deps.env,

@@ -1,14 +1,15 @@
-// domain/buddy/persistence/queries — ALL db access for `buddies` + `buddy_turns` (queries only, no
-// business logic). The domain's own tables; the only writer. Projections that call `substrate/mood`
-// derived facets stay here (the read shape). The `buddy_quips` queries (insert/sweep/loadRecent) belong
-// to the DEFERRED observer — added with it. Ids + timestamps are SUPPLIED by the verb (the injected
-// determinism seam: `ctx.newTurnId()`/`ctx.now()`) — `persistence/` never mints an id or reads the clock.
+// domain/buddy/persistence/queries — ALL db access for `buddies` + `buddy_turns` + `buddy_quips` (queries
+// only, no business logic). The domain's own tables; the only writer. Projections that call `substrate/mood`
+// derived facets stay here (the read shape). The `buddy_quips` queries (insert/loadRecent/sweep) + the
+// reactor's optimistic-CAS write (`casReact`) are the observer's persistence (PD-45/PD-64). Ids + timestamps
+// are SUPPLIED by the caller (the injected determinism seam: `ctx.newTurnId()`/`env.newQuipId()`/`now()`) —
+// `persistence/` never mints an id or reads the clock.
 
-import type { CompanionStats } from "@orb/contracts/buddy";
+import type { CompanionStats, Mood } from "@orb/contracts/buddy";
 import type { Db } from "@orb/db";
-import { buddies, buddyTurns } from "@orb/db";
-import type { BuddyTurnId, UserId } from "@orb/kit/ids";
-import { desc, eq, sql } from "drizzle-orm";
+import { buddies, buddyQuips, buddyTurns } from "@orb/db";
+import type { BuddyQuipId, BuddyTurnId, UserId } from "@orb/kit/ids";
+import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import type { BuddyTurnRole, BuddyTurnView } from "../contract/results";
 import type { BuddyView } from "../contract/views";
 import { bondTierOf, formOf, stageOf } from "../substrate/mood";
@@ -17,6 +18,7 @@ import { roll } from "../substrate/roll";
 // DB-row types — drizzle-inferred, module-local (NOT exported; `no-inline-types`). Callers infer them.
 type BuddyRow = typeof buddies.$inferSelect;
 type BuddyTurnRow = typeof buddyTurns.$inferSelect;
+type BuddyQuipRow = typeof buddyQuips.$inferSelect;
 
 /** Load the caller's buddy row, or null if not hatched. */
 export async function loadBuddy(db: Db, userId: UserId): Promise<BuddyRow | null> {
@@ -184,4 +186,90 @@ export function turnToView(row: BuddyTurnRow): BuddyTurnView {
     text: row.content,
     createdAt: row.createdAt,
   };
+}
+
+// ── The observer reaction engine's writes/reads (PD-45 / PD-64) ──────────────────────────────────────
+
+/** The optimistic-CAS reactor write: apply ONE reaction (mood + stat nudge + bond growth + the dedup/
+ *  cooldown anchors) to the `buddies` row, gated on the loaded `updatedAt`. Returns `true` when the row
+ *  was still at `expectedUpdatedAt` (the write landed), `false` when a racing reaction moved it first (the
+ *  reactor reloads + recomputes — the bounded retry). `bondXp` is a SERVER-SIDE `sql` increment (never
+ *  read-modify-write — the same reason as {@link growBond}), so a concurrent bond grant is never lost even
+ *  when the CAS itself succeeds. `stats` IS a read-modify-write (the caller computed the nudged map from the
+ *  same loaded row), which is why the whole write is CAS-gated: a lost stats update ⇒ 0 rows ⇒ recompute. */
+export async function casReact(
+  db: Db,
+  args: {
+    readonly userId: UserId;
+    readonly expectedUpdatedAt: number;
+    readonly mood: Mood;
+    readonly stats: CompanionStats;
+    readonly bondDelta: number;
+    readonly lastSignalKey: string;
+    readonly now: number;
+  },
+): Promise<boolean> {
+  const moved = await db
+    .update(buddies)
+    .set({
+      mood: args.mood,
+      stats: args.stats,
+      bondXp: sql`${buddies.bondXp} + ${args.bondDelta}`,
+      lastReactionAt: args.now,
+      lastSignalKey: args.lastSignalKey,
+      updatedAt: args.now,
+    })
+    .where(and(eq(buddies.userId, args.userId), eq(buddies.updatedAt, args.expectedUpdatedAt)))
+    .returning({ userId: buddies.userId });
+  return moved.length > 0;
+}
+
+/** Append one reaction quip (the observer's spoken output). Id + `generatedAt` come from the injected
+ *  determinism seam (the observer env). `signalKind` is the triggering `BuddySignalKind` (free text — the
+ *  domain-internal union `@orb/db` cannot import; schema/buddy.ts). */
+export async function insertQuip(
+  db: Db,
+  quip: {
+    readonly id: BuddyQuipId;
+    readonly userId: UserId;
+    readonly text: string;
+    readonly signalKind: string;
+    readonly mood: Mood;
+    readonly fromCanned: boolean;
+    readonly generatedAt: number;
+  },
+): Promise<void> {
+  await db.insert(buddyQuips).values(quip);
+}
+
+/** The caller's most-recent quips, newest-first (hover-history hydration; the live bubble is the SSE bus). */
+export async function loadRecentQuips(
+  db: Db,
+  userId: UserId,
+  limit: number,
+): Promise<BuddyQuipRow[]> {
+  return await db
+    .select()
+    .from(buddyQuips)
+    .where(eq(buddyQuips.userId, userId))
+    .orderBy(desc(buddyQuips.generatedAt), desc(buddyQuips.id))
+    .limit(limit);
+}
+
+/** Sweep a user's quip log down to the newest `keep` (schema/buddy.ts: "swept to ~20/user"). Two queries
+ *  (find the survivors' ids, then delete the rest) rather than a correlated DELETE subquery — libSQL has no
+ *  `DELETE … LIMIT`, and the survivor set is tiny. Returns the number deleted. */
+export async function sweepQuips(db: Db, userId: UserId, keep: number): Promise<number> {
+  const survivors = await db
+    .select({ id: buddyQuips.id })
+    .from(buddyQuips)
+    .where(eq(buddyQuips.userId, userId))
+    .orderBy(desc(buddyQuips.generatedAt), desc(buddyQuips.id))
+    .limit(keep);
+  const keepIds = survivors.map((r) => r.id);
+  const removed = await db
+    .delete(buddyQuips)
+    .where(and(eq(buddyQuips.userId, userId), notInArray(buddyQuips.id, keepIds)))
+    .returning({ id: buddyQuips.id });
+  return removed.length;
 }

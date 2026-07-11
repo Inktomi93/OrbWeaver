@@ -13,6 +13,8 @@
 import {
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
+  DEFAULT_DISCREET_LOGIN,
+  DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
 } from "@orb/contracts/settings";
 import { createAutosaveEntityForm } from "#forms";
@@ -35,6 +37,8 @@ const DEFAULT_SYSTEM_SETTINGS_FORM: SystemSettingsForm = {
   allowNonOwnerLocalCompute: DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   nonOwnerLocalComputeBudget: null,
   allowNonOwnerMaxProSub: DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
+  localMultiUser: DEFAULT_LOCAL_MULTI_USER,
+  discreetLogin: DEFAULT_DISCREET_LOGIN,
 };
 
 export const useSystemSettingsForm = createAutosaveEntityForm<SystemSettingsForm>({

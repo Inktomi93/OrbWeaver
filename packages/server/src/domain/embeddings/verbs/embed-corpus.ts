@@ -22,10 +22,11 @@ export function createEmbedCorpus(
   ctx: EmbeddingsContext,
   deps: { readonly store: EmbeddingsService["store"] },
 ): EmbeddingsService["embedCorpus"] {
-  return async ({ force, signal }: EmbedPassParams): Promise<BulkEmbedResult> => {
+  return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;
-    for (const characterId of await ctx.listCharacterIds()) {
+    // `ownerId` scopes the sweep to ONE owner (SINGULAR — embed MY corpus); `null` = every owner (BULK).
+    for (const characterId of await ctx.listCharacterIds(ownerId)) {
       if (signal.aborted) {
         break; // cooperative abort between items — every completed embed is durable + idempotent
       }

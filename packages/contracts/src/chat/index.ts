@@ -785,26 +785,13 @@ export const AUTHORS_NOTE_DEFAULT_DEPTH = 4;
 /** The default author's-note role when the stored directive carries no `role`. */
 export const AUTHORS_NOTE_DEFAULT_ROLE: MessageRole = "system";
 
-// assistant @ depth 0 = a trailing assistant message = response PREFILL — unsupported across providers (the
-// SAME write guard the card `depthPrompt` (`cardDepthPromptWriteSchema`), WI, and persona injections apply).
-const AUTHORS_NOTE_PREFILL_DEPTH = 0;
-
-/** The room author's note as the shared `{depth?, role?, prompt}` directive. Mirrors
- *  `cardDepthPromptWriteSchema`'s `assistant@depth-0` prefill rejection; a legacy bare string is coerced to
- *  `{prompt}` by {@link roomAuthorsNoteSchema} BEFORE this runs, so the guard only ever sees the object. */
+/** The room author's note as the shared `{depth?, role?, prompt}` directive; a legacy bare string is coerced
+ *  to `{prompt}` by {@link roomAuthorsNoteSchema} BEFORE this runs, so the guard only ever sees the object.
+ *  D66-B (W5, ruling A): the assistant\@depth-0 prefill WRITE-reject is REMOVED — authored prefill is
+ *  persistable; the SHAPE delivery gate normalizes it on a `assistantPrefill:false` model. Shape only. */
 const roomAuthorsNoteDirectiveSchema = injectionDirectiveSchema
   .partial()
-  .extend({ prompt: overrideField })
-  .superRefine((val, ctx): void => {
-    if (val.role === "assistant" && val.depth === AUTHORS_NOTE_PREFILL_DEPTH) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["depth"],
-        message:
-          "assistant-role at depth 0 is a response prefill — unsupported across providers. Use depth >= 1, or role user/system.",
-      });
-    }
-  });
+  .extend({ prompt: overrideField });
 
 /** The stored room author's note: the shared injection directive, coercing a LEGACY bare string → `{prompt}`
  *  so pre-#22 `chatMetadata` blobs round-trip losslessly (the migration seam). */
@@ -1097,6 +1084,17 @@ export const redeemInviteSchema = z.object({
   token: z.string().min(INVITE_TOKEN_MIN),
 });
 export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
+
+/** Accept a TARGETED invite by its id — the in-app notification→accept path (the token-free twin of
+ *  `redeemInviteSchema`). No raw token: the invitee's own authenticated identity is the authorization (the
+ *  invite is BOUND to their `invitedUserId`), so the `/join/:token` link never has to leave the app. Keyed by
+ *  the `inviteId` the durable `invite` notification carries — the same handle `declineInvite` takes. A
+ *  share-link (untargeted) invite is NOT acceptable by id (token-only); a foreign/invalid id is a leak-free
+ *  NOT_FOUND downstream. */
+export const acceptInviteSchema = z.object({
+  inviteId: brandedId<ChatInviteId>(),
+});
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 
 /** The preview-then-confirm result — deliberately MINIMAL: room name / host handle / member COUNT / mode
  *  label ONLY. NO roster identities, NO history (Part III §2 — those replay from `joinSeq` AFTER accept). */

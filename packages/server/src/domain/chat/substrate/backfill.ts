@@ -21,9 +21,10 @@
 // partial sweep is safe (every unit is independently idempotent) and the next run resumes the rest.
 
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
-import { chats } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
+import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../contract/context";
 import type {
@@ -38,9 +39,28 @@ import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadRoster } from "../persistence/roster";
 import { resolveGroupBucketCharacterId } from "./group-bucket";
 
-/** Every chat id (the sweep universe — temporary chats included; they are live rooms until reaped). */
-async function loadAllChatIds(ctx: ChatContext): Promise<ChatId[]> {
-  const rows = await ctx.db.select({ id: chats.id }).from(chats);
+/** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to the
+ *  chats that user HOSTS — a present `kind='human' AND role='host'` participant with `leftSeq IS NULL` (the
+ *  one authority + funding source, D18/D19; a departed ex-host row must NOT re-attribute the chat). This is
+ *  the workloads SINGULAR memory/group sweep ("MY chats"); omitted/null = every chat (the BULK dev sweep). */
+async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Promise<ChatId[]> {
+  if (hostUserId === undefined || hostUserId === null) {
+    const rows = await ctx.db.select({ id: chats.id }).from(chats);
+    return rows.map((r) => r.id);
+  }
+  const rows = await ctx.db
+    .select({ id: chats.id })
+    .from(chats)
+    .innerJoin(
+      chatParticipants,
+      and(
+        eq(chatParticipants.chatId, chats.id),
+        eq(chatParticipants.kind, "human"),
+        eq(chatParticipants.role, "host"),
+        eq(chatParticipants.userId, hostUserId),
+        isNull(chatParticipants.leftSeq),
+      ),
+    );
   return rows.map((r) => r.id);
 }
 
@@ -102,12 +122,13 @@ async function scopesFor(
  */
 export async function backfillMemory(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal },
+  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillCounts> {
   const segments = { scanned: 0, changed: 0 };
   const digests = { scanned: 0, changed: 0 };
-  for (const chatId of await loadAllChatIds(ctx)) {
+  // `ownerId` scopes the sweep to that user's HOSTED chats (SINGULAR — my memory); null = every chat (BULK).
+  for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
       break; // cooperative abort between chats — every completed unit is durable + idempotent
     }
@@ -151,10 +172,11 @@ export async function backfillMemory(
  */
 export async function backfillGroupCharacters(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal },
+  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
 ): Promise<BackfillPassCounts> {
   const counts = { scanned: 0, changed: 0 };
-  for (const chatId of await loadAllChatIds(ctx)) {
+  // `ownerId` scopes the sweep to that user's HOSTED group rooms (SINGULAR); null = every room (BULK).
+  for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
       break;
     }

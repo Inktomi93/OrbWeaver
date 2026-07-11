@@ -105,10 +105,13 @@ test("entryMetadataWriteSchema accepts a valid blob and a lenient open record", 
   ).toBe(true);
 });
 
-test("entryMetadataWriteSchema REJECTS assistant-role at depth 0 (the prefill guard)", () => {
+// D66-B (W5, ruling A): the assistant@depth-0 WRITE-reject is REMOVED — authored prefill is now
+// persistable; the SHAPE delivery gate normalizes it on a `assistantPrefill:false` model. Shape
+// validation stays.
+test("entryMetadataWriteSchema ACCEPTS assistant-role at depth 0 (normalized at SHAPE delivery, D66-B)", () => {
   const prefill = { inject: { depth: 0, role: "assistant" } };
-  expect(entryMetadataWriteSchema.safeParse(prefill).success).toBe(false);
-  // depth 0 with role user/system is fine — only assistant prefill is rejected.
+  expect(entryMetadataWriteSchema.safeParse(prefill).success).toBe(true);
+  // depth 0 with role user/system stays valid.
   expect(entryMetadataWriteSchema.safeParse({ inject: { depth: 0, role: "user" } }).success).toBe(
     true,
   );

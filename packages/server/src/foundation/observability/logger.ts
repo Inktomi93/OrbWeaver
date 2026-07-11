@@ -137,10 +137,15 @@ export const logger: Logger = pino(
         "req.headers.cookie",
         "authorization",
         "token",
+        // The `@anthropic-ai/sdk` constructor field (anth-direct, D67 §5): `token` ≠ `authToken` and
+        // `*.token` will not match it — the one credential field the existing belt misses. The outbound
+        // OR Bearer key rides this ctor arg; defense-in-depth behind the metadata-only emit doctrine.
+        "authToken",
         "apiKey",
         "password",
         "*.authorization",
         "*.token",
+        "*.authToken",
         "*.apiKey",
         "*.password",
         "*.ciphertext",

@@ -9,9 +9,11 @@ import type { ReactElement } from "react";
 // The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
 // Rail precedent) — AppearanceSettingsSurface + SystemSettingsSurface are mounted by SettingsShell itself,
 // not exported standalone.
+import { AdminSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/admin-settings-surface";
 import { AppearanceSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/appearance-settings-surface";
 import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
 import { TagsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/tags-settings-surface";
+import { WorkloadsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/workloads-settings-surface";
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
@@ -103,6 +105,35 @@ export function SystemSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
         <SystemSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The real Admin settings pane (the Users + Engines sections) in isolation — `admin.listUsers`,
+ *  `sessions.me` (the viewer's role for the owner-only role controls), `admin.vllmEngines`, and the
+ *  row-verb mutations are stubbed per-test via routeTrpc. TooltipProvider for the menu chrome. */
+export function AdminSettingsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <AdminSettingsSurface />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The real Workloads settings pane (the per-user jobs surface) in isolation — `workloads.list`,
+ *  `sessions.me` (the viewer's role for the owner-only bulk affordances + the cross-owner view),
+ *  `admin.listUsers` (owner∪admin only — the gated handle map / target picker), the workload verbs,
+ *  and the `workloads.subscribe` SSE tail are stubbed per-test via routeTrpc + a local SSE route. */
+export function WorkloadsSettingsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <WorkloadsSettingsSurface />
       </div>
     </CtDataProviders>
   );

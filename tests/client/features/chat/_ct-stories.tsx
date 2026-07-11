@@ -17,6 +17,7 @@ import {
   CommandPaletteSurface,
   Composer,
   DraftContextPanel,
+  JoinInviteDialog,
   MessageListSurface,
   MessageThreadAnchor,
   NewChatPicker,
@@ -50,6 +51,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
+import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
@@ -751,12 +753,17 @@ export function ChatRoomSurfaceStory({
 
 /** The chat CONTEXT panel (task #28 — overrides · preview · injections tabs), over the stubbed network
  *  (`chat.getChat` drives the host gate + overrides; `chat.listChatInjections`/`chat.previewAssembly`
- *  feed the tabs). The `.ct.tsx` sets the routeTrpc stubs (incl. the host/member roster) per case. */
-export function ChatContextPanelStory(): ReactElement {
+ *  feed the tabs). The `.ct.tsx` sets the routeTrpc stubs (incl. the host/member roster) per case.
+ *  `multiHumanCapable` mirrors the route-threaded capability prop (the People-tab gate — invites CT). */
+export function ChatContextPanelStory({
+  multiHumanCapable = false,
+}: {
+  readonly multiHumanCapable?: boolean;
+}): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 560 }}>
-        <ChatContextPanel chatId={CHAT_ID} />
+        <ChatContextPanel chatId={CHAT_ID} multiHumanCapable={multiHumanCapable} />
       </div>
     </CtDataProviders>
   );
@@ -813,6 +820,21 @@ export function ChatCastBarStory(): ReactElement {
           descendant of itself). */}
       <div>
         <ChatCastBar chatId={CHAT_ID} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The topbar chat-identity header (chat-header.tsx) — the roster + the server-resolved host gate come
+ *  from the routeTrpc `chat.getChat` stub the `.ct.tsx` sets per case (`viewerIsHost` gates the ⋯ menu's
+ *  host-only "Preview request…" item). `chat.listMessages` feeds the menu's guided turn actions. */
+export function ChatHeaderStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      {/* A wrapping div so `component` is the WRAPPER (the ⋯ menu popup renders through a Portal — item
+          assertions use the PAGE locator, the ChatOptionsMenuStory precedent). */}
+      <div>
+        <ChatHeaderSurface chatId={CHAT_ID} />
       </div>
     </CtDataProviders>
   );
@@ -917,6 +939,23 @@ export function SpeakAsSelectStory({
       <div>
         <SpeakAsSelect handle={handle} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The `/join` link landing (preview→confirm — the multi-human invites lane) over the stubbed network:
+ *  the `.ct.tsx` scripts `invites.previewInvite` (the minimal room/host/count/mode preview OR the
+ *  leak-free NOT_FOUND) + `invites.redeemInvite`. `onDone` surfaces as rendered text so the CT can
+ *  assert the close/teardown path without a route harness. */
+export function JoinInviteDialogStory({ token }: { readonly token: string }): ReactElement {
+  const [done, setDone] = useState(false);
+  return (
+    <CtDataProviders>
+      {done ? (
+        <p data-testid="ct-join-done">join dialog closed</p>
+      ) : (
+        <JoinInviteDialog token={token} onDone={(): void => setDone(true)} />
+      )}
     </CtDataProviders>
   );
 }

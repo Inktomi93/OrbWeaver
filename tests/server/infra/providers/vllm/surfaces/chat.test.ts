@@ -90,6 +90,36 @@ describe("createVllmChat", () => {
     expect(deltas).toContainEqual({ kind: "reasoning", text: "thinking" });
   });
 
+  test("emits min_p in the wire body when the user set minP (D68-A)", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: { minP: 0.03 } }));
+    expect(sentBody?.["min_p"]).toBe(0.03);
+  });
+
+  test("no min_p field when the user did not set minP (byte-stable)", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: {} }));
+    expect(sentBody).not.toHaveProperty("min_p");
+  });
+
   test("forwards the chatId on each delta", async () => {
     const client = streamingClient(['{"choices":[{"delta":{"content":"x"}}]}']);
     const seen: ChatId[] = [];

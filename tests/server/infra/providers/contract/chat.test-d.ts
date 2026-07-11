@@ -4,6 +4,7 @@
 // only with its first consumer (04 §1). A field appearing there is the "second tool plumbing" D48 rejects.
 import type {
   AgentSdkChatRequest,
+  AnthropicMessagesChatRequest,
   ChatRequest,
   HISTORY_ROLES,
   HistoryRole,
@@ -31,6 +32,29 @@ test("both wire arms carry the three optional D48 fields", () => {
   expectTypeOf<UnionMemberHasKey<WireArm, "tools">>().toEqualTypeOf<true>();
   expectTypeOf<UnionMemberHasKey<WireArm, "toolChoice">>().toEqualTypeOf<true>();
   expectTypeOf<UnionMemberHasKey<WireArm, "responseFormat">>().toEqualTypeOf<true>();
+});
+
+test("the anth-direct arm is TOOL-LESS + runner-owned: no tools/toolChoice/responseFormat/routing/customParams", () => {
+  // The charter (part 02 §2): anth-direct carries NO tools/toolChoice/responseFormat (tool-less), and NO
+  // providerRouting/customParameters (the body is 100% runner-owned — a preset can't inject wire fields).
+  expectTypeOf<UnionMemberHasKey<AnthropicMessagesChatRequest, "tools">>().toEqualTypeOf<false>();
+  expectTypeOf<
+    UnionMemberHasKey<AnthropicMessagesChatRequest, "toolChoice">
+  >().toEqualTypeOf<false>();
+  expectTypeOf<
+    UnionMemberHasKey<AnthropicMessagesChatRequest, "responseFormat">
+  >().toEqualTypeOf<false>();
+  expectTypeOf<
+    UnionMemberHasKey<AnthropicMessagesChatRequest, "providerRouting">
+  >().toEqualTypeOf<false>();
+  expectTypeOf<
+    UnionMemberHasKey<AnthropicMessagesChatRequest, "customParameters">
+  >().toEqualTypeOf<false>();
+  // It DOES carry the assembled history + the SHAPE-computed rolling breakpoint offset (mirrors the wire arms).
+  expectTypeOf<UnionMemberHasKey<AnthropicMessagesChatRequest, "history">>().toEqualTypeOf<true>();
+  expectTypeOf<
+    UnionMemberHasKey<AnthropicMessagesChatRequest, "historyCacheBreakpointFromEnd">
+  >().toEqualTypeOf<true>();
 });
 
 test("HistoryRole derives from the tuple; toolChoice is the four-mode union", () => {

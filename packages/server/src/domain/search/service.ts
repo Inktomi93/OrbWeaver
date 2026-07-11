@@ -7,9 +7,14 @@
 import type { SearchContext, SearchService } from "./contract/service";
 import { createCorpus } from "./verbs/corpus";
 import { createDigests } from "./verbs/digests";
+import { createDiscover } from "./verbs/discover";
+import { createFields, createSuggest } from "./verbs/fields";
 import { createFindCharacters } from "./verbs/find-characters";
+import { createImages } from "./verbs/images";
 import { createKnn } from "./verbs/knn";
 import { createSegments } from "./verbs/segments";
+import { createSimilarArt } from "./verbs/similar-art";
+import { createSimilarCharacters } from "./verbs/similar-characters";
 
 export function createSearchService(ctx: SearchContext): SearchService {
   const knn = createKnn(ctx);
@@ -19,5 +24,11 @@ export function createSearchService(ctx: SearchContext): SearchService {
     digests: createDigests(ctx),
     segments: createSegments(ctx),
     corpus: createCorpus(ctx),
+    images: createImages(ctx),
+    fields: createFields(ctx),
+    suggest: createSuggest(ctx),
+    discover: createDiscover(ctx),
+    similarCharacters: createSimilarCharacters(ctx),
+    similarArt: createSimilarArt(ctx),
   };
 }

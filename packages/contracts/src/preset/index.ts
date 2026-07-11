@@ -28,7 +28,8 @@ import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS } from "#connection";
+import type { Verbosity } from "#connection";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, VERBOSITY_LEVELS } from "#connection";
 import { regexScriptSchema } from "#regex";
 import { defineVersionedConfig } from "#versioned-config";
 
@@ -93,6 +94,8 @@ const TEMPERATURE_MIN = 0;
 const TEMPERATURE_MAX = 2;
 const TOP_P_MIN = 0;
 const TOP_P_MAX = 1;
+const MIN_P_MIN = 0;
+const MIN_P_MAX = 1;
 const PENALTY_MIN = -2;
 const PENALTY_MAX = 2;
 const REPETITION_PENALTY_MIN = 0;
@@ -112,6 +115,7 @@ export const generationKnobSchemas = {
   temperature: z.number().min(TEMPERATURE_MIN).max(TEMPERATURE_MAX).optional(),
   topP: z.number().min(TOP_P_MIN).max(TOP_P_MAX).optional(),
   topK: z.number().int().nonnegative().optional(),
+  minP: z.number().min(MIN_P_MIN).max(MIN_P_MAX).optional(),
   frequencyPenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   presencePenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   repetitionPenalty: z.number().min(REPETITION_PENALTY_MIN).max(REPETITION_PENALTY_MAX).optional(),
@@ -143,12 +147,19 @@ export const userIntentSchema = z
     temperature: generationKnobSchemas.temperature,
     topP: generationKnobSchemas.topP,
     topK: generationKnobSchemas.topK,
+    // minP (D68-A) — RP-critical; a real knob resolved by the funnel into ResolvedSampling.minP and
+    // emitted on every wire with a slot (OR chat `minP`, vLLM/BYO `min_p`). No consumer reads it until W2.
+    minP: generationKnobSchemas.minP,
     frequencyPenalty: generationKnobSchemas.frequencyPenalty,
     presencePenalty: generationKnobSchemas.presencePenalty,
     repetitionPenalty: generationKnobSchemas.repetitionPenalty,
     seed: generationKnobSchemas.seed,
     logitBias: z.record(z.string(), z.number()).optional(),
     stop: z.array(z.string()).optional(),
+    // verbosity (D68-B) — a model-gated OpenAI control; the funnel drops it with a `verbosity_dropped`
+    // warning on a model that doesn't list it, and applies it on its REAL wire home (responses
+    // `text.verbosity`). Vocab DERIVED from connection's VERBOSITY_LEVELS (never re-spelled). Inert until W2.
+    verbosity: z.enum(VERBOSITY_LEVELS).optional(),
 
     compaction: z
       .object({
@@ -164,14 +175,23 @@ export const userIntentSchema = z
       .object({
         claudeEnv: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
         openrouterCustomParameters: z.record(z.string(), z.unknown()).optional(),
-        // agent-sdk ONLY: where the dynamic (volatile, per-turn) system-prompt half is delivered.
-        //   "system" (default) — joined into the ONE system-prompt string. Simple, authoritative
+        // Backend-neutral (D66, W4): where the dynamic (volatile, per-turn) system-prompt half is
+        // delivered. Governs the RESOLVED channel across wire-shapes (the funnel maps it to
+        // `ResolvedChatKnobs.dynamicContextChannel` × the model's `turns.midConversationSystem` gate).
+        //   "system" — joined into the ONE system-prompt string (⇒ `system-block`). Simple, authoritative
         //     position, but ANY change re-writes the whole cached system block (probe-measured ~12.7k).
-        //   "hook" — injected via a UserPromptSubmit hook at the message tail (dynamicContextOptions).
-        //     Cache-safe (never touches the cached prefix), but lands NEAR the user prompt (not up in
-        //     the system prompt) and rides the CLI's `<system-reminder>` channel. A deliberate
-        //     trade-off knob — tweak per preset; the foot-gun is yours to pull.
-        agentSdkDynamicContext: z.enum(["system", "hook"]).optional(),
+        //   "hook" — a mid-conversation-system channel at the message tail (⇒ `message-tail`; agent-sdk
+        //     UserPromptSubmit hook, anth-direct a hand-placed row). Cache-safe (never touches the cached
+        //     prefix). DEMOTED to `system-block` on a model whose wire-shape has no mid-conv-system
+        //     authority (openai-compat, or a non-honoring model). Absent ⇒ the funnel picks `message-tail`
+        //     iff the model honors mid-conv-system, else `system-block`.
+        dynamicContext: z.enum(["system", "hook"]).optional(),
+        // squashSystemMessages (D66-C, W6) — a PROMPT-panel collapse: merge CONSECUTIVE system-note runs
+        // BEFORE they convert to `user` rows at the SHAPE splice (injections mint system-role notes). An
+        // independent collapse the user may want even with `roleHandling:none` — orthogonal to the
+        // adjacent-same-role (user|assistant) merge the connection knob controls. Absent ⇒ no system-note
+        // pre-merge (today's behavior).
+        squashSystemMessages: z.boolean().optional(),
       })
       .optional(),
   })
@@ -781,10 +801,12 @@ export interface PresetFormValues {
   temperature?: number;
   topP?: number;
   topK?: number;
+  minP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
   repetitionPenalty?: number;
   seed?: number;
+  verbosity?: Verbosity;
 
   compactionMode?: CompactionMode;
   compactionThresholdPct?: number;
@@ -835,10 +857,12 @@ export const presetFormValuesSchema = z.object({
   temperature: generationKnobSchemas.temperature,
   topP: generationKnobSchemas.topP,
   topK: generationKnobSchemas.topK,
+  minP: generationKnobSchemas.minP,
   frequencyPenalty: generationKnobSchemas.frequencyPenalty,
   presencePenalty: generationKnobSchemas.presencePenalty,
   repetitionPenalty: generationKnobSchemas.repetitionPenalty,
   seed: generationKnobSchemas.seed,
+  verbosity: z.enum(VERBOSITY_LEVELS).optional(),
 
   compactionMode: z.enum(COMPACTION_MODES).optional(),
   compactionThresholdPct: generationKnobSchemas.compactionThresholdPct,
@@ -888,10 +912,12 @@ function copyParamsToForm(params: UserIntent, out: PresetFormValues): void {
   assignIfDefined(out, "temperature", params.temperature);
   assignIfDefined(out, "topP", params.topP);
   assignIfDefined(out, "topK", params.topK);
+  assignIfDefined(out, "minP", params.minP);
   assignIfDefined(out, "frequencyPenalty", params.frequencyPenalty);
   assignIfDefined(out, "presencePenalty", params.presencePenalty);
   assignIfDefined(out, "repetitionPenalty", params.repetitionPenalty);
   assignIfDefined(out, "seed", params.seed);
+  assignIfDefined(out, "verbosity", params.verbosity);
   if (params.compaction !== undefined) {
     assignIfDefined(out, "compactionMode", params.compaction.mode);
     assignIfDefined(out, "compactionThresholdPct", params.compaction.thresholdPct);
@@ -965,10 +991,12 @@ function formToParams(form: PresetFormValues, server: PromptConfig): UserIntent 
   assignIfDefined(params, "temperature", form.temperature);
   assignIfDefined(params, "topP", form.topP);
   assignIfDefined(params, "topK", form.topK);
+  assignIfDefined(params, "minP", form.minP);
   assignIfDefined(params, "frequencyPenalty", form.frequencyPenalty);
   assignIfDefined(params, "presencePenalty", form.presencePenalty);
   assignIfDefined(params, "repetitionPenalty", form.repetitionPenalty);
   assignIfDefined(params, "seed", form.seed);
+  assignIfDefined(params, "verbosity", form.verbosity);
 
   const serverParams = server.params;
   assignIfDefined(params, "advanced", serverParams.advanced);
@@ -1410,6 +1438,12 @@ function mapParams(raw: Record<string, unknown>, dropped: StDroppedField[]): Use
   setNum(out, "frequencyPenalty", readNum(raw, "frequency_penalty"));
   setNum(out, "presencePenalty", readNum(raw, "presence_penalty"));
   setNum(out, "repetitionPenalty", readNum(raw, "repetition_penalty"));
+  // ST `min_p` maps to the real `minP` knob (D68-A) — ST's default (0) means "off", so only carry a
+  // non-default value (matches the top_a/top_k disabled-sentinel discipline). No longer a dropped field.
+  const minP = readNum(raw, "min_p");
+  if (minP !== undefined && minP !== ST_MIN_P_DEFAULT) {
+    out["minP"] = minP;
+  }
   setNumAbove(out, "maxOutputTokens", readNum(raw, "openai_max_tokens"), ST_DISABLED_NUMERIC);
   setNumAbove(out, "maxContextTokens", readNum(raw, "openai_max_context"), ST_DISABLED_NUMERIC);
 
@@ -1426,14 +1460,10 @@ function mapParams(raw: Record<string, unknown>, dropped: StDroppedField[]): Use
     out["thinkingDisplay"] = showThoughts ? "summarized" : "omitted";
   }
 
-  // Sampling knobs with no neo vocabulary.
+  // Sampling knobs with no neo vocabulary. (`min_p` now maps to `minP` above — no longer dropped.)
   const topA = readNum(raw, "top_a");
   if (topA !== undefined && topA !== ST_TOP_A_DEFAULT) {
     dropped.push({ field: "top_a", reason: "no neo sampling vocab" });
-  }
-  const minP = readNum(raw, "min_p");
-  if (minP !== undefined && minP !== ST_MIN_P_DEFAULT) {
-    dropped.push({ field: "min_p", reason: "no neo sampling vocab" });
   }
 
   // `.catch({})` keeps a stray field from sinking the whole blob.

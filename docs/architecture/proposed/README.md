@@ -162,10 +162,11 @@ exactly this). Current: `FINAL-Character-Library-and-Editor-UX.md` (in build) ·
 `FINAL-Chats-Landing-Room-and-Context-UX.md` (authored 2026-07-09, dispatch-ready) · shipped:
 `../history/FINAL-Persona-and-Immersive-Chat-Visuals.md`.
 
-## 6. Client-slot decide-at-build designs (Phase 6 triggers)
+## 6. Connection-capability & client-slot designs (Phase 6 triggers)
 
 | Effort | Doc | Status | Trigger |
 | - | - | - | - |
+| Capability-complete turn & wire shaping — the UNIFIED program: `ModelCapability.turns` (prefill/mid-conv-system/role-handling floor/explicit cache + per-model `cacheMinTokens`) + the role-merge prefix-cache fix + the SHAPE-clamped user role-handling knob (**D66**) · the anth-direct backend (paid-key-only, TOOL-LESS, additive; official `@anthropic-ai/sdk`; v1 rides the existing `openrouter` source; THE SUB-EXCLUSION + the extended ambient-credential belt; the `cli`/`direct` transport axis) (**D67**) · sampling completeness (minP end-to-end, verbosity live on the responses wire, per-model direct-transport Claude sampling) (**D68**) — all proposed | [`capability-turn-shaping/`](capability-turn-shaping/README.md) (a 4-part set: 01 capability-model · 02 anth-direct · 03 sampling · 04 migration+ledger; absorbed the former `anth-direct-backend/` 2026-07-10) | `draft` (ratification-ready; honor matrix + OR-key SDK path wire-tested 2026-07-10; adversarial review applied 2026-07-10) | ratify D66+D67+D68 together (part 04 §2), then the part-04 §1 waves in order: W1 contracts+resolver (incl. the api-threading fix) → W2 sampling → … — server-side, unblocked, ZERO new credential; the client picker/panels are W10 |
 | Descriptor-driven params panel + `quality` dial mapping | [`connection-capability-panel.md`](connection-capability-panel.md) | deferred:no-client-surface | the client params panel build |
 | `PresetFormValues` + mapper elimination | [`preset-form-mapper-elimination.md`](preset-form-mapper-elimination.md) | deferred:no-client-surface | the preset editor build (criterion: TanStack binds every nested path) |
 | Tag pending-review read verb | [`tag-pending-review.md`](tag-pending-review.md) | deferred:first-consumer | build WITH the Phase-6 tag/character surfaces |

@@ -7,7 +7,7 @@ import type { Runner } from "../contract/runner";
 export const embedAssetsRunner: Runner<"embed-assets"> = async (ctx, params, report, signal) => {
   const force = params.force ?? false;
   report({ message: force ? "re-embedding assets (force)" : "embedding assets" });
-  const result = await ctx.env.embeddings.embedAssets({ force, signal });
+  const result = await ctx.env.embeddings.embedAssets({ ownerId: ctx.ownerId, force, signal });
   report({
     message: "assets embedded",
     current: result.embedded,

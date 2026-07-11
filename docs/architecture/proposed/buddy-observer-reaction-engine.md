@@ -1,17 +1,28 @@
 ---
 kind: spec
-status: draft
-updated: 2026-07-03
+status: shipped
+updated: 2026-07-10
 ---
 
 # Proposed: the buddy `observer/` reaction engine + live bus (PD-45 / PD-64)
 
-> **Status: designed, deferred build.** Extracted from the gutted `domains/buddy.md` — the one
-> subsystem the doc designed that is NOT built (registry rows PD-45 + PD-64 in
-> `core/Core-Audits-and-Debt.md`; the chat/workload event sources it needs now exist, so it is
-> buddy's call to land). Everything BUILT about `domain/buddy` lives in the code:
-> `packages/server/src/domain/buddy/` file headers, `packages/db/src/schema/buddy.ts`,
-> `@orb/contracts/buddy`, and `tests/server/domain/buddy/`.
+> **Status: SHIPPED (2026-07-10).** Built as designed — the `domain/buddy/observer/` subsystem
+> (`start`/`react`/`signal-router`/`signals`/`trace-sampler`/`db-reads`/`canned`), `domain/buddy/bus.ts`,
+> `contract/observer-env.ts` (`BuddyObserverEnv` + the lite event/bus shapes), the `buddy_quips` queries +
+> the optimistic-CAS reactor write in `persistence/queries.ts`, and the `entry/` wiring
+> (`startBuddyObserver` as a supervised out-of-band loop + `entry/compose/buddy-observer.ts`). The tRPC
+> `buddy.stream` subscription fans the per-user bus (server only; a client feed is a separate follow-on).
+> This doc is now the as-BUILT record; the code + file headers are authoritative on any drift.
+>
+> **As-built deltas from the design below:** (1) the belt's agent-owner hop is an INJECTED
+> `BuddyObserverEnv.resolveAgentOwner` wired at the entry root — NOT a `db-reads.ts` method — because it
+> reads `users` (the no-direct-users-read chokepoint; a domain may not). db-reads keeps only the
+> workload-owner + chat-host reads. (2) The belt is RUNTIME-INERT until the seat wave: the public
+> `ChatBusEvent` omits turn identity (D19), so the entry chat adapter feeds `actingUserId: null` — the
+> guard + its test land now, the live trigger arrives with seating. (3) `trace:*` signals fire for the
+> OWNER's buddy (traces are request-scoped, not user-attributed). (4) The chat firehose is a new
+> `subscribeAllChatEvents` tap on the transport chat-events-bus; the workload firehose is a new
+> `subscribeWorkloadEvents` payload seam on the workloads progress-bus.
 
 ## What already exists (build against it, don't re-design)
 

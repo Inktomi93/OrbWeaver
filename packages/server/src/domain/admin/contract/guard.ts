@@ -23,3 +23,9 @@ export type RequireAdmin = (principal: Principal) => UserId;
 /** `can(p, 'owner', global)` — owner-only. Gates the box-credential mint, admin grant/revoke, and the
  *  owner-only surfaces (D17). Returns the gated `userId` (chainable) or throws `DomainForbiddenError`. */
 export type RequireOwner = (principal: Principal) => UserId;
+
+/** The BOOLEAN form of the owner∪admin global gate — for role-AWARE SCOPING (admin sees ALL, a user sees
+ *  only their OWN), where a throw would be control flow rather than a refusal. Routes through the SAME
+ *  `can(p, 'admin', global)` decision (spine invariant #6 — no second role-comparison site). Injected into
+ *  workloads (the F3 per-user list/get/cancel/retry scope choice). */
+export type IsAdmin = (principal: Principal) => boolean;

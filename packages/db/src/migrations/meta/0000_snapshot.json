@@ -8922,6 +8922,14 @@
           "autoincrement": false,
           "default": "'queued'"
         },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'singular'"
+        },
         "params": {
           "name": "params",
           "type": "text",
@@ -8984,11 +8992,17 @@
         }
       },
       "indexes": {
-        "workloads_kind_active": {
-          "name": "workloads_kind_active",
+        "workloads_mode_active_singular": {
+          "name": "workloads_mode_active_singular",
+          "columns": ["kind", "owner_id"],
+          "isUnique": true,
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular'"
+        },
+        "workloads_mode_active_bulk": {
+          "name": "workloads_mode_active_bulk",
           "columns": ["kind"],
           "isUnique": true,
-          "where": "status in ('queued', 'running', 'cancelling')"
+          "where": "status in ('queued', 'running', 'cancelling') and mode = 'bulk'"
         }
       },
       "foreignKeys": {
@@ -9007,11 +9021,15 @@
       "checkConstraints": {
         "workloads_kind_check": {
           "name": "workloads_kind_check",
-          "value": "kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit', 'expressions-sprite-sheet', 'databank-ingest', 'databank-reindex', 'rpg-world-gen', 'rpg-recap', 'rpg-session-distill', 'rpg-director', 'rpg-lorebook-upkeep', 'rpg-illustration', 'rpg-npc-portrait', 'rpg-scene-plan', 'rpg-scene-distill', 'rpg-recruit-card')"
+          "value": "kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit', 'expressions-sprite-sheet', 'databank-ingest', 'databank-reindex', 'rpg-world-gen', 'rpg-recap', 'rpg-session-distill', 'rpg-director', 'rpg-lorebook-upkeep', 'rpg-illustration', 'rpg-npc-portrait', 'rpg-scene-plan', 'rpg-scene-distill', 'rpg-recruit-card')"
         },
         "workloads_status_check": {
           "name": "workloads_status_check",
           "value": "status in ('queued', 'running', 'succeeded', 'failed', 'cancelling', 'cancelled', 'worker_died')"
+        },
+        "workloads_mode_check": {
+          "name": "workloads_mode_check",
+          "value": "mode in ('singular', 'bulk')"
         }
       }
     },

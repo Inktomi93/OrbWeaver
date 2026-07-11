@@ -12,11 +12,11 @@
 // types are cross-boundary; chat feeds the `{kind:'chat',roster}` arm). Re-exported for ergonomics.
 export type { Can, GlobalAction, ResourceRef, UserRole } from "@orb/contracts/identity";
 // The GLOBAL-role wrapper op types the gating domains inject (type-only) at the composition root.
-export type { RequireAdmin, RequireOwner } from "./contract/guard";
+export type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
 export type { AdminService } from "./contract/service";
 export type { AdminUserView } from "./contract/views";
 // The guard seam primitives — injected at the root into the other domains that gate. `canAgent` (D60/PD-17)
 // is the agent arm of the same seam; its injection into chat (the engine's `speak` gate) is AP2 — exported
 // here now for the AP1 unit tests + the AP2 wiring (same posture as `can`).
-export { can, canAgent, requireAdmin, requireOwner } from "./guard";
+export { can, canAgent, isAdmin, requireAdmin, requireOwner } from "./guard";
 export { createAdminService } from "./service";

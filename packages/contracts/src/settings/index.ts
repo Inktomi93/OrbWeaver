@@ -18,7 +18,7 @@
 
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
-import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
+import { chatApiSchema, openRouterProviderRoutingSchema, roleHandlingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
 import { regexScriptSchema } from "#regex";
 // memory retrieval-mode axis is single-homed in #search; settings derives its enum (no inline re-spell).
@@ -168,6 +168,17 @@ export const DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE = true;
 /** Default: non-owner members may NOT drive the owner's hosted `max-pro-sub` (ban-prone + money). */
 export const DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB = false;
 
+// ── Auth-modes runtime toggles (born-in-DB floors; owner ruling FINAL-Auth-Modes-and-Onboarding.md §9:
+// AppSettings wherever possible, ENV only for pre-boot/first-time-setup — these are runtime-flippable,
+// so they are NOT env vars). ──
+/** Default: a `local`-mode install is SINGLE-human (the multi-human surface — invites/join/roster — is
+ *  refused) until the owner flips the toggle. The gate is this STATIC setting, never a live account
+ *  count (§9 ruling 2); multi-CHARACTER group chat is never gated by it (§9 ruling 3). */
+export const DEFAULT_LOCAL_MULTI_USER = false;
+/** Default: the local login form pre-fills the seed handle. ON = ST `enableDiscreetLogin` parity — a
+ *  blank username+password form, no handle pre-fill / user enumeration on the login surface. */
+export const DEFAULT_DISCREET_LOGIN = false;
+
 // ── Generated-image download cap (born-in-DB; no env source). The imagery domain downloads a
 // provider-returned image URL through the SSRF-safe `fetchImageBytes` → `safeFetch` byte cap; high-res
 // models can exceed the baked 5 MB, so the cap is a deployment knob (admin AppSettings). Bounds keep it
@@ -227,6 +238,14 @@ export const appSettingsSchema = z.object({
    *  `DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB` (OFF — ban-prone + real money). The `max-pro-sub` MINT stays
    *  `requireOwner` regardless; this toggle is box governance, not the mint gate. */
   allowNonOwnerMaxProSub: z.boolean().nullable().optional().catch(undefined),
+  /** The `local`-mode multi-HUMAN gate (FINAL-Auth-Modes §9 / B4): OFF (floor) = single-human local —
+   *  the human-invite/human-seat transport surface is refused. Inert outside `local` mode
+   *  (single-user is always false-capable; forward-header/oidc always true — the derivation is
+   *  `entry/app.ts` `multiHumanCapable`). */
+  localMultiUser: z.boolean().nullable().optional().catch(undefined),
+  /** Discreet login (ST `enableDiscreetLogin` parity, local mode): ON = the login form is blank —
+   *  `/api/auth/config` withholds `defaultHandle`. Floor `DEFAULT_DISCREET_LOGIN` (OFF). */
+  discreetLogin: z.boolean().nullable().optional().catch(undefined),
 });
 
 /** The stored OVERRIDE blob — every field optional (missing = use the floor; explicit `null` = cleared,
@@ -311,6 +330,9 @@ const chatRoleConfigSchema = z.object({
   // OpenRouter provider-routing prefs travel with the chat role assignment (routing is global-per-user),
   // NOT on the chat row's metadata. Lenient + self-healing like the rest of the blob.
   providerRouting: openRouterProviderRoutingSchema.optional().catch(undefined),
+  // D66-C (W6): the adjacent-same-role handling knob — a per-connection wire concern beside
+  // `providerRouting` (part 01 §7a). Carried through the resolver to SHAPE, clamped against the model floor.
+  roleHandling: roleHandlingSchema.optional().catch(undefined),
 });
 
 const roleDefaultsSchema = z
@@ -863,6 +885,10 @@ export interface EffectiveAppConfig {
   nonOwnerLocalComputeBudget: number | null;
   /** D17 — may non-owner members drive the owner's HOSTED `max-pro-sub` (floor: OFF). */
   allowNonOwnerMaxProSub: boolean;
+  /** FINAL-Auth-Modes §9 — the `local`-mode multi-HUMAN gate (floor: OFF = single-human local). */
+  localMultiUser: boolean;
+  /** Discreet login (local mode) — blank form, no handle pre-fill (floor: OFF). */
+  discreetLogin: boolean;
   /** Max bytes for a generated-image download (born-in-DB; the imagery `fetchImage` port reads it live to
    *  cap the provider-URL fetch). Floor: `DEFAULT_MAX_IMAGE_BYTES` (5 MB). */
   maxImageBytes: number;

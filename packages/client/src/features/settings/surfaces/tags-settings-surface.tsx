@@ -24,7 +24,8 @@ import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { TagSettingsRow } from "../components/tag-settings-row";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
-import { settingsAnchorId, TAGS_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { TAGS_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { settingsAnchorId } from "../lib/settings-nav-model";
 
 /** The Tags pane body (rendered inside the settings modal's category column). */
 export function TagsSettingsSurface(): ReactElement {

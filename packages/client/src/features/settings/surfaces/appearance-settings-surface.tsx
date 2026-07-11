@@ -66,7 +66,8 @@ import {
   MESSAGE_ACTIONS_ITEMS,
   SEEDED_BACKGROUND_ITEMS,
 } from "../lib/appearance-select-items";
-import { APPEARANCE_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
+import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { settingsAnchorId } from "../lib/settings-nav-model";
 
 // The section-patch mutation (module scope, §13.1). PD user-bus lane: `updateUserSettingsSection` emits
 // `settingsChanged`, and `USER_BUS_FILTERS.settingsChanged` refetches `getUserSettings` — the live-flip

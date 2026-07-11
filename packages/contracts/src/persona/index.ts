@@ -13,19 +13,12 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
-import type { MessageRole } from "@orb/kit/message-role";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { z } from "zod";
 
 const NAME_MIN_LENGTH = 1;
 const NAME_MAX_LENGTH = 200;
 const DESCRIPTION_MAX_LENGTH = 100_000;
-
-// assistant @ depth 0 = a trailing assistant message = response PREFILL — unsupported across providers
-// (the SAME write guard world-info + chat injections apply). The role is pinned to the canonical
-// `MessageRole` axis (`@orb/kit/message-role`) so it can never drift from the union.
-const PREFILL_ROLE: MessageRole = "assistant";
-const PREFILL_DEPTH = 0;
 
 // Persona metadata blob (READ shape): load-bearing placement fields + a loose tail (extras a future
 // feature may stash ride through untouched, mirroring `worldEntries.metadata`). `descriptionPosition`
@@ -56,17 +49,11 @@ export const personaMetadataWriteSchema = z
       for (const issue of known.error.issues) {
         ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
       }
-      return;
     }
-    const inj = known.data.inject;
-    if (inj !== undefined && inj.role === PREFILL_ROLE && inj.depth === PREFILL_DEPTH) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["inject"],
-        message:
-          "assistant-role at depth 0 is a response prefill — unsupported across providers. Use depth >= 1, or role user/system.",
-      });
-    }
+    // D66-B (W5, ruling A): the assistant@depth-0 prefill WRITE-reject is REMOVED — authored prefill is
+    // persistable, and safety moved to the SHAPE delivery gate (a `assistantPrefill:false` model
+    // normalizes the trailing assistant at delivery, `assembly/injections.ts` + `assembly/shape.ts`).
+    // The guard now does shape validation only.
   });
 export type PersonaMetadataWrite = z.infer<typeof personaMetadataWriteSchema>;
 

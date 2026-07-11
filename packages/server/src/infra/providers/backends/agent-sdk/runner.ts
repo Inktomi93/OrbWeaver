@@ -25,7 +25,9 @@ import type {
   ResolvedWarning,
 } from "../../contract";
 import { normalizeFinishReason, ProviderError } from "../../contract";
+import { resolveDynamicContext } from "../../resolve-chat";
 import {
+  logProviderChannel,
   logProviderCompaction,
   logProviderDrift,
   logProviderError,
@@ -108,7 +110,7 @@ export async function runChatTurn(
   deps: AgentSdkDeps,
   sessions: SessionCache,
 ): Promise<ChatResult> {
-  // Route the dynamic (volatile) system-prompt half per the preset knob (default "system" = joined).
+  // Route the dynamic (volatile) system-prompt half per the funnel-RESOLVED `dynamicContextChannel`.
   const { systemPrompt, dynamicHook } = routeDynamicContext(req);
   const gen = toSdkGeneration(req.params, req.capability);
   const { resume, disposition } = await resolveResume(req, sessions);
@@ -179,24 +181,33 @@ export async function runChatTurn(
 }
 
 /**
- * Route the dynamic (volatile, per-turn) system-prompt half per `advanced.agentSdkDynamicContext`:
- *   • "system" (default) — join static+dynamic into the ONE system-prompt string (authoritative, but a
- *     change re-writes the whole cached system block).
- *   • "hook" — send ONLY the static half as the system prompt and inject the dynamic half via a
- *     `UserPromptSubmit` hook (cache-safe; lands at the message tail; probe-verified).
- * Returns the systemPrompt to send plus the (possibly empty) hook option spread.
+ * Route the dynamic (volatile, per-turn) system-prompt half per the RESOLVED `dynamicContextChannel` the
+ * ONE funnel decides (`resolveDynamicContext` × the model's `turns.midConversationSystem` gate). ONE path
+ * for all three agent-sdk modes (sub / OR-key / vllm — they share one wire shape, so one caps profile):
+ *   • "system-block" — join static+dynamic into the ONE system-prompt string (authoritative, but a change
+ *     re-writes the whole cached system block).
+ *   • "message-tail" — send ONLY the static half as the system prompt and inject the dynamic half via a
+ *     `UserPromptSubmit` hook (cache-safe; lands at the message tail; probe-verified). Reached only on a
+ *     model whose wire-shape honors mid-conv-system — else the funnel already DEMOTED it to system-block.
+ * Also emits the `provider.channel` decision line (part 05 §3b) — no model-id branch, just the resolved
+ * facts. Returns the systemPrompt to send plus the (possibly empty) hook option spread.
  */
 function routeDynamicContext(req: AgentSdkChatRequest): {
-  // `buildSystemPrompt` emits the SDK's native `[static, SYSTEM_PROMPT_DYNAMIC_BOUNDARY, dynamic]` array
-  // when both halves are present (else a plain string) — the query-options spread accepts either.
   systemPrompt: string | string[] | undefined;
   dynamicHook: Pick<Parameters<AgentSdkDeps["query"]>[0]["options"] & object, "hooks"> | object;
 } {
-  const mode = req.params.advanced?.agentSdkDynamicContext ?? "system";
-  if (mode !== "hook") {
+  // The funnel's verdict — the SAME resolution `toSdkGeneration`→`resolveChat` runs (pure, deterministic);
+  // its warnings ride the turn via that path, so this local resolution takes a throwaway sink.
+  const channel = resolveDynamicContext(req.params, req.capability, []);
+  const midConvCapable = req.capability.turns?.midConversationSystem ?? false;
+  // Demotion happened iff the user asked for the tail (`hook`) but the model can't honor it.
+  const demoted = req.params.advanced?.dynamicContext === "hook" && !midConvCapable;
+  logProviderChannel({ channel, midConvCapable, demoted });
+
+  if (channel === "system-block") {
     return { systemPrompt: buildSystemPrompt(req.systemPrompt), dynamicHook: {} };
   }
-  // Hook mode: static half rides the system prompt (cached prefix); dynamic half rides the hook.
+  // message-tail: static half rides the system prompt (cached prefix); dynamic half rides the hook.
   const staticOnly = buildSystemPrompt({ static: req.systemPrompt.static, dynamic: "" });
   return {
     systemPrompt: staticOnly,

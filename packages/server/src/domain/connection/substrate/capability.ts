@@ -6,6 +6,7 @@
 
 import type {
   AgentSdkModel,
+  ChatApi,
   ChatSource,
   ModelCapability,
   ModelCatalogEntry,
@@ -13,16 +14,23 @@ import type {
 import type { ModelId } from "@orb/kit/ids";
 import { resolveModelCapability } from "../catalog/resolve-model-capability";
 
-/** Resolve the ONE `ModelCapability` for a `(model, source)`, threading the matching OR catalog entry (if
- *  any) into the synthesis arm AND the cached agent-sdk daemon rows into the max-pro-sub family→version
- *  arm. Both caches are passed in (the verb read them with `ctx.now()`), so this stays pure + deterministic.
- *  The single seam verbs use for the capability descriptor (no direct `catalog/` reach). */
+/** Resolve the ONE `ModelCapability` for a `(model, source, api)`, threading the matching OR catalog entry
+ *  (if any) into the synthesis arm AND the cached agent-sdk daemon rows into the max-pro-sub family→version
+ *  arm. `api` drives the wire-shape the `turns` cell keys on (D66, part 01 §3). Both caches are passed in
+ *  (the verb read them with `ctx.now()`), so this stays pure + deterministic. The single seam verbs use for
+ *  the capability descriptor (no direct `catalog/` reach). */
 export function resolveCapability(
   model: ModelId | string,
   source: ChatSource,
-  cached: readonly ModelCatalogEntry[] | null,
-  agentSdkModels: readonly AgentSdkModel[] | null,
+  api: ChatApi,
+  caches: {
+    readonly cached: readonly ModelCatalogEntry[] | null;
+    readonly agentSdkModels: readonly AgentSdkModel[] | null;
+  },
 ): ModelCapability {
-  const entry = cached?.find((m) => m.id === model);
-  return resolveModelCapability(model, source, entry, agentSdkModels);
+  const entry = caches.cached?.find((m) => m.id === model);
+  return resolveModelCapability(model, source, api, {
+    orEntry: entry,
+    agentSdkModels: caches.agentSdkModels,
+  });
 }

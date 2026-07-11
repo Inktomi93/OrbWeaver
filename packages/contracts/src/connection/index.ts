@@ -5,9 +5,11 @@
 // vocab `{api, source, model}` + the `ModelCapability` descriptor.
 //
 // TWO axes live at the top of this node — keep them distinct:
-//   • ChatApi (CHAT_APIS) — the PROTOCOL axis: `agent-sdk | chat-completions | responses`. CANONICAL
-//     HERE — its own tuple + schema, declared once so the 18 inline re-spellings in neo-tavern become
-//     RED under `no-inline-union-redecl`.
+//   • ChatApi (CHAT_APIS) — the PROTOCOL axis: `agent-sdk | chat-completions | responses |
+//     anthropic-messages`. CANONICAL HERE — its own tuple + schema, declared once so the 18 inline
+//     re-spellings in neo-tavern become RED under `no-inline-union-redecl`. `anthropic-messages` (D67) is
+//     the anth-direct DIRECT-transport wire — the same Anthropic Messages wire the agent-sdk backend
+//     speaks over its CLI transport, but here we own the request body.
 //   • ChatSource — the provider-SOURCE axis. NOT redeclared (D31): it is byte-identical to
 //     `CredentialSource` (`@orb/contracts/credentials`), so this node RE-EXPORTS that one canonical
 //     declaration as `ChatSource` (`export type { CredentialSource as ChatSource }`). Routing's
@@ -31,7 +33,12 @@ import type { CredentialSource, ResolvedCredential } from "#credentials";
 // The chat-completion machinery a turn is addressed by. A separate axis from `ChatSource`: one source
 // (e.g. openrouter) can serve several apis. Every dispatch switch over `api` uses `assertNever` for
 // exhaustiveness; a new api is a member here + a runner arm, nowhere else.
-export const CHAT_APIS = ["agent-sdk", "chat-completions", "responses"] as const;
+export const CHAT_APIS = [
+  "agent-sdk",
+  "chat-completions",
+  "responses",
+  "anthropic-messages",
+] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 export const chatApiSchema = z.enum(CHAT_APIS);
 
@@ -117,6 +124,16 @@ export const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
 export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
 export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES);
 
+/** Adjacent-same-role handling floor (D66). ONE importable union (§5.5 dispatch discipline) — SHAPE's
+ *  effective strategy is the stricter of the floor + the user knob, ordered `none`, `merge`, `semi-strict`,
+ *  `strict` (part 01 §6a; the clamp/merge live at SHAPE, W6). The MODEL/wire FLOOR
+ *  (`turns.roleHandlingFloor`) is derived by the resolver; the user knob (`RouteChatAssignment.roleHandling`,
+ *  W6) may go STRICTER, never looser. `developer` is NOT a member here — it is a reserved DYNAMIC-CONTEXT
+ *  role (D66-D), a separate axis (this axis is about MERGING adjacent user|assistant rows). */
+export const ROLE_HANDLING = ["none", "merge", "semi-strict", "strict"] as const;
+export type RoleHandling = (typeof ROLE_HANDLING)[number];
+export const roleHandlingSchema = z.enum(ROLE_HANDLING);
+
 /** An inclusive numeric range. The ONE place a knob's bounds live — the client panel reads these for
  *  slider min/max and never re-hardcodes them. */
 export const rangeSchema = z.object({ min: z.number(), max: z.number() });
@@ -174,8 +191,54 @@ export const modelCapabilitySchema = z.object({
    *  future `responseFormat` request field reads. */
   output: z.object({ maxTokens: rangeSchema, structured: z.boolean().optional() }),
   context: z.object({ window: z.number(), supports1M: z.boolean().optional() }),
+  /** Turn/message-array capabilities (D66). Absent ⇒ TURNS_FLOOR (the conservative today-behavior).
+   *  Keyed on (WIRE-SHAPE × MODEL): the resolver derives the wire-shape from `(api, source)` via
+   *  `deriveWireShape` (the load-bearing threading fix, part 01 §3) and refines the curated cell per shape.
+   *  Optional like `input`/`tools` so every existing constructor stays valid. */
+  turns: z
+    .object({
+      /** The wire accepts a DELIVERED trailing-assistant message as response prefill. false ⇒ SHAPE
+       *  normalizes/nudges at delivery — MANDATORY: a false-model that receives a trailing assistant
+       *  HARD-400s (wire-tested opus-4.8/sonnet-4.6). Per-model, per-TRANSPORT on anthropic-messages. */
+      assistantPrefill: z.boolean(),
+      /** A mid-conversation system-AUTHORITY channel exists AND this model honors it, placement-correct.
+       *  Keys on (wire-shape × model): TRUE on the anthropic-messages shape for Opus 4.8 (both
+       *  transports — a wire-honor fact); FALSE on the openai-compat shape (accepted, no authority). */
+      midConversationSystem: z.boolean(),
+      /** The MODEL/wire FLOOR for adjacent-same-role handling. Anthropic messages hard-rejects adjacent
+       *  same-role → `strict`. The user knob (W6) may go STRICTER, never looser. A `ROLE_HANDLING` member. */
+      roleHandlingFloor: roleHandlingSchema,
+      /** Explicit prompt caching is worth placing on this (wire-shape × model) — the SHAPE-computed
+       *  rolling breakpoint PAIR + per-block cache_control. Anthropic Claude on both cache-bearing shapes
+       *  qualify (part 01 §2); a non-Anthropic model does not (OR auto-caches non-Anthropic with no field —
+       *  `kit/cache-control.ts`, ruling 3). */
+      explicitPromptCache: z.boolean(),
+      /** The PER-MODEL minimum cacheable prefix (tokens) — below it a breakpoint burns a slot and never
+       *  forms a cache entry (part 02 §5d table; fixes the hardcoded ANTHROPIC_CACHE_MIN_TOKENS=1024 —
+       *  Haiku 4.5 = 4096 undercaches today). Read only when `explicitPromptCache`; CACHE_MIN_FLOOR applies
+       *  when absent. */
+      cacheMinTokens: z.number().int().positive().optional(),
+    })
+    .optional(),
 });
 export type ModelCapability = z.infer<typeof modelCapabilitySchema>;
+
+/** The conservative today-behavior `turns` cell every model defaults to when the resolver cannot refine
+ *  a per-shape cell (D66). Byte-identical to current ENGINE behavior; `explicitPromptCache:false` is the
+ *  one field whose floor differs from a runner's CURRENT unconditional Anthropic-cache placement — so the
+ *  resolver SEEDS it `true` (+ `cacheMinTokens`) for every Claude entry/family to hold today's behavior. */
+export const TURNS_FLOOR: NonNullable<ModelCapability["turns"]> = {
+  assistantPrefill: false,
+  midConversationSystem: false,
+  roleHandlingFloor: "strict",
+  explicitPromptCache: false,
+} as const;
+
+/** The fail-closed minimum cacheable-prefix floor (tokens): the CONSERVATIVE (highest common) value, so an
+ *  unseeded/synthesized `explicitPromptCache` arm without an exact `cacheMinTokens` never under-caches by
+ *  placing a breakpoint below the real floor. A curated entry always carries its exact value (part 02 §5d);
+ *  this default only guards the synthesized/unseeded arm. ONE home — every runner defaults through it (W3). */
+export const CACHE_MIN_FLOOR = 4096;
 
 // --- The model catalog entry (the explicit shape, ex-ReturnType leak) --------
 /**
@@ -250,6 +313,11 @@ export interface ResolvedConnection {
   readonly credential: ResolvedCredential;
   /** The descriptor for this `(model, backend)` — the one source the panel + translator read. */
   readonly capability: ModelCapability;
+  /** The resolved adjacent-same-role handling knob (D66-C, W6) — carried from `RouteChatAssignment.roleHandling`
+   *  through the resolver so SHAPE can clamp it against `capability.turns.roleHandlingFloor`. Unset ⇒ SHAPE
+   *  falls to the floor. NOT part of the wire body (unlike `providerRouting`, threaded separately); this rides
+   *  to `ShapeInput` (part 01 §6a). */
+  readonly roleHandling?: RoleHandling | undefined;
 }
 
 // --- The inference-role axis (RoutingRoleKey — NEW, §7.5) ---------------------
@@ -286,6 +354,11 @@ export interface RouteChatAssignment {
   readonly source?: CredentialSource | undefined;
   readonly model?: string | null | undefined;
   readonly providerRouting?: OpenRouterProviderRouting | undefined;
+  /** Adjacent-same-role handling knob (D66-C, W6) — a per-connection wire concern (not a generation param),
+   *  homed here beside `providerRouting`. The user may go STRICTER than the model's `roleHandlingFloor`, never
+   *  looser; SHAPE computes the effective strategy `max(roleHandlingFloor, roleHandling)` and runs the
+   *  boundary-aware squash (part 01 §6a). Unset ⇒ falls to the model floor at SHAPE. */
+  readonly roleHandling?: RoleHandling | undefined;
 }
 /** The UserSettings projection `resolveChat` overlays beneath the chat row (the per-user chat defaults).
  *  Structurally identical to {@link RouteChatAssignment} — aliased, never re-declared (one home). */

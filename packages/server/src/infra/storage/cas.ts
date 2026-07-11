@@ -53,6 +53,10 @@ export interface Cas {
   blobPath: (ownerId: UserId, hash: string) => string;
   /** Whether `(ownerId, hash)` exists. */
   exists: (ownerId: UserId, hash: string) => Promise<boolean>;
+  /** The blob's last-modified time (epoch-ms), or `undefined` when it doesn't exist. The read counterpart
+   *  of `putBytes`'s mtime bump: `collectGarbage`'s grace window compares this to the injected `now` to skip
+   *  a just-put-but-not-yet-linked blob (the put→link gap). Absent blob ⇒ `undefined` (nothing to protect). */
+  mtimeMs: (ownerId: UserId, hash: string) => Promise<number | undefined>;
   /** Read the bytes of `(ownerId, hash)`. Rejects (ENOENT) if absent. */
   read: (ownerId: UserId, hash: string) => Promise<Uint8Array>;
   /** Re-hash the bytes on disk and compare to the name — catches silent corruption. `false` if missing;
@@ -187,6 +191,16 @@ export function createCas(rootDir: string): Cas {
     }
   }
 
+  async function mtimeMs(ownerId: UserId, hash: string): Promise<number | undefined> {
+    let result: number | undefined;
+    try {
+      result = (await stat(blobPath(ownerId, hash))).mtimeMs;
+    } catch {
+      // Absent (or unreadable) blob — nothing to protect; the grace window treats it as `undefined`.
+    }
+    return result;
+  }
+
   function read(ownerId: UserId, hash: string): Promise<Uint8Array> {
     return readFile(blobPath(ownerId, hash));
   }
@@ -214,6 +228,7 @@ export function createCas(rootDir: string): Cas {
   return {
     blobPath,
     exists,
+    mtimeMs,
     read,
 
     async putBytes(ownerId, bytes, now): Promise<PutResult> {

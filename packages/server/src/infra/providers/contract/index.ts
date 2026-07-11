@@ -57,6 +57,7 @@ export type {
   AgentMcpServerHealth,
   AgentSdkChatRequest,
   AgentSeedTurn,
+  AnthropicMessagesChatRequest,
   ChatHistoryMessage,
   ChatRequest,
   ChatResult,
@@ -96,6 +97,7 @@ export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors";
 // ── Infra-internal: per-turn observability vocab ─────────────────────────────────────────────────
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
 export type {
+  DynamicContextChannel,
   ResolvedChatKnobs,
   ResolvedReasoning,
   ResolvedSampling,
@@ -103,7 +105,7 @@ export type {
   WarningCode,
 } from "./resolve";
 // ── Infra-internal: the resolve-chat funnel's output shapes ──────────────────────────────────────
-export { WARNING_CODES } from "./resolve";
+export { DYNAMIC_CONTEXT_CHANNELS, WARNING_CODES } from "./resolve";
 // ── Infra-internal: the non-chat role requests + image-gen result ────────────────────────────────
 export type {
   EmbedRequest,

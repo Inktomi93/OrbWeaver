@@ -10,7 +10,12 @@
 // `runner`/`family` never appear (sealed in infra). `agentOverride` BEATS the role
 // default (participants-agents-identity.md §2 — a character/buddy on its own backend/model).
 
-import type { ChatApi, ChatSource, ResolvedConnection } from "@orb/contracts/connection";
+import type {
+  ChatApi,
+  ChatSource,
+  ResolvedConnection,
+  RoleHandling,
+} from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -34,6 +39,10 @@ interface RouteSelection {
   readonly source: ChatSource;
   readonly model: string | null;
   readonly chatModel: boolean;
+  /** The adjacent-same-role handling knob (D66-C, W6) — a chat-family concern only (embed/rerank/image roles
+   *  never shape a history). The per-agent override beats `roleDefaults.chat.roleHandling`; unset ⇒ SHAPE
+   *  falls to the model floor. */
+  readonly roleHandling?: RoleHandling | undefined;
 }
 
 // Defaults (named — no magic strings). agent → the owner's sub; summarize/embed/rerank/imageEmbed → the
@@ -65,12 +74,14 @@ const ROLE_SELECTORS: {
       ov?.source ?? rd.chat?.source ?? (isOwner ? DEFAULT_AGENT_SOURCE : DEFAULT_LOCAL_SOURCE),
     model: ov?.model ?? rd.chat?.model ?? null,
     chatModel: true,
+    roleHandling: ov?.roleHandling ?? rd.chat?.roleHandling,
   }),
   agent: (rd, ov) => ({
     api: "agent-sdk",
     source: ov?.source ?? rd.chat?.source ?? DEFAULT_AGENT_SOURCE,
     model: ov?.model ?? rd.chat?.model ?? null,
     chatModel: true,
+    roleHandling: ov?.roleHandling ?? rd.chat?.roleHandling,
   }),
   embed: (rd, ov) => ({
     api: DEFAULT_CHAT_API,
@@ -103,6 +114,9 @@ const ROLE_SELECTORS: {
       source,
       model: ov?.model ?? rd.summarize?.model ?? (isSub ? null : env.VLLM_GEN_MODEL),
       chatModel: true,
+      // summarize has no per-user role-handling default (the settings summarize config carries none) — only
+      // a per-agent override may set it; unset ⇒ SHAPE falls to the model floor.
+      roleHandling: ov?.roleHandling,
     };
   },
   generateImage: (rd, ov) => ({
@@ -142,10 +156,20 @@ function applyVllmFallback(
 }
 
 /** Reject an incoherent `(api, source)` selection (the only thrown-error path). `agent-sdk` serves only the
- *  sub + the OR-skin; `chat-completions`/`responses` cannot run on the agent-sdk-only `max-pro-sub`. */
+ *  sub + the OR-skin; `anthropic-messages` (anth-direct, D67) is OR-skin-only in v1 — the `max-pro-sub`
+ *  SUB-EXCLUSION (§3d) is the load-bearing case; `chat-completions`/`responses` cannot run on the
+ *  agent-sdk-only `max-pro-sub`. */
 function assertCoherent(api: ChatApi, source: ChatSource): void {
   if (api === "agent-sdk") {
     if (source !== "max-pro-sub" && source !== "openrouter") {
+      throw new ConnectionRoutingError(api, source);
+    }
+    return;
+  }
+  if (api === "anthropic-messages") {
+    // v1 rides the existing `openrouter` credential ONLY (part 02 §3a). The sub can NEVER reach the direct
+    // paid endpoint (§3d); every non-openrouter source is likewise invalid until the first-party source (W11).
+    if (source !== "openrouter") {
       throw new ConnectionRoutingError(api, source);
     }
     return;
@@ -189,12 +213,16 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
       principal: params.principal,
       source: selection.source,
     });
-    const capability = resolveCapability(
+    const capability = resolveCapability(model, selection.source, selection.api, {
+      cached: getCachedOrModels(ctx.now()),
+      agentSdkModels: getCachedAgentSdkModels(ctx.now()),
+    });
+    return {
+      api: selection.api,
       model,
-      selection.source,
-      getCachedOrModels(ctx.now()),
-      getCachedAgentSdkModels(ctx.now()),
-    );
-    return { api: selection.api, model, credential, capability };
+      credential,
+      capability,
+      roleHandling: selection.roleHandling,
+    };
   };
 }

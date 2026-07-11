@@ -9,6 +9,7 @@ import type { StatsService } from "./contract/service";
 import { createActivityHeatmap } from "./verbs/activity-heatmap";
 import { createByModel } from "./verbs/by-model";
 import { createCharacter } from "./verbs/character";
+import { createEconomics } from "./verbs/economics";
 import { createFreshness } from "./verbs/freshness";
 import { createLatency } from "./verbs/latency";
 import { createLeaderboard } from "./verbs/leaderboard";
@@ -34,5 +35,6 @@ export function createStatsService(db: Db): StatsService {
     ...createActivityHeatmap(ctx),
     ...createMomentum(ctx),
     ...createLatency(ctx),
+    ...createEconomics(ctx),
   };
 }

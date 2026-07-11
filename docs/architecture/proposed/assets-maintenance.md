@@ -1,21 +1,36 @@
 ---
 kind: spec
-status: draft
-updated: 2026-07-03
+status: shipped
+updated: 2026-07-10
 ---
 
 # Assets — the maintenance/DR wave (PD-26 + PD-84): backfill · GC · reap · fsck · rebuild
 
-> **Status: unbuilt design (deferred:v2-maintenance).** Carved out of the gutted `domains/assets.md`
-> when the built core path (store/getMetadata/resolveVariant/loadAssetBytes/listImageAssetIds + the
-> gallery verbs) went code-is-truth. Registry rows: **PD-26** (the maintenance verbs — DECIDED by Nate
-> 2026-06-28 as a NAMED v2 maintenance/ops pass: the orphan-blob leak is slow + benign, no v1 driver)
-> and **PD-84** (the DR rebuild / orphan-blob edge). The inert seams already exist in code:
-> `entry/compose/runner-env.ts` (`assets.* → notBuilt(…PD-26)`), the `assets-backfill` workload runner
-> (`packages/server/src/domain/workloads/runners/assets-backfill.ts`), and character's no-op
-> `reapAssets` injection (`entry/compose/services.ts`). Build against the CURRENT code, not the old
-> target spec — the domain now has 9 verbs, per-user CAS (D21), and gallery rows (`gallery_items`)
-> that GC must also treat as references.
+> **Status: SHIPPED (2026-07-10).** The five verbs join `AssetsService`
+> (`packages/server/src/domain/assets/verbs/{backfill-avatars,collect-garbage,reap-if-orphan,fsck,
+> rebuild-from-tree}.ts`), over the asset-ref registry (`persistence/asset-refs.ts`) + the shared
+> drop-row-before-blob primitive (`substrate/purge-asset.ts`). Wired: `character.remove`'s `reapAssets` →
+> `assets.reapIfOrphan`; the workload runner-env → the real ops; two new BUILT workload kinds
+> (`assets-gc`, `assets-fsck`, bulk-only, `stub:false`) + a `Cas.mtimeMs` accessor for the grace window.
+> The code + its headers are the law now; this file is the as-built rationale.
+>
+> **AS-BUILT decisions (beyond the original draft):**
+>
+> - **Registry partition (data-integrity call).** The draft named 3 columns; the live schema has EIGHT
+>   FK-to-`assets.id` columns. They are partitioned into RETAINING (7 — avatar/gallery/sprite/doc-source/
+>   NPC/imagery, each pins its blob) and DERIVED (1 — `image_embeddings.asset_id`, regenerable, does NOT
+>   pin). **`image_embeddings` MUST stay excluded** — every image asset has an embedding, so counting it
+>   retaining would make reap/GC reclaim nothing. Ambiguous columns default to RETAINING (over-retaining
+>   leaks a benign blob; under-retaining is silent data loss). The introspection test proves the partition
+>   is TOTAL (every FK column is classified) — the structural close of the silent-GC gap.
+> - **KNOWN LIMITATION:** chat-canon `asset:<id>` references live in message TEXT, not an FK column, so the
+>   registry can't see them. Generated chat images carry an `imagery_generations` row (retained → safe); a
+>   bare uploaded image pasted into a chat with no gallery/avatar/generation row is NOT — GC (a
+>   grace-windowed, operator-triggered pass, never an automatic reaper) could reclaim it after grace.
+>   Widening the registry to a canon-scan is a PD follow-up.
+> - **CLI trigger:** GC/fsck run through the SAME workload/admin surface every other maintenance verb uses
+>   (`assets-gc`/`assets-fsck` kinds) — no bespoke `assets:gc` CLI (off-pattern; import-st/reconcile-stats
+>   have none either). `rebuildFromTree` (DR) stays a service verb for a recovery script.
 
 ## The five verbs (join `AssetsService` when the wave lands)
 
@@ -73,7 +88,7 @@ registry.
 ## `backfillAvatars`
 
 Workload-driven (re)link of staged card PNGs to the flat `characters` row (D28 — no version table):
-bulk-fetch + bounded-concurrency store (concurrency ~8) + batched UPDATE via the `@orb/db/kit` batch
+bulk-fetch + bounded-concurrency store (concurrency \~8) + batched UPDATE via the `@orb/db/kit` batch
 helpers (no inline `BatchItem` casts). Integrity guard: `row.importHash !== stored.hash` ⇒ NOT
 linked, recorded as a mismatch (`importHash` is the whole-file sha-256 on the flat row — the same
 value as the card blob's CAS hash — and is distinct from `contentHash`, the semantic-fields hash).
@@ -86,18 +101,18 @@ already enforces this).
   orphan blobs (blob, no row). The `cas.verify`/`listHashes` infra surface already exists.
 - `rebuildFromTree` — disaster recovery: re-derive index rows for orphan blobs by walking + hashing
   the per-user tree; `sniffMime` supplies a best-effort mime (its second declared caller). This is
-  also the reliability backstop for the `store` emit's orphan-blob edge flagged FLAG[PD-84] in
+  also the reliability backstop for the `store` emit's orphan-blob edge flagged FLAG\[PD-84] in
   `verbs/store.ts` (a rebuilt row was never `asset.created`-emitted; the embeddings `content_hash`
   catch-up sweep — PD-53, built — covers the vectors).
 
 ## Wiring (the seams are already declared, inert)
 
-| Seam                                   | Where it exists today                                                                    | The wave fills it with                                        |
-| -------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `character.remove` targeted cleanup    | `reapAssets: () => Promise.resolve()` (INERT, flagged) at `entry/compose/services.ts`     | `assets.reapIfOrphan` (optional dep — omitting it just defers to the next sweep) |
-| workloads runner-env                   | `runner-env.ts` `assets.* → notBuilt("…PD-26")`; `assets-backfill` runner + test exist   | real bound ops (`backfillAvatars` / `collectGarbage` / `fsck`) |
-| workload kinds                          | only `assets-backfill` declared                                                           | GC/fsck get their own kinds                                     |
-| CLI / ops entry (`assets:gc`, `assets:fsck --rebuild`) | none                                                                       | script or admin ops surface (the PD-26 build trigger: blob-store growth OR an ops/maintenance admin surface landing) |
+| Seam | Where it exists today | The wave fills it with |
+| - | - | - |
+| `character.remove` targeted cleanup | `reapAssets: () => Promise.resolve()` (INERT, flagged) at `entry/compose/services.ts` | `assets.reapIfOrphan` (optional dep — omitting it just defers to the next sweep) |
+| workloads runner-env | `runner-env.ts` `assets.* → notBuilt("…PD-26")`; `assets-backfill` runner + test exist | real bound ops (`backfillAvatars` / `collectGarbage` / `fsck`) |
+| workload kinds | only `assets-backfill` declared | GC/fsck get their own kinds |
+| CLI / ops entry (`assets:gc`, `assets:fsck --rebuild`) | none | script or admin ops surface (the PD-26 build trigger: blob-store growth OR an ops/maintenance admin surface landing) |
 
 ## Adjacent, NOT this wave
 

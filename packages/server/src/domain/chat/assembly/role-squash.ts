@@ -21,11 +21,46 @@
 // adjacent rows with DISTINCT `name` fields are left un-merged (attribution survives; content-labeled and
 // same-speaker runs still merge cleanly).
 
+/** The adjacent-same-role handling axis (D66; imported down from `@orb/contracts/connection`). SHAPE's
+ *  EFFECTIVE strategy is the stricter of the model floor + the user knob, ordered so a higher rank is
+ *  stricter — used by {@link clampRoleHandling}. */
+import type { RoleHandling } from "@orb/contracts/connection";
+
+/** Strictness rank (part 01 §6a: `none < merge < semi-strict < strict`). The clamp takes the MAX rank, so
+ *  the user may go stricter than the model floor but never looser (a looser choice would 400 an
+ *  adjacency-hostile wire). ONE home for the ordering. */
+const ROLE_HANDLING_RANK: Record<RoleHandling, number> = {
+  none: 0,
+  merge: 1,
+  "semi-strict": 2,
+  strict: 3,
+};
+
+/** The effective strategy = `max(floor, knob)` under the strictness ordering (part 01 §6a). The clamp lives
+ *  at SHAPE (ruling 2 — where the merge physically happens). An unset knob defaults to the floor; an unset
+ *  floor defaults to `strict` (TURNS_FLOOR — the conservative today-behavior). */
+export function clampRoleHandling(
+  floor: RoleHandling | undefined,
+  knob: RoleHandling | undefined,
+): RoleHandling {
+  const floorRank = ROLE_HANDLING_RANK[floor ?? "strict"];
+  const knobRank = knob === undefined ? floorRank : ROLE_HANDLING_RANK[knob];
+  const winner = Math.max(floorRank, knobRank);
+  return (Object.keys(ROLE_HANDLING_RANK) as RoleHandling[]).find(
+    (k) => ROLE_HANDLING_RANK[k] === winner,
+  ) as RoleHandling;
+}
+
 /** Squash adjacent same-role messages into one by concatenating content with a blank-line separator.
  *  Drops empty / whitespace-only items before squashing. The first row of a same-role run keeps its
  *  extra fields (e.g. `authorName`/`characterId`); merged-in rows contribute only their content. Two
  *  adjacent rows carrying DISTINCT completion `name` fields are NOT merged (the `name` is a per-message
- *  speaker the merge would silently drop — F2). */
+ *  speaker the merge would silently drop — F2).
+ *
+ *  D66-C (W6): the prefix-stable protection lives at the SPLICE ({@link spliceInChatInjections}
+ *  `prefixBoundaryLen`) — a volatile INJECTION that would land same-role against the last stable canon row
+ *  is re-framed to a user operator note there, BEFORE this squash, so no volatile row ever folds into the
+ *  cached prefix. This helper stays the pure adjacency merge; canon↔canon group merges (F2) are unaffected. */
 export function squashSameRole<
   T extends { role: "user" | "assistant"; content: string; name?: string },
 >(history: readonly T[]): T[] {

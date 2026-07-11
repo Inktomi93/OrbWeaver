@@ -10,7 +10,8 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { APPEARANCE_SUBCATEGORY_IDS, settingsAnchorId } from "../lib/settings-nav";
+import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { settingsAnchorId } from "../lib/settings-nav-model";
 
 const READING_LINE_HEIGHT_MIN = 1.2;
 const READING_LINE_HEIGHT_MAX = 2.2;

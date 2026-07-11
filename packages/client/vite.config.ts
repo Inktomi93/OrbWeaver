@@ -115,6 +115,12 @@ export default defineConfig({
         target: "http://127.0.0.1:8788",
         changeOrigin: true,
       },
+      // The /join/:token invite landing (entry/http/join.ts) — a server 302 into `/?join=<token>`, so a
+      // dev-minted invite link opened against the vite origin still lands in the SPA.
+      "/join": {
+        target: "http://127.0.0.1:8788",
+        changeOrigin: true,
+      },
     },
     // Pre-transform the shell entry + the route tree on server boot so the first paint isn't cold.
     warmup: {

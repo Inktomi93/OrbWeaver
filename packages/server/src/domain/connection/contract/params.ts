@@ -3,7 +3,13 @@
 // table (no-direct-users-read). The cross-boundary input shapes (`RoutableChat`, the `ChatApi`/`ChatSource`
 // axes, `RoutingRoleKey`) live in `@orb/contracts/connection`; the verb param wrappers live here.
 
-import type { ChatApi, ChatSource, RoutableChat, RoutingRoleKey } from "@orb/contracts/connection";
+import type {
+  ChatApi,
+  ChatSource,
+  RoleHandling,
+  RoutableChat,
+  RoutingRoleKey,
+} from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { ModelId } from "@orb/kit/ids";
 
@@ -16,6 +22,9 @@ export interface AgentOverride {
   readonly api?: ChatApi | undefined;
   readonly source?: ChatSource | undefined;
   readonly model?: string | null | undefined;
+  /** The adjacent-same-role handling knob (D66-C, W6) — carried from the chat row's
+   *  `RouteChatAssignment.roleHandling` so it reaches `ResolvedConnection.roleHandling` → SHAPE. */
+  readonly roleHandling?: RoleHandling | undefined;
 }
 
 /** `resolveRole(params)` — the one resolver for all 7 roles. Reads `routing.roleDefaults.<role>` for the
@@ -35,11 +44,13 @@ export interface ResolveChatParams {
   readonly routableChat: RoutableChat;
 }
 
-/** `getModelCapability(params)` — resolve the ONE descriptor for a `(model, source)` (feeds the params
- *  panel + an active request). `model` is a curated branded id OR a plain OR id; `source` selects the arm. */
+/** `getModelCapability(params)` — resolve the ONE descriptor for a `(model, source, api)` (feeds the params
+ *  panel + an active request). `model` is a curated branded id OR a plain OR id; `source` selects the arm;
+ *  `api` drives the wire-shape the `turns` cell keys on (D66, part 01 §3). */
 export interface GetModelCapabilityParams {
   readonly model: ModelId | string;
   readonly source: ChatSource;
+  readonly api: ChatApi;
 }
 
 /** `getCatalog(params)` — read the OR catalog snapshot (seeds the in-memory cache). `signal` for parity

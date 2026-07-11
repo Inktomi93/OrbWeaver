@@ -1,11 +1,14 @@
-# FINAL — Auth Modes & Onboarding (the next wave)
+# FINAL — Auth Modes & Onboarding
 
-**Status:** NEXT-UP build spec. Server-side hardening + provider-agnostic tier is being fixed
-**this session** (see §6); the client-auth + multi-human-transport wave in §7 is the outstanding work.
+**Status:** The server-side auth robustness + provider-agnostic tier **LANDED + committed** (`eb5d6b3`,
+ratified as **D65** in the ledger + `Spine-Identity-and-Auth.md` §2) — the full as-built + the complete
+config surface is in **§6**, and it was adversarially verified (no bypass, mutation-proven). What "next-up"
+now means is the **CLIENT auth feature + the multi-human TRANSPORT wiring** — the wave in **§7**.
 **Source:** frontier stickler review of `packages/server/src/infra/auth/**` + `entry/auth|http|boot/**` +
-`domain/sessions/**`, cross-referenced against SillyTavern `default/config.yaml` and neo-tavern's dropped
-`features/auth/**`. 195 auth tests pass; the gaps below are almost entirely "built but not wired to a
-reachable surface," not logic bugs.
+`domain/sessions/**`, cross-referenced against SillyTavern `default/config.yaml`, neo-tavern's dropped
+`features/auth/**`, and OpenWebUI's OIDC group/role model. The local-OIDC redirect-allowlist + owner-fallback
+design is neo-derived (§6). The remaining gaps in §7 are "built but not wired to a reachable client/transport
+surface," not logic bugs.
 
 ---
 
@@ -27,8 +30,8 @@ enforced three-deep (env superRefine, `reconcileOwnerSingleton`, `users_single_o
 |---|---|---|---|---|---|---|
 | **single-user** | resolver → null → unconditional owner fallback. No login. | none | boot `seedOwner` backfills owner | N/A (one human) | N/A | ✅ works |
 | **local** | password form → `sessions.authenticate` (scrypt+pepper+dummy-hash) → cookie | cookie, 30d slide | `seedOwner` + `LOCAL_INITIAL_PASSWORD` | server-complete (`admin.createUser`) | **STUB** ("auth isn't wired yet") | ❌ **client-dead** |
-| **forward-header** | signed JWT+JWKS (fail-closed) OR unsigned trusted headers → `provisionIdentity` | none (per-request) | first proxied req whose handle ∈ OWNER_HANDLES | implicit | N/A (proxy is the UI) | ✅ works (⚠ B1) |
-| **oidc** | `/api/auth/oidc/login` → PKCE+state+nonce → IdP → callback → cookie. GC reaps abandoned txns (#62). | cookie | first SSO login matching owner policy | implicit | **STUB** (client never calls `/oidc/login`) | ❌ **client-dead** |
+| **forward-header** | signed JWT+JWKS (fail-closed) OR unsigned trusted headers → `provisionIdentity`. Unsigned path now gates on the **TCP peer IP** (D65), configurable header names + generic `X-Forwarded-User`. | none (per-request) | first proxied req whose handle ∈ OWNER_HANDLES | implicit | N/A (proxy is the UI) | ✅ works |
+| **oidc** | `/api/auth/oidc/login` → **per-request `deriveRedirectUri` + `OIDC_REDIRECT_URIS` allowlist** (works at FQDN AND LAN-IP/localhost — D65) → PKCE+state+nonce → IdP → callback → cookie. **Provider-agnostic** claims/scopes + group→role. GC reaps abandoned txns. | cookie | first SSO login matching owner policy (group→role, JIT) | implicit | **STUB** (client never calls `/oidc/login`) | ❌ **client-dead** |
 
 ## 3. The owner's vision (target spec)
 
@@ -84,7 +87,8 @@ Runtime-flippable knobs (`LOCAL_MULTI_USER`, discreet-login, etc.) are AppSettin
 - **B4 — MEDIUM (vision mismatch): multi-human gated on the wrong axis.** `entry/app.ts:191` derives
   `singleUserMode = AUTH_MODE === 'single-user'`; the owner's rule needs "can ≥2 humans authenticate." The
   called-out case — local + single account = should-block — isn't representable (no `enableUserAccounts` off
-  concept). **Needs an owner design ruling (§9) before build.**
+  concept). **RULED (§9) + the group→role model is BUILT (§6, D65); only the `multiHumanCapable` gating-axis
+  wiring + the `LOCAL_MULTI_USER` AppSettings toggle remain (§7 P1).**
 - **B2 — MEDIUM (provider-agnostic): OIDC claim mapping + scopes hardcoded to authentik.** Username claim
   `preferred_username`, id `sub`, groups `groups`, scope `openid profile email` all hardcoded
   (`auth-routes.ts:259-267`, `lifecycle.ts:260`). Okta/Azure/Keycloak can't map identity or the owner group.
@@ -110,27 +114,71 @@ Default OOTB: `AUTH_MODE=single-user`. Mode is chosen **env-only** — no setup 
 
 **Headline: two of four modes can't complete a first login through the UI.**
 
-## 6. Fixed THIS session (server hardening + provider-agnostic tier) — LANDED
+## 6. LANDED this session (server robustness + provider-agnostic + D65) — committed `eb5d6b3`
 
-Server-side, tested (116/116 auth tests), non-breaking defaults (authentik values stay the defaults):
-- **B1** — forward-header `resolveUnsignedHeader` now FAILS CLOSED when `forwardTrustedProxies` is empty
-  (was silent-trust) + boot warning in `lifecycle.ts`. Signed authentik+JWT path unaffected. Spoof test added.
-  **PARTIAL — see the residual in §7 P1:** the gate reads the spoofable leftmost XFF/X-Real-IP header, so even
-  with the allowlist set a direct-socket attacker can forge the hop. Full close = gate on the TCP PEER IP
-  (`resolveClientIp`/PD-52, `infra/network/ingress.ts`) threaded into the auth resolver → needs transport wiring.
-- **B2** — `OIDC_SCOPES`/`OIDC_USERNAME_CLAIM`/`OIDC_UID_CLAIM`/`OIDC_GROUPS_CLAIM` env vars, defaults =
-  authentik values; `identityFromClaims` now configurable + exported; wired via `OidcClaimMap` on
-  `OidcRoutesDeps`. Azure-shaped claim test passes.
-- **B3** — `OIDC_REDIRECT_URIS` → `OIDC_REDIRECT_URI` (singular, honest rename — the plural only ever used
-  `[0]`). **BREAKING env change** — a deployment with `OIDC_REDIRECT_URIS` set must update its `.env`.
-- **forward-header 4b** — generic `X-Forwarded-User`/`X-Forwarded-Groups` first-class in the unsigned fallback.
-- **Doc truthing** — `auth-routes.ts:22-27` stale PD-5 block corrected.
-- **4a (email header) NOT built — deferred to the wave (§7):** there is NO email field anywhere in the identity
-  pipeline (`ResolvedIdentity`, `users` table, `provisionIdentity`, OIDC all lack it). `FORWARD_AUTH_EMAIL_HEADER`
-  would be dead config. Carrying email for real is a cross-tier schema change + a design call: does identity gain
-  an email axis?
+All server-side, adversarially verified (no bypass, mutation-proven), non-breaking defaults (authentik
+values are the defaults everywhere). Ratified as **D65** (`Core-Path-Registry-D65.md`, extends D17).
+
+**Forward-header PEER-IP anti-spoof (fully closed):** the unsigned trusted-header gate now matches the raw
+TCP **peer socket address** (`ingress.peerIp` → `getConnInfo().remote.address`, threaded
+`entry/app.ts` → `entry/auth/seam.ts` → `ResolveDeps.peerIp` → `forward-header.ts`), NOT the spoofable
+`X-Forwarded-For`; `clientIpFromHeaders` deleted. Fails closed when `FORWARD_AUTH_TRUSTED_PROXIES` is empty
+(+ boot warning). Signed authentik+JWT path never touches the peer gate. Header names configurable +
+generic `X-Forwarded-User`/`X-Forwarded-Groups` + email header (below). Mutation-proven: a forged XFF from
+an off-allowlist peer is rejected before `provisionIdentity`.
+
+**Local-OIDC (neo-derived redirect allowlist):** `OIDC_REDIRECT_URIS` is a real CSV allowlist again (the
+interim singular rename was reverted). `deriveRedirectUri(headers, allowlist)` builds `${proto}://${host}/api/auth/oidc/callback` per request from `X-Forwarded-Proto` (defaults `https`, **never downgrades** —
+CVE-2024-52289) + Host, exact-matches the allowlist, off-list → **400 before any IdP touch / no tx minted**;
+the VALIDATED uri is stored in the PKCE tx + reconstructed for the token exchange. Result: OIDC works at the
+public FQDN AND at LAN-IP/localhost (add each callback URL to the allowlist). The origin-gated owner-fallback
+(`dispatch.ts` `isLocalOrigin` — raw Host never `X-Forwarded-Host`, private ranges) already coexists: OIDC
+cookie > owner-fallback (local origin only).
+
+**Provider-agnostic OIDC claims/scopes:** `identityFromClaims` reads configurable claim names via
+`OidcClaimMap`; nested dot-path claims resolve (`user.memberOf` for Entra/AD FS). Non-authentik IdPs
+(Okta/Azure/Keycloak) map by setting the claim vars.
+
+**Group→role (D65 — admin grantable via IdP group):** `role-policy.ts` derives `admin` from
+`OIDC_ADMIN_GROUPS`; `OIDC_ALLOWED_GROUPS` is a **fail-closed login gate** (in none → deny → 401, no JIT row).
+Roles **re-derive every login** when group governance is active (else legacy `setRole` grants survive).
+`ProvisionResult` is a `provisioned | denied` union. **Owner invariant:** the owner row (matched by
+`existing.id === selectOwnerUserId()`, not a role literal) is never group-derived, gated, or downgraded;
+single-owner triple-enforcement intact. JIT user creation on first OIDC login.
+
+**Email (additive attribute):** nullable `users.email` + `ResolvedIdentity.email`, read from
+`OIDC_EMAIL_CLAIM` / `FORWARD_AUTH_EMAIL_HEADER`, persisted keep-on-null. **Never an identity/join key** —
+identity stays keyed on `users.id` + `externalId`. (Baseline squash-regen: `+ email text` only.)
+
+**OIDC transaction GC scheduler (PD-5):** reaps abandoned/expired PKCE transactions on an hourly cadence
+(`transport/jobs/oidc-gc-scheduler.ts`, reuses the catalog-refresh scheduler seam, clock-injected, armed
+only in oidc mode). Defense-in-depth over the existing consume-time delete.
+
+### 6.1 Config surface (as-built — the full env var list for an operator / the next builder)
+
+ENV (pre-boot / first-time-setup, per the §3 config-surface principle):
+- **Core:** `AUTH_MODE` (single-user|local|forward-header|oidc) · `SESSION_SECRET` (≥32ch; local+oidc) ·
+  `OWNER_HANDLES` (CSV; the bootstrap owner) · `LOCAL_INITIAL_PASSWORD` (local seed).
+- **OIDC:** `OIDC_ISSUER` · `OIDC_CLIENT_ID` · `OIDC_CLIENT_SECRET` · `OIDC_REDIRECT_URIS` (CSV allowlist of
+  FULL callback URLs — include LAN-IP/localhost callbacks for local-OIDC) · `OIDC_SCOPES` (default
+  `openid profile email`) · `OIDC_USERNAME_CLAIM` (`preferred_username`) · `OIDC_UID_CLAIM` (`sub`) ·
+  `OIDC_GROUPS_CLAIM` (`groups`, nested dot-path ok) · `OIDC_EMAIL_CLAIM` (`email`) · `OWNER_GROUP` (owner) ·
+  `OIDC_ADMIN_GROUPS` (CSV → admin) · `OIDC_ALLOWED_GROUPS` (CSV login gate; unset → all authed allowed).
+- **forward-header:** `FORWARD_AUTH_TRUSTED_PROXIES` (CSV/CIDR of allowed PEER IPs — REQUIRED for the unsigned
+  path, else fail-closed) · `FORWARD_AUTH_USER_HEADER`/`GROUPS_HEADER`/`UID_HEADER`/`EMAIL_HEADER` (header
+  names) · `FORWARD_AUTH_VERIFY_JWT` (default true; the signed authentik path).
+- **local-origin trust (shared by owner-fallback + local-OIDC):** `TRUSTED_LOCAL_HOSTS` (CSV hostnames) ·
+  `TRUSTED_PRIVATE_RANGES` (CSV CIDR, on top of the built-in 127/8·10/8·172.16/12·192.168/16·100.64/10 CGNAT
+  + IPv6 loopback/ULA/link-local) · `AUTH_FALLBACK` (owner|deny).
+
+AppSettings (runtime toggles — the wave adds these, NOT env): `LOCAL_MULTI_USER` (the multi-human gate, §7
+P1) · discreet-login (§7 P2).
 
 ## 7. THE GAME PLAN — the remaining wave (ranked)
+
+The server auth tier is DONE (§6). This wave is purely **client + transport + the one gating knob** — no
+new auth crypto/claims/session work. B1 (peer-IP), B2 (provider-agnostic), B3 (allowlist), email, and the
+group→role model all LANDED in §6; what remains below is reachability.
 
 - **P0 — Build the client auth feature.** Port neo's `features/auth/**` shape: per-mode surfaces
   (`login-local` password form, `login-oidc` SSO button → `/api/auth/oidc/login`, `login-forward-header`
@@ -180,3 +228,26 @@ reserved-namespace refusal.
 3. **The block is on multi-HUMAN only.** Multi-CHARACTER group chat (one human + N characters) works in EVERY
    mode including local-single-user — do NOT gate `startChat`/multi-character rooms. Gate only the
    human-invite / human-seat surface (`multiHumanProcedure` → the P1 membership verbs + `/join`).
+
+## 10. Build notes for the next agent (gotchas that cost real time)
+
+- **Test-infra (both bit the D65 green-up — see the `boot-lifecycle-int-test-gotchas` memory):**
+  (a) The SSRF egress firewall is installed at boot and firewalls the **test process's own global `fetch`** —
+  any int test that boots the real lifecycle and polls its server over localhost needs
+  `vi.stubEnv("EGRESS_ALLOWLIST", "localhost")` (do NOT disable the firewall). (b) Any unit test driving
+  `createApp` via `app.fetch(req)` must pass a **conninfo env** (`{ incoming: { socket: { remoteAddress,
+  remotePort, remoteFamily } } }`) or `getConnInfo` throws and every request 500s (the peer-IP read).
+- **The client can't talk tRPC before auth** — that's WHY the P0 `/api/auth/config` + `/api/auth/me` are
+  raw Hono (pre-tRPC): `sessions.me` is an authed procedure that 401s when logged out, so the client can't
+  discover its mode or auth state through tRPC. Build the two Hono endpoints FIRST; the client login UI
+  bootstraps off `/config`.
+- **`/me` must resolve through the SAME `entry/auth/seam.ts` resolver** the tRPC context uses — a second
+  resolution path is how server/client identity drift creeps in (the same class of bug D65's parity work
+  killed on the macro side).
+- **The gating axis (P1) depends on a runtime AppSetting**, so it can NOT be a frozen boot-time constant like
+  today's `singleUserMode` (`entry/app.ts:191`). Resolve `multiHumanCapable` per-request (or reactively off
+  the AppSettings read). The group→role model it composes with is already built (§6) — do not rebuild it.
+- **neo reference files** (borrow the shapes, don't cargo-cult): `neo-tavern/src/server/http/auth-meta.ts`
+  (the `/config` + `/me` pattern) + `neo-tavern/src/client/features/auth/surfaces/*` (the 10 per-mode login
+  surfaces + dispatcher + route guard). orb's server foundation is BETTER (§8) — this is a client + wiring
+  port, not a server rewrite.

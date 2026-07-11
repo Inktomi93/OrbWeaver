@@ -13,6 +13,7 @@
 // every verb (§7.1). Verbs return data or `null`/empty for an absent rollup — stats has NO typed error
 // (documented choice; there is no contract/errors.ts).
 
+import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ByModelOpts, LatencyScope, LeaderboardOpts, TimeseriesOpts } from "./params";
@@ -70,4 +71,13 @@ export interface StatsService {
   /** On-read TTFT/gen latency percentiles for the entity in view (owner / character / model). The stored
    *  rollups carry no percentiles (they can't be `+=`-maintained — invariant #6). */
   latency: (ownerId: UserId, scope: LatencyScope) => Promise<LatencyStats>;
+
+  // ── economics projection (PD-22 — the stats↔discovery seam Tier 2; NOT tRPC-routed) ──────────────────
+  /** Per-character SELECTED-variant economics (D26), owner-scoped — the injected op discovery's
+   *  `forgottenGems` composes for the cost/usage dimension. Discovery receives only this narrowed rollup;
+   *  the raw economics columns stay UNSPELLABLE outside stats (Knowledge-Cluster inv #5). */
+  characterEconomics: (ownerId: UserId) => Promise<CharacterEconomics[]>;
+  /** Per-(character, model) SELECTED-variant economics (D26), owner-scoped — the injected op discovery's
+   *  `modelRouting` re-groups by the character's distilled genre (stats owns which model performed how). */
+  characterModelEconomics: (ownerId: UserId) => Promise<CharacterModelEconomics[]>;
 }

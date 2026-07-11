@@ -87,6 +87,16 @@ export function Field({
   const hasError = error !== undefined && error !== null;
   const hasDescription = description !== undefined && description !== null;
   const hasHint = hint !== undefined && hint !== null;
+  // A11y: derive the hint trigger's accessible name from the label so 2+ hinted fields on one surface
+  // (e.g. the persona editor) don't share the identical "More info" name in a screen-reader buttons
+  // list. `label` is a `ReactNode` — only a plain non-empty string yields a usable name; anything else
+  // (elements, fragments) falls back to the plain "More info" rather than rendering a dangling
+  // "More info about ".
+  let hintAriaLabel = "More info";
+  if (typeof label === "string" && label.trim().length > 0) {
+    const labelString: string = label;
+    hintAriaLabel = `More info about ${labelString}`;
+  }
 
   const labelText = (
     <BaseField.Label className={slots.label()} data-slot="field-label">
@@ -105,7 +115,7 @@ export function Field({
         <TooltipTrigger
           render={
             <Button
-              aria-label="More info"
+              aria-label={hintAriaLabel}
               className={slots.hintTrigger()}
               intent="ghost"
               size="icon"

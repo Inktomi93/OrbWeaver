@@ -17,6 +17,12 @@ export interface TextFieldProps {
   readonly hint?: ReactNode;
   readonly placeholder?: string;
   readonly disabled?: boolean;
+  /** Input rendering mode — `password` masks (the admin create/reset-password fields). Text-shaped
+   *  values only; a number wants `NumberField`, not a widened `type` here. @defaultValue "text" */
+  readonly type?: "text" | "password";
+  /** Autofill hint forwarded to the native input (`"new-password"` on the admin password fields so a
+   *  browser never offers the ADMIN'S saved login inside another user's form). */
+  readonly autoComplete?: string;
 }
 
 export function TextField({
@@ -25,6 +31,8 @@ export function TextField({
   hint,
   placeholder,
   disabled,
+  type,
+  autoComplete,
 }: TextFieldProps): ReactElement {
   const field = useFieldContext<string>();
   const error = fieldErrorText(field.state.meta.errors);
@@ -44,6 +52,8 @@ export function TextField({
         }}
         onBlur={field.handleBlur}
         placeholder={placeholder}
+        type={type ?? "text"}
+        autoComplete={autoComplete}
       />
     </Field>
   );

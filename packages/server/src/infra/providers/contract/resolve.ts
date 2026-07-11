@@ -7,7 +7,12 @@
 // The unions are DERIVED from the descriptor (`@orb/contracts/connection`) — never re-spelled (§7.4
 // one-home / derive-don't-respell).
 
-import type { EffortLevel, ReasoningDisplayMode, ReasoningMode } from "@orb/contracts/connection";
+import type {
+  EffortLevel,
+  ReasoningDisplayMode,
+  ReasoningMode,
+  Verbosity,
+} from "@orb/contracts/connection";
 
 // The machine-dispatchable reason a knob was dropped/ignored — one code per DISTINCT site resolve-chat
 // actually emits (no speculative extras; clamps are silent, so there is no clamp code). The human detail
@@ -22,8 +27,25 @@ export const WARNING_CODES = [
   "adaptive_budget_dropped",
   // The requested `thinkingDisplay` isn't in the model's `displayModes`.
   "display_dropped",
+  // The requested `verbosity` isn't honorable — the model has no `verbosity` levels, or the resolved
+  // wire (chat-completions) has no verbosity field (D68-B; the responses wire is `text.verbosity`).
+  "verbosity_dropped",
+  // A `message-tail` dynamic-context channel was requested (user knob) on a model whose wire-shape has no
+  // mid-conversation-system AUTHORITY (`turns.midConversationSystem:false`) — the channel is DEMOTED to
+  // `system-block` (D66; the message-tail row would carry no operator authority / 400 on the wrong shape).
+  "dynamic_context_demoted",
 ] as const;
 export type WarningCode = (typeof WARNING_CODES)[number];
+
+// Where the volatile (per-turn) dynamic system-prompt half RIDES, resolved from the user knob × the
+// model's `turns.midConversationSystem` gate (D66). A ONE-home string-union (§7.5): the funnel resolves
+// it, both the agent-sdk runner (hook vs joined) and anth-direct (hand-placed row vs joined) consume it.
+//   • "system-block" — join the dynamic half into the cached system string (authoritative position, but a
+//     change re-writes the whole cached block — ~12.7k tokens/scene-change, probe-measured).
+//   • "message-tail" — ride a mid-conversation-system channel at the message tail (cache-safe); ONLY on a
+//     wire-shape/model that HONORS mid-conv-system authority (`turns.midConversationSystem`).
+export const DYNAMIC_CONTEXT_CHANNELS = ["system-block", "message-tail"] as const;
+export type DynamicContextChannel = (typeof DYNAMIC_CONTEXT_CHANNELS)[number];
 
 /** A structured, machine-dispatchable warning: a stable `code` for routing + the readable `message`. */
 export interface ResolvedWarning {
@@ -63,6 +85,9 @@ export interface ResolvedSampling {
   readonly frequencyPenalty?: number | undefined;
   readonly presencePenalty?: number | undefined;
   readonly repetitionPenalty?: number | undefined;
+  /** minP (D68-A) — clamped to the descriptor's `sampling.minP` range; present only when the user set it
+   *  AND the model lists min_p. Emitted on every wire with a slot (OR `minP`, vLLM/BYO `min_p`). W2 wires it. */
+  readonly minP?: number | undefined;
   readonly seed?: number | undefined;
   readonly logitBias?: Record<string, number> | undefined;
   readonly stop?: readonly string[] | undefined;
@@ -77,6 +102,16 @@ export interface ResolvedSampling {
 export interface ResolvedChatKnobs {
   readonly reasoning: ResolvedReasoning;
   readonly sampling: ResolvedSampling;
+  /** WHERE the volatile dynamic system-prompt half rides (D66) — resolved from the user `dynamicContext`
+   *  knob × the model's `turns.midConversationSystem` gate. A `message-tail` request on an incapable model
+   *  is DEMOTED to `system-block` (+ a `dynamic_context_demoted` warning). Consumed by the agent-sdk runner
+   *  (hook vs joined system prompt) and anth-direct (hand-placed row vs joined); openai-compat is always
+   *  `system-block` (mid-array system carries no authority there). */
+  readonly dynamicContextChannel: DynamicContextChannel;
   readonly maxOutputTokens?: number | undefined;
+  /** verbosity (D68-B) — the model-gated OpenAI control the funnel resolved; present only when the model
+   *  lists a `verbosity` level AND the user asked for one. Applied on the responses wire (`text.verbosity`);
+   *  a chat-completions turn drops it LOUDLY (`verbosity_dropped`). No runner reads it until W2. */
+  readonly verbosity?: Verbosity | undefined;
   readonly warnings: readonly ResolvedWarning[];
 }

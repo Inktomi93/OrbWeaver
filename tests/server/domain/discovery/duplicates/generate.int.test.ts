@@ -1,7 +1,9 @@
 // Integration: the near-duplicate CHARACTER pass — detection at the cosine threshold, CSLS ranking, owner +
 // space scoping, synthetic exclusion, canonical A<B, and the content-hash collapse invariant (esoteric #3).
 
-import { duplicateCharacterPairs } from "@orb/db";
+import type { Db } from "@orb/db";
+import { chats, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -11,6 +13,8 @@ import {
   makeDiscoveryHarness,
   seedCharacter,
   seedCharacterEmbedding,
+  seedChatSegment,
+  seedHostedChat,
   seedUser,
   vec,
 } from "../_support.ts";
@@ -133,6 +137,45 @@ describe("computeDuplicatePairs", () => {
     expect((await svc.computeDuplicatePairs()).pairsWritten).toBe(0);
   });
 
+  // The SINGULAR-mode security invariant: a per-owner recompute reads + REPLACES only that owner's pairs (the
+  // delete is scoped by `characterIdA IN that owner's characters`) — it must NEVER wipe another owner's pairs.
+  test("a SINGULAR (owner-scoped) recompute leaves ANOTHER owner's pairs untouched", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "user_a");
+    const b = await seedUser(db, "user_b");
+    const a1 = await seedCharacter(db, { id: "character_a1", ownerId: a });
+    const a2 = await seedCharacter(db, { id: "character_a2", ownerId: a });
+    const b1 = await seedCharacter(db, { id: "character_b1", ownerId: b });
+    const b2 = await seedCharacter(db, { id: "character_b2", ownerId: b });
+    await seedCharacterEmbedding(db, { characterId: a1, embedding: vec(1, 0), contentHash: "ha1" });
+    await seedCharacterEmbedding(db, {
+      characterId: a2,
+      embedding: vec(1, 0.05),
+      contentHash: "ha2",
+    });
+    await seedCharacterEmbedding(db, { characterId: b1, embedding: vec(0, 1), contentHash: "hb1" });
+    await seedCharacterEmbedding(db, {
+      characterId: b2,
+      embedding: vec(0.05, 1),
+      contentHash: "hb2",
+    });
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+
+    // A global (bulk) recompute records BOTH owners' pairs.
+    await svc.computeDuplicatePairs();
+    expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(2);
+
+    // Recompute ONLY owner A (singular) — B's pair must survive.
+    const stats = await svc.computeDuplicatePairs({ ownerId: a });
+    expect(stats.ownersProcessed).toBe(1);
+    const bPairs = await db
+      .select()
+      .from(duplicateCharacterPairs)
+      .where(eq(duplicateCharacterPairs.characterIdA, b1));
+    expect(bPairs).toHaveLength(1); // NOT wiped by A's singular run
+    expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(2); // both still present
+  });
+
   test("a deleted character removes its pairs by CASCADE (D24 — no sweep)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
@@ -151,5 +194,82 @@ describe("computeDuplicatePairs", () => {
     const { characters } = await import("@orb/db");
     await db.delete(characters).where(eq(characters.id, c1));
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(0);
+  });
+});
+
+// ── the chat near-dup arm (Jaccard of segment content-hashes + fork relation) ──
+// Seed a hosted chat with a set of segment content-hashes (distinct blockIdx per segment).
+async function seedChatWithHashes(
+  db: Db,
+  id: string,
+  ownerId: UserId,
+  hashes: readonly string[],
+): Promise<ChatId> {
+  const chatId = await seedHostedChat(db, id, ownerId);
+  await Promise.all(
+    hashes.map((h, i) =>
+      seedChatSegment(db, {
+        id: `segment_${id}_${i}`,
+        chatId,
+        embedding: vec(1),
+        blockIdx: i,
+        contentHash: h,
+      }),
+    ),
+  );
+  return chatId;
+}
+
+describe("computeChatDuplicatePairs", () => {
+  test("pairs chats above the Jaccard threshold, labelled duplicate (no shared fork root)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    // A: {h1,h2,h3}, B: {h1,h2,h4} → ∩=2, ∪=4 → Jaccard 0.5 ≥ 0.5. Independent roots → duplicate.
+    await seedChatWithHashes(db, "chat_a", owner, ["h1", "h2", "h3"]);
+    await seedChatWithHashes(db, "chat_b", owner, ["h1", "h2", "h4"]);
+
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+    const stats = await svc.computeChatDuplicatePairs();
+    expect(stats).toMatchObject({ ownersProcessed: 1, chatsScanned: 2, pairsWritten: 1 });
+
+    const rows = await db.select().from(duplicateChatPairs);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.chatIdA).toBe("chat_a"); // A < B
+    expect(rows[0]?.relation).toBe("duplicate");
+    expect(rows[0]?.similarity).toBeCloseTo(0.5);
+  });
+
+  test("labels a shared-fork-root family `forked`", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const a = await seedChatWithHashes(db, "chat_a", owner, ["h1", "h2", "h3"]);
+    await seedChatWithHashes(db, "chat_b", owner, ["h1", "h2", "h3"]);
+    // chat_b is a fork of chat_a → shared root → forked.
+    await db
+      .update(chats)
+      .set({ parentChatId: a })
+      .where(eq(chats.id, "chat_b" as ChatId));
+
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+    await svc.computeChatDuplicatePairs();
+    const rows = await db.select().from(duplicateChatPairs);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.relation).toBe("forked");
+    expect(rows[0]?.similarity).toBeCloseTo(1); // identical hash sets
+  });
+
+  test("does NOT pair chats below the Jaccard threshold + never across owners", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const other = await seedUser(db, "user_b");
+    // A:{h1,h2,h3,h4} B:{h1,h5,h6,h7} → ∩=1 ∪=7 → 0.14 < 0.5.
+    await seedChatWithHashes(db, "chat_a", owner, ["h1", "h2", "h3", "h4"]);
+    await seedChatWithHashes(db, "chat_b", owner, ["h1", "h5", "h6", "h7"]);
+    // Another owner's identical-looking chats must never pair with A/B.
+    await seedChatWithHashes(db, "chat_c", other, ["h1", "h2", "h3"]);
+
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+    const stats = await svc.computeChatDuplicatePairs();
+    expect(stats.pairsWritten).toBe(0);
   });
 });

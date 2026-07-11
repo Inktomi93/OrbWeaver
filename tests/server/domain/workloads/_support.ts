@@ -5,14 +5,16 @@
 // test drives a real claimed row through `runWorkload` over a real `:memory:` db. Determinism: a fixed T0
 // (no ambient clock) + `castId` ids (no unseeded mint).
 
+import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
+import { isAdmin, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
 import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
 import type {
   WorkloadRunnerContext,
@@ -26,6 +28,9 @@ import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 /** A fixed instant — every timestamp in a test pins to this (no ambient clock; test-determinism §3). */
 export const T0 = 1_700_000_000_000;
 
+/** The default enumeration owner a runner context carries (the SINGULAR scope a runner threads to its op). */
+export const RUNNER_OWNER_ID = castId<UserId>("user_owner");
+
 /** A `WorkloadService` over a real db with the frozen clock + a deterministic sequential id minter. */
 export function makeService(db: Db): WorkloadService {
   let n = 0;
@@ -33,15 +38,32 @@ export function makeService(db: Db): WorkloadService {
     n += 1;
     return castId<WorkloadId>(`workload_${n}`);
   };
-  return createWorkloadService({ db, now: () => T0, newWorkloadId });
+  return createWorkloadService({ db, now: () => T0, newWorkloadId, requireOwner, isAdmin });
 }
 
 /** Insert a `users` row (the FK parent for an owner-scoped workload). Thin delegate over the canonical
- *  factory — workloads' call sites pass a bare-string `id` and want the id back, not the row. */
-export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
+ *  factory — workloads' call sites pass a bare-string `id` and want the id back, not the row. Defaults to
+ *  role `user` (NOT `owner`) so a test can seed several rows without tripping the single-owner unique index. */
+export async function seedUser(
+  db: Db,
+  id = "user_owner",
+  role: UserRole = "user",
+): Promise<UserId> {
   const uid = castId<UserId>(id);
-  const seeded = await seedUserRow(db, { id: uid, handle: castId<Handle>(id), role: "owner" });
+  const seeded = await seedUserRow(db, { id: uid, handle: castId<Handle>(id), role });
   return seeded.id;
+}
+
+/** A test `Principal` — the F3 authz subject the verbs gate on. `role` picks the global-role axis
+ *  (`user` = a plain caller scoped to its own workloads; `admin`/`owner` = the deployment-wide apex). */
+export function principal(id: string, role: UserRole = "user"): Principal {
+  return {
+    userId: castId<UserId>(id),
+    role,
+    handle: castId<Handle>(id),
+    externalId: null,
+    via: "header",
+  };
 }
 
 /** A fake cross-feature env: every op is a `vi.fn` with a sane default return; a test overrides a single op
@@ -53,21 +75,27 @@ export function fakeEnv(
 ): WorkloadRunnerEnv {
   return {
     embeddings: {
-      embedCorpus: vi.fn(async (_args: { force: boolean; signal: AbortSignal }) => ({
-        embedded: 3,
-        skipped: 1,
-      })),
-      embedAssets: vi.fn(async (_args: { force: boolean; signal: AbortSignal }) => ({
-        embedded: 2,
-        skipped: 0,
-      })),
+      embedCorpus: vi.fn(
+        async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
+          embedded: 3,
+          skipped: 1,
+        }),
+      ),
+      embedAssets: vi.fn(
+        async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
+          embedded: 2,
+          skipped: 0,
+        }),
+      ),
     },
     discovery: {
-      computeThemes: vi.fn(async (_args: { k: number; signal: AbortSignal }) => ({
-        scanned: 10,
-        written: 5,
-      })),
-      distillCharacters: vi.fn(async (_args: { signal: AbortSignal }) => ({
+      computeThemes: vi.fn(
+        async (_args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => ({
+          scanned: 10,
+          written: 5,
+        }),
+      ),
+      distillCharacters: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
         scanned: 8,
         written: 8,
       })),
@@ -75,31 +103,42 @@ export function fakeEnv(
         scanned: 6,
         written: 4,
       })),
-      findDuplicates: vi.fn(async (_args: { signal: AbortSignal }) => ({ scanned: 9, written: 1 })),
-      computeHubScores: vi.fn(async (_args: { signal: AbortSignal }) => ({
+      findDuplicates: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
+        scanned: 9,
+        written: 1,
+      })),
+      computeHubScores: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
         scanned: 7,
         written: 7,
       })),
     },
     import: {
-      importAll: vi.fn(async (_args: { dryRun: boolean; signal: AbortSignal }) => ({
-        scanned: 12,
-        changed: 4,
-      })),
+      importAll: vi.fn(
+        async (_args: { ownerId: UserId; dryRun: boolean; signal: AbortSignal }) => ({
+          scanned: 12,
+          changed: 4,
+        }),
+      ),
     },
     assets: {
-      backfillAvatars: vi.fn(async (_args: { dryRun: boolean; signal: AbortSignal }) => ({
-        scanned: 20,
-        changed: 3,
-      })),
+      backfillAvatars: vi.fn(
+        async (_args: { ownerId: UserId | null; dryRun: boolean; signal: AbortSignal }) => ({
+          scanned: 20,
+          changed: 3,
+        }),
+      ),
       collectGarbage: vi.fn(async (_args: { dryRun: boolean; signal: AbortSignal }) => ({
-        scanned: 0,
-        changed: 0,
+        scanned: 10,
+        changed: 4,
       })),
-      fsck: vi.fn(async (_args: { signal: AbortSignal }) => ({ scanned: 0, changed: 0 })),
+      fsck: vi.fn(async (_args: { signal: AbortSignal }) => ({
+        danglingRows: 1,
+        corruptBlobs: 0,
+        orphanBlobs: 2,
+      })),
     },
     stats: {
-      reconcileStats: vi.fn(async (_args: { signal: AbortSignal }) => ({
+      reconcileStats: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
         owners: 1,
         characters: 4,
       })),
@@ -112,16 +151,18 @@ export function fakeEnv(
       ...overrides.connection,
     },
     memory: {
-      backfill: vi.fn(async (_args: { signal: AbortSignal }) => ({
+      backfill: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
         segments: { scanned: 4, changed: 2 },
         digests: { scanned: 6, changed: 3 },
       })),
     },
     character: {
-      backfillGroupCharacters: vi.fn(async (_args: { signal: AbortSignal }) => ({
-        scanned: 5,
-        changed: 1,
-      })),
+      backfillGroupCharacters: vi.fn(
+        async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
+          scanned: 5,
+          changed: 1,
+        }),
+      ),
     },
     cas: {} as Cas,
   };
@@ -134,7 +175,9 @@ export function makeRunnerContext(
 ): WorkloadRunnerContext {
   return {
     db: {} as Db,
-    userId: castId<UserId>("user_owner"),
+    userId: RUNNER_OWNER_ID,
+    // The enumeration scope a runner threads to its op (SINGULAR by default; a bulk test overrides to null).
+    ownerId: RUNNER_OWNER_ID,
     roleClients: {} as RoleClients,
     loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
     env,
@@ -171,6 +214,7 @@ export async function seedWorkloadRow(
     id?: string;
     kind?: WorkloadKind;
     status?: WorkloadStatus;
+    mode?: WorkloadMode;
     ownerId?: UserId | null;
     params?: Record<string, unknown>;
     updatedAt?: number;
@@ -183,6 +227,7 @@ export async function seedWorkloadRow(
     id,
     kind: overrides.kind ?? "reconcile-stats",
     status: overrides.status ?? "queued",
+    mode: overrides.mode ?? "singular",
     params: overrides.params ?? {},
     ownerId: overrides.ownerId ?? null,
     scheduledAt: overrides.scheduledAt ?? T0,

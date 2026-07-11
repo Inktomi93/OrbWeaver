@@ -178,6 +178,17 @@ module.exports = {
         path: "node_modules/(echarts|echarts-for-react|@tanstack/react-virtual|@tanstack/virtual-core|codemirror|@codemirror|streamdown|remark|strip-markdown|cmdk|@dnd-kit|diff|lucide-react|minisearch)/",
       },
     },
+    {
+      name: "search-minisearch-seal",
+      comment:
+        "minisearch (server side) is sealed to domain/search/substrate/field-index.ts — the ONE lexical BM25 engine home (PD-37). Any other server module importing it is a seal breach; the vector verbs scan the DB, not minisearch.",
+      severity: "error",
+      from: {
+        path: "^packages/server/",
+        pathNot: "^packages/server/src/domain/search/substrate/field-index\\.ts$",
+      },
+      to: { path: "node_modules/minisearch/" },
+    },
     // NOTE (deliberate non-rule): "client ⇏ raw satellite libs" is RESOLVER physics (the libs are not
     // in @orb/client's package.json → the import cannot resolve under pnpm isolation) + biome
     // noUndeclaredDependencies. A dep-cruiser twin here would be unfireable-by-construction (its own

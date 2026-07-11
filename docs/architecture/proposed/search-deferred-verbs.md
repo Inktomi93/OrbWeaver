@@ -12,20 +12,44 @@ updated: 2026-07-03
 > carries ONLY the genuinely-unbuilt design so it survives the doc's deletion. Each section maps to
 > its registry row in `core/Core-Audits-and-Debt.md`.
 
-## PD-35 — `discover` (character discovery by best-segment group)
+## PD-35 — `discover` + the similarity trio — BUILT (2026-07-10)
 
-- Verb: character discovery by best-segment neighborhood; returns
-  `{ characters: DiscoverCharacter[]; segments: DiscoverSegment[] }`.
-- **Open decision (carried over):** flat vs grouped result shape — neo grouped characters by
-  best-segment neighborhood; the group shape is more useful for the "similar characters" browse
-  surface. Confirm before typing the contract.
-- `resolveSegmentDisplay` — the segment-hit display JOIN (`chat_segments` → `characters` →
-  `assets`; D28 flat row, no version join) lands in `persistence/display.ts` beside
-  `resolveCharacterDisplay` when a verb needs display-enriched segment hits.
-- Pool constants that land with it: `DISCOVER_SEGMENT_POOL_*`, `CSLS_POOL_FACTOR`
-  (`substrate/constants.ts` deliberately defines only what the built verbs consume).
+> BUILT: `discover` is a SEARCH verb (D55; neo `search/verbs/core.ts:249` — NOT discovery-domain; the prior
+> "discovery-domain / blocked:PD-40" labels were doc defects F1/F2, corrected per
+> `reports/stickler/discovery-search-untangle.md`). Shipped WITH its two seed-vector siblings:
+>
+> - **`discover`** (`verbs/discover.ts`) — text query → the owner's MATERIALIZED chat set (`ownedChatIds`,
+>   D20 derive via digests) → owner-wide cosine scan of `chat_segments` → CSLS → optional rerank BEFORE
+>   grouping → `resolveSegmentDisplay` credit → group by character. GROUPED result (`DiscoverCharacter[]`,
+>   each carrying `DiscoverSegment[]` evidence + `matchCount`; `score` = the best segment's CSLS score). The
+>   grouped shape was CONFIRMED (the open decision). Embed is `inputType:"query"` ONLY (neo's
+>   `SCOPE_INSTRUCTIONS` deliberately SKIPPED — nothing built consumes per-scope instruction strings; it
+>   still rides with the first verb that needs them). Constants: `DISCOVER_SEGMENT_POOL_FACTOR=20`,
+>   `DISCOVER_SEGMENT_POOL_CAP=400`, `DISCOVER_SEGMENTS_PER_CHAR=3`, `SNIPPET_CHARS=280` (neo's
+>   `CSLS_POOL_FACTOR=4` already exists as `OWNER_OVERFETCH`).
+> - **`similarCharacters`** (`verbs/similar-characters.ts`) — seed-vector top-k over the CARD space: reads the
+>   seed's STORED card embedding (`readSeedCharacterVector`, owner-belted — NOT a re-embed), scans excluding
+>   the seed, CSLS, enriches like `findCharacters` (returns `CharacterCardHit[]`). Realizes the docs'
+>   `findCharacters`-shorthand as a seed-vector verb (§4.4 rationale — no query/document space cross).
+> - **`similarArt`** (`verbs/similar-art.ts`) — seed-vector top-k over the IMAGE space (avatar↔avatar): reads
+>   the seed avatar's STORED vector (`readSeedAvatarVector`, belted on `characters.ownerId` ∩ `assets.ownerId`),
+>   scans excluding the seed. **CSLS APPLIES** (same-space image↔image — the CSLS-skip is cross-modal ONLY; this
+>   IS the "future image↔image similarity verb" `hub_score` was reserved for). Default lens `image-raw`.
+>
+> `resolveSegmentDisplay` (`persistence/display.ts`) is the SEGMENT→CHARACTER credit rule: a `chat_segments`
+> block (no character column, D28) is credited via its tier-0 `chat_digests` sibling — CO-STAR speakers
+> (`chat_digest_speakers`, so a group scene credits every present character) ∪ the `scopedCharacterId` fallback,
+> both `synthetic=false` + owner-belted. The V2-2 cross-tenant-seed refusal (foreign seed → empty) + a
+> group-chat co-star credit are pinned by tests. tRPC: `search.discover`/`similarCharacters`/`similarArt`
+> (the two seed-id verbs are cross-tenant-swept; `discover` is query-only). The as-built code is the doc.
 
-## PD-36 — `images` (cross-modal text→image) + the CSLS-skip exception
+## PD-36 — `images` (cross-modal text→image) + the CSLS-skip exception — BUILT (2026-07-10)
+
+> BUILT: `domain/search/verbs/images.ts` + `persistence/image-nearest.ts` + `ImagesParams`/`ImageSearchHit`
+> + the `search.images` tRPC read. Ranks on RAW cosine distance (the CSLS-skip invariant is pinned inline
+> and by `images.int.test.ts`'s hub-dominant-outlier test); lens-gated (`lens` is a required param, both
+> `image-raw`/`image-captioned` addressable); caption cross-encoder rerank is opt-in (raw-lens hits are a
+> recall-preserving passthrough). Owner-scope derives via `assets.ownerId`. The as-built code is the doc.
 
 - Verb: cross-modal text→image search over `image_embeddings` with a pool-capped multimodal rerank.
 - **The esoteric that must survive (carry into `verbs/images.ts` verbatim):**
@@ -42,7 +66,18 @@ updated: 2026-07-03
   whether the verb gates on lens availability or treats `image-captioned`-only as the initial state
   with `image-raw` additive (a re-embed workload populates `image-raw` rows).
 
-## PD-37 — `fields` / `suggest` (the lexical BM25 engine)
+## PD-37 — `fields` / `suggest` (the lexical BM25 engine) — BUILT (2026-07-10)
+
+> BUILT: `domain/search/verbs/fields.ts` (`createFields` + `createSuggest`) + `substrate/field-index.ts`
+> (the MiniSearch index + the per-owner LRU+TTL cache, `CardDoc`/`IndexCacheEntry` file-private) +
+> `persistence/cards.ts` (the owner card-field corpus read) + `FieldSearchParams`/`SuggestParams` /
+> `FieldSearchHit`/`SearchSuggestion` + the `search.fields` / `search.suggest` tRPC reads. `minisearch` is
+> a server dep sealed to `field-index.ts` by the `search-minisearch-seal` dep-cruiser rule. **Cache
+> invalidation DECIDED: TTL-only** (5-min freshness window; the event-driven `character.updated` upgrade
+> path is noted in the file header — the cache shape already supports a targeted evict). `SCOPE_INSTRUCTIONS`
+> is NOT consumed here (fields uses fixed per-field boosts, not per-scope instruction strings) — it still
+> rides with the first verb that needs per-scope boosts. `SearchContext` gained an injected `now` clock (the
+> only time source the domain touches, for the cache TTL). The as-built code is the doc.
 
 - MiniSearch in-memory BM25 index over character card fields, LRU+TTL cache per owner, per-scope
   instruction boosts, fuzzy+prefix. Verb in `verbs/fields.ts`; cache + index internals (`CardDoc`,
@@ -57,7 +92,14 @@ updated: 2026-07-03
 - Gate candidate with it: `minisearch` import allowed only in
   `domain/search/substrate/field-index.ts`.
 
-## PD-38 — unified `search(UnifiedSearchParams)` dispatch + `SearchScope`
+## PD-38 — unified `search(UnifiedSearchParams)` dispatch + `SearchScope` — STILL DEFERRED
+
+> With `discover` (PD-35) landed the individual verb set now EXISTS — but PD-38 stays DEFERRED: the unified
+> dispatch adds ZERO new retrieval capability over the verbs that already exist on the router, and there is
+> still no client omnibox consumer. The `SearchScope` half (a) — the by-character cross-chat scope + the
+> `chat_digest_speakers` OR-branch — is a real recall-correctness capability, but build it the moment a "this
+> character across all chats" surface actually ships (it is consumer-less today). Half (b), the one-dispatch
+> verb, waits for the omnibox exactly as this doc's own §"premature" note says.
 
 - The one dispatch verb over the full surface: `UnifiedSearchResult` as a 7-branch discriminated
   union, exhaustive `assertNever` dispatch in `service.ts` (the `workloads.kind` mapped-Record

@@ -26,6 +26,17 @@ export async function findInviteByTokenHash(
   return rows.at(0);
 }
 
+/** Lookup an invite by its PK (the notification-driven accept/decline-by-id paths). Returns the raw row or
+ *  `undefined`; the validity + self-authorizing GATE (status/targeting/expiry) is the verb's + the atomic
+ *  {@link acceptInviteByIdAtomic}. The row is NEVER surfaced to a caller who isn't the bound target. */
+export async function findInviteById(
+  db: Db,
+  inviteId: ChatInviteId,
+): Promise<typeof chatInvites.$inferSelect | undefined> {
+  const rows = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId)).limit(1);
+  return rows.at(0);
+}
+
 /** The host-management invite list (createInvite/revoke surface) — every invite for a chat, newest-first. The
  *  verb maps to `InviteView` (computing `remainingUses`); the token hash never leaves persistence. */
 export async function listInvitesForChat(
@@ -126,6 +137,73 @@ export async function redeemInviteAtomic(
   if (participant === undefined) {
     // Already a present member (the upsert was an idempotent no-op) — surface as not-redeemable so the verb
     // reports "already joined" rather than a phantom membership.
+    return;
+  }
+  return { inviteId: invite.id, chatId: invite.chatId, participant };
+}
+
+/**
+ * The ATOMIC accept-BY-ID (the token-free notification→accept sibling of {@link redeemInviteAtomic}). SAME
+ * chokepoint physics — one TOCTOU-closing conditional `UPDATE … RETURNING` seats the caller and burns a use
+ * inside one statement — but keyed on the invite PK + SELF-AUTHORIZING: the caller's authenticated
+ * `invitedUserId` IS the authorization, so the WHERE demands an EXACT target match
+ * (`invitedUserId = caller`), NOT the redeem's `(untargeted OR target=caller)`. A share-link invite
+ * (`invitedUserId IS NULL`) therefore matches NOTHING here (it is token-only — accept-by-id never seats an
+ * untargeted invite), and a FOREIGN targeted invite (bound to someone else) also matches nothing — both
+ * collapse to the same leak-free `undefined` an invalid/expired/exhausted/declined/revoked id gives (no oracle
+ * distinguishes them). The `status='pending'` + remaining-uses + not-expired + not-already-present predicates,
+ * the exhaustion `→ 'accepted'` flip, and the {@link upsertMemberOnJoin} seat (`role` server-forced `member`,
+ * `joinSeq`=canon head) are IDENTICAL to redeem — the idempotent already-present member yields `undefined` (the
+ * verb recovers their existing membership). Returns the joined chat id + participant row, or `undefined`.
+ */
+export async function acceptInviteByIdAtomic(
+  db: Db,
+  params: {
+    readonly inviteId: ChatInviteId;
+    readonly userId: UserId;
+    readonly participantId: ChatParticipantId;
+    readonly now: number;
+  },
+): Promise<
+  | { inviteId: ChatInviteId; chatId: ChatId; participant: typeof chatParticipants.$inferSelect }
+  | undefined
+> {
+  const claimed = await db
+    .update(chatInvites)
+    .set({
+      uses: sql`${chatInvites.uses} + 1`,
+      status: sql`case when ${chatInvites.maxUses} is not null and ${chatInvites.uses} + 1 >= ${chatInvites.maxUses} then 'accepted' else ${chatInvites.status} end`,
+    })
+    .where(
+      and(
+        eq(chatInvites.id, params.inviteId),
+        eq(chatInvites.status, "pending"),
+        or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
+        or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
+        // SELF-AUTHORIZING: accept-by-id is ONLY for the exact bound target — an untargeted (share-link,
+        // `invitedUserId IS NULL`) invite is token-only and matches nothing here; a foreign invite likewise.
+        eq(chatInvites.invitedUserId, params.userId),
+        // Idempotent re-accept: a caller who is ALREADY a PRESENT member burns no use / flips no status (mirror
+        // the redeem chokepoint; `leftSeq IS NULL` = present). The verb's recovery re-reads their membership.
+        sql`not exists (select 1 from ${chatParticipants} where ${chatParticipants.chatId} = ${chatInvites.chatId} and ${chatParticipants.userId} = ${params.userId} and ${chatParticipants.leftSeq} is null)`,
+      ),
+    )
+    .returning({ id: chatInvites.id, chatId: chatInvites.chatId });
+  const invite = claimed.at(0);
+  if (invite === undefined) {
+    return;
+  }
+  const joinSeq = await loadMaxMessageSeq(db, invite.chatId);
+  const participant = await upsertMemberOnJoin(db, {
+    participantId: params.participantId,
+    chatId: invite.chatId,
+    userId: params.userId,
+    joinSeq,
+    now: params.now,
+  });
+  if (participant === undefined) {
+    // Already a present member (the upsert was an idempotent no-op — reachable only under a concurrent
+    // same-user double-accept race). Surface as not-seatable so the verb recovers their existing membership.
     return;
   }
   return { inviteId: invite.id, chatId: invite.chatId, participant };

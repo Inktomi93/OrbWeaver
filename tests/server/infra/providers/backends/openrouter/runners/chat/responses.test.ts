@@ -7,6 +7,7 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { logger } from "@orb/server/foundation/observability";
 import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
 import { runResponsesTurn } from "@orb/server/infra/providers/backends/openrouter";
 import { describe, vi } from "vitest";
@@ -110,6 +111,78 @@ describe("runResponsesTurn — wire shaping", () => {
     const reasoning = captured.body?.["reasoning"];
     expect(reasoning).toMatchObject({ effort: "high", summary: "auto" });
     expect(reasoning).not.toHaveProperty("maxTokens");
+  });
+
+  test("verbosity is mapped to text.verbosity — the ONE OR wire with the field (D68-B)", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(
+      client,
+      makeRequest({
+        capability: { ...CAPABILITY, verbosity: ["low", "medium", "high"] },
+        params: { effort: "high", verbosity: "high" },
+      }),
+      DEPS,
+    );
+    expect(captured.body?.["text"]).toEqual({ verbosity: "high" });
+  });
+
+  test("verbosity rides ALONGSIDE a json_schema format in the same text block", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(
+      client,
+      makeRequest({
+        capability: { ...CAPABILITY, verbosity: ["low", "medium", "high"] },
+        params: { effort: "high", verbosity: "low" },
+        responseFormat: { name: "out", schema: { type: "object" } },
+      }),
+      DEPS,
+    );
+    const text = captured.body?.["text"] as Record<string, unknown>;
+    expect(text["verbosity"]).toBe("low");
+    expect(text["format"]).toMatchObject({ type: "json_schema", name: "out" });
+  });
+
+  test("no text block when neither verbosity nor format is set (byte-stable)", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(client, makeRequest(), DEPS);
+    expect(captured.body?.["text"]).toBeUndefined();
+  });
+
+  test("maps the already-resolved topK rider onto the responses body (D68 §1)", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(
+      client,
+      makeRequest({
+        capability: { ...CAPABILITY, sampling: { topK: { min: 0, max: 100 } } },
+        params: { effort: "high", topK: 40 },
+      }),
+      DEPS,
+    );
+    expect(captured.body?.["topK"]).toBe(40);
+  });
+
+  test("emits the provider.sampling receipt including the applied verbosity", async () => {
+    const spy = vi.spyOn(logger, "debug");
+    const { client } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(
+      client,
+      makeRequest({
+        capability: {
+          ...CAPABILITY,
+          sampling: { temperature: { min: 0, max: 2 } },
+          verbosity: ["low", "medium", "high"],
+        },
+        params: { effort: "high", temperature: 0.4, verbosity: "medium" },
+      }),
+      DEPS,
+    );
+    const line = spy.mock.calls.find(
+      (c) => (c[0] as { event?: string }).event === "provider.sampling",
+    );
+    const fields = line?.[0] as Record<string, unknown>;
+    expect(fields["requested"]).toEqual({ temperature: 0.4, verbosity: "medium" });
+    expect(fields["applied"]).toEqual({ temperature: 0.4, verbosity: "medium" });
+    expect(fields["dropped"]).toEqual([]);
   });
 
   test("explicit budget → reasoning.maxTokens only (the XOR: never an effort alongside)", async () => {

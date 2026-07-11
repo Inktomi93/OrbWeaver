@@ -7,7 +7,7 @@ import type { Runner } from "../contract/runner";
 export const embedCorpusRunner: Runner<"embed-corpus"> = async (ctx, params, report, signal) => {
   const force = params.force ?? false;
   report({ message: force ? "re-embedding corpus (force)" : "embedding corpus" });
-  const result = await ctx.env.embeddings.embedCorpus({ force, signal });
+  const result = await ctx.env.embeddings.embedCorpus({ ownerId: ctx.ownerId, force, signal });
   report({
     message: "corpus embedded",
     current: result.embedded,

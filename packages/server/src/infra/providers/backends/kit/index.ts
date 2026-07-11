@@ -12,6 +12,7 @@ export type { CacheControlTextBlock } from "./cache-control";
 export {
   ANTHROPIC_CACHE_5M,
   cacheControlBlock,
+  computeCacheBreakpointOffsets,
   effectiveProviderRouting,
   isAnthropicModel,
 } from "./cache-control";
@@ -30,6 +31,19 @@ export type { IdleAbort } from "./idle-timeout";
 export { IDLE_TIMEOUT_MS, turnAbortSignal } from "./idle-timeout";
 // ── The shared OpenAI-compatible request/stream seam ───────────────────────────────────────────────
 export * from "./openai-compat";
+// ── The shared `provider.*` structured-log sink (hoisted from agent-sdk; per-call `backend` tag) ─────
+export type {
+  ProviderCacheLog,
+  ProviderSamplingDrop,
+  ProviderSamplingLog,
+  ProviderTurnUsage,
+} from "./provider-log";
+export {
+  logProviderCache,
+  logProviderSampling,
+  PROVIDER_LOG_LEVELS,
+  providerLog,
+} from "./provider-log";
 // ── Reasoning wire-block builders (the OR-responses effort/maxTokens XOR) ───────────────────────────
 export type {
   ChatCompletionsReasoning,

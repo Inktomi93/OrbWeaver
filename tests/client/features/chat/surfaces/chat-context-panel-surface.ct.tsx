@@ -4,15 +4,18 @@
 // member split (member loses the Preview tab and edits nothing), the preview trace render, an injection
 // add, and an override save (autosave → setRoomOverrides).
 //
-// The roster stub returns only what the panel reads (`participants` for `resolveViewerIsHost`,
-// `roomOverrides` for the form) — a partial `ChatDetail`, the same posture as message-list-surface.ct's
-// ROSTER_STUB. Every value crosses the routeTrpc JSON boundary as a plain object.
+// The roster stub returns only what the panel reads (`viewerIsHost` — the server-resolved, per-viewer
+// host gate every tab now shares; `participants` for the D16 group size-gate; `roomOverrides` for the
+// form) — a partial `ChatDetail`, the same posture as message-list-surface.ct's ROSTER_STUB. Every
+// value crosses the routeTrpc JSON boundary as a plain object.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatContextPanelStory } from "../_ct-stories";
 
-// A human seat in the room — only `kind` + `role` drive the host gate; the rest is filler the panel ignores.
+// A human seat in the room — `role` seats a host/member (the roster shape); the surface's host gate is
+// the separate server-resolved `viewerIsHost` field, NOT this seat's role. The rest is filler the panel
+// ignores.
 function human(role: "host" | "member"): Record<string, unknown> {
   return { kind: "human", role, userId: "user_ct", characterId: null };
 }
@@ -23,12 +26,19 @@ function character(key: string): Record<string, unknown> {
   return { kind: "character", userId: null, characterId: `character_${key}`, role: "member" };
 }
 
+// `role` seats the viewer's OWN human row AND sets the server-resolved `viewerIsHost` to match — the
+// honest single-human case where the seat and the server field agree (the proxy-vs-server DISAGREEMENT
+// is exercised by its own dedicated test below).
 function chatDetail(
   role: "host" | "member",
   roomOverrides: Record<string, string> = {},
   characters: readonly Record<string, unknown>[] = [],
 ): unknown {
-  return { participants: [human(role), ...characters], roomOverrides };
+  return {
+    participants: [human(role), ...characters],
+    roomOverrides,
+    viewerIsHost: role === "host",
+  };
 }
 
 // A minimal AssemblyPreview ({ prompt, trace }) — proves the Preview tab renders the assembled halves +
@@ -58,6 +68,39 @@ function emptyTrace(): Record<string, unknown> {
     chatInjectionsIncluded: 0,
     afterHistorySections: [],
     overrideSources: { mainPrompt: "room override" },
+  };
+}
+
+// A PRESENT human seat with the fields the People tab renders (multi-human invites lane):
+// `leftSeq: null` is load-bearing — `resolveHumanParticipants` keeps only present seats.
+function humanSeat(
+  id: string,
+  displayName: string,
+  role: "host" | "member",
+): Record<string, unknown> {
+  return {
+    id: `participant_${id}`,
+    kind: "human",
+    role,
+    userId: `user_${id}`,
+    characterId: null,
+    displayName,
+    handle: displayName.toLowerCase(),
+    avatarHash: null,
+    leftSeq: null,
+  };
+}
+
+// A `ChatDetail` stub for the People-tab cases — carries the server-resolved `viewerIsHost` (the
+// invite-controls gate; NOT the first-seat proxy the older tabs still use).
+function multiHumanChat(
+  viewerIsHost: boolean,
+  humans: readonly Record<string, unknown>[],
+): unknown {
+  return {
+    participants: [...humans, character("aria")],
+    roomOverrides: {},
+    viewerIsHost,
   };
 }
 
@@ -105,6 +148,86 @@ test("host in a GROUP (2-character) chat sees the Roster tab", async ({ mount, p
   await expect(component.getByRole("tab", { name: "Roster" })).toBeVisible();
 });
 
+test("NOT multi-human capable → no People tab at all (single-user renders no invite surface)", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => multiHumanChat(true, [humanSeat("nate", "Nate", "host")]),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+  });
+
+  // The default story mounts WITHOUT the capability prop — the single-user composition.
+  const component = await mount(<ChatContextPanelStory />);
+
+  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "People" })).toHaveCount(0);
+});
+
+test("capable HOST: People lists the humans (host badge) and invite-by-handle fires createInvite", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () =>
+      multiHumanChat(true, [
+        humanSeat("nate", "Nate", "host"),
+        humanSeat("buddy", "Buddy", "member"),
+      ]),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+    "invites.createInvite": () => ({
+      invite: { id: "chatinvite_ct_new", status: "pending" },
+      token: "tok_ct_minted",
+    }),
+  });
+
+  const component = await mount(<ChatContextPanelStory multiHumanCapable={true} />);
+  await component.getByRole("tab", { name: "People" }).click();
+
+  // The humans section — people differentiated from the seated cast, host crowned.
+  const panel = page.getByTestId("people-panel");
+  await expect(panel.getByText("Nate", { exact: false })).toBeVisible();
+  await expect(panel.getByText("Buddy", { exact: false })).toBeVisible();
+  await expect(panel.getByText("Host", { exact: true })).toBeVisible();
+
+  // The host's invite affordances: targeted-by-handle + the copy-link mint.
+  await expect(page.getByTestId("invite-copy-link")).toBeVisible();
+  await page.getByTestId("invite-handle-input").fill("frodo");
+  await page.getByTestId("invite-submit").click();
+
+  await expect.poll(() => trpc.count("invites.createInvite")).toBeGreaterThanOrEqual(1);
+  const input = trpc.lastInput("invites.createInvite") as {
+    chatId?: unknown;
+    input?: { invitedHandle?: unknown };
+  };
+  expect(input.chatId).toBe("chat_ct_keystone");
+  expect(input.input?.invitedHandle).toBe("frodo");
+});
+
+test("capable MEMBER: People shows who's here but NO invite controls (host-only mirror)", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "chat.getChat": () =>
+      multiHumanChat(false, [
+        humanSeat("nate", "Nate", "host"),
+        humanSeat("buddy", "Buddy", "member"),
+      ]),
+    "chat.listChatInjections": () => [],
+  });
+
+  const component = await mount(<ChatContextPanelStory multiHumanCapable={true} />);
+  await component.getByRole("tab", { name: "People" }).click();
+
+  const panel = page.getByTestId("people-panel");
+  await expect(panel.getByText("Nate", { exact: false })).toBeVisible();
+  await expect(page.getByTestId("invite-handle-input")).toHaveCount(0);
+  await expect(page.getByTestId("invite-copy-link")).toHaveCount(0);
+});
+
 test("member loses the Preview tab and the overrides are read-only", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("member", { mainPrompt: "Be terse." }),
@@ -118,6 +241,34 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
   // Preview is host-only (previewAssembly is a host debug surface) — hidden for a member.
   await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
   // The main-prompt field seeded from the server value, but disabled (a member cannot edit).
+  const mainPrompt = component.getByLabel("Main prompt");
+  await expect(mainPrompt).toHaveValue("Be terse.");
+  await expect(mainPrompt).toBeDisabled();
+});
+
+test("migrated tabs obey the server host field, NOT the first-seat proxy (member behind a host seat sees no host UI)", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    // The FIRST human seat is a host, so the old `resolveViewerIsHost` first-seat proxy would return
+    // TRUE and mis-grant host UI. The server-resolved `viewerIsHost:false` says THIS viewer is a
+    // member — the migrated Overrides/Preview/Injections tabs must obey the server field, not the seat.
+    "chat.getChat": () => ({
+      participants: [human("host"), human("member")],
+      roomOverrides: { mainPrompt: "Be terse." },
+      viewerIsHost: false,
+    }),
+    "chat.listChatInjections": () => [],
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+
+  // Preview is host-only → hidden despite the host-first roster that would trip the proxy.
+  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
+  // Overrides seed from the server value but stay read-only — the member cannot edit even though a
+  // host holds the first human seat.
   const mainPrompt = component.getByLabel("Main prompt");
   await expect(mainPrompt).toHaveValue("Be terse.");
   await expect(mainPrompt).toBeDisabled();

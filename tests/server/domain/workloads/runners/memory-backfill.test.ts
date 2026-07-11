@@ -4,7 +4,7 @@
 import { describe, vi } from "vitest";
 import { memoryBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/memory-backfill.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerContext } from "../_support.ts";
+import { fakeEnv, makeRunnerContext, RUNNER_OWNER_ID } from "../_support.ts";
 
 describe("memory-backfill runner", () => {
   test("runs the corpus sweep and returns its counts", async () => {
@@ -15,7 +15,10 @@ describe("memory-backfill runner", () => {
       vi.fn(),
       new AbortController().signal,
     );
-    expect(env.memory.backfill).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
+    expect(env.memory.backfill).toHaveBeenCalledWith({
+      ownerId: RUNNER_OWNER_ID,
+      signal: expect.any(AbortSignal),
+    });
     expect(result).toEqual({
       segments: { scanned: 4, changed: 2 },
       digests: { scanned: 6, changed: 3 },

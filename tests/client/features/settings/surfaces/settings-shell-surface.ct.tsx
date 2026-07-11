@@ -110,9 +110,10 @@ test("switching to an unbuilt category shows ITS distinct teaching copy", async 
   await expect(component.getByText("Provider credentials and model connections.")).toBeVisible();
 });
 
-// Task #37 — the System category is now a REAL pane (the placeholder is GONE for it), while the other
-// three APP categories STAY teaching placeholders (they ride their own feature lanes).
-test("System is a real pane; Connections/Automation/Admin stay teaching placeholders", async ({
+// Task #37 — the System category is now a REAL pane (the placeholder is GONE for it), while the two
+// unbuilt APP categories STAY teaching placeholders; Admin is a REAL pane too (its own gate tests
+// below + admin-settings-surface.ct.tsx).
+test("System is a real pane; Connections/Automation stay teaching placeholders", async ({
   mount,
   page,
 }) => {
@@ -130,17 +131,52 @@ test("System is a real pane; Connections/Automation/Admin stay teaching placehol
     component.getByText("Deployment-wide media safety, compute, shared access, and operations."),
   ).toHaveCount(0);
 
-  // The other three APP categories still render their OWN distinct teaching copy.
+  // The two unbuilt APP categories still render their OWN distinct teaching copy.
   await component.getByRole("button", { name: "Connections" }).click();
   await expect(component.getByText("Provider credentials and model connections.")).toBeVisible();
   await component.getByRole("button", { name: "Automation" }).click();
   await expect(
     component.getByText("Scheduled and triggered actions across your library."),
   ).toBeVisible();
+});
+
+// The admin gate (settings-nav-model `adminOnly` — UX honesty over the server's adminProcedure floor):
+// the Admin category exists in the nav + search ONLY for owner ∪ admin viewers.
+test("a plain user never sees the Admin category (nav row + search entry hidden)", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "sessions.me": () => ({ userId: "user_plain", handle: "plain", globalRole: "user" }),
+  });
+  const component = await mount(<SettingsShellStory />);
+
+  // The APP group renders (Connections is there) but Admin's row is absent.
+  await expect(component.getByRole("button", { name: "Connections" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Admin" })).toHaveCount(0);
+
+  // The search index hides the admin entries too.
+  await component.getByRole("combobox", { name: "Search settings" }).fill("create user");
+  await expect(component.getByRole("option", { name: "Create user" })).toHaveCount(0);
+});
+
+test("an admin viewer sees the Admin category and it mounts the REAL pane", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
+    "admin.listUsers": () => [],
+    "admin.vllmEngines": () => ({}),
+  });
+  const component = await mount(<SettingsShellStory />);
+
   await component.getByRole("button", { name: "Admin" }).click();
-  await expect(
-    component.getByText("User administration — available on multi-user deployments."),
-  ).toBeVisible();
+  // The real pane's registry-anchored section headings — not the old teaching placeholder.
+  await expect(component.getByRole("heading", { name: "Users" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Engines" })).toBeVisible();
 });
 
 // Task #37 — the System knobs are fuzzy-searchable like everything else; a hit jumps to its pane + anchor.

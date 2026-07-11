@@ -81,6 +81,7 @@ export function makeHarness(db: Db): ExportHarness {
     putBytes: unused,
     blobPath: unused,
     exists: unused,
+    mtimeMs: () => unused(),
     verify: unused,
     remove: unused,
     listHashes: () => unused(),
