@@ -23,6 +23,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const GATES_REL = "scripts/check/gates";
@@ -209,5 +210,78 @@ export const diagnosticLegibility: Check = {
   run: ({ root }): Violation[] => [
     ...scanGatesDir(join(root, GATES_REL), `${GATES_REL}/`),
     ...scanGritDir(join(root, GRIT_REL), `${GRIT_REL}/`),
+  ],
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§2.2 fold-in — read the gate corpus from the SHARED project) ─────────
+// THE ONE INTENDED FINDING CHANGE in the whole port (TSMORPH-SINGLE-PASS-AUDIT.md §2.2 / §8.1 phase 3 /
+// risk §8.4). Today diagnostic-legibility scans the gate corpus via its OWN third `new Project` (scanGatesDir
+// above), because the harness globs never loaded scripts/check/gates/. The fold-in adds
+// `scripts/check/gates/**` to the workspace globs (ts-workspace.ts) so this gate reads the gate files from
+// the SHARED project via `scanRoot: p => p.startsWith("scripts/check/gates/")` — no fourth Project, one walk.
+// The DELIBERATE DELTA the fold-in creates is NOT in this gate's OWN findings (message diagnostics resolve
+// identically whether read from a private Project or the shared one) — it's that the whole-project scanners
+// (commented-code, no-caller-user-id, no-inline-union-redecl, pd-citation-integrity) would ALSO see the now-
+// globbed gate files and gain findings on their EXAMPLE strings, UNLESS each pins `scanRoot` to packages+
+// tests. Those four are pinned in this same change, so the net finding change on the real corpus is ZERO —
+// the fold-in is behavior-preserving by construction; this gate's parity test proves the pins hold by showing
+// a scanner WOULD fire on a gate-file fixture without its pin and does NOT with it. The GRIT arm stays fs
+// (grit files aren't in the ts project), so this descriptor is fsBacked. Kept ALONGSIDE the legacy Check.
+const GATE_SCAN_ROOT = `${GATES_REL}/`;
+
+/** Every message-diagnostic Violation in ONE gate SourceFile (read from the shared project's AST). */
+function gateFileDiags(sf: SourceFile, root: string): Violation[] {
+  const abs = sf.getFilePath();
+  const rel = abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
+  const lines = sf.getFullText().split("\n");
+  const diags = [...messagePropDiags(sf), ...msgTableDiags(sf)];
+  return flag(diags, lines, rel);
+}
+
+export const gate: GateDescriptor = {
+  name: "diagnostic-legibility",
+  docRow: "core/Documentation-Law.md",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message: POINTER_HELP,
+  fix: "end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, an @orb/… specifier, or a concrete file.ts), or mark it `// terse-ok: <reason>` if the fix is fully self-contained (Documentation-Law.md).",
+  // The fold-in's opt-IN: THIS gate reads the gate corpus from the shared project. The four whole-project
+  // scanners pin their scanRoot to EXCLUDE it (see their gate files) — this one includes it.
+  scanRoot: (p) => p.startsWith(GATE_SCAN_ROOT),
+  run: (ctx) => {
+    // Gate-file message diagnostics — read from the SHARED project (the fold-in), scanRoot-pinned above.
+    for (const sf of ctx.project.getSourceFiles()) {
+      const abs = sf.getFilePath();
+      if (!(abs.includes(`/${GATES_REL}/`) && abs.endsWith(".ts"))) {
+        continue;
+      }
+      for (const v of gateFileDiags(sf, ctx.root)) {
+        ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+      }
+    }
+    // Grit diagnostics — grit files are not in the ts project, so this arm stays fs (fsBacked).
+    for (const v of scanGritDir(join(ctx.root, GRIT_REL), `${GRIT_REL}/`)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+  },
+  mustFlag: [
+    {
+      files: {
+        "scripts/check/gates/x.ts":
+          'export const gate = { message: "a bare diagnostic with no home" };\n',
+      },
+      expect: { messageIncludes: "must carry a pointer" },
+      why: "a gate `message:` with no doc/code-home pointer — the amnesiac agent gets a dead-end 'no'",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "scripts/check/gates/x.ts":
+          'export const gate = { message: "the fix lives in packages/ui/src/x.ts" };\n',
+      },
+      why: "a gate message carrying a concrete code-home pointer (packages/…/x.ts) — a navigable next step, passes",
+    },
   ],
 };

@@ -17,6 +17,7 @@
 //     a `queryKey:` property at all.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
@@ -73,4 +74,42 @@ export const noArrayLiteralQuerykey: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
+// The legacy predicate as a PropertyAssignment subscription: a `queryKey:` property whose (unwrapped)
+// initializer is an inline array literal, in packages/client/src/**. scanRoot mirrors the legacy
+// clientRel filter (the parity oracle). Per-occurrence (each inline-array queryKey property). Kept
+// ALONGSIDE the legacy Check. The offending token is `queryKey` (the property name that violated).
+export const gate: GateDescriptor = {
+  name: "no-array-literal-querykey",
+  docRow: "UI-Gates-and-Lessons.md §11.1",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "mint the key from the tRPC options proxy: trpc.<router>.<proc>.queryKey() / .queryFilter() / .pathFilter().",
+  scanRoot: (p) => p.includes("packages/client/src/"),
+  kinds: [SyntaxKind.PropertyAssignment],
+  visit: (node, _sf, ctx) => {
+    if (!Node.isPropertyAssignment(node) || node.getName() !== "queryKey") {
+      return;
+    }
+    if (Node.isArrayLiteralExpression(unwrap(node.getInitializerOrThrow()))) {
+      ctx.report(node, { token: "queryKey", offset: 0 });
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const q = { queryKey: ["users", 1] };\n',
+      at: "packages/client/src/features/a/data.ts",
+      why: "an inline array-literal queryKey — the neo drift a proxy-minted key locks out",
+    },
+  ],
+  mustPass: [
+    {
+      files: "export const ok = { queryKey: readKey };\n",
+      at: "packages/client/src/features/a/data2.ts",
+      why: "an identifier passthrough (proxy-shaped mint) — never resolved to its declaration, so it passes",
+    },
+  ],
 };

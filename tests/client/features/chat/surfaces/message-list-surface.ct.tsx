@@ -129,7 +129,9 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
 
   // The turn completes → listMessages refetches → the assistant reply lands as a canonical row.
   await expect(component.getByText("Hello world")).toBeVisible();
-  await expect.poll(() => trpc.count("chat.listMessages")).toBeGreaterThanOrEqual(2);
+  await expect
+    .poll(() => trpc.count("chat.listMessages"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(2);
 });
 
 // The bare START of a turn — turnStarted with NO deltas (the "pending" TTFT phase, before the ghost
@@ -252,7 +254,9 @@ test("a just-created chat (draft→committed) seeds lastEventId '0' and streams 
   // The scripted head deltas animate the ghost (recovered because the subscription seeded the cursor)...
   await expect(component.getByText("Hello world")).toBeVisible();
   // ...and the committed subscription carried the replay cursor (bounded to THIS chat's baseline).
-  await expect.poll(() => stream.lastInput()).toMatchObject({ chatId: CHAT_ID, lastEventId: "0" });
+  await expect
+    .poll(() => stream.lastInput(), { intervals: [20, 50, 100] })
+    .toMatchObject({ chatId: CHAT_ID, lastEventId: "0" });
 });
 
 // The complement: an EXISTING chat opened directly subscribes with NO cursor (never re-replays a finished
@@ -270,7 +274,7 @@ test("an existing committed chat subscribes with NO replay cursor (never re-repl
   const component = await mount(<MessageListSurfaceStory />); // committed=true (default)
 
   await expect(component.getByText("Ping?")).toBeVisible();
-  await expect.poll(() => stream.count()).toBe(1);
+  await expect.poll(() => stream.count(), { intervals: [20, 50, 100] }).toBe(1);
 
   const input = stream.lastInput() as { chatId: string; lastEventId?: unknown };
   expect(input.chatId).toBe(CHAT_ID);

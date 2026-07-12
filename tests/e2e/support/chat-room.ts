@@ -20,10 +20,12 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
-// The character card's chat CTA is `aria-label="Chat with <name>"` (character-card.tsx) — resume-or-new.
-// (NB: the older exemplar start-chat-with-character.spec.ts still looks for "Start chat with …", which no
-// longer exists on the card — that label now lives only in the multi-select new-chat picker. Flagged.)
-const START_CHAT = /^Chat with /u;
+// The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
+// Chat CTA. In the docked library width the e2e viewport lands on (the list is <320px — the
+// `ACTIONS_COLLAPSE_BELOW_PX` fold), Star + Chat COLLAPSE INTO the per-row kebab as menu items, so the inline
+// `aria-label="Chat with <name>"` button is never rendered. The deterministic path at every width is
+// therefore the kebab: open the row's "Actions for <name>" menu, then click its "Chat" item.
+const CHARACTER_ROW_KEBAB = /^Actions for /u;
 const APP_READY = "html[data-app-ready]";
 const BOOTSTRAP_MESSAGE = "Hi";
 
@@ -76,9 +78,14 @@ async function createChatViaSend(page: Page): Promise<void> {
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
-  const startChat = page.getByRole("button", { name: START_CHAT }).first();
-  await expect(startChat).toBeVisible({ timeout: 30_000 });
-  await startChat.click();
+  // Open the first character row's kebab and start a chat from it. Keyboard activation (focus + Enter) —
+  // the row-body <button> overlaps the kebab in stacking and intercepts pointer clicks (same posture as the
+  // chat-list row kebabs). The "Chat" item is the resume-or-new affordance folded into the collapsed row.
+  const kebab = page.getByRole("button", { name: CHARACTER_ROW_KEBAB }).first();
+  await expect(kebab).toBeVisible({ timeout: 30_000 });
+  await kebab.focus();
+  await kebab.press("Enter");
+  await page.getByRole("menuitem", { name: "Chat", exact: true }).click();
 
   const composer = page.getByRole("textbox", { name: "Message" });
   await expect(composer).toBeVisible();
@@ -97,7 +104,16 @@ export async function openOrCreateChat(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
 
-  const rows = page.getByRole("list", { name: "Chats" }).getByRole("button");
+  // `/` lands on the Chats LIST surface (chat-list-surface.tsx `aria-label="Chats"`), suspense-loaded from
+  // `chat.listChats`. Wait for the list OR the "No chats yet" empty-state to settle BEFORE counting rows —
+  // reading the count while the suspense query is still in flight races a false 0 (which would drop into the
+  // expensive create-via-send path even though a chat exists). globalSetup guarantees ≥1 chat, so the reuse
+  // branch is the normal path.
+  const chatsList = page.getByRole("list", { name: "Chats" });
+  const emptyState = page.getByText("No chats yet");
+  await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: 15_000 });
+
+  const rows = chatsList.getByRole("button");
   if ((await rows.count()) === 0) {
     await createChatViaSend(page);
     return;

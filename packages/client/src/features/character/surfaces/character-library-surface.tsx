@@ -35,6 +35,7 @@ import {
 } from "#data";
 import { useFocusOnMount } from "#lib";
 import {
+  clearCharacterSelection,
   selectCharacter,
   selectChat,
   setActiveSection,
@@ -58,6 +59,10 @@ import { CharacterCreateMenu } from "../components/character-create-menu";
 import { CharacterFavoritesStrip } from "../components/character-favorites-strip";
 import { CharacterFilterChips } from "../components/character-filter-chips";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar";
+import {
+  useDuplicateCharacter,
+  useRemoveCharacter,
+} from "../hooks/use-character-context-mutations";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import { filterByChips, groupByTag, resumeTargets } from "../lib/character-list-view";
 import { filterCharacters } from "../lib/filter-characters";
@@ -108,6 +113,8 @@ export function CharacterLibrarySurface({
   const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode });
   const selectedId = useSelectedCharacterId();
   const update = useUpdateCharacter({ trpc, invalidation });
+  const duplicate = useDuplicateCharacter({ trpc, invalidation });
+  const remove = useRemoveCharacter({ trpc, invalidation });
 
   // §4.4/§9c reverse read — bus-driven `listChats` (staleTime default; `chatsChanged` refreshes it), folded
   // to characterId → most-recent chatId in render. Degrades to "start new" until it loads (empty map).
@@ -130,7 +137,30 @@ export function CharacterLibrarySurface({
   const openEditor = (id: string): void => selectCharacter(castId<CharacterId>(id));
   const toggleStar = (id: string, next: boolean): void =>
     update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
+  const toggleArchive = (id: string, next: boolean): void =>
+    update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
   const toggleBulk = (id: string): void => collection.selection.toggle(id);
+  // Duplicate → open the fresh copy in the editor (mutateAsync so the selection rides the result — the
+  // CharacterActionsMenu precedent; the .catch keeps a rejected write from leaking an unhandled rejection).
+  const duplicateCharacter = (id: string): void => {
+    void duplicate
+      .mutateAsync({ characterId: castId<CharacterId>(id) })
+      .then((created) => selectCharacter(created.id))
+      .catch(() => undefined);
+  };
+  // Delete → if the deleted card was the one open in CONTENT, clear the selection so the editor doesn't
+  // point at a dropped id (the CharacterActionsMenu precedent).
+  const deleteCharacter = (id: string): void => {
+    const characterId = castId<CharacterId>(id);
+    void remove
+      .mutateAsync({ characterId })
+      .then(() => {
+        if (selectedId === characterId) {
+          clearCharacterSelection();
+        }
+      })
+      .catch(() => undefined);
+  };
   // The resume-or-new decision + the ONE sanctioned cross-section jump (§9c) — a writer-only store touch.
   const chatWith = (id: string): void => {
     const characterId = castId<CharacterId>(id);
@@ -149,7 +179,10 @@ export function CharacterLibrarySurface({
       bulkSelected={collection.selection.isSelected(item.id)}
       character={item}
       onChat={chatWith}
+      onDelete={deleteCharacter}
+      onDuplicate={duplicateCharacter}
       onSelect={openEditor}
+      onToggleArchive={toggleArchive}
       onToggleBulk={toggleBulk}
       onToggleStar={toggleStar}
       selected={selectedId === item.id}

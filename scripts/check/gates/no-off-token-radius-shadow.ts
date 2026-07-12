@@ -33,6 +33,7 @@
 // offender not in the allowlist is RED immediately.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const CLIENT_SRC_DIR = "/packages/client/src/";
@@ -48,6 +49,11 @@ const MESSAGE =
   "off-token default-scale radius/shadow utility (design-enforcement.md §3, DC8) — resolves against " +
   "Tailwind's stock scale, not the DTCG theme: use a themed radius (rounded-base/control/card/full) " +
   "or shadow (shadow-glow/overlay/prose), per tokens.json.";
+
+/** The concrete remedy (§9.2), printed ONCE under the group header (owner rulings 2/3). */
+const FIX =
+  "rounded-lg → rounded-card (or rounded-base/rounded-control/rounded-full); shadow-md → shadow-overlay " +
+  "(or shadow-glow/shadow-prose) — see tokens.json radius/shadow vocab + design-enforcement.md §3.";
 
 const STALE_ENTRY_MESSAGE_PREFIX =
   "ALLOWLIST entry has NO off-token radius/shadow utility any more — the offender was reworked onto a " +
@@ -67,6 +73,29 @@ const WHITESPACE_RE = /\s+/u;
 function isBannedScale(token: string): boolean {
   const terminal = token.split(":").at(-1) ?? token;
   return RADIUS_SCALE_RE.test(terminal) || SHADOW_SCALE_RE.test(terminal);
+}
+
+/** A single banned token + its 0-based char offset into the ENCLOSING NODE's text (one past the leading
+ *  delimiter). Per-occurrence granularity (owner ruling 1): a `className="rounded-lg shadow-md"` yields
+ *  TWO of these, each landing the caret on its own token. */
+type BannedToken = { readonly token: string; readonly offset: number };
+
+/** Every banned class token in a class-string-carrier node's text, with its offset into `node.getText()`.
+ *  Splits on whitespace and tracks the running position so each token's column is exact. The leading `+1`
+ *  accounts for the stripped delimiter (backtick / quote / `}` — always one char). */
+function bannedTokens(nodeText: string): BannedToken[] {
+  const stripped = stripTemplateDelimiters(nodeText);
+  const out: BannedToken[] = [];
+  const parts = stripped.split(WHITESPACE_RE);
+  let cursor = 0;
+  for (const part of parts) {
+    const at = stripped.indexOf(part, cursor);
+    cursor = at + part.length;
+    if (part.length > 0 && isBannedScale(part)) {
+      out.push({ token: part, offset: at + 1 });
+    }
+  }
+  return out;
 }
 
 /** Strip a template-literal part's delimiters: TemplateHead is `` `text${ ``, TemplateMiddle is
@@ -177,3 +206,108 @@ export function createNoOffTokenRadiusShadow(allowlist: Record<string, string>):
 }
 
 export const noOffTokenRadiusShadow: Check = createNoOffTokenRadiusShadow(ALLOWLIST);
+
+// ── SINGLE-PASS CONTRACT FORM (TSMORPH-SINGLE-PASS-AUDIT.md §1.2) ─────────────────────────────────
+// The same predicate as the legacy `Check` above, re-expressed as a node subscription: no project loop,
+// no 5 kind sweeps — the runner's ONE walk feeds each class-string-carrier literal to `visit`. Findings
+// are byte-identical to the legacy path (proven by the parity harness + this gate's conformance proofs).
+// The offender arm is per-literal (incremental-safe); the stale ALLOWLIST arm is finalize-guarded to the
+// full-project scope (§4.4). Kept ALONGSIDE the legacy export while the old runner stays authoritative.
+
+/** GATE_SELF is where a stale-allowlist finding points (the gate file itself), matching the legacy arm. */
+const GATE_SELF = "scripts/check/gates/no-off-token-radius-shadow.ts";
+const passSeenAllowlisted = new Set<string>();
+
+export const gate: GateDescriptor = {
+  name: "no-off-token-radius-shadow",
+  docRow: "design-enforcement.md §3 (DC8)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: FIX,
+  // EXACTLY the legacy scanSrc path filter (client|ui src) — NO preset carve-out (the real gate has
+  // none; the parity oracle is the legacy behavior, not the spec's illustrative scanRoot).
+  scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
+
+  kinds: [
+    SyntaxKind.StringLiteral,
+    SyntaxKind.NoSubstitutionTemplateLiteral,
+    SyntaxKind.TemplateHead,
+    SyntaxKind.TemplateMiddle,
+    SyntaxKind.TemplateTail,
+  ],
+
+  begin: () => {
+    passSeenAllowlisted.clear();
+  },
+
+  // PER-TOKEN (owner ruling 1): a className with N banned tokens emits N findings, each landing the caret
+  // on its own token via the node-text offset. The reason lives once on the descriptor — findings carry
+  // only {file,line,column,token}.
+  visit: (node, sf, ctx) => {
+    if (!isClassStringSite(node)) {
+      return;
+    }
+    const hits = bannedTokens(node.getText());
+    if (hits.length === 0) {
+      return;
+    }
+    const rel = clientRel(sf.getFilePath());
+    if (rel in ALLOWLIST) {
+      passSeenAllowlisted.add(rel);
+      return;
+    }
+    for (const hit of hits) {
+      ctx.report(node, hit);
+    }
+  },
+
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project") {
+      return; // the stale arm is a whole-tree claim — never fire it below project scope (§4.4)
+    }
+    for (const rel of Object.keys(ALLOWLIST)) {
+      if (!passSeenAllowlisted.has(rel)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          // The stale-arm text genuinely varies per dead entry → a per-occurrence message override.
+          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-off-token-radius-shadow.ts`,
+        });
+      }
+    }
+  },
+
+  mustFlag: [
+    {
+      files: `export const G = <div className="rounded-lg shadow-md" />;\n`,
+      at: "packages/ui/src/x/x.tsx",
+      // PER-TOKEN: the two banned tokens (rounded-lg + shadow-md) are TWO findings, not one.
+      expect: { count: 2 },
+      why: "the DC8 blind spot itself: stock-scale radius+shadow in a className → one finding per token",
+    },
+    {
+      files: "export const v = tv({ base: `shadow-lg ${MOTION}` });\n",
+      at: "packages/ui/src/x/variants.ts",
+      why: "interpolated template PART (TemplateHead) inside tv() — the case a plain-string scan misses",
+    },
+  ],
+  mustPass: [
+    {
+      files: `export const G = <div className="rounded-card shadow-overlay" />;\n`,
+      at: "packages/ui/src/x/x.tsx",
+      why: "the themed vocabulary passes untouched",
+    },
+    {
+      files: `export const label = "Prose shadow";\n`,
+      at: "packages/client/src/features/x/copy.ts",
+      why: "'shadow' as UI copy outside a class-string site — the false positive this gate scopes against",
+    },
+    {
+      files: `export const G = <div className="rounded-none shadow-none" />;\n`,
+      at: "packages/client/src/features/x/components/x.tsx",
+      why: "none = deliberate opt-out keyword, excluded from the banned scale",
+    },
+  ],
+};

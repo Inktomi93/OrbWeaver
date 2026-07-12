@@ -59,11 +59,13 @@ test("a file over maxSizeBytes is rejected and the error is announced", async ({
     mimeType: "text/plain",
     name: "too-big.txt",
   });
-  await expect.poll(() => results).toEqual([{ accepted: 0, rejected: 1 }]);
+  // Wait on the real DOM consequence (the rendered error alert) instead of polling the JS callback
+  // array — `onFilesSelected` and the alert render land in the same synchronous state update.
   const error = page.getByRole("alert");
   await expect(error).toBeVisible();
   await expect(error).toContainText("too-big.txt");
   await expect(error).toContainText("exceeds");
+  expect(results).toEqual([{ accepted: 0, rejected: 1 }]);
 });
 
 test("the size hint auto-renders from maxSizeBytes when no explicit hint is given", async ({

@@ -60,7 +60,7 @@ test("onValueChange reports the pressed values", async ({ mount, page }) => {
     </ToggleGroup>,
   );
   await page.getByRole("button", { name: "Center" }).click();
-  await expect.poll(() => seen.at(-1)).toEqual(["center"]);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toEqual(["center"]);
 });
 
 function threeItemFixture(): ReturnType<typeof ToggleGroup> {

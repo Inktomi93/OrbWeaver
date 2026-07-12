@@ -23,6 +23,7 @@
 // positive (a 450-line file), never the real tree.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const UI_SRC = "packages/ui/src";
@@ -52,28 +53,67 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
+/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanComponentSizeUi(root: string): Violation[] {
+  const base = join(root, UI_SRC);
+  if (!existsSync(base)) {
+    return [];
+  }
+  const files: string[] = [];
+  walk(base, files);
+  const out: Violation[] = [];
+  for (const file of files) {
+    const rel = relative(root, file);
+    // Trim a single trailing newline so a file ending in "\n" isn't counted one line over.
+    const lines = readFileSync(file, "utf8").replace(TRAILING_NL, "").split("\n").length;
+    if (lines > CAP) {
+      out.push({
+        file: rel,
+        line: CAP + 1,
+        message: `${lines} lines (cap ${CAP}) — split the primitive into sub-files (parts) or extract pure logic to a lib. A god-primitive is a §13.7 smell (UI-Primitives-and-Reuse.md §13.7).`,
+      });
+    }
+  }
+  return out;
+}
+
 export const componentSizeUi: Check = {
   name: "component-size-ui",
-  run: (ctx: CheckContext): Violation[] => {
-    const base = join(ctx.root, UI_SRC);
-    if (!existsSync(base)) {
-      return [];
+  run: (ctx: CheckContext): Violation[] => scanComponentSizeUi(ctx.root),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a DORMANT pure-FS `run` gate, fsBacked conformance) ──────────
+// The @orb/ui twin of component-size. DORMANT (not in ALL_CHECKS — it finds real debt on the current
+// tree; activation rides W1-1). `status: "dormant"` in the descriptor replaces the hand-kept DORMANT_GATES
+// list (§1.3); the runner skips it, conformance still proves it. Reads the real fs (readFileSync line
+// counts of ui src) → fsBacked. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "component-size-ui",
+  docRow: "UI-Primitives-and-Reuse.md §13.7",
+  status: "dormant",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "a @orb/ui source file exceeds the 450-line cap — split the primitive into sub-files (parts) or extract pure logic to a lib; a god-primitive is a UI-Primitives-and-Reuse.md §13.7 smell.",
+  fix: "split the primitive into part sub-files, or extract pure logic to a lib — a primitive is ONE sealed component.",
+  run: (ctx) => {
+    for (const v of scanComponentSizeUi(ctx.root)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    const files: string[] = [];
-    walk(base, files);
-    const out: Violation[] = [];
-    for (const file of files) {
-      const rel = relative(ctx.root, file);
-      // Trim a single trailing newline so a file ending in "\n" isn't counted one line over.
-      const lines = readFileSync(file, "utf8").replace(TRAILING_NL, "").split("\n").length;
-      if (lines > CAP) {
-        out.push({
-          file: rel,
-          line: CAP + 1,
-          message: `${lines} lines (cap ${CAP}) — split the primitive into sub-files (parts) or extract pure logic to a lib. A god-primitive is a §13.7 smell (UI-Primitives-and-Reuse.md §13.7).`,
-        });
-      }
-    }
-    return out;
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/ui/src/big/big.tsx": "export const x = 1;\n".repeat(CAP + 1),
+      },
+      expect: { messageIncludes: "cap 450" },
+      why: "a ui source one line over the 450 cap — a god-primitive (§13.7)",
+    },
+  ],
+  mustPass: [
+    {
+      files: { "packages/ui/src/small/small.tsx": "export const x = 1;\n" },
+      why: "a small ui source well under the cap — passes",
+    },
+  ],
 };

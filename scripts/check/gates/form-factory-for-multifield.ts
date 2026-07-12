@@ -25,6 +25,7 @@
 // Core-Enforcement-Active-Gates.md (kept in SYNC with enforcement-registry-parity.ts + check-gates.int).
 import type { JsxAttribute, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const FEATURES_SRC = "/packages/client/src/features/";
@@ -184,4 +185,53 @@ export const formFactoryForMultifield: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE component-count gate via visitFile) ───────────────
+// The legacy predicate as a per-file hook: a feature .tsx whose enclosing component hand-rolls ≥3
+// controlled form inputs while importing NEITHER editor factory (the per-component count is a per-file
+// aggregation — the whole-file scan is the unit). scanRoot mirrors the legacy FEATURES_SRC + `.tsx`
+// filter. The finding names the component + count → per-occurrence override. Not fsBacked. Byte-identical
+// to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "form-factory-for-multifield",
+  docRow: "D54 §13.4 (UI-Primitives-and-Reuse.md §13.4)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message:
+    "a feature component hand-rolls ≥3 controlled form inputs but imports no editor factory — a ≥3-field form belongs in createSavedEntityForm / createAutosaveEntityForm (they bake seed / key-remount / post-submit reset / reseed-guard / draft-mirror / dontUpdateMeta). D54 §13.4; UI-Primitives-and-Reuse.md §13.4.",
+  fix: "route the multi-field form through createSavedEntityForm / createAutosaveEntityForm (packages/client/src/forms/) — never hand-roll ≥3 controlled inputs.",
+  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx"),
+  visitFile: (sf, ctx: GateRunCtx) => {
+    const rel = featureRel(sf.getFilePath());
+    if (rel === undefined || importsFactory(sf)) {
+      return;
+    }
+    for (const v of fileViolations(sf, rel)) {
+      ctx.report({
+        file: v.file,
+        line: v.line,
+        column: 0,
+        message: v.message,
+        token: "multi-field form",
+      });
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        "export const F = () => (\n  <div>\n    <input value={a} onChange={x} />\n    <input value={b} onChange={y} />\n    <input value={c} onChange={z} />\n  </div>\n);\n",
+      at: "packages/client/src/features/x/hand-rolled.tsx",
+      expect: { messageIncludes: "hand-rolls" },
+      why: "a feature component with 3 controlled inputs + no factory import — a hand-rolled form (§13.4)",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        "export const F = () => (\n  <div>\n    <input value={a} onChange={x} />\n    <input value={b} onChange={y} />\n  </div>\n);\n",
+      at: "packages/client/src/features/x/two-field.tsx",
+      why: "only 2 controlled inputs — under the ≥3 threshold (a lone search / login 2-field), passes",
+    },
+  ],
 };

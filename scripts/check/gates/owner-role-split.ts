@@ -9,6 +9,7 @@
 // auth seam's debug `isAdmin` re-implemented owner∪admin inline — now routed through
 // `requireAdmin` (the seam fix landed with this gate).
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const SERVER_SRC = /\/packages\/server\/src\//u;
@@ -53,4 +54,44 @@ export const ownerRoleSplit: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
+// The legacy predicate as a BinaryExpression subscription: a global-role literal compared (either side)
+// in server-src outside the ONE allowlisted guard file. scanRoot mirrors the legacy SERVER_SRC ∧ ¬ALLOWLIST
+// filter. Per-occurrence (each role comparison). Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "owner-role-split",
+  docRow: "ledger D17 (Spine-Identity inv #6)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "call can()/requireAdmin/requireOwner — the privilege lattice (owner ⊇ admin) lives ONLY inside domain/admin/guard.ts.",
+  scanRoot: (p) => SERVER_SRC.test(`/${p}`) && !ALLOWLIST.test(`/${p}`),
+  kinds: [SyntaxKind.BinaryExpression],
+  visit: (node, _sf, ctx) => {
+    if (!node.isKind(SyntaxKind.BinaryExpression)) {
+      return;
+    }
+    if (!EQUALITY_OPS.has(node.getOperatorToken().getText())) {
+      return;
+    }
+    if (isRoleCompare(node.getLeft().getText(), node.getRight().getText())) {
+      ctx.report(node, { token: "role === owner/admin", offset: 0 });
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const isOwner = (r: { role: string }) => r.role === "owner";\n',
+      at: "packages/server/src/domain/hub/x.ts",
+      why: "a global-role literal comparison outside the guard — re-spells the privilege lattice (D17)",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const isHost = (r: { role: string }) => r.role === "host";\n',
+      at: "packages/server/src/domain/hub/y.ts",
+      why: "a NON-global role (host) comparison — only owner/admin are the confined privilege lattice",
+    },
+  ],
 };

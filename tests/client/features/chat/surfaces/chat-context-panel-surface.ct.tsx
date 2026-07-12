@@ -197,7 +197,9 @@ test("capable HOST: People lists the humans (host badge) and invite-by-handle fi
   await page.getByTestId("invite-handle-input").fill("frodo");
   await page.getByTestId("invite-submit").click();
 
-  await expect.poll(() => trpc.count("invites.createInvite")).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("invites.createInvite") as {
     chatId?: unknown;
     input?: { invitedHandle?: unknown };
@@ -313,7 +315,9 @@ test("host adds an injection (setChatInjection fires with no id ⇒ create)", as
 
   await component.getByRole("button", { name: "Add injection" }).click();
 
-  await expect.poll(() => trpc.count("chat.setChatInjection")).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.count("chat.setChatInjection"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("chat.setChatInjection") as { id?: unknown; position?: unknown };
   // A create carries NO id (the server mints it) and the default position.
   expect(input.id).toBeUndefined();
@@ -344,7 +348,9 @@ test("host removes an injection (deleteChatInjection fires with the row id)", as
 
   await component.getByRole("button", { name: "Remove injection" }).click();
 
-  await expect.poll(() => trpc.count("chat.deleteChatInjection")).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.count("chat.deleteChatInjection"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("chat.deleteChatInjection") as { injectionId?: unknown };
   expect(input.injectionId).toBe("chat_injection_a");
 });
@@ -363,7 +369,9 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   const component = await mount(<ChatContextPanelStory />);
   await component.getByLabel("Scenario").fill("A rainy dock.");
 
-  await expect.poll(() => trpc.count("chat.setRoomOverrides")).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.count("chat.setRoomOverrides"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const input = trpc.lastInput("chat.setRoomOverrides") as {
     overrides?: { scenario?: string; mainPrompt?: string };
   };

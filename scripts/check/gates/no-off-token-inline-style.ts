@@ -38,6 +38,7 @@
 // offender not in the allowlist is RED immediately.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const CLIENT_SRC_DIR = "/packages/client/src/";
@@ -297,3 +298,124 @@ export function createNoOffTokenInlineStyle(allowlist: Record<string, string>): 
 }
 
 export const noOffTokenInlineStyle: Check = createNoOffTokenInlineStyle(ALLOWLIST);
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — the reference-gate shape: offender arm + finalize stale arm) ─
+// Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
+// `<expr>.style.<prop> = <raw>` BinaryExpression, and a `.style.setProperty("<prop>", <raw>)`
+// CallExpression. scanRoot mirrors the legacy scanSrc filter (client|ui src). The empty ALLOWLIST's
+// stale arm is finalize-guarded to project scope (§4.4), exactly like no-off-token-radius-shadow.
+// Per-occurrence (each offending inline-style site). Kept ALONGSIDE the legacy Check.
+const GATE_SELF = "scripts/check/gates/no-off-token-inline-style.ts";
+const passSeenAllowlisted = new Set<string>();
+
+/** Is this JSX `style={{…}}` PropertyAssignment a token-backed prop written with a raw literal value? */
+function isRawStyleProp(prop: Node): boolean {
+  if (!prop.isKind(SyntaxKind.PropertyAssignment)) {
+    return false;
+  }
+  const key = prop.getNameNode().getText().replace(/["']/gu, "");
+  return TOKEN_BACKED_PROPS.has(key) && isRawLiteralValue(staticLiteral(prop.getInitializer()));
+}
+
+/** The first offending PropertyAssignment inside a JSX `style={{…}}` attribute, or undefined. A trailing
+ *  return EXPRESSION (no fall-off-end) so tsc noImplicitReturns is satisfied. */
+function jsxStyleOffender(attr: Node): Node | undefined {
+  return styleObjectLiterals(attr)
+    .flatMap((obj) => obj.getChildrenOfKind(SyntaxKind.PropertyAssignment))
+    .find(isRawStyleProp);
+}
+
+/** Is this `.style.setProperty("<token-prop>", <raw>)` call an offender? */
+function isSetPropertyOffender(call: Node): boolean {
+  if (!call.isKind(SyntaxKind.CallExpression)) {
+    return false;
+  }
+  const callee = call.getExpression();
+  if (!callee.isKind(SyntaxKind.PropertyAccessExpression) || callee.getName() !== "setProperty") {
+    return false;
+  }
+  if (!isStyleAccess(callee.getExpression())) {
+    return false;
+  }
+  const [propArg, valueArg] = call.getArguments();
+  return (
+    TOKEN_BACKED_PROPS.has(staticLiteral(propArg)) && isRawLiteralValue(staticLiteral(valueArg))
+  );
+}
+
+export const gate: GateDescriptor = {
+  name: "no-off-token-inline-style",
+  docRow: "design-enforcement.md §3 (inline/imperative arm)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "use a Tailwind token utility, or (if inline is required) reference a `var(--…)` token, per tokens.json.",
+  scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
+  kinds: [SyntaxKind.JsxAttribute, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression],
+  begin: () => {
+    passSeenAllowlisted.clear();
+  },
+  visit: (node, sf, ctx) => {
+    const rel = clientRel(sf.getFilePath());
+    let offender: Node | undefined;
+    if (node.isKind(SyntaxKind.JsxAttribute)) {
+      offender = jsxStyleOffender(node);
+    } else if (
+      node.isKind(SyntaxKind.BinaryExpression) &&
+      node.getOperatorToken().getKind() === SyntaxKind.EqualsToken &&
+      isStyleTokenTarget(node.getLeft()) &&
+      isRawLiteralValue(staticLiteral(node.getRight()))
+    ) {
+      offender = node;
+    } else if (isSetPropertyOffender(node)) {
+      offender = node;
+    }
+    if (offender === undefined) {
+      return;
+    }
+    if (rel in ALLOWLIST) {
+      passSeenAllowlisted.add(rel);
+      return;
+    }
+    ctx.report(offender);
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project") {
+      return;
+    }
+    for (const rel of Object.keys(ALLOWLIST)) {
+      if (!passSeenAllowlisted.has(rel)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-off-token-inline-style.ts`,
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const G = <div style={{ borderRadius: "8px" }} />;\n',
+      at: "packages/client/src/features/demo/components/thing.tsx",
+      why: "a raw-literal JSX inline style (borderRadius: '8px') — bypasses the className + CSS token gates",
+    },
+    {
+      files: 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "8px";\n}\n',
+      at: "packages/ui/src/primitives/demo/demo.ts",
+      why: "an imperative `.style.x = 'raw'` assignment — the second carrier the class gates can't see",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const G = <div style={{ borderRadius: "var(--radius-card)" }} />;\n',
+      at: "packages/client/src/features/demo/components/ok.tsx",
+      why: "a var(--…) inline value is on-token (just inline) — always passes",
+    },
+    {
+      files: 'export const G = <div style={{ left: "8px" }} />;\n',
+      at: "packages/client/src/features/demo/components/np.tsx",
+      why: "a non-token property (left) is out of scope — this gate owns only tokens.json's axes",
+    },
+  ],
+};

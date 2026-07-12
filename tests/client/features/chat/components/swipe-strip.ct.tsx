@@ -60,7 +60,7 @@ test("renders the n/m counter and fires swipe (generate) on the next chevron at 
   await expect(component.getByText("2 / 2")).toBeVisible();
 
   await component.getByRole("button", { name: "Next variant" }).click();
-  await expect.poll(() => trpc.count("chat.swipe")).toBe(1);
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.count("chat.selectVariant")).toBe(0);
 });
 
@@ -93,7 +93,7 @@ test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this moun
   await expect(prev).toBeEnabled();
   await prev.click();
 
-  await expect.poll(() => trpc.count("chat.selectVariant")).toBe(1);
+  await expect.poll(() => trpc.count("chat.selectVariant"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.selectVariant")).toMatchObject({
     messageId: MESSAGE_ID,
     variantId: VARIANT_0,
@@ -118,7 +118,7 @@ test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sib
 
   await component.getByRole("button", { name: "Next variant" }).click();
 
-  await expect.poll(() => trpc.count("chat.selectVariant")).toBe(1);
+  await expect.poll(() => trpc.count("chat.selectVariant"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.selectVariant")).toMatchObject({
     messageId: MESSAGE_ID,
     variantId: VARIANT_1,
@@ -135,7 +135,7 @@ test("ArrowRight/ArrowLeft drive the same navigation as the chevrons", async ({ 
   await mount(<SwipeStripStory message={atTipOf2} />);
   // Nothing is focused (no editable control on the page) — the global listener fires.
   await page.keyboard.press("ArrowRight");
-  await expect.poll(() => trpc.count("chat.swipe")).toBe(1);
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
 test("ArrowLeft/ArrowRight are ignored while an editable control has focus (don't fight typing)", async ({
@@ -159,5 +159,5 @@ test("ArrowLeft/ArrowRight are ignored while an editable control has focus (don'
   // A real click proves the strip is still live — if the keypress above HAD sneaked through despite
   // the focused input, this would be call #2 by the time the poll settles, not #1.
   await component.getByRole("button", { name: "Next variant" }).click();
-  await expect.poll(() => trpc.count("chat.swipe")).toBe(1);
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
 });

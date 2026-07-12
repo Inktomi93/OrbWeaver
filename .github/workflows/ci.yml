@@ -36,5 +36,7 @@ jobs:
       # The copy-paste CI lane (jscpd, threshold 5%) — kept out of the fast pre-commit `check`.
       - run: pnpm cpd
 
-      # Browser lanes (Playwright e2e + CT) are deferred to Phase 6 (client) — no specs/stack yet.
-      # Mutation testing (Stryker) is on-demand (Phase 4c/5), never in CI's fast path.
+      # Browser lanes gate at the pre-push lefthook, not here (CI is workflow_dispatch-only, 2026-07-05):
+      # the CT suite (`pnpm test:ct`) + the fast `@smoke` e2e subset (`pnpm e2e:smoke`) both run pre-push on
+      # the host. The FULL e2e suite is manual (`pnpm e2e`); the live-model spec is opt-in (`pnpm e2e:live`,
+      # E2E_LIVE=1). Mutation testing (Stryker) is on-demand (Phase 4c/5), never in CI's fast path.

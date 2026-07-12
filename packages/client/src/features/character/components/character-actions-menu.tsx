@@ -8,6 +8,8 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/MoreHorizontal fine (the character-card.tsx precedent).
+import { Icon, MoreHorizontal } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -54,7 +56,16 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
   return (
     <>
       <Menu>
-        <MenuTrigger render={<Button intent="ghost">Actions</Button>} />
+        {/* Icon-only kebab (the every-list-row MoreHorizontal convention) — a text "Actions" button was a
+            fat ~76px `shrink-0` sibling that starved the inline tab strip at the docked ~264px width, clipping
+            "Options". The icon frees ~50px so the 3 equal-width tabs fit without overflow. Labeled for AT. */}
+        <MenuTrigger
+          render={
+            <Button aria-label="Character actions" intent="ghost" size="icon" type="button">
+              <Icon icon={MoreHorizontal} size="sm" />
+            </Button>
+          }
+        />
         <MenuPopup>
           <MenuItem onClick={(): void => setDuplicateOpen(true)}>Duplicate</MenuItem>
           <MenuLinkItem href={`/api/export/character/${characterId}`} download={true}>

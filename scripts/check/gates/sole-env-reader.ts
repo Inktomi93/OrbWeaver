@@ -6,7 +6,8 @@
 // (e.g. the agent-sdk firewall docs) are ignored. `domain/sessions`' sanctioned call-time reads are
 // allowlisted below (foundation.md inv #1).
 import type { SourceFile } from "ts-morph";
-import { Node } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const SERVER_SRC = "/packages/server/src/";
@@ -93,4 +94,52 @@ export const soleEnvReader: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
+// The legacy predicate as a Property/ElementAccessExpression subscription (the two node shapes a
+// `process.env` / `process["env"]` access can take): no getDescendants() over every node — the runner's
+// ONE walk feeds only these two kinds. scanRoot mirrors the legacy filter (server-src ∧ ¬foundation/env).
+// The role-policy sanctioned-read exception is applied in `visit` exactly as the legacy `scan`.
+// Per-occurrence (each process.env access). Kept ALONGSIDE the legacy Check.
+const SOLE_ENV_MESSAGE =
+  "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (core/Tier-2-Foundation.md inv #1).";
+
+export const gate: GateDescriptor = {
+  name: "sole-env-reader",
+  docRow: "core/Tier-2-Foundation.md inv #1 (Core-Laws-and-Precedents.md)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: SOLE_ENV_MESSAGE,
+  fix: "import the frozen `env` from foundation/env and dot-access a typed key; foundation/env is the ONE place that touches process.env.",
+  scanRoot: (p) => p.includes("packages/server/src/") && !ENV_HOME.test(`/${p}`),
+  kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+  visit: (node, sf, ctx) => {
+    if (!isProcessEnvAccess(node)) {
+      return;
+    }
+    if (ROLE_POLICY.test(sf.getFilePath()) && isSanctionedRolePolicyRead(node)) {
+      return;
+    }
+    ctx.report(node, { token: "process.env", offset: 0 });
+  },
+  mustFlag: [
+    {
+      files: "export const x = process.env.SOME_VAR;\n",
+      at: "packages/server/src/domain/hub/x.ts",
+      why: "a process.env read outside foundation/env — env is the sole reader (inv #1)",
+    },
+    {
+      files: 'export const x = process["env"].SOME_VAR;\n',
+      at: "packages/server/src/domain/hub/y.ts",
+      why: 'the bracket trick process["env"] the property-form biome rule can miss — the AST backstop',
+    },
+  ],
+  mustPass: [
+    {
+      files: "// process.env is only read in foundation/env (inv #1)\nexport const x = 1;\n",
+      at: "packages/server/src/domain/hub/z.ts",
+      why: "a process.env mention in a COMMENT — only real access nodes are read, docs are exempt",
+    },
+  ],
 };

@@ -48,7 +48,9 @@ test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imp
   await expect(page.locator(DROPZONE_ROOT)).not.toHaveAttribute("data-success", "");
   await expect(page.getByRole("img", { name: "Uploaded" })).toHaveCount(0);
   // …and the toast is the error channel (never a green "Import complete").
-  await expect.poll(() => errors.some((line) => line.includes("Import failed"))).toBe(true);
+  await expect
+    .poll(() => errors.some((line) => line.includes("Import failed")), { intervals: [20, 50, 100] })
+    .toBe(true);
   expect(errors.some((line) => line.includes("Import complete"))).toBe(false);
 });
 

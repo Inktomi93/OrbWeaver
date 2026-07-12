@@ -31,7 +31,8 @@
 // ts-morph project (synthetic fixtures, never the real tree) proving fire AND no-false-positive.
 import type { ArrowFunction, FunctionExpression, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { Check, Violation } from "../harness.ts";
+import type { GateDescriptor } from "../contract.ts";
+import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const MAX_HELPER_DEPTH = 4;
 const ASSERTION_HELPER_RE = /^(?:expect|assert)[A-Z0-9]/u;
@@ -335,28 +336,68 @@ function isTestFile(filePath: string): boolean {
   return filePath.includes("/tests/") && TEST_FILE_RE.test(filePath);
 }
 
+/** The AST scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanAuditClientTests({ root, project }: CheckContext): Violation[] {
+  const violations: Violation[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const filePath = sf.getFilePath();
+    if (!isTestFile(filePath)) {
+      continue;
+    }
+    const rel = relPath(root, filePath);
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      auditCall(call, rel, violations);
+    }
+    for (const stmt of findBareExpectStatements(sf)) {
+      violations.push({
+        file: rel,
+        line: stmt.getStartLineNumber(),
+        message:
+          "bare `expect(x);` with no matcher chain — assertion incomplete (Spine-Testing.md §5)",
+      });
+    }
+  }
+  return violations;
+}
+
 export const auditClientTests: Check = {
   name: "audit-client-tests",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const filePath = sf.getFilePath();
-      if (!isTestFile(filePath)) {
-        continue;
-      }
-      const rel = relPath(root, filePath);
-      for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-        auditCall(call, rel, violations);
-      }
-      for (const stmt of findBareExpectStatements(sf)) {
-        violations.push({
-          file: rel,
-          line: stmt.getStartLineNumber(),
-          message:
-            "bare `expect(x);` with no matcher chain — assertion incomplete (Spine-Testing.md §5)",
-        });
-      }
+  run: (ctx): Violation[] => scanAuditClientTests(ctx),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-AST test-audit via `run`, DORMANT) ────────────────────
+// audit-client-tests scans every tests/**/*.test.ts(x) for structural anti-patterns (an assertion-less
+// test callback, a missing-await async test, a bare `expect(x)`, an empty describe/lifecycle hook) via the
+// shared Project's AST — never the fs — so it ports as a `run` descriptor reusing the exact scan (NOT
+// fsBacked). status:"dormant" — the loader loads it, the runner skips it, but the conformance runner runs
+// it as-active so its proofs still hold (a dormant gate must be correct so it can be activated). Distinct
+// per-pattern messages → per-occurrence overrides. Byte-identical to the legacy Check. Kept ALONGSIDE it.
+export const gate: GateDescriptor = {
+  name: "audit-client-tests",
+  docRow: "Core-Enforcement-Deferred-Dropped.md (audit-client-tests) / Spine-Testing.md §5",
+  status: "dormant",
+  scopeSafety: "whole-project",
+  message:
+    "a test file carries a structural anti-pattern — a test callback with no `expect(...).<matcher>()`, an async test with no await, a bare `expect(x);`, an empty describe() with no nested test, or an empty lifecycle hook (Spine-Testing.md §5).",
+  fix: "add a matcher-chained expect (or await), delete the empty describe/hook, and complete any bare `expect(x)` with a matcher (Spine-Testing.md §5).",
+  run: (ctx) => {
+    for (const v of scanAuditClientTests({ root: ctx.root, project: ctx.project })) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: 'test("does nothing", () => {\n  const x = 1;\n  void x;\n});\n',
+      at: "tests/tooling/x.test.ts",
+      expect: { messageIncludes: "doesn't throw" },
+      why: 'a test callback with no expect(...).<matcher>() — pure "doesn\'t throw" is not a test (§5)',
+    },
+  ],
+  mustPass: [
+    {
+      files: 'test("asserts", () => {\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/ok.test.ts",
+      why: "a test with a matcher-chained expect — the audited shape holds, passes",
+    },
+  ],
 };

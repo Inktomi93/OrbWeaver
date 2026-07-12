@@ -7,6 +7,8 @@
 // retrofit D51 explicitly avoids. Enforced as the sanctioned-importer allowlist on the symbol: a
 // `ChatContentPart` import from a file outside the seam set is RED (an upstream module reaching for parts).
 import type { SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const SYMBOL = "ChatContentPart";
@@ -73,4 +75,54 @@ export const contentPartSeam: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
+// The legacy predicate as an ImportSpecifier subscription: a `ChatContentPart` named import from
+// @orb/contracts/chat, in a prod-src file outside the D51 seam set. scanRoot mirrors the legacy
+// PROD_SRC && !SANCTIONED filter (the parity oracle — the repoRel path is prefixed `/` to match the
+// leading-slash-anchored regexes). Per-occurrence (each ChatContentPart named import). Kept ALONGSIDE
+// the legacy Check.
+/** Is this ImportSpecifier a `ChatContentPart` named import from @orb/contracts/chat? */
+function isContentPartImport(spec: Node): boolean {
+  if (!Node.isImportSpecifier(spec) || spec.getName() !== SYMBOL) {
+    return false;
+  }
+  const decl = spec.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
+  return decl !== undefined && CONTRACTS_CHAT.test(decl.getModuleSpecifierValue());
+}
+
+export const gate: GateDescriptor = {
+  name: "content-part-seam",
+  docRow: "Core-Path-Registry-D44-D52.md D51",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "keep `content: string` upstream; ChatContentPart is produced ONCE at the engine request seam (domain/chat/engine/pipeline.ts) and consumed only by infra/providers/**.",
+  scanRoot: (p) => {
+    const abs = `/${p}`;
+    return PROD_SRC.test(abs) && !SANCTIONED.some((re) => re.test(abs));
+  },
+  kinds: [SyntaxKind.ImportSpecifier],
+  visit: (node, _sf, ctx) => {
+    if (isContentPartImport(node)) {
+      ctx.report(node, { token: SYMBOL, offset: 0 });
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type T = ChatContentPart;\n',
+      at: "packages/server/src/domain/chat/verbs/assemble.ts",
+      why: "an upstream verb importing ChatContentPart — reaching for parts before the engine seam (D51)",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
+      at: "packages/server/src/infra/providers/backends/kit/map.ts",
+      why: "the infra/providers consumer is a sanctioned seam member — the sealed runner maps parts to wire",
+    },
+  ],
 };

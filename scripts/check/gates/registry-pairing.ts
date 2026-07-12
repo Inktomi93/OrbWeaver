@@ -13,8 +13,9 @@
 // it reads the sibling `**/lib/modal-slots.tsx`, extracts modal TRIGGER ids (object literals with
 // `kind: "modal"` → their `id` string — RAIL_ACTIONS/ACCOUNT_ACTION/COMMAND_ACTION all match) and BODY ids
 // (the `MODAL_SLOTS` object's keys), and asserts the two sets are equal.
-import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
+import type { ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const RAIL_SUFFIX = "/lib/rail-slots.ts";
@@ -96,29 +97,76 @@ function checkPair(railSf: SourceFile, modalSf: SourceFile, out: Violation[]): v
   }
 }
 
+/** The whole-tree pairing scan shared by the legacy Check and the single-pass `run` descriptor: every
+ *  rail-slots.ts is checked against its sibling modal-slots.tsx for a modal-id bijection. */
+function scanRegistryPairing(project: Project): Violation[] {
+  const out: Violation[] = [];
+  for (const railSf of project.getSourceFiles()) {
+    const path = railSf.getFilePath();
+    if (!path.endsWith(RAIL_SUFFIX)) {
+      continue;
+    }
+    const modalPath = `${path.slice(0, -RAIL_SUFFIX.length)}${MODAL_BASENAME}`;
+    const modalSf = project.getSourceFile(modalPath);
+    if (modalSf === undefined) {
+      out.push({
+        file: rel(path),
+        line: 0,
+        message:
+          "rail-slots.ts has no sibling lib/modal-slots.tsx — the rail↔modal pairing has nothing to " +
+          "check against (UI-Gates §11.5).",
+      });
+      continue;
+    }
+    checkPair(railSf, modalSf, out);
+  }
+  return out;
+}
+
 export const registryPairing: Check = {
   name: "registry-pairing",
-  run: ({ project }): Violation[] => {
-    const out: Violation[] = [];
-    for (const railSf of project.getSourceFiles()) {
-      const path = railSf.getFilePath();
-      if (!path.endsWith(RAIL_SUFFIX)) {
-        continue;
-      }
-      const modalPath = `${path.slice(0, -RAIL_SUFFIX.length)}${MODAL_BASENAME}`;
-      const modalSf = project.getSourceFile(modalPath);
-      if (modalSf === undefined) {
-        out.push({
-          file: rel(path),
-          line: 0,
-          message:
-            "rail-slots.ts has no sibling lib/modal-slots.tsx — the rail↔modal pairing has nothing to " +
-            "check against (UI-Gates §11.5).",
-        });
-        continue;
-      }
-      checkPair(railSf, modalSf, out);
+  run: ({ project }): Violation[] => scanRegistryPairing(project),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a cross-FILE PAIRING scan via `run`) ───────────────
+// registry-pairing is a cross-file bijection check (each rail-slots.ts vs its SIBLING modal-slots.tsx,
+// looked up by path) — not a per-node predicate — so it ports as a `run` descriptor reusing the exact
+// pairing logic over the SAME shared project. No begin/finalize (each pair is judged inside `run`). A
+// synthetic tree with no rail-slots.ts is naturally vacuous. Distinct per-id messages → per-occurrence
+// overrides. Findings byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "registry-pairing",
+  docRow: "UI-Gates-and-Lessons.md §11.5 (design-enforcement.md §3.1)",
+  status: "active",
+  scopeSafety: "whole-project",
+  message:
+    "the rail↔modal registries must be a BIJECTION on modal ids — every { kind: 'modal', id } trigger in rail-slots.ts needs a MODAL_SLOTS body in the sibling modal-slots.tsx, and vice versa (UI-Gates-and-Lessons.md §11.5).",
+  fix: "add the missing MODAL_SLOTS body / rail trigger, or drop the orphan side, so triggers and bodies pair 1:1.",
+  run: (ctx) => {
+    for (const v of scanRegistryPairing(ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    return out;
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/client/src/features/x/lib/rail-slots.ts":
+          'export const RAIL = [{ kind: "modal", id: "orphanTrigger" }];\n',
+        "packages/client/src/features/x/lib/modal-slots.tsx": "export const MODAL_SLOTS = {};\n",
+      },
+      expect: { messageIncludes: "no MODAL_SLOTS body" },
+      why: "a modal trigger with no body — 'the panel won't open' (§11.5)",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/client/src/features/x/lib/rail-slots.ts":
+          'export const RAIL = [{ kind: "modal", id: "theme" }];\n',
+        "packages/client/src/features/x/lib/modal-slots.tsx":
+          "export const MODAL_SLOTS = { theme: {} };\n",
+      },
+      why: "trigger and body pair 1:1 on the id — a complete bijection, passes",
+    },
+  ],
 };

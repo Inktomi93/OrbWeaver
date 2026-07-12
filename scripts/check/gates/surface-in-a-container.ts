@@ -21,8 +21,11 @@
 // Self-tested: tests/tooling/surface-in-a-container.int.test.ts drives it over a temp-dir fixture tree
 // (real fs — the gate reads surface files) proving fire (a surface with a raw `<div>` structural root
 // + no Container) AND no-false-positive (a surface that renders `<Container>`), never the real tree.
+// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TSX surface fixture
+// snippets, not secrets.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const FEATURES = "packages/client/src/features";
@@ -57,31 +60,74 @@ function anchorHasContainer(dir: string): boolean {
     .some((e) => CONTAINER_RE.test(readFileSync(join(anchors, e.name), "utf8")));
 }
 
+const CONTAINER_MESSAGE =
+  "surface establishes raw structural layout but sits in no <Container>/<Section container> — a surface is the containment CONSUMER; wrap it in an @orb/ui/layout container (its own or its anchor's), never raw container-type (UI-Architecture-and-Layout.md §4).";
+
+/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanSurfaceInAContainer(root: string): Violation[] {
+  const base = join(root, FEATURES);
+  if (!existsSync(base)) {
+    return [];
+  }
+  const out: Violation[] = [];
+  for (const feat of readdirSync(base, { withFileTypes: true })) {
+    if (!feat.isDirectory() || SHELL_EXEMPT.has(feat.name)) {
+      continue;
+    }
+    const dir = join(base, feat.name);
+    for (const f of surfaceFiles(dir)) {
+      const src = readFileSync(join(dir, "surfaces", f), "utf8");
+      if (STRUCTURAL_RE.test(src) && !CONTAINER_RE.test(src) && !anchorHasContainer(dir)) {
+        out.push({
+          file: `${FEATURES}/${feat.name}/surfaces/${f}`,
+          line: 0,
+          message: CONTAINER_MESSAGE,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 export const surfaceInAContainer: Check = {
   name: "surface-in-a-container",
-  run: (ctx: CheckContext): Violation[] => {
-    const base = join(ctx.root, FEATURES);
-    if (!existsSync(base)) {
-      return [];
+  run: (ctx: CheckContext): Violation[] => scanSurfaceInAContainer(ctx.root),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
+// surface-in-a-container reads the real fs (readdirSync of feature dirs + readFileSync of each surface +
+// its anchors/) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
+// materializes examples to a real temp dir. File-level findings. Byte-identical to the legacy Check.
+export const gate: GateDescriptor = {
+  name: "surface-in-a-container",
+  docRow: "UI-Architecture-and-Layout.md §4",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message: CONTAINER_MESSAGE,
+  fix: "wrap the surface in an @orb/ui/layout <Container>/<Section container> (its own or its anchor's) — never raw container-type.",
+  run: (ctx) => {
+    for (const v of scanSurfaceInAContainer(ctx.root)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    const out: Violation[] = [];
-    for (const feat of readdirSync(base, { withFileTypes: true })) {
-      if (!feat.isDirectory() || SHELL_EXEMPT.has(feat.name)) {
-        continue;
-      }
-      const dir = join(base, feat.name);
-      for (const f of surfaceFiles(dir)) {
-        const src = readFileSync(join(dir, "surfaces", f), "utf8");
-        if (STRUCTURAL_RE.test(src) && !CONTAINER_RE.test(src) && !anchorHasContainer(dir)) {
-          out.push({
-            file: `${FEATURES}/${feat.name}/surfaces/${f}`,
-            line: 0,
-            message:
-              "surface establishes raw structural layout but sits in no <Container>/<Section container> — a surface is the containment CONSUMER; wrap it in an @orb/ui/layout container (its own or its anchor's), never raw container-type (UI-Architecture-and-Layout.md §4).",
-          });
-        }
-      }
-    }
-    return out;
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/client/src/features/x/surfaces/pane.tsx":
+          "export const Pane = () => <div><ul><li>row</li></ul></div>;\n",
+      },
+      expect: { messageIncludes: "no <Container>" },
+      why: "a surface with a raw structural <div>/<ul> root + no Container (own or anchor's) — §4",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/client/src/features/x/surfaces/ok.tsx":
+          "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
+      },
+      why: "the surface renders a <Container> around its structural content — the sanctioned shape, passes",
+    },
+  ],
 };

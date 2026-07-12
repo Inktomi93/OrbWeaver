@@ -40,7 +40,7 @@ test("onPressedChange reports the next state", async ({ mount, page }) => {
     </Toggle>,
   );
   await page.getByRole("button").click();
-  await expect.poll(() => seen.at(-1)).toBe(true);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe(true);
 });
 
 test("hover shows the accent token", async ({ mount, page }) => {

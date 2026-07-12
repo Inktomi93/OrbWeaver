@@ -34,7 +34,7 @@ test("respects step and reports through onValueChange", async ({ mount, page }) 
   const thumb = page.getByRole("slider");
   await thumb.press("ArrowRight");
   await expect(thumb).toHaveAttribute("aria-valuenow", "55");
-  await expect.poll(() => seen.at(-1)).toBe(55);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe(55);
 });
 
 test("the interactive surface meets the touch floor", async ({ mount }) => {
@@ -79,7 +79,7 @@ test("range: two thumbs report [lo, hi] and both are keyboard-operable", async (
   await expect(lo).toHaveAttribute("aria-valuenow", "21");
   await hi.press("ArrowLeft");
   await expect(hi).toHaveAttribute("aria-valuenow", "79");
-  await expect.poll(() => seen.at(-1)).toEqual([21, 79]);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toEqual([21, 79]);
 });
 
 test("Home/End/PageUp/PageDown jump to bounds and by the large step", async ({ mount, page }) => {

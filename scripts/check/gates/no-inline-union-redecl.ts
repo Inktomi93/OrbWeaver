@@ -16,6 +16,7 @@ import type {
   VariableDeclaration,
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const MIN_MEMBERS = 3;
@@ -166,4 +167,149 @@ export const noInlineUnionRedecl: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — accumulate-then-judge, NO live registry) ───────────
+// Arm A (an inline string-union type-alias ≥3 members) is self-contained per alias → emitted at visit.
+// Arm B (an inline union / z.enum re-spelling a CANONICAL tuple) needs ALL tuples collected before it can
+// judge (a re-spell can reference a tuple declared later in the walk), so re-spell candidates are
+// ACCUMULATED in visit and reconciled against the collected tuples in `finalize` — the same verdicts as
+// the legacy two-pass Check, in one walk. NO allowlist/registry → NO fileLoaded sentinel needed; a
+// synthetic tree with no matching canonical tuple simply produces no arm-B finding. Kept ALONGSIDE the
+// legacy Check.
+type RespellCandidate = {
+  readonly file: string;
+  readonly line: number;
+  readonly column: number;
+  readonly sig: string;
+  readonly kind: "union" | "zenum";
+};
+const passTuples = new Map<string, string>(); // sig → tuple name
+const passRespells: RespellCandidate[] = [];
+
+function candidateColumn(node: Node): number {
+  return node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column;
+}
+
+function pushRespell(node: Node, root: string, members: string[], kind: "union" | "zenum"): void {
+  passRespells.push({
+    file: relPath(root, node.getSourceFile().getFilePath()),
+    line: node.getStartLineNumber(),
+    column: candidateColumn(node),
+    sig: sig(members),
+    kind,
+  });
+}
+
+/** Arm A — emit an inline string-union type alias (≥3 members) immediately; it is self-contained. */
+function visitAlias(node: Node, ctx: GateRunCtx): void {
+  if (!Node.isTypeAliasDeclaration(node)) {
+    return;
+  }
+  const typeNode = node.getTypeNode();
+  if (typeNode === undefined || !Node.isUnionTypeNode(typeNode)) {
+    return;
+  }
+  const members = unionStringMembers(typeNode);
+  if (members !== undefined && members.length >= MIN_MEMBERS) {
+    ctx.report(node, { token: `union ${node.getName()}`, offset: 0 });
+  }
+}
+
+/** Arm B candidates — accumulate a non-alias UnionType / a z.enum([...]) for finalize reconciliation. */
+function visitRespellCandidate(node: Node, root: string): void {
+  if (Node.isUnionTypeNode(node)) {
+    if (node.getParent()?.getKind() === SyntaxKind.TypeAliasDeclaration) {
+      return; // arm A owns aliases
+    }
+    const members = unionStringMembers(node);
+    if (members !== undefined) {
+      pushRespell(node, root, members, "union");
+    }
+    return;
+  }
+  if (Node.isCallExpression(node)) {
+    const members = zEnumArrayMembers(node);
+    if (members !== undefined) {
+      pushRespell(node, root, members, "zenum");
+    }
+  }
+}
+
+export const gate: GateDescriptor = {
+  name: "no-inline-union-redecl",
+  docRow: "core/Spine-TypeScript-and-Patterns.md §7.5",
+  status: "active",
+  scopeSafety: "whole-project", // arm B compares against tuples collected from the whole tree
+  message:
+    "an inline string-literal union re-spells (or should derive from) a canonical `as const` tuple — declare the axis ONCE as a tuple (export const X = [...] as const) and derive ((typeof X)[number] / z.enum(X)). Spine-TypeScript-and-Patterns.md §7.5",
+  fix: "derive the union from the homed tuple: `(typeof X)[number]` (or `z.enum(X)`) — never re-spell its members.",
+  // Pinned to packages+tests: the §2.2 fold-in globs scripts/check/gates/** into the workspace; a gate
+  // file's inline-union EXAMPLE strings (mustFlag fixtures) are not real axis declarations, and the gate
+  // corpus never homes a canonical tuple — this pin keeps both arms' findings byte-identical to before.
+  scanRoot: (p) => !p.startsWith("scripts/check/gates/"),
+  kinds: [
+    SyntaxKind.VariableDeclaration,
+    SyntaxKind.TypeAliasDeclaration,
+    SyntaxKind.UnionType,
+    SyntaxKind.CallExpression,
+  ],
+  begin: () => {
+    passTuples.clear();
+    passRespells.length = 0;
+  },
+  visit: (node, _sf, ctx) => {
+    // Collect canonical tuples (for arm B's finalize reconciliation).
+    if (Node.isVariableDeclaration(node)) {
+      const s = tupleSig(node);
+      if (s !== undefined) {
+        passTuples.set(s, node.getName());
+      }
+      return;
+    }
+    visitAlias(node, ctx); // arm A (self-contained)
+    visitRespellCandidate(node, ctx.root); // arm B (accumulate)
+  },
+  finalize: (ctx: GateRunCtx) => {
+    for (const c of passRespells) {
+      const name = passTuples.get(c.sig);
+      if (name === undefined) {
+        continue;
+      }
+      const message =
+        c.kind === "zenum"
+          ? `z.enum([...]) re-spells the canonical tuple '${name}' — use z.enum(${name}). Spine-TypeScript-and-Patterns.md §7.5`
+          : `inline union re-spells the canonical tuple '${name}' — derive ((typeof ${name})[number]) instead of re-spelling its members. Spine-TypeScript-and-Patterns.md §7.5`;
+      ctx.report({
+        file: c.file,
+        line: c.line,
+        column: c.column,
+        message,
+        token: `re-spell ${name}`,
+      });
+    }
+  },
+  mustFlag: [
+    {
+      files: "export type Mode = 'a' | 'b' | 'c';\n",
+      at: "packages/contracts/src/x.ts",
+      expect: { messageIncludes: "declare the axis" },
+      why: "an inline string-union type alias of ≥3 members (arm A) — declare a tuple + derive (§7.5)",
+    },
+    {
+      files: {
+        "packages/contracts/src/home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/server/src/x.ts": "export interface T { mode: 'a' | 'b' | 'c' }\n",
+      },
+      expect: { messageIncludes: "re-spells the canonical tuple" },
+      why: "an inline union re-spelling a homed `as const` tuple (arm B, cross-file) — derive instead",
+    },
+  ],
+  mustPass: [
+    {
+      files: "export type NodeEnv = 'development' | 'production';\n",
+      at: "packages/contracts/src/y.ts",
+      why: "a 2-member one-off union with no canonical tuple — under the ≥3 floor + no home, passes",
+    },
+  ],
 };

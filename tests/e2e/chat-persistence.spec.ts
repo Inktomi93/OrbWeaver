@@ -52,7 +52,11 @@ async function openRowKebab(page: import("@playwright/test").Page): Promise<void
 }
 
 test.describe("chat persistence", () => {
-  test("open → reload → re-open reads the same DURABLE messages", async ({ page }) => {
+  // `@smoke` — part of the fast pre-push anti-rot subset (`pnpm e2e:smoke`): drives the drift-prone
+  // library→Chats-list reuse + reopen path (the exact selector surface this task's failures rotted on).
+  test("open → reload → re-open reads the same DURABLE messages", { tag: "@smoke" }, async ({
+    page,
+  }) => {
     await openOrCreateChat(page);
     const rows = page.locator('[data-slot="message-row"]');
     await expect(rows.first()).toBeVisible({ timeout: 15_000 });

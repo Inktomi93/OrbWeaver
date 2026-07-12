@@ -35,12 +35,21 @@ export {
   useTagFilter,
 } from "./character-library-store";
 export {
+  clearCharacterFacet,
   clearCharacterSelection,
   selectCharacter,
+  selectCharacterFacet,
+  useSelectedCharacterFacetId,
   useSelectedCharacterId,
 } from "./character-selection-store";
 export type { ActiveChatHandle, ChatHandle } from "./chat-handle";
 export { committedChat, draftChat, isCommitted, isLanding, landingChat } from "./chat-handle";
+export type { ChatListCharacterFilter } from "./chat-list-filter-store";
+export {
+  clearChatListCharacterFilter,
+  setChatListCharacterFilter,
+  useChatListCharacterFilter,
+} from "./chat-list-filter-store";
 export type { ChatStreamApi, TurnSlot } from "./chat-stream";
 export {
   chatStream,

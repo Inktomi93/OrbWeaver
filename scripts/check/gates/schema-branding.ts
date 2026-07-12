@@ -1,3 +1,5 @@
+// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are drizzle schema
+// fixture snippets (sqliteTable(...) calls), not secrets.
 // Gate: schema-branding — the Drizzle-column companion to the no-raw-id grit. Every entity id column
 // in packages/db/src/schema/ must carry a `.$type<XId>()` brand so the TypeID discipline can't rot
 // when a new table/FK is added unbranded. Generic (no hardcoded table list):
@@ -8,6 +10,7 @@
 
 import type { CallExpression, Project, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const SCHEMA_DIR = "/packages/db/src/schema/";
@@ -99,37 +102,79 @@ function collectColumns(root: string, project: Project): Column[] {
   return columns;
 }
 
+/** The whole-tree branding reconciliation shared by the legacy Check and the single-pass `run` descriptor:
+ *  collect every schema column, build the branded-id map, then judge (unbranded pk-id / unbranded FK to a
+ *  branded target). */
+function reconcileSchemaBranding(root: string, project: Project): Violation[] {
+  const columns = collectColumns(root, project);
+  const brandedTableId = new Map<string, boolean>();
+  for (const c of columns) {
+    if (c.prop === "id") {
+      brandedTableId.set(c.constName, c.hasType);
+    }
+  }
+  const violations: Violation[] = [];
+  for (const c of columns) {
+    if (c.hasType || c.plainMarked) {
+      continue;
+    }
+    if (c.prop === "id" && c.isPk) {
+      violations.push({
+        file: c.file,
+        line: c.line,
+        message: `${c.table}.id is a primary-key id with no .$type<…>() brand — brand it (define the id in @orb/kit/ids + ID_PREFIX, then .$type<XId>()), or mark it with a leading // plain-id: <reason>.`,
+      });
+      continue;
+    }
+    if (c.refTarget !== undefined && brandedTableId.get(c.refTarget) === true) {
+      violations.push({
+        file: c.file,
+        line: c.line,
+        message: `${c.table}.${c.prop} is a FK to branded ${c.refTarget}.id but unbranded — the brand must flow across the FK. Add .$type<…Id>() (the target's brand, from @orb/kit/ids), or // plain-id: <reason>.`,
+      });
+    }
+  }
+  return violations;
+}
+
 export const schemaBranding: Check = {
   name: "schema-branding",
-  run: ({ root, project }): Violation[] => {
-    const columns = collectColumns(root, project);
-    const brandedTableId = new Map<string, boolean>();
-    for (const c of columns) {
-      if (c.prop === "id") {
-        brandedTableId.set(c.constName, c.hasType);
-      }
+  run: ({ root, project }): Violation[] => reconcileSchemaBranding(root, project),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
+// schema-branding is a whole-tree reconciliation: collect every schema id/FK column, build the
+// branded-id-per-table map, then judge (a pk `id` with no .$type<> brand; a FK to a BRANDED target's id
+// that is itself unbranded — the brand must flow across the FK). The cross-file brand lookup makes it a
+// `run` reconciliation, not a per-node predicate. No live allowlist → no fileLoaded sentinel; the escape
+// hatch is a `// plain-id:` comment (per column). Findings byte-identical to the legacy Check. Kept
+// ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "schema-branding",
+  docRow: "TypeID discipline (no-raw-id grit companion; @orb/kit/ids)",
+  status: "active",
+  scopeSafety: "whole-project",
+  message:
+    "an entity id column carries no `.$type<XId>()` brand (a pk `id`, or an unbranded FK to a branded target — the brand must flow across the FK) — brand it via @orb/kit/ids, or mark it with a leading `// plain-id: <reason>`.",
+  fix: "define the id in @orb/kit/ids + ID_PREFIX and add `.$type<XId>()`, or annotate a deliberately-plain id with a leading `// plain-id: <reason>` comment.",
+  run: (ctx) => {
+    for (const v of reconcileSchemaBranding(ctx.root, ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    const violations: Violation[] = [];
-    for (const c of columns) {
-      if (c.hasType || c.plainMarked) {
-        continue;
-      }
-      if (c.prop === "id" && c.isPk) {
-        violations.push({
-          file: c.file,
-          line: c.line,
-          message: `${c.table}.id is a primary-key id with no .$type<…>() brand — brand it (define the id in @orb/kit/ids + ID_PREFIX, then .$type<XId>()), or mark it with a leading // plain-id: <reason>.`,
-        });
-        continue;
-      }
-      if (c.refTarget !== undefined && brandedTableId.get(c.refTarget) === true) {
-        violations.push({
-          file: c.file,
-          line: c.line,
-          message: `${c.table}.${c.prop} is a FK to branded ${c.refTarget}.id but unbranded — the brand must flow across the FK. Add .$type<…Id>() (the target's brand, from @orb/kit/ids), or // plain-id: <reason>.`,
-        });
-      }
-    }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: 'export const t = sqliteTable("t", { id: text("id").primaryKey() });\n',
+      at: "packages/db/src/schema/x.ts",
+      expect: { messageIncludes: "no .$type" },
+      why: "a primary-key id column with no .$type<> brand — the TypeID discipline it enforces",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const t = sqliteTable("t", { id: text("id").primaryKey().$type<TId>() });\n',
+      at: "packages/db/src/schema/y.ts",
+      why: "a branded pk id (`.$type<TId>()`) — the sanctioned shape, passes",
+    },
+  ],
 };

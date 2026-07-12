@@ -126,7 +126,7 @@ test("active press darkens the primary intent from its hover color", async ({ mo
   const hoverColor = await readBackgroundColor();
   await page.mouse.down();
   // `transition-colors` animates the swap — poll past the transition instead of racing one frame.
-  await expect.poll(readBackgroundColor).not.toBe(hoverColor);
+  await expect.poll(readBackgroundColor, { intervals: [20, 50, 100] }).not.toBe(hoverColor);
   await page.mouse.up();
 });
 
@@ -142,14 +142,17 @@ test("active press scales the surface down (motion guide §4.2 #4)", async ({ mo
   // The transition animates `scale` from 1 down to 0.95 — poll the parsed value into the pressed band
   // (the intermediate frames read as 0.95<v≤1, so assert on the settled value, not the first non-none).
   await expect
-    .poll(async () => {
-      const v = await readScale();
-      return v === "none" ? 1 : Number.parseFloat(v);
-    })
+    .poll(
+      async () => {
+        const v = await readScale();
+        return v === "none" ? 1 : Number.parseFloat(v);
+      },
+      { intervals: [20, 50, 100] },
+    )
     .toBeLessThan(0.97);
   await page.mouse.up();
   // Released: scale returns to identity (`none`), proving the press is transient, not sticky.
-  await expect.poll(readScale).toBe("none");
+  await expect(button).toHaveCSS("scale", "none");
 });
 
 test("keyboard focus shows a focus-visible ring", async ({ mount, page }) => {
@@ -175,5 +178,5 @@ test("Enter and Space activate the button", async ({ mount, page }) => {
   await page.getByRole("button", { name: "Save" }).focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press(" ");
-  await expect.poll(() => clicks.length).toBe(2);
+  await expect.poll(() => clicks.length, { intervals: [20, 50, 100] }).toBe(2);
 });

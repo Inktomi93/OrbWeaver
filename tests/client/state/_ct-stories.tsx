@@ -8,6 +8,7 @@
 
 import {
   clearCharacterSelection,
+  clearChatListCharacterFilter,
   clearPresetSection,
   clearPresetSelection,
   clearTagFilter,
@@ -26,6 +27,7 @@ import {
   setBulkMode,
   setCharacterSortMode,
   setCharacterViewMode,
+  setChatListCharacterFilter,
   setPanelMode,
   startNewChat,
   toggleFavoritesOnly,
@@ -38,6 +40,7 @@ import {
   useCharacterBulkMode,
   useCharacterSortMode,
   useCharacterViewMode,
+  useChatListCharacterFilter,
   useFavoritesOnly,
   useImportOnboardingDismissed,
   useOpenModal,
@@ -152,6 +155,32 @@ export function CharacterSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearCharacterSelection()}>
         clear selection
+      </button>
+    </div>
+  );
+}
+
+const PROBE_FILTER_CHARACTER = castId<CharacterId>("char_ct_filter");
+
+/** ChatListFilterProbe — drives the chat-list-filter store (the character hero "N chats ›" → filtered
+ *  Chats LIST seam) through its module actions + read hook, so a CT asserts set → clear on the real
+ *  hook-backed store (useSyncExternalStore needs a browser). The stored value carries the character NAME
+ *  beside the id (the LIST's "filtered by [name] ✕" chip label). */
+export function ChatListFilterProbe(): ReactElement {
+  const filter = useChatListCharacterFilter();
+  return (
+    <div>
+      <output>{`filter=${filter === null ? "none" : `${filter.id}:${filter.name}`}`}</output>
+      <button
+        type="button"
+        onClick={(): void =>
+          setChatListCharacterFilter({ id: PROBE_FILTER_CHARACTER, name: "Aria" })
+        }
+      >
+        set filter
+      </button>
+      <button type="button" onClick={(): void => clearChatListCharacterFilter()}>
+        clear filter
       </button>
     </div>
   );

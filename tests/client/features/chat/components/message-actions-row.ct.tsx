@@ -75,7 +75,9 @@ test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount
   await revealActions(component);
   await component.getByRole("button", { name: "Hide from AI" }).click();
 
-  await expect.poll(() => trpc.count("chat.setMessageHidden")).toBe(1);
+  await expect
+    .poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] })
+    .toBe(1);
   expect(trpc.lastInput("chat.setMessageHidden")).toMatchObject({
     messageId: message.id,
     hidden: true,
@@ -90,7 +92,9 @@ test("an already-hidden row shows Unhide and toggles the flag back", async ({ mo
   await revealActions(component);
   await component.getByRole("button", { name: "Unhide from AI" }).click();
 
-  await expect.poll(() => trpc.count("chat.setMessageHidden")).toBe(1);
+  await expect
+    .poll(() => trpc.count("chat.setMessageHidden"), { intervals: [20, 50, 100] })
+    .toBe(1);
   expect(trpc.lastInput("chat.setMessageHidden")).toMatchObject({
     messageId: message.id,
     hidden: false,
@@ -111,7 +115,7 @@ test("delete opens a confirm dialog; confirming fires deleteMessages with this O
   await expect(page.getByText("Delete this message?")).toBeVisible();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
-  await expect.poll(() => trpc.count("chat.deleteMessages")).toBe(1);
+  await expect.poll(() => trpc.count("chat.deleteMessages"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.deleteMessages")).toMatchObject({ messageIds: [message.id] });
 });
 
@@ -137,7 +141,7 @@ test("fork fires forkChat with this message's seq as throughSeq", async ({ mount
   await revealActions(component);
   await component.getByRole("button", { name: "Fork chat here" }).click();
 
-  await expect.poll(() => trpc.count("chat.forkChat")).toBe(1);
+  await expect.poll(() => trpc.count("chat.forkChat"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.forkChat")).toMatchObject({ chatId: message.chatId, throughSeq: 7 });
 });
 
@@ -154,5 +158,5 @@ test("copy writes the message content to the clipboard (no network call)", async
   await component.getByRole("button", { name: "Copy message" }).click();
 
   const readClipboard = (): Promise<string> => page.evaluate(() => navigator.clipboard.readText());
-  await expect.poll(readClipboard).toBe("copy me please");
+  await expect.poll(readClipboard, { intervals: [20, 50, 100] }).toBe("copy me please");
 });

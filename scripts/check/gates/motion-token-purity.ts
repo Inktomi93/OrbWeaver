@@ -25,7 +25,9 @@
 // nothing to desync from). An allowlisted file gone CLEAN is RED ("stale entry — remove it"); a NEW
 // offender not in the allowlist is RED immediately. `shell.css` is deliberately NOT allowlisted — it is
 // the coordination surface, now fully on the co-motion vars, and MUST stay raw-value-free.
-import { globSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 /** Current legit raw-motion files → reason (continuous loop / isolated hover / the a11y kill-switch — no
@@ -161,3 +163,56 @@ export function createMotionTokenPurity(allowlist: Record<string, string>): Chec
 }
 
 export const motionTokenPurity: Check = createMotionTokenPurity(ALLOWLIST);
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a CSS-glob fs `run` gate with a ratchet, fsBacked conformance) ─
+// motion-token-purity reads the real fs (globSync of packages/{ui,client}/src/**/*.css + readFileSync) —
+// CSS isn't in the ts-morph Project — so it ports as a `run` descriptor over ctx.root, `fsBacked` for
+// conformance. The offender arm reuses scanCss against the LIVE ALLOWLIST. The stale arm (an allowlisted
+// .css that went clean) is name-keyed to CSS FILES; the batch-6 fileLoaded sentinel is Project-based and
+// can't see a .css, so the fs-analog is used: the stale arm only judges an allowlisted file that EXISTS on
+// disk (existsSync) — a synthetic tree lacking the real allowlisted .css files won't misfire. On the real
+// run every allowlisted .css exists, so the ratchet is preserved. Byte-identical to the legacy Check.
+export const gate: GateDescriptor = {
+  name: "motion-token-purity",
+  docRow: "BASEUI-MOTION-AUDIT.md §5 (Layer 3)",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message: MESSAGE,
+  fix: "use var(--motion-*) for duration and var(--ease-*) (or a co-motion --*-ease var, or `linear`) for easing — never a raw duration/easing in CSS.",
+  run: (ctx) => {
+    const { violations, seenAllowlisted } = scanCss(ctx.root, ALLOWLIST);
+    for (const v of violations) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+    for (const rel of Object.keys(ALLOWLIST)) {
+      // The fs-analog of the fileLoaded sentinel: only judge an allowlisted CSS file that actually EXISTS
+      // in this run's tree — a synthetic conformance/parity tree without the real allowlisted files must
+      // not misfire the name-keyed stale arm (on the real run they all exist, so the ratchet holds).
+      if (existsSync(join(ctx.root, rel)) && !seenAllowlisted.has(rel)) {
+        ctx.report({
+          file: "scripts/check/gates/motion-token-purity.ts",
+          line: 1,
+          column: 0,
+          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/motion-token-purity.ts`,
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: { "packages/ui/src/x/x.css": ".a { transition: opacity 220ms ease-out; }\n" },
+      expect: { messageIncludes: "raw motion value" },
+      why: "a raw duration (220ms) + easing (ease-out) in a CSS transition — bypasses the motion tokens",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/ui/src/x/ok.css":
+          ".a { transition: opacity var(--motion-base) var(--ease-out-expo); }\n",
+      },
+      why: "the transition uses var(--motion-*)/var(--ease-*) tokens — on-token, passes",
+    },
+  ],
+};

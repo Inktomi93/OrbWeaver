@@ -15,8 +15,9 @@
 //   • AppSettings.guidedActions (D33 — a neo PHANTOM; guided actions live ONLY on the preset)
 //   • a `kind` field on Principal (D60 — agents are STRUCTURALLY Principal-less; Principal gains NO kind)
 //   • the @orb/contracts/sessions namespace (D12 — the contract is `session` SINGULAR; domain is plural)
-import type { InterfaceDeclaration, Node, SourceFile } from "ts-morph";
+import type { InterfaceDeclaration, Node, Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
@@ -278,19 +279,60 @@ function importViolations(sf: SourceFile, rel: string): Violation[] {
   return out;
 }
 
+/** The whole-tree ban scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanBannedShapes(root: string, project: Project): Violation[] {
+  const violations: Violation[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const path = sf.getFilePath();
+    const rel = relPath(root, path);
+    if (SCHEMA_DIR.test(path)) {
+      violations.push(...schemaViolations(sf, rel));
+    }
+    violations.push(...contractDeclViolations(sf, rel));
+    violations.push(...importViolations(sf, rel));
+  }
+  return violations;
+}
+
 export const schemaBannedShapes: Check = {
   name: "schema-banned-shapes",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      const rel = relPath(root, path);
-      if (SCHEMA_DIR.test(path)) {
-        violations.push(...schemaViolations(sf, rel));
-      }
-      violations.push(...contractDeclViolations(sf, rel));
-      violations.push(...importViolations(sf, rel));
+  run: ({ root, project }): Violation[] => scanBannedShapes(root, project),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a registry-driven multi-arm ban scan via `run`) ──────────────
+// schema-banned-shapes is a STATIC ban registry (BANNED_SHAPES) checked per file — column/table bans in
+// schema files, interface-field / schema-field bans on contracts, an import ban anywhere. It is NOT a
+// ratchet (the registry is a fixed forbidden list, no stale arm) but has per-shape, per-arm scoping that
+// doesn't reduce to one scanRoot, so it ports as a `run` descriptor reusing the exact per-file arm logic.
+// Each finding names its banned shape (varies) → a per-occurrence message override. A synthetic tree with
+// none of the banned shapes is naturally clean. Findings byte-identical to the legacy Check. Kept
+// ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "schema-banned-shapes",
+  docRow: "Core-Path-Registry ledger (D12/D18/D25/D26/D27/D28/D33/D36/D58/D60)",
+  status: "active",
+  scopeSafety: "whole-project",
+  message:
+    "a ledger-REJECTED schema/contract shape has been reintroduced — the ledger killed this shape by name; drop it or contest the D-cite (see the row's citation in Core-Laws-and-Precedents.md).",
+  fix: "remove the banned column/field/import (or the whole table) — the ledger row names the correct home for the concern.",
+  run: (ctx) => {
+    for (const v of scanBannedShapes(ctx.root, ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: 'export const chats = sqliteTable("chats", { ownerId: text("owner_id") });\n',
+      at: "packages/db/src/schema/chat.ts",
+      expect: { messageIncludes: "D18" },
+      why: "chats.ownerId — the ledger DROPPED it (D18, chats are membership-scoped)",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const chats = sqliteTable("chats", { title: text("title") });\n',
+      at: "packages/db/src/schema/chat.ts",
+      why: "a chats table with only a non-banned column — no rejected shape, passes",
+    },
+  ],
 };

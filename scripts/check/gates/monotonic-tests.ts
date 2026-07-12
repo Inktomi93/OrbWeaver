@@ -46,7 +46,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CallExpression, SourceFile, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { Check, Violation } from "../harness.ts";
+import type { GateDescriptor } from "../contract.ts";
+import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const BASELINE_REL = "docs/test-baseline/manifest.json";
 const TEST_APIS = new Set(["it", "test", "describe", "suite", "bench"]);
@@ -160,18 +161,59 @@ function scanDeletedTestFiles(root: string, out: Violation[]): void {
   }
 }
 
+/** The AST(+manifest-fs) scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanMonotonicTests({ root, project }: CheckContext): Violation[] {
+  const violations: Violation[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const filePath = sf.getFilePath();
+    if (!filePath.includes("/tests/")) {
+      continue;
+    }
+    scanForbiddenSkips(sf, relPath(root, filePath), violations);
+  }
+  scanDeletedTestFiles(root, violations);
+  return violations;
+}
+
 export const monotonicTests: Check = {
   name: "monotonic-tests",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const filePath = sf.getFilePath();
-      if (!filePath.includes("/tests/")) {
-        continue;
-      }
-      scanForbiddenSkips(sf, relPath(root, filePath), violations);
+  run: (ctx): Violation[] => scanMonotonicTests(ctx),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — the suite-monotonicity guard via `run`, DORMANT) ─────────────
+// monotonic-tests scans every tests/** file for a NEW unconditional skip/only/todo/fixme modifier (tooth 1
+// — AST via the shared Project) and reconciles a committed baseline manifest against disk (tooth 2 — a
+// documented no-op until a manifest exists). It ports as a `run` descriptor reusing the exact scan (NOT
+// fsBacked — tooth 1 is AST-only and tooth 2 gracefully no-ops when the manifest file is absent, exactly
+// as on the real tree today). status:"dormant" — the loader loads it, the runner skips it, but conformance
+// runs it as-active so its tooth-1 proof holds. Byte-identical to the legacy Check. Kept ALONGSIDE it.
+export const gate: GateDescriptor = {
+  name: "monotonic-tests",
+  docRow: "Core-Enforcement-Deferred-Dropped.md (monotonic-tests) / Spine-Testing.md §5",
+  status: "dormant",
+  scopeSafety: "whole-project",
+  message:
+    "a test is disabled unconditionally (`it.skip`/`test.only`/`.todo`/`.fixme` modifier) or a baseline-manifest test file was deleted — the suite must not go green by skipping or deleting tests (Spine-Testing.md §5).",
+  fix: 'gate the skip on a condition (`.skipIf(cond)` / `test.skip(cond, "reason")`) or add `// allow-skip: <reason>`; and never delete a baselined spec to go green (Spine-Testing.md §5).',
+  run: (ctx) => {
+    for (const v of scanMonotonicTests({ root: ctx.root, project: ctx.project })) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    scanDeletedTestFiles(root, violations);
-    return violations;
   },
+  mustFlag: [
+    {
+      files: 'it.skip("later", () => {\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/x.test.ts",
+      expect: { messageIncludes: "unconditionally" },
+      why: 'a bare `it.skip("title", fn)` modifier — an unconditional skip the suite can\'t go green by (§5)',
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        'it.skipIf(process.env.CI === undefined)("gated", () => {\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/ok.test.ts",
+      why: "a conditional `.skipIf(cond)` gate (env/engine) — exact-name match, never the forbidden modifier",
+    },
+  ],
 };

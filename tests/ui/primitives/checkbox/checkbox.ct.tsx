@@ -43,7 +43,7 @@ test("onCheckedChange reports the next state", async ({ mount, page }) => {
     />,
   );
   await page.getByRole("checkbox").click();
-  await expect.poll(() => seen.at(-1)).toBe(true);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe(true);
 });
 
 test("disabled blocks toggling and drops the interactive skin", async ({ mount, page }) => {

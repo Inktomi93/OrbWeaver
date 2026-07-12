@@ -22,6 +22,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AsExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const TESTS_REL_RE = /\/(?<rel>tests\/.*)$/u;
@@ -125,3 +126,62 @@ export function createNoTestFabrication(baseline?: Record<string, number>): Chec
 }
 
 export const noTestFabrication: Check = createNoTestFabrication();
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a per-FILE baseline-count ratchet via visitFile) ───
+// A per-file baseline ratchet: each test file's live fabrication count vs its baseline budget; the sites
+// PAST the budget are surfaced. Ports as a visitFile hook (the per-file count/slice is the unit). The
+// baseline is read from fs via ctx.root — on the real run it's the real baseline.json; on a synthetic
+// conformance/parity tree that path doesn't exist (in-memory fs) → an EMPTY baseline (budget 0), so any
+// fabrication is flagged. That IS the synthetic-tree protection — no live-allowlist misfire. The baseline
+// is loaded once per run (begin). Kept ALONGSIDE the legacy Check.
+let passBaseline: Record<string, number> = {};
+
+export const gate: GateDescriptor = {
+  name: "no-test-fabrication",
+  docRow: "core/Spine-Testing.md §5 (test-support-dry-punchlist.md W1h)",
+  status: "active",
+  scopeSafety: "whole-project", // the baseline budget is a per-file whole-tree count
+  message: DOUBLE_CAST_MSG,
+  fix: "use a typed factory (makeY(overrides?)) or `satisfies Y`; mark a deliberate invalid-input probe `// FABRICATION-OK: <reason>`.",
+  scanRoot: (p) => p.startsWith("tests/"),
+  begin: (ctx: GateRunCtx) => {
+    passBaseline = loadBaseline(ctx.root);
+  },
+  visitFile: (sf, ctx) => {
+    const rel = testsRel(sf.getFilePath());
+    if (rel === undefined) {
+      return;
+    }
+    const sites = fabricationSites(sf);
+    const budget = passBaseline[rel] ?? 0;
+    if (sites.length <= budget) {
+      return;
+    }
+    // Over budget — surface the sites past the allowance (the newest fabrications).
+    for (const site of sites.slice(budget)) {
+      const finding: Finding = {
+        file: rel,
+        line: site.line,
+        column: 0,
+        message: site.message,
+        token: site.message === DOUBLE_CAST_MSG ? "double-cast" : "literal-cast",
+      };
+      ctx.report(finding);
+    }
+  },
+  mustFlag: [
+    {
+      files: "export const x = {} as unknown as { a: number };\n",
+      at: "tests/tooling/x.test.ts",
+      expect: { messageIncludes: "double-cast" },
+      why: "an `X as unknown as Y` double-cast in a test with no baseline budget — a fabrication (W1h)",
+    },
+  ],
+  mustPass: [
+    {
+      files: "export const x = { a: 1 } satisfies { a: number };\n",
+      at: "tests/tooling/y.test.ts",
+      why: "`satisfies Y` re-checks the literal on every change — the sanctioned shape, passes",
+    },
+  ],
+};

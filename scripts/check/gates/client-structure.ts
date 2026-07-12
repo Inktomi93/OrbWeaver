@@ -21,6 +21,7 @@
 //                          PROVIDER). Anchored floats (Popover/Menu/Select/Tooltip) are legal inline.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const FEATURES = "packages/client/src/features";
@@ -212,18 +213,63 @@ function checkFeature(dir: string, name: string, domains: Set<string>): Violatio
   return out;
 }
 
+/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanClientStructure(root: string): Violation[] {
+  const out: Violation[] = [];
+  const domains = domainNames(root);
+  for (const name of featureDirs(root)) {
+    const dir = join(root, FEATURES, name);
+    // A reserved slice (only .gitkeep) is skipped; the shape activates when it holds real code.
+    if (hasCode(dir)) {
+      out.push(...checkFeature(dir, name, domains));
+    }
+  }
+  return out;
+}
+
 export const clientStructure: Check = {
   name: "client-structure",
-  run: (ctx: CheckContext): Violation[] => {
-    const out: Violation[] = [];
-    const domains = domainNames(ctx.root);
-    for (const name of featureDirs(ctx.root)) {
-      const dir = join(ctx.root, FEATURES, name);
-      // A reserved slice (only .gitkeep) is skipped; the shape activates when it holds real code.
-      if (hasCode(dir)) {
-        out.push(...checkFeature(dir, name, domains));
-      }
+  run: (ctx: CheckContext): Violation[] => scanClientStructure(ctx.root),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
+// client-structure reads the real filesystem (readdirSync/existsSync/readFileSync of the features + domain
+// dirs), never the ts-morph Project — so it ports as a `run` descriptor over ctx.root reusing the exact
+// scan, and declares `fsBacked` so the conformance runner materializes its examples into a real temp dir.
+// Findings are file-level (line 0). Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "client-structure",
+  docRow: "UI-Architecture-and-Layout.md §2.1 (§4)",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "a BUILT @orb/client feature slice violates the feature-slice layout — a missing index.ts front door, a name that is neither reserved nor a real server-domain mirror, a stray root file, an unknown bucket, or a mis-named surface/hook/anchor / a surface rendering its own outer container (UI-Architecture-and-Layout.md §2.1 + §4).",
+  fix: "add the index.ts front door, move loose modules into a bucket (surfaces/anchors/components/hooks/lib), rename to the served domain (or add to RESERVED), and name surfaces `-surface.tsx` / hooks `use-*` / anchors by container suffix.",
+  run: (ctx) => {
+    for (const v of scanClientStructure(ctx.root)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    return out;
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/client/src/features/broken/stray.ts": "export const x = 1;\n",
+      },
+      expect: { messageIncludes: "stray file" },
+      why: "a BUILT feature (has code) with a stray root file + no index.ts front door — feature-slice violations",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/server/src/domain/chat/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/chat/index.ts": "export const i = 1;\n",
+        "packages/client/src/features/chat/surfaces/chat-surface.tsx":
+          "export const S = () => null;\n",
+        "packages/client/src/features/chat/hooks/use-chat.ts": "export const useChat = () => 1;\n",
+      },
+      why: "a built feature mirroring a real domain with an index.ts, a -surface.tsx, and a use-* hook — the layout, passes",
+    },
+  ],
 };

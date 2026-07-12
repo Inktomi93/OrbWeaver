@@ -86,7 +86,7 @@ test("a reader scrolled up is not yanked back to the bottom by an append (pin, n
   await log.evaluate((el) => {
     el.scrollTop = 0;
   });
-  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBe(0);
+  await expect.poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(0);
 
   await component.update(
     <div style={{ height: 100 }}>
@@ -110,7 +110,9 @@ test("a reader pinned to the bottom stays pinned through an append", async ({ mo
   // enter the viewport partway through the animation) before appending, so the append's pin check
   // reads a stable "already at the bottom", not a mid-flight scroll position.
   await expect
-    .poll(() => log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight))
+    .poll(() => log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight), {
+      intervals: [20, 50, 100],
+    })
     .toBeLessThanOrEqual(4);
 
   await component.update(
@@ -120,7 +122,9 @@ test("a reader pinned to the bottom stays pinned through an append", async ({ mo
   );
 
   await expect
-    .poll(() => log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight))
+    .poll(() => log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight), {
+      intervals: [20, 50, 100],
+    })
     .toBeLessThanOrEqual(4);
   await expect(log.getByText("line 39", { exact: true })).toBeInViewport();
 });
@@ -138,7 +142,9 @@ test("the line region is keyboard-scrollable (tabIndex=0, WCAG 2.1.1)", async ({
   });
   await log.focus();
   await page.keyboard.press("ArrowDown");
-  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect
+    .poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
+    .toBeGreaterThan(0);
 });
 
 test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({ mount, page }) => {
@@ -205,7 +211,9 @@ test("a virtualized log sticks to the bottom while streaming when the reader is 
     </div>,
   );
   const log = component.getByRole("log");
-  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect
+    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
+    .toBeLessThanOrEqual(PINNED_SLACK_PX);
 
   await component.update(
     <div style={{ height: 150 }}>
@@ -213,7 +221,9 @@ test("a virtualized log sticks to the bottom while streaming when the reader is 
     </div>,
   );
 
-  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect
+    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
+    .toBeLessThanOrEqual(PINNED_SLACK_PX);
   await expect(log.getByText("line 299", { exact: true })).toBeInViewport();
 });
 
@@ -229,7 +239,7 @@ test("a reader scrolled up in a virtualized log is NOT yanked to the bottom by a
   await log.evaluate((el) => {
     el.scrollTop = 0;
   });
-  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBe(0);
+  await expect.poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(0);
 
   await component.update(
     <div style={{ height: 150 }}>
@@ -238,7 +248,7 @@ test("a reader scrolled up in a virtualized log is NOT yanked to the bottom by a
   );
 
   // Still reading history near the top — the append below did NOT drag them to the tail.
-  await expect.poll(() => distanceFromEnd(log)).toBeGreaterThan(1000);
+  await expect.poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] }).toBeGreaterThan(1000);
 });
 
 test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the bottom while streaming", async ({
@@ -255,7 +265,9 @@ test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the b
     </div>,
   );
   const log = component.getByRole("log");
-  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect
+    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
+    .toBeLessThanOrEqual(PINNED_SLACK_PX);
 
   await component.update(
     <div style={{ height: 150 }}>
@@ -263,7 +275,9 @@ test("a maxLines-capped virtualized log (ring buffer FULL) still sticks to the b
     </div>,
   );
 
-  await expect.poll(() => distanceFromEnd(log)).toBeLessThanOrEqual(PINNED_SLACK_PX);
+  await expect
+    .poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] })
+    .toBeLessThanOrEqual(PINNED_SLACK_PX);
   await expect(log.getByText("line 319", { exact: true })).toBeInViewport();
 });
 
@@ -279,7 +293,7 @@ test("a maxLines-capped virtualized log does NOT yank a reader who scrolled up",
   await log.evaluate((el) => {
     el.scrollTop = 0;
   });
-  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBe(0);
+  await expect.poll(() => log.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] }).toBe(0);
 
   await component.update(
     <div style={{ height: 150 }}>
@@ -287,7 +301,7 @@ test("a maxLines-capped virtualized log does NOT yank a reader who scrolled up",
     </div>,
   );
 
-  await expect.poll(() => distanceFromEnd(log)).toBeGreaterThan(1000);
+  await expect.poll(() => distanceFromEnd(log), { intervals: [20, 50, 100] }).toBeGreaterThan(1000);
 });
 
 test("the copy affordance writes the visible lines to the clipboard", async ({ mount, page }) => {

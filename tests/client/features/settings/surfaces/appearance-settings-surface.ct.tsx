@@ -62,7 +62,9 @@ test("chatStyle select fires the mutation with the correct patch key", async ({ 
   await mount(<AppearanceSettingsStory />);
   await page.getByRole("combobox", { name: "Chat display" }).click();
   await page.getByRole("option", { name: "Flat", exact: true }).click();
-  await expect.poll(() => lastPatch(trpc)?.["chatStyle"]).toBe("flat");
+  await expect
+    .poll(() => lastPatch(trpc)?.["chatStyle"], { intervals: [20, 50, 100] })
+    .toBe("flat");
 });
 
 test("chatWidthPct slider clamps at its own MIN/MAX and patches chatWidthPct", async ({
@@ -75,11 +77,15 @@ test("chatWidthPct slider clamps at its own MIN/MAX and patches chatWidthPct", a
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MIN));
-  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"]).toBe(CHAT_WIDTH_MIN);
+  await expect
+    .poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] })
+    .toBe(CHAT_WIDTH_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(CHAT_WIDTH_MAX));
-  await expect.poll(() => lastPatch(trpc)?.["chatWidthPct"]).toBe(CHAT_WIDTH_MAX);
+  await expect
+    .poll(() => lastPatch(trpc)?.["chatWidthPct"], { intervals: [20, 50, 100] })
+    .toBe(CHAT_WIDTH_MAX);
 });
 
 test("fontScale slider clamps at its own MIN/MAX and patches fontScale", async ({
@@ -92,11 +98,15 @@ test("fontScale slider clamps at its own MIN/MAX and patches fontScale", async (
 
   await slider.press("Home");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MIN));
-  await expect.poll(() => lastPatch(trpc)?.["fontScale"]).toBe(FONT_SCALE_MIN);
+  await expect
+    .poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] })
+    .toBe(FONT_SCALE_MIN);
 
   await slider.press("End");
   await expect(slider).toHaveAttribute("aria-valuenow", String(FONT_SCALE_MAX));
-  await expect.poll(() => lastPatch(trpc)?.["fontScale"]).toBe(FONT_SCALE_MAX);
+  await expect
+    .poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] })
+    .toBe(FONT_SCALE_MAX);
 });
 
 test("avatar size/shape/aspect/ring selects each patch the correct key", async ({
@@ -108,23 +118,29 @@ test("avatar size/shape/aspect/ring selects each patch the correct key", async (
 
   await page.getByRole("combobox", { name: "Avatar size" }).click();
   await page.getByRole("option", { name: "Large" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarSize"]).toBe("lg");
+  await expect.poll(() => lastPatch(trpc)?.["avatarSize"], { intervals: [20, 50, 100] }).toBe("lg");
 
   await page.getByRole("combobox", { name: "Avatar shape" }).click();
   await page.getByRole("option", { name: "Square", exact: true }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarShape"]).toBe("square");
+  await expect
+    .poll(() => lastPatch(trpc)?.["avatarShape"], { intervals: [20, 50, 100] })
+    .toBe("square");
 
   await page.getByRole("combobox", { name: "Avatar aspect" }).click();
   await page.getByRole("option", { name: "Portrait (2:3)" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarAspect"]).toBe("portrait");
+  await expect
+    .poll(() => lastPatch(trpc)?.["avatarAspect"], { intervals: [20, 50, 100] })
+    .toBe("portrait");
 
   await page.getByRole("combobox", { name: "Avatar ring" }).click();
   await page.getByRole("option", { name: "Accent" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["avatarRing"]).toBe("accent");
+  await expect
+    .poll(() => lastPatch(trpc)?.["avatarRing"], { intervals: [20, 50, 100] })
+    .toBe("accent");
 
   // Every intermediate autosave carries the FULL patch — the final settled call still holds all four.
   await expect
-    .poll(() => lastPatch(trpc))
+    .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
     .toMatchObject({
       avatarSize: "lg",
       avatarShape: "square",
@@ -161,7 +177,7 @@ test("background fit/dim/blur sliders clamp at their own MIN/MAX once an image k
   await expect(blur).toHaveAttribute("aria-valuenow", String(BACKGROUND_BLUR_MAX));
 
   await expect
-    .poll(() => lastPatch(trpc))
+    .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
     .toMatchObject({
       backgroundImageKind: "seeded",
       backgroundFit: "contain",
@@ -225,7 +241,9 @@ test("Effects renders switch rows; toggling a surface patches blurSurfaces", asy
   await expect(page.getByRole("switch", { name: "Prose shadow" })).toBeVisible();
 
   await panels.click();
-  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"]).toContain("panels");
+  await expect
+    .poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] })
+    .toContain("panels");
 });
 
 // UIP-404 row grammar (owner items 6+7): form fields render horizontal — label+description LEFT, control

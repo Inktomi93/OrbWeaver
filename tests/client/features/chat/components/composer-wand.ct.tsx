@@ -47,7 +47,7 @@ test("Guided response fires chat.generate with the draft as guidance, then clear
   await component.getByRole("button", { name: "Guided generations" }).click();
   await page.getByRole("menuitem", { name: "Guided response" }).click();
 
-  await expect.poll(() => trpc.count("chat.generate")).toBe(1);
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.generate")).toMatchObject({
     chatId: COMPOSER_CHAT_ID,
     guided: { action: "response", input: "hint at the letter" },
@@ -85,7 +85,7 @@ test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance
   await expect(swipeItem).toBeEnabled();
   await swipeItem.click();
 
-  await expect.poll(() => trpc.count("chat.swipe")).toBe(1);
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.swipe")).toMatchObject({
     chatId: COMPOSER_CHAT_ID,
     messageId: tail.id,
@@ -110,7 +110,7 @@ test("Guided continue fires chat.continueTurn with the tail assistant messageId 
   await expect(continueItem).toBeEnabled();
   await continueItem.click();
 
-  await expect.poll(() => trpc.count("chat.continueTurn")).toBe(1);
+  await expect.poll(() => trpc.count("chat.continueTurn"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.continueTurn")).toMatchObject({
     chatId: COMPOSER_CHAT_ID,
     messageId: tail.id,
@@ -131,7 +131,7 @@ test("Impersonate's person submenu fires chat.impersonate with the picked person
   await impersonateTrigger.hover();
   await page.getByRole("menuitem", { name: "3rd person" }).click();
 
-  await expect.poll(() => trpc.count("chat.impersonate")).toBe(1);
+  await expect.poll(() => trpc.count("chat.impersonate"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.impersonate")).toMatchObject({
     chatId: COMPOSER_CHAT_ID,
     guided: { action: "impersonate", input: "ask about the ruins", person: "third" },
@@ -154,7 +154,7 @@ test("draft handle: shows only 'Guide the opening', which fires chat.startChat w
   await expect(page.getByRole("menuitem", { name: "Guided response" })).toHaveCount(0);
   await page.getByRole("menuitem", { name: "Guide the opening" }).click();
 
-  await expect.poll(() => trpc.count("chat.startChat")).toBe(1);
+  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.startChat")).toMatchObject({
     opening: "generate",
     guided: { action: "opening", input: "start mid-chase" },

@@ -3,6 +3,7 @@
 // packages/<pkg>/src/<path>.<ext>. Exempts the two non-mirror trees tests/support/ + tests/e2e/.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui"]);
@@ -94,24 +95,63 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
   };
 }
 
+/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanTestLayout(root: string): Violation[] {
+  const violations: Violation[] = [];
+  const testsDir = join(root, "tests");
+  if (!existsSync(testsDir)) {
+    return violations;
+  }
+  for (const entry of readdirSync(testsDir, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const rel = relPath(testsDir, join(entry.parentPath, entry.name));
+    const v = violationFor(root, rel, entry.name);
+    if (v !== undefined) {
+      violations.push(v);
+    }
+  }
+  return violations;
+}
+
 export const testLayout: Check = {
   name: "test-layout",
-  run: ({ root }): Violation[] => {
-    const violations: Violation[] = [];
-    const testsDir = join(root, "tests");
-    if (!existsSync(testsDir)) {
-      return violations;
+  run: ({ root }): Violation[] => scanTestLayout(root),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
+// test-layout reads the real fs (recursive readdirSync of tests/ + existsSync of the mirrored source) —
+// a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance materializes examples
+// to a real temp dir. File-level findings. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy.
+export const gate: GateDescriptor = {
+  name: "test-layout",
+  docRow: "core/Core-0-Architecture-and-Structure.md §5 (core/Spine-Testing.md)",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "a test under tests/ does not prefix-swap to a real source file — every test mirrors packages/<pkg>/src/<path> (tests/support, tests/e2e, tests/tooling are the exempt non-mirror trees). See core/Core-0-Architecture-and-Structure.md §5.",
+  fix: "place the test at tests/<pkg>/<path>.<kind> mirroring its packages/<pkg>/src/<path> source, or move it under tests/{support,e2e,tooling}.",
+  run: (ctx) => {
+    for (const v of scanTestLayout(ctx.root)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    for (const entry of readdirSync(testsDir, { recursive: true, withFileTypes: true })) {
-      if (!entry.isFile()) {
-        continue;
-      }
-      const rel = relPath(testsDir, join(entry.parentPath, entry.name));
-      const v = violationFor(root, rel, entry.name);
-      if (v !== undefined) {
-        violations.push(v);
-      }
-    }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: { "tests/server/domain/orphan.test.ts": "export const x = 1;\n" },
+      expect: { messageIncludes: "mirror miss" },
+      why: "a test with no packages/server/src/domain/orphan.ts source — a mirror miss (§5)",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/server/src/domain/real.ts": "export const s = 1;\n",
+        "tests/server/domain/real.test.ts": "export const x = 1;\n",
+      },
+      why: "a test whose path prefix-swaps to a real source module — a valid mirror, passes",
+    },
+  ],
 };

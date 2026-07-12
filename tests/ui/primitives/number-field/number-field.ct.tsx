@@ -51,7 +51,7 @@ test("onValueChange reports the parsed number", async ({ mount, page }) => {
     />,
   );
   await page.getByLabel("Increase").click();
-  await expect.poll(() => seen.at(-1)).toBe(2);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe(2);
 });
 
 test("scrub area is present and labeled; steppers still clamp to min/max", async ({

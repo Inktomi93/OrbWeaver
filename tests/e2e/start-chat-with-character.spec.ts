@@ -1,10 +1,15 @@
 // E2E: the real "start a chat with a character" flow, end-to-end against the full running stack — the
 // proof that this seam makes the app actually generate. single-user AUTH_MODE auto-resolves the owner
-// (no login form); the server boots with a seeded default-character pack (entry/boot/seed-default-
-// characters.ts), so the library has a card to pick. roleDefaults.chat = agent-sdk/max-pro-sub + consent
-// are live, so with a character in the room the turn WILL generate + stream.
+// (no login form); globalSetup (support/global-setup.ts) guarantees ≥1 character card. roleDefaults.chat =
+// agent-sdk/max-pro-sub + consent are live, so with a character in the room the turn WILL generate + stream.
 //
-// The flow: `/` → Characters section → "Start chat with X" (the library→chat store seam) → the route
+// OPT-IN (`@live`): this is the ONE spec that fires a real Agent-SDK subprocess turn (up to ~120s of live
+// generation), so it is SKIPPED by default and only runs under `E2E_LIVE=1` — routine `pnpm e2e` (and the
+// CI smoke gate, which excludes `@live`) never hits live model credits. Run it explicitly with:
+//   E2E_LIVE=1 pnpm e2e start-chat-with-character.spec.ts
+//
+// The flow: `/` → Characters section → the first row's kebab ("Actions for X") → "Chat" (the library→chat
+// store seam; in the docked library width the inline "Chat with X" CTA folds into this kebab) → the route
 // flips CONTENT to a fresh draft seeded with that character → type (pressSequentially — `fill` bypasses
 // React's onChange so the composer's controlled value never updates) → Enter → the first send calls
 // `chat.startChat` with the seeded roster, then commits the text as its first turn → the assistant (now
@@ -12,10 +17,14 @@
 
 import { expect, test } from "@playwright/test";
 
-const START_CHAT = /^Start chat with /u;
+const CHARACTER_ROW_KEBAB = /^Actions for /u;
 const NON_WHITESPACE = /\S/u;
 
-test("pick a character, send a message, and the assistant streams a reply", async ({ page }) => {
+// The `@live` tag is the opt-in gate: playwright.config.ts sets `grepInvert: /@live/` UNLESS `E2E_LIVE=1`,
+// so routine `pnpm e2e` (and the CI smoke gate) skip this real-model-turn spec — no credits spent (header).
+test("pick a character, send a message, and the assistant streams a reply", {
+  tag: "@live",
+}, async ({ page }) => {
   // Real generation goes through the Agent SDK subprocess — give the whole flow room (cold model spin-up
   // + the streamed turn) well beyond Playwright's 30s default.
   test.setTimeout(180_000);
@@ -29,10 +38,13 @@ test("pick a character, send a message, and the assistant streams a reply", asyn
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
-  // The seeded default-character pack gives us at least one card to start a chat with.
-  const startChat = page.getByRole("button", { name: START_CHAT }).first();
-  await expect(startChat).toBeVisible({ timeout: 30_000 });
-  await startChat.click();
+  // The first character row's kebab → "Chat" (resume-or-new). Keyboard activation bypasses the row-body
+  // <button> that overlaps + intercepts pointer clicks on the kebab.
+  const kebab = page.getByRole("button", { name: CHARACTER_ROW_KEBAB }).first();
+  await expect(kebab).toBeVisible({ timeout: 30_000 });
+  await kebab.focus();
+  await kebab.press("Enter");
+  await page.getByRole("menuitem", { name: "Chat", exact: true }).click();
 
   // The store seam flipped CONTENT back to the Chats section with a fresh, character-seeded draft: the
   // composer is live.

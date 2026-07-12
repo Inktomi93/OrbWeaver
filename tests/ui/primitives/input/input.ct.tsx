@@ -39,7 +39,7 @@ test("typing updates the value and fires onValueChange", async ({ mount }) => {
   );
   await input.fill("hearth");
   await expect(input).toHaveValue("hearth");
-  await expect.poll(() => seen.at(-1)).toBe("hearth");
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe("hearth");
 });
 
 test("disabled blocks input and drops the interactive skin", async ({ mount }) => {

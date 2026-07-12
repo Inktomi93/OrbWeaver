@@ -19,10 +19,11 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the character-library-surface.tsx / rail-slots.ts precedent).
-import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
+import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -35,6 +36,8 @@ import { useDeferredValue, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { timeLib } from "#lib";
+import type { ChatListCharacterFilter } from "#state";
+import { clearChatListCharacterFilter, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
 import { initialsForAttribution } from "../lib/attribution";
 import { filterChats } from "../lib/filter-chats";
@@ -55,7 +58,10 @@ export interface ChatListSurfaceProps {
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
 }
 
-/** The chats picker: a header row (title + `+`) → search → the suspense-loaded rows. */
+/** The chats picker: a header row (title + `+`) → optional per-character filter chip → search → the
+ *  suspense-loaded rows. The per-character filter (`useChatListCharacterFilter`) is the character editor
+ *  hero's "N chats ›" seam (state/chat-list-filter-store) — this surface READS it and scopes the list,
+ *  showing a "filtered by [name] ✕" clear chip. */
 export function ChatListSurface({
   activeChatId,
   onSelect,
@@ -65,6 +71,7 @@ export function ChatListSurface({
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
   const clearSearch = (): void => setQuery("");
+  const characterFilter = useChatListCharacterFilter();
 
   return (
     <Stack className="h-full min-h-0" gap="block">
@@ -85,6 +92,7 @@ export function ChatListSurface({
           <TooltipPopup side="bottom">New chat</TooltipPopup>
         </Tooltip>
       </Row>
+      {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
       <Input
         aria-label="Search chats"
         onValueChange={setQuery}
@@ -100,6 +108,7 @@ export function ChatListSurface({
         >
           <ChatListBody
             activeChatId={activeChatId}
+            characterFilter={characterFilter}
             onClearSearch={clearSearch}
             onDeletedChat={onDeletedChat}
             onNewChat={onNewChat}
@@ -112,8 +121,35 @@ export function ChatListSurface({
   );
 }
 
+/** The "Filtered: [name] ✕" affordance — a dismissible chip whose ✕ clears the per-character scope (back to
+ *  the full list). Sits under the header so it reads as a scope on the whole list below. The "Filtered:"
+ *  micro-caps prefix is the at-a-glance cue that the name is an ACTIVE FILTER, not a tag (the "filter"
+ *  meaning otherwise lived only in the ✕'s aria-label). */
+function FilterChip({ filter }: { readonly filter: ChatListCharacterFilter }): ReactElement {
+  return (
+    <Row align="center" gap="field">
+      <Text size="micro" tone="muted" transform="caps">
+        Filtered:
+      </Text>
+      <Badge intent="info" size="sm">
+        {filter.name}
+      </Badge>
+      <Button
+        aria-label={`Clear the ${filter.name} filter`}
+        intent="ghost"
+        onClick={clearChatListCharacterFilter}
+        size="icon"
+        type="button"
+      >
+        <Icon icon={X} size="sm" />
+      </Button>
+    </Row>
+  );
+}
+
 interface ChatListBodyProps {
   readonly activeChatId: ChatId | null;
+  readonly characterFilter: ChatListCharacterFilter | null;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
   readonly onNewChat: () => void;
@@ -121,9 +157,11 @@ interface ChatListBodyProps {
   readonly query: string;
 }
 
-/** The suspending body — reads canon, filters client-side, then renders the empty-state or the row list. */
+/** The suspending body — reads canon, applies the per-character scope THEN the text search, then renders
+ *  the empty-state or the row list. */
 function ChatListBody({
   activeChatId,
+  characterFilter,
   onSelect,
   onDeletedChat,
   onNewChat,
@@ -149,7 +187,30 @@ function ChatListBody({
     );
   }
 
-  const filtered = filterChats(chats, query);
+  // Scope to the character's threads first (the hero "N chats ›" seam), then the text search over that
+  // scope. `participantCharacterIds` counts DEPARTED seats too (views.ts) — "every chat you've had with
+  // them", which is what the filter means. A filter with zero threads offers "start a new one".
+  const scoped =
+    characterFilter === null
+      ? chats
+      : chats.filter((chat) => chat.participantCharacterIds.includes(characterFilter.id));
+  if (characterFilter !== null && scoped.length === 0) {
+    return (
+      <EmptyState
+        action={
+          <Button intent="primary" onClick={onNewChat} size="sm">
+            <Icon icon={Plus} size="sm" />
+            New chat
+          </Button>
+        }
+        description={`No chats with ${characterFilter.name} yet. Start one, or clear the filter.`}
+        icon={<Icon icon={MessagesSquare} size="lg" />}
+        title="No matches"
+      />
+    );
+  }
+
+  const filtered = filterChats(scoped, query);
   if (filtered.length === 0) {
     return (
       <EmptyState

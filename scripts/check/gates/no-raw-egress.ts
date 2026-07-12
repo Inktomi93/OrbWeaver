@@ -11,8 +11,9 @@
 // Untrusted-content egress (hub browse, databank scrapers, server-side D44 external media) lives OUTSIDE
 // these zones, so a raw `fetch` there is RED — route it through `safeFetch`. PLUS a literal ban on
 // `corsproxy.io` (the NAMED-REJECTED third-party proxy fallback, D61) anywhere in server source.
-import type { SourceFile } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const SERVER_SRC = /\/packages\/server\/src\//u;
@@ -85,4 +86,92 @@ export const noRawEgress: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
+// Two node populations, ONE gate: a bare `fetch(` CallExpression (the SSRF arm), and a `corsproxy.io`
+// string/template literal (the named-reject arm). The descriptor's reason is the fetch arm; a corsproxy
+// finding carries its own per-occurrence message (owner ruling 2 — the two arms are distinct violation
+// types). scanRoot mirrors the legacy SERVER_SRC filter; the fetch-sanctioned zones are checked in
+// `visit` per the legacy path filter (corsproxy is banned server-wide, so it isn't scanRoot-gated).
+// Per-occurrence: each bare fetch + each corsproxy literal. Kept ALONGSIDE the legacy Check.
+const STRING_KINDS: readonly SyntaxKind[] = [
+  SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  SyntaxKind.TemplateHead,
+  SyntaxKind.TemplateMiddle,
+  SyntaxKind.TemplateTail,
+];
+
+/** Is `abs`-path (leading-slash form of a repoRel) in a fetch-sanctioned provider-egress zone? */
+function isFetchSanctioned(rel: string): boolean {
+  return FETCH_SANCTIONED.some((re) => re.test(`/${rel}`));
+}
+
+/** A bare `fetch(...)` call node (callee is the identifier `fetch`)? */
+function isBareFetchCall(node: Node): boolean {
+  if (!node.isKind(SyntaxKind.CallExpression)) {
+    return false;
+  }
+  const callee = node.getExpression();
+  return callee.isKind(SyntaxKind.Identifier) && callee.getText() === FETCH;
+}
+
+export const gate: GateDescriptor = {
+  name: "no-raw-egress",
+  docRow: "Core-Path-Registry-D60-D61.md D61 (B5a)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: FETCH_MESSAGE,
+  fix: "route untrusted/user-influenced egress through `safeFetch` (infra/network); sanctioned raw-fetch zones are infra/network + infra/providers.",
+  scanRoot: (p) => SERVER_SRC.test(`/${p}`),
+  kinds: [SyntaxKind.CallExpression, ...STRING_KINDS],
+  visit: (node, sf, ctx) => {
+    const rel = relPath(ctx.root, sf.getFilePath());
+    if (isBareFetchCall(node)) {
+      if (!isFetchSanctioned(rel)) {
+        ctx.report(node, { token: `${FETCH}(…)`, offset: 0 });
+      }
+      return;
+    }
+    // A string/template PART carrying `corsproxy.io` — banned server-wide (comments are excluded: only
+    // literal nodes are walked here).
+    if (node.getText().includes(CORSPROXY)) {
+      const abs = sf.getFilePath();
+      ctx.report({
+        file: abs.startsWith(ctx.root) ? abs.slice(ctx.root.length + 1) : abs,
+        line: node.getStartLineNumber(),
+        column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
+        message: CORSPROXY_MESSAGE,
+        token: CORSPROXY,
+      });
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
+      at: "packages/server/src/domain/hub/verbs/browse.ts",
+      expect: { messageIncludes: "safeFetch" },
+      why: "a bare fetch( in an unsanctioned server zone — the SSRF/exfil hole B5a closes",
+    },
+    {
+      files: 'export const proxy = "https://corsproxy.io/?url=";\n',
+      at: "packages/server/src/domain/hub/lib/x.ts",
+      expect: { messageIncludes: "corsproxy.io" },
+      why: "the NAMED-REJECTED third-party CORS proxy literal anywhere in server source",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        'export async function f(c: { fetch: (u: string) => Promise<unknown> }) {\n  await safeFetch("https://x", { allowedHosts: [] });\n  await c.fetch("https://y");\n}\n',
+      at: "packages/server/src/domain/hub/verbs/browse.ts",
+      why: "safeFetch( and a method .fetch( pass — only the bare `fetch` identifier callee is banned",
+    },
+    {
+      files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
+      at: "packages/server/src/infra/providers/vllm/engine/client.ts",
+      why: "a raw fetch in the sanctioned provider-egress zone (vLLM loopback) passes",
+    },
+  ],
 };

@@ -126,11 +126,17 @@ test("nested ThemeScope: inner wins where it sets a token, falls through to oute
   const read = (name: string): Promise<string> =>
     probe.evaluate((el, prop) => getComputedStyle(el).getPropertyValue(prop).trim(), name);
   // The inner (character) scope sets `accent` — it wins over the outer (global) scope's accent.
-  await expect.poll(() => read("--color-primary")).toBe("oklch(0.5 0.1 40)");
+  await expect
+    .poll(() => read("--color-primary"), { intervals: [20, 50, 100] })
+    .toBe("oklch(0.5 0.1 40)");
   // `accent` also maps to --color-ring — the SAME inner value, not a stale outer one.
-  await expect.poll(() => read("--color-ring")).toBe("oklch(0.5 0.1 40)");
+  await expect
+    .poll(() => read("--color-ring"), { intervals: [20, 50, 100] })
+    .toBe("oklch(0.5 0.1 40)");
   // The inner scope never touches `speaker` — it falls through to the outer (global) scope's value.
-  await expect.poll(() => read("--color-speaker")).toBe("oklch(0.4 0.1 30)");
+  await expect
+    .poll(() => read("--color-speaker"), { intervals: [20, 50, 100] })
+    .toBe("oklch(0.4 0.1 30)");
 });
 
 test("nested ThemeScope: a token neither scope sets resolves to the same app default as no scope at all", async ({

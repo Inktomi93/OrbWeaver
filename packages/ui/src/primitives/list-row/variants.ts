@@ -8,7 +8,11 @@ import { FOCUS_RING, tv } from "#lib";
 // interactive content" constraint lives in list-row.tsx, not here).
 export const listRowVariants = tv({
   slots: {
-    root: "flex w-full min-w-0 items-center gap-row",
+    // `@container/list-row` establishes a NAMED container on the row so a consumer's `actions` can COLLAPSE
+    // responsively to the ROW's own width (e.g. the character card folds its Star/Chat buttons into the ···
+    // kebab via `@max-*/list-row` when the row is tight) — the overflow→kebab mechanism the redesign needs,
+    // measured, not guessed. The name scopes the query so a nested container ancestor can't capture it.
+    root: "@container/list-row flex w-full min-w-0 items-center gap-row",
     // The body drops `min-w-0` so it RESPECTS `content`'s min-width floor (below) — the title column can
     // never be starved to 0 by a wide `actions` slot (the reveal-cluster regression: opacity-0 content in
     // `actions` still claims its intrinsic width). The body is the flex-1 winner; `actions` must yield.
@@ -34,10 +38,16 @@ export const listRowVariants = tv({
     // Mono (data accent, §13); truncates within the protected content column, so it stays legible.
     subtitleReveal:
       "hidden truncate text-left font-mono text-label leading-label text-muted-foreground group-focus-within:block group-hover:block group-data-[selected]:text-accent-foreground",
-    // `actions` YIELDS to the title: `min-w-0` (shrink below content), `justify-end` + `overflow-hidden`
-    // (when squeezed, right-align the always-visible controls and clip the LEADING reveal-only content),
-    // never the old `shrink-0` that let a wide (even invisible) trailing cluster win the row.
-    actions: "flex min-w-0 items-center justify-end gap-field overflow-hidden",
+    // `actions` is `shrink-0`: its controls keep their INTRINSIC width and are NEVER squeezed below the
+    // fine-pointer 32px tap-target floor (`--spacing-control-sm`, D62) — the side-eye P1 + owner-reported
+    // bug the old `min-w-0 overflow-hidden` caused (3 revealed buttons clipped to 24–26px). The title never
+    // reflows: the body's own `min-w-24` floor + `truncate` (above) absorb the squeeze, and the WIDE
+    // hover-metadata that once forced `actions` to yield now rides the `subtitleReveal` slot in the CONTENT
+    // column (never `actions`), so a wide trailing cluster can no longer starve the title — the exact
+    // regression the old `overflow-hidden` guarded against is structurally gone. When even intrinsic actions
+    // don't fit a narrow row, the CONSUMER collapses its secondary actions into a kebab via the row's
+    // `@container/list-row` (`@max-*/list-row` classes) — a real measured fold, not a clip.
+    actions: "flex shrink-0 items-center justify-end gap-field",
   },
   variants: {
     density: {

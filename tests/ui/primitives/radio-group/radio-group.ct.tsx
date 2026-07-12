@@ -56,7 +56,7 @@ test("onValueChange reports the picked value", async ({ mount, page }) => {
     </RadioGroup>,
   );
   await page.getByRole("radio", { name: "A human GM" }).click();
-  await expect.poll(() => seen.at(-1)).toBe("human");
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe("human");
 });
 
 test("disabled blocks selection and drops the interactive skin", async ({ mount, page }) => {

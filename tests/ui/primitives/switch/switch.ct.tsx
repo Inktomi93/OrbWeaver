@@ -63,7 +63,9 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
   // floor, Task #76). The old fine-pointer travel was ~4px; assert well past that so a regression toward
   // a near-square track fails here. Poll past the 130ms transform transition (the thumb slides,
   // boundingBox tracks the transform mid-animation).
-  await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0).toBeGreaterThan(offX + 12);
+  await expect
+    .poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] })
+    .toBeGreaterThan(offX + 12);
 });
 
 test("onCheckedChange reports the next state", async ({ mount, page }) => {
@@ -77,7 +79,7 @@ test("onCheckedChange reports the next state", async ({ mount, page }) => {
     />,
   );
   await page.getByRole("switch").click();
-  await expect.poll(() => seen.at(-1)).toBe(true);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toBe(true);
 });
 
 test("read-only: blocks toggling but keeps the checked token + shows the lock glyph", async ({

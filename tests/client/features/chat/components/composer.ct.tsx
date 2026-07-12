@@ -52,7 +52,7 @@ test("committed handle: Send fires chat.send; the draft is NOT cleared until the
   await component.getByRole("button", { name: "Send message" }).click();
 
   // The send fired with the typed content (read off the intercepted request body)...
-  await expect.poll(() => sendBody).not.toBeNull();
+  await expect.poll(() => sendBody, { intervals: [20, 50, 100] }).not.toBeNull();
   expect(sendBody).toContain("Hello there");
   expect(sendBody).toContain(COMPOSER_CHAT_ID);
   // ...but the draft is STILL there — no optimistic clear (this is the whole point of clear-on-commit).
@@ -76,8 +76,8 @@ test("draft handle: Send lazily starts the chat, then commits the typed text as 
   await component.getByLabel("Message", { exact: true }).fill("First message");
   await component.getByRole("button", { name: "Send message" }).click();
 
-  await expect.poll(() => trpc.count("chat.startChat")).toBe(1);
-  await expect.poll(() => trpc.count("chat.send")).toBe(1);
+  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.send")).toMatchObject({
     chatId: COMPOSER_CHAT_ID,
     content: "First message",
@@ -99,7 +99,7 @@ test("Stop shows 'stopping' immediately on click and fires chat.abort; the butto
 
   // Immediate feedback — no network wait needed for the label to flip (markStopping is client-only).
   await expect(component.getByRole("button", { name: "Stopping…" })).toBeVisible();
-  await expect.poll(() => trpc.count("chat.abort")).toBe(1);
+  await expect.poll(() => trpc.count("chat.abort"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.abort")).toMatchObject({ chatId: COMPOSER_CHAT_ID });
 
   // The slot has NOT closed optimistically — Send never reappears on its own.
@@ -126,7 +126,7 @@ test("a second Stop click while already stopping does not fire a second chat.abo
   // a forced click still must not re-fire the mutation.
   await component.getByRole("button", { name: "Stopping…" }).click({ force: true });
 
-  await expect.poll(() => trpc.count("chat.abort")).toBe(1);
+  await expect.poll(() => trpc.count("chat.abort"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
 test("a send that FAILS keeps the draft for retry (never cleared — no commit signal ever fires)", async ({
@@ -261,8 +261,8 @@ test("sending with an attachment uploads it to CAS and includes the asset id on 
     .setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
   await component.getByRole("button", { name: "Send message" }).click();
 
-  await expect.poll(() => uploadCalled).toBe(1);
-  await expect.poll(() => sendBody).not.toBeNull();
+  await expect.poll(() => uploadCalled, { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => sendBody, { intervals: [20, 50, 100] }).not.toBeNull();
   expect(sendBody).toContain(STUB_ASSET_ID);
   expect(sendBody).toContain(COMPOSER_CHAT_ID);
 });
