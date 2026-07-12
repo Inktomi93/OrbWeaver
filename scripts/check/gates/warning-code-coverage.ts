@@ -11,8 +11,9 @@
 // silently dead, and a stale DEFERRED entry (a code that GAINED an emit) is RED too. Both channels are
 // compile-exhaustive on the CONSUMER side (`{ code }` is typed to the tuple, so every emit uses a member —
 // tsc owns that direction); this gate owns the PRODUCER direction the type system can't see.
-import type { SourceFile } from "ts-morph";
+import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 /** One warning channel: where its tuple lives + where its emits live + the tracked-deferred allowlist. */
@@ -126,3 +127,49 @@ export function createWarningCodeCoverage(channels: readonly WarningChannel[]): 
 }
 
 export const warningCodeCoverage: Check = createWarningCodeCoverage(CHANNELS);
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
+// The bus-coverage twin, over TWO warning channels: a pure whole-tree reconciliation (each tuple's
+// members vs its emit-scope literal corpus), ported as a `run` descriptor reusing the exact
+// channelViolations logic against the LIVE CHANNELS. No begin/finalize (each corpus is built inside
+// `run`). The per-channel vacuous guard (tuple home not loaded → []) is the synthetic-tree protection.
+// Findings byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+function reconcileWarningCoverage(project: Project): Violation[] {
+  return CHANNELS.flatMap((c) => channelViolations(project, c));
+}
+
+export const gate: GateDescriptor = {
+  name: "warning-code-coverage",
+  docRow: "Core-Path-Registry-D35-D43.md D41 (D45/D48/D51)",
+  status: "active",
+  scopeSafety: "whole-project",
+  message:
+    "a warning-code tuple member has NO emit site and no DEFERRED entry — a declared-never-emitted warning code is silently dead (D41 bans speculative codes). Wire the emit or add a cited DEFERRED entry in scripts/check/gates/warning-code-coverage.ts. See Core-Path-Registry-D35-D43.md D41.",
+  fix: "wire the `{ code: '…' }` emit site in the channel's scope, or add a cited DEFERRED entry in warning-code-coverage.ts.",
+  run: (ctx) => {
+    for (const v of reconcileWarningCoverage(ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+  },
+  mustFlag: [
+    {
+      files: {
+        "packages/contracts/src/chat/index.ts":
+          'export const CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'export const q = "something_else";\n',
+      },
+      expect: { messageIncludes: "NO emit site" },
+      why: "a CHAT_WARNING_CODES member with no emit site + no DEFERRED entry — a silently dead warning code",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/contracts/src/chat/index.ts":
+          'export const CHAT_WARNING_CODES = ["emitted_code"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'export const q = "emitted_code";\n',
+      },
+      why: "the code's discriminator appears as an emit literal in the channel scope — covered, passes",
+    },
+  ],
+};

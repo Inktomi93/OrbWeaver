@@ -52,7 +52,7 @@ test("interactive is keyboard-operable: role/tabIndex + Enter/Space fire onClick
   await card.focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press(" ");
-  await expect.poll(() => clicks.length).toBe(2);
+  await expect.poll(() => clicks.length, { intervals: [20, 50, 100] }).toBe(2);
 });
 
 test("caller-supplied role/tabIndex/onKeyDown are not overridden", async ({ mount }) => {

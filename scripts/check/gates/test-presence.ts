@@ -10,8 +10,9 @@
 // Tests live at the mirror path (tests/server/<rest>).
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { SourceFile } from "ts-morph";
+import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const DOMAIN_DIR = "/packages/server/src/domain/";
@@ -128,37 +129,79 @@ function pushContracts(root: string, rel: string, sf: SourceFile, out: Violation
   }
 }
 
-export const testPresence: Check = {
-  name: "test-presence",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const isIndex = sf.getBaseName() === "index.ts";
-
-      const serverRel = serverSrcRel(sf.getFilePath());
-      if (serverRel !== undefined) {
-        // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
-        // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
-        if (isIndex) {
-          continue;
-        }
-        if (sf.getFilePath().includes(DOMAIN_DIR)) {
-          pushDomain(root, serverRel, sf, violations);
-        } else {
-          pushInfra(root, serverRel, sf, violations);
-        }
+/** The fs+AST scan shared by the legacy Check and the single-pass `run` descriptor: each server/contracts
+ *  source file's presence-gated surface must have its mirror test (existsSync). */
+function scanTestPresence(root: string, project: Project): Violation[] {
+  const violations: Violation[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const isIndex = sf.getBaseName() === "index.ts";
+    const serverRel = serverSrcRel(sf.getFilePath());
+    if (serverRel !== undefined) {
+      // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
+      // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
+      if (isIndex) {
         continue;
       }
-
-      // Contracts arm: a schema-bearing file is presence-gated whether or not it is named `index.ts` — the
-      // contracts convention co-locates the domain's zod schemas in `index.ts`, so a blanket barrel-skip
-      // silently exempted whole domains (imagery slipped through with zero tests). A pure-type/re-export
-      // `index.ts` carries no schema and passes `hasSchema` → still exempt.
-      const contractsRel = contractsSrcRel(sf.getFilePath());
-      if (contractsRel !== undefined) {
-        pushContracts(root, contractsRel, sf, violations);
+      if (sf.getFilePath().includes(DOMAIN_DIR)) {
+        pushDomain(root, serverRel, sf, violations);
+      } else {
+        pushInfra(root, serverRel, sf, violations);
       }
+      continue;
     }
-    return violations;
+    // Contracts arm: a schema-bearing file is presence-gated whether or not it is named `index.ts` — the
+    // contracts convention co-locates the domain's zod schemas in `index.ts`, so a blanket barrel-skip
+    // silently exempted whole domains. A pure-type/re-export `index.ts` carries no schema → still exempt.
+    const contractsRel = contractsSrcRel(sf.getFilePath());
+    if (contractsRel !== undefined) {
+      pushContracts(root, contractsRel, sf, violations);
+    }
+  }
+  return violations;
+}
+
+export const testPresence: Check = {
+  name: "test-presence",
+  run: ({ root, project }): Violation[] => scanTestPresence(root, project),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST presence gate via `run`, fsBacked) ─────────────────
+// test-presence reconciles server/contracts source (AST — schema/callable detection) against its MIRROR
+// tests (existsSync of tests/<mirror>). A `run` descriptor over ctx.root + ctx.project reusing the exact
+// scan, `fsBacked` so conformance materializes the source + (for mustPass) the mirror test into a real
+// temp dir. Distinct per-arm messages → per-occurrence overrides. Byte-identical to the legacy Check.
+export const gate: GateDescriptor = {
+  name: "test-presence",
+  docRow: "core/Spine-Testing.md §5",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "a presence-gated source file has no mirror test — a domain verb / persistence / contract-schema / infra-runtime-logic file must carry its test at tests/<mirror> (core/Spine-Testing.md §5).",
+  fix: "add the required test at the mirror path (tests/server/<rest> or tests/contracts/<rest>) — a .test/.int.test/.contract.test per the surface.",
+  run: (ctx) => {
+    for (const v of scanTestPresence(ctx.root, ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/server/src/domain/chat/verbs/start-chat.ts":
+          "export const createStartChat = 1;\n",
+      },
+      expect: { messageIncludes: "verb has no test" },
+      why: "a domain verb file with no mirror .test/.int.test — an untested behavioral surface (§5)",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/server/src/domain/chat/verbs/start-chat.ts":
+          "export const createStartChat = 1;\n",
+        "tests/server/domain/chat/verbs/start-chat.test.ts": "export const t = 1;\n",
+      },
+      why: "the verb file has its mirror .test.ts — presence satisfied, passes",
+    },
+  ],
 };

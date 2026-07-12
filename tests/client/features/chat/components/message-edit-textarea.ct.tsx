@@ -31,7 +31,7 @@ test("Enter (no Shift) saves via chat.editMessage with the edited content", asyn
   await textarea.fill("edited text");
   await textarea.press("Enter");
 
-  await expect.poll(() => trpc.count("chat.editMessage")).toBe(1);
+  await expect.poll(() => trpc.count("chat.editMessage"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.editMessage")).toMatchObject({
     chatId: message.chatId,
     messageId: message.id,
@@ -95,7 +95,7 @@ test("the Save button fires the same save path as Enter", async ({ mount, page }
   await component.getByRole("textbox", { name: "Edit message" }).fill("saved via button");
   await component.getByRole("button", { name: "Save edit" }).click();
 
-  await expect.poll(() => trpc.count("chat.editMessage")).toBe(1);
+  await expect.poll(() => trpc.count("chat.editMessage"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.editMessage")).toMatchObject({ content: "saved via button" });
 });
 

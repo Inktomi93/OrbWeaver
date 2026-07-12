@@ -42,5 +42,7 @@ test("resizes with its container (size-sensor's ResizeObserver, no hand-rolled o
   await component.evaluate((el) => {
     (el as HTMLElement).style.width = "600px";
   });
-  await expect.poll(async () => (await canvas.boundingBox())?.width).not.toBe(initialBox?.width);
+  await expect
+    .poll(async () => (await canvas.boundingBox())?.width, { intervals: [20, 50, 100] })
+    .not.toBe(initialBox?.width);
 });

@@ -62,6 +62,9 @@ export function CharacterCardTileStory({
   const [bulkId, setBulkId] = useState<string | null>(null);
   const [starredId, setStarredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [archivedId, setArchivedId] = useState<string | null>(null);
+  const [duplicatedId, setDuplicatedId] = useState<string | null>(null);
+  const [deletedId, setDeletedId] = useState<string | null>(null);
   return (
     <div style={{ width: 360 }}>
       <CharacterCardTile
@@ -80,7 +83,10 @@ export function CharacterCardTileStory({
           tags: tags.map((tag) => ({ ...tag, id: castId<TagId>(tag.id) })),
         }}
         onChat={setChattedId}
+        onDelete={(id): void => setDeletedId(id)}
+        onDuplicate={(id): void => setDuplicatedId(id)}
         onSelect={setSelectedId}
+        onToggleArchive={(id): void => setArchivedId(id)}
         onToggleBulk={setBulkId}
         onToggleStar={(id): void => setStarredId(id)}
         selected={selected}
@@ -89,6 +95,9 @@ export function CharacterCardTileStory({
       <p data-testid="bulk-id">{bulkId ?? ""}</p>
       <p data-testid="starred-id">{starredId ?? ""}</p>
       <p data-testid="selected-id">{selectedId ?? ""}</p>
+      <p data-testid="archived-id">{archivedId ?? ""}</p>
+      <p data-testid="duplicated-id">{duplicatedId ?? ""}</p>
+      <p data-testid="deleted-id">{deletedId ?? ""}</p>
     </div>
   );
 }

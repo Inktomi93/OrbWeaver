@@ -16,13 +16,12 @@ import {
 import { AccountSurface, useAuthConfig } from "#features/auth";
 import {
   CharacterActionsMenu,
-  CharacterActivityTab,
-  CharacterAppearanceTab,
   CharacterEditorSurface,
-  CharacterHistoryTab,
+  CharacterFacetInspector,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
+  CharacterOptionsTab,
   CharacterRelationsTab,
 } from "#features/character";
 import type { GoToSection } from "#features/chat";
@@ -137,6 +136,18 @@ export function HomePage(): ReactElement {
   const isMobile = useIsMobileViewport();
   const revealSectionInspector = (): void => {
     setContextTab("section");
+    if (isMobile) {
+      setMobileSheet("context");
+    } else {
+      setPanelMode("context", "docked");
+    }
+  };
+  // The character-editor redesign reveal choreography (mirrors `revealSectionInspector`) — a facet-row
+  // click (which already wrote the facet selection) opens the CONTEXT "field" tab, then DOCKS it on desktop
+  // / opens it as a SHEET on mobile. So one facet click updates BOTH the CONTENT drill-in and the CONTEXT
+  // Field detail.
+  const revealFieldInspector = (): void => {
+    setContextTab("field");
     if (isMobile) {
       setMobileSheet("context");
     } else {
@@ -297,21 +308,25 @@ export function HomePage(): ReactElement {
               selectedCharacterId === null ? (
                 <CharacterLibraryWelcome />
               ) : (
-                <CharacterEditorSurface characterId={selectedCharacterId} />
+                <CharacterEditorSurface
+                  characterId={selectedCharacterId}
+                  onRevealField={revealFieldInspector}
+                />
               ),
-            // CONTEXT (FINAL-Character §7): the relationship ledger + config + actions, composed via the
-            // CONTEXT_SLOTS registry — the route injects the per-tab bodies + the Actions menu; the shell
-            // renders the registry-driven tab strip. Nothing selected ⇒ the shell's own placeholder.
+            // CONTEXT (character-editor redesign): EXACTLY 3 tabs composed via the CONTEXT_SLOTS registry —
+            // Field (the drilled facet's small detail, revealed on a facet click), Links (world books +
+            // personas), Options (theme override + history). The route injects the per-tab bodies + the
+            // Actions menu; the shell renders the registry-driven tab strip. Nothing selected ⇒ the shell's
+            // own placeholder.
             context:
               selectedCharacterId === null ? undefined : (
                 <ContextTabsPanel
                   section="characters"
                   actions={<CharacterActionsMenu characterId={selectedCharacterId} />}
                   bodies={{
-                    activity: <CharacterActivityTab characterId={selectedCharacterId} />,
-                    appearance: <CharacterAppearanceTab characterId={selectedCharacterId} />,
-                    relations: <CharacterRelationsTab characterId={selectedCharacterId} />,
-                    history: <CharacterHistoryTab characterId={selectedCharacterId} />,
+                    field: <CharacterFacetInspector characterId={selectedCharacterId} />,
+                    links: <CharacterRelationsTab characterId={selectedCharacterId} />,
+                    options: <CharacterOptionsTab characterId={selectedCharacterId} />,
                   }}
                 />
               ),

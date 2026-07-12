@@ -18,9 +18,11 @@
 //   • SCOPE-SUBJECT (the ownerId IS the partition subject, not a derivable parent mirror — the D23 "no
 //     derivable owner → KEEP" case): chat_tags (D30 per-user overlay on an ownerless chat) · global_documents
 //     (D49 — the ownerId is the scope subject of the personal bank).
-import type { SourceFile } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
+import { fileLoaded } from "../pass.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
 const OWNER_COL = "ownerId";
@@ -102,6 +104,34 @@ function ownerIdTables(sf: SourceFile): { name: string; line: number }[] {
   return out;
 }
 
+/** If this node is a `sqliteTable("<name>", { … ownerId … })` call, its SQL table name — else undefined.
+ *  The single-node form of `ownerIdTables`, for the single-pass visit (no per-file re-walk). */
+function ownerIdTableOf(node: Node): string | undefined {
+  if (!node.isKind(SyntaxKind.CallExpression)) {
+    return;
+  }
+  const callee = node.getExpression();
+  if (!(callee.isKind(SyntaxKind.Identifier) && callee.getText() === TABLE_FN)) {
+    return;
+  }
+  const [nameArg, colsArg] = node.getArguments();
+  if (nameArg === undefined || !nameArg.isKind(SyntaxKind.StringLiteral)) {
+    return;
+  }
+  if (colsArg === undefined || !colsArg.isKind(SyntaxKind.ObjectLiteralExpression)) {
+    return;
+  }
+  const hasOwner = colsArg
+    .getProperties()
+    .some(
+      (p) =>
+        (p.isKind(SyntaxKind.PropertyAssignment) ||
+          p.isKind(SyntaxKind.ShorthandPropertyAssignment)) &&
+        p.getName() === OWNER_COL,
+    );
+  return hasOwner ? nameArg.getLiteralText() : undefined;
+}
+
 /** Stamp-side arm: every ownerId table not on the allowlist is RED; returns the set of seen owner
  *  tables so the caller can run the stale-side arm. */
 function stampViolations(
@@ -152,3 +182,68 @@ export function createOwnerIdRegistry(allowlist: Readonly<Record<string, string>
 }
 
 export const ownerIdRegistry: Check = createOwnerIdRegistry(OWNERID_ALLOWLIST);
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — collect-then-judge ratchet) ────────────────────────
+// STAMP arm (per-node): a sqliteTable with an ownerId column not on the allowlist → per-site finding at
+// visit. STALE arm (whole-tree): a listed table with no ownerId column anywhere → finalize. The stale arm
+// is name-keyed against the LIVE OWNERID_ALLOWLIST, so a synthetic conformance/parity tree (which omits
+// the real schema tables) would misfire — guarded on (a) project scope and (b) the schema BARREL being
+// LOADED (the batch-3 fileLoaded pattern, keyed to a sentinel file since the registry is name-keyed). The
+// barrel is loaded on every real full-tree run, so the ratchet is preserved. Kept ALONGSIDE the legacy.
+const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
+const seenOwnerTables = new Set<string>();
+
+export const gate: GateDescriptor = {
+  name: "ownerid-registry",
+  docRow: "Core-Path-Registry-D1-D34.md D23 (D30/D21/D49)",
+  status: "active",
+  scopeSafety: "whole-project",
+  message:
+    "a table stamps an `ownerId` column but is NOT on the D23 ownership-stamp allowlist — an ownerId is legal ONLY on a TRUE PRODUCER, a parentless per-user aggregate, or a sanctioned scope-subject (chat_tags D30 / global_documents D49); every other table DERIVES its owner via ONE FK. Drop the stamp or add a justified allowlist row in scripts/check/gates/ownerid-registry.ts with a D-cite. See Core-Path-Registry-D1-D34.md D23.",
+  fix: "drop the redundant ownerId (derive the owner via ONE FK to an owned entity), or add a D-cited row to OWNERID_ALLOWLIST.",
+  scanRoot: (p) => SCHEMA_DIR.test(`/${p}`),
+  kinds: [SyntaxKind.CallExpression],
+  begin: () => {
+    seenOwnerTables.clear();
+  },
+  visit: (node, _sf, ctx) => {
+    const table = ownerIdTableOf(node);
+    if (table === undefined) {
+      return;
+    }
+    seenOwnerTables.add(table);
+    if (!(table in OWNERID_ALLOWLIST)) {
+      ctx.report(node, { token: `ownerId on "${table}"`, offset: 0 });
+    }
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, SCHEMA_BARREL)) {
+      return; // not the real full schema tree — the name-keyed stale arm would misfire (§4.4)
+    }
+    for (const table of Object.keys(OWNERID_ALLOWLIST)) {
+      if (!seenOwnerTables.has(table)) {
+        ctx.report({
+          file: "packages/db/src/schema",
+          line: 0,
+          column: 0,
+          message: STALE_MESSAGE(table),
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const t = sqliteTable("not_allowlisted", { ownerId: text("owner_id") });\n',
+      at: "packages/db/src/schema/x.ts",
+      expect: { messageIncludes: "ownership-stamp allowlist" },
+      why: "a NEW ownerId on a table not on the D23 allowlist — a redundant ownership doubling",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const t = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+      at: "packages/db/src/schema/character.ts",
+      why: "characters is a D23 TRUE PRODUCER on the allowlist — a sanctioned ownerId, passes",
+    },
+  ],
+};

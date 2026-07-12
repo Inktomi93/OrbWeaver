@@ -1,4 +1,5 @@
-import type { MouseEventHandler, ReactElement, ReactNode } from "react";
+import type { MouseEventHandler, ReactElement, ReactNode, RefObject } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { listRowVariants } from "./variants";
 
 export interface ListRowProps {
@@ -22,9 +23,22 @@ export interface ListRowProps {
   subtitleReveal?: string;
   /**
    * Trailing actions (typically `@orb/ui/button` `<Button>`s). Rendered as a SIBLING of the
-   * clickable body, never nested inside it — see the component doc-comment for why.
+   * clickable body, never nested inside it — see the component doc-comment for why. Ignored when
+   * `renderActions` is supplied (the collapse-aware form below).
    */
   actions?: ReactNode;
+  /**
+   * The collapse-aware actions form: a render fn given `collapsed` — `true` once the row's own width drops
+   * below `collapseBelow` (a ResizeObserver on the root, so it tracks the LIST panel's width, not the
+   * viewport). The consumer folds its SECONDARY actions into a kebab when `collapsed` (keeping the visible
+   * targets at their intrinsic ≥32px width instead of clipping) and shows them inline when not — the
+   * overflow→kebab mechanism (owner spec), measured here so the DOM stays a single source of truth. Wins
+   * over `actions` when both are set. No-op collapse (always `false`) when `collapseBelow` is omitted.
+   */
+  renderActions?: (collapsed: boolean) => ReactNode;
+  /** The row width (px) at/below which `renderActions` receives `collapsed=true`. Required to arm the
+   *  measured collapse; without it `renderActions` always gets `false` (renders its expanded form). */
+  collapseBelow?: number;
   /**
    * Renders the row's body as a native `<button>` (a real button, not a `role="button"` div — the
    * side-eye item-13 ruling): free Enter/Space activation + form-control semantics, with the `actions`
@@ -177,12 +191,37 @@ function ListRowBody({
   );
 }
 
+/** Track whether the observed element's width has dropped at/below `threshold` — the row's measured
+ *  collapse signal (`renderActions`). Disarmed (`null` threshold) ⇒ never collapses. `useLayoutEffect` +
+ *  ResizeObserver so the collapse settles before paint (no flash of the un-collapsed cluster). */
+function useCollapsedBelow(
+  ref: RefObject<HTMLElement | null>,
+  threshold: number | undefined,
+): boolean {
+  const [collapsed, setCollapsed] = useState(false);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (node === null || threshold === undefined) {
+      setCollapsed(false);
+      return;
+    }
+    const measure = (): void => setCollapsed(node.getBoundingClientRect().width <= threshold);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return (): void => observer.disconnect();
+  }, [ref, threshold]);
+  return collapsed;
+}
+
 export function ListRow({
   leading,
   title,
   subtitle,
   subtitleReveal,
   actions,
+  renderActions,
+  collapseBelow,
   clickable = false,
   selected = false,
   disabled = false,
@@ -191,8 +230,14 @@ export function ListRow({
   className,
 }: ListRowProps): ReactElement {
   const slots = listRowVariants({ density, clickable });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const collapsed = useCollapsedBelow(
+    rootRef,
+    renderActions === undefined ? undefined : collapseBelow,
+  );
+  const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;
   return (
-    <div className={slots.root({ className })} data-slot="list-row-root">
+    <div className={slots.root({ className })} data-slot="list-row-root" ref={rootRef}>
       <ListRowBody
         clickable={clickable}
         disabled={disabled}
@@ -208,9 +253,9 @@ export function ListRow({
           title={title}
         />
       </ListRowBody>
-      {actions === undefined ? null : (
+      {resolvedActions === undefined ? null : (
         <div className={slots.actions()} data-slot="list-row-actions">
-          {actions}
+          {resolvedActions}
         </div>
       )}
     </div>

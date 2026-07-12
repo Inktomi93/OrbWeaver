@@ -70,7 +70,10 @@ test("toggling a switch sends a DELTA partial — only the moved field, not the 
   await mount(<SystemSettingsStory />);
 
   await page.getByRole("switch", { name: "Block external media" }).click();
-  await expect.poll(() => lastPatch(trpc)?.["forbidExternalMedia"]).toBe(false);
+  // No DOM correlate for the debounced write landing (busDriven, no refetch) — tighten the poll.
+  await expect
+    .poll(() => lastPatch(trpc)?.["forbidExternalMedia"], { intervals: [20, 50, 100] })
+    .toBe(false);
   // Env-floor honesty: an UNTOUCHED env-mirrored field is NOT pinned into the override.
   expect(lastPatch(trpc)).not.toHaveProperty("logLevel");
   expect(lastPatch(trpc)).not.toHaveProperty("corpusAutoindex");
@@ -86,7 +89,9 @@ test("maxImageBytes: the MB field maps back to BYTES on the wire", async ({ moun
   await expect(
     page.getByRole("textbox", { name: "Max generated-image download (MB)" }),
   ).toHaveValue("6");
-  await expect.poll(() => lastPatch(trpc)?.["maxImageBytes"]).toBe(6 * BYTES_PER_MB);
+  await expect
+    .poll(() => lastPatch(trpc)?.["maxImageBytes"], { intervals: [20, 50, 100] })
+    .toBe(6 * BYTES_PER_MB);
 });
 
 test("as a non-owner admin, the D17 Shared-access governance controls are disabled", async ({
@@ -116,5 +121,7 @@ test("as the owner, the D17 Shared-access controls are editable and patch on cha
   await expect(localCompute).toBeEnabled();
   // Effective config has it ON → flip OFF; the delta carries just that governance field.
   await localCompute.click();
-  await expect.poll(() => lastPatch(trpc)?.["allowNonOwnerLocalCompute"]).toBe(false);
+  await expect
+    .poll(() => lastPatch(trpc)?.["allowNonOwnerLocalCompute"], { intervals: [20, 50, 100] })
+    .toBe(false);
 });

@@ -24,8 +24,9 @@
 // the verb factory's closure and call it directly) OR its factory `create<Pascal(verb)>(` (the buddy
 // `createResolveSpeakerIdentity(...)` shape, where the returned closure is invoked under a local alias so
 // the verb name never appears as a call). Measured zero-coverage set after this calibration: exactly 2.
-import type { InterfaceDeclaration, SourceFile } from "ts-morph";
+import type { InterfaceDeclaration, Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const SERVICE_CONTRACT_RE =
@@ -100,29 +101,72 @@ function domainTestCorpus(domain: string, files: readonly SourceFile[]): string 
   return parts.join("\n");
 }
 
-export const contractVerbPresence: Check = {
-  name: "contract-verb-presence",
-  run: ({ project }): Violation[] => {
-    const files = project.getSourceFiles();
-    const violations: Violation[] = [];
-    for (const contract of files) {
-      const match = SERVICE_CONTRACT_RE.exec(contract.getFilePath());
-      const domain = match?.groups?.["domain"];
-      if (domain === undefined) {
+/** The whole-tree reconciliation shared by the legacy Check and the single-pass `run` descriptor: each
+ *  domain's *Service verbs vs its test-tree invocation corpus. */
+function reconcileContractVerbPresence(project: Project): Violation[] {
+  const files = project.getSourceFiles();
+  const violations: Violation[] = [];
+  for (const contract of files) {
+    const match = SERVICE_CONTRACT_RE.exec(contract.getFilePath());
+    const domain = match?.groups?.["domain"];
+    if (domain === undefined) {
+      continue;
+    }
+    const corpus = domainTestCorpus(domain, files);
+    const file = `packages/server/src/domain/${domain}/contract/service.ts`;
+    for (const verb of serviceVerbs(contract)) {
+      if (isCovered(corpus, verb) || DEFERRED.has(`${domain}.${verb}`)) {
         continue;
       }
-      const corpus = domainTestCorpus(domain, files);
-      const file = `packages/server/src/domain/${domain}/contract/service.ts`;
-      for (const verb of serviceVerbs(contract)) {
-        if (isCovered(corpus, verb)) {
-          continue;
-        }
-        if (DEFERRED.has(`${domain}.${verb}`)) {
-          continue;
-        }
-        violations.push({ file, line: 1, message: MESSAGE(`${domain}.${verb}`) });
-      }
+      violations.push({ file, line: 1, message: MESSAGE(`${domain}.${verb}`) });
     }
-    return violations;
+  }
+  return violations;
+}
+
+export const contractVerbPresence: Check = {
+  name: "contract-verb-presence",
+  run: ({ project }): Violation[] => reconcileContractVerbPresence(project),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a whole-project RECONCILIATION via `run`) ────────────────────
+// contract-verb-presence reconciles each domain's *Service interface verbs against its test-tree
+// invocation corpus (grep-style over the loaded test files) — a whole-tree cross-file check, ported as a
+// `run` descriptor reusing the exact reconcile logic. The DEFERRED map suppresses tracked gaps (no stale
+// arm — a covered deferred verb just passes, so no synthetic-tree misfire). A tree with no service.ts is
+// vacuous. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "contract-verb-presence",
+  docRow: "core/Spine-Testing.md §5",
+  status: "active",
+  scopeSafety: "whole-project",
+  message:
+    "a *Service interface declares a verb that no test in its domain tree invokes — a wired-but-never-run verb (add a behavioral test at tests/server/domain/, or a tracked DEFERRED entry in contract-verb-presence.ts). core/Spine-Testing.md §5.",
+  fix: "add a behavioral test that invokes the verb (or its create<Verb>( factory) under tests/server/domain/<domain>/, or add a cited DEFERRED entry.",
+  run: (ctx) => {
+    for (const v of reconcileContractVerbPresence(ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts":
+          "export interface HubService {\n  uncoveredVerb(): void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "export const q = 'nothing';\n",
+      },
+      expect: { messageIncludes: "no test in its domain tree invokes" },
+      why: "a Service verb (uncoveredVerb) with no test invocation in the domain tree — a dead-wired verb",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts":
+          "export interface HubService {\n  coveredVerb(): void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "export const q = coveredVerb();\n",
+      },
+      why: "the verb is invoked (`coveredVerb(`) in the domain test tree — covered, passes",
+    },
+  ],
 };

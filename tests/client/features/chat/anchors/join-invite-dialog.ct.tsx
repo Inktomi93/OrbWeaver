@@ -31,22 +31,23 @@ test("mount previews the token; confirm redeems and closes into the chat", async
 
   await mount(<JoinInviteDialogStory token="tok_ct_secret" />);
 
-  // The preview-then-confirm read fired with the RAW token in the POST body.
-  await expect.poll(() => trpc.count("invites.previewInvite")).toBeGreaterThanOrEqual(1);
-  expect(trpc.lastInput("invites.previewInvite")).toEqual({ token: "tok_ct_secret" });
-
-  // The MINIMAL preview renders (room · host · members · mode).
+  // The MINIMAL preview renders (room · host · members · mode) — the DOM consequence of the
+  // preview read landing, so await that directly instead of polling the call count.
   await expect(page.getByTestId("join-invite-dialog")).toBeVisible();
   await expect(page.getByText("Tavern Night")).toBeVisible();
   await expect(page.getByText("Host: nate")).toBeVisible();
   await expect(page.getByText("Members: 3")).toBeVisible();
   await expect(page.getByText("Mode: Group · natural")).toBeVisible();
+  // The preview-then-confirm read fired with the RAW token in the POST body.
+  expect(trpc.count("invites.previewInvite")).toBeGreaterThanOrEqual(1);
+  expect(trpc.lastInput("invites.previewInvite")).toEqual({ token: "tok_ct_secret" });
 
   await page.getByTestId("join-invite-confirm").click();
-  await expect.poll(() => trpc.count("invites.redeemInvite")).toBeGreaterThanOrEqual(1);
-  expect(trpc.lastInput("invites.redeemInvite")).toEqual({ token: "tok_ct_secret" });
-  // Redeem success tears the dialog down (the story renders the done marker).
+  // Redeem success tears the dialog down (the story renders the done marker) — the DOM
+  // consequence of the redeem call landing.
   await expect(page.getByTestId("ct-join-done")).toBeVisible();
+  expect(trpc.count("invites.redeemInvite")).toBeGreaterThanOrEqual(1);
+  expect(trpc.lastInput("invites.redeemInvite")).toEqual({ token: "tok_ct_secret" });
 });
 
 test("a bad token renders the flat 'invalid or expired' state (leak-free NOT_FOUND)", async ({

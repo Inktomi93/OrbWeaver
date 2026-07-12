@@ -349,7 +349,7 @@ test("useCachedMeasurements discards a real resize while true, and resumes measu
 
   // Baseline: NOT frozen — a real resize of row 0 (40 -> 140) is measured for real.
   await component.getByTestId("bump-row0").click();
-  await expect.poll(viewportHeight).toBeGreaterThan(200);
+  await expect.poll(viewportHeight, { intervals: [20, 50, 100] }).toBeGreaterThan(200);
   const grownHeight = await viewportHeight();
 
   // Freeze, then resize AGAIN (140 -> 240) — the ResizeObserver still fires, but `measureElement`
@@ -363,5 +363,5 @@ test("useCachedMeasurements discards a real resize while true, and resumes measu
   // Unfreeze, then a NEW real resize (240 -> 340) is measured for real again.
   await component.getByTestId("toggle-frozen").click();
   await component.getByTestId("bump-row0").click();
-  await expect.poll(viewportHeight).toBeGreaterThan(grownHeight);
+  await expect.poll(viewportHeight, { intervals: [20, 50, 100] }).toBeGreaterThan(grownHeight);
 });

@@ -15,6 +15,7 @@
 // This is not a bug workaround; it's the gate's own designed sunset switch.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 // Widened to `boolean` (not the `false` literal) so flipping this to `true` on launch day doesn't
@@ -77,16 +78,63 @@ function checkJournal(migrationsDir: string): Violation[] {
   return [{ file: journalRel, line: 0, message: JOURNAL_SHAPE_MESSAGE }];
 }
 
+/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanBaselineSingleMigration(root: string): Violation[] {
+  if (LAUNCHED) {
+    return [];
+  }
+  const migrationsDir = join(root, MIGRATIONS_REL);
+  if (!existsSync(migrationsDir)) {
+    return [];
+  }
+  return [...checkSqlFiles(migrationsDir), ...checkJournal(migrationsDir)];
+}
+
 export const baselineSingleMigration: Check = {
   name: "baseline-single-migration",
-  run: ({ root }): Violation[] => {
-    if (LAUNCHED) {
-      return [];
+  run: ({ root }): Violation[] => scanBaselineSingleMigration(root),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
+// baseline-single-migration reads the real fs (readdirSync of migrations/ *.sql + readFileSync of
+// meta/_journal.json) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
+// materializes examples to a real temp dir (its .sql/.json fixture files are written to disk though not
+// added to the ts-morph Project — exactly what a pure-fs gate needs). Byte-identical to the legacy Check.
+// Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "baseline-single-migration",
+  docRow: "Core-Laws-and-Precedents.md (db-baseline-squash)",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "pre-launch schema changes must SQUASH into the regenerated 0000_baseline, never accrete as an incremental 0001+ migration — an extra migration file / a second journal entry / a missing baseline is RED (wipe migrations/ and rerun db:generate). Core-Laws-and-Precedents.md (db-baseline-squash).",
+  fix: "wipe packages/db/src/migrations and rerun `pnpm --filter @orb/db db:generate` from a clean dir — the entire pre-launch schema is one regenerated baseline.",
+  run: (ctx) => {
+    for (const v of scanBaselineSingleMigration(ctx.root)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    const migrationsDir = join(root, MIGRATIONS_REL);
-    if (!existsSync(migrationsDir)) {
-      return [];
-    }
-    return [...checkSqlFiles(migrationsDir), ...checkJournal(migrationsDir)];
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
+        "packages/db/src/migrations/0001_extra.sql": "-- incremental\n",
+        "packages/db/src/migrations/meta/_journal.json":
+          '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
+      },
+      expect: { messageIncludes: "incremental migration" },
+      why: "an incremental 0001 migration alongside the baseline — pre-launch changes must squash (db-baseline-squash)",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
+        "packages/db/src/migrations/meta/_journal.json":
+          '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
+      },
+      why: "exactly the 0000_baseline + a single-entry journal — the sanctioned pre-launch shape, passes",
+    },
+  ],
 };

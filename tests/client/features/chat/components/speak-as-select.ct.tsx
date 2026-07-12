@@ -74,7 +74,7 @@ test("picking a character fires chat.generate with that speakerCharacterId", asy
   await component.getByRole("button", { name: "Speak as a character" }).click();
   await page.getByRole("menuitem", { name: "Bryn" }).click();
 
-  await expect.poll(() => trpc.count("chat.generate")).toBe(1);
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.generate")).toMatchObject({ speakerCharacterId: "character_bryn" });
 });
 
@@ -91,6 +91,6 @@ test("picking Auto fires chat.generate with a null speakerCharacterId (arbitrati
   await component.getByRole("button", { name: "Speak as a character" }).click();
   await page.getByRole("menuitem", { name: "Auto (arbitrate)" }).click();
 
-  await expect.poll(() => trpc.count("chat.generate")).toBe(1);
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.lastInput("chat.generate")).toMatchObject({ speakerCharacterId: null });
 });

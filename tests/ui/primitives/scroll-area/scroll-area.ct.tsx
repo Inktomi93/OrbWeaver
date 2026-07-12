@@ -23,7 +23,9 @@ test("renders content in a scrollable viewport", async ({ mount, page }) => {
   await viewport.evaluate((el) => {
     el.scrollTop = el.scrollHeight;
   });
-  await expect.poll(() => viewport.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect
+    .poll(() => viewport.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
+    .toBeGreaterThan(0);
 });
 
 test("onScroll forwards to the scrolling viewport (chat autoscroll seam)", async ({
@@ -52,7 +54,7 @@ test("onScroll forwards to the scrolling viewport (chat autoscroll seam)", async
   await viewport.evaluate((el) => {
     el.scrollTop = 400;
   });
-  await expect.poll(() => scrolled).toBeGreaterThan(0);
+  await expect.poll(() => scrolled, { intervals: [20, 50, 100] }).toBeGreaterThan(0);
 });
 
 test("renders the corner square only on both-axis overflow", async ({ mount, page }) => {

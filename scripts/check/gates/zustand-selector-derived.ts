@@ -30,6 +30,7 @@
 // doesn't attempt (the same scope limit `state-files.ts`'s literal-only scan documents).
 import type { ArrowFunction, FunctionExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 // The flat + nested client tier — this footgun can occur anywhere a store hook is called, not just
@@ -228,4 +229,79 @@ export const zustandSelectorDerived: Check = {
     }
     return out;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
+// The legacy predicate as a CallExpression subscription: a store-hook call whose inline selector returns
+// a fresh object/array (directly, from a block return, or from a ?:/??/||/&& branch), an Object.keys/
+// values/entries, or an array-rebuilding method — unless useShallow-wrapped. scanRoot mirrors the legacy
+// clientRel filter. ONE finding per call site (the legacy `break`); the derivation kind rides the finding
+// as its token, so the grouped output shows what each site returned. Kept ALONGSIDE the legacy Check.
+const ZUSTAND_MESSAGE =
+  "zustand selector returns a fresh object/array (or an Object.keys/values/entries / array-rebuilding derivation) — under v5's Object.is default (no implicit shallow compare) this spins useSyncExternalStore forever. Wrap the selector in useShallow(...), narrow it to a single field, or return a frozen module constant (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5).";
+
+/** The fresh-derivation kind of a store-hook call's selector, or undefined if the call is clean / not a
+ *  recognized store hook / useShallow-wrapped / an indirect selector (the legacy scanFile predicate,
+ *  returning the first fresh-returned-expression's kind). */
+function callDerivationKind(call: Node): string | undefined {
+  const arg = selectorArgOf(call);
+  if (arg === undefined) {
+    return;
+  }
+  if (Node.isCallExpression(arg) && calleeIdentifierText(arg) === "useShallow") {
+    return;
+  }
+  if (!isInlineFunction(arg)) {
+    return;
+  }
+  const returned: Node[] = [];
+  collectReturnedExpressions(arg, returned);
+  // First fresh-returned-expression's kind (the legacy scanFile's break-on-first). As a trailing return
+  // EXPRESSION so no path falls off the end (tsc noImplicitReturns) — mirrors clientRel's shape.
+  return returned.map((expr) => freshDerivationKind(expr)).find((kind) => kind !== undefined);
+}
+
+export const gate: GateDescriptor = {
+  name: "zustand-selector-derived",
+  docRow: "UI-Lib-Zustand.md §A/§C-1 (UI-Gates-and-Lessons.md §7/§11.5)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: ZUSTAND_MESSAGE,
+  fix: "wrap the selector in useShallow(...), narrow it to a single field, or return a frozen module constant.",
+  scanRoot: (p) => p.includes("packages/client/src/"),
+  kinds: [SyntaxKind.CallExpression],
+  visit: (node, _sf, ctx) => {
+    const kind = callDerivationKind(node);
+    if (kind !== undefined) {
+      ctx.report(node, { token: `fresh ${kind}`, offset: 0 });
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
+      at: "packages/client/src/state/x.ts",
+      why: "a selector returning a fresh object literal — the v5 Object.is footgun",
+    },
+    {
+      files:
+        "declare const useXStore: (sel: (s: { items: readonly number[] | undefined }) => unknown) => unknown;\nexport const v = useXStore((s) => s.items ?? []);\n",
+      at: "packages/client/src/state/y.ts",
+      why: "the fresh branch on the far side of a ?? — the stable-default branch alone can't mask it",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        "declare const useXStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useXStore((s) => s.a);\n",
+      at: "packages/client/src/state/ok.ts",
+      why: "a single-field selector passes — it returns a stable primitive, no fresh reference",
+    },
+    {
+      files:
+        "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\ndeclare const useShallow: <T>(s: T) => T;\nexport const v = useXStore(useShallow((s) => ({ a: s.a, b: s.b })));\n",
+      at: "packages/client/src/state/wrapped.ts",
+      why: "a useShallow-wrapped selector is the sanctioned escape — memoizes the derived output",
+    },
+  ],
 };

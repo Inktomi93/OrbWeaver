@@ -20,13 +20,19 @@ const HEALTHZ_URL = "http://127.0.0.1:8788/healthz";
 const LOGIN_FIELD = /password|handle|username/u;
 const APP_READY = "html[data-app-ready]";
 
-test("the health endpoint reports ok", async ({ request }) => {
+// `@smoke` — the fast anti-rot subset run by the pre-push lefthook gate (`pnpm e2e:smoke`). Model-free +
+// data-light; proves the stack boots, auth resolves, the SPA mounts, and the drift-prone `/` landing surface
+// (the Chats list) still renders. If a selector/landing rots (the failure this whole task fixed), THIS goes
+// red on push instead of rotting unnoticed.
+test("the health endpoint reports ok", { tag: "@smoke" }, async ({ request }) => {
   const res = await request.get(HEALTHZ_URL);
   expect(res.ok()).toBe(true);
   expect(await res.json()).toMatchObject({ status: "ok" });
 });
 
-test("single-user mode: an owner-scoped tRPC query succeeds with no login", async ({ request }) => {
+test("single-user mode: an owner-scoped tRPC query succeeds with no login", {
+  tag: "@smoke",
+}, async ({ request }) => {
   // `chat.listChats` is authed + owner-scoped; in single-user AUTH_MODE the resolver auto-grants the owner
   // with no session cookie, so this 200s (proxied through vite's `/api`). tRPC GET query input is an empty
   // batch — the call resolving at all is the proof (auth + transport + DB all answered). Build the query
@@ -36,7 +42,9 @@ test("single-user mode: an owner-scoped tRPC query succeeds with no login", asyn
   expect(res.ok()).toBe(true);
 });
 
-test("the SPA shell mounts and single-user boots with no login form", async ({ page }) => {
+test("the SPA shell mounts and single-user boots with no login form", {
+  tag: "@smoke",
+}, async ({ page }) => {
   await page.goto("/");
   // The shell's one `main` landmark appears once the router + shell mount (single-user resolves the owner
   // with no redirect — a login form would mean the boot went sideways).
@@ -45,7 +53,9 @@ test("the SPA shell mounts and single-user boots with no login form", async ({ p
   await expect(page.getByRole("textbox", { name: LOGIN_FIELD })).toHaveCount(0);
 });
 
-test("the home page renders the chat list surface (tRPC query works)", async ({ page }) => {
+test("the home page renders the chat list surface (tRPC query works)", {
+  tag: "@smoke",
+}, async ({ page }) => {
   await page.goto("/");
   // Wait for the app to reach cache-idle (the agent-bridge signal) so the suspense-loaded list has resolved
   // to EITHER its `aria-label="Chats"` region or the "No chats yet" empty-state — both prove the query

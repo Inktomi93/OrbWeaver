@@ -16,6 +16,7 @@
 //      mint API and legitimately return the handle — they don't `export const x = create()`.
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 // The flat state tier — direct children only (a path with a further "/" after this prefix is nested).
@@ -169,4 +170,65 @@ export const stateFiles: Check = {
     }
     return out;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE gate via visitFile) ───────────────────────────────
+// state-files aggregates PER FILE (count mints across the file, then judge >1; the exported-handle is a
+// per-file search), so it ports as a visitFile hook, not a per-node subscription — the whole-file scan is
+// the unit. scanRoot mirrors the legacy flatStateRel (direct children of state/, not index.ts). Three
+// arms → three messages: the field-cap (per mint) + the mint-count (>1, file-level) + the exported-handle
+// (file-level). Findings byte-identical to the legacy Check (same lines). Kept ALONGSIDE the legacy Check.
+const HANDLE_MESSAGE =
+  "the minted store handle is exported — never expose raw set/getState across a module boundary; export intent-named actions + narrow read hooks instead (UI-Architecture-and-Layout.md §5).";
+
+function fileLevelFinding(rel: string, line: number, message: string, token: string): Finding {
+  return { file: rel, line, column: 0, message, token };
+}
+
+/** Name the arm a legacy state-files violation belongs to (for the grouped output's token). */
+function armToken(message: string): string {
+  if (message.startsWith("state store declares")) {
+    return "field-cap";
+  }
+  return message === HANDLE_MESSAGE ? "exported-handle" : "one-mint-per-file";
+}
+
+export const gate: GateDescriptor = {
+  name: "state-files",
+  docRow: "UI-Architecture-and-Layout.md §5 (§2.1 state/)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: HANDLE_MESSAGE,
+  fix: "one store-minting call per file, ≤10 top-level fields, and never export the raw handle — expose intent-named actions + narrow read hooks.",
+  scanRoot: (p) => flatStateRel(`/${p}`) !== undefined,
+  visitFile: (sf, ctx: GateRunCtx) => {
+    const rel = flatStateRel(sf.getFilePath());
+    if (rel === undefined) {
+      return;
+    }
+    const violations: Violation[] = [];
+    scanFile(sf, rel, violations);
+    // scanFile emits legacy-shaped {file,line,message} triples; re-emit them as findings. The mint-count
+    // arm uses line 0 (file-level); the field-cap + handle arms carry real node lines. The token names the
+    // arm so the grouped output distinguishes them.
+    for (const v of violations) {
+      ctx.report(fileLevelFinding(v.file, v.line, v.message, armToken(v.message)));
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        "declare const create: (f: () => unknown) => unknown;\nexport const useA = create(() => ({}));\nexport const useB = create(() => ({}));\n",
+      at: "packages/client/src/state/grab-bag.ts",
+      why: "two store-minting calls in one file — the grab-bag store smell §5 forbids (one store per file)",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        "declare const create: (f: () => unknown) => unknown;\nconst useOne = create(() => ({}));\n",
+      at: "packages/client/src/state/one.ts",
+      why: "one mint, handle NOT exported, small initializer — the sanctioned single-store shape, passes",
+    },
+  ],
 };

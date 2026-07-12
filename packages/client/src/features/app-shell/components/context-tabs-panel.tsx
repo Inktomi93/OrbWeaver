@@ -10,7 +10,7 @@
 // tab). A jump-link elsewhere (e.g. the character hero's accent swatch → Appearance) writes the seam and
 // this panel follows. Resolve against the VISIBLE ids so a foreign/absent value can't select nothing.
 
-import { Row, Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -45,31 +45,42 @@ export function ContextTabsPanel({
   const activeTab = contextTab !== null && visible.has(contextTab) ? contextTab : first;
 
   return (
-    <Stack gap="row" className="h-full min-h-0">
-      {actions !== undefined ? (
-        <Row justify="end" className="shrink-0">
-          {actions}
-        </Row>
-      ) : null}
-      <Tabs
-        value={activeTab}
-        onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
-        className="flex-1 min-h-0 flex flex-col"
-      >
-        <TabsList>
+    <Tabs
+      value={activeTab}
+      onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
+      className="flex h-full min-h-0 flex-col gap-row"
+    >
+      {/* The tab strip + the optional Actions menu share ONE row — tabs LEFT (scrollable), actions RIGHT
+          (secondary chrome) — instead of the old orphaned menu floating in its own row above (owner: read
+          as a hovering orphan). `shrink-0` keeps the row off the panel body below. When `actions` is
+          undefined (most sections) the strip simply owns the full width. */}
+      <Row align="center" gap="row" className="min-w-0 shrink-0">
+        {/* The strip FILLS the panel width with EQUAL-WIDTH tabs (`w-full` list + `flex-1` per tab) so the
+            3 tabs distribute across the ~22vw panel with no trailing dead gap (owner: ~77px orphan gap at
+            the default width). `overflow-x-auto` stays the FALLBACK: `flex-1`'s default `min-width:auto`
+            floors each tab at its label's intrinsic width, so once enough tabs are registered to exceed the
+            panel the strip SCROLLS rather than crushing a tab below a legible/tap-safe width (side-eye P0 #2
+            — "History"/"Activity" must never become invisible/un-clickable). `min-w-0 flex-1` on the list
+            lets it take the row width + scroll without shoving the actions off the right edge. */}
+        <TabsList aria-label="Detail" className="min-w-0 w-full flex-1 overflow-x-auto">
           {entries.map((entry) => (
-            <TabsTab key={entry.id} value={entry.id}>
+            <TabsTab key={entry.id} value={entry.id} className="flex-1">
               {entry.label}
             </TabsTab>
           ))}
           <TabsIndicator />
         </TabsList>
-        {entries.map((entry) => (
-          <TabsPanel key={entry.id} value={entry.id}>
-            {bodies[entry.id] ?? <Text tone="muted">Nothing to show here.</Text>}
-          </TabsPanel>
-        ))}
-      </Tabs>
-    </Stack>
+        {actions !== undefined ? (
+          <Row align="center" className="shrink-0">
+            {actions}
+          </Row>
+        ) : null}
+      </Row>
+      {entries.map((entry) => (
+        <TabsPanel key={entry.id} value={entry.id}>
+          {bodies[entry.id] ?? <Text tone="muted">Nothing to show here.</Text>}
+        </TabsPanel>
+      ))}
+    </Tabs>
   );
 }

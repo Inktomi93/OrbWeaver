@@ -7,6 +7,7 @@
 // mention the term are exempt (they DOCUMENT the ban). Mirrors the no-caller-user-id mechanic (a name tsc
 // cannot catch because it's newly introduced, not a type error).
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const AUTH_DIR = /\/packages\/server\/src\/infra\/auth\//u;
@@ -39,4 +40,39 @@ export const infraAuthNoUserId: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
+// The legacy predicate as an Identifier subscription scoped to infra/auth/** via scanRoot. Per-occurrence
+// (each `userId` identifier is its own finding). Kept ALONGSIDE the legacy Check; itemized parity proves
+// the SITE set matches. scanRoot mirrors the legacy AUTH_DIR path filter exactly (the parity oracle).
+export const gate: GateDescriptor = {
+  name: "infra-auth-no-userid",
+  docRow: "Core-Path-Registry-D35-D43.md D40 (identity-resolution invariant)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "resolve the id ONCE at the seam (entry/auth/seam.ts) via a domain step (sessions.validate / provisionIdentity); infra yields a pre-row ResolvedIdentity with NO userId.",
+  scanRoot: (p) => AUTH_DIR.test(`/${p}`),
+  kinds: [SyntaxKind.Identifier],
+  visit: (node, _sf, ctx) => {
+    if (node.getText() === FORBIDDEN) {
+      ctx.report(node, { token: FORBIDDEN, offset: 0 });
+    }
+  },
+  mustFlag: [
+    {
+      files: "export function f(userId: string) {}\n",
+      at: "packages/server/src/infra/auth/modes/thing.ts",
+      why: "a `userId` code identifier under infra/auth — the D40 tier-collapse (infra yields no userId)",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        "// resolves NO userId here (invariant)\nexport const doc = 'the seam resolves the userId';\n",
+      at: "packages/server/src/infra/auth/modes/notes.ts",
+      why: "the `// NO userId` invariant comments + string mentions DOCUMENT the ban — AST identifiers only",
+    },
+  ],
 };

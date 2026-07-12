@@ -19,7 +19,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph + Icon fine (the character-card.tsx precedent).
-import { Archive, Eye, EyeOff, Icon, MessagesSquare, Star } from "@orb/ui/icons";
+import { ChevronRight, Eye, EyeOff, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -55,8 +55,13 @@ export interface CharacterHeroBandProps {
   readonly detail: CharacterHeroDetail;
   readonly form: AppFormInstance<CharacterCardFormValues>;
   readonly trpc: Trpc;
-  /** §6.1/§9c "Start chat" (resume-or-new — the surface computes the target from the LIST's reverse read). */
-  readonly onStartChat: () => void;
+  /** §9c "New chat" — starts a FRESH chat with this character (the surface fires startNewChat + jumps to
+   *  the Chats section). Star/archive/delete no longer live here — they moved to the LIST row (redesign). */
+  readonly onNewChat: () => void;
+  /** "N chats ›" — jumps to this character's threads in the roomy CHATS section (navigation, not editing). */
+  readonly onViewChats: () => void;
+  /** How many chats exist with this character (drives the "N chats ›" affordance; 0 hides it). */
+  readonly chatCount: number;
   /** The greeting the hero is previewing (drives the §6.5 total; lifted to the surface). */
   readonly activeGreetingIndex: number;
   readonly onActiveGreetingIndexChange: (index: number) => void;
@@ -66,7 +71,9 @@ export function CharacterHeroBand({
   detail,
   form,
   trpc,
-  onStartChat,
+  onNewChat,
+  onViewChats,
+  chatCount,
   activeGreetingIndex,
   onActiveGreetingIndexChange,
 }: CharacterHeroBandProps): ReactElement {
@@ -91,10 +98,10 @@ export function CharacterHeroBand({
             <AccentSwatch themeOverride={detail.themeOverride} />
           </Row>
           <HeroActions
-            detail={detail}
-            trpc={trpc}
             spoilerBlur={spoilerBlur}
-            onStartChat={onStartChat}
+            onNewChat={onNewChat}
+            onViewChats={onViewChats}
+            chatCount={chatCount}
           />
         </Stack>
       </Row>
@@ -196,50 +203,31 @@ function AccentSwatch({
   );
 }
 
-/** Star / Archive (IMMEDIATE identity commits) · the spoiler eye (view state) · the "Start chat" primary. */
+/** The "New chat" primary · the "N chats ›" jump · the spoiler eye (view state). Star/archive/delete moved
+ *  to the LIST row (character-editor redesign — declutter the hero). */
 function HeroActions({
-  detail,
-  trpc,
   spoilerBlur,
-  onStartChat,
+  onNewChat,
+  onViewChats,
+  chatCount,
 }: {
-  readonly detail: CharacterHeroDetail;
-  readonly trpc: Trpc;
   readonly spoilerBlur: boolean;
-  readonly onStartChat: () => void;
+  readonly onNewChat: () => void;
+  readonly onViewChats: () => void;
+  readonly chatCount: number;
 }): ReactElement {
-  const invalidation = useInvalidation();
-  const update = useUpdateCharacter({ trpc, invalidation });
   return (
     <Row gap="row" align="center" className="flex-wrap">
-      <Button type="button" intent="primary" onClick={onStartChat}>
+      <Button type="button" intent="primary" onClick={onNewChat}>
         <Icon icon={MessagesSquare} size="sm" />
-        Start chat
+        New chat
       </Button>
-      <Button
-        type="button"
-        intent="ghost"
-        size="icon"
-        aria-label={detail.starred ? "Unstar" : "Star"}
-        aria-pressed={detail.starred}
-        onClick={(): void =>
-          update.mutate({ characterId: detail.id, input: { starred: !detail.starred } })
-        }
-      >
-        <Icon icon={Star} size="sm" />
-      </Button>
-      <Button
-        type="button"
-        intent="ghost"
-        size="icon"
-        aria-label={detail.archived ? "Unarchive" : "Archive"}
-        aria-pressed={detail.archived}
-        onClick={(): void =>
-          update.mutate({ characterId: detail.id, input: { archived: !detail.archived } })
-        }
-      >
-        <Icon icon={Archive} size="sm" />
-      </Button>
+      {chatCount > 0 ? (
+        <Button type="button" intent="ghost" onClick={onViewChats}>
+          {chatCount} {chatCount === 1 ? "chat" : "chats"}
+          <Icon icon={ChevronRight} size="sm" />
+        </Button>
+      ) : null}
       <Button
         type="button"
         intent="ghost"

@@ -15,7 +15,9 @@
 // entry — remove it); a NEW file with a dead-end EmptyState not in the allowlist is RED immediately.
 import type { JsxAttributeLike, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
+import { fileLoaded } from "../pass.ts";
 
 const FEATURES_DIR = "/packages/client/src/features/";
 const TAG_NAME = "EmptyState";
@@ -38,6 +40,10 @@ const ALLOWLIST: Record<string, string> = {
     'the "Select a section to inspect it" prompt shown when no rack row is selected — the next step (pick ' +
     "a row) lives in the sibling rack, not here, so this state legitimately has no action of its own; same " +
     "reasoning as preset-library-welcome.tsx.",
+  "packages/client/src/features/character/components/character-facet-inspector.tsx":
+    'the "Open a field to inspect it" prompt shown when no card-content facet is drilled — the next step ' +
+    "(pick a facet) lives in the sibling CONTENT facet list, not in this CONTEXT detail pane, so this state " +
+    "legitimately has no action of its own; the character-editor twin of preset-section-inspector.tsx.",
 };
 
 const MESSAGE =
@@ -131,3 +137,72 @@ export function createEmptyStateHasAction(allowlist: Record<string, string>): Ch
 }
 
 export const emptyStateHasAction: Check = createEmptyStateHasAction(ALLOWLIST);
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — reference-gate shape: offender arm + finalize stale) ─────────
+// The legacy predicate as a JsxSelfClosingElement subscription: an `<EmptyState … />` in features/**.tsx
+// with no `action` prop (and no spread that might carry one). scanRoot mirrors the legacy FEATURES_DIR +
+// `.tsx` filter; the live non-empty ALLOWLIST's stale arm is finalize-guarded to project scope (§4.4).
+// Per-occurrence. Kept ALONGSIDE the legacy Check.
+const GATE_SELF = "scripts/check/gates/empty-state-has-action.ts";
+const passSeenAllowlisted = new Set<string>();
+
+export const gate: GateDescriptor = {
+  name: "empty-state-has-action",
+  docRow: "design-enforcement.md §3.2 (D62)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "pass an `action` prop (a next-step CTA — an @orb/ui Button, typically) so the empty state isn't a dead end.",
+  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx"),
+  kinds: [SyntaxKind.JsxSelfClosingElement],
+  begin: () => {
+    passSeenAllowlisted.clear();
+  },
+  visit: (node, sf, ctx) => {
+    const el = node.asKind(SyntaxKind.JsxSelfClosingElement);
+    if (el === undefined || el.getTagNameNode().getText() !== TAG_NAME || hasAction(el)) {
+      return;
+    }
+    const rel = clientRel(sf.getFilePath());
+    if (rel in ALLOWLIST) {
+      passSeenAllowlisted.add(rel);
+      return;
+    }
+    ctx.report(node, { token: `<${TAG_NAME}>`, offset: 0 });
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project") {
+      return;
+    }
+    for (const rel of Object.keys(ALLOWLIST)) {
+      // The "went clean" ratchet only judges a file that is actually LOADED in this run — a synthetic
+      // conformance/parity tree (which omits the real allowlisted files) must not falsely flag them
+      // stale. On the real full-tree run every allowlisted file IS loaded, so the ratchet is preserved.
+      if (!fileLoaded(ctx, rel)) {
+        continue;
+      }
+      if (!passSeenAllowlisted.has(rel)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/empty-state-has-action.ts`,
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const G = <EmptyState title="Nothing here" />;\n',
+      at: "packages/client/src/features/demo/thing.tsx",
+      why: "an <EmptyState> with no action CTA — a dead end that strands the user (§3.2)",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const G = <EmptyState title="Nothing here" action={<Button>Go</Button>} />;\n',
+      at: "packages/client/src/features/demo/ok.tsx",
+      why: "an <EmptyState> WITH an action prop — the next-step affordance is present",
+    },
+  ],
+};

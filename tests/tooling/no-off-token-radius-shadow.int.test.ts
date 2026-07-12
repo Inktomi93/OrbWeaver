@@ -3,7 +3,8 @@
 // the Check directly over an in-memory ts-morph project (never the real tree), proving: a default-scale
 // `rounded-*`/`shadow-*` utility fires, a variant modifier on one still fires, a THEMED radius/shadow name
 // does NOT fire, `rounded-none`/`shadow-none` (deliberate opt-out) does NOT fire, `drop-shadow-*` (a
-// different CSS property) does NOT fire, the preset lane is structurally excluded, and BOTH ratchet arms
+// different CSS property) does NOT fire, the preset lane is SCANNED like any other (its mid-revamp
+// carve-out was retired when preset shipped), and BOTH ratchet arms
 // (ALLOWLIST suppression + stale-entry) hold — via a factory-injected registry (the
 // createNoArbitraryTwValues precedent).
 // FLAGS/PASSES use an EMPTY injected registry (not the live export). The live ALLOWLIST is now empty (the
@@ -83,8 +84,12 @@ test("clean on drop-shadow-sm (a different CSS property/namespace)", () => {
   expect(gate.run(ctxFor({ [CLIENT_FEAT]: withClassName("drop-shadow-sm") }))).toEqual([]);
 });
 
-test("clean in the preset lane (structurally excluded, mid-revamp)", () => {
-  expect(gate.run(ctxFor({ [PRESET_FILE]: withClassName("rounded-lg shadow-md") }))).toEqual([]);
+test("scans the preset lane too (preset is first-class — no longer excluded)", () => {
+  // The mid-revamp carve-out was retired (preset shipped): an off-token preset file now FIRES like any
+  // other feature file (one file-level violation, same as every other FLAGS case above).
+  const v = gate.run(ctxFor({ [PRESET_FILE]: withClassName("rounded-lg shadow-md") }));
+  expect(v).toHaveLength(1);
+  expect(v[0]?.file).toBe(PRESET_FILE);
 });
 
 // ── RATCHET (both arms, via the factory's injected registry) ───────────────────────────────────

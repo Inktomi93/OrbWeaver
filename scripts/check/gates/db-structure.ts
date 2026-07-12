@@ -15,6 +15,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const SCHEMA_REL = "packages/db/src/schema";
@@ -98,57 +99,100 @@ function mirrorViolation(ctx: CheckContext, f: string, name: string): Violation 
       };
 }
 
+/** The fs+AST scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanDbStructure(ctx: CheckContext): Violation[] {
+  let entries: readonly string[];
+  try {
+    entries = readdirSync(join(ctx.root, SCHEMA_REL));
+  } catch {
+    return []; // no schema dir yet (pre-Phase-3) — nothing to assert.
+  }
+  const files = entries.filter((f) => f.endsWith(".ts") && f !== BARREL_FILE);
+  if (files.length === 0) {
+    return [];
+  }
+  const barrel = findBarrel(ctx);
+  if (barrel === undefined) {
+    return [
+      {
+        file: `${SCHEMA_REL}/${BARREL_FILE}`,
+        line: 0,
+        message:
+          "the schema barrel index.ts is missing — every schema file must be re-exported from it (Tier-1-DB.md).",
+      },
+    ];
+  }
+  const reExported = new Set(
+    barrel
+      .getExportDeclarations()
+      .map((d) => d.getModuleSpecifierValue())
+      .filter((s): s is string => s !== undefined),
+  );
+  const violations: Violation[] = [];
+  const domainRoot = join(ctx.root, DOMAIN_REL);
+  const checkMirror = existsSync(domainRoot); // pre-Phase-4 snapshots have no domain/ tree — skip arm 2.
+  for (const f of files) {
+    const name = f.replace(TS_EXT_RE, "");
+    const spec = `./${name}`;
+    if (!reExported.has(spec)) {
+      violations.push({
+        file: `${SCHEMA_REL}/${f}`,
+        line: 0,
+        message: `schema file is NOT re-exported from the barrel schema/index.ts — add \`export * from "${spec}";\` or its tables silently vanish from \`typeof schema\` (migrations + the relational query API).`,
+      });
+    }
+    if (!checkMirror || RESERVED_CROSS_CUTTING.has(name)) {
+      continue;
+    }
+    const mirror = mirrorViolation(ctx, f, name);
+    if (mirror !== undefined) {
+      violations.push(mirror);
+    }
+  }
+  return violations;
+}
+
 export const dbStructure: Check = {
   name: "db-structure",
-  run: (ctx): Violation[] => {
-    let entries: readonly string[];
-    try {
-      entries = readdirSync(join(ctx.root, SCHEMA_REL));
-    } catch {
-      return []; // no schema dir yet (pre-Phase-3) — nothing to assert.
+  run: (ctx): Violation[] => scanDbStructure(ctx),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST structure gate via `run`, fsBacked) ────────────────
+// db-structure reads the real fs (readdirSync of the schema dir) + the AST barrel (findBarrel via the
+// Project) to assert every schema file is re-exported from index.ts (+ a domain mirror arm). A `run`
+// descriptor over ctx reusing the exact scan, `fsBacked` so conformance materializes the schema files +
+// barrel into a real temp dir. Distinct messages → per-occurrence overrides. Byte-identical to the legacy.
+export const gate: GateDescriptor = {
+  name: "db-structure",
+  docRow: "Tier-1-DB.md",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "a schema file is not re-exported from the barrel schema/index.ts (or the barrel is missing) — every schema file must be re-exported or its tables silently vanish from `typeof schema` (Tier-1-DB.md).",
+  fix: 'add `export * from "./<name>";` to packages/db/src/schema/index.ts (or create the barrel).',
+  run: (ctx) => {
+    for (const v of scanDbStructure(ctx)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    const files = entries.filter((f) => f.endsWith(".ts") && f !== BARREL_FILE);
-    if (files.length === 0) {
-      return [];
-    }
-    const barrel = findBarrel(ctx);
-    if (barrel === undefined) {
-      return [
-        {
-          file: `${SCHEMA_REL}/${BARREL_FILE}`,
-          line: 0,
-          message:
-            "the schema barrel index.ts is missing — every schema file must be re-exported from it (Tier-1-DB.md).",
-        },
-      ];
-    }
-    const reExported = new Set(
-      barrel
-        .getExportDeclarations()
-        .map((d) => d.getModuleSpecifierValue())
-        .filter((s): s is string => s !== undefined),
-    );
-    const violations: Violation[] = [];
-    const domainRoot = join(ctx.root, DOMAIN_REL);
-    const checkMirror = existsSync(domainRoot); // pre-Phase-4 snapshots have no domain/ tree — skip arm 2.
-    for (const f of files) {
-      const name = f.replace(TS_EXT_RE, "");
-      const spec = `./${name}`;
-      if (!reExported.has(spec)) {
-        violations.push({
-          file: `${SCHEMA_REL}/${f}`,
-          line: 0,
-          message: `schema file is NOT re-exported from the barrel schema/index.ts — add \`export * from "${spec}";\` or its tables silently vanish from \`typeof schema\` (migrations + the relational query API).`,
-        });
-      }
-      if (!checkMirror || RESERVED_CROSS_CUTTING.has(name)) {
-        continue;
-      }
-      const mirror = mirrorViolation(ctx, f, name);
-      if (mirror !== undefined) {
-        violations.push(mirror);
-      }
-    }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/orphan.ts": "export const t = 1;\n",
+        "packages/db/src/schema/index.ts": "export const barrel = 1;\n",
+      },
+      expect: { messageIncludes: "NOT re-exported" },
+      why: "a schema file not re-exported from the barrel — its tables vanish from `typeof schema` (Tier-1)",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/db/src/schema/thing.ts": "export const t = 1;\n",
+        "packages/db/src/schema/index.ts": 'export * from "./thing";\n',
+      },
+      why: "the schema file is re-exported from the barrel — the sanctioned shape, passes",
+    },
+  ],
 };

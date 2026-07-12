@@ -201,7 +201,9 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
   await expect(page.getByRole("switch", { name: "Bulk mode" })).toHaveCount(0);
 
   await page.getByTestId("run-workload-submit").click();
-  await expect.poll(() => trpc.count("workloads.start")).toBeGreaterThanOrEqual(1);
+  // The dialog closes only after `mutateAsync` resolves (RunWorkloadDialog's `onDone`) — an
+  // event-driven proxy for "the mutation landed" instead of polling the mock call-count.
+  await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
   const started = trpc.lastInput("workloads.start") as {
     input?: { kind?: unknown; params?: unknown };
     mode?: unknown;
@@ -242,7 +244,7 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
   await page.getByRole("option", { name: "mira" }).click();
 
   await page.getByTestId("run-workload-submit").click();
-  await expect.poll(() => trpc.count("workloads.start")).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
   const started = trpc.lastInput("workloads.start") as {
     input?: { kind?: unknown };
     mode?: unknown;
@@ -280,7 +282,7 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
   await expect(page.getByText("Runs across every deployment (maintenance)")).toBeVisible();
 
   await page.getByTestId("run-workload-submit").click();
-  await expect.poll(() => trpc.count("workloads.start")).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
   const started = trpc.lastInput("workloads.start") as {
     input?: { kind?: unknown };
     mode?: unknown;
@@ -368,12 +370,18 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
   await page.getByRole("button", { name: "Cancel — Index (embeddings)" }).click();
   await expect(page.getByText("Cancel this workload?")).toBeVisible();
   await page.getByRole("button", { name: "Cancel workload" }).click();
-  await expect.poll(() => trpc.count("workloads.cancel")).toBeGreaterThanOrEqual(1);
+  // No DOM correlate: the mock's `workloads.list` responder is static, so the invalidation-driven
+  // refetch re-renders nothing observable — poll the call-count, but tightly (not the 1.85s default).
+  await expect
+    .poll(() => trpc.count("workloads.cancel"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const cancelled = trpc.lastInput("workloads.cancel") as { id?: unknown };
   expect(cancelled.id).toBe("workload_ct_1");
 
   await page.getByRole("button", { name: "Retry — Distill characters" }).click();
-  await expect.poll(() => trpc.count("workloads.retry")).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.count("workloads.retry"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const retried = trpc.lastInput("workloads.retry") as { id?: unknown };
   expect(retried.id).toBe("workload_ct_2");
 });
@@ -445,13 +453,18 @@ test("Schedules section: lists a schedule, and toggle/delete fire the owner-scop
 
   // Toggling the enable Switch fires the owner-scoped setScheduleEnabled with the row id.
   await section.getByRole("switch", { name: "Enable Index (embeddings) schedule" }).click();
-  await expect.poll(() => trpc.count("workloads.setScheduleEnabled")).toBeGreaterThanOrEqual(1);
+  // No DOM correlate: the mock's `listSchedules` responder is static — tighten the poll instead.
+  await expect
+    .poll(() => trpc.count("workloads.setScheduleEnabled"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const toggled = trpc.lastInput("workloads.setScheduleEnabled") as { id?: unknown };
   expect(toggled.id).toBe("workload_schedule_ct_1");
 
   // Delete fires deleteSchedule with the row id.
   await section.getByRole("button", { name: "Delete" }).click();
-  await expect.poll(() => trpc.count("workloads.deleteSchedule")).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.count("workloads.deleteSchedule"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   const deleted = trpc.lastInput("workloads.deleteSchedule") as { id?: unknown };
   expect(deleted.id).toBe("workload_schedule_ct_1");
 });
@@ -478,7 +491,9 @@ test("Schedules section: the create dialog wires a singular createSchedule (kind
   await page.getByRole("option", { name: "Every week" }).click();
 
   await page.getByTestId("create-schedule-submit").click();
-  await expect.poll(() => trpc.count("workloads.createSchedule")).toBeGreaterThanOrEqual(1);
+  // CreateScheduleDialog closes only after `mutateAsync` resolves (its `onDone`) — wait on that
+  // instead of polling the mock.
+  await expect(page.getByTestId("create-schedule-dialog")).toHaveCount(0);
   const created = trpc.lastInput("workloads.createSchedule") as {
     input?: { kind?: unknown; params?: unknown };
     cadence?: unknown;
@@ -514,7 +529,7 @@ test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a 
   await page.getByRole("switch", { name: "Bulk mode" }).click();
 
   await page.getByTestId("create-schedule-submit").click();
-  await expect.poll(() => trpc.count("workloads.createSchedule")).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("create-schedule-dialog")).toHaveCount(0);
   const created = trpc.lastInput("workloads.createSchedule") as {
     input?: { kind?: unknown };
     mode?: unknown;
@@ -547,7 +562,7 @@ test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) an
   await expect(page.getByRole("switch", { name: "Bulk mode" })).toHaveCount(0);
 
   await page.getByTestId("create-schedule-submit").click();
-  await expect.poll(() => trpc.count("workloads.createSchedule")).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("create-schedule-dialog")).toHaveCount(0);
   const created = trpc.lastInput("workloads.createSchedule") as {
     input?: { kind?: unknown };
     mode?: unknown;
@@ -579,8 +594,7 @@ test("Schedules: the Edit action opens a seeded dialog and wires updateSchedule 
   await page.getByRole("combobox", { name: "Runs" }).click();
   await page.getByRole("option", { name: "Every week" }).click();
   await page.getByTestId("edit-schedule-submit").click();
-
-  await expect.poll(() => trpc.count("workloads.updateSchedule")).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("edit-schedule-dialog")).toHaveCount(0);
   const updated = trpc.lastInput("workloads.updateSchedule") as { id?: unknown; cadence?: unknown };
   expect(updated.id).toBe("workload_schedule_ct_1");
   expect(updated.cadence).toBe("weekly");
@@ -640,8 +654,7 @@ test("run dialog: setting 'Run at' defers the run — start carries scheduledAt 
   // Defer to a far-future instant — the datetime-local control parses to an epoch-ms scheduledAt.
   await page.getByLabel("Run at").fill("2099-01-01T03:30");
   await page.getByTestId("run-workload-submit").click();
-
-  await expect.poll(() => trpc.count("workloads.start")).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
   const started = trpc.lastInput("workloads.start") as { scheduledAt?: unknown };
   expect(typeof started.scheduledAt).toBe("number");
   // 2099 is ≈ 4.07e12 ms — well past any near-now default, tz-slack notwithstanding.
@@ -672,7 +685,7 @@ test("run dialog: 'Run after these complete' lists in-flight runs and wires depe
   await depToggle.click();
 
   await page.getByTestId("run-workload-submit").click();
-  await expect.poll(() => trpc.count("workloads.start")).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
   const started = trpc.lastInput("workloads.start") as { dependsOn?: unknown };
   expect(started.dependsOn).toEqual(["workload_ct_dep"]);
 });

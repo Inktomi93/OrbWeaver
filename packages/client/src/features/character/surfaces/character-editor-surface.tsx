@@ -9,27 +9,36 @@
 // archive + the tags row are IMMEDIATE identity commits OUTSIDE the form (§2). The save-bar (sticky at the
 // TOP of CONTENT) carries the §6.5 token split (N total · M permanent), the dirty pill, Discard, and Save.
 //
-// resume-or-new (§9c): the hero "Start chat" resumes the most-recent chat with this character or starts new
-// — a RENDER derivation over the bus-driven `listChats` (`resumeTargets`, §5.1 — never an effect on a
-// selection pointer), firing exactly one store action. The SAME path the LIST row uses.
+// The hero chat affordances (§9c): "New chat" ALWAYS starts a fresh thread with this character; "N chats ›"
+// scopes the roomy Chats LIST to this character (state/chat-list-filter-store) and switches sections — the
+// per-character chat view is the filtered Chats list, not a parallel list here. `chatCount` is a RENDER
+// derivation over the bus-driven `listChats` (§5.1 — never an effect on a selection pointer).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { SaveBar } from "@orb/ui/save-bar";
-import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
-import { selectChat, setActiveSection, startNewChat } from "#state";
-import { CharacterAdvancedTab } from "../components/character-advanced-tab";
+import {
+  clearCharacterFacet,
+  clearChatListCharacterFilter,
+  selectCharacterFacet,
+  setActiveSection,
+  setChatListCharacterFilter,
+  startNewChat,
+  useSelectedCharacterFacetId,
+} from "#state";
+import { CharacterFacetEditor } from "../components/character-facet-editor";
+import { CharacterFacetList } from "../components/character-facet-list";
 import { CharacterHeroBand } from "../components/character-hero-band";
-import { CharacterMainTab } from "../components/character-main-tab";
 import { useCharacterForm } from "../hooks/use-character-form";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
+import type { CharacterCardFacet } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import {
   characterCardFormFromDetail,
@@ -37,14 +46,20 @@ import {
   permanentTokenCount,
   totalTokenCount,
 } from "../lib/character-card-form-model";
-import { resumeTargets } from "../lib/character-list-view";
+import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge";
 
 export interface CharacterEditorSurfaceProps {
   readonly characterId: CharacterId;
+  /** Reveal the CONTEXT Field inspector (the route-built choreography) — a facet-row click calls this AFTER
+   *  writing the facet selection. Mirrors the preset editor's `onRevealSection`. */
+  readonly onRevealField?: (() => void) | undefined;
 }
 
 /** The character editor, over `character.get` (suspense + error/loading via QueryBoundary). */
-export function CharacterEditorSurface({ characterId }: CharacterEditorSurfaceProps): ReactElement {
+export function CharacterEditorSurface({
+  characterId,
+  onRevealField,
+}: CharacterEditorSurfaceProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading character…</Text>}
@@ -57,16 +72,20 @@ export function CharacterEditorSurface({ characterId }: CharacterEditorSurfacePr
         </Text>
       )}
     >
-      {/* key={characterId} remounts the body on a character switch so the `activeGreetingIndex` state
-          (which lives ABOVE the form's `key={mountKey}` subtree) resets to 0 — otherwise viewing
-          "Opening 4" on one character carries into the next (F17). A render-only remount, never a
-          selection-keyed effect (§5.1 / rule 12). */}
-      <CharacterEditorBody characterId={characterId} key={characterId} />
+      {/* key={characterId} remounts the body on a character switch (F17 — render-only remount, §5.1). */}
+      <CharacterEditorBody
+        characterId={characterId}
+        onRevealField={onRevealField}
+        key={characterId}
+      />
     </QueryBoundary>
   );
 }
 
-function CharacterEditorBody({ characterId }: CharacterEditorSurfaceProps): ReactElement {
+function CharacterEditorBody({
+  characterId,
+  onRevealField,
+}: CharacterEditorSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
@@ -74,6 +93,13 @@ function CharacterEditorBody({ characterId }: CharacterEditorSurfaceProps): Reac
 
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  const selectedFacetId = useSelectedCharacterFacetId();
+  // The drill-in ← Back focus-restore target (side-eye P3): activating a facet drops `activeElement` to
+  // `<body>`, so on Back we tell the re-mounting facet list WHICH row should reclaim focus (app-owned, not
+  // the browser's DOM-position heuristic). State, not a ref — the facet list reads it as a prop, and the
+  // row focuses itself once on mount; a lingering value is harmless (a row re-focuses only if it remounts,
+  // i.e. another drill-in→Back cycle, which sets a fresh target).
+  const [backFocusFacetId, setBackFocusFacetId] = useState<CharacterCardFacet["id"] | null>(null);
 
   // The greeting the hero is previewing (drives the §6.5 total) — lifted here so the save-bar total agrees.
   const [activeGreetingIndex, setActiveGreetingIndex] = useState(0);
@@ -96,17 +122,47 @@ function CharacterEditorBody({ characterId }: CharacterEditorSurfaceProps): Reac
     save,
   });
 
-  // resume-or-new — a render derivation over the bus-driven `listChats` (§9c/§5.1), one store action.
+  // The bus-driven chat list — the hero's chat count ("N chats ›") + the "New chat" seam derive from it in
+  // render (§5.1 — never an effect on a selection pointer). `chatCount` counts THIS character's threads.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
-  const resumeMap = useMemo(() => resumeTargets(chatsQuery.data ?? []), [chatsQuery.data]);
-  const onStartChat = (): void => {
-    const target = resumeMap.get(data.id);
-    if (target === undefined) {
-      startNewChat({ characterIds: [data.id] });
-    } else {
-      selectChat(target);
-    }
+  const chats = useMemo(() => chatsQuery.data ?? [], [chatsQuery.data]);
+  const chatCount = useMemo(
+    () => chats.filter((chat) => chat.participantCharacterIds.includes(data.id)).length,
+    [chats, data.id],
+  );
+
+  // Hero "New chat" — ALWAYS a fresh chat with this character (not resume-or-new; the hero's job is to start
+  // a new thread, per the redesign), then jump to the roomy Chats section. Clear any per-character LIST
+  // filter so the fresh draft isn't shown behind a stale scope chip.
+  const onNewChat = (): void => {
+    clearChatListCharacterFilter();
+    startNewChat({ characterIds: [data.id] });
     setActiveSection("chats");
+  };
+  // Hero "N chats ›" — scope the roomy Chats LIST to THIS character's threads (state/chat-list-filter-store)
+  // AND switch to the Chats section. The Chats LIST reads the filter, shows a "filtered by [name] ✕" chip,
+  // and the user opens a past thread or starts a new one from there (the redesign's real per-character view).
+  // We set the filter but DON'T pre-select a thread: the filtered list IS the landing (§4.2 rule 1).
+  const onViewChats = (): void => {
+    setChatListCharacterFilter({ id: data.id, name: data.name });
+    setActiveSection("chats");
+  };
+
+  // THE CHARACTER FORM BRIDGE — publish the live handle so the CONTEXT Field inspector (a sibling shell
+  // region, no shared React ancestor) can bind the facet's small fields (depth/role, provenance). Re-
+  // publishes when the form instance changes (a save/reset cycles `mountKey` → a fresh `form`); clears on
+  // unmount so a stale handle never outlives the editor (mirrors the preset editor's bridge effect).
+  useEffect(() => {
+    publishCharacterForm({ characterId: data.id, form });
+    return (): void => clearCharacterForm();
+  }, [data.id, form]);
+
+  // A facet-row click does BOTH: write the facet selection (drills CONTENT into the facet body AND drives
+  // the CONTEXT Field tab) + reveal the CONTEXT inspector (the route builds the reveal). Mirrors the preset
+  // rack's `onSelectSection` two-things-at-once.
+  const onSelectFacet = (id: CharacterCardFacet["id"]): void => {
+    selectCharacterFacet(id);
+    onRevealField?.();
   };
 
   return (
@@ -133,7 +189,7 @@ function CharacterEditorBody({ characterId }: CharacterEditorSurfaceProps): Reac
               <form.DirtyPill />
             </form.AppForm>
             <Button type="button" intent="ghost" onClick={discard}>
-              Discard
+              Discard changes
             </Button>
             {/* Save is `primary` ONLY while dirty (not `isDefaultValue`): at rest the hero "Start chat" is
                 the region's ONE primary (§6.1 / UI-Arch §4.3 rule 3 — "one primary visible per region at
@@ -161,33 +217,43 @@ function CharacterEditorBody({ characterId }: CharacterEditorSurfaceProps): Reac
             detail={data}
             form={form}
             trpc={trpc}
-            onStartChat={onStartChat}
+            onNewChat={onNewChat}
+            onViewChats={onViewChats}
+            chatCount={chatCount}
             activeGreetingIndex={activeGreetingIndex}
             onActiveGreetingIndexChange={setActiveGreetingIndex}
           />
 
-          <Tabs defaultValue="main">
-            <TabsList>
-              <TabsTab value="main">Main</TabsTab>
-              <TabsTab value="advanced">Advanced</TabsTab>
-              <TabsIndicator />
-            </TabsList>
-            <TabsPanel value="main">
-              <CharacterMainTab form={form} trusted={data.trustHtml === true} />
-            </TabsPanel>
-            <TabsPanel value="advanced">
-              <CharacterAdvancedTab
-                form={form}
-                readOnly={{
-                  importedFrom: data.importedFrom,
-                  importHash: data.importHash,
-                  extensions: data.extensions,
-                  residualData: data.residualData,
-                  refinery: data.refinery,
-                }}
-              />
-            </TabsPanel>
-          </Tabs>
+          {/* CONTENT = a master FACET LIST (tiered Voice/Extras/Advanced) → click a row → the list is
+              REPLACED by the full-width facet BODY editor (← Back to return). This one calm master→drill-in
+              REPLACES the old flat Main/Advanced two-tab scroll (side-eye P0 #1 SaveBar z-fight + P0 #3
+              tab-click-no-scroll both DISSOLVE — there is no second `Tabs` and no off-screen tab body). */}
+          {selectedFacetId === null ? (
+            <CharacterFacetList
+              form={form}
+              selectedFacetId={null}
+              focusFacetId={backFocusFacetId}
+              onSelect={onSelectFacet}
+            />
+          ) : (
+            <CharacterFacetEditor
+              form={form}
+              facetId={selectedFacetId as CharacterCardFacet["id"]}
+              trusted={data.trustHtml === true}
+              readOnly={{
+                importedFrom: data.importedFrom,
+                importHash: data.importHash,
+                extensions: data.extensions,
+                residualData: data.residualData,
+                refinery: data.refinery,
+              }}
+              onBack={(): void => {
+                // Remember the facet we're leaving so the re-mounting list restores focus to its row.
+                setBackFocusFacetId(selectedFacetId as CharacterCardFacet["id"]);
+                clearCharacterFacet();
+              }}
+            />
+          )}
         </Stack>
       </form>
     </Stack>

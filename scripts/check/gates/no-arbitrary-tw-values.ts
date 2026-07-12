@@ -19,7 +19,9 @@
 // allowlist is RED immediately.
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
+import { fileLoaded } from "../pass.ts";
 
 const CLIENT_SRC_DIR = "/packages/client/src/";
 const UI_SRC_DIR = "/packages/ui/src/";
@@ -151,3 +153,106 @@ export function createNoArbitraryTwValues(allowlist: Record<string, string>): Ch
 }
 
 export const noArbitraryTwValues: Check = createNoArbitraryTwValues(ALLOWLIST);
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — per-token, reference-gate shape: offender arm + finalize stale) ─
+// The legacy predicate as a String/NoSubstitutionTemplate subscription (interpolated template parts are
+// deliberately skipped — className strings never carry them). PER-TOKEN: each banned arbitrary token in a
+// class string is its own finding at its real column (owner ruling 1). scanRoot mirrors the legacy
+// scanSrc filter (client|ui src); the live non-empty ALLOWLIST's stale arm is finalize-guarded to project
+// scope (§4.4). Kept ALONGSIDE the legacy Check.
+const GATE_SELF = "scripts/check/gates/no-arbitrary-tw-values.ts";
+const passSeenAllowlisted = new Set<string>();
+
+/** A single banned arbitrary token + its 0-based offset into the enclosing node's text (one past the
+ *  leading delimiter). Per-occurrence granularity — a class string with N brackets yields N findings. */
+type BannedArb = { readonly token: string; readonly offset: number };
+
+/** Every banned arbitrary-value token in a class-string node's text, with its offset into `getText()`. */
+function bannedArbTokens(nodeText: string): BannedArb[] {
+  const stripped = nodeText.slice(1, -1);
+  const out: BannedArb[] = [];
+  const parts = stripped.split(WHITESPACE_RE);
+  let cursor = 0;
+  for (const part of parts) {
+    const at = stripped.indexOf(part, cursor);
+    cursor = at + part.length;
+    if (part.length > 0 && isBannedArbitrary(part)) {
+      out.push({ token: part, offset: at + 1 });
+    }
+  }
+  return out;
+}
+
+export const gate: GateDescriptor = {
+  name: "no-arbitrary-tw-values",
+  docRow: "design-enforcement.md §3",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "use a token utility (w-*/text-*/p-* from the design scale), or extend tokens.json if none fits.",
+  scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
+  kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
+  begin: () => {
+    passSeenAllowlisted.clear();
+  },
+  visit: (node, sf, ctx) => {
+    const hits = bannedArbTokens(node.getText());
+    if (hits.length === 0) {
+      return;
+    }
+    const rel = clientRel(sf.getFilePath());
+    if (rel in ALLOWLIST) {
+      passSeenAllowlisted.add(rel);
+      return;
+    }
+    for (const hit of hits) {
+      ctx.report(node, hit);
+    }
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project") {
+      return;
+    }
+    for (const rel of Object.keys(ALLOWLIST)) {
+      // Only judge an allowlisted file that is actually LOADED (a synthetic conformance/parity tree omits
+      // the real ones); on the real full-tree run every allowlisted file IS loaded, so the ratchet holds.
+      if (!fileLoaded(ctx, rel)) {
+        continue;
+      }
+      if (!passSeenAllowlisted.has(rel)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-arbitrary-tw-values.ts`,
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const G = <div className="w-[137px] p-[7px]" />;\n',
+      at: "packages/client/src/features/x/x.tsx",
+      // PER-TOKEN: two banned arbitraries (w-[137px] + p-[7px]) → two findings, not one.
+      expect: { count: 2 },
+      why: "scoped-utility value arbitraries — off-token brackets that bypass the design scale",
+    },
+    {
+      files: 'export const G = <div className="hover:w-[137px]" />;\n',
+      at: "packages/ui/src/x/x.tsx",
+      why: "a variant-prefixed value arbitrary (hover:w-[…]) — the terminal segment still flags",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const G = <div className="w-[var(--sidebar-width)]" />;\n',
+      at: "packages/client/src/features/x/ok.tsx",
+      why: "a var(--…) bracket body is token-driven — same class as a bare token utility, passes",
+    },
+    {
+      files: 'export const G = <div className="data-[state=open]:opacity-100" />;\n',
+      at: "packages/client/src/features/x/np.tsx",
+      why: "a variant-SELECTOR bracket (non-terminal segment) is not a value bracket — passes",
+    },
+  ],
+};

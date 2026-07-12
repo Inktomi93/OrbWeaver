@@ -45,8 +45,9 @@
 // no-false-positive, never the real tree.
 import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { SourceFile } from "ts-morph";
+import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
@@ -147,39 +148,77 @@ function clientTierRel(rel: string): string | undefined {
   return rel.slice(tier.length).includes("/") ? undefined : rel;
 }
 
+/** The fs+AST scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanTestPresenceClient(root: string, project: Project): Violation[] {
+  const out: Violation[] = [];
+  for (const sf of project.getSourceFiles()) {
+    if (sf.getBaseName() === "index.ts") {
+      continue;
+    }
+    const path = sf.getFilePath();
+    const clientRel = relAfter(path, CLIENT_SRC);
+    if (clientRel !== undefined) {
+      const tierRel = clientTierRel(clientRel);
+      if (
+        tierRel !== undefined &&
+        hasCallableExport(sf) &&
+        !hasMirrorTest(root, "client", clientRel)
+      ) {
+        out.push({ file: `packages/client/src/${clientRel}`, line: 0, message: MSG_CLIENT });
+      }
+      continue;
+    }
+    const uiRel = relAfter(path, UI_SRC);
+    if (
+      uiRel !== undefined &&
+      UI_LOGIC_GROUPS.some((g) => uiRel.startsWith(g)) &&
+      hasCallableExport(sf) &&
+      !hasDirTest(root, "ui", uiRel)
+    ) {
+      out.push({ file: `packages/ui/src/${uiRel}`, line: 0, message: MSG_UI });
+    }
+  }
+  return out;
+}
+
 export const testPresenceClient: Check = {
   name: "test-presence-client",
-  run: ({ root, project }): Violation[] => {
-    const out: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      if (sf.getBaseName() === "index.ts") {
-        continue;
-      }
-      const path = sf.getFilePath();
+  run: ({ root, project }): Violation[] => scanTestPresenceClient(root, project),
+};
 
-      const clientRel = relAfter(path, CLIENT_SRC);
-      if (clientRel !== undefined) {
-        const tierRel = clientTierRel(clientRel);
-        if (
-          tierRel !== undefined &&
-          hasCallableExport(sf) &&
-          !hasMirrorTest(root, "client", clientRel)
-        ) {
-          out.push({ file: `packages/client/src/${clientRel}`, line: 0, message: MSG_CLIENT });
-        }
-        continue;
-      }
-
-      const uiRel = relAfter(path, UI_SRC);
-      if (
-        uiRel !== undefined &&
-        UI_LOGIC_GROUPS.some((g) => uiRel.startsWith(g)) &&
-        hasCallableExport(sf) &&
-        !hasDirTest(root, "ui", uiRel)
-      ) {
-        out.push({ file: `packages/ui/src/${uiRel}`, line: 0, message: MSG_UI });
-      }
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST presence gate via `run`, fsBacked) ─────────────────
+// The client/ui twin of test-presence: reconciles client/ui logic-bearing source (AST callable-export
+// detection) against its mirror test (existsSync). A `run` descriptor over ctx.root + ctx.project reusing
+// the scan, `fsBacked` for conformance. Distinct per-tier messages → per-occurrence overrides.
+// Byte-identical to the legacy Check.
+export const gate: GateDescriptor = {
+  name: "test-presence-client",
+  docRow: "core/Spine-Testing.md §5",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message: MSG_CLIENT,
+  fix: "add the mirror test (tests/client/<rest> or the ui dir test) for the logic-bearing source file.",
+  run: (ctx) => {
+    for (const v of scanTestPresenceClient(ctx.root, ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    return out;
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
+      },
+      why: "a logic-bearing client data hook with no mirror test — an untested surface (§5)",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
+        "tests/client/data/use-thing.test.ts": "export const t = 1;\n",
+      },
+      why: "the hook has its mirror .test.ts — presence satisfied, passes",
+    },
+  ],
 };

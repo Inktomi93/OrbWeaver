@@ -1,3 +1,5 @@
+// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS/JSX fixture
+// snippets (long identifier runs the entropy heuristic false-fires on), not secrets.
 // Gate: no-effect-on-shared-selection (UI-Architecture-and-Layout.md §5.1, amended 2026-07-09) — the
 // mechanical half of the anti-`this_chid` rule. §5.1 sanctions THREE reader shapes for the shared
 // selection stores (composition / own-section / mirror), ALL render-only; what it bans is
@@ -23,6 +25,7 @@
 // precedent); laundering through a helper FUNCTION isn't traced — review owns that residue.
 import type { ArrayLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const FEATURES_DIR = "/packages/client/src/features/";
@@ -172,4 +175,65 @@ export const noEffectOnSharedSelection: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
+// The legacy predicate as a CallExpression subscription: a useEffect-family call whose dep array touches
+// a shared-selection-tainted name. Taint is FILE-scoped (seed = selection-hook results + a name-level
+// fixpoint), so it's memoized per source file — a per-FILE computation, not cross-FILE, so the gate stays
+// incremental-safe. scanRoot mirrors the legacy FEATURES_DIR filter minus app-shell. The memo is cleared
+// in begin (the pass may run more than once — §1.1). Per-occurrence. Kept ALONGSIDE the legacy Check.
+const taintMemo = new Map<string, ReadonlySet<string>>();
+
+function taintFor(sf: SourceFile): ReadonlySet<string> {
+  const key = sf.getFilePath();
+  const cached = taintMemo.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const tainted = taintedNames(sf);
+  taintMemo.set(key, tainted);
+  return tainted;
+}
+
+export const gate: GateDescriptor = {
+  name: "no-effect-on-shared-selection",
+  docRow: "UI-Architecture-and-Layout.md §5.1",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "derive in render instead, or use `useEffectEvent` for a non-reactive read inside an unrelated effect.",
+  scanRoot: (p) =>
+    p.includes("packages/client/src/features/") &&
+    !p.includes("packages/client/src/features/app-shell/"),
+  kinds: [SyntaxKind.CallExpression],
+  begin: () => {
+    taintMemo.clear();
+  },
+  visit: (node, sf, ctx) => {
+    const deps = effectDepsOf(node);
+    if (deps === undefined) {
+      return;
+    }
+    const tainted = taintFor(sf);
+    if (tainted.size > 0 && deps.getElements().some((el) => touchesName(el, tainted))) {
+      ctx.report(node, { token: "useEffect(shared-selection)", offset: 0 });
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        "declare function useActiveChatId(): string;\ndeclare function useEffect(f: () => void, d: unknown[]): void;\nexport function C() {\n  const chatId = useActiveChatId();\n  useEffect(() => {}, [chatId]);\n}\n",
+      at: "packages/client/src/features/chat/hooks/x.ts",
+      why: "an effect keyed on a shared-selection pointer — the neo this_chid chase (§5.1)",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        "declare function useEffect(f: () => void, d: unknown[]): void;\nexport function C(props: { chatId: string }) {\n  useEffect(() => {}, [props.chatId]);\n}\n",
+      at: "packages/client/src/features/chat/hooks/ok.ts",
+      why: "an effect depping a PROP (selection threaded by the route) is the composition shape — passes",
+    },
+  ],
 };

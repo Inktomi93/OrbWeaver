@@ -18,11 +18,17 @@
 #     (the ts-morph gates) + dep-cruiser (all 5 packages). ~30s. A type/lint/boundary-red tree cannot
 #     be committed. (No separate staged-Biome step — `pnpm check`'s lint covers the whole repo.)
 #   • pre-push → `pnpm check` + `pnpm test` (unit/integration/contract, ~3.5min) + `pnpm test:ct` (the
-#     Playwright CT suite, ~2-4min, `CT_GATE=1` so parallelism flakes retry instead of blocking) — the
-#     full green bar before code leaves the machine; all kept off pre-commit only for commit speed. CTs
-#     are the ONE class `pnpm check` can't hold (browser — vitest-browser hangs, Spine-Testing §7), so
-#     they gate HERE, not at commit. NOTE: needs Playwright chromium on the pushing machine
-#     (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires on the host.
+#     Playwright CT suite, ~2-4min, `CT_GATE=1` so parallelism flakes retry instead of blocking) +
+#     `pnpm e2e:smoke` (the fast `@smoke` end-to-end subset, ~6s, model-free) — the full green bar before
+#     code leaves the machine; all kept off pre-commit only for commit speed. CTs + e2e are the ONE class
+#     `pnpm check` can't hold (browser — vitest-browser hangs, Spine-Testing §7), so they gate HERE, not at
+#     commit. NOTE: needs Playwright chromium on the pushing machine (`pnpm exec playwright install chromium`
+#     once); the sandbox can't push, so this fires on the host.
+#   • e2e ANTI-ROT (2026-07-12): the full e2e suite is manual (`pnpm e2e`) and CI is workflow_dispatch-only
+#     (auto-triggers off, 2026-07-05 — the real gate is these hooks), so a smoke SUBSET gates HERE (the only
+#     automated per-push surface). It boots the stack via playwright's webServer (reuses a running dev daemon,
+#     else ~5s cold), then runs the `@smoke`-tagged specs — enough to catch the UI-selector/landing drift that
+#     silently rotted the suite to 8/11-red. The live-model spec (`@live`) is EXCLUDED (never in any gate).
 # Bypass for genuine emergencies only: `git commit --no-verify` / `git push --no-verify`.
 #
 # OUTPUT is tuned for agent/CI consumption (the recurring pain: lefthook's truecolor banner blew the
@@ -60,3 +66,7 @@ pre-push:
       env:
         NO_COLOR: "1"
         CT_GATE: "1"
+    e2e:smoke:
+      run: pnpm e2e:smoke
+      env:
+        NO_COLOR: "1"

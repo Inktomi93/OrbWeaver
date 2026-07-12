@@ -70,8 +70,9 @@ test("renaming a tag commits an updateTag name patch on blur", async ({ mount, p
   const nameField = page.getByRole("textbox", { name: "Tag name (adventure)" });
   await nameField.fill("quest");
   await nameField.blur();
+  // busDriven, no refetch (see file header) — no DOM correlate to wait on; tighten the poll interval.
   await expect
-    .poll(() => trpc.lastInput("tag.updateTag"))
+    .poll(() => trpc.lastInput("tag.updateTag"), { intervals: [20, 50, 100] })
     .toEqual({
       tagId: "tag_adventure",
       patch: { name: "quest" },
@@ -90,7 +91,7 @@ test("clearing a tag color sends the updateTag tri-state null (clear to theme de
   await page.getByRole("button", { name: "Background color for adventure" }).click();
   await page.getByRole("button", { name: "Reset to default" }).click();
   await expect
-    .poll(() => trpc.lastInput("tag.updateTag"))
+    .poll(() => trpc.lastInput("tag.updateTag"), { intervals: [20, 50, 100] })
     .toEqual({
       tagId: "tag_adventure",
       patch: { color: null },
@@ -102,7 +103,7 @@ test("toggling hide-on-card patches the hidden flag", async ({ mount, page }) =>
   await mount(<TagsSettingsStory />);
   await page.getByRole("switch", { name: "Hide the adventure chip on cards" }).click();
   await expect
-    .poll(() => trpc.lastInput("tag.updateTag"))
+    .poll(() => trpc.lastInput("tag.updateTag"), { intervals: [20, 50, 100] })
     .toEqual({
       tagId: "tag_adventure",
       patch: { isHiddenOnCard: true },
@@ -116,7 +117,9 @@ test("deleting a tag confirms, then fires removeTag with its id", async ({ mount
   // The confirm names the cascade + usage breakdown before the destructive action.
   await expect(page.getByText(DELETE_CASCADE)).toBeVisible();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect.poll(() => trpc.lastInput("tag.removeTag")).toEqual({ tagId: "tag_adventure" });
+  await expect
+    .poll(() => trpc.lastInput("tag.removeTag"), { intervals: [20, 50, 100] })
+    .toEqual({ tagId: "tag_adventure" });
 });
 
 test("merging picks a target and fires mergeTags source→target", async ({ mount, page }) => {
@@ -128,7 +131,7 @@ test("merging picks a target and fires mergeTags source→target", async ({ moun
   await page.getByRole("option", { name: "orphan" }).click();
   await page.getByRole("button", { name: "Merge", exact: true }).click();
   await expect
-    .poll(() => trpc.lastInput("tag.mergeTags"))
+    .poll(() => trpc.lastInput("tag.mergeTags"), { intervals: [20, 50, 100] })
     .toEqual({
       sourceTagId: "tag_adventure",
       targetTagId: "tag_orphan",
@@ -139,5 +142,5 @@ test("prune unused fires pruneUnusedTags", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<TagsSettingsStory />);
   await page.getByRole("button", { name: "Prune unused" }).click();
-  await expect.poll(() => trpc.count("tag.pruneUnusedTags")).toBe(1);
+  await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(1);
 });

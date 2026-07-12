@@ -127,7 +127,7 @@ test("as the owner, changing a member's role fires setRole", async ({ mount, pag
   await page.getByRole("option", { name: "Admin" }).click();
 
   await expect
-    .poll(() => trpc.lastInput("admin.setRole"))
+    .poll(() => trpc.lastInput("admin.setRole"), { intervals: [20, 50, 100] })
     .toEqual({ userId: "user_kes", role: "admin" });
 });
 
@@ -159,7 +159,7 @@ test("disabling an account is confirm-gated and fires setEnabled(false)", async 
   await page.getByRole("button", { name: "Disable", exact: true }).click();
 
   await expect
-    .poll(() => trpc.lastInput("admin.setEnabled"))
+    .poll(() => trpc.lastInput("admin.setEnabled"), { intervals: [20, 50, 100] })
     .toEqual({ userId: "user_kes", enabled: false });
 });
 
@@ -194,7 +194,7 @@ test("the create-user dialog submits handle + password (+ admin role when picked
   await page.getByTestId("admin-create-user-submit").click();
 
   await expect
-    .poll(() => trpc.lastInput("admin.createUser"))
+    .poll(() => trpc.lastInput("admin.createUser"), { intervals: [20, 50, 100] })
     .toEqual({ handle: "nova", password: "hunter2hunter2", role: "admin" });
   // Success closes the dialog.
   await expect(dialog).toHaveCount(0);
@@ -221,7 +221,7 @@ test("as a delegated admin, the create-user dialog offers NO Admin role (owner-o
   await page.getByTestId("admin-create-user-submit").click();
 
   await expect
-    .poll(() => trpc.lastInput("admin.createUser"))
+    .poll(() => trpc.lastInput("admin.createUser"), { intervals: [20, 50, 100] })
     .toEqual({ handle: "nova", password: "hunter2hunter2" });
 });
 
@@ -272,7 +272,7 @@ test("reset password: the row menu opens the dialog and submits the new password
   await page.getByTestId("admin-reset-password-submit").click();
 
   await expect
-    .poll(() => trpc.lastInput("admin.resetPassword"))
+    .poll(() => trpc.lastInput("admin.resetPassword"), { intervals: [20, 50, 100] })
     .toEqual({ userId: "user_kes", password: "correct-horse-9" });
   await expect(dialog).toHaveCount(0);
 });
@@ -309,14 +309,16 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
   await page.getByRole("menuitem", { name: "Sessions…" }).click();
   const dialog = page.getByTestId("admin-sessions-dialog");
   await expect(dialog).toBeVisible();
-  await expect.poll(() => trpc.lastInput("admin.listSessions")).toEqual({ userId: "user_kes" });
+  await expect
+    .poll(() => trpc.lastInput("admin.listSessions"), { intervals: [20, 50, 100] })
+    .toEqual({ userId: "user_kes" });
 
   await expect(dialog.getByText("Firefox on Linux")).toBeVisible();
   await expect(dialog.getByText("1 active / 2 total")).toBeVisible();
   // The revoked row has no Revoke affordance; the live one revokes.
   await dialog.getByRole("button", { name: "Revoke session — Firefox on Linux" }).click();
   await expect
-    .poll(() => trpc.lastInput("admin.revokeSession"))
+    .poll(() => trpc.lastInput("admin.revokeSession"), { intervals: [20, 50, 100] })
     .toEqual({ sessionId: "sess_live" });
 
   // Revoke-all is confirm-gated.
@@ -324,7 +326,7 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
   expect(trpc.count("admin.revokeUserSessions")).toBe(0);
   await page.getByRole("alertdialog").getByRole("button", { name: "Revoke all" }).click();
   await expect
-    .poll(() => trpc.lastInput("admin.revokeUserSessions"))
+    .poll(() => trpc.lastInput("admin.revokeUserSessions"), { intervals: [20, 50, 100] })
     .toEqual({ userId: "user_kes" });
 });
 
@@ -335,5 +337,7 @@ test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount,
   const component = await mount(<AdminSettingsStory />);
 
   await component.getByRole("button", { name: "Restart engine — rerank" }).click();
-  await expect.poll(() => trpc.lastInput("admin.restartVllmEngine")).toEqual({ engine: "rerank" });
+  await expect
+    .poll(() => trpc.lastInput("admin.restartVllmEngine"), { intervals: [20, 50, 100] })
+    .toEqual({ engine: "rerank" });
 });

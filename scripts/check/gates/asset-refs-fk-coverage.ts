@@ -31,6 +31,7 @@ import type {
   SourceFile,
 } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
@@ -296,4 +297,70 @@ export const assetRefsFkCoverage: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project reconciliation via `run`) ───────────
+// asset-refs-fk-coverage reconciles every schema FK→`assets.id` column against the two registry arrays
+// in domain/assets/persistence/asset-refs.ts. Pure-AST (no fs — it reads the registry + schema through
+// the shared Project, symbol-resolving aliased `assets` imports via the checker), so NOT fsBacked. STRICT
+// — no allowlist, no ratchet arm — so it ports as a `run` reusing the exact scan (vacuous when the
+// registry file isn't loaded, exactly like the legacy). Distinct per-column messages → per-occurrence
+// overrides. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy.
+export const gate: GateDescriptor = {
+  name: "asset-refs-fk-coverage",
+  docRow: "domain/assets/persistence/asset-refs.ts (task #114)",
+  status: "active",
+  scopeSafety: "whole-project",
+  message:
+    "a schema column is a foreign key to `assets.id` but is registered in NEITHER ASSET_REFS nor DERIVED_ASSET_COLUMNS (domain/assets/persistence/asset-refs.ts) — asset GC and portability blob-bundling both enumerate that registry, so an unregistered column silently escapes both.",
+  fix: 'classify the column RETAINING (add a `{ table, column }` row to ASSET_REFS) or DERIVED (add its snake-case `"table.column"` to DERIVED_ASSET_COLUMNS) in domain/assets/persistence/asset-refs.ts.',
+  run: (ctx) => {
+    const { registrySf, schemaFiles } = partitionProject(ctx.project);
+    if (registrySf === undefined) {
+      return;
+    }
+    const { retaining, derived } = parseRegistry(registrySf);
+    for (const sf of schemaFiles) {
+      for (const col of fkColumnsToAssets(sf)) {
+        const jsKey = `${col.tableJs}.${col.columnJs}`;
+        const sqlKey = `${col.tableSql}.${col.columnSql}`;
+        if (retaining.has(jsKey) || derived.has(sqlKey)) {
+          continue;
+        }
+        ctx.report({
+          file: relPath(ctx.root, sf.getFilePath()),
+          line: col.line,
+          column: 0,
+          message: MESSAGE(col.tableSql, col.columnSql),
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
+        "packages/db/src/schema/assets.ts":
+          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts":
+          "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = [];\n",
+      },
+      expect: { messageIncludes: "registered in NEITHER" },
+      why: "a schema FK→assets.id column absent from both registry arrays — GC/portability would miss it",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
+        "packages/db/src/schema/assets.ts":
+          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts":
+          "export const ASSET_REFS = [{ table: t, column: t.assetId }];\nexport const DERIVED_ASSET_COLUMNS: string[] = [];\n",
+      },
+      why: "the FK column is classified RETAINING in ASSET_REFS — a covered column, passes",
+    },
+  ],
 };

@@ -6,6 +6,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const UI_SRC = "/packages/ui/src/";
@@ -343,9 +344,9 @@ function clauseDataSlot(ctx: CheckContext): Violation[] {
   return out;
 }
 
-export const uiPrimitiveStructure: Check = {
-  name: "ui-primitive-structure",
-  run: (ctx): Violation[] => [
+/** The 9-clause scan (5 fs + 4 AST) shared by the legacy Check and the single-pass `run` descriptor. */
+function scanUiPrimitiveStructure(ctx: CheckContext): Violation[] {
+  return [
     ...clauseTrio(ctx.root),
     ...clauseVariantsNaming(ctx),
     ...clauseNoLeak(ctx),
@@ -355,5 +356,58 @@ export const uiPrimitiveStructure: Check = {
     ...clauseNoInlineSvg(ctx),
     ...clauseOverlayAnatomy(ctx),
     ...clauseDataSlot(ctx),
+  ];
+}
+
+export const uiPrimitiveStructure: Check = {
+  name: "ui-primitive-structure",
+  run: (ctx): Violation[] => scanUiPrimitiveStructure(ctx),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST structure gate via `run`, fsBacked) ────────────────
+// ui-primitive-structure reads the real fs (readdirSync of primitives/, existsSync of the trio + CT) in 5
+// clauses AND the AST (variants naming / no-leak / color literals / inline provider / inline svg / overlay
+// anatomy / data-slot) via the shared Project. A `run` descriptor over ctx reuses the exact 9-clause scan,
+// `fsBacked` so conformance materializes the primitive dir + CT fixtures into a real temp dir (the AST
+// clauses read the same temp-dir Project). Distinct per-clause messages → per-occurrence overrides. Ported
+// BYTE-IDENTICAL — the §2.4 comment-range upgrade is a SEPARATE intended change, NOT part of this port.
+// Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "ui-primitive-structure",
+  docRow: "core/UI-Primitives-and-Reuse.md §13.7",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "an @orb/ui primitive violates the §13.7 structure discipline — a missing trio (name.tsx/index.ts/variants.ts), a mis-named/duplicated tv() export, a leaked ./variants re-export, a missing co-located CT, a hardcoded color literal or inline <*Provider>/<svg> in a test/component, a wrong overlay anatomy, or a missing data-slot locator (UI-Primitives-and-Reuse.md §13.7).",
+  fix: "restore the trio, name the tv() `{camelName}Variants`, keep ./variants internal, add the co-located CT, assert colors via TOKENS, and give each primitive part a data-slot locator (UI-Primitives-and-Reuse.md §13.7).",
+  run: (ctx) => {
+    for (const v of scanUiPrimitiveStructure({ root: ctx.root, project: ctx.project })) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+  },
+  mustFlag: [
+    {
+      files: {
+        // A styled primitive dir missing its variants.ts + index.ts (only the .tsx) AND no co-located CT.
+        "packages/ui/src/primitives/thing/thing.tsx":
+          'export const Thing = () => <div data-slot="thing" />;\n',
+      },
+      expect: { messageIncludes: "missing" },
+      why: "a primitive dir missing its trio (no index.ts / variants.ts) and no co-located CT — §13.7 violations",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/ui/src/primitives/thing/thing.tsx":
+          'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
+        "packages/ui/src/primitives/thing/variants.ts":
+          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
+      },
+      why: "a complete styled primitive (trio + correctly-named tv() + data-slot + co-located CT) — the §13.7 shape, passes",
+    },
   ],
 };

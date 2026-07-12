@@ -86,7 +86,9 @@ test("the first highlight scrolls into view on mount", async ({ mount, page }) =
   );
 
   const scrollParent = page.getByTestId("scroll-parent");
-  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect
+    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
+    .toBeGreaterThan(0);
   await expect(page.locator("mark")).toBeInViewport();
 });
 
@@ -107,7 +109,9 @@ test("scroll-to-first re-fires when ranges changes to a new offset (the find-nex
     </div>,
   );
   const scrollParent = page.getByTestId("scroll-parent");
-  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect
+    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
+    .toBeGreaterThan(0);
   const scrollAfterFirst = await scrollParent.evaluate((el) => el.scrollTop);
 
   await component.update(
@@ -117,7 +121,7 @@ test("scroll-to-first re-fires when ranges changes to a new offset (the find-nex
   );
 
   await expect
-    .poll(() => scrollParent.evaluate((el) => el.scrollTop))
+    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
     .toBeGreaterThan(scrollAfterFirst);
 });
 
@@ -136,13 +140,15 @@ test("a parent re-render with an equal-but-fresh ranges array does not re-fire t
     </div>,
   );
   const scrollParent = page.getByTestId("scroll-parent");
-  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect
+    .poll(() => scrollParent.evaluate((el) => el.scrollTop), { intervals: [20, 50, 100] })
+    .toBeGreaterThan(0);
 
   // The reader scrolls back up to read from the top.
   await scrollParent.evaluate((el) => {
     el.scrollTop = 0;
   });
-  await expect.poll(() => scrollParent.evaluate((el) => el.scrollTop)).toBe(0);
+  await expect(scrollParent).toHaveJSProperty("scrollTop", 0);
 
   // Parent re-renders passing a FRESH `ranges` array with the same start/end values (the common
   // inline-literal shape) — must not yank the reader back down.

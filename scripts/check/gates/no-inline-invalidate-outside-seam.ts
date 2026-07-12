@@ -18,6 +18,7 @@
 // the `.queryKey`/`.queryFilter` proxy reads (not `invalidateQueries`).
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
@@ -66,4 +67,44 @@ export const noInlineInvalidateOutsideSeam: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
+// The legacy predicate as a PropertyAccessExpression subscription: a `.invalidateQueries(` CALL in
+// client-src outside the ONE seam file. scanRoot mirrors the legacy clientRel filter minus the seam file
+// (the parity oracle). Per-occurrence (each loose invalidateQueries call). Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "no-inline-invalidate-outside-seam",
+  docRow: "UI-Gates-and-Lessons.md §11.3",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "route invalidation through data/invalidation.ts (invalidate(event)/invalidateUser(event)), or pass `invalidates` filters to createEntityMutation.",
+  scanRoot: (p) => p.includes("packages/client/src/") && p !== SEAM_FILE,
+  kinds: [SyntaxKind.PropertyAccessExpression],
+  visit: (node, _sf, ctx) => {
+    if (!Node.isPropertyAccessExpression(node) || node.getName() !== "invalidateQueries") {
+      return;
+    }
+    // Only a genuine CALL (`x.invalidateQueries(...)`) — a bare `.invalidateQueries` reference isn't sprawl.
+    if (Node.isCallExpression(node.getParent())) {
+      ctx.report(node, { token: "invalidateQueries", offset: 0 });
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
+      at: "packages/client/src/features/a/mutation.ts",
+      why: "a loose invalidateQueries call outside the seam — the neo 81-site sprawl reborn",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        "export function f(qc: { cancelQueries: (x?: unknown) => void }) {\n  qc.cancelQueries();\n}\n",
+      at: "packages/client/src/features/a/mutation2.ts",
+      why: ".cancelQueries (createEntityMutation's optimistic flow) is a different concern — not flagged",
+    },
+  ],
 };

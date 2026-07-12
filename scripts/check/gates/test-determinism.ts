@@ -6,6 +6,7 @@
 // `Math.random`/`crypto.randomUUID` member calls, and can't exempt support/ or check `new Date()` arity.)
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const TS_FILE = /\.tsx?$/u;
@@ -55,21 +56,58 @@ function scanFile(rel: string, abs: string): Violation[] {
   return out;
 }
 
+/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanTestDeterminism(root: string): Violation[] {
+  const violations: Violation[] = [];
+  const testsDir = join(root, "tests");
+  if (!existsSync(testsDir)) {
+    return violations;
+  }
+  for (const entry of readdirSync(testsDir, { recursive: true, withFileTypes: true })) {
+    const abs = join(entry.parentPath, entry.name);
+    const rel = relPath(testsDir, abs);
+    if (entry.isFile() && inScope(rel, entry.name)) {
+      violations.push(...scanFile(rel, abs));
+    }
+  }
+  return violations;
+}
+
 export const testDeterminism: Check = {
   name: "test-determinism",
-  run: ({ root }): Violation[] => {
-    const violations: Violation[] = [];
-    const testsDir = join(root, "tests");
-    if (!existsSync(testsDir)) {
-      return violations;
+  run: ({ root }): Violation[] => scanTestDeterminism(root),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
+// test-determinism reads the real fs (recursive readdirSync of tests/ + readFileSync line-scan for ambient
+// clock/random) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
+// materializes examples to a real temp dir. Distinct per-source messages (which banned call) → per-
+// occurrence overrides. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "test-determinism",
+  docRow: "core/Spine-Testing.md §3 (core/Core-0-Architecture-and-Structure.md §7)",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now) — inject the frozen clock + seeded ids via the fixture seam (core/Spine-Testing.md §3).",
+  fix: "inject the frozen clock (tests/support/clock.ts) + seeded ids (tests/support/ids.ts) through the composition seam production uses.",
+  run: (ctx) => {
+    for (const v of scanTestDeterminism(ctx.root)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    for (const entry of readdirSync(testsDir, { recursive: true, withFileTypes: true })) {
-      const abs = join(entry.parentPath, entry.name);
-      const rel = relPath(testsDir, abs);
-      if (entry.isFile() && inScope(rel, entry.name)) {
-        violations.push(...scanFile(rel, abs));
-      }
-    }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: { "tests/server/x.test.ts": "export const t = Date.now();\n" },
+      expect: { messageIncludes: "Date.now" },
+      why: "an ambient Date.now() in a test — inject the frozen clock (§3)",
+    },
+  ],
+  mustPass: [
+    {
+      files: { "tests/server/y.test.ts": "export const t = clock.now();\n" },
+      why: "the injected clock (clock.now()) — no ambient nondeterminism, passes",
+    },
+  ],
 };

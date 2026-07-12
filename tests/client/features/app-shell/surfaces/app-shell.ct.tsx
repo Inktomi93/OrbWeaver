@@ -72,10 +72,13 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
   // the panel keeps its clamp width, it is just translated out of view). Poll past the slide-out
   // transition. Plus removed from AT via inert/aria-hidden.
   await expect
-    .poll(async () => {
-      const b = await listPanel.boundingBox();
-      return (b?.x ?? -9999) + (b?.width ?? 0);
-    })
+    .poll(
+      async () => {
+        const b = await listPanel.boundingBox();
+        return (b?.x ?? -9999) + (b?.width ?? 0);
+      },
+      { intervals: [20, 50, 100] },
+    )
     .toBeLessThanOrEqual(57);
   await expect(listPanel).toHaveAttribute("aria-hidden", "true");
 });
@@ -108,12 +111,14 @@ test("CONTEXT follows the active section (§4.2 rule 1): a rail switch swaps the
   const panelText = (): Promise<string> => contextPanel.evaluate((el) => el.textContent ?? "");
 
   // chats (the default active section) supplies a context slot in the story.
-  await expect.poll(panelText).toContain("chats context pane");
+  await expect.poll(panelText, { intervals: [20, 50, 100] }).toContain("chats context pane");
 
   // Switch to corpus (no context slot) — the chats panel must be GONE (not merely hidden: the shell
   // reads only sections[activeSection], so the stale body is unmounted) and the honest placeholder in.
   await page.getByRole("button", { name: "Corpus" }).click();
-  await expect.poll(panelText).toContain("Select something to see its details here");
+  await expect
+    .poll(panelText, { intervals: [20, 50, 100] })
+    .toContain("Select something to see its details here");
   expect(await panelText()).not.toContain("chats context pane");
 });
 
@@ -208,13 +213,15 @@ for (const modalId of MODAL_SLOT_IDS) {
 
     // 1) The DOCUMENT cannot scroll — computed overflow is clip AND there is no scrollable overflow.
     await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const de = document.documentElement;
-          const overflowLocked = ["clip", "hidden"].includes(getComputedStyle(de).overflowY);
-          const cannotScroll = de.scrollHeight <= de.clientHeight + 1;
-          return overflowLocked && cannotScroll;
-        }),
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const de = document.documentElement;
+            const overflowLocked = ["clip", "hidden"].includes(getComputedStyle(de).overflowY);
+            const cannotScroll = de.scrollHeight <= de.clientHeight + 1;
+            return overflowLocked && cannotScroll;
+          }),
+        { intervals: [20, 50, 100] },
       )
       .toBe(true);
 
@@ -222,7 +229,9 @@ for (const modalId of MODAL_SLOT_IDS) {
     //    (The receipts showed the outer backdrop wrapper absorbing the overflow, which scrolled the title
     //    + nav + close out of view along with the content. "Some ancestor scrolls" is too weak — it PASSED
     //    with the broken backdrop-owns-scroll shape; the scroll must live INSIDE the popup.)
-    await expect.poll(() => scrollRegionContainment(page)).toBe("descendant");
+    await expect
+      .poll(() => scrollRegionContainment(page), { intervals: [20, 50, 100] })
+      .toBe("descendant");
 
     // 3) PINNED HEADER — scrolling the interior region to the bottom leaves the modal header's box put
     //    (the dialog header is a SIBLING of the scroll region; the drawer header pins via `sticky top-0`).
@@ -485,10 +494,18 @@ test("baseline (flat, no glass, no bg-image): surfaces are opaque, no backdrop-f
   mount,
 }) => {
   const shell = await mount(<ShellCascadeFixture />);
-  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe"))).toBe(1);
-  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(1);
-  await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe"))).toBe(1);
-  await expect.poll(() => backdropFilterOf(shell.getByTestId("panel-probe"))).toBe("none");
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] })
+    .toBe(1);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
+    .toBe(1);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] })
+    .toBe(1);
+  await expect
+    .poll(() => backdropFilterOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] })
+    .toBe("none");
 });
 
 test("glass beats elevation: ramp + blur-panels still leaves .shell-panel translucent", async ({
@@ -499,9 +516,11 @@ test("glass beats elevation: ramp + blur-panels still leaves .shell-panel transl
   // THE BUG: shell.css's un-:where()'d elevation rule used to out-specificity globals.css's glass
   // rule, so the panel painted the OPAQUE --color-surface-raised elevation fill instead of the
   // translucent glass mix even with blur-panels on. This is the exact assertion that regression flips.
-  await expect.poll(() => bgAlpha(panel)).toBeLessThan(1);
-  await expect.poll(() => backdropFilterOf(panel)).toContain("blur(");
-  await expect.poll(() => backdropFilterOf(panel)).toContain("saturate(");
+  await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] }).toContain("blur(");
+  await expect
+    .poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] })
+    .toContain("saturate(");
 });
 
 test("glass beats elevation on composer and both dialog popup slots", async ({ mount }) => {
@@ -509,13 +528,15 @@ test("glass beats elevation on composer and both dialog popup slots", async ({ m
     <ShellCascadeFixture elevation="ramp" blurSurfaces={["composer", "modals"]} />,
   );
   const composer = shell.getByTestId("composer-probe");
-  await expect.poll(() => bgAlpha(composer)).toBeLessThan(1);
-  await expect.poll(() => backdropFilterOf(composer)).toContain("blur(");
+  await expect.poll(() => bgAlpha(composer), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect
+    .poll(() => backdropFilterOf(composer), { intervals: [20, 50, 100] })
+    .toContain("blur(");
 
   const dialog = shell.getByTestId("dialog-probe");
   const alertDialog = shell.getByTestId("alert-dialog-probe");
-  await expect.poll(() => bgAlpha(dialog)).toBeLessThan(1);
-  await expect.poll(() => bgAlpha(alertDialog)).toBeLessThan(1);
+  await expect.poll(() => bgAlpha(dialog), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect.poll(() => bgAlpha(alertDialog), { intervals: [20, 50, 100] }).toBeLessThan(1);
 });
 
 for (const role of MESSAGE_ROLES) {
@@ -527,8 +548,12 @@ for (const role of MESSAGE_ROLES) {
     );
     // The bubble fill is the DENSER --blur-fill-dense mix (a reading surface, per globals.css) — still
     // strictly translucent, never opaque, for every role's own base tone.
-    await expect.poll(() => bgAlpha(shell.getByTestId("bubble-probe"))).toBeLessThan(1);
-    await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe"))).toContain("blur(");
+    await expect
+      .poll(() => bgAlpha(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] })
+      .toBeLessThan(1);
+    await expect
+      .poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] })
+      .toContain("blur(");
   });
 }
 
@@ -538,7 +563,9 @@ test("elevation alone (glass off) leaves .shell-panel opaque — glass is what f
   const shell = await mount(<ShellCascadeFixture elevation="ramp" />);
   // Matrix cell: ramp × glass-off. Elevation-ramp's own fill (--color-surface-raised) is opaque —
   // confirms the translucency above comes from the glass rule winning, not from ramp itself.
-  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe"))).toBe(1);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] })
+    .toBe(1);
 });
 
 test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({
@@ -548,9 +575,13 @@ test("background-image beats elevation: .shell-main goes transparent, .shell-top
   // THE BUG: shell.css's un-:where()'d elevation rule for .shell-main used to out-specificity the
   // has-bg-image transparent rule, burying the fixed <ThemeBackgroundLayer> under an opaque
   // --color-card fill even with an image set. This is the exact assertion that regression flips.
-  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(0);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
+    .toBe(0);
   // .shell-topbar was deliberately EXCLUDED from the transparent rule — chrome stays legible.
-  await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe"))).toBe(1);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] })
+    .toBe(1);
 });
 
 test("elevation alone (bg-image off) leaves .shell-main opaque — bg-image is what flips it, not ramp", async ({
@@ -559,7 +590,9 @@ test("elevation alone (bg-image off) leaves .shell-main opaque — bg-image is w
   const shell = await mount(<ShellCascadeFixture elevation="ramp" />);
   // Matrix cell: ramp × bg-off. Elevation-ramp's own fill (--color-card) is opaque — confirms the
   // transparency above comes from has-bg-image winning, not from ramp itself.
-  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(1);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
+    .toBe(1);
 });
 
 // ── WS3: the reading/document CONTENT backing over a bg image (only Chats stays immersive) ──────────
@@ -571,7 +604,9 @@ test("bg-image + a non-Chats section: .shell-main gets a SOLID reading backing, 
   // THE DEFECT: a document/reader section (character detail, world-info, …) used to inherit the Chats
   // immersive transparency and float its prose directly on the photo. A non-Chats section now backs the
   // content column with an opaque --color-card reading surface.
-  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(1);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
+    .toBe(1);
 });
 
 test("bg-image + a non-Chats section + blur-panels: the reading backing upgrades to glass (panel parity)", async ({
@@ -581,8 +616,8 @@ test("bg-image + a non-Chats section + blur-panels: the reading backing upgrades
     <ShellCascadeFixture hasBgImage={true} section="characters" blurSurfaces={["panels"]} />,
   );
   const main = shell.getByTestId("main-probe");
-  await expect.poll(() => bgAlpha(main)).toBeLessThan(1);
-  await expect.poll(() => backdropFilterOf(main)).toContain("blur(");
+  await expect.poll(() => bgAlpha(main), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(main), { intervals: [20, 50, 100] }).toContain("blur(");
 });
 
 test("bg-image + the Chats section stays IMMERSIVE: .shell-main transparent (photo behind the thread)", async ({
@@ -591,7 +626,9 @@ test("bg-image + the Chats section stays IMMERSIVE: .shell-main transparent (pho
   const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="chats" />);
   // The carve-out: Chats keeps the transparent path so the message thread shows the image behind bubbles
   // that carry their own fill — the reading-surface backing must NOT reach it.
-  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(0);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] })
+    .toBe(0);
 });
 
 // ── WS3: the Chats-immersive landing HERO scrim chip (anchor the copy over the photo) ───────────────
@@ -603,9 +640,9 @@ test("bg-image + Chats: the landing empty-state hero gets a frosted scrim chip (
   const hero = shell.getByTestId("empty-state-probe");
   // Chats stays immersive (main transparent, asserted above) — but the empty-state COPY is anchored in a
   // translucent themed scrim so it clears AA over ANY photo region instead of floating at ~2:1.
-  await expect.poll(() => bgAlpha(hero)).toBeGreaterThan(0);
-  await expect.poll(() => bgAlpha(hero)).toBeLessThan(1);
-  await expect.poll(() => backdropFilterOf(hero)).toContain("blur(");
+  await expect.poll(() => bgAlpha(hero), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  await expect.poll(() => bgAlpha(hero), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(hero), { intervals: [20, 50, 100] }).toContain("blur(");
 });
 
 test("bg-image + a NON-Chats section: the empty-state hero is NOT scrim-chipped (backed content already)", async ({
@@ -614,14 +651,18 @@ test("bg-image + a NON-Chats section: the empty-state hero is NOT scrim-chipped 
   const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="characters" />);
   // Non-Chats content is already backed (the reading surface) — the hero needs no separate chip, so the
   // scrim rule is Chats-scoped and must NOT fire here.
-  await expect.poll(() => bgAlpha(shell.getByTestId("empty-state-probe"))).toBe(0);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("empty-state-probe")), { intervals: [20, 50, 100] })
+    .toBe(0);
 });
 
 test("no bg-image + Chats: the landing hero is NOT scrim-chipped (nothing to float over)", async ({
   mount,
 }) => {
   const shell = await mount(<ShellCascadeFixture section="chats" />);
-  await expect.poll(() => bgAlpha(shell.getByTestId("empty-state-probe"))).toBe(0);
+  await expect
+    .poll(() => bgAlpha(shell.getByTestId("empty-state-probe")), { intervals: [20, 50, 100] })
+    .toBe(0);
 });
 
 test("useAppearanceRootEffects lands a representative axis on <html> as a real computed effect", async ({
@@ -693,8 +734,10 @@ test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)",
   });
   await mount(<AppShellStory />);
   await expect
-    .poll(() =>
-      page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)),
+    .poll(
+      () =>
+        page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)),
+      { intervals: [20, 50, 100] },
     )
     .toBeCloseTo(UA_ROOT_PX * fontScale, 0);
 });

@@ -564,7 +564,12 @@
       }
     },
     {
-      "includes": ["**/*.config.ts", "**/*.config.js", "playwright*.config.ts"],
+      "includes": [
+        "**/*.config.ts",
+        "**/*.config.js",
+        "playwright*.config.ts",
+        "tests/e2e/support/global-setup.ts"
+      ],
       "linter": {
         "rules": {
           "style": {

@@ -17,6 +17,7 @@
 // (it only references it in prose), so ARM A never scans it.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
@@ -122,4 +123,60 @@ export const noFormResetInAutosave: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE gate via visitFile) ───────────────────────────────
+// Two arms, per-FILE dispatch: the factory file runs ARM B (the Omit<…, "reset"> strip must be present —
+// a file-level ABSENCE check — and no returned `reset` property), every OTHER client file that IMPORTS the
+// factory runs ARM A (a `.reset(` call on a form-shaped receiver). The absence check (ARM B's OMIT_MISSING)
+// is why this is visitFile not per-node — "no Omit anywhere in the file" can't be a node predicate.
+// scanRoot mirrors the legacy CLIENT_SRC filter. Distinct messages → per-occurrence overrides. Findings
+// byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+function overrideFinding(v: Violation, token: string): Finding {
+  return { file: v.file, line: v.line, column: 0, message: v.message, token };
+}
+
+export const gate: GateDescriptor = {
+  name: "no-form-reset-in-autosave",
+  docRow: "UI-Gates-and-Lessons.md §7 row 2 (§11.3)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: RESET_MESSAGE,
+  fix: "do not cast past the `Omit<…, 'reset'>` strip; reset re-baselines a live draft mirror into the TanStack Form isDirty loop.",
+  scanRoot: (p) => p.includes("packages/client/src/"),
+  visitFile: (sf, ctx: GateRunCtx) => {
+    const rel = clientRel(sf.getFilePath());
+    if (rel === undefined) {
+      return;
+    }
+    if (rel === FACTORY_FILE) {
+      for (const v of factoryFileViolations(sf)) {
+        ctx.report(
+          overrideFinding(v, v.message === OMIT_MISSING_MESSAGE ? "omit-strip" : "reset-prop"),
+        );
+      }
+      return;
+    }
+    if (importsFactory(sf)) {
+      for (const v of resetCallViolations(sf, rel)) {
+        ctx.report(overrideFinding(v, "reset()"));
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        'import { createAutosaveEntityForm } from "@orb/x";\nexport function f(personaForm: { reset: (v?: unknown) => void }) {\n  personaForm.reset();\n}\n',
+      at: "packages/client/src/features/persona/x.ts",
+      why: "a .reset( on a form receiver in a file importing the autosave factory — the isDirty-loop escape",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        "export function f(personaForm: { reset: (v?: unknown) => void }) {\n  personaForm.reset();\n}\n",
+      at: "packages/client/src/features/persona/y.ts",
+      why: "the same .reset( in a file that does NOT import the autosave factory — ARM A never scans it",
+    },
+  ],
 };

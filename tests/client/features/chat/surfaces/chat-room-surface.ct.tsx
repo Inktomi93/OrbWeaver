@@ -134,7 +134,7 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
 
   // The transcript read once; baseline established.
   await expect(component.getByText("Ping?")).toBeVisible();
-  await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
+  await expect.poll(() => trpc.count("chat.listMessages"), { intervals: [20, 50, 100] }).toBe(1);
 
   // Fire a REAL send through the composer.
   await component.getByRole("textbox", { name: "Message" }).fill("Hello?");

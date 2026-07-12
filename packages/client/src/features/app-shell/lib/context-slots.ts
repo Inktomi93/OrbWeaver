@@ -28,14 +28,16 @@ export interface ContextTabEntry {
  *  shell's own CONTEXT placeholder (an unregistered section is not a bug — it simply has no tabbed
  *  context). Keyed by `SectionId` (a typo is a `tsc` error), Partial (most sections register none). */
 export const CONTEXT_SLOTS: Partial<Record<SectionId, readonly ContextTabEntry[]>> = {
-  // FINAL-Character §7 — the relationship ledger + config. Activity is the default (first) tab. The
-  // Actions menu is NOT a tab (it is the persistent options menu ABOVE the strip — the panel's
-  // `actions` slot, wired at the route). Appearance's §8.1 theme cluster is Wave 4 (Trust-only today).
+  // The character-editor redesign CONTEXT — EXACTLY 3 tabs (owner-signed FINAL structure; SUPERSEDES the
+  // former Activity/Appearance/Relations/History four). Field is the detail-of-the-drilled-facet (the
+  // master→detail core, revealed on a facet click — mirrors the preset "Section" tab); Links merges the
+  // world-book + persona relations; Options merges the per-character theme override + the history/snapshots.
+  // Chats/activity is NOT a tab — it moved to the CHATS section via the hero's "N chats ›" jump. The Actions
+  // menu is NOT a tab (it is the persistent options menu ABOVE the strip — the panel's `actions` slot).
   characters: [
-    { id: "activity", label: "Activity" },
-    { id: "appearance", label: "Appearance" },
-    { id: "relations", label: "Relations" },
-    { id: "history", label: "History" },
+    { id: "field", label: "Field" },
+    { id: "links", label: "Links" },
+    { id: "options", label: "Options" },
   ],
   // The Assembly (BUILD-SPEC §3.1) — the rack section INSPECTOR (Section tab, default/first) + the
   // preset usage/bindings panel (Usage tab). Selecting a rack row docks CONTEXT open on Section; the

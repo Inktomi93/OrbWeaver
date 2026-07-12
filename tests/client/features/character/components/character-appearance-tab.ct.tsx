@@ -40,7 +40,9 @@ test("§8.1 an enum pick is an IMMEDIATE commit — one field, the whole blob, n
   await page.getByRole("combobox", { name: "Corner radius" }).click();
   await page.getByRole("option", { name: "Card", exact: true }).click();
 
-  await expect.poll(() => lastThemeOverride(trpc)).toEqual({ radius: "card" });
+  await expect
+    .poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] })
+    .toEqual({ radius: "card" });
   // Immediate-commit surfaces never light a draft dirty pill (§2).
   await expect(page.getByText("Unsaved")).toHaveCount(0);
 });
@@ -56,7 +58,9 @@ test("§8.1 per-field clear — picking Inherit OMITS that field, the others sur
   await page.getByRole("option", { name: "Inherit global", exact: true }).click();
 
   // font dropped from the blob → it inherits the parent scope; radius is untouched.
-  await expect.poll(() => lastThemeOverride(trpc)).toEqual({ radius: "card" });
+  await expect
+    .poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] })
+    .toEqual({ radius: "card" });
 });
 
 test("§8.1 Reset to global sends themeOverride: null", async ({ mount, page }) => {
@@ -64,7 +68,7 @@ test("§8.1 Reset to global sends themeOverride: null", async ({ mount, page }) 
   await mount(<CharacterAppearanceTabStory />);
 
   await page.getByRole("button", { name: "Reset to global" }).click();
-  await expect.poll(() => lastThemeOverride(trpc)).toBeNull();
+  await expect.poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] }).toBeNull();
 });
 
 test("§8.1 Reset is disabled when there is no override to clear", async ({ mount, page }) => {
@@ -83,5 +87,7 @@ test("§8.1 a colour edit debounces into one write carrying the picked colour", 
   await page.getByLabel("Accent").click();
   await page.getByLabel("Hex").fill("#00ff00");
 
-  await expect.poll(() => lastThemeOverride(trpc)).toEqual({ accent: "#00ff00" });
+  await expect
+    .poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] })
+    .toEqual({ accent: "#00ff00" });
 });

@@ -103,7 +103,7 @@ test("multiple: reports the selected values as an array through onValueChange", 
   await page.getByRole("combobox").click();
   await page.getByRole("option", { name: "Alpha" }).click();
   await page.getByRole("option", { name: "Beta" }).click();
-  await expect.poll(() => seen.at(-1)).toEqual(["alpha", "beta"]);
+  await expect.poll(() => seen.at(-1), { intervals: [20, 50, 100] }).toEqual(["alpha", "beta"]);
 });
 
 const GROUPED = [

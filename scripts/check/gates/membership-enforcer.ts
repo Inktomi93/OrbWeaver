@@ -13,6 +13,7 @@
 // decisions; the privilege comparison lives inside `can()` (the owner-role-split gate's territory).
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const CHAT_SCOPE =
@@ -77,4 +78,59 @@ export const membershipEnforcer: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — multi-kind per-node) ─────────────────────────
+// Two arms, ONE gate: an owner-equality BinaryExpression (`….ownerId ==/=== …`), and a fetchOwned/
+// OwnedTable named IMPORT — both in the chat scope. The descriptor's reason is the comparison arm; an
+// import finding carries its own per-occurrence message (owner ruling 2 — distinct violation types).
+// scanRoot mirrors the legacy CHAT_SCOPE filter. Per-occurrence. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "membership-enforcer",
+  docRow: "ledger D16/D18 (Spine-Identity-and-Auth.md)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: COMPARE_MESSAGE,
+  fix: "authority is chat_participants via assertParticipant → the can() seam; the host is LOOKED UP from the loaded roster, never compared as an owner.",
+  scanRoot: (p) => CHAT_SCOPE.test(`/${p}`),
+  kinds: [SyntaxKind.BinaryExpression, SyntaxKind.ImportSpecifier],
+  visit: (node, sf, ctx) => {
+    if (
+      node.isKind(SyntaxKind.BinaryExpression) &&
+      EQUALITY_OPS.has(node.getOperatorToken().getText()) &&
+      (endsInOwnerId(node.getLeft().getText()) || endsInOwnerId(node.getRight().getText()))
+    ) {
+      ctx.report(node, { token: OWNER_ID, offset: 0 });
+      return;
+    }
+    if (node.isKind(SyntaxKind.ImportSpecifier) && BANNED_IMPORTS.has(node.getName())) {
+      ctx.report({
+        file: relPath(ctx.root, sf.getFilePath()),
+        line: node.getStartLineNumber(),
+        column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
+        message: IMPORT_MESSAGE,
+        token: node.getName(),
+      });
+    }
+  },
+  mustFlag: [
+    {
+      files: "export const bad = (x: { ownerId: string }, y: string) => x.ownerId === y;\n",
+      at: "packages/server/src/domain/chat/verbs/x.ts",
+      why: "an owner-equality comparison in the chat scope — the ~171-site neo pattern D18 dissolved",
+    },
+    {
+      files: 'import { fetchOwned } from "@orb/db";\nexport const f = fetchOwned;\n',
+      at: "packages/server/src/domain/chat/verbs/y.ts",
+      expect: { messageIncludes: "MEMBERSHIP-scoped ownership category" },
+      why: "a fetchOwned import in domain/chat — the D18 category error (chats aren't single-owned)",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const host = (r: { role: string }) => r.role === "host";\n',
+      at: "packages/server/src/domain/chat/verbs/z.ts",
+      why: "a participant-role literal (role === 'host') is host-LOOKUP (D18-sanctioned), not owner-equality",
+    },
+  ],
 };

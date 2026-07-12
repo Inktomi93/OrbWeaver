@@ -17,6 +17,7 @@
 // ARM B instead asserts their option shape); non-persist middleware (`devtools`/`subscribeWithSelector`).
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
@@ -98,4 +99,47 @@ export const persistPartializeAndTotalMigrate: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE dispatch gate via visitFile) ──────────────────────
+// Two arms, per-FILE dispatch: a factory file runs ARM B (its persist options must carry version +
+// partialize + migrate), every other client file runs ARM A (a bare `persist(` is RED). scanRoot mirrors
+// the legacy CLIENT_SRC filter. Distinct messages (raw-persist vs missing-key) → per-occurrence overrides.
+// Not fsBacked. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "persist-partialize-and-total-migrate",
+  docRow: "UI-Gates-and-Lessons.md §11.5 (UI-Primitives-and-Reuse.md §13.1/§13.3)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: RAW_PERSIST_MESSAGE,
+  fix: "use createPersistedStore / createEntityDraftStore (which bake partialize + version + a total crash-proof migrate) — never a bare persist().",
+  scanRoot: (p) => p.includes("packages/client/src/"),
+  visitFile: (sf, ctx: GateRunCtx) => {
+    const rel = clientRel(sf.getFilePath());
+    if (rel === undefined) {
+      return;
+    }
+    const violations = FACTORY_FILES.has(rel)
+      ? factoryOptionViolations(sf, rel)
+      : rawPersistViolations(sf, rel);
+    for (const v of violations) {
+      const token = v.message === RAW_PERSIST_MESSAGE ? "raw persist()" : "persist opts";
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message, token });
+    }
+  },
+  mustFlag: [
+    {
+      files: "export const s = persist(() => ({}), {});\n",
+      at: "packages/client/src/features/x/store.ts",
+      expect: { messageIncludes: "raw zustand persist" },
+      why: "a bare persist() outside the two minting factories — persistence footguns aren't baked in (§11.5)",
+    },
+  ],
+  mustPass: [
+    {
+      files: "export const s = createPersistedStore('x', () => ({}));\n",
+      at: "packages/client/src/features/x/store2.ts",
+      why: "a factory mint (createPersistedStore) — no bare persist, the sanctioned door, passes",
+    },
+  ],
 };

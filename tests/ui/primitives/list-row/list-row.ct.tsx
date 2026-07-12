@@ -34,7 +34,7 @@ test("clickable row exposes button role and activates via Enter/Space", async ({
   await row.focus();
   await page.keyboard.press("Enter");
   await page.keyboard.press(" ");
-  await expect.poll(() => clicks.length).toBe(2);
+  await expect.poll(() => clicks.length, { intervals: [20, 50, 100] }).toBe(2);
 });
 
 test("non-clickable row is a static <div> body with no button role", async ({ mount, page }) => {

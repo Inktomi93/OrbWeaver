@@ -81,7 +81,9 @@ test("P2: removal goes through a confirm — the mutation fires only AFTER confi
 
   // Confirming fires the removal with the item's id.
   await page.getByRole("button", { name: "Remove", exact: true }).click();
-  await expect.poll(() => trpc.count("assets.removeFromGallery")).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.count("assets.removeFromGallery"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
   expect(trpc.lastInput("assets.removeFromGallery")).toEqual({ galleryItemId: "galleryitem_ct_1" });
 });
 

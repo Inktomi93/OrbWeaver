@@ -64,14 +64,14 @@ test("export: a full selection downloads the whole library (no kinds param); unc
   // Every offered kind starts checked → the download omits `kinds` entirely (everything, media included).
   await expect(page.getByRole("checkbox", { name: "Characters" })).toBeChecked();
   await page.getByTestId("backup-export-button").click();
-  await expect.poll(() => exportUrl).toBeTruthy();
+  await expect.poll(() => exportUrl, { intervals: [20, 50, 100] }).toBeTruthy();
   expect(new URL(exportUrl ?? "").search).toBe("");
 
   // Uncheck Chats → the href now lists the remaining kinds + always appends assets (blobs travel).
   exportUrl = undefined;
   await page.getByRole("checkbox", { name: "Chats" }).click();
   await page.getByTestId("backup-export-button").click();
-  await expect.poll(() => exportUrl).toBeTruthy();
+  await expect.poll(() => exportUrl, { intervals: [20, 50, 100] }).toBeTruthy();
   const kinds = new URL(exportUrl ?? "").searchParams.get("kinds") ?? "";
   expect(kinds).not.toContain("chat");
   expect(kinds.split(",")).toContain("character");
@@ -111,7 +111,7 @@ test("import: dropping a .zip POSTs the bundle, tails the workload, and shows th
   });
 
   // The upload fired, and the terminal succeeded event drives the count summary.
-  await expect.poll(() => bundlePost?.method).toBe("POST");
+  await expect.poll(() => bundlePost?.method, { intervals: [20, 50, 100] }).toBe("POST");
   await expect(page.getByTestId("import-report")).toBeVisible();
   await expect(page.getByText("12 imported · 1 skipped")).toBeVisible();
 });

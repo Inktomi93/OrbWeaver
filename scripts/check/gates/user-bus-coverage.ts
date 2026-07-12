@@ -13,8 +13,9 @@
 // entry"). Today all members but `connectionsChanged` have a producer; `connectionsChanged` is DEFERRED
 // (no per-user connection store exists yet — a user's connection config lives in USER SETTINGS, so
 // `settingsChanged` covers it, and the model catalog is admin/global; see @orb/contracts/user-bus).
-import type { SourceFile } from "ts-morph";
+import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const CONTRACTS_USER_BUS = /\/packages\/contracts\/src\/user-bus\/index\.ts$/u;
@@ -70,32 +71,75 @@ function literalCorpus(project: { getSourceFiles: () => SourceFile[] }): string 
   return ` ${parts.join(" ")} `;
 }
 
+/** The whole-tree reconciliation shared by the legacy Check and the single-pass `run` descriptor. */
+function reconcileUserBusCoverage(project: Project): Violation[] {
+  const contracts = project
+    .getSourceFiles()
+    .find((sf) => CONTRACTS_USER_BUS.test(sf.getFilePath()));
+  if (contracts === undefined) {
+    return []; // contracts not in the project (placeholder tree) — vacuous
+  }
+  const keys = userBusEventTypes(contracts);
+  if (keys.length === 0) {
+    return []; // the union hasn't landed — vacuous
+  }
+  const corpus = literalCorpus(project);
+  const violations: Violation[] = [];
+  const file = "packages/contracts/src/user-bus/index.ts";
+  for (const key of keys) {
+    const emitted = corpus.includes(` ${key} `);
+    const deferred = key in DEFERRED;
+    if (!(emitted || deferred)) {
+      violations.push({ file, line: 1, message: MISSING_MESSAGE_PREFIX + key });
+    }
+    if (emitted && deferred) {
+      violations.push({ file, line: 1, message: STALE_MESSAGE_PREFIX + key });
+    }
+  }
+  return violations;
+}
+
 export const userBusCoverage: Check = {
   name: "user-bus-coverage",
-  run: ({ project }): Violation[] => {
-    const contracts = project
-      .getSourceFiles()
-      .find((sf) => CONTRACTS_USER_BUS.test(sf.getFilePath()));
-    if (contracts === undefined) {
-      return []; // contracts not in the project (placeholder tree) — vacuous
+  run: ({ project }): Violation[] => reconcileUserBusCoverage(project),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
+// The twin of bus-coverage: a pure whole-tree reconciliation (USER_BUS_EVENT_TYPES keys vs the server
+// literal corpus), ported as a `run` descriptor reusing the exact reconcile logic. The vacuous guards
+// (no contracts file / empty union → []) are the synthetic-tree protection. Findings byte-identical to
+// the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "user-bus-coverage",
+  docRow: "PD user-bus lane (ledger D50 twin; @orb/contracts/user-bus)",
+  status: "active",
+  scopeSafety: "whole-project",
+  message: MISSING_MESSAGE_PREFIX,
+  fix: "wire the verb's emitUserEvent for the member, or add a cited DEFERRED entry in user-bus-coverage.ts.",
+  run: (ctx) => {
+    for (const v of reconcileUserBusCoverage(ctx.project)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    const keys = userBusEventTypes(contracts);
-    if (keys.length === 0) {
-      return []; // the union hasn't landed — vacuous
-    }
-    const corpus = literalCorpus(project);
-    const violations: Violation[] = [];
-    const file = "packages/contracts/src/user-bus/index.ts";
-    for (const key of keys) {
-      const emitted = corpus.includes(` ${key} `);
-      const deferred = key in DEFERRED;
-      if (!(emitted || deferred)) {
-        violations.push({ file, line: 1, message: MISSING_MESSAGE_PREFIX + key });
-      }
-      if (emitted && deferred) {
-        violations.push({ file, line: 1, message: STALE_MESSAGE_PREFIX + key });
-      }
-    }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: {
+        "packages/contracts/src/user-bus/index.ts":
+          'export const USER_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
+        "packages/server/src/domain/settings/x.ts": 'export const q = "somethingElse";\n',
+      },
+      expect: { messageIncludes: "NO server emit site" },
+      why: "a USER_BUS_EVENT_TYPES member with no server emit site + no DEFERRED entry — a dead cross-device wire",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/contracts/src/user-bus/index.ts":
+          'export const USER_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/server/src/domain/settings/x.ts": 'export const q = "emitted";\n',
+      },
+      why: "the member's discriminator appears as a server emit literal — covered, passes",
+    },
+  ],
 };

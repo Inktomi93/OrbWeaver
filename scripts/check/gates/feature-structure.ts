@@ -11,6 +11,7 @@
 //   doc (docs/architecture/domains/<domain>.md) but not yet promoted to the cross-domain ledger.
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const DOMAIN_REL = "packages/server/src/domain";
@@ -86,24 +87,67 @@ function checkLooseFiles(featureDir: string, feature: string): Violation[] {
   return violations;
 }
 
+/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+function scanFeatureStructure(root: string): Violation[] {
+  const violations: Violation[] = [];
+  const domainDir = join(root, DOMAIN_REL);
+  if (!existsSync(domainDir)) {
+    return violations;
+  }
+  for (const feature of readdirSync(domainDir)) {
+    const featureDir = join(domainDir, feature);
+    if (!statSync(featureDir).isDirectory()) {
+      continue;
+    }
+    violations.push(
+      ...checkRequiredSlots(featureDir, feature),
+      ...checkLooseFiles(featureDir, feature),
+    );
+  }
+  return violations;
+}
+
 export const featureStructure: Check = {
   name: "feature-structure",
-  run: ({ root }): Violation[] => {
-    const violations: Violation[] = [];
-    const domainDir = join(root, DOMAIN_REL);
-    if (!existsSync(domainDir)) {
-      return violations;
+  run: ({ root }): Violation[] => scanFeatureStructure(root),
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
+// feature-structure reads the real filesystem (readdirSync/existsSync/statSync of the domain dir), never
+// the ts-morph Project — so it ports as a `run` descriptor over ctx.root reusing the exact scan, and
+// declares `fsBacked` so the conformance runner materializes its examples into a real temp dir. Findings
+// are file-level (line 0). Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "feature-structure",
+  docRow: "core/Core-0-Architecture-and-Structure.md §7 (§4)",
+  status: "active",
+  scopeSafety: "whole-project",
+  fsBacked: true,
+  message:
+    "a domain feature does not follow the per-feature template — it is missing a required slot (index.ts / service.ts / context.ts / contract/ / verbs/) or carries a loose non-template file at its root (Core-0-Architecture-and-Structure.md §4).",
+  fix: "add the missing template slot, or move the loose file into verbs/ / substrate/ / a subsystem (only index/service/context/guard + documented singletons live at the feature root).",
+  run: (ctx) => {
+    for (const v of scanFeatureStructure(ctx.root)) {
+      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
-    for (const feature of readdirSync(domainDir)) {
-      const featureDir = join(domainDir, feature);
-      if (!statSync(featureDir).isDirectory()) {
-        continue;
-      }
-      violations.push(
-        ...checkRequiredSlots(featureDir, feature),
-        ...checkLooseFiles(featureDir, feature),
-      );
-    }
-    return violations;
   },
+  mustFlag: [
+    {
+      files: { "packages/server/src/domain/broken/index.ts": "export const x = 1;\n" },
+      expect: { messageIncludes: "missing template" },
+      why: "a domain feature with only index.ts — missing service.ts/context.ts/contract/verbs (§4)",
+    },
+  ],
+  mustPass: [
+    {
+      files: {
+        "packages/server/src/domain/whole/index.ts": "export const x = 1;\n",
+        "packages/server/src/domain/whole/service.ts": "export const s = 1;\n",
+        "packages/server/src/domain/whole/context.ts": "export const c = 1;\n",
+        "packages/server/src/domain/whole/contract/service.ts": "export const cs = 1;\n",
+        "packages/server/src/domain/whole/verbs/x.ts": "export const v = 1;\n",
+      },
+      why: "a feature with all required slots (index/service/context + contract/ + verbs/) — the template, passes",
+    },
+  ],
 };

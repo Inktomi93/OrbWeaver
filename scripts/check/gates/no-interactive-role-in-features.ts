@@ -23,6 +23,7 @@
 // NEW offender not in BURN_DOWN is RED immediately.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const FEATURES_DIR = "/packages/client/src/features/";
@@ -163,3 +164,74 @@ export function createNoInteractiveRoleInFeatures(burnDown: Record<string, strin
 }
 
 export const noInteractiveRoleInFeatures: Check = createNoInteractiveRoleInFeatures(BURN_DOWN);
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — the reference-gate shape: offender arm + finalize stale arm) ─
+// The legacy predicate as a JsxAttribute subscription: a `role={…}` attribute in a features/**.tsx whose
+// value carries a banned widget-role literal. scanRoot mirrors the legacy FEATURES_DIR + `.tsx` filter.
+// The empty BURN_DOWN's stale arm is finalize-guarded to project scope (§4.4). Per-occurrence (each
+// offending role attribute). Kept ALONGSIDE the legacy Check. The offending role rides as the token.
+const GATE_SELF = "scripts/check/gates/no-interactive-role-in-features.ts";
+const passSeenBurnDown = new Set<string>();
+
+/** The banned widget-role literal a `role={…}` attribute carries, or undefined. */
+function bannedRoleOf(attr: Node): string | undefined {
+  if (!attr.isKind(SyntaxKind.JsxAttribute) || attr.getNameNode().getText() !== "role") {
+    return;
+  }
+  return literalTextsIn(attr).find((t) => WIDGET_ROLES.has(t));
+}
+
+export const gate: GateDescriptor = {
+  name: "no-interactive-role-in-features",
+  docRow: "UI-Gates-and-Lessons.md §8",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  fix: "reach for the matching @orb/ui primitive (Button, list-row, Card `interactive`, menu) — never a hand-rolled widget role on a div/layout component.",
+  scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx"),
+  kinds: [SyntaxKind.JsxAttribute],
+  begin: () => {
+    passSeenBurnDown.clear();
+  },
+  visit: (node, sf, ctx) => {
+    const role = bannedRoleOf(node);
+    if (role === undefined) {
+      return;
+    }
+    const rel = clientRel(sf.getFilePath());
+    if (rel in BURN_DOWN) {
+      passSeenBurnDown.add(rel);
+      return;
+    }
+    ctx.report(node, { token: `role="${role}"`, offset: 0 });
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project") {
+      return;
+    }
+    for (const rel of Object.keys(BURN_DOWN)) {
+      if (!passSeenBurnDown.has(rel)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-interactive-role-in-features.ts`,
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const G = <Row role="button" tabIndex={0} />;\n',
+      at: "packages/client/src/features/demo/thing.tsx",
+      why: "a hand-rolled interactive role on a layout component — dodges the compose-only + raw-intrinsic belts",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const G = <div role="list" />;\n',
+      at: "packages/client/src/features/demo/structural.tsx",
+      why: "a structural role (list) stays legal — it describes document structure, not a widget",
+    },
+  ],
+};

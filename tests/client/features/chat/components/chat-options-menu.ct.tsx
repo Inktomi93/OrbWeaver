@@ -29,7 +29,7 @@ test("header-menu Continue fires chat.continueTurn with NO guided object (plain,
   await expect(continueItem).toBeEnabled();
   await continueItem.click();
 
-  await expect.poll(() => trpc.count("chat.continueTurn")).toBe(1);
+  await expect.poll(() => trpc.count("chat.continueTurn"), { intervals: [20, 50, 100] }).toBe(1);
   const input = trpc.lastInput("chat.continueTurn");
   expect(input).toMatchObject({ chatId: CHAT_ID, messageId: tail.id });
   expect(input).not.toHaveProperty("guided");
@@ -48,7 +48,7 @@ test("header-menu Regenerate fires chat.swipe with NO guided object", async ({ m
   await expect(regenerateItem).toBeEnabled();
   await regenerateItem.click();
 
-  await expect.poll(() => trpc.count("chat.swipe")).toBe(1);
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   const input = trpc.lastInput("chat.swipe");
   expect(input).toMatchObject({ chatId: CHAT_ID, messageId: tail.id });
   expect(input).not.toHaveProperty("guided");
@@ -65,7 +65,7 @@ test("header-menu Impersonate fires chat.impersonate with NO guided object (pers
   await page.getByRole("menuitem", { name: "Impersonate" }).hover();
   await page.getByRole("menuitem", { name: "3rd person" }).click();
 
-  await expect.poll(() => trpc.count("chat.impersonate")).toBe(1);
+  await expect.poll(() => trpc.count("chat.impersonate"), { intervals: [20, 50, 100] }).toBe(1);
   const input = trpc.lastInput("chat.impersonate");
   expect(input).toMatchObject({ chatId: CHAT_ID });
   // An empty steer omits the WHOLE object — including `person`; an unsteered impersonate has no {{person}}

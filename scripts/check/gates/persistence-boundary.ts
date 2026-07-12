@@ -19,7 +19,9 @@
 //      registry entry with NO call site is RED (stale row — delete it).
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateDescriptor } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
+import { fileLoaded } from "../pass.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 
@@ -190,4 +192,103 @@ export const persistenceBoundary: Check = {
     }
     return violations;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — collect-then-judge ratchet) ────────────────────────
+// TWO arms. RAW-STORAGE (per-Identifier, file-allowlist-scoped) is incremental-safe. REGISTRY (collect
+// every persist-factory call site in `visit`, judge in `finalize`): an unregistered name is per-site
+// (emitted at visit — the name is known there); a STALE registry entry (registered but no call site) is a
+// whole-tree claim → finalize, guarded on (a) project scope and (b) the persist-factory DOOR file being
+// LOADED — a synthetic conformance/parity tree that omits the real call sites must NOT fire the name-keyed
+// stale arm (the batch-3 fileLoaded pattern, keyed to a sentinel file since the registry is name-keyed).
+// The door file is loaded on every real full-tree run, so the ratchet is preserved. Kept ALONGSIDE the
+// legacy Check.
+const PERSIST_DOOR_FILE = "packages/client/src/state/create-persisted-store.ts";
+const seenPersistNames = new Set<string>();
+
+export const gate: GateDescriptor = {
+  name: "persistence-boundary",
+  docRow: "UI-Theming-and-Content.md §12.1 (UI-Gates-and-Lessons.md §11.5)",
+  status: "active",
+  scopeSafety: "whole-project", // the registry stale arm needs the full tree
+  message: RAW_STORAGE_MESSAGE,
+  fix: "synced prefs → the server user_settings blob; device-local state → createPersistedStore/createEntityDraftStore (which force version/partialize/migrate).",
+  scanRoot: (p) => p.includes("packages/client/src/"),
+  kinds: [SyntaxKind.Identifier, SyntaxKind.CallExpression],
+  begin: () => {
+    seenPersistNames.clear();
+  },
+  visit: (node, sf, ctx) => {
+    const rel = clientRel(sf.getFilePath());
+    if (rel === undefined) {
+      return;
+    }
+    // RAW-STORAGE arm: a storage identifier outside the file allowlist.
+    if (
+      node.isKind(SyntaxKind.Identifier) &&
+      STORAGE_IDENTIFIER_RE.test(node.getText()) &&
+      !RAW_STORAGE_ALLOWLIST.has(rel)
+    ) {
+      ctx.report(node, { token: node.getText(), offset: 0 });
+      return;
+    }
+    // REGISTRY arm — collect the factory call site; an unregistered name fires here (per-site).
+    if (node.isKind(SyntaxKind.CallExpression)) {
+      const name = persistedNameOf(node);
+      if (name === undefined) {
+        return;
+      }
+      seenPersistNames.add(name);
+      if (!(name in DEVICE_LOCAL_REGISTRY)) {
+        ctx.report({
+          file: rel,
+          line: node.getStartLineNumber(),
+          column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
+          message: `${UNREGISTERED_MESSAGE_PREFIX}"${name}" — register it in scripts/check/gates/persistence-boundary.ts`,
+          token: `persist "${name}"`,
+        });
+      }
+    }
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, PERSIST_DOOR_FILE)) {
+      return; // not the real full client tree — the name-keyed stale arm would misfire (§4.4)
+    }
+    for (const registered of Object.keys(DEVICE_LOCAL_REGISTRY)) {
+      if (!seenPersistNames.has(registered)) {
+        ctx.report({
+          file: "scripts/check/gates/persistence-boundary.ts",
+          line: 1,
+          column: 0,
+          message: `${STALE_REGISTRY_MESSAGE_PREFIX}"${registered}" — scripts/check/gates/persistence-boundary.ts`,
+        });
+      }
+    }
+  },
+  mustFlag: [
+    {
+      files: 'export const x = localStorage.getItem("k");\n',
+      at: "packages/client/src/features/x/x.ts",
+      expect: { messageIncludes: "raw browser storage" },
+      why: "a raw localStorage identifier outside the persistence doors (§12.1)",
+    },
+    {
+      files: 'export const s = createPersistedStore("unregistered-name", () => ({}));\n',
+      at: "packages/client/src/state/x.ts",
+      expect: { messageIncludes: "not in DEVICE_LOCAL_REGISTRY" },
+      why: "a persisted store name not in the registry — a new device-local persist is a reviewed act",
+    },
+  ],
+  mustPass: [
+    {
+      files: 'export const x = localStorage.getItem("k");\n',
+      at: "packages/client/src/main.tsx",
+      why: "the composition root — allowlisted for raw storage (boot machinery, not app state)",
+    },
+    {
+      files: 'export const s = createPersistedStore("shell", () => ({}));\n',
+      at: "packages/client/src/state/shell-store.ts",
+      why: "a REGISTERED persisted store name (shell) — a reviewed device-local persist, passes",
+    },
+  ],
 };

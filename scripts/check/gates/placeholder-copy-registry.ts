@@ -12,6 +12,7 @@
 // entry's `title`+`description` string literals, and flags any entry whose pair duplicates an earlier one.
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Check, Violation } from "../harness.ts";
 
 const COPY_SUFFIX = "/lib/section-placeholder-copy.ts";
@@ -83,4 +84,49 @@ export const placeholderCopyRegistry: Check = {
     }
     return out;
   },
+};
+
+// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE dedup gate via visitFile) ─────────────────────────
+// The legacy predicate as a per-file hook: within each section-placeholder-copy.ts, every entry's
+// (title, description) pair must be DISTINCT (a within-file dedup — the per-file scan is the unit).
+// scanRoot mirrors the legacy COPY_SUFFIX. The duplicate-entry message varies → per-occurrence override.
+// Not fsBacked. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+export const gate: GateDescriptor = {
+  name: "placeholder-copy-registry",
+  docRow: "design-enforcement.md §3.2 (ux-flow-revamp.md J10)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message:
+    "two SECTION_PLACEHOLDER_COPY entries share the same (title, description) — every section's placeholder must be DISTINCT (the 'all sections look identical' root cause). Give each its own copy (ux-flow-revamp.md J10).",
+  fix: "give the duplicate section its own honest (title, description) placeholder copy — no two sections share a pair.",
+  scanRoot: (p) => p.endsWith("/lib/section-placeholder-copy.ts"),
+  visitFile: (sf, ctx: GateRunCtx) => {
+    const violations: Violation[] = [];
+    checkFile(sf, violations);
+    for (const v of violations) {
+      ctx.report({
+        file: v.file,
+        line: v.line,
+        column: 0,
+        message: v.message,
+        token: "duplicate pair",
+      });
+    }
+  },
+  mustFlag: [
+    {
+      files:
+        'export const SECTION_PLACEHOLDER_COPY = {\n  a: { title: "T", description: "D" },\n  b: { title: "T", description: "D" },\n};\n',
+      at: "packages/client/src/features/x/lib/section-placeholder-copy.ts",
+      why: "two entries with the SAME (title, description) — an identical-sparkle duplicate (J10)",
+    },
+  ],
+  mustPass: [
+    {
+      files:
+        'export const SECTION_PLACEHOLDER_COPY = {\n  a: { title: "T1", description: "D1" },\n  b: { title: "T2", description: "D2" },\n};\n',
+      at: "packages/client/src/features/x/lib/section-placeholder-copy.ts",
+      why: "each entry's (title, description) pair is distinct — the sanctioned honest copy, passes",
+    },
+  ],
 };

@@ -14,6 +14,11 @@ import { defineConfig, devices } from "@playwright/test";
 
 const inCI = process.env.CI !== undefined;
 
+// Opt-in gate for the ONE real-model-turn spec (start-chat-with-character, tagged `@live`): routine runs
+// EXCLUDE `@live` so `pnpm e2e` (and the CI smoke gate) never spend live model credits. Run it explicitly
+// with `E2E_LIVE=1 pnpm e2e`. `grepInvert` drops matching titles/tags from the run.
+const e2eLive = process.env.E2E_LIVE === "1";
+
 // The env pin floor — MUST match scripts/dev/stack.sh (the script `: "${VAR:=default}"`-defaults the
 // same values, so this map only matters for determinism when the invoking shell carries strays; the
 // secrets are DEV-ONLY deterministic literals, insecure by design). RUNNER_OVERRIDE is deliberately
@@ -30,9 +35,16 @@ const stackEnv = {
 export default defineConfig({
   testDir: "tests/e2e",
   testMatch: "**/*.spec.ts",
+  // Seed KNOWN DB state over the app's tRPC API before the first spec — the suite no longer depends on
+  // ambient `./orbweaver.db` drift (a wiped/latched library used to silently redden everything). Runs AFTER
+  // the webServer is up. Boot stays start-only (no seed hidden in the webServer command; setup owns it).
+  globalSetup: "./tests/e2e/support/global-setup.ts",
   outputDir: "reports/e2e-results", // reports/ is gitignored (not playwright's default repo-root dir)
   fullyParallel: false,
   workers: 1, // serial — avoids libSQL :memory: state collisions once the stack is wired
+  // Exclude the `@live` real-model-turn spec unless E2E_LIVE=1 (see e2eLive above) — the routine + CI-smoke
+  // default is model-free. `grepInvert` matches against the test title (the `@live` tag is appended to it).
+  ...(e2eLive ? {} : { grepInvert: /@live/u }),
   forbidOnly: inCI,
   retries: inCI ? 2 : 0,
   reporter: [["html", { outputFolder: "reports/e2e-report", open: "never" }]],
