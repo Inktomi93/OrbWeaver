@@ -11,8 +11,21 @@
 //   pnpm verify --list       → print every registry row (incl. manual) with its tiers/reason
 //   pnpm verify --json       → mirror reports/verify.json to stdout
 //   pnpm verify --file <p…>  → scoped to explicit paths (the check:file muscle memory)
-//   pnpm verify --package <n> / --scope <glob>  → package / folder scope
+//   pnpm verify --package <n> / --scope <glob> / --tier <name>  → package / folder / explicit-tier scope
 //   pnpm verify --strict-scope  → a whole-only stage at a scoped tier REFUSES (exit 3) instead of deferring
+//   pnpm verify --verbose    → stream each stage's full output live (default: COMPACT — a per-stage ✓/✗
+//                              line only; full output goes to the logs + json, so the console survives any
+//                              head/tail truncation; a TTY auto-enables verbose for humans)
+//
+// ARGV is parsed by node:util `parseArgs` under a STRICT schema (OPTIONS): an unknown flag, a value option
+// with no value (or a flag as its value), >1 scope selector, or >1 tier are all MISUSE (exit 3) — never a
+// silent-ignore. Both `--flag value` and `--flag=value` are handled.
+//
+// TRUNCATION-ROBUST OUTPUT (the load-bearing property): a reader who sees ONLY the first ~15 lines (the HEAD
+// banner) OR ONLY the last ~15 lines (the TAIL block) can determine PASS/FAIL, which stages failed, and that
+// reports/verify.json is the authoritative machine-readable result (verdict + per-stage status + a failure
+// excerpt) alongside reports/verify/<stage>.log. The reports pointer prints at BOTH head and tail on BOTH
+// pass and fail.
 //
 // EXIT CONTRACT (§3.3): 0 clean · 1 violations · 2 tool error · 3 misuse. Run exit = max severity over
 // stages (2 > 3 > 1 > 0). A whole-only stage the scope can't run is DEFERRED with a printed + recorded
@@ -22,6 +35,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
 import type { ScopedArgv, StageDef, Tier } from "./registry.ts";
 import { manualStages, stagesForTier } from "./registry.ts";
 import type { Selection, SelectionRequest } from "./selection.ts";
@@ -66,6 +80,9 @@ type StageResult = {
   readonly exitCode: number;
   readonly durationMs: number;
   readonly logFile: string | null;
+  /** On failure: a short tail excerpt of the stage's output (the last few non-blank lines) so a bot
+   *  reading ONLY reports/verify.json sees WHY it failed without opening the per-stage log. */
+  readonly failureExcerpt: string | null;
   /** For a deferred stage: the tier where it DOES run (so a scoped green names what it skipped). */
   readonly runsAt: string | null;
 };
@@ -75,6 +92,8 @@ type VerifyReport = {
   readonly scope: string;
   readonly ok: boolean;
   readonly exitCode: number;
+  /** The count of stages that failed (violations or tool-error) — the top-of-file verdict at a glance. */
+  readonly failed: number;
   readonly stages: readonly StageResult[];
 };
 
@@ -85,98 +104,210 @@ type Parsed = {
   readonly strictScope: boolean;
   readonly list: boolean;
   readonly json: boolean;
+  readonly verbose: boolean;
 };
-
-const TIER_FLAGS: Readonly<Record<string, Tier>> = {
-  "--changed": "changed",
-  "--static": "static",
-  "--push": "push",
-  "--full": "full",
-};
-
-/** Values after a flag that aren't themselves flags (explicit paths for --file/--changed). */
-function positionalsAfter(argv: readonly string[], flag: string): readonly string[] {
-  const i = argv.indexOf(flag);
-  if (i === -1) {
-    return [];
-  }
-  return argv.slice(i + 1).filter((a) => !a.startsWith("--"));
-}
-
-function flagValue(argv: readonly string[], flag: string): string | undefined {
-  const i = argv.indexOf(flag);
-  const v = i === -1 ? undefined : argv[i + 1];
-  // A `--`-prefixed token is the NEXT flag, not this flag's value (e.g. `--package --json`).
-  return v === undefined || v.startsWith("--") ? undefined : v;
-}
 
 const ARGV_START = 2; // process.argv[0]=node, [1]=script, actual args start at 2.
+
+// The strict option schema (node:util parseArgs, stdlib — no new dep). Every accepted flag is declared;
+// `strict:true` + `allowPositionals:true` makes an UNKNOWN flag (`--bogus`) throw → we map that to exit 3
+// (misuse), never a silent-ignore. The tier markers (--static/--push/--full/--changed) and the value
+// selectors (--package/--scope/--tier) live here; --file/--changed's PATHS arrive as positionals (only one
+// scope selector is legal at a time, so a trailing `a b` unambiguously belongs to whichever is present).
+const OPTIONS = {
+  // scope selectors that take a value:
+  package: { type: "string" },
+  scope: { type: "string" },
+  tier: { type: "string" },
+  // scope-selector markers whose paths come from positionals:
+  file: { type: "boolean" },
+  changed: { type: "boolean" },
+  // tier markers (bare, no value):
+  static: { type: "boolean" },
+  push: { type: "boolean" },
+  full: { type: "boolean" },
+  // run-shaping booleans:
+  "strict-scope": { type: "boolean" },
+  json: { type: "boolean" },
+  list: { type: "boolean" },
+  verbose: { type: "boolean" }, // stream each stage's full output live (default: compact — logs+json only)
+} as const;
+
+// The value-taking string options — a flag that must NOT swallow the NEXT flag as its value. parseArgs
+// happily reads `--package --json` as package="--json"; we reject a value that is itself a flag (exit 3).
+const VALUE_OPTIONS = new Set(["package", "scope", "tier"]);
+
+/** A --tier <name> value must name a real, non-manual tier. */
+const RUNNABLE_TIERS: ReadonlySet<Tier> = new Set<Tier>(["changed", "static", "push", "full"]);
+
+type ParsedValues = {
+  readonly package?: string;
+  readonly scope?: string;
+  readonly tier?: string;
+  readonly file?: boolean;
+  readonly changed?: boolean;
+  readonly static?: boolean;
+  readonly push?: boolean;
+  readonly full?: boolean;
+  readonly "strict-scope"?: boolean;
+  readonly json?: boolean;
+  readonly list?: boolean;
+  readonly verbose?: boolean;
+};
+
+/** parseArgs, but any throw (unknown flag, missing value, dangling `=`) is turned into our misuse error —
+ *  parseArgs already covers UNKNOWN flags and `--opt=` shapes; we ONLY add the flag-as-value guard below. */
+function parseStrict(
+  argv: readonly string[],
+):
+  | { readonly values: ParsedValues; readonly positionals: readonly string[] }
+  | { readonly error: string } {
+  // Guard the `--valueOption --nextFlag` footgun BEFORE parseArgs consumes the flag as a value. A value
+  // given inline (`--package=db`) is fine; the hazard is only the space-separated `--package --json` form.
+  for (let i = 0; i < argv.length; i += 1) {
+    const tok = argv[i];
+    if (tok === undefined || !tok.startsWith("--") || tok.includes("=")) {
+      continue;
+    }
+    const name = tok.slice(2);
+    if (VALUE_OPTIONS.has(name)) {
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith("--")) {
+        return { error: `--${name} needs a value` };
+      }
+    }
+  }
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      options: OPTIONS,
+      strict: true,
+      allowPositionals: true,
+    });
+    return { values: values as ParsedValues, positionals };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Which single scope selector is present (0 ⇒ whole scope; >1 ⇒ misuse). */
+function scopeSelectorCount(v: ParsedValues): number {
+  return [v.file, v.changed, v.package !== undefined, v.scope !== undefined].filter(Boolean).length;
+}
 
 /** No scope flag → whole scope. A distinct sentinel (not `undefined`) so the resolver stays total. */
 const WHOLE_SCOPE = { none: true } as const;
 type ScopeResult = SelectionRequest | typeof WHOLE_SCOPE | { readonly error: string };
 
-/** Resolve the ONE scope request from the flags, WHOLE_SCOPE for none, or an error string. */
-function scopeRequest(argv: readonly string[]): ScopeResult {
-  const hasFile = argv.includes("--file");
-  const hasChanged = argv.includes("--changed");
-  const hasPkg = argv.includes("--package");
-  const hasScope = argv.includes("--scope");
-  const pkg = flagValue(argv, "--package");
-  const scope = flagValue(argv, "--scope");
-  const selectors = [hasFile, hasChanged, hasPkg, hasScope].filter(Boolean).length;
-  if (selectors === 0) {
-    return WHOLE_SCOPE;
+/** The --file branch: ≥1 positional path, all under the repo + existing (the check:file muscle memory). */
+function fileRequest(
+  positionals: readonly string[],
+): SelectionRequest | { readonly error: string } {
+  if (positionals.length === 0) {
+    return { error: "--file needs at least one path" };
   }
-  if (selectors > 1) {
-    return { error: "at most one of --changed / --file / --package / --scope" };
+  const bad = badPaths(positionals);
+  if (bad.length > 0) {
+    return { error: `not under the repo or nonexistent: ${bad.join(", ")}` };
   }
-  if (hasFile) {
-    const paths = positionalsAfter(argv, "--file");
-    if (paths.length === 0) {
-      return { error: "--file needs at least one path" };
-    }
-    const bad = badPaths(paths);
-    if (bad.length > 0) {
-      return { error: `not under the repo or nonexistent: ${bad.join(", ")}` };
-    }
-    return { kind: "file", paths };
-  }
-  if (hasChanged) {
-    return { kind: "changed", paths: positionalsAfter(argv, "--changed") };
-  }
-  if (hasPkg) {
-    return pkg === undefined || pkg.length === 0
-      ? { error: "--package needs a name" }
-      : { kind: "package", name: pkg };
-  }
-  return scope === undefined || scope.length === 0
-    ? { error: "--scope needs a folder glob" }
-    : { kind: "scope", glob: scope };
+  return { kind: "file", paths: positionals };
 }
 
-/** The tier for a run: an explicit --tier flag wins; else a scope flag implies `changed`; else `static`. */
-function tierFor(argv: readonly string[], scoped: boolean): Tier {
-  for (const [flag, tier] of Object.entries(TIER_FLAGS)) {
-    if (argv.includes(flag)) {
-      return tier;
+/** The --changed branch: `--changed git` (or bare) = git diff vs HEAD; other positionals = explicit paths. */
+function changedRequest(positionals: readonly string[]): SelectionRequest {
+  const paths = positionals.length === 1 && positionals[0] === "git" ? [] : positionals;
+  return { kind: "changed", paths };
+}
+
+/** Resolve the ONE scope request from the parsed flags + positionals, WHOLE_SCOPE for none, or an error. */
+function scopeRequest(v: ParsedValues, positionals: readonly string[]): ScopeResult {
+  const count = scopeSelectorCount(v);
+  if (count === 0) {
+    // Bare positionals with no scope selector are meaningless — reject rather than silently drop them.
+    return positionals.length > 0
+      ? {
+          error: `unexpected argument(s): ${positionals.join(" ")} (did you mean --file / --changed?)`,
+        }
+      : WHOLE_SCOPE;
+  }
+  if (count > 1) {
+    return { error: "at most one of --changed / --file / --package / --scope" };
+  }
+  if (v.file === true) {
+    return fileRequest(positionals);
+  }
+  if (v.changed === true) {
+    return changedRequest(positionals);
+  }
+  if (v.package !== undefined) {
+    return v.package.length === 0
+      ? { error: "--package needs a name" }
+      : { kind: "package", name: v.package };
+  }
+  const glob = v.scope ?? "";
+  return glob.length === 0 ? { error: "--scope needs a folder glob" } : { kind: "scope", glob };
+}
+
+// The bare tier markers, in registry order. `--changed` doubles as BOTH a scope selector AND its own
+// (inner-loop) tier, so it lives here too.
+const TIER_MARKERS: readonly (readonly [keyof ParsedValues, Tier])[] = [
+  ["changed", "changed"],
+  ["static", "static"],
+  ["push", "push"],
+  ["full", "full"],
+];
+
+/** The tier for a run: an explicit --tier <name> or a bare tier marker wins; else a scope flag implies
+ *  `changed`; else `static`. A run may name AT MOST ONE distinct tier. */
+function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: string } {
+  const named = new Set<Tier>();
+  for (const [key, tier] of TIER_MARKERS) {
+    if (v[key] === true) {
+      named.add(tier);
     }
+  }
+  if (v.tier !== undefined) {
+    if (!RUNNABLE_TIERS.has(v.tier as Tier)) {
+      return { error: `--tier must be one of changed / static / push / full (got "${v.tier}")` };
+    }
+    named.add(v.tier as Tier);
+  }
+  if (named.size > 1) {
+    return { error: `at most one tier: got ${[...named].join(" ")}` };
+  }
+  for (const sole of named) {
+    return sole;
   }
   return scoped ? "changed" : "static";
 }
 
-function parse(argv: readonly string[]): Parsed | { readonly error: string } {
-  const list = argv.includes("--list");
-  const json = argv.includes("--json");
-  const strictScope = argv.includes("--strict-scope");
-  const req = scopeRequest(argv);
+/** Parse argv into a run plan or a misuse error. Exported for the exit-code matrix unit test — a returned
+ *  `{ error }` is what `main()` maps to exit 3 (misuse); a `Parsed` is what runs. */
+export function parse(argv: readonly string[]): Parsed | { readonly error: string } {
+  const parsedArgs = parseStrict(argv);
+  if ("error" in parsedArgs) {
+    return { error: parsedArgs.error };
+  }
+  const { values, positionals } = parsedArgs;
+  const req = scopeRequest(values, positionals);
   if ("error" in req) {
     return { error: req.error };
   }
-  if ("none" in req) {
-    return { tier: tierFor(argv, false), selection: undefined, strictScope, list, json };
+  const scoped = !("none" in req);
+  const tier = tierFor(values, scoped);
+  if (typeof tier === "object") {
+    return { error: tier.error };
   }
-  return { tier: tierFor(argv, true), selection: resolveSelection(req), strictScope, list, json };
+  const strictScope = values["strict-scope"] === true;
+  const list = values.list === true;
+  const json = values.json === true;
+  // Compact console is the DEFAULT (truncation-robust: the whole console fits, no live stage stream to
+  // scroll the verdict away). A human on a TTY, or an explicit --verbose, gets the live stream.
+  const verbose = values.verbose === true || process.stdout.isTTY === true;
+  if ("none" in req) {
+    return { tier, selection: undefined, strictScope, list, json, verbose };
+  }
+  return { tier, selection: resolveSelection(req), strictScope, list, json, verbose };
 }
 
 // ── the run ─────────────────────────────────────────────────────────────────────────────────────────
@@ -230,7 +361,22 @@ function resolveBin(root: string, cmd: string): string {
   return PATH_RESOLVED.has(cmd) ? cmd : join(root, "node_modules", ".bin", cmd);
 }
 
-function runOneStage(root: string, stage: StageDef, selection: Selection | undefined): StageResult {
+const EXCERPT_LINES = 8; // failure excerpt: the last N non-blank output lines (where tools print the verdict).
+
+/** The tail of a failed stage's output — the last few non-blank lines, where tsc/biome/vitest/playwright
+ *  print their error summary. Lands in reports/verify.json + the tail console block so a bot never has to
+ *  open the per-stage log to learn WHY a stage failed. */
+function failureExcerpt(output: string): string {
+  const lines = output.split("\n").filter((l) => l.trim().length > 0);
+  return lines.slice(-EXCERPT_LINES).join("\n");
+}
+
+function runOneStage(
+  root: string,
+  stage: StageDef,
+  selection: Selection | undefined,
+  verbose: boolean,
+): StageResult {
   const plan = planStage(stage, selection);
   if (plan.mode === "deferred" || plan.mode === "skipped") {
     return {
@@ -241,12 +387,17 @@ function runOneStage(root: string, stage: StageDef, selection: Selection | undef
       exitCode: EXIT_CLEAN,
       durationMs: 0,
       logFile: null,
+      failureExcerpt: null,
       runsAt: plan.runsAt,
     };
   }
   const argv = plan.argv as readonly [string, ...string[]];
   const header = `\n=== ${stage.name} (${argv.join(" ")})${plan.mode === "scoped" ? " [scoped]" : ""} ===\n`;
-  process.stdout.write(header);
+  // Compact mode (default): the full stage output goes to the per-stage log + json ONLY — the console stays
+  // short enough to survive any head/tail. Verbose (TTY / --verbose): stream the header + output live.
+  if (verbose) {
+    process.stdout.write(header);
+  }
 
   const start = Date.now();
   const [cmd, ...args] = argv;
@@ -260,20 +411,41 @@ function runOneStage(root: string, stage: StageDef, selection: Selection | undef
   });
   const durationMs = Date.now() - start;
 
-  process.stdout.write(result.stdout ?? "");
-  process.stderr.write(result.stderr ?? "");
+  const body = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  if (verbose) {
+    process.stdout.write(result.stdout ?? "");
+    process.stderr.write(result.stderr ?? "");
+  }
   const logFile = logPathFor(stage.name);
-  writeFileSync(join(root, logFile), `${header}${result.stdout ?? ""}${result.stderr ?? ""}`);
+  writeFileSync(join(root, logFile), `${header}${body}`);
 
   const exitCode = stage.classify(result.status);
+  const ok = exitCode === EXIT_CLEAN;
+  const line = stageLine({
+    name: stage.name,
+    group: stage.group,
+    mode: plan.mode,
+    ok,
+    exitCode,
+    durationMs,
+    logFile,
+    failureExcerpt: null,
+    runsAt: null,
+  });
+  // In compact mode, emit the per-stage ✓/✗ line the instant the stage finishes — the reader watches
+  // progress accrue without the full output. (Verbose already streamed it; the summary block repeats it.)
+  if (!verbose) {
+    process.stdout.write(`${line}\n`);
+  }
   return {
     name: stage.name,
     group: stage.group,
     mode: plan.mode,
-    ok: exitCode === EXIT_CLEAN,
+    ok,
     exitCode,
     durationMs,
     logFile,
+    failureExcerpt: ok ? null : failureExcerpt(body),
     runsAt: null,
   };
 }
@@ -307,23 +479,44 @@ function stageLine(r: StageResult): string {
   return `${stageMark(r)} ${r.name} (${r.durationMs}ms)${scope}${tag}`;
 }
 
+const FAIL_KIND: Readonly<Record<number, string>> = {
+  [EXIT_TOOL_ERROR]: "TOOL-ERROR",
+  [EXIT_MISUSE]: "REFUSED (strict-scope)",
+  [EXIT_VIOLATIONS]: "violations",
+};
+
+/** A one-line failure reason for a stage — the classifier verdict + its log path, for the tail block. */
+function failReason(r: StageResult): string {
+  const kind = FAIL_KIND[r.exitCode] ?? "violations";
+  const where = r.logFile ?? "(no log — did not run)";
+  return `  ✗ ${r.name} — ${kind} · ${where}`;
+}
+
+/** The TAIL block — the load-bearing truncation-robust output. A reader who sees ONLY the last ~15 lines
+ *  MUST be able to determine PASS/FAIL, which stages failed, and that reports/verify.json is authoritative.
+ *  The verdict + pointer print on BOTH pass and fail; on fail, every failing stage names its log inline. */
 function printSummary(report: VerifyReport): void {
   process.stdout.write(`\n=== verify summary (tier: ${report.tier}, scope: ${report.scope}) ===\n`);
   for (const r of report.stages) {
     process.stdout.write(`${stageLine(r)}\n`);
   }
   const failed = report.stages.filter((s) => !s.ok);
+  process.stdout.write("\n════════════════════════════════════════════════════════════════════\n");
   if (report.ok) {
-    process.stdout.write("\nverify: PASS (0) — all stages clean\n");
+    process.stdout.write("[verify] VERDICT: PASS (exit 0) — all stages clean\n");
   } else {
-    const logs = failed
-      .filter((s) => s.logFile !== null)
-      .map((s) => s.logFile)
-      .join(" · ");
     process.stdout.write(
-      `\nverify: FAIL (${report.exitCode}) — ${failed.map((s) => s.name).join(", ")}${logs ? ` · detail: ${logs}` : ""} · json: reports/verify.json\n`,
+      `[verify] VERDICT: FAIL (exit ${report.exitCode}) — ${failed.length} stage(s) failed:\n`,
     );
+    for (const r of failed) {
+      process.stdout.write(`${failReason(r)}\n`);
+    }
   }
+  // The pointer is printed on BOTH pass and fail — a tailing reader always lands on where to read next.
+  process.stdout.write(
+    "[verify] AUTHORITATIVE RESULT → reports/verify.json · per-stage logs → reports/verify/<stage>.log\n",
+  );
+  process.stdout.write("════════════════════════════════════════════════════════════════════\n");
 }
 
 function printList(): void {
@@ -343,11 +536,26 @@ function printList(): void {
   }
 }
 
+/** The HEAD banner — printed before any stage runs, so a reader who sees ONLY the first ~15 lines learns
+ *  (a) a verify run is in progress + its tier/scope, and (b) that the authoritative result is
+ *  reports/verify.json + reports/verify/<stage>.log. The verdict itself lands in the TAIL block. */
+function printHeadBanner(tier: Tier, scope: string): void {
+  process.stdout.write(
+    [
+      "════════════════════════════════════════════════════════════════════",
+      `[verify] RUNNING · tier=${tier} · scope=${scope}`,
+      "[verify] AUTHORITATIVE RESULT → reports/verify.json (read this file — it has the verdict,",
+      "[verify]   per-stage status, and a failure excerpt) · per-stage logs → reports/verify/<stage>.log",
+      "[verify] verdict + failing stages are repeated at the TAIL of this output.",
+      "════════════════════════════════════════════════════════════════════",
+      "",
+    ].join("\n"),
+  );
+}
+
 function runTier(root: string, parsed: Parsed): VerifyReport {
   mkdirSync(join(root, "reports", "verify"), { recursive: true });
-  process.stdout.write(
-    `[verify] tier=${parsed.tier} scope=${parsed.selection?.label ?? "whole"} · logs → reports/verify/<stage>.log · json → reports/verify.json\n`,
-  );
+  printHeadBanner(parsed.tier, parsed.selection?.label ?? "whole");
 
   const stages = stagesForTier(parsed.tier);
   const results: StageResult[] = [];
@@ -363,11 +571,12 @@ function runTier(root: string, parsed: Parsed): VerifyReport {
         exitCode: EXIT_MISUSE,
         durationMs: 0,
         logFile: null,
+        failureExcerpt: null,
         runsAt: plan.runsAt,
       });
       continue;
     }
-    results.push(runOneStage(root, stage, parsed.selection));
+    results.push(runOneStage(root, stage, parsed.selection, parsed.verbose));
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));
@@ -376,6 +585,7 @@ function runTier(root: string, parsed: Parsed): VerifyReport {
     scope: parsed.selection?.label ?? "whole",
     ok: exitCode === EXIT_CLEAN,
     exitCode,
+    failed: results.filter((s) => !s.ok).length,
     stages: results,
   };
 }

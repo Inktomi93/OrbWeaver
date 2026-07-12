@@ -34,10 +34,13 @@ SRC="$(cd "$(dirname "$0")/../.." && pwd)"
 DST="${ORB_MUTATION_DIR:-/tmp/orb-mutation}"
 CONFIG="${1:-stryker.config.json}"
 
-if [ "$DST" = "$SRC" ]; then
-  echo "mutation: ORB_MUTATION_DIR must NOT be the working tree ($SRC)" >&2
-  exit 1
-fi
+# Refuse a copy dir that IS or is INSIDE the working tree — `--inPlace` there would mutate real files.
+case "$DST" in
+  "$SRC" | "$SRC"/*)
+    echo "mutation: ORB_MUTATION_DIR must be OUTSIDE the working tree ($SRC), got $DST" >&2
+    exit 1
+    ;;
+esac
 
 finish() {
   # Bring results into the working tree's reports/ even on a non-zero exit (e.g. break threshold).
@@ -70,6 +73,12 @@ cd "$DST" || exit 1
 echo "mutation: running stryker --inPlace inside the copy (your working tree is untouched)…"
 # --inPlace is supplied HERE, never baked into the committed config — so a bare `stryker run` in the real
 # repo can never mutate it in place.
+# Belt-and-suspenders: --inPlace mutates the CWD's real files, so refuse unless CWD is the disposable copy.
+# A broken cd/guard above can then NEVER let --inPlace loose in the working tree.
+if [ "$PWD" != "$DST" ] || [ "$PWD" = "$SRC" ]; then
+  echo "mutation: ABORT — cwd '$PWD' is not the disposable copy ($DST); refusing --inPlace" >&2
+  exit 1
+fi
 node_modules/.bin/stryker run "$CONFIG" --inPlace "${@:2}"
 status=$?
 echo "mutation: report → $SRC/reports/mutation/  (exit $status)"
