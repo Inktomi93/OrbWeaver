@@ -20,6 +20,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useRef } from "react";
+import { preload } from "react-dom";
 import type { ModalSlotId, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
@@ -101,6 +102,7 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
       justify: appearance.justifyBodyText,
     },
     themeColorization: appearance.enableThemeColorization,
+    surfaceTexture: appearance.surfaceTexture,
   });
   // The theme's optional density/chatStyle WIN over the appearance base (themes-design §3.4 overlap LEAN);
   // resolve density here (shell.css consumes data-density). A compact override tightens spacing tokens
@@ -109,6 +111,14 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
   // D63 (amends D49 §3) — the app background image is now an `appearance` setting (palette-independent),
   // resolved from its flat fields to the URL the dedicated root layer paints.
   const bgUrl = resolveBackgroundUrl(appearance);
+  // Preload the background photo (motion audit P2 / react.dom `preload`) — `<ThemeBackgroundLayer>` paints
+  // it as a CSS `background-image`, which the browser wouldn't fetch until the layer paints, so on boot (or
+  // an image switch) the photo popped in whenever fetch+decode finished. `preload(url,{as:"image"})` warms
+  // the fetch during render so the layer paints from cache — the last pop-in the effects work hadn't closed
+  // (seed/gallery images already ride CrossfadeImage). Idempotent + safe during render (react.dom contract).
+  if (bgUrl !== null) {
+    preload(bgUrl, { as: "image" });
+  }
   // `.shell-grid`'s own opaque `--color-background` paint must step aside for the image to show through
   // ANYWHERE (gaps + any opted-in glass surface) — gated on the SAME resolved outcome the layer uses.
   const hasBgImage = bgUrl !== null;
@@ -267,14 +277,20 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
               </RegionAnchor>
             </PanelChrome>
 
-            {layout.scrimVisible ? (
-              <button
-                type="button"
-                className="shell-scrim"
-                aria-label="Dismiss panel"
-                onClick={dismissOverlays}
-              />
-            ) : null}
+            {/* The dismiss scrim stays MOUNTED and fades via `data-visible` (motion audit D2) — a
+                conditional mount would hard-cut it to 0ms on close while the panel it dims still slides
+                out over `--shell-motion` (the corpus desync class, in miniature). Mounted-always +
+                opacity transition = it fades WITH the panel. `data-visible=false` also zeroes its
+                pointer-events (shell.css) so the hidden scrim never eats clicks on the live content. */}
+            <button
+              type="button"
+              className="shell-scrim"
+              data-visible={layout.scrimVisible}
+              aria-hidden={!layout.scrimVisible}
+              tabIndex={layout.scrimVisible ? 0 : -1}
+              aria-label="Dismiss panel"
+              onClick={dismissOverlays}
+            />
 
             <ModalHost
               openModal={layout.openModalId}

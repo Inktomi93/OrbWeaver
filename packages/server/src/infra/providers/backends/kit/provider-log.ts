@@ -13,6 +13,8 @@
 // DOCTRINE (Tier-2-Foundation esoteric #12): logs are METADATA — ids, counts, classifications, model
 // names, timings. NEVER prompt / RP / system-prompt content on a `provider.*` line; every field is metadata.
 
+import type { ChatApi } from "@orb/contracts/connection";
+import type { CredentialSource } from "@orb/contracts/credentials";
 import { getLog } from "#foundation/observability";
 
 /** The pino levels a `provider.*` event can ride — the axis declared once as a tuple (Spine §7.5), the type
@@ -53,6 +55,10 @@ export interface ProviderTurnUsage {
  *  spiked `cacheWriteTokens` IS the ~12.7k-token re-bill, visible in one grep. Metadata only. Shared so the
  *  openrouter + anth-direct runners emit the identical shape from their own wire dialects. */
 export interface ProviderCacheLog {
+  /** the per-turn correlation id (part 05 §4) — isolates this turn's cache→channel→sampling→capability
+   *  chain within a busy request; ADDITIVE to the existing `requestId` correlation. Read off the same
+   *  `ResolvedChatKnobs` every provider.* emit site already has. */
+  readonly turnId: string;
   /** tokens served from cache this turn. */
   readonly cacheReadTokens: number;
   /** tokens billed to WRITE the cache this turn. */
@@ -88,6 +94,8 @@ export interface ProviderSamplingDrop {
  *  invisible. Values are user-authored generation settings (not secrets / RP content) — allowed (part 05 §5).
  *  Shared so the OR chat-completions + responses runners emit the identical shape. */
 export interface ProviderSamplingLog {
+  /** the per-turn correlation id (part 05 §4) — same purpose as {@link ProviderCacheLog.turnId}. */
+  readonly turnId: string;
   /** the sampling knobs the user set going in (raw `UserIntent` values, pre-gate). */
   readonly requested: Record<string, unknown>;
   /** the knobs that reached the wire (the funnel's `ResolvedSampling` + a resolved verbosity). */
@@ -103,8 +111,59 @@ export interface ProviderSamplingLog {
  *  model-deprecated" (part 03 §3) — no 400, reason on record. */
 export function logProviderSampling(backend: string, entry: ProviderSamplingLog): void {
   providerLog(backend, "debug", "provider.sampling", {
+    turnId: entry.turnId,
     requested: entry.requested,
     applied: entry.applied,
     dropped: [...entry.dropped],
+  });
+}
+
+/** One funnel-dropped warning, folded onto `provider.capability` (part 05 §3c): the machine-dispatchable
+ *  `code` (`WarningCode`) + the human `message` — the SAME `ResolvedWarning[]` already surfaced as
+ *  `ChatEvent`s, now ALSO on a log line so a drop is greppable after the fact. */
+export interface ProviderCapabilityDrop {
+  readonly code: string;
+  readonly message: string;
+}
+
+/** The `provider.capability` resolution line (part 05 §3c) — the `(model × wire-shape)` cell the funnel
+ *  resolved, plus every dropped/ignored knob. NO `wireShape` string is materialized here (that stays
+ *  resolver-internal, domain-only — the anti-ST bar): `api` + `credentialSource` are REPORT-ONLY fields
+ *  that are together information-equivalent to `deriveWireShape(api, source)` (a pure fn of the two,
+ *  domain-side), the SAME vocab `provider.turn` already reports (part 05 §3e) — reporting the inputs is
+ *  not re-deriving or branching on them. `turns` is the resolved capability cell. Metadata only — model
+ *  ids/flags/warning codes, never prompt content. */
+export interface ProviderCapabilityLog {
+  /** the per-turn correlation id (part 05 §4) — same purpose as {@link ProviderCacheLog.turnId}. */
+  readonly turnId: string;
+  /** the protocol axis (`agent-sdk` / `chat-completions` / `responses` / `anthropic-messages`) — REPORT-
+   *  ONLY, read off the request the runner already holds; never branched on at the emit site. */
+  readonly api: ChatApi;
+  /** the provider-source axis (the sub-vs-key canary) — REPORT-ONLY, same vocab `provider.turn` already
+   *  carries as `credentialSource` (part 05 §3e). */
+  readonly credentialSource: CredentialSource;
+  /** the model id the caller requested. */
+  readonly requestedModel: string;
+  /** the model id actually served, when it differs from `requestedModel` (a fallback/alias resolution). */
+  readonly servedModel?: string;
+  /** the resolved `(model × wire-shape)` turns cell — the capability flags that gated this turn. */
+  readonly turns: Record<string, unknown>;
+  /** every funnel drop for this turn (`sampling_knob_dropped`, `effort_dropped`, `display_dropped`,
+   *  `adaptive_budget_dropped`, `verbosity_dropped`, `dynamic_context_demoted`). */
+  readonly droppedWarnings: readonly ProviderCapabilityDrop[];
+}
+
+/** Emit the per-turn `provider.capability` resolution line (`debug` — opt-in). One DECOUPLED emitter
+ *  (part 05 §1): every field is a RESOLVED/REPORTED fact the caller already has (`api`/`credentialSource`
+ *  off the request, the resolved turns cell, the funnel's warnings) — no model-id / wire branch here. */
+export function logProviderCapability(backend: string, entry: ProviderCapabilityLog): void {
+  providerLog(backend, "debug", "provider.capability", {
+    turnId: entry.turnId,
+    api: entry.api,
+    credentialSource: entry.credentialSource,
+    requestedModel: entry.requestedModel,
+    ...(entry.servedModel !== undefined ? { servedModel: entry.servedModel } : {}),
+    turns: entry.turns,
+    droppedWarnings: [...entry.droppedWarnings],
   });
 }

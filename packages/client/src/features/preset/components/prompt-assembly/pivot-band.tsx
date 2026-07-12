@@ -33,7 +33,7 @@ export function PivotBand({ form, index, duplicate }: PivotBandProps): ReactElem
         gap="row"
         align="center"
         padding="row"
-        className="rounded-md border border-warning bg-warning/10"
+        className="rounded-card border border-warning bg-warning/10"
       >
         <Icon icon={AlertTriangle} size="sm" />
         <Text size="micro" tone="warning" className="flex-1">
@@ -44,7 +44,7 @@ export function PivotBand({ form, index, duplicate }: PivotBandProps): ReactElem
   }
 
   return (
-    <Stack gap="field" className="rounded-md border border-border bg-accent/40 p-row">
+    <Stack gap="field" className="rounded-card border border-border bg-accent/40 p-row">
       <Text size="micro" tone="muted" transform="caps">
         setup · sent before the conversation
       </Text>

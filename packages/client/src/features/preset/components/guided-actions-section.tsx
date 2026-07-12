@@ -139,7 +139,7 @@ function GuidedActionCard({
   const factoryDefault = DEFAULT_GUIDED_ACTIONS[kind].prompt;
 
   return (
-    <Stack gap="field" padding="field" className="rounded-md border border-border bg-card">
+    <Stack gap="field" padding="field" className="rounded-card border border-border bg-card">
       <Row gap="field" align="center" justify="between">
         <Text size="body" weight="medium">
           {copy.title}

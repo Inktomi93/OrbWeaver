@@ -243,7 +243,10 @@ export function Composer({
           // token's own alpha down (`/60`); hover/focus restore its full authored alpha + upgrade the
           // border from `border-border` to the more-opaque `border-input` token; focus additionally adds
           // the existing ring. Text/placeholder color is never touched by any step.
-          className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-input/60 px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-input focus-within:border-input focus-within:bg-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+          // focus-within additionally paints the one rationed Ember glow (--shadow-glow) — the composer
+          // gaining focus is the "you're about to write" moment that accent halo is reserved for (DESIGN.md
+          // §5). Static (no new motion); the existing color transition already covers the border/bg step.
+          className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-input/60 px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-input focus-within:border-input focus-within:bg-input focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
         >
           <ComposerWand
             handle={handle}

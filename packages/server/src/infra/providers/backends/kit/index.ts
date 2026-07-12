@@ -34,12 +34,15 @@ export * from "./openai-compat";
 // ── The shared `provider.*` structured-log sink (hoisted from agent-sdk; per-call `backend` tag) ─────
 export type {
   ProviderCacheLog,
+  ProviderCapabilityDrop,
+  ProviderCapabilityLog,
   ProviderSamplingDrop,
   ProviderSamplingLog,
   ProviderTurnUsage,
 } from "./provider-log";
 export {
   logProviderCache,
+  logProviderCapability,
   logProviderSampling,
   PROVIDER_LOG_LEVELS,
   providerLog,

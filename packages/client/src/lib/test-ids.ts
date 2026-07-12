@@ -17,7 +17,6 @@ export const TEST_IDS = {
   firstRunPersonaDialog: "first-run-persona-dialog",
   firstRunPersonaName: "first-run-persona-name",
   firstRunPersonaCreate: "first-run-persona-create",
-  adminPage: "admin-page",
   adminUsersSection: "admin-users-section",
   adminCreateUserButton: "admin-create-user",
   adminCreateUserDialog: "admin-create-user-dialog",

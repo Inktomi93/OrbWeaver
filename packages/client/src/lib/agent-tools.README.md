@@ -10,11 +10,13 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 
 | Call | Returns |
 | --- | --- |
-| `__orb.snap()` | one-call overview: `{ ready, shell, bus, queries, perf, renders }` |
+| `__orb.snap()` | one-call overview: `{ ready, shell, bus, queries, perf, renders, motion }` |
 | `__orb.queries()` | the full TanStack Query cache: `{ key, status, fetch, stale, updatedAt }[]` |
 | `__orb.bus()` | chat-bus: `{ live, events }` — live subscription count + the recent canon-event ring |
 | `__orb.perf()` | the `orb:*` User Timing measures: `{ name, ms }[]` (app-ready; turn TTFT/latency when wired) |
 | `__orb.renders()` | the render heatmap: per-surface `{ id, count, mounts, updates, totalMs, avgMs, maxMs }`, hottest-first |
+| `__orb.motion()` | LoAF ring + jank numbers: `{ loafs: { startTime, duration, blockingDuration, styleAndLayoutStart, scripts }[], cls, worstBlocking, worstShift }` — `styleAndLayoutStart>0` = style/layout ran in-frame (jank tell) |
+| `__orb.animations()` | active animations: `{ id?, target, properties, compositorClean }[]` — `compositorClean:false` (animating a non-transform/opacity/filter prop) = per-frame-layout jank risk |
 | `__orb.shell()` | DOM-derived shell state: active section, panel modes, `chatOpen` |
 | `__orb.ready` / `.isReady()` | a promise / bool for "hydrated + initial reads settled" |
 
@@ -65,5 +67,6 @@ Zustand stores carry the `devtools` middleware → visible in Redux DevTools.
 ## Probes (`scripts/probes/`, run against `pnpm stack`)
 
 `pnpm snap <route>` (headless screenshot + aria/console/network/deadcss; default-waits on
-`data-app-ready`) · `pnpm perf-meter` (per-step responsiveness) · `pnpm record` (gifs) ·
+`data-app-ready`) · `pnpm perf-meter` (per-step responsiveness) · `pnpm motion-audit` (smoothness
+ground-truth: LoAF/CLS/compositor-clean + CDP dropped-frame %) · `pnpm record` (gifs) ·
 `trace:render/tail/fire` · `sse-tap`.

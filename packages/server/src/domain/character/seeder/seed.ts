@@ -59,10 +59,23 @@ export function createDefaultCharacterSeeder(
    *  `handle_conflict` (resolve the existing id instead of failing). The tag attach is idempotent + never
    *  downgrades an accepted row, so attaching on a resolved (re-run) id is safe. Any non-conflict create error
    *  rethrows so the latch is NOT set and the next touch retries. */
+  /** Store the bundled avatar art (when the pack ships one for this handle) → the create input WITH
+   *  `avatarAssetId` set, so the card is born with art (no post-create relink). A missing op / null result
+   *  returns the input unchanged (avatar-less, prior behavior). Extracted to keep `seedCard` under the
+   *  cognitive-complexity gate. */
+  async function createCardInput(principal: Principal, card: SeedCard): Promise<SeedCard["input"]> {
+    if (deps.storeAvatar === undefined) {
+      return card.input;
+    }
+    const avatarAssetId = await deps.storeAvatar(principal, card.input.handle);
+    return avatarAssetId !== null ? { ...card.input, avatarAssetId } : card.input;
+  }
+
   async function seedCard(principal: Principal, card: SeedCard): Promise<CardOutcome> {
     let outcome: CardOutcome;
     try {
-      const detail = await deps.characters.create({ principal, input: card.input });
+      const input = await createCardInput(principal, card);
+      const detail = await deps.characters.create({ principal, input });
       outcome = { id: detail.id, created: true };
     } catch (err) {
       if (!(err instanceof CharacterOperationError) || err.code !== CHARACTER_HANDLE_CONFLICT) {
@@ -79,6 +92,11 @@ export function createDefaultCharacterSeeder(
         // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; the tag lists are short.
         await deps.attachCardTag({ ownerId: principal.userId, characterId: outcome.id, tagName });
       }
+    }
+    // Seed the starter gallery ONLY for a freshly-created card (a resolved/re-run row keeps whatever the user
+    // has). Idempotent by contract; failures are swallowed so a gallery seed never breaks the card seed.
+    if (outcome.created && outcome.id !== null && deps.seedGallery !== undefined) {
+      await deps.seedGallery(principal, outcome.id, card.input.handle);
     }
     return outcome;
   }

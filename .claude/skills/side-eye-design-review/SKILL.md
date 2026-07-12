@@ -64,8 +64,18 @@ Orbweaver constitution. A checklist you APPLY. When a finding breaks one of thes
 - Intentional, not a uniform section-fade reflex. Ease-out exponential (quart/quint/expo); no bounce/
   elastic. Don't animate layout properties; don't gate content visibility on a class-triggered
   transition (never fires on hidden tabs / headless → section ships blank).
-- **`@media (prefers-reduced-motion: reduce)` is mandatory** for every animation.
+- **`@media (prefers-reduced-motion: reduce)` is mandatory** for every animation. (This app has a
+  GLOBAL killer in `packages/ui/src/styles/globals.css` — `*{transition-duration:.01ms!important}` under
+  reduce — so any new transition is auto-covered; a NEW keyframe animation still needs its own opt-out.)
 - Never animate an `<img>` on hover (pure AI tell).
+- **Coordinated motion — the DESYNC trap (a `__orb.motion()` blind spot).** When an element slides/
+  transforms, the layout it DISPLACES must move in sync (same duration/easing) or be instant — a HYBRID
+  (an element gliding over `--motion-base` while the track/space it vacated snaps in `0s`) makes content
+  POP while the element glides = jank. `__orb.motion()` will NOT flag this — it drops no frame, it's a
+  visual desync — so verify `transition-duration` PARITY between the moving element and the container/
+  track/sibling it reflows, and watch the CONTENT, not the moving element. (Fixed 2026-07-12: the shell
+  panel collapse — `.shell-grid grid-template-columns` now transitions in sync with the panel
+  `transform`, both `--motion-base`; before, the grid track snapped `0s` and content popped on → Corpus.)
 
 ## §5 Interaction & states
 
@@ -137,6 +147,8 @@ state in ONE eval — never scrape the DOM.
 | --- | --- |
 | `__orb.snap()` | one-call overview `{ ready, shell, bus, queries, perf, renders }` — start here |
 | `__orb.renders()` | render heatmap `{ id, count, mounts, updates, totalMs, avgMs, maxMs }[]`, hottest-first — **churn is a real UX defect**, flag hot surfaces |
+| `__orb.motion()` | `{ loafs[], cls, worstBlocking, worstShift }` — long-animation-frames (`blockingDuration`, `styleAndLayoutStart>0` = style/layout ran in-frame) + layout instability. **The smoothness receipt — don't eyeball jank** |
+| `__orb.animations()` | active animations `{ target, properties, compositorClean }[]` — `compositorClean:false` (animating anything but transform/opacity/filter) = per-frame-layout **jank risk** |
 | `__orb.perf()` | `orb:*` User-Timing measures `{ name, ms }[]` |
 | `__orb.queries()` | TanStack Query cache `{ key, status, fetch, stale, updatedAt }[]` — loading / stale / errored |
 | `__orb.bus()` | chat-bus `{ live, events }` — live subs + recent canon events |
@@ -164,3 +176,71 @@ keyboard walk**):
 - `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (bulk defect scan).
 
 Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call, no MCP.
+
+**Probe footguns (pay these once, not every review):**
+- **Start the stack FIRST** — `pnpm stack start` (server :8788 + vite :5173); snap gates on :5173. A
+  "vite not up" / hanging snap = the stack isn't running. `pnpm stack status` to check, `stop` to kill.
+- **`snap --eval` AUTO-INVOKES a function literal** — pass a BARE arrow `'()=>{…; return x}'` WITHOUT a
+  trailing `()`. Writing `'(()=>{…})()'` double-invokes → `EVAL ERROR: … is not a function`. A plain
+  expression (`'document.title'`, `'__orb.motion()'`, `'getComputedStyle(...).x'`) needs no wrapping.
+- **`:focus-visible` needs a REAL keyboard Tab** — Chromium does NOT promote scripted `.focus()` to
+  `:focus-visible`, so `--eval el.focus()` can't verify a focus ring. Drive a real `Tab`/`Shift+Tab`
+  traversal via chrome-devtools MCP `press_key` and read the computed `box-shadow` there. (This is how the
+  active-rail "no visible keyboard focus" P0 was found — a static shot looked fine; only real Tab exposed
+  the glow overwriting the ring.)
+- **`design-audit` tap-target / aria-name findings are frequently FALSE POSITIVES** — Base UI mints
+  hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for Select/Slider, and Switch roots carry their
+  name via `aria-labelledby` (not textContent). VERIFY each with `--aria` (the real accessible name) /
+  `--map` before reporting; never forward the raw count. Only a genuinely VISIBLE, keyboard-reachable
+  sub-44px target (or a truly nameless control) is real. (Last full pass: 52 such findings, all false.)
+- **chrome-devtools MCP can HANG a browser session** — if it stalls, fall back to `pnpm snap` (its own
+  headless browser) and don't leave a stray session; kill it and re-drive via snap.
+
+### The appearance EFFECT axes (2026-07 additions — know they EXIST, don't slop-flag them, verify each)
+
+New user-tunable, token/accent-driven effects. Check they render right AND aren't mistaken for AI-slop
+(they're intentional + rationed). Toggle an axis via `snap --eval 'document.documentElement.dataset.
+texture="grain"'` (etc.) or the Appearance settings pane; then verify:
+- **`elevation: flat | ramp | glow`** (root `data-elevation`) — `glow` = layered shadows + inner
+  top-highlight on panels/cards. All three values must switch cleanly (no cascade residue when reverting).
+- **`surfaceTexture: none | grain`** (root `data-texture`) — opt-in SVG-noise dusting (soft-light ~0.04)
+  on chrome/cards ONLY, NEVER message prose (reading-surface rule); must `display:none` under
+  `prefers-contrast: high`.
+- **`--shadow-glow`** — the rationed Ember accent glow on selected/active (media-grid `data-selected`,
+  avatar `ring=accent`, active rail item, focused composer). It lives on a `::before` LAYER, never the
+  element's own `box-shadow` (that clobbers the focus ring — WCAG 2.4.7; the P0 above). Not garish.
+- **`--shadow-overlay`** — 4-layer float elevation (edge hairline + inset top-highlight + contact +
+  ambient). No visible white line, no banding.
+- **Gradient border rings** — `[data-cta]::after` / `[data-selected]::after` / `[data-active]::after`,
+  accent-tinted, radius-safe, must COMPOSE with the fill (not clobber `bg-primary`/`shadow-*`).
+- **Spotlight** — `media-grid-cell::before` radial that follows the pointer at LOW alpha (~0.18, never a
+  wash over the thumbnail); GUARDED `@media (pointer: fine)` + `prefers-reduced-motion: reduce → display:
+  none`. Verify both guards (emulate coarse pointer + reduced-motion → gone).
+- **Ambient aura** — `empty-state-decoration::before` radial behind the hero glyph ONLY; must never lower
+  the contrast of any TEXT (geometry: the falloff stops before the title).
+
+### Motion & animation verification (when the surface animates/transitions/scrolls)
+
+Smoothness is a **receipt**, not a vibe — the eye can't reliably tell 60fps from 45fps, and a headless
+review sees no motion at all. When reviewing anything animated (entry/exit transitions, hover motion,
+drawer/panel slides, scroll, immersive chat modes), read the numbers instead of guessing:
+
+- **Read `__orb.motion()` and `__orb.animations()`** (via your `evaluate_script` tool over
+  chrome-devtools MCP, or `pnpm snap <route> --eval '__orb.motion()' --eval '__orb.animations()'` — a
+  Bash call, no MCP). Trigger the motion first (the interaction, or just load a route with entry
+  animation), then read. Flag, each a finding:
+  - a LoAF with **`styleAndLayoutStart > 0`** in the window — style/layout ran *inside* the frame (a
+    forced reflow / a non-compositor animation): the jank signature.
+  - **`worstBlocking > 50ms`** — a main-thread block long enough to drop frames / stall input.
+  - **`cls > 0.1`** — layout shifting under the user (content jumping as it loads).
+  - any animation with **`compositorClean: false`** — it animates a non-`transform`/`opacity`/`filter`
+    prop (width/height/top/margin/…), i.e. a per-frame layout pass. Cross-refs §4 ("don't animate
+    layout properties"): name the `target` + the offending `properties`.
+- **Deep audit — `pnpm motion-audit <route> [--selector <sel>]`** for the ground-truth **Percent
+  Dropped Frames** (CDP trace, 4× CPU throttle so the budget is real). It prints a `PASS/FAIL` against
+  the budget below plus the LoAF/CLS/compositor-clean detail in one Bash call. Note: the dropped-frame %
+  is only fully trustworthy headful (`--vnc`) — headless has no real vsync; LoAF/CLS/blocking are the
+  headless-reliable signals.
+- **Thresholds** (name the number in the finding): frame budget **16.7ms** · LoAF blocking **≤50ms** ·
+  INP **≤200ms** · CLS **≤0.1** · animations must be **compositor-clean**. A breach on a reading/immersive
+  surface is ≥ P1 (jank on the primary experience); polish motion elsewhere is P2–P3.

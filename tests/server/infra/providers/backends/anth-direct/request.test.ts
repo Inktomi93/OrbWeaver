@@ -61,6 +61,7 @@ function makeRequest(
 describe("buildAnthMessageParams — system + cache", () => {
   test("REQUIRED max_tokens defaults to the capability output cap when the user set none", () => {
     const params = buildAnthMessageParams(makeRequest(), {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: false },
       sampling: {},
       dynamicContextChannel: "system-block",
@@ -73,6 +74,7 @@ describe("buildAnthMessageParams — system + cache", () => {
 
   test("the STATIC system prefix carries a cache_control breakpoint; the dynamic tail rides system-block", () => {
     const params = buildAnthMessageParams(makeRequest(), {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: false },
       sampling: {},
       dynamicContextChannel: "system-block",
@@ -95,6 +97,7 @@ describe("buildAnthMessageParams — system + cache", () => {
 
   test("message-tail channel: the dynamic half becomes a trailing system MESSAGE, NOT a system block", () => {
     const params = buildAnthMessageParams(makeRequest(), {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: false },
       sampling: {},
       dynamicContextChannel: "message-tail",
@@ -122,6 +125,7 @@ describe("buildAnthMessageParams — the R1 rolling cache PAIR (reuses the kit p
     expect(offsets).toEqual([1, 3]);
 
     const params = buildAnthMessageParams(req, {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: false },
       sampling: {},
       dynamicContextChannel: "system-block",
@@ -163,6 +167,7 @@ describe("buildAnthMessageParams — prefill · thinking · sampling", () => {
       ],
     });
     const params = buildAnthMessageParams(req, {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: false },
       sampling: {},
       dynamicContextChannel: "system-block",
@@ -174,6 +179,7 @@ describe("buildAnthMessageParams — prefill · thinking · sampling", () => {
 
   test("thinking: adaptive-enabled → {type:'adaptive'}; disabled → no thinking block", () => {
     const on = buildAnthMessageParams(makeRequest(), {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: true },
       sampling: {},
       dynamicContextChannel: "system-block",
@@ -182,6 +188,7 @@ describe("buildAnthMessageParams — prefill · thinking · sampling", () => {
     expect(on.thinking).toEqual({ type: "adaptive" });
 
     const off = buildAnthMessageParams(makeRequest(), {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: false },
       sampling: {},
       dynamicContextChannel: "system-block",
@@ -192,6 +199,7 @@ describe("buildAnthMessageParams — prefill · thinking · sampling", () => {
 
   test("thinking: budget mode with a resolved budget → {type:'enabled', budget_tokens}", () => {
     const params = buildAnthMessageParams(makeRequest(), {
+      turnId: "test-turn",
       reasoning: { mode: "budget", enabled: true, budgetTokens: 2048 },
       sampling: {},
       dynamicContextChannel: "system-block",
@@ -202,6 +210,7 @@ describe("buildAnthMessageParams — prefill · thinking · sampling", () => {
 
   test("sampling: only the resolved knobs reach the wire (temperature/top_p/top_k/stop_sequences)", () => {
     const params = buildAnthMessageParams(makeRequest(), {
+      turnId: "test-turn",
       reasoning: { mode: "adaptive", enabled: false },
       sampling: { temperature: 0.7, topP: 0.9, stop: ["END"] },
       dynamicContextChannel: "system-block",

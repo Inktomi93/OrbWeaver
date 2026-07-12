@@ -28,6 +28,7 @@ import { normalizeFinishReason, ProviderError } from "../../contract";
 import { resolveDynamicContext } from "../../resolve-chat";
 import { refreshHostSubTokenIfMode1 } from "./host-token";
 import {
+  logProviderCapability,
   logProviderChannel,
   logProviderCompaction,
   logProviderDrift,
@@ -117,9 +118,22 @@ export async function runChatTurn(
   // Best-effort + never throws — a failed refresh lets the spawn surface the SDK's own error unchanged.
   await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
 
-  // Route the dynamic (volatile) system-prompt half per the funnel-RESOLVED `dynamicContextChannel`.
-  const { systemPrompt, dynamicHook } = routeDynamicContext(req);
+  // The ONE `resolveChat` funnel call for this turn (mints `turnId`, part 05 §4); `routeDynamicContext`
+  // reuses its id so both the `provider.channel` and `provider.turn` lines for this turn correlate.
   const gen = toSdkGeneration(req.params, req.capability);
+  // The `provider.capability` resolution line (part 05 §3c) — REPORT-ONLY `api`/`credentialSource` fields
+  // (information-equivalent to a wire-shape, never re-derived/branched-on here) + the resolved `turns` cell
+  // + the funnel's dropped warnings.
+  logProviderCapability({
+    turnId: gen.turnId,
+    api: req.api,
+    credentialSource: req.credential.source,
+    requestedModel: req.model,
+    turns: { ...req.capability.turns },
+    droppedWarnings: gen.warnings.map((w) => ({ code: w.code, message: w.message })),
+  });
+  // Route the dynamic (volatile) system-prompt half per the funnel-RESOLVED `dynamicContextChannel`.
+  const { systemPrompt, dynamicHook } = routeDynamicContext(req, gen.turnId);
   const { resume, disposition } = await resolveResume(req, sessions);
   logSessionDecision(req.chatId, resume, disposition);
 
@@ -162,6 +176,7 @@ export async function runChatTurn(
   // `await` (not a bare return) so a synchronous throw from `query()` / the reducer surfaces as a
   // rejected promise at the call site rather than a sync throw.
   const result = await consumeTurnStream(stream, {
+    turnId: gen.turnId,
     model: req.model,
     resumed: resume !== undefined,
     disposition,
@@ -199,17 +214,21 @@ export async function runChatTurn(
  * Also emits the `provider.channel` decision line (part 05 §3b) — no model-id branch, just the resolved
  * facts. Returns the systemPrompt to send plus the (possibly empty) hook option spread.
  */
-function routeDynamicContext(req: AgentSdkChatRequest): {
+function routeDynamicContext(
+  req: AgentSdkChatRequest,
+  turnId: string,
+): {
   systemPrompt: string | string[] | undefined;
   dynamicHook: Pick<Parameters<AgentSdkDeps["query"]>[0]["options"] & object, "hooks"> | object;
 } {
   // The funnel's verdict — the SAME resolution `toSdkGeneration`→`resolveChat` runs (pure, deterministic);
-  // its warnings ride the turn via that path, so this local resolution takes a throwaway sink.
+  // its warnings ride the turn via that path, so this local resolution takes a throwaway sink. `turnId`
+  // is the caller's `resolveChat` id (part 05 §4) — passed in, never re-minted here.
   const channel = resolveDynamicContext(req.params, req.capability, []);
   const midConvCapable = req.capability.turns?.midConversationSystem ?? false;
   // Demotion happened iff the user asked for the tail (`hook`) but the model can't honor it.
   const demoted = req.params.advanced?.dynamicContext === "hook" && !midConvCapable;
-  logProviderChannel({ channel, midConvCapable, demoted });
+  logProviderChannel({ turnId, channel, midConvCapable, demoted });
 
   if (channel === "system-block") {
     return { systemPrompt: buildSystemPrompt(req.systemPrompt), dynamicHook: {} };
@@ -482,6 +501,7 @@ class TurnAccumulator {
    *  line only (the error path never probes). */
   private logTurn(ok: boolean, contextUsage?: ContextUsage): void {
     logProviderTurn({
+      ...(this.ctx.turnId !== undefined ? { turnId: this.ctx.turnId } : {}),
       ...(this.ctx.chatId !== undefined ? { chatId: this.ctx.chatId } : {}),
       ...(this.sessionId !== "" ? { sessionId: this.sessionId } : {}),
       ...(this.apiKeySource !== null ? { apiKeySource: this.apiKeySource } : {}),

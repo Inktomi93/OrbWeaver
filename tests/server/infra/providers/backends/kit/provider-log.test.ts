@@ -6,6 +6,7 @@
 import { logger } from "@orb/server/foundation/observability";
 import {
   logProviderCache,
+  logProviderCapability,
   logProviderSampling,
   providerLog,
 } from "@orb/server/infra/providers/backends/kit";
@@ -42,6 +43,7 @@ describe("logProviderCache — the cache-rot receipt (part 05 §3a)", () => {
   test("info line carrying read/write tokens, breakpoint count/offsets, hitRatio, minCacheTokens", () => {
     const spy = vi.spyOn(logger, "info");
     logProviderCache("openrouter", {
+      turnId: "turn_1",
       cacheReadTokens: 9000,
       cacheWriteTokens: 1000,
       breakpointsPlaced: 3,
@@ -55,6 +57,7 @@ describe("logProviderCache — the cache-rot receipt (part 05 §3a)", () => {
       provider: true,
       backend: "openrouter",
       event: "provider.cache",
+      turnId: "turn_1",
       cacheReadTokens: 9000,
       cacheWriteTokens: 1000,
       breakpointsPlaced: 3,
@@ -68,10 +71,58 @@ describe("logProviderCache — the cache-rot receipt (part 05 §3a)", () => {
   });
 });
 
+describe("logProviderCapability — the resolution line (part 05 §3c)", () => {
+  test("debug line carrying api/credentialSource/requestedModel/turns/droppedWarnings + the turnId", () => {
+    const spy = vi.spyOn(logger, "debug");
+    logProviderCapability("anth-direct", {
+      turnId: "turn_7",
+      api: "anthropic-messages",
+      credentialSource: "openrouter",
+      requestedModel: "claude-opus-4-6",
+      turns: { midConversationSystem: true, explicitPromptCache: true },
+      droppedWarnings: [{ code: "verbosity_dropped", message: "verbosity ignored: no vocab" }],
+    });
+    const [fields, msg] = callOf(spy);
+    expect(msg).toBe("provider.capability");
+    expect(fields).toMatchObject({
+      provider: true,
+      backend: "anth-direct",
+      event: "provider.capability",
+      turnId: "turn_7",
+      api: "anthropic-messages",
+      credentialSource: "openrouter",
+      requestedModel: "claude-opus-4-6",
+      turns: { midConversationSystem: true, explicitPromptCache: true },
+      droppedWarnings: [{ code: "verbosity_dropped", message: "verbosity ignored: no vocab" }],
+    });
+    // NO wireShape string on the line (the resolver-only bar — api+credentialSource are report-only, not a
+    // materialized wire-shape) and metadata only — no prompt/RP content or credential material.
+    expect(fields).not.toHaveProperty("wireShape");
+    expect(fields).not.toHaveProperty("prompt");
+    expect(fields).not.toHaveProperty("authToken");
+  });
+
+  test("rides the debug level (opt-in), not info", () => {
+    const infoSpy = vi.spyOn(logger, "info");
+    logProviderCapability("openrouter", {
+      turnId: "turn_8",
+      api: "chat-completions",
+      credentialSource: "openrouter",
+      requestedModel: "x",
+      turns: {},
+      droppedWarnings: [],
+    });
+    expect(
+      infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "provider.capability"),
+    ).toBe(false);
+  });
+});
+
 describe("logProviderSampling — which knobs survived (part 05 §3d)", () => {
-  test("debug line carrying requested vs applied vs dropped-with-reason", () => {
+  test("debug line carrying requested vs applied vs dropped-with-reason + the turnId", () => {
     const spy = vi.spyOn(logger, "debug");
     logProviderSampling("openrouter", {
+      turnId: "turn_2",
       requested: { temperature: 1.5, seed: 5 },
       applied: { temperature: 1 },
       dropped: [{ knob: "seed", reason: "model does not support seed" }],
@@ -82,6 +133,7 @@ describe("logProviderSampling — which knobs survived (part 05 §3d)", () => {
       provider: true,
       backend: "openrouter",
       event: "provider.sampling",
+      turnId: "turn_2",
       requested: { temperature: 1.5, seed: 5 },
       applied: { temperature: 1 },
       dropped: [{ knob: "seed", reason: "model does not support seed" }],
@@ -90,7 +142,12 @@ describe("logProviderSampling — which knobs survived (part 05 §3d)", () => {
 
   test("rides the debug level (opt-in), not info", () => {
     const infoSpy = vi.spyOn(logger, "info");
-    logProviderSampling("anth-direct", { requested: {}, applied: {}, dropped: [] });
+    logProviderSampling("anth-direct", {
+      turnId: "turn_3",
+      requested: {},
+      applied: {},
+      dropped: [],
+    });
     expect(
       infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "provider.sampling"),
     ).toBe(false);

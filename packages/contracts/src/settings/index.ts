@@ -480,6 +480,7 @@ const onboardingSchema = z
   .object({
     personaWizardSeen: z.boolean().catch(false).default(false),
     defaultCharactersSeeded: z.boolean().catch(false).default(false),
+    defaultPersonaSeeded: z.boolean().catch(false).default(false),
   })
   .prefault({});
 
@@ -550,6 +551,15 @@ export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "compose
 // ships seeded|external. `fit` is how the photo fills the fixed-position root layer.
 export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external"] as const;
 export type BackgroundImageKind = (typeof BACKGROUND_IMAGE_KINDS)[number];
+
+// Surface TEXTURE axis — an opt-in film-grain overlay on the shell-grid + cards that breaks up flat-
+// color banding (a subtle SVG feTurbulence noise at low opacity, soft-light blended). `none` (default,
+// zero visual change) | `grain`. Root data-attr `[data-texture=grain]` (useAppearanceRootEffects),
+// gated in globals.css. Never on the reading surface (THE READING-SURFACE RULE): chrome/cards only.
+// Single-consumer (this schema + its one client form field + the globals gate), so it's an inline
+// tuple like BACKGROUND_IMAGE_KINDS, not a cross-package canonical.
+export const SURFACE_TEXTURES = ["none", "grain"] as const;
+export type SurfaceTexture = (typeof SURFACE_TEXTURES)[number];
 export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
 
@@ -607,9 +617,11 @@ const appearanceSchema = z
     // Surface elevation: `flat` = orb's default composition (no layered elevation ramp — a deliberate
     // COMPOSITION choice, not a ramp absence); `ramp` opts into the 3-tier elevation ramp (rail darkest →
     // list/context middle → content lightest; implemented by app-shell `shell.css` `[data-elevation=ramp]`
-    // over the `--color-panel` token) for users who want the layered look. Display-only; never touches
-    // stored content.
-    elevation: z.enum(["flat", "ramp"]).catch("flat").default("flat"),
+    // over the `--color-panel` token) for users who want the layered look; `glow` opts into the layered
+    // float recipe (recipe-2: a 1px edge-light hairline + an inset top-highlight + a tight contact
+    // shadow + the deep ambient drop) on panels/cards for a lifted, glassy-depth look (shell.css
+    // `[data-elevation=glow]`). Display-only; never touches stored content. Both ramp/glow are opt-in.
+    elevation: z.enum(["flat", "ramp", "glow"]).catch("flat").default("flat"),
     // Message style (§12.1 — ST chatDisplay's 3 modes; the #theme-homed union)
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),
     // Per-message metadata visibility (§12.1 — "THE gap ST has and we lacked"; each → a data-*)
@@ -632,6 +644,10 @@ const appearanceSchema = z
     // the PLACEMENT is user-chosen — glass-everywhere is opt-in, never default; see BLUR_SURFACES).
     blurSurfaces: z.array(z.enum(BLUR_SURFACES)).catch([]).default([]),
     shadowEffects: z.boolean().catch(false).default(false),
+    // Opt-in film-grain texture on the shell chrome + cards (kills flat-color banding). `none`
+    // (default, no visual change) | `grain`. Root data-attr `[data-texture=grain]`; never on the
+    // reading surface (THE READING-SURFACE RULE — chrome/cards only).
+    surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
     reducedMotion: z.boolean().catch(false).default(false),
     // D63 (amends D49 §3): the app background image — moved off the theme; palette-independent, applied
     // at the app root beside glass. asset deferred (#67/PD-131); picker = seeded|external.

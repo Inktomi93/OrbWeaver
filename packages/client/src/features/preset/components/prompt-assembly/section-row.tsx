@@ -136,7 +136,7 @@ export function SectionRow({
   // Dim the WHOLE row when disabled (ST parity) so the active loadout stands out — muted tone + reduced
   // opacity, on TOP of the ~token strike-through the count keeps.
   const rowClass = [
-    "rounded-md border",
+    "rounded-card border",
     selected ? "border-primary bg-accent" : "border-border",
     section.enabled ? "" : "opacity-60",
   ].join(" ");

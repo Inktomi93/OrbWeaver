@@ -21,9 +21,13 @@
 //     `data-shadow`.
 //   • `data-theme-colorization` (Phase 4b §B.5.5 enableThemeColorization) — presence-based; globals.css
 //     retints the border/hairline chrome tokens from the accent color under this attr.
+//   • `data-texture` (appearance.surfaceTexture) — `grain` stamps `[data-texture=grain]` (a film-grain
+//     ::after overlay on shell chrome + cards, globals.css); `none` removes it. Value-based so a future
+//     texture value slots in without a new attr. MUST be root-level so cards in portalled surfaces also
+//     get it, same reasoning as the blur attrs.
 // A layout effect (pre-paint) with a clean teardown so a hot-swap never leaves a stale root attr.
 
-import type { BlurSurface } from "@orb/contracts/settings";
+import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import { useLayoutEffect } from "react";
 
 const BLUR_SURFACE_ATTR: Record<BlurSurface, string> = {
@@ -53,6 +57,7 @@ export function useAppearanceRootEffects(params: {
   readonly blurStrength: number;
   readonly reading: ReadingTypographyVars;
   readonly themeColorization: boolean;
+  readonly surfaceTexture: SurfaceTexture;
 }): void {
   const {
     fontScale,
@@ -62,6 +67,7 @@ export function useAppearanceRootEffects(params: {
     blurStrength,
     reading,
     themeColorization,
+    surfaceTexture,
   } = params;
   useLayoutEffect((): (() => void) => {
     const root = document.documentElement;
@@ -98,6 +104,11 @@ export function useAppearanceRootEffects(params: {
     } else {
       root.removeAttribute("data-theme-colorization");
     }
+    if (surfaceTexture === "none") {
+      root.removeAttribute("data-texture");
+    } else {
+      root.setAttribute("data-texture", surfaceTexture);
+    }
     return (): void => {
       root.style.removeProperty("--font-scale");
       root.style.removeProperty("--blur-strength");
@@ -113,6 +124,16 @@ export function useAppearanceRootEffects(params: {
       root.removeAttribute("data-shadow");
       root.removeAttribute("data-justify-body-text");
       root.removeAttribute("data-theme-colorization");
+      root.removeAttribute("data-texture");
     };
-  }, [fontScale, dataTheme, blurSurfaces, shadowEffects, blurStrength, reading, themeColorization]);
+  }, [
+    fontScale,
+    dataTheme,
+    blurSurfaces,
+    shadowEffects,
+    blurStrength,
+    reading,
+    themeColorization,
+    surfaceTexture,
+  ]);
 }

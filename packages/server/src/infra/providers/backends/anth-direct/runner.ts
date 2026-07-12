@@ -10,10 +10,15 @@
 import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AnthropicMessagesChatRequest, ChatResult, ChatUsage } from "../../contract";
+import type {
+  AnthropicMessagesChatRequest,
+  ChatResult,
+  ChatUsage,
+  ResolvedChatKnobs,
+} from "../../contract";
 import { normalizeFinishReason } from "../../contract";
 import { resolveChat } from "../../resolve-chat";
-import { logProviderCache, turnAbortSignal } from "../kit";
+import { logProviderCache, logProviderCapability, turnAbortSignal } from "../kit";
 import type { AnthClient } from "./client";
 import { anthDirectError } from "./errors";
 import { logAnthDirectError, logAnthDirectTurn } from "./log";
@@ -30,13 +35,18 @@ export interface AnthDirectChatDeps {
 // The `provider.cache` receipt (part 05 §3a) — THE cache-rot signal. Decoupled: reads RESOLVED facts (usage
 // counts + the placer's returned offsets + the resolved floor), NO model-id/wire branch. Only turns on an
 // `explicitPromptCache` wire (the static system block is breakpoint #1; the rolling pair adds #2/#3).
-function emitCacheReceipt(req: AnthropicMessagesChatRequest, usage: ChatUsage): void {
+function emitCacheReceipt(
+  req: AnthropicMessagesChatRequest,
+  usage: ChatUsage,
+  turnId: string,
+): void {
   if (req.capability.turns?.explicitPromptCache !== true) {
     return;
   }
   const offsets = anthHistoryCacheOffsets(req);
   const total = usage.cacheReadTokens + usage.cacheWriteTokens;
   logProviderCache("anth-direct", {
+    turnId,
     cacheReadTokens: usage.cacheReadTokens,
     cacheWriteTokens: usage.cacheWriteTokens,
     // The static system block is breakpoint #1 (a non-empty static prefix always pins one on this wire); the
@@ -47,6 +57,25 @@ function emitCacheReceipt(req: AnthropicMessagesChatRequest, usage: ChatUsage): 
     // The floor the placer actually used (fail-closed to CACHE_MIN_FLOOR when the capability didn't seed
     // an exact per-model floor — matches request.ts `cacheMinTokens`, so the receipt reports the real gate).
     minCacheTokens: req.capability.turns?.cacheMinTokens ?? CACHE_MIN_FLOOR,
+  });
+}
+
+// The `provider.capability` resolution line (part 05 §3c). Decoupled: reads RESOLVED facts (`api` +
+// `credentialSource` off the request the runner already holds, the resolved `turns` cell, the funnel's
+// warnings) — NO `wireShape` string materialized (that stays domain-internal per the anti-ST bar); `api` +
+// `credentialSource` are REPORT-ONLY fields, information-equivalent to it, the SAME vocab `provider.turn`
+// already carries. NO model-id/wire branch at the emit site.
+function emitCapabilityReceipt(
+  req: AnthropicMessagesChatRequest,
+  resolved: ResolvedChatKnobs,
+): void {
+  logProviderCapability("anth-direct", {
+    turnId: resolved.turnId,
+    api: req.api,
+    credentialSource: req.credential.source,
+    requestedModel: req.model,
+    turns: { ...req.capability.turns },
+    droppedWarnings: resolved.warnings.map((w) => ({ code: w.code, message: w.message })),
   });
 }
 
@@ -129,8 +158,10 @@ export async function runAnthDirectTurn(
     });
     const durationApiMs = deps.now() - startedAt;
     const result = mapResult(req, reduced, durationApiMs, maxOutputTokens);
-    emitCacheReceipt(req, result.usage);
+    emitCacheReceipt(req, result.usage, resolved.turnId);
+    emitCapabilityReceipt(req, resolved);
     logAnthDirectTurn({
+      turnId: resolved.turnId,
       ...(req.chatId !== undefined ? { chatId: req.chatId } : {}),
       transport: "direct",
       credentialSource: req.credential.source,
@@ -151,6 +182,7 @@ export async function runAnthDirectTurn(
     const providerError = anthDirectError(err, req.model, deps.now());
     logAnthDirectError(providerError);
     logAnthDirectTurn({
+      turnId: resolved.turnId,
       ...(req.chatId !== undefined ? { chatId: req.chatId } : {}),
       transport: "direct",
       credentialSource: req.credential.source,

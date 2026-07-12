@@ -59,6 +59,7 @@ export function ShellCascadeFixture({
       justify: false,
     },
     themeColorization: false,
+    surfaceTexture: "none",
   });
   return (
     <div
@@ -124,6 +125,7 @@ export function ReadingTypographyFixture({
     blurStrength: 14,
     reading: { lineHeight, letterSpacing, paragraphSpacing, nameScale, bodyScale, justify },
     themeColorization: false,
+    surfaceTexture: "none",
   });
   return (
     <div>

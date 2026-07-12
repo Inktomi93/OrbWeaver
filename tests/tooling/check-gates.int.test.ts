@@ -235,6 +235,18 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx",
     'export const G = <div className="rounded-lg shadow-md" />;\n',
   );
+  // motion-token-purity: a CSS file with a raw duration + easing in a transition declaration (off-token,
+  // not in ALLOWLIST). The gate reads .css via fs.globSync (not ts-morph), so a __g_ CSS fixture in the
+  // real src tree is picked up; the __g_ excludes on the OTHER consumers don't reach fs.globSync.
+  fx("packages/ui/src/__g_motion/__g_motion.css", ".g {\n  transition: transform 220ms ease;\n}\n");
+  // no-off-token-inline-style: a JSX inline `style={{ borderRadius: "8px" }}` raw-literal (a token-backed
+  // property written as a raw literal — the inline/imperative hole the className + CSS gates can't see),
+  // in a file not in the ALLOWLIST. The gate walks the ts-morph project's own files, so a __g_ .tsx in the
+  // real src tree is scanned.
+  fx(
+    "packages/client/src/features/__g_inlinestyle/components/__g_inlinestyle.tsx",
+    'export const G = <div style={{ borderRadius: "8px" }} />;\n',
+  );
   // no-effect-on-shared-selection: a feature effect depping a selection-hook result (the chase).
   // The hook is a local `declare` — the gate matches by NAME (AST-only), so the fixture parses
   // standalone without importing #state.

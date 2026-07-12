@@ -95,7 +95,7 @@ function ConversationBand({
     );
   }
   return (
-    <Stack gap="field" className="rounded-md border border-border bg-accent/40 p-block">
+    <Stack gap="field" className="rounded-card border border-border bg-accent/40 p-block">
       <Row gap="row" align="center">
         <Icon icon={MessagesSquare} size="sm" />
         <Text size="body" weight="semibold" transform="caps" className="flex-1">
@@ -160,7 +160,7 @@ function BlockView({
     <Button
       intent="ghost"
       size="sm"
-      className="min-w-0 flex-1 flex-col items-start gap-field rounded-md border border-border p-row text-left"
+      className="min-w-0 flex-1 flex-col items-start gap-field rounded-control border border-border p-row text-left"
       onClick={(): void => onSelect(block.section.id)}
     >
       <Text size="micro" tone="muted" transform="caps" weight="semibold" className="truncate">

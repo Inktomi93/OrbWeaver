@@ -26,9 +26,28 @@
   --list-track: 0px;
   --context-track: 0px;
 
+  /* CO-MOTION VARS (the never-desync guarantee, motion audit §5 Layer 1) — the shell's grid track, the
+   * panel transform slide, AND the dismiss scrim are ONE visual event: they MUST animate at the same
+   * duration + curve or they shear/pop against each other (the corpus desync bug: the track snapped in
+   * `0s` while the panel slid over `--motion-base`). Declaring the tempo ONCE here and having every
+   * choreography member reference these two vars makes divergence STRUCTURALLY impossible — editing the
+   * shell's motion is now a one-line change that CANNOT half-apply. `--shell-ease` also houses the curve
+   * (was a raw `ease` keyword at 4 sites — audit D3): the whole app animates on `--ease-out-expo`, and a
+   * different curve at the same duration is a visible shear mid-slide. A rendered-parity CT test
+   * (app-shell.ct.tsx) asserts the grid + panel read EQUAL non-zero duration/easing, catching absence too. */
+  --shell-motion: var(--motion-base);
+  --shell-ease: var(--ease-out-expo);
+
   display: grid;
   grid-template-columns: var(--rail-w) var(--list-track) minmax(0, 1fr) var(--context-track);
   grid-template-rows: 100%;
+  /* Animate the track widths IN SYNC with the panel's transform slide (`.shell-panel` below) off the
+   * SHARED co-motion vars above so CONTENT reclaims/yields the space smoothly as a panel docks/collapses
+   * — instead of the track snapping in one frame (an instant content "pop") while the panel slides over
+   * it, the desync that read as jank on a section switch (e.g. → Corpus, both tracks → 0). Modern engines
+   * interpolate grid track sizes; it's a layout animation but trivial for a single-toggle. The global
+   * prefers-reduced-motion killer (ui globals.css) floors this to instant for that preference. */
+  transition: grid-template-columns var(--shell-motion) var(--shell-ease);
   height: 100vh; /* fallback for no-dvh */
   /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback (§4b axis 4) — the vh line above is the floor for browsers without dvh; this line wins where supported. */
   height: 100dvh;
@@ -161,6 +180,18 @@
   border-block-end: none;
 }
 
+/* ELEVATION=glow (D44 §12.1 appearance.elevation third value) — opt-in layered FLOAT depth: the same
+ * recipe-2 stack the overlay token carries (a 1px edge-light hairline + an inset top-highlight + a tight
+ * contact shadow + the deep ambient drop) applied to the side panels + every card, so chrome reads as
+ * lifted glassy planes instead of flat fills. flat/ramp are untouched (this is a separate opt-in value).
+ * `:where()` zeroes the attr specificity (the ramp-rule precedent) so a bg image / glass panel still wins
+ * where those apply. Static — no motion. Reuses the generated `--shadow-overlay` token (its own edit
+ * propagates here too). The inset top-highlight needs a real fill to sit on, which panels/cards carry. */
+.shell-grid:where([data-elevation="glow"]) .shell-panel,
+.shell-grid:where([data-elevation="glow"]) [data-slot="card-root"] {
+  box-shadow: var(--shadow-overlay);
+}
+
 /* A DOCKED panel occupies its grid track (pushes CONTENT); overlay/collapsed leave the track at 0. */
 .shell-grid[data-list-mode="docked"] {
   --list-track: var(--panel-w);
@@ -245,6 +276,41 @@
 .shell-rail .shell-rail-button[data-active] {
   background: color-mix(in oklab, var(--color-primary) 14%, transparent);
   color: var(--color-primary);
+  position: relative;
+}
+/* The one rationed Ember glow (--shadow-glow, DESIGN.md §5) on the active section — a legitimate "here
+ * you are" accent moment. Painted on a `::before` LAYER, NOT the button's own `box-shadow`: the Button
+ * primitive's focus-visible ring is a `box-shadow` utility (FOCUS_RING), and setting `box-shadow` here
+ * (specificity 0,3,0) would silently overwrite it, leaving the active item with NO visible keyboard
+ * focus (WCAG 2.4.7). The layer frees `box-shadow` for the ring. Static; the halo radiates outside the
+ * transparent box so it never occludes the icon; z-index below the accent-hairline `::after`. */
+.shell-rail .shell-rail-button[data-active]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: var(--shadow-glow);
+}
+/* Accent hairline on the active rail item (effects catalog E applied to chrome / item 7) — a 1px
+ * gradient border framing the current section so it reads as a lifted, outlined tile on top of the
+ * 14%-tint fill (the glow gives the halo; this gives the crisp accent edge). Same dual background-clip
+ * recipe as the CTA/tab ring (globals.css), scoped here because the rail button is a ghost Button (no
+ * `data-cta`), so it doesn't inherit that rule. Static; tracks the accent via --color-primary. The
+ * `::after` sits over the fill, non-interactive, radius-matched to the button. */
+.shell-rail .shell-rail-button[data-active]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  background:
+    linear-gradient(transparent, transparent) padding-box,
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(1 0 0 / 0.03))
+    border-box;
 }
 
 /* Mobile bottom-tab buttons (L6/J12) — a vertical icon+label stack that fills its share of the bar
@@ -304,7 +370,9 @@
   inset-block: 0;
   width: var(--panel-w);
   z-index: var(--z-overlay);
-  transition: transform var(--motion-base) ease;
+  /* SAME co-motion vars as the grid track above — this is the other half of the coordinated pair; it
+   * physically cannot read a different tempo than the track it choreographs with. */
+  transition: transform var(--shell-motion) var(--shell-ease);
 }
 .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
 .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
@@ -395,6 +463,13 @@
 }
 
 /* ── SCRIM (dismisses an overlay panel / a mobile sheet) ──────────────────────────────────────── */
+/* EXIT-AWARE scrim (motion audit D2) — stays MOUNTED (app-shell.tsx toggles `data-visible`) and fades
+ * on an opacity TRANSITION off the shared co-motion vars, NOT an enter-only keyframe + hard unmount. The
+ * old keyframe fired only on enter, so a dismiss vanished the scrim in 0ms while the panel it dims slid
+ * out over `--shell-motion` — the corpus desync class in miniature. Transitioning opacity off the SAME
+ * `--shell-motion`/`--shell-ease` the panel uses fades the scrim WITH the panel, and (per the handbook)
+ * a transition is cancellable mid-slide where a keyframe is not. `pointer-events:none` when hidden so the
+ * invisible-but-mounted scrim never intercepts clicks meant for the live content. */
 .shell-scrim {
   position: absolute;
   inset: 0;
@@ -402,15 +477,13 @@
   background: var(--color-scrim);
   border: none;
   cursor: pointer;
-  animation: shell-scrim-in var(--motion-fast) ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--shell-motion) var(--shell-ease);
 }
-@keyframes shell-scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.shell-scrim[data-visible="true"] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ── MODAL header (inside the shared <Dialog>) ────────────────────────────────────────────────── */
@@ -476,7 +549,9 @@
     inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
     width: 100dvw;
     z-index: var(--z-modal);
-    transition: transform var(--motion-base) ease;
+    /* Mobile sheet slide — same co-motion vars (they inherit from `.shell-grid`), so the mobile sheet
+     * choreography shares the desktop tempo by construction. */
+    transition: transform var(--shell-motion) var(--shell-ease);
   }
   /* Reset the DESKTOP side-specific insets (they pin the list overlay to `inset-inline-start:var(--rail-w)`
    * — specificity (0,3,0), so a generic `inset-inline:0` here loses). Match that specificity per side so

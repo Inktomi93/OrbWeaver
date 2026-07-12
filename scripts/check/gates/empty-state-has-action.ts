@@ -28,14 +28,16 @@ const ALLOWLIST: Record<string, string> = {
   "packages/client/src/features/settings/components/settings-pane-placeholder.tsx":
     "the settings equivalent of section-placeholder.tsx — same reasoning.",
   "packages/client/src/features/preset/components/preset-library-welcome.tsx":
-    'a "pick from the left, or create one" nudge shown alongside the library list (which itself carries ' +
-    "the create CTA) — not a true dead end, but has no action prop of its own; design-enforcement.md §3.2 follow-up.",
+    'the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown ' +
+    "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
+    "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx":
     'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — ' +
     "genuinely nothing to do.",
   "packages/client/src/features/preset/components/preset-section-inspector.tsx":
     'the "Select a section to inspect it" prompt shown when no rack row is selected — the next step (pick ' +
-    "a row) lives in the sibling rack, not here; same reasoning as preset-library-welcome.tsx.",
+    "a row) lives in the sibling rack, not here, so this state legitimately has no action of its own; same " +
+    "reasoning as preset-library-welcome.tsx.",
 };
 
 const MESSAGE =

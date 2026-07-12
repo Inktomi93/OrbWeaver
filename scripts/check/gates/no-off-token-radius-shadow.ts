@@ -30,16 +30,13 @@
 // ALLOWLIST (file-level, the no-arbitrary-tw-values / no-raw-interactive-intrinsics BURN_DOWN
 // precedent): a file lands here with the value + reason when the drift is real pre-existing debt, not
 // a new offense. An allowlisted file that has gone CLEAN is RED ("stale entry — remove it"); a NEW
-// offender not in the allowlist is RED immediately. `packages/client/src/features/preset/**` is
-// EXCLUDED entirely (mid-revamp lane, rollup-audit "do not act" scope) — structurally out of the scan,
-// not allowlisted (it isn't debt this gate owns).
+// offender not in the allowlist is RED immediately.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const CLIENT_SRC_DIR = "/packages/client/src/";
 const UI_SRC_DIR = "/packages/ui/src/";
-const PRESET_LANE_DIR = "/packages/client/src/features/preset/";
 
 /** Current legit off-token files → reason. EMPTY: the whole overlay-primitive family (dialog/menu/
  *  popover/tooltip/alert-dialog/drawer/toast/selection-bar/macro-textarea + the chat command-palette
@@ -126,7 +123,7 @@ function offenceLines(sf: SourceFile): number[] {
 }
 
 /** The offender scan: new-offender violations + which allowlisted files still carry a banned scale
- *  utility. The preset lane is structurally excluded (mid-revamp, out of this gate's scope). */
+ *  utility. */
 function scanSrc(
   project: CheckContext["project"],
   allowlist: Record<string, string>,
@@ -135,10 +132,7 @@ function scanSrc(
   const seenAllowlisted = new Set<string>();
   for (const sf of project.getSourceFiles()) {
     const path = sf.getFilePath();
-    if (
-      !(path.includes(CLIENT_SRC_DIR) || path.includes(UI_SRC_DIR)) ||
-      path.includes(PRESET_LANE_DIR)
-    ) {
+    if (!(path.includes(CLIENT_SRC_DIR) || path.includes(UI_SRC_DIR))) {
       continue;
     }
     const rel = clientRel(path);

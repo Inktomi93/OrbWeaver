@@ -3,14 +3,13 @@
 // with `sampling: {}` shows NO sampling knobs; an unlisted knob is ABSENT; slider ranges come from each
 // knob's descriptor `Range`; the reasoning control is DERIVED from `reasoning.mode` (off-toggle + the
 // model's ACTUAL effortLevels / budgetRange / adaptive note); verbosity shows only when present; and the
-// quality dial maps onto DISTINCT axes (fast → least reasoning, deep → most). These are exactly the
-// invariants that keep the panel descriptor-driven rather than a hardcoded knob stack.
+// quality dial exposes DISPLAY COPY only (its effort mapping lives server-side in the funnel, not here).
+// These are exactly the invariants that keep the panel descriptor-driven rather than a hardcoded knob stack.
 
 import type { ModelCapability, Range } from "@orb/contracts/connection";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
 import {
   QUALITY_OPTIONS,
-  qualityEffortIntent,
   reasoningControlFor,
   samplingKnobsFor,
   supportsSeed,
@@ -100,15 +99,14 @@ test("verbosity levels come from the descriptor; absent ⇒ no verbosity section
   expect(verbosityLevelsFor(capability())).toBeUndefined();
 });
 
-// --- the quality dial → DISTINCT axes ----------------------------------------
+// --- the quality dial → DISPLAY COPY only (the effort mapping is server-side) -------------------------
 
-test("the quality dial covers every QUALITY_LEVELS member, in order", () => {
+test("the quality dial covers every QUALITY_LEVELS member, in order, with display copy", () => {
   expect(QUALITY_OPTIONS.map((o) => o.value)).toEqual([...QUALITY_LEVELS]);
-});
-
-test("quality maps onto the reasoning axis as a DISTINCT direction (fast → balanced → deep)", () => {
-  // fast → least reasoning; deep → most — a distinct-axis direction, never a merged cascade.
-  expect(qualityEffortIntent("fast")).toBe("minimal");
-  expect(qualityEffortIntent("balanced")).toBe("medium");
-  expect(qualityEffortIntent("deep")).toBe("high");
+  // Each option carries the non-empty label + description the panel renders; the panel does NOT re-map
+  // quality → effort (that derivation lives once in the funnel via @orb/contracts/preset.QUALITY_EFFORT).
+  for (const option of QUALITY_OPTIONS) {
+    expect(option.label.length).toBeGreaterThan(0);
+    expect(option.description.length).toBeGreaterThan(0);
+  }
 });

@@ -170,6 +170,13 @@ body {
   html[data-blur-messages] [data-slot="message-bubble"] {
     border-width: 2px;
   }
+  /* Grain (surfaceTexture) is a legibility-neutral dusting at rest, but a noise overlay works AGAINST a
+   * stated high-contrast preference — drop it entirely here, the same "never less legible" law the glass
+   * recipe above obeys. Opt-in + off by default, so this only fires for a user who set both. */
+  html[data-texture="grain"] .shell-grid::after,
+  html[data-texture="grain"] [data-slot="card-root"]::after {
+    display: none;
+  }
 }
 
 /* appearance.shadowEffects — the subtle prose readability halo (message text ONLY, never chrome).
@@ -231,6 +238,31 @@ html[data-theme-colorization] .shell-grid {
     var(--color-primary) 22%,
     var(--color-sidebar-foreground) 6%
   );
+}
+
+/* appearance.surfaceTexture=grain — an OPT-IN film-grain overlay that breaks up flat-color banding on
+ * the shell chrome + cards. Root-stamped `[data-texture=grain]` (useAppearanceRootEffects), off by
+ * default (`none` removes the attr → zero visual change). A pointer-events-none `::after` painting an
+ * inline SVG feTurbulence noise tile (data-URI, no network), `mix-blend-mode: soft-light` so it dusts
+ * the surface without washing color, low opacity (~0.04). THE READING-SURFACE RULE: the overlay lands
+ * on the shell grid + cards ONLY, NEVER `[data-slot="message-bubble"]` (grain over scrolling prose
+ * hurts legibility). STATIC — a fixed tile, no animation (no jitter). `isolation:isolate` on
+ * `.shell-grid` (shell.css) contains the blend so it composites against the surface, not the page. */
+html[data-texture="grain"] .shell-grid::after,
+html[data-texture="grain"] [data-slot="card-root"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* The card slot needs a positioning context for its `::after` (the shell grid already has
+ * `position:relative`). Scoped to the grain axis so a card without texture keeps its normal flow. */
+html[data-texture="grain"] [data-slot="card-root"] {
+  position: relative;
 }
 
 /* Phase 4b §B.5b polish — chat-list EDGE-FADE: the thread scroll container dissolves softly under the
