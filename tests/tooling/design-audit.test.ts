@@ -172,22 +172,35 @@ test("a severely distorted image (>=15% deviation) escalates to P1 over P2", () 
   expect(severe?.severity).toBe("P1");
 });
 
-// ── #4 tap targets ───────────────────────────────────────────────────────────
+// ── #4 tap targets (pointer-conditional floor) ───────────────────────────────
 
-test("a <44px target (short side 40px, still >=32px) WARNs at P2", () => {
-  const finding = checkTapTarget({ selector: "button.icon", width: 40, height: 40 });
+test("coarse pointer: a <44px target (short side 40px, still >=32px) WARNs at P2", () => {
+  const finding = checkTapTarget({ selector: "button.icon", width: 40, height: 40 }, true);
   expect(finding).not.toBeNull();
   expect(finding?.severity).toBe("P2");
 });
 
-test("a target below the 32px hard floor FAILs at P1", () => {
-  const finding = checkTapTarget({ selector: "button.tiny", width: 24, height: 24 });
+test("coarse pointer: a target below the 32px hard floor FAILs at P1", () => {
+  const finding = checkTapTarget({ selector: "button.tiny", width: 24, height: 24 }, true);
   expect(finding?.severity).toBe("P1");
 });
 
-test("a target at/above 44px reports no finding", () => {
-  const finding = checkTapTarget({ selector: "button.big", width: 48, height: 48 });
+test("coarse pointer: a target at/above 44px reports no finding", () => {
+  const finding = checkTapTarget({ selector: "button.big", width: 48, height: 48 }, true);
   expect(finding).toBeNull();
+});
+
+// Fine pointer (mouse) only owes WCAG AA's 24px floor — the desktop control scale (32/34/40px) is
+// deliberate density (D62 P1), NOT a defect. This is the regression the pointer-aware floor fixes.
+test("fine pointer: the 32px desktop control scale is clean (no false positive)", () => {
+  const finding = checkTapTarget({ selector: "select.sm", width: 220, height: 32 }, false);
+  expect(finding).toBeNull();
+});
+
+test("fine pointer: a genuinely tiny <24px target still FAILs at P1", () => {
+  const finding = checkTapTarget({ selector: "button.tiny", width: 20, height: 20 }, false);
+  expect(finding?.severity).toBe("P1");
+  expect(finding?.message).toContain("24px");
 });
 
 // ── #5 ARIA navigability ─────────────────────────────────────────────────────
@@ -345,6 +358,8 @@ test("collectFindings fans a raw-sample bundle out to exactly the findings each 
     nestedCards: [],
     gradientTexts: [],
     animatedImgHovers: [],
+    // 20px fails even the fine-pointer AA floor, so the finding fires under the realistic desktop default.
+    pointerCoarse: false,
   });
   const rules = findings.map((f) => f.rule).sort((a, b) => a.localeCompare(b));
   expect(rules).toEqual(["aria-name", "contrast", "tap-target"]);
@@ -362,6 +377,7 @@ test("collectFindings on an all-clean bundle (incl. a present main landmark) ret
     nestedCards: [],
     gradientTexts: [],
     animatedImgHovers: [],
+    pointerCoarse: false,
   });
   expect(findings).toEqual([]);
 });

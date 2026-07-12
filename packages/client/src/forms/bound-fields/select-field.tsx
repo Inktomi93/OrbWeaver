@@ -8,7 +8,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import type { ReactElement, ReactNode } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 export interface SelectFieldProps {
   readonly label: ReactNode;
@@ -30,13 +30,13 @@ export function SelectField({
   disabled,
 }: SelectFieldProps): ReactElement {
   const field = useFieldContext<string>();
-  const error = fieldErrorText(field.state.meta.errors);
+  const error = touchedFieldError(field.state.meta);
   return (
     <Field
       label={label}
       description={description}
       hint={hint}
-      error={field.state.meta.isTouched ? error : null}
+      error={error}
       disabled={disabled ?? false}
       name={field.name}
     >

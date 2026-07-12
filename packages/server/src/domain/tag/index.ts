@@ -18,6 +18,12 @@ export type {
 } from "@orb/contracts/tag";
 export type { TagContext } from "./context";
 export { TagNotFoundError } from "./contract/errors";
+export type { TagLibraryImportResult } from "./contract/results";
 export type { TagService } from "./contract/service";
 export type { TagUsage, TagView, TagWithUsage } from "./contract/views";
 export { createTagService } from "./service";
+// Standalone tag-library export/import verb factories (the uniform portability template §1 parts 2/3). The
+// entry composition root wires these into the `PortableEntity` descriptor for the delivery core; they are
+// owner-scoped, serde-backed (`#kit/serde/tag`), and write ONLY the tag domain's own `tags` table.
+export { createExport as createTagLibraryExport } from "./verbs/export";
+export { createImport as createTagLibraryImport } from "./verbs/import";

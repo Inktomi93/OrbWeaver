@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 /**
  * Slot classes for the accordion (ui-package-design §5). Items are separated by `border-border`
@@ -11,8 +11,7 @@ export const accordionVariants = tv({
     root: "flex w-full flex-col",
     item: "border-b border-border",
     header: "flex",
-    trigger:
-      "group flex flex-1 cursor-pointer items-center justify-between gap-block py-block text-title leading-title font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-disabled:pointer-events-none data-disabled:opacity-50",
+    trigger: `group flex flex-1 cursor-pointer items-center justify-between gap-block py-block text-title leading-title font-medium text-foreground outline-none data-disabled:pointer-events-none data-disabled:opacity-50 ${FOCUS_RING}`,
     chevron:
       "shrink-0 text-muted-foreground transition-transform duration-(--motion-base) ease-out-expo group-data-[panel-open]:rotate-180",
     panel:

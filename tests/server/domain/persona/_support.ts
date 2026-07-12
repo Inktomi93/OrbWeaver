@@ -31,11 +31,20 @@ export interface UserEventCall {
   readonly event: UserBusEvent;
 }
 
+/** A recorded seed re-point call — `remove` fires it after a delete so the current/default pointer never
+ *  dangles (the injected settings write is faked here; the real op lives at `entry/compose/services.ts`). */
+export interface RepointSeedsCall {
+  readonly ownerId: UserId;
+  readonly deletedId: PersonaId;
+}
+
 export interface PersonaHarness {
   readonly ctx: PersonaContext;
   readonly audits: AuditCall[];
   /** The recorded `emitUserEvent` calls (assert `personasChanged` fires after a durable write). */
   readonly userEvents: UserEventCall[];
+  /** The recorded seed re-point calls (assert `remove` re-points the current/default pointer on delete). */
+  readonly repointCalls: RepointSeedsCall[];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
 }
@@ -46,6 +55,7 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const userEvents: UserEventCall[] = [];
+  const repointCalls: RepointSeedsCall[] = [];
   const ctx: PersonaContext = {
     db,
     now: (): number => clock.now(),
@@ -59,9 +69,19 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
     },
     requireChatAuthorOrHost: () => Promise.resolve(),
     setChatActivePersona: () => Promise.resolve(),
+    repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId): Promise<void> => {
+      repointCalls.push({ ownerId, deletedId });
+      return Promise.resolve();
+    },
     ...overrides,
   };
-  return { ctx, audits, userEvents, advance: (ms: number): void => clock.advance(ms) };
+  return {
+    ctx,
+    audits,
+    userEvents,
+    repointCalls,
+    advance: (ms: number): void => clock.advance(ms),
+  };
 }
 
 interface SeedUserOverrides {

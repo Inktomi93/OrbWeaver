@@ -69,6 +69,13 @@ export interface PersonaContext {
     targetUserId: UserId,
     personaId: PersonaId | null,
   ) => Promise<void>;
+  /** Re-point the GLOBAL seed pointers (`settings.seeds.current/defaultPersonaId`) after `remove` deletes
+   *  `deletedId` — an INJECTED settings write (persona sideways-imports nothing; wired at `entry/compose`).
+   *  Enforces the owner invariant "never NO current persona while you own one": if the deleted persona was
+   *  the current (or default) pointer, the op re-points to default → first remaining → null. A no-op when
+   *  neither pointer named the deleted id. Fires AFTER the row deletion commits (best-effort ordering
+   *  matches `setChatActivePersona` — the display fallback covers the window if it ever fails). */
+  readonly repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId) => Promise<void>;
 }
 
 export interface PersonaService {

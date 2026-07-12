@@ -41,7 +41,7 @@ The two FORM rows are 2 of the six editor obligations the factories bake — **t
 
 **DORMANT (built + self-tested, held out of `report.ts`'s `ALL_CHECKS` — distinct from PARKED, which is unwritten; activation is a one-line add, ground truth = the `DORMANT_GATES` set in `tests/tooling/check-gates.int.test.ts`):** `surface-in-a-container` (needs a real consumer surface — app-shell is shell-tier-exempt) · `component-size-ui` (rides W1-1's `table.tsx` split) · `test-presence-client` (rides W1-1's client-primitive test backfill). Full registry + triggers: `Core-Enforcement-Active-Gates.md`.
 
-**PLANNED — the D62 design-gate set (specced; implementation detail + tiering: `proposed/design-enforcement.md` §3; they land WITH the D62 lanes per §11.7, and the D62 lanes ALSO trigger the full remaining §8-PARKED activation — the lanes ARE feature agents):**
+**PLANNED — the D62 design-gate set (specced; implementation detail + tiering: `history/design-enforcement.md` §3; they land WITH the D62 lanes per §11.7, and the D62 lanes ALSO trigger the full remaining §8-PARKED activation — the lanes ARE feature agents):**
 
 - `no-raw-interactive-intrinsics` — in `features/**` a raw `<button>/<input>/<select>/<textarea>/<a>` JSX element is banned regardless of className (interactive elements come from `@orb/ui`); app-shell stays shell-tier-exempt.
 - `no-arbitrary-tw-values` — bracket-value utilities (`p-[13px]`, `text-[10.5px]`) banned in features AND ui — widens the token-gate grit family to the general bracket escape.

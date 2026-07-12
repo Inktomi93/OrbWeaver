@@ -135,7 +135,7 @@ server AND client need these shapes.
 
 ```ts
 // @orb/contracts/assets — ASSET_KINDS grows by one (illustrative append; the CONSOLIDATED
-// member roster across all design sets lives in proposed/gallery-design.md §0):
+// member roster across all design sets lives in history/gallery-design.md §0):
 export const ASSET_KINDS = [..., "sprite"] as const;
 ```
 

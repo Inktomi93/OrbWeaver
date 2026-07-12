@@ -19,8 +19,6 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
-import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -28,6 +26,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import {
@@ -58,16 +57,6 @@ function positionLabel(position: ChatInjection["position"]): string {
 const POSITION_ITEMS: SelectItems<string> = CHAT_INJECTION_POSITIONS.map((value) => ({
   value,
   label: positionLabel(value),
-}));
-
-const ROLE_LABELS: Record<MessageRole, string> = {
-  system: "System",
-  user: "User",
-  assistant: "Assistant",
-};
-const ROLE_ITEMS: SelectItems<string> = MESSAGE_ROLES.map((value) => ({
-  value,
-  label: ROLE_LABELS[value],
 }));
 
 /** The seed for a freshly-added injection (host "Add"). */
@@ -180,7 +169,7 @@ function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): Rea
 
         <form.AppField name="role">
           {(field): ReactElement => (
-            <field.SelectField label="Role" items={ROLE_ITEMS} disabled={!isHost} />
+            <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />
           )}
         </form.AppField>
 

@@ -5,6 +5,7 @@
 // of the seal-level `MarkdownErrorBoundary`).
 import type { ReactElement } from "react";
 import type { MermaidErrorComponentProps, MermaidOptions } from "streamdown";
+import { Button } from "#primitives/button";
 import { TOKENS } from "#tokens";
 
 // Mermaid's `theme: "base"` is the ONLY theme whose `themeVariables` are honored — the built-in named
@@ -38,13 +39,9 @@ function MermaidError({ error, retry }: MermaidErrorComponentProps): ReactElemen
     >
       <p className="text-destructive">Diagram failed to render.</p>
       <p className="mt-field font-mono text-code">{error}</p>
-      <button
-        type="button"
-        onClick={retry}
-        className="mt-row rounded-control border border-border px-field py-field text-label hover:bg-accent"
-      >
+      <Button className="mt-row" intent="ghost" onClick={retry} size="sm">
         Retry
-      </button>
+      </Button>
     </div>
   );
 }

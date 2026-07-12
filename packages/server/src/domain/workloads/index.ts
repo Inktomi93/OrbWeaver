@@ -28,6 +28,17 @@ export type {
   WorkloadRunnerEnv,
   WorkloadStatsEnv,
 } from "./contract/runner-env";
+// The schedule verb param/result types (the TIME dimension) + the tick's injected-deps bundle.
+export type {
+  CreateScheduleParams,
+  DeleteScheduleParams,
+  ListSchedulesParams,
+  ScheduleTickDeps,
+  SetScheduleEnabledParams,
+  UpdateScheduleParams,
+  WorkloadScheduleRow,
+  WorkloadScheduleService,
+} from "./contract/schedule";
 export type {
   WorkloadRunnerContext,
   WorkloadRunnerDeps,
@@ -53,6 +64,8 @@ export {
 export { reapOrphanedWorkloads } from "./engine/reaper";
 // Engine entry points (the transport/jobs worker DRIVER is the only legal external caller — front-door only)
 export { runWorkload } from "./engine/runner";
+// The scheduler TICK entry point (the transport/jobs schedule DRIVER is the only legal external caller).
+export { tickWorkloadSchedules } from "./engine/schedule-tick";
 // The typed row + queue poll the worker driver + tRPC get/list project (@public).
 export { loadWorkload, nextRunnableWorkload } from "./persistence/queries";
 export { createWorkloadService } from "./service";

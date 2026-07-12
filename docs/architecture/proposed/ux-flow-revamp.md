@@ -9,7 +9,7 @@ pointer-conditional floor = **§4b axis 3**; the design gates = `core/UI-Gates-a
 PLANNED block; primitive-delta governance = `core/UI-Primitives-and-Reuse.md` §13.2/§13.9. Lane
 sequencing = `core/Core-BUILD-PLAN.md` Phase 6 (L0–L7). Companion programs:
 [`ui-polish-punchlist.md`](ui-polish-punchlist.md) (UIP-numbered pixel/chrome tasks) and
-[`design-enforcement.md`](design-enforcement.md) (gate implementation + goldens + process).
+[`design-enforcement.md`](../history/design-enforcement.md) (gate implementation + goldens + process).
 
 ## 0. Cold-read contract
 

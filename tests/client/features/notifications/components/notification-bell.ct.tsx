@@ -2,8 +2,9 @@
 // the PRODUCTION path over the stubbed network: `notifications.list` (the durable inbox read) + the
 // `notifications.notifications` SSE subscription (a scripted `text/event-stream` body in the exact
 // tRPC wire shape — the routeChatStream pattern, local here because that helper types its events as
-// `ChatBusEvent`) + the invite verbs. Asserts: the unread badge + accessible name; open→markRead; the
-// inline Accept (fires `invites.acceptInvite` with the notification's `inviteId`, then dismisses);
+// `ChatBusEvent`) + the invite verbs. Asserts: the unread badge + accessible name; open→markAllRead
+// (ONE bulk mutation, not a per-row markRead loop); the inline Accept (fires `invites.acceptInvite`
+// with the notification's `inviteId`, then dismisses);
 // Decline→`declineInvite`+dismiss; and a LIVE arrival re-rendering the list without a refresh.
 //
 // The bell button is addressed by ROLE + accessible name (its aria-label carries the unread count) —
@@ -73,7 +74,7 @@ test("unread invites badge the bell; opening lists the invite and marks it read"
 }) => {
   const trpc = await routeTrpc(page, {
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
-    "notifications.markRead": () => null,
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
   });
   await routeInboxStream(page, []);
 
@@ -85,10 +86,9 @@ test("unread invites badge the bell; opening lists the invite and marks it read"
 
   await bell.click();
   await expect(page.getByText("nate invited you to a chat")).toBeVisible();
-  // Opening = seen: the unread row is marked read.
-  await expect.poll(() => trpc.count("notifications.markRead")).toBeGreaterThanOrEqual(1);
-  const marked = trpc.lastInput("notifications.markRead") as { notificationId?: unknown };
-  expect(marked.notificationId).toBe("ntf_ct_1");
+  // Opening = seen: ONE bulk markAllRead call, not a per-row markRead loop.
+  await expect.poll(() => trpc.count("notifications.markAllRead")).toBeGreaterThanOrEqual(1);
+  expect(trpc.count("notifications.markAllRead")).toBe(1);
 });
 
 test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
@@ -110,7 +110,7 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
 }) => {
   const trpc = await routeTrpc(page, {
     "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
-    "notifications.markRead": () => null,
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => null,
     "invites.acceptInvite": () => ({
       chat: { id: "chat_ct_target", participants: [] },
@@ -143,7 +143,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
   const trpc = await routeTrpc(page, {
     "notifications.list": () =>
       dismissed ? { items: [], nextCursor: null } : { items: [inviteRow()], nextCursor: null },
-    "notifications.markRead": () => null,
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => {
       dismissed = true;
       return null;

@@ -16,10 +16,17 @@
 import { createHash } from "node:crypto";
 import type { CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
 import { slugifyHandle } from "@orb/kit/slug";
-import { cardFromJson } from "#kit/serde/card";
+import {
+  cardFromJson,
+  extractLorebook,
+  loreEntryColumns,
+  loreEntryMetadata,
+  selectBestCharacterBook,
+} from "#kit/serde/card";
 import { ImportCardError } from "../contract/errors";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
@@ -31,6 +38,46 @@ const UTF8_BOM = 0xfe_ff;
 interface ParsedCard {
   readonly card: CharacterCard;
   readonly tags: readonly string[];
+  /** The embedded ST `character_book` mapped to the canonical bulk-import shape, or null when the card ships
+   *  no book (the import lorebook op writes it keyed on the character; `cardFromJson` drops it). */
+  readonly book: BulkImportLorebookInput | null;
+}
+
+const DEFAULT_BOOK_NAME = "Imported Lorebook";
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return typeof v === "object" && v !== null && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
+}
+
+// Extract the embedded ST lorebook off the raw card (V2/V3 `data.character_book`, or a bare top-level
+// `character_book`) → the canonical `BulkImportLorebookInput`. `selectBestCharacterBook` disambiguates a card
+// that embeds a book twice (most-NAMED-entries wins); the per-entry projection reuses the SAME `#kit/serde/
+// card` IN-serde `exportBookEntry` round-trips against. Null when no book carries any entries.
+function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null {
+  const root = asRecord(raw);
+  if (root === null) {
+    return null;
+  }
+  const data = asRecord(root["data"]) ?? root;
+  const book = asRecord(selectBestCharacterBook(data["character_book"], root["character_book"]));
+  if (book === null) {
+    return null;
+  }
+  const entries = extractLorebook(book).map((entry) => ({
+    ...loreEntryColumns(entry),
+    metadata: loreEntryMetadata(entry),
+  }));
+  if (entries.length === 0) {
+    return null;
+  }
+  const name =
+    typeof book["name"] === "string" && book["name"].trim().length > 0
+      ? book["name"]
+      : DEFAULT_BOOK_NAME;
+  const description = typeof book["description"] === "string" ? book["description"] : null;
+  return { name, description, entries };
 }
 
 // `TextDecoder` is a global (no node import) so the substrate stays import-clean.
@@ -67,7 +114,11 @@ function fromText(text: string, fallbackName: string): ParsedCard | null {
     if (typeof parsed !== "object" || parsed === null) {
       return null;
     }
-    return { card: cardFromJson(parsed, fallbackName), tags: extractCardTags(parsed) };
+    return {
+      card: cardFromJson(parsed, fallbackName),
+      tags: extractCardTags(parsed),
+      book: extractBulkImportLorebook(parsed),
+    };
   } catch {
     return null; // undecodable JSON → "not a card", per the null contract
   }

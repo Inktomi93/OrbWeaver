@@ -83,6 +83,9 @@ function normalize(info: ModelInfo): AgentSdkModel {
  * catches it and serves the persisted snapshot (mirrors `fetchOrCatalog` + `refreshCatalog`).
  */
 export async function fetchAgentSdkModels(deps: AgentSdkDeps): Promise<AgentSdkModel[]> {
+  // Discovery ALWAYS rides the mode-1 host-login path — refresh an expired host token first so the daemon
+  // spawn authenticates (same ephemeral-symlink refresh-persistence hole the turn runners guard against).
+  await deps.refreshHostSubToken();
   const stream: Query = deps.query({
     prompt: heldOpenPrompt(),
     // The mode-1 firewall: the leak-proof discipline base + the host-login (`buildClaudeSdkEnv`) env. The

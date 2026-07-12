@@ -12,7 +12,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, or } from "drizzle-orm";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants";
 
 type PresetRow = typeof presets.$inferSelect;
@@ -64,6 +64,33 @@ export async function listReadable(db: Db, userId: UserId): Promise<PresetRow[]>
     .from(presets)
     .where(or(eq(presets.ownerId, userId), isNull(presets.ownerId)))
     .orderBy(asc(presets.createdAt));
+}
+
+/** The owner's OWN rows only (`ownerId = userId` — EXCLUDES the un-owned system default), oldest-first.
+ *  The orb-native backup export reads this: the shared default never travels in a per-owner backup (it is
+ *  re-seeded at boot on the target box, so exporting it would duplicate on restore). */
+export async function listOwned(db: Db, userId: UserId): Promise<PresetRow[]> {
+  return await db
+    .select()
+    .from(presets)
+    .where(eq(presets.ownerId, userId))
+    .orderBy(asc(presets.createdAt));
+}
+
+/** The caller's existing owned preset with this exact `name`, or null — the `(ownerId, name)` import dedup
+ *  key. Newest wins when names collide (a degenerate case; the dedup only needs ONE stable merge target). */
+export async function findOwnedPresetByName(
+  db: Db,
+  userId: UserId,
+  name: string,
+): Promise<PresetId | null> {
+  const rows = await db
+    .select({ id: presets.id })
+    .from(presets)
+    .where(and(eq(presets.ownerId, userId), eq(presets.name, name)))
+    .orderBy(desc(presets.createdAt))
+    .limit(1);
+  return rows[0]?.id ?? null;
 }
 
 /** Patch an OWNED row (scoped on `ownerId = userId` — never matches the null-owner system default),

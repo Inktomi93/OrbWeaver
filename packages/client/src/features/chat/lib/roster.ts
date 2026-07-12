@@ -13,6 +13,27 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 
+/** A character participant — narrowed from the roster (a human/agent/observer seat has no place here).
+ *  `Omit` (not a same-key intersection — a known TS assignability footgun that gets harder for the
+ *  checker to prove as `ParticipantView` grows optional fields, silently losing the `.filter` narrow).
+ *  NOT exported (`no-inline-types` — feature types live in `contract/`, not a feature `lib/`); consumers
+ *  needing the narrowed element type derive it locally via `ReturnType<typeof filterCharacters>[number]`. */
+type CharacterParticipant = Omit<ParticipantView, "characterId"> & {
+  readonly characterId: NonNullable<ParticipantView["characterId"]>;
+};
+
+function isCharacter(p: ParticipantView): p is CharacterParticipant {
+  return p.kind === "character" && p.characterId !== null;
+}
+
+/** The character-only slice of a roster — the ONE narrowing filter (was copied verbatim across
+ *  chat-header/chat-cast-bar/speak-as-select + inlined in the context panel). */
+export function filterCharacters(
+  participants: readonly ParticipantView[],
+): readonly CharacterParticipant[] {
+  return participants.filter(isCharacter);
+}
+
 /** The chat's roster, keyed by character id — filters to `kind === "character"` participants (a
  *  human/agent/observer participant has no place in a `CharacterId`-keyed map; same discriminant
  *  `attribution.ts`/`message-render-context.ts` already use for the identical filter). */

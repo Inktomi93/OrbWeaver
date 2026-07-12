@@ -8,7 +8,7 @@ pass-through (see `ux-flow-revamp.md`).
 
 **Companions:** [`ux-flow-revamp.md`](ux-flow-revamp.md) (UX/flow/IA redesign + NeoTavern parity map
 + build lanes — the punchlist's tasks slot into its lanes L0–L6) ·
-[`design-enforcement.md`](design-enforcement.md) (how the bar gets locked in: law text, gates,
+[`design-enforcement.md`](../history/design-enforcement.md) (how the bar gets locked in: law text, gates,
 golden baselines, and rulings P1–P6 — ALL DECIDED 2026-07-05 under Nate's delegation; tasks below
 cite them as settled).
 

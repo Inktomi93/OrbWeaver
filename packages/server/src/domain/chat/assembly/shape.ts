@@ -84,9 +84,9 @@ interface ShapeInput {
    *  (default — the conservative floor) ⇒ normalize at delivery: nudge a trailing-assistant to a user tail,
    *  floor assistant\@0 to depth 1 (a `false`-model 400s on a trailing assistant). */
   assistantPrefill?: boolean;
-  /** D66-C (W6) — the resolved USER role-handling knob (`RouteChatAssignment.roleHandling`, carried through
-   *  `ResolvedConnection`). Clamped at SHAPE against {@link roleHandlingFloor} (`max(floor, knob)`). Unset ⇒
-   *  falls to the floor. */
+  /** D66-C (W6 REVERSED) — the USER role-handling knob, now sourced from the PRESET
+   *  (`params.advanced.roleHandling`), NOT the connection (it moved off `RouteChatAssignment`). Clamped at SHAPE
+   *  against {@link roleHandlingFloor} (`max(floor, knob)`). Unset ⇒ falls to the floor. */
   roleHandling?: RoleHandling | undefined;
   /** D66-C (W6) — the MODEL/wire adjacent-same-role FLOOR (`capability.turns.roleHandlingFloor`). Unset ⇒
    *  `strict` (TURNS_FLOOR — the conservative today-behavior). SHAPE runs the stricter of floor + knob. */

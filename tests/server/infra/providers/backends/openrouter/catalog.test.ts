@@ -19,7 +19,7 @@ describe("fetchOrCatalog", () => {
                 name: "Claude Opus 4.5",
                 contextLength: 200_000,
                 pricing: { prompt: "0.000015", completion: "0.000075", inputCacheRead: "" },
-                architecture: { inputModalities: ["text", "image"] },
+                architecture: { inputModalities: ["text", "image"], outputModalities: ["text"] },
                 supportedParameters: ["reasoning", "temperature"],
               },
             ],
@@ -34,6 +34,7 @@ describe("fetchOrCatalog", () => {
     expect(entry?.cacheReadPrice).toBeNull(); // blank string → null, not 0
     expect(entry?.cacheWritePrice).toBeNull(); // absent → null
     expect(entry?.inputModalities).toEqual(["text", "image"]);
+    expect(entry?.outputModalities).toEqual(["text"]); // GAP-3: outputModalities carried through
     expect(entry?.supportedParameters).toEqual(["reasoning", "temperature"]);
   });
 
@@ -48,7 +49,7 @@ describe("fetchOrCatalog", () => {
                 name: "",
                 contextLength: null,
                 pricing: { prompt: "1", completion: "2" },
-                architecture: { inputModalities: [] },
+                architecture: { inputModalities: [], outputModalities: [] },
                 supportedParameters: [],
               },
             ],

@@ -6,9 +6,9 @@
 // omitted at its default) and the tab predicate's status partition.
 
 import { WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import { friendlyWorkloadError } from "../../../../../packages/client/src/features/settings/lib/workloads-failure-copy";
 import {
   buildStartInput,
-  friendlyWorkloadError,
   isActiveWorkloadStatus,
   isMaintenanceWorkloadKind,
   isRetryableWorkloadStatus,
@@ -21,14 +21,23 @@ import {
 } from "../../../../../packages/client/src/features/settings/lib/workloads-model";
 import { expect, test } from "../../../../support/fixtures";
 
-test("the runnable set is exactly the contract's singular-capable kinds (stubs + bulk-only absent)", () => {
-  const expected = WORKLOAD_KINDS.filter((kind) => WORKLOAD_KIND_MODES[kind].singular);
+test("the runnable set is the contract's singular-capable built kinds, minus route-started import-bundle", () => {
+  // Singular + built (stub:false), EXCEPT `import-bundle` — it is singular but ROUTE-started (the upload route
+  // mints its staging-token param), so the picker never offers it.
+  const expected = WORKLOAD_KINDS.filter(
+    (kind) =>
+      WORKLOAD_KIND_MODES[kind].singular &&
+      !WORKLOAD_KIND_MODES[kind].stub &&
+      kind !== "import-bundle",
+  );
   expect(RUNNABLE_WORKLOAD_KINDS).toEqual(expected);
-  // The load-bearing exclusions as of the current contract: bulk-only stubs + the global catalog pass.
+  // The load-bearing exclusions as of the current contract: bulk-only stubs + the global catalog pass + the
+  // route-started bundle import.
   expect(RUNNABLE_WORKLOAD_KINDS).not.toContain("refresh-model-catalog");
   expect(RUNNABLE_WORKLOAD_KINDS).not.toContain("reconcile-world-state");
   expect(RUNNABLE_WORKLOAD_KINDS).not.toContain("crew-director");
-  expect(RUNNABLE_WORKLOAD_KINDS).toContain("embed-corpus");
+  expect(RUNNABLE_WORKLOAD_KINDS).not.toContain("import-bundle");
+  expect(RUNNABLE_WORKLOAD_KINDS).toContain("index");
   expect(RUNNABLE_WORKLOAD_KINDS).toContain("import-st");
 });
 
@@ -53,9 +62,9 @@ test("the maintenance set is the BUILT bulk-only kinds (stub:false), stubs exclu
   expect(MAINTENANCE_WORKLOAD_KINDS).not.toContain("crew-director");
   expect(MAINTENANCE_WORKLOAD_KINDS).not.toContain("reconcile-world-state");
   expect(isMaintenanceWorkloadKind("refresh-model-catalog")).toBe(true);
-  expect(isMaintenanceWorkloadKind("embed-corpus")).toBe(false);
+  expect(isMaintenanceWorkloadKind("index")).toBe(false);
   // Both groups are startable through the picker; a stub is not.
-  expect(isStartableWorkloadKind("embed-corpus")).toBe(true);
+  expect(isStartableWorkloadKind("index")).toBe(true);
   expect(isStartableWorkloadKind("refresh-model-catalog")).toBe(true);
   expect(isStartableWorkloadKind("crew-director")).toBe(false);
 });
@@ -78,19 +87,20 @@ test("friendlyWorkloadError maps known classes; unmapped returns null (row falls
 });
 
 test("buildStartInput carries ONLY the kind's own tunable, omitted at its default", () => {
-  const defaults = { force: false, dryRun: false, k: null };
-  // Default values → an empty params object for every shape (the runner resolves precedence).
-  expect(buildStartInput("embed-corpus", defaults)).toEqual({ kind: "embed-corpus", params: {} });
+  const defaults = { force: false, dryRun: false, k: null, source: "all" } as const;
+  // Default values → an empty params object for the tunable-precedence shapes (the runner resolves it).
   expect(buildStartInput("import-st", defaults)).toEqual({ kind: "import-st", params: {} });
   expect(buildStartInput("compute-themes", defaults)).toEqual({
     kind: "compute-themes",
     params: {},
   });
+  // `index` ALWAYS carries its REQUIRED source (it stamps the single-active lock); force omitted at default.
+  expect(buildStartInput("index", defaults)).toEqual({ kind: "index", params: { source: "all" } });
   // A set tunable rides — and ONLY on its own kind (stale state from a previous pick stays inert).
-  const allSet = { force: true, dryRun: true, k: 12 };
-  expect(buildStartInput("embed-corpus", allSet)).toEqual({
-    kind: "embed-corpus",
-    params: { force: true },
+  const allSet = { force: true, dryRun: true, k: 12, source: "image" } as const;
+  expect(buildStartInput("index", allSet)).toEqual({
+    kind: "index",
+    params: { source: "image", force: true },
   });
   expect(buildStartInput("import-st", allSet)).toEqual({
     kind: "import-st",

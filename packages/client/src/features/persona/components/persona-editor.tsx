@@ -11,11 +11,8 @@
 // A COMPONENT (the panel row's Collapsible body), not a surface.
 
 import type { PersonaMetadata } from "@orb/contracts/persona";
-import type { MessageRole } from "@orb/kit/message-role";
-import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
-import { estimateTokens } from "@orb/kit/tokens";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the add-member-popover precedent).
@@ -27,7 +24,13 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
-import { downloadJson, notify, slugifyFilename } from "#lib";
+import {
+  ASSISTANT_PREFILL_WARNING,
+  downloadJson,
+  MESSAGE_ROLE_ITEMS,
+  notify,
+  slugifyFilename,
+} from "#lib";
 import { usePersonaForm } from "../hooks/use-persona-form";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PERSONA_DESCRIPTION_MACROS } from "../lib/persona-description-macros";
@@ -51,16 +54,6 @@ function positionLabel(position: PersonaDescriptionPosition): string {
 const POSITION_ITEMS: SelectItems<string> = PERSONA_DESCRIPTION_POSITIONS.map((value) => ({
   value,
   label: positionLabel(value),
-}));
-
-const INJECT_ROLE_LABELS: Record<MessageRole, string> = {
-  system: "System",
-  user: "User",
-  assistant: "Assistant",
-};
-const ROLE_ITEMS: SelectItems<string> = MESSAGE_ROLES.map((value) => ({
-  value,
-  label: INJECT_ROLE_LABELS[value],
 }));
 
 export interface PersonaEditorProps {
@@ -117,18 +110,10 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
               hint="How this persona is described to the model. Use {{user}}/{{persona}} to self-reference."
               suggestions={PERSONA_DESCRIPTION_MACROS}
               rows={6}
+              showTokenCount={true}
             />
           )}
         </form.AppField>
-        <form.Subscribe selector={(state): string => state.values.description}>
-          {(description): ReactElement => (
-            <Row gap="row" align="center" className="justify-end">
-              <Text size="micro" tone="muted" className="font-mono">
-                ~{estimateTokens(description)} tokens
-              </Text>
-            </Row>
-          )}
-        </form.Subscribe>
       </Stack>
 
       <Stack gap="field">
@@ -154,7 +139,9 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
                   {(field): ReactElement => <field.NumberField label="Depth" min={0} />}
                 </form.AppField>
                 <form.AppField name="injectRole">
-                  {(field): ReactElement => <field.SelectField label="Role" items={ROLE_ITEMS} />}
+                  {(field): ReactElement => (
+                    <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} />
+                  )}
                 </form.AppField>
               </Row>
             );
@@ -164,8 +151,7 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
           {(prefill): ReactElement | null =>
             prefill ? (
               <Text size="micro" tone="warning">
-                Assistant role at depth 0 is a response prefill — pick depth ≥ 1, or role
-                system/user.
+                {ASSISTANT_PREFILL_WARNING}
               </Text>
             ) : null
           }

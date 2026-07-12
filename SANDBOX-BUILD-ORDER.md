@@ -76,7 +76,7 @@
 5. The three D62 program docs (step-level detail — read the one your lane needs, §0 of each
    first): `docs/architecture/proposed/ui-polish-punchlist.md` (UIP tasks; §0 = snap idioms +
    dev-DB gotcha) · `docs/architecture/proposed/ux-flow-revamp.md` (J1–J12 journeys + the
-   NeoTavern parity map + primitive deltas §4) · `docs/architecture/proposed/design-enforcement.md`
+   NeoTavern parity map + primitive deltas §4) · `docs/architecture/history/design-enforcement.md`
    (gates, goldens, the P1–P6 ruling records).
 6. Per-lane law: `UI-Gates-and-Lessons.md` §8 (incl. the NEW D62 PLANNED gate block) ·
    `UI-Primitives-and-Reuse.md` §13.2 map (six new rows) + §13.7/§13.8 (the primitive contract —

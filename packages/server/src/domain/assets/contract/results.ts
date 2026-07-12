@@ -37,3 +37,24 @@ export interface AssetMetadata {
   /** The actual CAS owner. Present only on roster-avatar exceptions (PD-28); absent → caller owns it. */
   readonly ownerId?: string;
 }
+
+// ── Gallery portability (export-import-portability.md §1) — the gallery CURATION entity's export/import ──
+// These MIRROR the `@orb/contracts/portability` `PortableFile` / `PortableImportOutcome` shapes STRUCTURALLY
+// (same fields), so the entry root wires the gallery export/import verbs into a `PortableEntity` descriptor
+// WITHOUT this domain importing the portability contract (the descriptor is assembled at compose, and this
+// domain stays free of the registry — the assets slice knows nothing about the delivery core).
+
+/** One portable gallery file: the relative filename + the serde bytes. Structurally a `PortableFile`. */
+export interface GalleryPortableFile {
+  readonly filename: string;
+  readonly bytes: Uint8Array;
+}
+
+/** The per-file import result for a gallery bundle file. Structurally a `PortableImportOutcome`: `ok:false` +
+ *  `error` for an unparseable file (never thrown — one bad file cannot abort a bundle); `created` reflects
+ *  whether ANY curation row was newly written (false = every row deduped on re-import). */
+export interface GalleryImportOutcome {
+  readonly ok: boolean;
+  readonly created?: boolean;
+  readonly error?: string;
+}

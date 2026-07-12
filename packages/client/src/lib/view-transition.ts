@@ -7,12 +7,13 @@
 // the root tsconfig deliberately has no `dom` lib — browser reality is unchanged, the types are
 // simply carried locally.
 
+import { prefersReducedMotionNow } from "@orb/ui/lib";
+
 interface VtDocument {
   readonly startViewTransition?: (update: () => void) => unknown;
 }
 interface VtGlobals {
   readonly document?: VtDocument;
-  readonly matchMedia?: (query: string) => { readonly matches: boolean };
 }
 
 /**
@@ -23,7 +24,7 @@ interface VtGlobals {
 export function withViewTransition(update: () => void): void {
   const g = globalThis as VtGlobals;
   const start = g.document?.startViewTransition;
-  const reducedMotion = g.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  const reducedMotion = prefersReducedMotionNow();
   if (start === undefined || reducedMotion) {
     update();
     return;

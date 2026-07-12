@@ -18,8 +18,6 @@
 import {
   CircleUser,
   Drama,
-  ExternalLink,
-  Gauge,
   Hash,
   Lock,
   MessagesSquare,
@@ -27,9 +25,19 @@ import {
   SunMoon,
   Zap,
 } from "@orb/ui/icons";
+// The Backup & Restore category's nav DATA lives in backup-nav.ts (kept this registry under the §2.1
+// size cap — the connections-nav.ts precedent). `BACKUP_SUBCATEGORY_IDS` is imported by the backup
+// surface FROM backup-nav.
+import { BACKUP_CATEGORY } from "./backup-nav";
+// The Connections category's nav DATA lives in connections-nav.ts (kept this registry under the §2.1
+// size cap). `CONNECTIONS_SUBCATEGORY_IDS` is imported by the connections surface FROM connections-nav.
+import { CONNECTIONS_CATEGORY } from "./connections-nav";
 // `SETTINGS_GROUPS` rides the type import — this file only ever uses it in `typeof` type positions.
 import type { SETTINGS_GROUPS, SettingsCategory } from "./settings-nav-model";
 import { SETTINGS_CATEGORY_IDS } from "./settings-nav-model";
+// The Workloads category's nav DATA lives in workloads-nav.ts (same size-cap split — the workloads surfaces
+// import `WORKLOADS_SUBCATEGORY_IDS` from there directly, as the backup/connections surfaces do for theirs).
+import { WORKLOADS_CATEGORY } from "./workloads-nav";
 
 /** Appearance pane subcategory ids — the ONE home shared by the registry AND the surface's `<Section>`
  *  anchor stamps, so a typo/rename is a `tsc` error, never a stale anchor (registry-as-data). */
@@ -60,9 +68,6 @@ export const SYSTEM_SUBCATEGORY_IDS = {
   multiUser: "multi-user",
   operations: "operations",
 } as const;
-
-/** Workloads pane subcategory ids (the per-user background-jobs pane; same one-home discipline). */
-export const WORKLOADS_SUBCATEGORY_IDS = { jobs: "jobs" } as const;
 
 /** Admin pane subcategory ids (the user-administration + ops pane; same one-home discipline). */
 export const ADMIN_SUBCATEGORY_IDS = {
@@ -253,27 +258,8 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
         },
       ],
     },
-    workloads: {
-      group: "user",
-      label: "Workloads",
-      icon: Gauge,
-      description: "Run and monitor background jobs over your library.",
-      built: true,
-      subcategories: [
-        {
-          id: WORKLOADS_SUBCATEGORY_IDS.jobs,
-          label: "Jobs",
-          keywords: ["jobs", "background", "queue", "tasks", "progress", "retry", "cancel"],
-          settings: [
-            {
-              id: "run-workload",
-              label: "Run a workload",
-              keywords: ["start", "embed", "import", "backfill", "themes", "duplicates", "bulk"],
-            },
-          ],
-        },
-      ],
-    },
+    workloads: WORKLOADS_CATEGORY,
+    backup: BACKUP_CATEGORY,
     "chat-behavior": {
       group: "user",
       label: "Chat behavior",
@@ -282,13 +268,7 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       built: false,
     },
     // ── APP group ──
-    connections: {
-      group: "app",
-      label: "Connections",
-      icon: ExternalLink,
-      description: "Provider credentials and model connections.",
-      built: false,
-    },
+    connections: CONNECTIONS_CATEGORY,
     automation: {
       group: "app",
       label: "Automation",

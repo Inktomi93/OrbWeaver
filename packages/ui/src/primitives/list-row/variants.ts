@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 // The list-row skin — the slot-based entity row every list surface composes (library, presets,
 // rules, plugins, databank docs, rosters — ui-package-design §12 Wave-3-C). `body` is the ONE
@@ -46,7 +46,7 @@ export const listRowVariants = tv({
     },
     clickable: {
       true: {
-        body: "cursor-pointer hover:bg-accent active:bg-accent/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        body: `cursor-pointer hover:bg-accent active:bg-accent/80 ${FOCUS_RING}`,
       },
       false: {},
     },

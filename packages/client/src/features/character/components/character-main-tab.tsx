@@ -28,6 +28,11 @@ import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 import { parseExampleBlocks } from "../lib/example-messages";
 import { CharacterTokenCounter } from "./character-token-counter";
 
+/** The macro-aware prompt-bearing Main-tab field names (`field.MacroField`'s `showTokenCount` carries the
+ *  counter now, C10); the spoiler-blur container wrapper stays per-field (Main-tab-specific behavior). */
+const MAIN_TAB_MACRO_FIELD_NAMES = ["description", "personality", "scenario"] as const;
+type MainTabMacroFieldName = (typeof MAIN_TAB_MACRO_FIELD_NAMES)[number];
+
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
 /** The CSS-blur className for a spoiler-bearing field container when the eye toggle is on (§6.1). No
@@ -82,9 +87,8 @@ export function CharacterMainTab({ form, trusted }: CharacterMainTabProps): Reac
   );
 }
 
-/** One macro-aware field + its live token counter (a prompt-bearing Main/Advanced text field). `name` is a
- *  literal key so the bound field + the counter subscribe stay type-checked against the form values. The
- *  whole container blurs at rest when the spoiler eye is on (§6.1). */
+/** One macro-aware field, its live token counter riding `field.MacroField`'s `showTokenCount` (C10).
+ *  The whole container blurs at rest when the spoiler eye is on (§6.1). */
 function CountedMacroField({
   form,
   name,
@@ -93,7 +97,7 @@ function CountedMacroField({
   spoilerBlur,
 }: {
   readonly form: CardForm;
-  readonly name: "description" | "personality" | "scenario";
+  readonly name: MainTabMacroFieldName;
   readonly label: string;
   readonly hint: string;
   readonly spoilerBlur: boolean;
@@ -107,12 +111,10 @@ function CountedMacroField({
             hint={hint}
             suggestions={CHARACTER_CARD_MACROS}
             rows={6}
+            showTokenCount={true}
           />
         )}
       </form.AppField>
-      <form.Subscribe selector={(s): string => s.values[name]}>
-        {(value): ReactElement => <CharacterTokenCounter tokens={estimateTokens(value)} />}
-      </form.Subscribe>
     </Stack>
   );
 }

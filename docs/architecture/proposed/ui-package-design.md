@@ -62,8 +62,14 @@ packages/ui/
         badge · skeleton · spinner · empty-state · card · list-row · setting-row · selection-bar ·
         save-bar · status-chip · compare-blocks · avatar-stack · file-dropzone · highlighted-text ·
         log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate)
-    layout/             # Stack · Row · Section · Toolbar · Container (owns container-type — §4-tier
-                        #   model; Toolbar = Base UI Toolbar for roving-tabindex + our layout skin)
+      + aria-announcer/ · fieldset/ · kbd/ · table/ · text/  (BUILT — the small hand-authored
+        primitives; no lib, tv() over semantic HTML/ARIA)
+    fuzzy-search/       # minisearch's second sealed home (BUILT) — the generic browse-search hook,
+                        #   sibling to primitives/macro-textarea/ (same lib, two sanctioned homes,
+                        #   dep-cruiser `ui-satellite-seals`)
+    layout/             # Stack · Row · Section · Toolbar · Container · Grid (owns container-type —
+                        #   §4-tier model; Toolbar = Base UI Toolbar for roving-tabindex + our layout
+                        #   skin; Grid = fill-and-sort grid, BUILT)
     charts/             # seals ECharts (D52) — BUILT: chart/ + bar-list/ + histogram/ + stat-figure/
       meter/            # Meter (linear/arc/bipolar + milestones/dangerBelow) + SegmentedClock —
                         #   plain CSS/SVG, NOT the chart lib (D52/D58; rpg-design/11 §2); exported ./meter
@@ -95,7 +101,7 @@ packages/ui/
 | --- | --- | --- | --- |
 | `@base-ui/react` | ^1.6.0 | THE headless primitive (D42) | ✅ as documented (1.6.x; the `@base-ui-components/react` name is the DEAD rc-era package — never install it). v1 broke RC-era APIs: **every wrap is written against the live per-component docs (base-ui.com), never memory.** |
 | `tailwind-variants` | ^3.2.2 | variants + slots + `cn` (subsumes cva/clsx/tw-merge — D54) | ⚠️ docs said "v1"; current major is **3.x**. API verified at build: `tv()`, `slots`, `VariantProps` all present; deltas recorded in the variants convention (§5) if any surface. |
-| `lucide-react` | ^1.23.0 | icons (gate `icons-lucide-only`) | ✅ |
+| `lucide-react` | ^1.22.0 | icons (gate `icons-lucide-only`) | ✅ (pinned below `.23` by `minimumReleaseAge` — bump when mature) |
 | `@tanstack/react-virtual` | ^3.14.5 | virtual-list/message-list seals | ✅ ≥3.14.3 (`directDomUpdates` fix) + core ≥3.16 chat APIs per D54 |
 | `streamdown` | ^2.5.0 | markdown seal | ✅ meets the D43 "floor ≥2.5" build-gate |
 | `codemirror` + `@codemirror/lang-css` | ^6.0.2 / ^6.3.1 | code-editor seal | ✅ CM6 |
@@ -105,7 +111,8 @@ packages/ui/
 | `cmdk` | ^1.1.1 | command seal | BUILT |
 | `@dnd-kit/react` (+`/dom`+`/helpers`) | ^0.5.0 | sortable seal | BUILT (the rewrite; the legacy `@dnd-kit/core`/`sortable`/`utilities` stack is dead — never install) |
 | `echarts` + `echarts-for-react` | ^6.1.0 / ^3.0.6 | charts seal (D52) | BUILT |
-| `minisearch` | catalog | macro-textarea fuzzy match (carve-out item 18 — DECIDED dep) | BUILT |
+| `minisearch` | catalog | macro-textarea fuzzy match (carve-out item 18 — DECIDED dep); ALSO seals `fuzzy-search/` (the generic browse-search hook, the lib's second sanctioned home) | BUILT |
+| `katex` + `rehype-katex` + `remark-math` | ^0.16.25 / ^7.0.1 / ^6.0.0 (catalog) | the markdown seal's math capability (`markdown/math.ts`) — Streamdown bundles Mermaid but not KaTeX, so this seal supplies the whole `$…$`/`$$…$$` parse→render stack + stylesheet | BUILT |
 | **peer** `react` / `react-dom` | ^19 | the renderer stays the client's | see §1 — react-dom peer is a Base UI requirement (recorded delta vs D54's "react only") |
 | **dev** `@types/react`(-dom), `react`, `react-dom`, `tailwindcss`, `@tailwindcss/vite`, `style-dictionary` | catalog | typecheck + token codegen + CT | `style-dictionary` current major is **5.x** (docs said v4) — v5 is ESM/async; DTCG support intact. Recorded delta. |
 
@@ -137,7 +144,7 @@ packages/ui/
   API) emits BOTH `src/styles/theme.css` (the Tailwind v4 `@theme` block → utility namespaces) and
   `src/tokens/index.ts` (the typed TS map). Both are **committed, generated artifacts** with a
   DO-NOT-EDIT header.
-- **Freshness is machine-enforced:** `tests/ui/tokens/freshness.test.ts` re-runs the codegen
+- **Freshness is machine-enforced:** `tests/ui/tokens/index.test.ts` re-runs the codegen
   in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
   from `tokens.json` FAILS `pnpm test`. ("Derived, never hand-authored" as a test, not a hope.)
 - **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`; Mocha (the cool ramp)
@@ -153,6 +160,11 @@ packages/ui/
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
   `bg-black/50`) are gate-RED in ui exactly as in features (D43: **no `components/ui/` exemption**).
 - `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib` — the one class-merge home.
+- `lib/index.ts` ALSO exports `tv` — a `createTV`-CONFIGURED factory (NOT the raw `tailwind-variants`
+  export). Every primitive MUST import `tv` from `@orb/ui/lib`, never straight from the package:
+  the DTCG type-scale utilities (`text-display`…`text-micro`) are custom `--text-*` tokens
+  tailwind-merge doesn't know about by default, so an unconfigured `tv()` silently drops the size
+  when it collides with a color class. This is required by repo law, not a style preference.
 - **Interaction states:** every interactive primitive defines the 8 states (default · hover ·
   focus-visible ring `--ring` 2px offset 2 · active · disabled · loading · error · success) in its
   variants — Base UI supplies the behavior/ARIA; the variants supply the skin.
@@ -172,10 +184,10 @@ factories are inventoried here because this package is their substrate and their
 | `createVirtualList` seal → `<VirtualList>` | `{ count, getItemKey (REQUIRED, id-based), estimateSize, overscan?, lanes?, rangeExtractor?, renderItem }` | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
 | `<MessageList>` seal (chat) — DEFERRED to the chat-client chunk | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (BUILT 2026-07-09 — the `keepMounted` predicate, PD-119 DONE) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
 | `<Meter kind>` + `<SegmentedClock>` | `Meter: { kind: 'linear'\|'arc'\|'bipolar', value, max?, milestones?: number[], dangerBelow?: number, label }` · `SegmentedClock: { segments: int ≥2, filled, size?, completed? }` | hand-rolled ARIA (`role="meter"` + value semantics) — ONE rendering mechanism across kinds (Base UI's Meter is linear-DOM-shaped; arc/bipolar need SVG); `dangerBelow` swaps the danger INTENT token (never a color calc); bipolar is center-origin −/+ | CT: 0/partial/full/completed clock; bipolar ticks; danger token swap; ARIA values (rpg-design/11 §13 — the fixtures come from `RpgHudView`-SHAPED plain objects, no contracts import) |
-| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` + `toPlainText(md)` | the TWO trust policies (§11.6): `trusted` = Streamdown defaults; `untrusted` = link/image prefix allowlists + `allowDataImages:false` + protocols `http/https/mailto` + the D44 §12.2 Tier-A element allowlist; `remark-gfm {singleTilde:false}`; error-boundary around lazy CodeBlock/Mermaid (#343); large-block guard (#195) | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
+| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` + `toPlainText(md)` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D44 §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; error-boundary around lazy CodeBlock/Mermaid (#343); large-block guard (#195) | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
 | `<ThemeScope>` | `{ tokens: ThemeScopeTokens, children }` — ui-local Zod-clamped subset (D44 §12.1) | values parsed+clamped at the boundary (colors must parse as colors — reject `url()`/`expression()`; dims snap to token scale; font from allowlist); applies ONLY scoped CSS custom props on a wrapper; NEVER raw style passthrough (gate `theme-override-only-via-scope`) | CT: hostile values (`url(//x)`, `expression(...)`, `;injection`) are rejected/dropped; legal overrides land as `--token` custom props on the scope node only |
 | `<MessageMedia>` | `{ src: { kind:'asset', url } \| { kind:'external', url }, media: 'image'\|'audio'\|'video', alt, dims?, allowExternal: boolean }` | asset-vs-external dispatch; `forbidExternalMedia`-style click-to-load placeholder when `!allowExternal`; **autoplay FORCED OFF + `controls` required on untrusted A/V (non-overridable)**; lazy-load; aspect reservation (no layout shift); broken-media fallback; lightbox hook | CT: external img does NOT hit the network un-gated (placeholder first); untrusted `<video>` has `controls` and never `autoplay`; aspect box reserved pre-load |
-| `<SandboxFrame>` | `{ html, css?, themeTokens?, title }` | sandboxed `<iframe sandbox="allow-...">` **minus `allow-same-origin`, minus `allow-scripts` (v1)**; per-frame CSP attr (`connect-src 'none'`, gated `img-src`/`media-src`) owned in THIS ONE file; render-on-complete (no partial-stream mount); postMessage auto-height (origin-checked); theme-token injection so `var(--accent)` tracks | CT: `sandbox`/`csp` attrs EXACT (string-asserted); script inside the doc does not execute; height message resizes; a hostile postMessage from another origin is ignored |
+| `<SandboxFrame>` | `{ html, css?, themeTokens?, title, complete?, heightPx? }` | sandboxed `<iframe sandbox="allow-...">` **minus `allow-same-origin`, minus `allow-scripts` (v1)**; per-frame CSP attr (`connect-src 'none'`, gated `img-src`/`media-src`) owned in THIS ONE file; render-on-complete (no partial-stream mount); caller-controlled `heightPx` sizing (default `320`) — postMessage auto-height is IMPOSSIBLE in v1 (requires a script inside the frame, and `allow-scripts` is OFF); auto-height is explicitly DEFERRED to a future `allow-scripts`-enabled version (origin-checked listener), not before; theme-token injection so `var(--accent)` tracks | CT: `sandbox`/`csp` attrs EXACT (string-asserted); script inside the doc does not execute |
 | `<Lightbox>` | hand-built over Dialog + MessageMedia (D54 — no lib) | zoom view for image/video; focus trap + Esc from Base UI Dialog | CT: opens/closes; media renders through MessageMedia (gates compose) |
 | `code-editor` seal | `<CodeEditor lang="css"\|…, value, onChange, readOnly?>` | CM6 behind the seam; token-themed via an editor theme built FROM the TS token map (one mapping site); no raw CodeMirror import outside the dir (dep-cruiser) | CT: mounts, edits, theme vars applied |
 | `diff` seal | `<DiffView before after mode="chars"\|"lines">` | jsdiff v9 behind the seam; add/remove intent tokens | CT: known before/after renders adds/dels |
@@ -219,9 +231,12 @@ factories are inventoried here because this package is their substrate and their
    save independently use `form.FormGroup` + per-group `onDynamic` schemas (the multi-step-wizard
    pattern) — the factory exposes `SectionGroup` so a preset's "sampling"/"prompt" tabs or the
    wizard's steps validate + submit per-group while ONE form owns all state.
-2. `createEntityMutation`'s error-slot SHAPE: it returns `{ mutate, mutation, errorSlot }` where
-   `errorSlot` is `{ error: E | null, clear(): void }`, auto-cleared on next `mutate` — the
-   dialog/banner binds to `errorSlot`, never to a `??`-multiplexed pair.
+2. `createEntityMutation`'s error-slot SHAPE (as-built — verified against
+   `packages/client/src/data/create-entity-mutation.ts`): the return is FLAT, not a nested
+   `mutation`/`errorSlot` pair — `{ mutate, mutateAsync, isPending, pendingVariables, error,
+   clearError, retry }`. `error` is `mutation.error` (sticky until the next `mutate` — v5
+   behavior); `clearError` is `mutation.reset`. The dialog/banner binds to `error`/`clearError`
+   directly, never to a `??`-multiplexed pair.
 3. The virtual-list tripwire: "unbounded window" = the scroll element measures taller than
    `visualViewport.height * 3` at mount → **throw** with the fix instruction (the neo 200ms-commit
    lesson, D43 §11.3).
@@ -248,7 +263,7 @@ and the CT tests assert the CONTAINMENT properties, not just rendering:
 | resolver | ui's `package.json` omits contracts/db/server/client + client's omits the satellites | scaffold (done at package birth) |
 | lint (biome) | `noUndeclaredDependencies` / `noUnresolvedImports` on ui | free (repo-wide already) |
 | dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`) · `client-no-raw-satellites` (pre-wired backstop for Phase 6) | scaffold |
-| grit (token gates) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing` / `no-raw-typography` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/styles/` + `src/tokens/` (they DEFINE the tokens — the exact `features/_shared/layout/` precedent) | scaffold |
+| grit (token gates) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing` / `no-raw-typography` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
 | test | tokens **freshness** test (§4) — the derived-theme invariant; the CT containment tests (§7) | per chunk |
 | runner split | Playwright CT (`.ct.tsx` under `tests/ui/**` mirror) on its OWN runner (`pnpm test:ct`) — **NOT in `pnpm check`** (browser tests never gate check; Spine-Testing §7) | scaffold |
 | deferred | `no-media-queries-in-features` as a grit rule (viewport-variant `sm:`/`md:`… prefixes + `@media` outside app-shell) — lands with the client-foundation wave where app-shell exists to allowlist; ui ships ZERO `@media` meanwhile (reviewable by grep until then) | Phase 6 |
@@ -320,6 +335,11 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
    Toolbar. Merged — `layout/toolbar` wraps Base UI Toolbar (roving tabindex) with layout skin.
 7. **`tabs` added** to the Base UI wrap set (not in the D42 §2 primitive list, but required by the
    committed game-panel/crew-panel designs and native to Base UI). Additive; flag for the ledger.
+8. **Streamdown security API doesn't exist as originally assumed** (`packages/ui/src/markdown/policy.ts`
+   self-cites this item): the mission's markdown obligation was drafted against `allowedImagePrefixes`/
+   `allowDataImages` — VERIFIED against the live Streamdown 2.5 API that neither exists. The real
+   surface is `allowedElements`/`disallowedElements` + `urlTransform`; the seal is built against that
+   (§6.1 obligation text corrected to match). No behavior gap — same containment, different API shape.
 
 ## 11. Gate-coverage inventory (UI-Gates §8 registry vs what is LIVE — audited 2026-07-02)
 
@@ -343,9 +363,9 @@ client-foundation wave (the `archive/ENFORCEMENT.md` backlog table names them wi
 | `no-direct-useform` / `no-form-state-in-useeffect` / `no-chat-trpc-in-surface` / `no-inline-optimistic-in-surface` (the neo client four) | ✅ LIVE (dormant) | grit — wired since Phase 0; fire when client code lands |
 | `tanstack-form-only-in-shared` | ◐ PARTIAL | `no-direct-useform` covers the "no raw useForm" half; the single-`createFormHook` half lands with `client/forms` |
 | `no-media-queries-in-features` / `no-raw-container-widths` / `surface-in-a-container` | ✅ LIVE (re-trued 2026-07-09) | the first two as grit (`biome.json`), the third as a `scripts/check/gates/` gate — landed with the client-foundation wave as planned |
-| `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · `persist-shape-needs-version`/`persist-partialize-and-total-migrate` · zustand-selector · `state:files` · `check:registry-pairing` · typed-`testId` · client-determinism (client render scope) · `client-feature-front-door`/`client-features-no-cross` | ◐ PARTIALLY discharged (re-trued 2026-07-09) — **the open gate gap** | LIVE: `state:files` · `check:registry-pairing` · typed-`testId` (`testid-typed-only.grit`) · `no-fake-disabled-id` · the client-structure/feature-isolation gates. **STILL ABSENT although the feature lanes have run** (a §11.7 born-compliant miss now on the books): `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `persist-partialize-and-total-migrate` (verify the remainder of the named list before relying on it) — the built §6.2 factories satisfy these obligations by review only; wire the belts or record a deliberate deferral ruling |
+| `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · `persist-shape-needs-version`/`persist-partialize-and-total-migrate` · zustand-selector · `state:files` · `check:registry-pairing` · typed-`testId` · client-determinism (client render scope) · `client-feature-front-door`/`client-features-no-cross` | ◐ PARTIALLY discharged (re-trued 2026-07-11) | LIVE: `state:files` · `check:registry-pairing` · typed-`testId` (`testid-typed-only.grit`) · `no-fake-disabled-id` · the client-structure/feature-isolation gates. **ALSO LIVE** (re-confirmed 2026-07-11 — wired in `scripts/check/gates/` + imported/registered in `scripts/check/report.ts`): `no-array-literal-querykey` (`scripts/check/gates/no-array-literal-querykey.ts`) · `no-inline-invalidate-outside-seam` (`scripts/check/gates/no-inline-invalidate-outside-seam.ts`) · `bus-onData-no-store-write` (`scripts/check/gates/bus-onData-no-store-write.ts`) · `no-form-reset-in-autosave` (`scripts/check/gates/no-form-reset-in-autosave.ts`) · `persist-partialize-and-total-migrate` (`scripts/check/gates/persist-partialize-and-total-migrate.ts`). Verify the remainder of the named list before relying on it. |
 | D44 quartet (`no-untrusted-html-in-main-dom` · `no-external-media-without-gate` · `theme-override-only-via-scope` · CSP-headers-present) | ✅ lint trio LIVE (re-trued 2026-07-09); CSP half riding `entry/http` | the three grit rules are wired in `biome.json`; the CSP lands with `entry/http/security-headers.ts` (in-tree, cites `client-tooling-setup.md` §7.5) |
-| `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | RESOLVED — LIVE | the eslint lane was adopted (`eslint.config.js`, wired into `pnpm check` via `lint:eslint`); rationale in that file's header + `proposed/client-tooling-setup.md` |
+| `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | RESOLVED — LIVE | the eslint lane was adopted (`eslint.config.js`, wired into `pnpm check` via `lint:eslint`); rationale in that file's header + `history/client-tooling-setup.md` |
 | visual-regression screenshots (D42 §8) | ⏸ PARKED | Playwright screenshot gate — adopt when the first themed surfaces stabilize (HUD named the highest-drift surface, rpg-design/11 §13) |
 
 ## 12. The neo-parity primitive sweep (what `@orb/ui` must cover; audited 2026-07-02)
@@ -362,7 +382,7 @@ referenced by ≥1 committed design (or a neo staple). Domain components live in
 | layout (Stack/Row/Section/Container/Toolbar) · icons | ✓ (shared) | — | ✅ built | W1 |
 | meter (linear/arc/bipolar) + SegmentedClock | — | ✗ (hand) | ✅ built | W1 |
 | virtual-list · code-editor · diff | ✓ (resizable dropped) | ✗ (seals) | ✅ built | W1 |
-| ThemeScope · MessageMedia · sandbox-frame · lightbox · markdown | — | ✗ (D44 owned) | ✅ built | W2 |
+| ThemeScope · MessageMedia · sandbox-frame · lightbox · markdown (incl. KaTeX math plugin — `markdown/math.ts`) | — | ✗ (D44 owned) | ✅ built | W2 |
 | checkbox · radio-group · toggle · toggle-group · textarea · autocomplete | ✓ (label/textarea) | ✓ | ✅ built | W3 |
 | separator · collapsible · accordion · scroll-area · alert-dialog · progress | ✓ (accordion/alert-dialog/scroll-area/separator/skeleton) | ✓ | ✅ built | W3 |
 | badge/chip/pill · skeleton · spinner · empty-state · card | ✓ (badge/skeleton/empty-state) | ✗ (hand) | ✅ built | W3 |

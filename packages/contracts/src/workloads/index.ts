@@ -27,8 +27,11 @@ import { z } from "zod";
  *  runners (chat-crew-design/08 CW1 — the decide-before-launch economics); CW2–CW5 land the real runners.
  *  This tuple is the ONE canonical member list — do NOT invent or reorder members. */
 export const WORKLOAD_KINDS = [
-  "embed-corpus",
-  "embed-assets",
+  // The parameterized embeddings reindex — collapses the former `embed-corpus` + `embed-assets` kinds into
+  // ONE kind with a `source` param (text|image|all). `source` selects WHICH embed pass(es) run AND is a
+  // single-active LOCK dimension (the db lock keys on (kind, source, owner)), so a text reindex and an image
+  // reindex run concurrently while same-source runs are single-active — the concurrency the two kinds gave.
+  "index",
   "distill-characters",
   "compute-themes",
   "memory-backfill",
@@ -42,6 +45,11 @@ export const WORKLOAD_KINDS = [
   "assets-gc",
   "assets-fsck",
   "import-st",
+  // The portability-bundle import (export-import-portability.md §3) — a per-owner SINGULAR workload the
+  // `POST /api/import/bundle` route stages a zip for + starts, so a full all-blobs bundle imports OFF the
+  // request (no HTTP timeout) under the single-active lock. Distinct from `import-st` (the ST-profile collect
+  // loop): this runner reads ONE staged zip → the entity-agnostic `runBundleImport` over the registry.
+  "import-bundle",
   "reconcile-stats",
   "refresh-model-catalog",
   // Seam reservation (reserve now, build v2 — ledger §5, domains/memory.md §9).
@@ -75,6 +83,30 @@ export const WORKLOAD_KINDS = [
 export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];
 
 export const workloadKindSchema = z.enum(WORKLOAD_KINDS);
+
+// ── The `index` workload's SOURCE axis (a `WorkloadKind`-scoped param AND a single-active LOCK dimension) ──
+
+/** WHICH embed source(s) an `index` run sweeps. `text` → the corpus/text embed pass (character cards +
+ *  chat-block memory — `embeddings.embedCorpus`); `image` → the asset/image pass (`embeddings.embedAssets`);
+ *  `all` → both, the atomic "reindex everything for a new embed model" unit. Also the single-active LOCK
+ *  sub-dimension: the db `workloads.source` column keys the lock on (kind, source, owner), so an `index`
+ *  run over `text` and one over `image` hold DIFFERENT slots (run concurrently) while two `text` runs
+ *  collide (single-active). The `index` param schema derives its `z.enum` from this tuple. */
+export const INDEX_SOURCES = ["text", "image", "all"] as const;
+export type IndexSource = (typeof INDEX_SOURCES)[number];
+export const indexSourceSchema = z.enum(INDEX_SOURCES);
+
+/** The db `workloads.source` column DOMAIN — {@link INDEX_SOURCES} PLUS the `none` sentinel every NON-`index`
+ *  kind carries. Why a non-null sentinel and not NULL: SQLite treats NULLs as DISTINCT in a unique index, so
+ *  a nullable `source` would silently BREAK the single-active lock for every non-index kind (two active rows
+ *  of one (kind, owner) with a NULL source would not collide). Every non-index row sharing the `none` bucket
+ *  keeps their lock exactly per-(kind, owner) as it was before `source` existed. The db column derives +
+ *  CHECK-enforces this tuple; the column default is `none`. */
+export const WORKLOAD_SOURCES = ["none", ...INDEX_SOURCES] as const;
+export type WorkloadSource = (typeof WORKLOAD_SOURCES)[number];
+
+/** The `source` sentinel a NON-`index` row carries (its shared lock bucket — see {@link WORKLOAD_SOURCES}). */
+export const NON_INDEX_SOURCE = "none" as const satisfies WorkloadSource;
 
 // ── The `WorkloadMode` axis — every RUN is `singular` (one owner) or `bulk` (owner-triggered, all-owners
 //    sweep OR create-into-a-target). The ONE declarative home for who-may-run + how the runner scopes. ──
@@ -112,7 +144,7 @@ export interface WorkloadModePolicy {
  * `satisfies Record<WorkloadKind, WorkloadModePolicy>` clause pins exhaustiveness — a new kind missing its
  * policy is a `tsc` error here. Classification grounded in each runner's actual reads/writes:
  *   • SWEEP-kinds, both modes (singular = MY producers; bulk = every owner, no target):
- *     embed-corpus, embed-assets, distill-characters, memory-backfill, group-character-backfill,
+ *     index (the parameterized embeddings reindex), distill-characters, memory-backfill, group-character-backfill,
  *     assets-backfill, compute-themes, find-duplicates, reconcile-stats (per-owner-native rollup rebuild),
  *     csls (ALWAYS owner-scoped — analyzes YOUR OWN library only, never cross-tenant; bulk = a per-owner
  *     fan-out, never a whole-space read).
@@ -126,8 +158,8 @@ export interface WorkloadModePolicy {
  *     per-owner singular mode lands.)
  */
 export const WORKLOAD_KIND_MODES = {
-  "embed-corpus": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
-  "embed-assets": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
+  // The parameterized embeddings reindex (a SWEEP-both kind — singular = MY producers, bulk = every owner).
+  index: { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   "distill-characters": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   "compute-themes": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   "memory-backfill": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
@@ -145,6 +177,9 @@ export const WORKLOAD_KIND_MODES = {
   "assets-gc": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "assets-fsck": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   "import-st": { singular: true, bulk: true, bulkRequiresTarget: true, stub: false },
+  // A per-owner upload import — SINGULAR only (the route stages the caller's own zip + starts a run scoped to
+  // the caller). No bulk: a bundle is one user's upload for themselves, not an all-owners sweep or a mint-into-X.
+  "import-bundle": { singular: true, bulk: false, bulkRequiresTarget: false, stub: false },
   "reconcile-stats": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   "refresh-model-catalog": { singular: false, bulk: true, bulkRequiresTarget: false, stub: false },
   // BUILT — a per-owner keyword-cooccurrence subsystem; bulk-only owner-maintenance until a singular mode lands.
@@ -174,6 +209,29 @@ export const WORKLOAD_KIND_MODES = {
   "rpg-scene-distill": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
   "rpg-recruit-card": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
 } as const satisfies Record<WorkloadKind, WorkloadModePolicy>;
+
+// ── The `ScheduleCadence` axis — the recurring-execution cadence (the TIME dimension over the queue) ──────
+
+/** How often a `workload_schedule` auto-enqueues its workload. The SIMPLEST model that covers "hourly /
+ *  nightly / weekly / every-N maintenance": a NAMED interval preset (no cron string, no parser dep) resolved
+ *  to a fixed period via {@link CADENCE_INTERVAL_MS}. The schedule advances `nextRunAt = lastRunAt + interval`
+ *  (interval-from-last-run, single-box), so "nightly" is a daily interval, not a wall-clock time-of-day. The
+ *  db `workload_schedules.cadence` enum derives this tuple; the tRPC wire + the verb input derive it. Add a
+ *  member here and BOTH the CHECK and the interval Record go RED until you add its period. */
+export const SCHEDULE_CADENCES = ["hourly", "daily", "weekly", "monthly"] as const;
+export type ScheduleCadence = (typeof SCHEDULE_CADENCES)[number];
+export const scheduleCadenceSchema = z.enum(SCHEDULE_CADENCES);
+
+/** The interval (ms) each cadence advances by. `satisfies Record<ScheduleCadence, number>` pins
+ *  exhaustiveness — a new cadence missing its period is a `tsc` error here (the ONE home for the periods, read
+ *  by the scheduler tick to advance `nextRunAt`). `monthly` is a fixed 30-day interval (the interval model
+ *  intentionally has no calendar-month notion — KISS for single-box maintenance). */
+export const CADENCE_INTERVAL_MS = {
+  hourly: 3_600_000,
+  daily: 86_400_000,
+  weekly: 604_800_000,
+  monthly: 2_592_000_000,
+} as const satisfies Record<ScheduleCadence, number>;
 
 /** The row's lifecycle state. `queued → running → {succeeded | failed | cancelled | worker_died}`, with
  *  `cancelling` the in-flight "stop requested" state a running row passes through before `cancelled`.

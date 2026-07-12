@@ -4,7 +4,8 @@ import { cn } from "#lib";
 
 // A ui-local discriminated source — the structural twin of D44 `MessageContentBlock.media.src`
 // (ui cannot import @orb/contracts). asset = our own origin (render freely); external = untrusted URL.
-type MediaSource =
+// Exported (C12 rollup) — the ONE home; lightbox.tsx imports this instead of re-declaring it.
+export type MediaSource =
   | { readonly kind: "asset"; readonly url: string }
   | { readonly kind: "external"; readonly url: string };
 

@@ -10,6 +10,9 @@ export interface CrossfadeImageProps {
   readonly alt: string;
   /** CSS `aspect-ratio` (e.g. `"16 / 9"` or `1`) — reserves the layout box EVEN when `src` is null. */
   readonly aspectRatio: string | number;
+  /** `object-fit` inside the aspect box. `cover` (default) fills + crops; `contain` letterboxes so the
+   *  whole image is visible (the gallery lightbox). */
+  readonly fit?: "cover" | "contain";
   /**
    * Crossfade duration override, in ms. Unset uses the `--motion-base` token (the same opacity-fade
    * duration as the dialog/toast overlays); this is a caller escape hatch, not a styling default.
@@ -57,6 +60,7 @@ export function CrossfadeImage({
   src,
   alt,
   aspectRatio,
+  fit,
   durationMs,
   className,
 }: CrossfadeImageProps): ReactElement {
@@ -97,7 +101,7 @@ export function CrossfadeImage({
     return (): void => cancelAnimationFrame(frame);
   }, [layers.top]);
 
-  const slots = crossfadeImageVariants();
+  const slots = crossfadeImageVariants({ fit });
   const overrideStyle =
     durationMs === undefined ? undefined : { transitionDuration: `${durationMs}ms` };
 

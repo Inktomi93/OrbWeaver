@@ -9,12 +9,14 @@ import checker from "vite-plugin-checker";
 // now: it LOADS + `vite build` fails ONLY at the missing `index.html` entry. The app entry
 // (index.html + src/main.tsx) and the hand-written code-based route tree (src/routes/ — no file-based
 // codegen, UI-Arch §6.1) are the client-app's first task. Every non-default option below is annotated
-// with its why; the full rationale + cites live in proposed/client-tooling-setup.md §7.
+// with its why; the full rationale + cites live in history/client-tooling-setup.md §7.
 //
 // Intra-package imports use the package.json `#*` subpath field (resolved natively by Vite) — there is
 // NO `@`/tsconfig-paths alias (orbweaver principle #2). No `base` (served at root), no version
 // `define`s (foundation/env owns runtime config), no hand-written `manualChunks` (Rolldown
-// auto-chunks; heavy seals — echarts/code-editor/sandbox-frame — are lazy-imported at call sites).
+// auto-chunks). The heavy seals with large deps — @orb/ui/stat-figure (ECharts) and @orb/ui/code-editor
+// (CodeMirror) — are `React.lazy`'d at their client call sites (character-provenance-section.tsx,
+// theme-editor.tsx), each getting its own chunk instead of riding the entry bundle (P1, rollup audit).
 export default defineConfig({
   resolve: {
     // pnpm can hoist devtools' peer deps under their own node_modules → TWO React instances →
@@ -127,24 +129,77 @@ export default defineConfig({
       clientFiles: ["./src/main.tsx", "./src/routes/router.tsx"],
     },
     // Monorepo file access — let Vite serve @orb/* source from outside packages/client (the workspace
-    // root, discovered by walking up from this config).
+    // root, discovered by walking up from this config). This root scope is REQUIRED (the workspace
+    // packages live outside packages/client), so the guard is `deny` below, not a narrower `allow`.
     fs: {
       allow: [searchForWorkspaceRoot(import.meta.dirname)],
+      // The `/@fs/` dev route would otherwise expose EVERY file under the workspace root — including
+      // orbweaver's on-disk secrets/data. Setting `deny` REPLACES Vite's built-in default, so the first
+      // block re-lists that default floor verbatim (`.env`/keys/certs/.npmrc/.git — Vite 8.1 default),
+      // and the second block adds the orbweaver-specific secrets the root `allow` exposes:
+      //   • `.credentials-key` — infra/crypto's auto-generated 32-byte credential-encryption key
+      //     (`<dirname(DATABASE_URL)>/.credentials-key`, mode 0o600). NOT covered by the default
+      //     `*.{…,key,…}` glob — that matches a `.key` EXTENSION; this filename ends in `-key`.
+      //     Leaking it decrypts every stored provider API key, so it is the single highest-value target.
+      //   • `*.db` (+ `-wal`/`-shm`) / `*.sqlite*` — the SQLite database (all user data AND the encrypted
+      //     credential blobs). `DATABASE_URL` defaults to `file:./orbweaver.db` at the workspace root.
+      //   • `data/assets/**` — the CAS blob store (user-uploaded images). Served in-app ONLY via the
+      //     owner-gated `/api/blob` route; raw `/@fs/` access would bypass that ownership check.
+      deny: [
+        ".env",
+        ".env.*",
+        "*.{crt,pem,key,p12,pfx,cer,der}",
+        ".npmrc",
+        ".yarnrc.yml",
+        "**/.git/**",
+        "**/.credentials-key",
+        "**/*.db",
+        "**/*.db-wal",
+        "**/*.db-shm",
+        "**/*.sqlite",
+        "**/*.sqlite-*",
+        "**/data/assets/**",
+      ],
     },
     // Forward browser console → terminal (dev half of PD-58 client observability).
     forwardConsole: true,
-    // headers: TODO(D44/CSP) — mirror the PROD Hono document CSP here in dev so D44 violations
-    // (sandbox-frame / MessageMedia / inline-asset) surface during development. The canonical
-    // app-document CSP is NOT YET DEFINED anywhere (packages/server has no HTTP transport; only the
-    // per-frame sandbox CSP exists — ui/src/content/sandbox-frame/srcdoc.ts). Known D44 constraints
-    // for the app CSP when authored:
-    //   • img-src: NO `data:` (D44 allowDataImages:false — assetsInlineLimit:0 above guarantees none);
-    //   • object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';
-    //   • the DEV CSP is the prod one LOOSENED for Vite HMR (script 'unsafe-inline'/'unsafe-eval',
-    //     connect-src ws:/wss:) — so it is NOT byte-identical to prod. Reference shape: neo-tavern
-    //     src/server/app.ts `secureHeaders({ contentSecurityPolicy: isProd ? … : … })` — but do NOT
-    //     copy neo's `img-src … data:` (neo allows data: images; orbweaver D44 forbids them).
-    // FLAGGED to Nate — fill in once the server document CSP is authored.
+    // The DEV app-document CSP (client-tooling-setup.md §7.5 DEV row + §9). It MIRRORS the PROD policy —
+    // `entry/http/security-headers.ts` `securityHeaders()` is the source of truth — loosened at EXACTLY
+    // two directives for Vite HMR (the only place ws/inline-eval belongs), so a D44 violation
+    // (sandbox-frame / MessageMedia / an inline-asset `data:` image) surfaces in dev instead of only in
+    // prod. Kept a literal string (the client cannot import the server's Hono `secureHeaders` object —
+    // one-directional package cake), so it must be edited in lockstep with security-headers.ts.
+    //   PROD → DEV deltas (everything else is byte-identical to prod):
+    //     • script-src  + 'unsafe-inline' 'unsafe-eval' — Vite's HMR client + React Refresh inject inline
+    //       bootstrap scripts and eval transformed modules. Prod stays 'self'-only (zero inline scripts).
+    //     • connect-src + ws: wss: — the HMR WebSocket (a different scheme than http:, so 'self' misses it).
+    //     • img-src + data: — DEV-ONLY, for the TanStack Devtools floating trigger, whose logo is an inline
+    //       data: PNG the dev-only tool injects (prod strips devtools via removeDevtoolsOnBuild). Prod stays
+    //       no-data: (D44). App data:-images are still barred at source (markdown allowDataImages:false +
+    //       assetsInlineLimit:0 + the no-external-media grit gate), so this relaxes no real guard — it just
+    //       stops the dev devtools icon from CSP-erroring on every page load. Matches security-headers.ts's
+    //       `opts.dev` imgSrc branch (keep the two in lockstep).
+    //   img-src ALSO carries `https://*.tenor.com` (mirrors prod — the D61 gif-search picker previews load
+    //   from the Tenor CDN); without it, dev gif previews CSP-fail while prod works.
+    //   Held tight (same as prod) ON PURPOSE: object-src/frame-ancestors 'none'; base-uri/form-action
+    //   'self'. style-src keeps 'unsafe-inline' (Tailwind + Base UI + the owner-theme <style> injector
+    //   `custom-theme-style.tsx` all emit first-party inline styles; §7.5's reasoned choice — do NOT nonce
+    //   it). No `html.cspNonce`: script-src uses no nonce (see §9 note).
+    headers: {
+      "Content-Security-Policy": [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' blob: data: https://*.tenor.com",
+        "media-src 'self' blob:",
+        "connect-src 'self' ws: wss:",
+        "font-src 'self'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+      ].join("; "),
+    },
   },
   // worker: reserve-flag `format: "es"` here IF client-side inline-plugin-snippet workers ever land
   // (D46 Tier-2 workers are server-side today) — intentionally NOT set now.

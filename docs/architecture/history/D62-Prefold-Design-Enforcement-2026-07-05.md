@@ -6,7 +6,7 @@ updated: 2026-07-05
 
 > **PRE-FOLD SNAPSHOT (D62).** This is the gates + goldens + rulings doc exactly as authored on 2026-07-05, BEFORE the
 > D62 fold moved its law content into the core `UI-*.md` docs and re-headed the live copy. Kept for
-> reference only — the LIVE program doc is `proposed/design-enforcement.md`; the law is in core. Do not build from
+> reference only — the as-built program doc is `design-enforcement.md` (now its sibling in history); the law is in core. Do not build from
 > this file.
 
 # Design Enforcement — locking the visual/UX bar in so it cannot drift

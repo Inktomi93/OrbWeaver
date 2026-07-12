@@ -90,7 +90,7 @@ base site boots.
 
 **The D62 lane sequence (ledger D62; step-level detail lives in the D62 program docs:
 `proposed/ui-polish-punchlist.md` · `proposed/ux-flow-revamp.md` (J1–J12 + the parity map) ·
-`proposed/design-enforcement.md`). The standing rules for every lane:** feature-slice ·
+`history/design-enforcement.md`). The standing rules for every lane:** feature-slice ·
 surfaces/anchors · `state:files` · intent tokens · container-driven layout (`@media` only in
 app-shell) · Query (server) + gated Zustand (client) · Router minimal · `#` imports. Every lane
 brief cites its law rows (§4.1–§4.3), ends with verify snaps, updates the golden baselines in the
@@ -145,14 +145,14 @@ Phase-6 lane.**
    prompt-manager Prompt tab; **`proposed/preset-form-mapper-elimination.md`** is a lane rule for
    its editor — no flat-form mapper) → **World Info section** (P6; four activation sources per the
    map) → **character EDITOR** (+ import UI over the built card parsers; tag management modal —
-   server half: `proposed/tag-pending-review.md`) → **Connections** (Settings pane; D47 direct
+   server half: `history/tag-pending-review.md`) → **Connections** (Settings pane; D47 direct
    providers when built) → **Corpus hub** (search/insights/stats faces; the deferred verbs:
    `proposed/discovery-deferred-corpus-surface.md` + `proposed/stats-discovery-seam.md` slot here)
    → **gallery grids** (D49 — server built; `media-grid` exists) → **`/imagine` command surface**
    (composer wand item; D46 Tier-1) → **Refinery + Analytics** (their engines' phases). Import/
-   export surface growth rides `proposed/import-st-profile-waves.md` + `proposed/
-   export-deferred-surfaces.md` when those waves open; Workloads UI lands in Settings→APP→System
-   (`proposed/workloads-deferred-designs.md` for the deferred server halves). The feature-slice
+   export surface growth rides `history/export-import-portability.md` (§3 delivery core, §5 ST
+   adapter lane) when those waves open; Workloads UI lands in Settings→APP→System
+   (`history/workloads-deferred-designs.md` for the as-built server halves). The feature-slice
    structure ABSORBS the Phase-7/8 feature UIs additively as those domains land (tool-use records ·
    databank panel · expressions stage · hub browse · saved-roster picker · rpg/crew/buddy surfaces
    · agent-principal admin rows — each enters at its parity-map home; this phase never waits on

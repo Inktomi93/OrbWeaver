@@ -18,15 +18,16 @@ import type {
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
 import type { PortalContainer } from "#lib";
-import { usePortalContainer } from "#lib";
+import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/ChevronRight/Icon fine (the spinner.tsx precedent).
 import { Check, ChevronRight, Icon } from "#primitives/icons";
 import { menuVariants } from "./variants";
 
 const slots = menuVariants();
 
-// = --spacing-row (0.5rem) — Base UI Positioner offsets are px numbers, not classes.
-const DEFAULT_SIDE_OFFSET = 8;
+// The trigger-breathe gap (§13.0 C19 rollup, `#lib`) — = --spacing-row (0.5rem); Base UI Positioner
+// offsets are px numbers, not classes.
+const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 
 /**
  * Menu root — seals Base UI Menu (arrow-key roving highlight, typeahead, Enter/Space select, and
@@ -40,7 +41,7 @@ export function Menu(props: BaseRootProps): ReactElement {
 
 /**
  * Opens the menu. Unstyled passthrough — compose your own control via `render`.
- * `<MenuTrigger render={<Button variant="ghost">Actions</Button>} />`
+ * `<MenuTrigger render={<Button intent="ghost">Actions</Button>} />`
  * Spec: ui-package-design §6.1.
  */
 export function MenuTrigger(props: BaseTriggerProps): ReactElement {

@@ -5,13 +5,15 @@
 // gaining `singular: true`) appears here with ZERO client edits. The label/param maps are exhaustive
 // `Record<WorkloadKind, …>`s (§5.5) — a new kind fails `tsc` here until it says what the row reads.
 
-import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
+import type { IndexSource, WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import {
   ACTIVE_WORKLOAD_STATUSES,
+  INDEX_SOURCES,
   WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
 } from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
+import type { SelectItems } from "@orb/ui/select";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
@@ -20,7 +22,12 @@ import type { Trpc } from "#data";
  *  ZERO client edits. The `singular`/`stub` flags are the ONE home (`@orb/contracts/workloads`); the client
  *  keeps NO parallel list. */
 export const RUNNABLE_WORKLOAD_KINDS: readonly WorkloadKind[] = WORKLOAD_KINDS.filter(
-  (kind) => WORKLOAD_KIND_MODES[kind].singular && !WORKLOAD_KIND_MODES[kind].stub,
+  (kind) =>
+    WORKLOAD_KIND_MODES[kind].singular &&
+    !WORKLOAD_KIND_MODES[kind].stub &&
+    // `import-bundle` is singular + built, but ROUTE-started: the `POST /api/import/bundle` upload route mints
+    // its staging-token param (the picker can't supply that token), so it is never offered as a user run.
+    kind !== "import-bundle",
 );
 
 /** The OWNER-only maintenance kinds: BUILT (`stub:false`), bulk-CAPABLE but NOT singular — a deployment-wide
@@ -45,8 +52,7 @@ export function isMaintenanceWorkloadKind(value: string): boolean {
  *  kinds keep labels too: the LIST can show any kind's row (an owner's bulk stub run), only the PICKER
  *  is restricted to {@link RUNNABLE_WORKLOAD_KINDS}. */
 export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
-  "embed-corpus": "Embed corpus",
-  "embed-assets": "Embed assets",
+  index: "Index (embeddings)",
   "distill-characters": "Distill characters",
   "compute-themes": "Compute themes",
   "memory-backfill": "Memory backfill",
@@ -58,6 +64,7 @@ export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
   "assets-gc": "Assets garbage collection",
   "assets-fsck": "Assets integrity check",
   "import-st": "Import from SillyTavern",
+  "import-bundle": "Import backup bundle",
   "reconcile-stats": "Reconcile stats",
   "refresh-model-catalog": "Refresh model catalog",
   "reconcile-world-state": "Reconcile world state",
@@ -79,6 +86,42 @@ export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
   "rpg-scene-distill": "RPG scene distill",
   "rpg-recruit-card": "RPG recruit card",
 };
+
+const RUNNABLE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) =>
+  (RUNNABLE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind),
+).map((kind) => ({ value: kind as string, label: WORKLOAD_KIND_LABELS[kind] }));
+
+const MAINTENANCE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) =>
+  (MAINTENANCE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind),
+).map((kind) => ({ value: kind as string, label: WORKLOAD_KIND_LABELS[kind] }));
+
+/** The GROUPED (owner) kind-picker items — "Run on my data" + "Maintenance (all deployments)", the
+ *  latter omitted when there are no built bulk-only kinds (an owner never sees an empty group). */
+const OWNER_KIND_ITEMS: SelectItems<string> =
+  MAINTENANCE_KIND_OPTIONS.length === 0
+    ? RUNNABLE_KIND_OPTIONS
+    : [
+        { label: "Run on my data", items: RUNNABLE_KIND_OPTIONS },
+        { label: "Maintenance (all deployments)", items: MAINTENANCE_KIND_OPTIONS },
+      ];
+
+/** The kind-picker's items for a viewer — the run and schedule dialogs share this: a non-owner sees
+ *  the flat runnable list, the owner sees the grouped list adding the maintenance kinds (§C4 — was
+ *  hand-duplicated in both dialogs). */
+export function workloadKindItems(viewerIsOwner: boolean): SelectItems<string> {
+  return viewerIsOwner ? OWNER_KIND_ITEMS : RUNNABLE_KIND_OPTIONS;
+}
+
+/** The `index` kind's source picker (text / image / all — what to reindex). */
+export const INDEX_SOURCE_LABELS: Record<IndexSource, string> = {
+  text: "Text — characters + chat memory",
+  image: "Images — avatars",
+  all: "Everything",
+};
+export const INDEX_SOURCE_ITEMS: SelectItems<string> = INDEX_SOURCES.map((source) => ({
+  value: source as string,
+  label: INDEX_SOURCE_LABELS[source],
+}));
 
 /** Status → row-badge label (exhaustive over the D34 status tuple). */
 export const WORKLOAD_STATUS_LABELS: Record<WorkloadStatus, string> = {
@@ -165,7 +208,7 @@ export function workloadFilterMatches(
 /** The per-kind param CONTROL shape axis (mirrors the server's `PARAMS_SCHEMAS` families — the schemas
  *  themselves live in `domain/workloads/contract` and cannot flow down the cake, so the client names
  *  the FAMILY, not the schema; the server re-parses every start as defense in depth). */
-export const WORKLOAD_PARAM_SHAPES = ["none", "force", "dryRun", "k"] as const;
+export const WORKLOAD_PARAM_SHAPES = ["none", "force", "dryRun", "k", "managed", "index"] as const;
 
 /** Kind → param-control shape (exhaustive — a new kind fails `tsc` until it declares its controls).
  *  Stub kinds are `none` (real empty schemas server-side). */
@@ -173,8 +216,7 @@ export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<
   WorkloadKind,
   (typeof WORKLOAD_PARAM_SHAPES)[number]
 > = {
-  "embed-corpus": "force",
-  "embed-assets": "force",
+  index: "index",
   "distill-characters": "none",
   "compute-themes": "k",
   "memory-backfill": "none",
@@ -185,7 +227,10 @@ export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<
   "assets-backfill": "dryRun",
   "assets-gc": "dryRun",
   "assets-fsck": "none",
+  // `managed` = a server-minted param (the route's staging token); never a picker control (import-bundle is
+  // ROUTE-started, excluded from RUNNABLE_WORKLOAD_KINDS).
   "import-st": "dryRun",
+  "import-bundle": "managed",
   "reconcile-stats": "none",
   "refresh-model-catalog": "none",
   "reconcile-world-state": "none",
@@ -240,15 +285,27 @@ export interface RunWorkloadFormValues {
   readonly dryRun: boolean;
   /** Cluster count for `compute-themes`; `null` = "use the server default" (the tunable is optional). */
   readonly k: number | null;
+  /** The `index` kind's embed SOURCE — `text` (corpus) / `image` (assets) / `all` (everything). Inert for
+   *  every other kind (only the `index` param shape reads it). Defaults to `all` (reindex everything). */
+  readonly source: IndexSource;
+  /** Optional deferred-start datetime (a `datetime-local` string; `""` = run now). Parsed to an epoch-ms
+   *  `scheduledAt` at the save seam ({@link parseRunAt}) — the run-once-at-time-T primitive. */
+  readonly runAt: string;
+  /** The DAG gate — the workload ids this run must wait on (dispatched only once EVERY dep `succeeded`;
+   *  if any dep hits a non-success terminal the run fails `dependency_failed`, never running). `[]` = no gate. */
+  readonly dependsOn: readonly string[];
 }
 
 export const RUN_WORKLOAD_FORM_DEFAULTS: RunWorkloadFormValues = {
-  kind: RUNNABLE_WORKLOAD_KINDS[0] ?? "embed-corpus",
+  kind: RUNNABLE_WORKLOAD_KINDS[0] ?? "index",
   bulk: false,
   targetOwnerId: "",
   force: false,
   dryRun: false,
   k: null,
+  source: "all",
+  runAt: "",
+  dependsOn: [],
 };
 
 /** The param slots {@link buildStartInput} reads — the form values satisfy this structurally. */
@@ -256,6 +313,7 @@ export interface WorkloadRunValues {
   readonly force: boolean;
   readonly dryRun: boolean;
   readonly k: number | null;
+  readonly source: IndexSource;
 }
 
 type StartWorkloadWire = inferInput<Trpc["workloads"]["start"]>;
@@ -274,6 +332,9 @@ export function buildStartInput(
     params = { dryRun: true };
   } else if (shape === "k" && values.k !== null) {
     params = { k: values.k };
+  } else if (shape === "index") {
+    // `source` is REQUIRED (it selects the pass AND stamps the single-active lock); `force` rides only when set.
+    params = values.force ? { source: values.source, force: true } : { source: values.source };
   }
   // The wire input is a per-kind discriminated union; a runtime-indexed `{kind, params}` pair can't be
   // correlated by tsc, but the pair IS correct by construction (params built from the kind's own shape
@@ -308,59 +369,21 @@ export interface WorkloadProgressView {
   readonly label: string | null;
 }
 
-// ── Friendly failure mapping ─────────────────────────────────────────────────────────────────────────
+const PERCENT_SCALE = 100;
 
-/** A failure class → user-actionable copy. The runner stamps a raw exception string on `error`
- *  (`WorkloadError.message` — internal detail, sometimes an unfriendly stack tail); the row shows the
- *  friendly line, keeps the raw string one disclosure away for support. A pure client-side mapping
- *  (never touches the server runners): each entry pairs a lowercase substring MATCHER with its copy. */
-interface FailureClass {
-  readonly match: readonly string[];
-  readonly friendly: string;
-}
-
-const FAILURE_CLASSES: readonly FailureClass[] = [
-  {
-    match: [
-      "model file",
-      "model buffer",
-      "onnx",
-      "no model",
-      "model not found",
-      "model unavailable",
-    ],
-    friendly: "A required local model wasn't available. Check the model is installed, then retry.",
-  },
-  {
-    match: ["econnrefused", "etimedout", "enotfound", "fetch failed", "network", "socket hang up"],
-    friendly: "A network or provider call failed. Check the connection, then retry.",
-  },
-  {
-    match: ["timed out", "timeout", "deadline"],
-    friendly: "The job took too long and timed out. Retry — it resumes where it left off.",
-  },
-  {
-    match: ["out of memory", "oom", "enospc", "no space"],
-    friendly: "The job ran out of memory or disk. Free some space, then retry.",
-  },
-  {
-    match: ["rate limit", "429", "too many requests", "quota"],
-    friendly: "The provider rate-limited this run. Wait a moment, then retry.",
-  },
-  {
-    match: ["worker heartbeat", "worker_died", "reaped"],
-    friendly: "The worker running this job stopped unexpectedly. Retry to run it again.",
-  },
-];
-
-/** The user-actionable line for a raw failure string, or `null` when nothing maps (the row falls back
- *  to the raw string). The raw string ALWAYS stays available to the caller for the support disclosure. */
-export function friendlyWorkloadError(raw: string): string | null {
-  const haystack = raw.toLowerCase();
-  for (const cls of FAILURE_CLASSES) {
-    if (cls.match.some((needle) => haystack.includes(needle))) {
-      return cls.friendly;
-    }
-  }
-  return null;
+/** The raw progress fields a workload `progress` SSE event carries — an explicit `pct` wins, else
+ *  `current`/`total` derive one, else indeterminate (`pct: null`). The ONE derivation (C14 — was
+ *  hand-duplicated between `use-workload-stream.ts` and `bundle-workload-tracker.tsx`). */
+export function toProgressView(fields: {
+  readonly pct?: number;
+  readonly current?: number;
+  readonly total?: number;
+  readonly message?: string;
+}): WorkloadProgressView {
+  const { pct, current, total, message } = fields;
+  const haveCounts = current !== undefined && total !== undefined;
+  const derivedPct =
+    pct ?? (haveCounts && total > 0 ? Math.round((current / total) * PERCENT_SCALE) : null);
+  const label = message ?? (haveCounts ? `${current} of ${total}` : null);
+  return { pct: derivedPct, label };
 }

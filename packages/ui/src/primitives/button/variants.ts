@@ -1,12 +1,23 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 // The button skin — tokens only (ui-package-design §5; D43 §11.4: no components/ui exemption).
 // Sizes ride the control-height tokens, so the ≥44px touch floor holds by construction (§4b axis 3).
 export const buttonVariants = tv({
   base: [
     "inline-flex select-none items-center justify-center gap-field whitespace-nowrap rounded-control font-sans font-medium",
-    "transition-colors duration-(--motion-fast) ease-out-expo",
-    "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    // Micro-interaction press feedback (motion guide §2/§4.2 #4): the surface acknowledges a press with
+    // a compositor-only scale-down on `:active` at --motion-fast, released on pointerup. Uses `scale-95`
+    // — the house press idiom (overlay-motion + drawer's `data-active:scale-95`); Tailwind v4 doesn't
+    // generate a bare `scale-97` utility (it silently drops), so 95 is what actually compiles for the
+    // subtle-press intent. NOTE: Tailwind v4 `scale-*` sets the standalone `scale` CSS PROPERTY (not the
+    // `transform` matrix), so the transition must name `scale` — `transition-[…transform]` would not
+    // animate it (verified via computed style: `scale` = 0.95, `transform` = none under `:active`).
+    // Reduced-motion drops it via the globals.css floor (near-zero transition-duration) — REMOVE, not
+    // shorten. Disabled/loading never presses (the `disabled:pointer-events-none` / `data-disabled`
+    // arms already stop `:active` firing).
+    "transition-[color,background-color,scale] duration-(--motion-fast) ease-out-expo active:scale-95",
+    "outline-none",
+    FOCUS_RING,
     "disabled:pointer-events-none disabled:opacity-50 data-disabled:pointer-events-none data-disabled:opacity-50",
     "aria-busy:cursor-progress",
   ],

@@ -9,6 +9,8 @@ import {
   galleryItemIdSchema,
   galleryListParamsSchema,
   listOwnedParamsSchema,
+  resolveBlobRefsParamsSchema,
+  resolveChatBlobRefsParamsSchema,
 } from "@orb/contracts/assets";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
@@ -36,4 +38,23 @@ export const assetsRouter = t.router({
   listGallery: authedProcedure
     .input(galleryListParamsSchema)
     .query(({ ctx, input }) => ctx.services.assets.listGallery({ principal: ctx.auth, ...input })),
+
+  // #67 — resolve inline-message `asset:<id>` refs → `(assetId, hash)` for render. Owner scoped to the
+  // SESSION principal (never a user-supplied owner); the client builds `blobUrl(hash)` from each pair.
+  resolveBlobRefs: authedProcedure
+    .input(resolveBlobRefsParamsSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.assets.resolveOwnedAssetRefs(ctx.auth.userId, input.assetIds),
+    ),
+
+  // #67 co-participant render — the CHAT-SCOPED sibling: resolve `asset:<id>` refs a viewer sees in `chatId`,
+  // including a PRESENT co-participant's attachments (not just the caller's own). The caller (session
+  // principal) is passed as `callerId`; the gate is STRUCTURAL (`message_assets` reference in `chatId` +
+  // owner present + caller present), so a non-participant caller or an asset not attached in this chat
+  // resolves to nothing (leak-free — the same gate as the model render path).
+  resolveChatBlobRefs: authedProcedure
+    .input(resolveChatBlobRefsParamsSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.assets.resolveChatAssetRefs(ctx.auth.userId, input.chatId, input.assetIds),
+    ),
 });

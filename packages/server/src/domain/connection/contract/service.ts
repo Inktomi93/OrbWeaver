@@ -30,13 +30,19 @@ import type {
   GetCatalogParams,
   GetGenerationCostParams,
   GetModelCapabilityParams,
+  GetModelsForSourceParams,
   GetOrCreditsParams,
   RefreshCatalogParams,
   ResolveChatParams,
   ResolveRoleParams,
   TestClaudeAuthParams,
 } from "./params";
-import type { AgentSdkCatalogSnapshot, CatalogSnapshot, OrSkinTierModels } from "./results";
+import type {
+  AgentSdkCatalogSnapshot,
+  CatalogSnapshot,
+  OrSkinTierModels,
+  SourceModelsResult,
+} from "./results";
 
 /** credentials.resolve — resolve the brand-protected credential for a `{principal, source}`. The
  *  `max-pro-sub` owner gate lives in credentials; connection never re-checks it. */
@@ -111,6 +117,16 @@ export interface ConnectionContext {
    *  the role lattice; `owner-role-split`). Read by `resolveRole('chat')` for the owner-conditional default:
    *  an unconfigured owner falls back to `max-pro-sub`, a non-owner to the local `vllm` box model. */
   readonly isOwner: (principal: Principal) => boolean;
+  /** The local-light builtin model trio (embed/imageEmbed/rerank), injected at the composition root from
+   *  `backends/local-light` (the domain cannot runtime-import infra — `domain-no-cross-feature`). Read ONLY
+   *  by `getModelsForSource` to surface the built-in default the picker ghosts; the resolver keeps deriving
+   *  the live pick via its empty-model pass-through (`resolve-role.ts` applyVllmFallback), so this is a
+   *  DISPLAY fact, never a stamped value. */
+  readonly localLightDefaults: {
+    readonly embed: string;
+    readonly imageEmbed: string;
+    readonly rerank: string;
+  };
 }
 
 /** What `createConnectionService` receives from the entry root. Identical to {@link ConnectionContext} —
@@ -133,6 +149,12 @@ export interface ConnectionService {
    *  agent-sdk chat request by the chat compose seam so the env firewall holds NO hardcoded model strings.
    *  NEVER throws — a cold catalog degrades to the curated shortlist, so every agent-sdk turn gets a trio. */
   readonly getOrSkinTierModels: () => Promise<OrSkinTierModels>;
+  /** The read-only Connections role-slot picker facade (CONNECTIONS-BUILD-SPEC §2). Per-source union over
+   *  snapshots/config/state — ZERO outbound fetch (safe as a `.query`; the SSRF-guarded probes stay on the
+   *  credentials-router mutations). `defaultModelId` mirrors what `resolveRole` picks for an UNSET slot (a
+   *  ghost-parity test guards the drift). NEVER throws for a keyless OR browse — the models stay populated,
+   *  only the state goes `needs-key`. */
+  readonly getModelsForSource: (params: GetModelsForSourceParams) => Promise<SourceModelsResult>;
   readonly getCatalog: (params: GetCatalogParams) => Promise<CatalogSnapshot>;
   readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogSnapshot>;
   /** The agent-sdk daemon's family→version catalog (`supportedModels()`). `getAgentSdkCatalog` reads the

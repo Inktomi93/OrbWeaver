@@ -4,7 +4,7 @@
 // entry root and passed in; export sideways-imports none of those (domain-no-cross-feature).
 //
 // `exportChat` (PD-42): the chat transcript OUT (ST JSONL / TXT) — HOST-gated (D29) via export's own
-// sanctioned roster read; the pure builders live in `substrate/chat-jsonl.ts`.
+// sanctioned roster read; the pure builders live in the ONE chat serde core `#kit/serde/chat` (W0a).
 
 import type { ExportContext, ExportService } from "./contract/service";
 import { createExportCharacter } from "./verbs/export-character";

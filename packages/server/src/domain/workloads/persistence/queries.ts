@@ -8,10 +8,21 @@
 //   • POISON-ROW tolerance — `nextRunnableWorkload` windows the queue head (limit 10) and FAILS an
 //     unrecognized-`kind` row in place via `failQueuedRow` instead of starving the queue; `toView` mirrors
 //     this on the read path (a legacy/renamed kind → `null`, filtered, never 500s `list`).
+//   • DAG ORDERING (§2 dependsOn enforcement) — a queued row with a non-empty `dependsOn` is dispatchable
+//     ONLY when EVERY dependency reached a TERMINAL state AND each is `succeeded`. `nextRunnableWorkload`
+//     gates on `resolveDependencyGate`: `waiting` (a dep still active) → the row is SKIPPED (stays queued);
+//     `failed` (a dep hit a NON-success terminal, or is absent) → the dependent is failed IN PLACE with the
+//     `dependency_failed` error arm (never dispatched); `ready` (all deps succeeded) → dispatch. This is the
+//     SOLE producer of the `dependency_failed` `WorkloadError` arm (§7.5 one-producer-per-arm).
 // Determinism: every timestamp write takes the INJECTED `now` (no ambient `Date.now()` / db-clock default on
 // the write path). The typed projection `toView` lives here (it touches the row); the TYPE is in `contract/`.
 
-import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
+import type {
+  WorkloadKind,
+  WorkloadMode,
+  WorkloadSource,
+  WorkloadStatus,
+} from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -20,6 +31,7 @@ import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { CancelWorkloadResult } from "../contract/params";
+import type { WorkloadError } from "../contract/workload-error";
 import { parseParamsForKind } from "../contract/workload-params";
 import type { WorkloadRowAnyKind } from "../contract/workload-row";
 
@@ -35,6 +47,55 @@ const TERMINAL_STATUSES = [
 ] as const satisfies readonly WorkloadStatus[];
 type TerminalStatus = (typeof TERMINAL_STATUSES)[number];
 
+const isTerminalStatus = (status: WorkloadStatus): status is TerminalStatus =>
+  (TERMINAL_STATUSES as readonly WorkloadStatus[]).includes(status);
+
+// The single terminal-SUCCESS state — the only terminal a dependency may reach for the dependent to run. Every
+// OTHER terminal (`failed`/`cancelled`/`worker_died`) is a DEPENDENCY FAILURE: the design (§2) treats any
+// non-`succeeded` terminal dep as a failure (a cancelled/reaped dep is no more "done successfully" than a
+// failed one), so the dependent can never run and is failed with `dependency_failed`.
+const TERMINAL_SUCCESS_STATUS = "succeeded" as const satisfies WorkloadStatus;
+
+// The stored message for a dependent failed because a dependency did not succeed (mirrors the reaper's static
+// terminal message). The `dependency_failed` KIND is the classification carried on the `WorkloadError` arm.
+const DEPENDENCY_FAILED_MESSAGE =
+  "a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run";
+
+/** The verdict for a dependent's `dependsOn` set: `ready` (all deps `succeeded`), `waiting` (at least one dep
+ *  still active — none failed), `failed` (at least one dep hit a NON-success terminal, or is absent). Failure
+ *  is fail-fast — a single failed/absent dep short-circuits to `failed` even if others are still active (the
+ *  dependent can never succeed, so there is nothing to wait for). Declared as a derived tuple (§7.5
+ *  no-inline-union-redecl). */
+const DEPENDENCY_GATES = ["ready", "waiting", "failed"] as const;
+type DependencyGate = (typeof DEPENDENCY_GATES)[number];
+
+/**
+ * Classify a dependent's `dependsOn` set (§2 DAG gate). Reads the raw status of every dep in one indexed
+ * `IN (…)` select; an id with no row (absent dep) counts as a failure — it can never become `succeeded`, so
+ * waiting on it would leak the dependent in the queue forever.
+ */
+async function resolveDependencyGate(
+  db: Db,
+  dependsOn: readonly WorkloadId[],
+): Promise<DependencyGate> {
+  const rows = await db
+    .select({ id: workloads.id, status: workloads.status })
+    .from(workloads)
+    .where(inArray(workloads.id, [...dependsOn]));
+  let anyActive = false;
+  for (const depId of dependsOn) {
+    const status = rows.find((row) => row.id === depId)?.status;
+    if (status === TERMINAL_SUCCESS_STATUS) {
+      continue;
+    }
+    if (status === undefined || isTerminalStatus(status)) {
+      return "failed"; // absent OR a non-success terminal — the dependent can never run.
+    }
+    anyActive = true; // queued/running/cancelling — the dep is still in flight.
+  }
+  return anyActive ? "waiting" : "ready";
+}
+
 // The in-flight states a heartbeat/terminal/reap UPDATE is guarded on (the lease holders). Derived from the
 // active set MINUS `queued` — a queued row is not in-flight (it has no worker/heartbeat).
 const IN_FLIGHT_STATUSES = ["running", "cancelling"] as const satisfies readonly WorkloadStatus[];
@@ -48,6 +109,8 @@ interface WorkloadInsert {
   readonly id: WorkloadId;
   readonly kind: WorkloadKind;
   readonly mode: WorkloadMode;
+  /** The single-active lock partition (`workloads.source`) — the `index` kind's own source, else `none`. */
+  readonly source: WorkloadSource;
   readonly params: Record<string, unknown>;
   readonly ownerId: UserId | null;
   readonly dependsOn: readonly WorkloadId[] | null;
@@ -114,6 +177,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     id: row.id,
     kind: row.kind,
     mode: row.mode,
+    source: row.source,
     params: row.params,
     ownerId: row.ownerId,
     dependsOn: row.dependsOn,
@@ -224,8 +288,9 @@ export async function markCancelling(
   return { status: current[0]?.status === "cancelling" ? "cancelling" : null };
 }
 
-/** Fail a QUEUED row in place (the poison-row path). `markTerminal` only transitions from in-flight states,
- *  so a never-claimed poison row needs this guarded `queued → failed`. Returns whether it moved. */
+/** Fail a QUEUED row in place (the poison-row + dependency-failed paths). `markTerminal` only transitions
+ *  from in-flight states, so a never-claimed row that can NEVER run (unrecognized kind, or a failed
+ *  dependency) needs this guarded `queued → failed`. Returns whether it moved. */
 export async function failQueuedRow(
   db: Db,
   id: WorkloadId,
@@ -283,9 +348,13 @@ export async function listWorkloads(
 
 /**
  * The next runnable row, or `null`. Windows the queue head (`status='queued'`, oldest first) and returns the
- * first VALID row; an unrecognized-`kind` poison row inside the window is FAILED in place (not thrown — a
- * throw would back the worker off and re-poll the same oldest row forever, starving the queue). Dispatch is
- * purely `(scheduledAt, createdAt)` order — `dependsOn` is NOT enforced.
+ * first DISPATCHABLE row. Two kinds of head row are handled in place rather than returned:
+ *   • an unrecognized-`kind` POISON row is FAILED in place (not thrown — a throw would back the worker off and
+ *     re-poll the same oldest row forever, starving the queue);
+ *   • a row whose `dependsOn` gate is not satisfied (§2 DAG ordering): `waiting` (a dep still active) is
+ *     SKIPPED (stays queued, un-dispatched, until its deps terminate); `failed` (a dep hit a NON-success
+ *     terminal, or is absent) is FAILED in place with the `dependency_failed` arm (the SOLE producer of it).
+ * Dispatch order within the runnable set stays `(scheduledAt, createdAt)`.
  */
 export async function nextRunnableWorkload(
   db: Db,
@@ -299,13 +368,33 @@ export async function nextRunnableWorkload(
     .limit(QUEUE_HEAD_WINDOW);
   for (const row of head) {
     const view = toView(row);
-    if (view !== null) {
-      return view;
+    if (view === null) {
+      // Poison row (unknown kind / bad params): fail it in place so the next valid row can proceed.
+      // biome-ignore lint/performance/noAwaitInLoops: poison rows are rare; each must be failed (sequentially) before the next valid head row is returned — Promise.all would fail unrelated rows concurrently for no benefit.
+      await failQueuedRow(db, row.id, `unrecognized or malformed workload kind: ${row.kind}`, now);
+      getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
+      continue;
     }
-    // Poison row (unknown kind / bad params): fail it in place so the next valid row can proceed.
-    // biome-ignore lint/performance/noAwaitInLoops: poison rows are rare; each must be failed (sequentially) before the next valid head row is returned — Promise.all would fail unrelated rows concurrently for no benefit.
-    await failQueuedRow(db, row.id, `unrecognized or malformed workload kind: ${row.kind}`, now);
-    getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
+    if (view.dependsOn !== null && view.dependsOn.length > 0) {
+      const gate = await resolveDependencyGate(db, view.dependsOn);
+      if (gate === "waiting") {
+        continue; // deps still in flight — leave it queued, try the next head row.
+      }
+      if (gate === "failed") {
+        const error: WorkloadError = {
+          kind: "dependency_failed",
+          message: DEPENDENCY_FAILED_MESSAGE,
+        };
+        await failQueuedRow(db, view.id, error.message, now);
+        getLog().warn(
+          { workloadId: view.id, dependsOn: view.dependsOn },
+          "workloads: failed dependent — a dependency did not succeed (dependency_failed)",
+        );
+        continue;
+      }
+      // gate === "ready": every dep succeeded → dispatch below.
+    }
+    return view;
   }
   return null;
 }

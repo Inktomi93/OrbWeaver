@@ -29,6 +29,9 @@ export interface MarkReadParams extends NotificationActorParams {
   readonly notificationId: NotificationId;
 }
 
+/** `markAllRead` needs nothing beyond the caller-scope base — no notificationId (it's every unread row). */
+export type MarkAllReadParams = NotificationActorParams;
+
 export interface DismissParams extends NotificationActorParams {
   readonly notificationId: NotificationId;
 }

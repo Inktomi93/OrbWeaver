@@ -9,13 +9,13 @@
 // (PD-58: the app-level catch + its pure report-payload builder — both ship in prod; the tRPC wire call
 // itself is wired at main.tsx, which is the one place already holding the client), list-seeded-
 // backgrounds (D49 §3 — the bundled theme background-image catalog; both app-shell's render layer AND
-// the settings theme-editor picker read it, so neither imports the other). `cn` re-exports from
-// the ui seal so features import ONE lib module.
+// the settings theme-editor picker read it, so neither imports the other), message-role-labels (the
+// ONE `MessageRole` display-label map — features can't import each other, so this sits below them),
+// injection-copy (the ONE assistant@depth-0-prefill warning string, shared by every
+// `isAssistantPrefill` editor). `cn` re-exports from the ui seal so features import ONE lib module.
 // DELIBERATELY NOT EXPORTED (dev-only modules never ride a shared barrel — the barrel-leak failure
 // mode): ./dev-tools (main.tsx lazy-mounts it) · ./long-task-tracer (main.tsx dynamic-imports it).
 
-export type { TimeLib, TimeLibConfig } from "@orb/kit/time";
-export { createTimeLib } from "@orb/kit/time";
 export { cn } from "@orb/ui/lib";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog";
 export type { ClientErrorPayload } from "./client-error-report";
@@ -24,16 +24,18 @@ export { IS_DEV } from "./dev-flag";
 export { downloadJson, downloadUrl, slugifyFilename } from "./download-json";
 export type { AppErrorBoundaryProps } from "./error-boundary";
 export { AppErrorBoundary } from "./error-boundary";
+export { ASSISTANT_PREFILL_WARNING } from "./injection-copy";
 export type { SeededBackground } from "./list-seeded-backgrounds";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./list-seeded-backgrounds";
 export { logClock } from "./log-clock";
 export type { MessageRenderContext } from "./message-render";
 export { renderMessageForDisplay } from "./message-render";
+export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels";
 export type { Notify } from "./notify";
 export { bindNotify, notify } from "./notify";
+export { perfMark, perfMeasure } from "./perf-marks";
 export { isProbeMode } from "./probe-mode";
 export { RenderProfiler } from "./render-profiler";
-export type { TestIdKey } from "./test-ids";
 export { TEST_IDS, testId } from "./test-ids";
 export { timeLib } from "./time";
 export type { TrpcOpLogEntry } from "./trpc-devlog";

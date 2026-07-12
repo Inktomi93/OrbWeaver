@@ -4,7 +4,6 @@
 // orphaned chat turn-locks are reclaimed by holder (while another holder's lock is spared). The workloads
 // reaper + chat-lock internals are tested in their domains; this pins the boot wiring + the threshold-0 semantics.
 
-import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import { chatLocks, chats, workloads } from "@orb/db";
 import type { ChatId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -12,8 +11,8 @@ import { reclaimLocksOnBoot } from "@orb/server/entry/boot";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
+import { seedWorkloadRow } from "../../domain/workloads/_support.ts";
 
-const KIND = WORKLOAD_KINDS[0];
 const RUNNING_ID = castId<WorkloadId>("workload_running1");
 const QUEUED_ID = castId<WorkloadId>("workload_queued1");
 const HOLDER = "test-replica";
@@ -21,11 +20,11 @@ const HOLDER = "test-replica";
 test("reaps a running workload to worker_died at boot (threshold 0)", async ({ clock }) => {
   const db = await freshDb();
   // A lease touched just 1s ago — the steady-state 15s grace would spare it, but a boot reclaim wipes it.
-  await db.insert(workloads).values({
+  // seedWorkloadRow gives a toView-valid row (kind reconcile-stats + mode/source/params) — the reaper is
+  // kind-agnostic (it sweeps by status+lease), but findStaleInFlight filters rows that can't form a view.
+  await seedWorkloadRow(db, {
     id: RUNNING_ID,
-    kind: KIND,
     status: "running",
-    ownerId: null,
     updatedAt: clock.now() - 1000,
   });
 
@@ -38,11 +37,9 @@ test("reaps a running workload to worker_died at boot (threshold 0)", async ({ c
 
 test("leaves a queued (not in-flight) workload untouched", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(workloads).values({
+  await seedWorkloadRow(db, {
     id: QUEUED_ID,
-    kind: KIND,
     status: "queued",
-    ownerId: null,
     updatedAt: clock.now() - 1000,
   });
 

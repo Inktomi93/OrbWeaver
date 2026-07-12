@@ -119,7 +119,11 @@ function harness(): { run: AgentTurn; lastOptions: () => CapturedOptions | undef
   const fakeQuery = vi.fn((_args: { options?: CapturedOptions }) =>
     streamOf([initMsg, assistantMsg, successResult]),
   );
-  const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+  const backend = createAgentSdkBackend({
+    now: () => 0,
+    query: fakeQuery as never,
+    refreshHostSubToken: () => Promise.resolve(false),
+  });
   const run = backend.runAgentTurn as AgentTurn;
   return {
     run,
@@ -363,7 +367,11 @@ function harnessWithMcpStatus(statuses: readonly unknown[]): {
     gen.mcpServerStatus = (): Promise<readonly unknown[]> => Promise.resolve(statuses);
     return gen;
   });
-  const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+  const backend = createAgentSdkBackend({
+    now: () => 0,
+    query: fakeQuery as never,
+    refreshHostSubToken: () => Promise.resolve(false),
+  });
   return { run: backend.runAgentTurn as AgentTurn };
 }
 

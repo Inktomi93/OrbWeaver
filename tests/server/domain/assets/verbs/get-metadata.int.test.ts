@@ -15,6 +15,8 @@ import {
   principal,
   seedCharacter,
   seedChatRow,
+  seedMessage,
+  seedMessageAsset,
   seedParticipant,
   seedPersona,
   seedUser,
@@ -263,6 +265,110 @@ describe("getMetadata — PD-28 persona-sibling reference-check (multi-human gro
     });
 
     const meta = await svc.getMetadata({ principal: principal(caller), hash: avatar.hash });
+    expect(meta).toBeUndefined();
+  });
+});
+
+// #67 co-participant render — the ATTACHMENT arm of `loadCoParticipantOwner` (the blob byte-serve sibling of
+// `resolveChatAssetRefs`). The blob route (`GET /api/blob/:hash`) calls getMetadata; the attachment arm must
+// return the ASSET owner (so `cas.read(ownerId, hash)` hits the right partition) ONLY when the hash is
+// STRUCTURALLY referenced by a `message_assets` row in a chat where BOTH the caller and the owner are present.
+// Without this the render resolver hands a co-participant a hash the blob route still 404s.
+describe("getMetadata — #67 attachment co-participant reference-check", () => {
+  test("a present co-participant gets the attachment owner's metadata (blob route serves)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "att_owner" });
+    const member = await seedUser(db, { handle: "att_member" });
+    const att = await svc.store({
+      principal: principal(owner),
+      bytes: pngBytes(7, 7, 7),
+      kind: "attachment",
+      mime: PNG,
+    });
+    const chat = await seedChatRow(db, "chat_attach");
+    const message = await seedMessage(db, chat, { id: "message_att", seq: 0 });
+    await seedMessageAsset(db, message, att.assetId);
+    await seedParticipant(db, chat, "human", { id: "cp_owner", userId: owner, role: "host" });
+    await seedParticipant(db, chat, "human", { id: "cp_member", userId: member });
+
+    const meta = await svc.getMetadata({ principal: principal(member), hash: att.hash });
+    expect(meta).toEqual({ mime: PNG, size: att.size, ownerId: owner });
+  });
+
+  test("an OUTSIDER (not in the chat) gets undefined for the same attachment (404)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "att_owner_2" });
+    const outsider = await seedUser(db, { handle: "att_outsider" });
+    const att = await svc.store({
+      principal: principal(owner),
+      bytes: pngBytes(6, 6, 6),
+      kind: "attachment",
+      mime: PNG,
+    });
+    const chat = await seedChatRow(db, "chat_attach_2");
+    const message = await seedMessage(db, chat, { id: "message_att_2", seq: 0 });
+    await seedMessageAsset(db, message, att.assetId);
+    await seedParticipant(db, chat, "human", { id: "cp_owner_2", userId: owner, role: "host" });
+    // The outsider is NOT seated in this chat.
+
+    const meta = await svc.getMetadata({ principal: principal(outsider), hash: att.hash });
+    expect(meta).toBeUndefined();
+  });
+
+  test("structural, not membership: a co-participant's NON-attached asset → undefined (no oracle)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "att_owner_3" });
+    const member = await seedUser(db, { handle: "att_member_3" });
+    // The owner stores an asset but never attaches it to a message in the shared chat — a co-participant must
+    // NOT be able to probe its existence just by sharing a chat with the owner.
+    const unattached = await svc.store({
+      principal: principal(owner),
+      bytes: pngBytes(5, 4, 3),
+      kind: "attachment",
+      mime: PNG,
+    });
+    const chat = await seedChatRow(db, "chat_attach_3");
+    await seedParticipant(db, chat, "human", { id: "cp_owner_3", userId: owner, role: "host" });
+    await seedParticipant(db, chat, "human", { id: "cp_member_3", userId: member });
+
+    const meta = await svc.getMetadata({ principal: principal(member), hash: unattached.hash });
+    expect(meta).toBeUndefined();
+  });
+
+  test("owner-present gate: once the owner leaves, the co-participant gets undefined", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "att_owner_4" });
+    const member = await seedUser(db, { handle: "att_member_4" });
+    const att = await svc.store({
+      principal: principal(owner),
+      bytes: pngBytes(2, 2, 2),
+      kind: "attachment",
+      mime: PNG,
+    });
+    const chat = await seedChatRow(db, "chat_attach_4");
+    const message = await seedMessage(db, chat, { id: "message_att_4", seq: 0 });
+    await seedMessageAsset(db, message, att.assetId);
+    await seedParticipant(db, chat, "human", {
+      id: "cp_owner_4",
+      userId: owner,
+      role: "host",
+      leftSeq: 9,
+    });
+    await seedParticipant(db, chat, "human", { id: "cp_member_4", userId: member });
+
+    const meta = await svc.getMetadata({ principal: principal(member), hash: att.hash });
     expect(meta).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 // verb: retry — CLONE a row's kind+params+dependsOn into a FRESH `queued` row; NEVER mutates the original
 // (the original failure row stays as the audit trail). The clone is subject to the same
 // single-active constraint, so a still-active kind collides → `DomainConflictError`. `dependsOn` rides along
-// but is still NOT enforced (the warn-seam mirrors `start`).
+// and is ENFORCED at dispatch (the §2 DAG scheduler) — the clone waits for its deps just like a fresh `start`.
 //
 // MODE AUTHZ: the original is visibility-gated (a caller retrying a workload it can't see → leak-free
 // `DomainNotFoundError`, no clone) AND a BULK original requires the BOX OWNER (`requireOwner`) — re-running a
@@ -11,9 +11,9 @@
 
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
-import { getLog } from "#foundation/observability";
 import type { RetryWorkloadParams } from "../contract/params";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
+import { resolveWorkloadSource } from "../contract/workload-params";
 import { isActiveKindUniqueViolation } from "../persistence/constraints";
 import { insertWorkload, loadWorkload } from "../persistence/queries";
 import { isVisibleToCaller } from "../substrate/authorize";
@@ -31,12 +31,6 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     if (params.caller !== null && original.mode === "bulk") {
       ctx.requireOwner(params.caller);
     }
-    if (original.dependsOn !== null && original.dependsOn.length > 0) {
-      getLog().warn(
-        { kind: original.kind, dependsOn: original.dependsOn },
-        "workloads: retried dependsOn is persisted but NOT enforced — dispatch ignores it",
-      );
-    }
     const id = ctx.newWorkloadId();
     const now = ctx.now();
     try {
@@ -44,6 +38,8 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         id,
         kind: original.kind,
         mode: original.mode,
+        // Re-derive the lock partition from the cloned params (an `index` retry re-runs the SAME source).
+        source: resolveWorkloadSource(original.kind, original.params),
         params: original.params as Record<string, unknown>,
         ownerId: original.ownerId,
         dependsOn: original.dependsOn,

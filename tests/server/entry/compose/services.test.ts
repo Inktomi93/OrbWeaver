@@ -1,7 +1,7 @@
 // entry/compose/services — the composition-root keystone. Integration-lite: build the whole graph over a
 // fresh in-memory db + a frozen clock + a vLLM-disabled provider registry, and assert it constructs without
 // throwing and yields every transport `Services` key plus the boot handles. This proves the injection graph
-// wires (the 15 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
+// wires (the 18 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
 import { tmpdir } from "node:os";
 import type { DomainEvent } from "@orb/contracts/events";
@@ -45,6 +45,7 @@ const SERVICE_KEYS = [
   "connection",
   "credentials",
   "discovery",
+  "hub",
   "notifications",
   "persona",
   "preset",
@@ -56,7 +57,7 @@ const SERVICE_KEYS = [
   "worldInfo",
 ] as const;
 
-test("createServices builds the full graph: all 16 Services keys + the boot handles", async () => {
+test("createServices builds the full graph: all 18 Services keys + the boot handles", async () => {
   const db = await freshDb();
   const clock = createFrozenClock();
   const result = await createServices({
@@ -606,6 +607,108 @@ describe("persona.setActivePersona → chat bus (PD-120)", () => {
       ac.abort();
       await closed;
     }
+  });
+});
+
+// ── persona.remove re-points the seed pointers (owner invariant: never NO current persona while you own one) ─
+// The compose root wires persona's `repointSeedsAfterPersonaDelete` op to the REAL settings section-patch.
+// These prove that end-to-end: deleting the CURRENT persona re-points to the default (else the newest
+// remaining), and deleting the DEFAULT re-points it to the newest remaining. A survivor always resolves.
+describe("persona.remove seed re-point (owner invariant)", () => {
+  function graph(db: Db): ReturnType<typeof createServices> {
+    return createServices({
+      db,
+      now: createFrozenClock().now,
+      ownerId: castId<UserId>("u_owner"),
+      secretBoxKey: null,
+      casDir: tmpdir(),
+      variantDir: tmpdir(),
+      sessionSecret: "test-session-secret-at-least-32-chars",
+      vllmDisabled: true,
+    });
+  }
+
+  test("deleting the CURRENT persona re-points current → the default persona", async () => {
+    const db = await freshDb();
+    const result = await graph(db);
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+    const keeper = await result.services.persona.create({
+      principal: actor,
+      input: { name: "Keeper", description: "k" },
+    });
+    const doomed = await result.services.persona.create({
+      principal: actor,
+      input: { name: "Doomed", description: "d" },
+    });
+    await result.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: {
+        section: "seeds",
+        patch: { currentPersonaId: doomed.id, defaultPersonaId: keeper.id },
+      },
+    });
+
+    await result.services.persona.remove({ principal: actor, personaId: doomed.id });
+
+    const { seeds } = (await result.services.settings.getUserSettings({ principal: actor })).config;
+    expect(seeds.currentPersonaId).toBe(keeper.id); // re-pointed to the (surviving) default
+    expect(seeds.defaultPersonaId).toBe(keeper.id); // default untouched (it wasn't the deleted one)
+  });
+
+  test("deleting the CURRENT persona with NO valid default re-points current → the newest remaining", async () => {
+    const db = await freshDb();
+    const result = await graph(db);
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+    const older = await result.services.persona.create({
+      principal: actor,
+      input: { name: "Older", description: "o" },
+    });
+    const doomed = await result.services.persona.create({
+      principal: actor,
+      input: { name: "Doomed", description: "d" },
+    });
+    // Current is the doomed one; NO default set (defaultPersonaId stays null).
+    await result.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "seeds", patch: { currentPersonaId: doomed.id } },
+    });
+
+    await result.services.persona.remove({ principal: actor, personaId: doomed.id });
+
+    const { seeds } = (await result.services.settings.getUserSettings({ principal: actor })).config;
+    // Only `older` remains → it's the newest-remaining (and the only) survivor.
+    expect(seeds.currentPersonaId).toBe(older.id);
+  });
+
+  test("deleting the DEFAULT persona re-points the default pointer to the newest remaining", async () => {
+    const db = await freshDb();
+    const result = await graph(db);
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+    const survivor = await result.services.persona.create({
+      principal: actor,
+      input: { name: "Survivor", description: "s" },
+    });
+    const doomedDefault = await result.services.persona.create({
+      principal: actor,
+      input: { name: "DoomedDefault", description: "d" },
+    });
+    // The doomed persona is BOTH default and NOT current — current points at the survivor already.
+    await result.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: {
+        section: "seeds",
+        patch: { currentPersonaId: survivor.id, defaultPersonaId: doomedDefault.id },
+      },
+    });
+
+    await result.services.persona.remove({ principal: actor, personaId: doomedDefault.id });
+
+    const { seeds } = (await result.services.settings.getUserSettings({ principal: actor })).config;
+    expect(seeds.currentPersonaId).toBe(survivor.id); // untouched (wasn't deleted)
+    expect(seeds.defaultPersonaId).toBe(survivor.id); // re-pointed off the deleted default
   });
 });
 

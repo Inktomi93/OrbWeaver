@@ -24,6 +24,7 @@
 
 import type { UpdateCharacterInput } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
+import { isAssistantPrefill } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -213,14 +214,14 @@ function depthPromptFromForm(values: CharacterCardFormValues): UpdateCharacterIn
   };
 }
 
-/** The write guard mirror (contract `cardDepthPromptWriteSchema`): assistant-role at depth 0 is a response
- *  prefill — unsupported across providers. The editor SURFACES this (§6.4), never silently drops it. Only
- *  meaningful while the note has text (an empty note saves as `null`). */
+/** The write guard mirror (contract `cardDepthPromptWriteSchema`, the shared `isAssistantPrefill` —
+ *  `@orb/kit/injection`): assistant-role at depth 0 is a response prefill — unsupported across providers.
+ *  The editor SURFACES this (§6.4), never silently drops it. Only meaningful while the note has text (an
+ *  empty note saves as `null`). */
 export function isDepthPromptPrefill(values: CharacterCardFormValues): boolean {
   return (
     values.depthPromptText.trim() !== "" &&
-    values.depthPromptRole === "assistant" &&
-    (values.depthPromptDepth ?? 0) === PREFILL_DEPTH
+    isAssistantPrefill(values.depthPromptRole, values.depthPromptDepth ?? PREFILL_DEPTH)
   );
 }
 

@@ -16,9 +16,11 @@
 // in-memory Map; production defaults to localStorage). Devtools: `devtools(persist(...))` —
 // devtools OUTERMOST (UI-Lib-Zustand.md "devtools last" typing note), gated by the shared
 // STORE_DEVTOOLS_ENABLED (DEV + extension present — warning-clean in the node lane), every
-// internal write action-labeled. This factory is the persist-shaped sibling of
-// `createGatedStore` (hook-shaped stores) — the ONLY two ways client state is minted.
+// internal write action-labeled. This factory is the persist-shaped, per-entity sibling of
+// `createGatedStore` (hook-shaped singletons) and `createPersistedStore` (hook-shaped singletons
+// that persist) — the THREE ways client state is minted (`state/index.ts`).
 
+import { isPlainObject } from "@orb/kit/guards";
 import type { StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { useStore } from "zustand/react";
@@ -63,14 +65,8 @@ export interface EntityDraftStore<TInput> {
 /** TOTAL migrate: any unrecognized/older persisted shape falls back to a fresh empty map — drafts
  *  are crash-survival cache, not canon; losing them beats bricking the editor (D-3). */
 function migrateDrafts<TInput>(persisted: unknown): DraftsState<TInput> {
-  if (
-    typeof persisted === "object" &&
-    persisted !== null &&
-    "drafts" in persisted &&
-    typeof (persisted as { drafts: unknown }).drafts === "object" &&
-    (persisted as { drafts: unknown }).drafts !== null
-  ) {
-    return persisted as DraftsState<TInput>;
+  if (isPlainObject(persisted) && isPlainObject(persisted["drafts"])) {
+    return persisted as unknown as DraftsState<TInput>;
   }
   return { drafts: {} };
 }

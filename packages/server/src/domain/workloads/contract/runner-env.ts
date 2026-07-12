@@ -22,6 +22,7 @@ import type { Cas } from "#infra/storage";
 import type {
   AnalyticsResult,
   BackfillPassResult,
+  BundleImportWorkloadResult,
   CatalogRefreshResult,
   EmbedPassResult,
   FsckReport,
@@ -43,7 +44,8 @@ export interface MaintenancePassCounts {
 // TARGET user (bulk = import INTO X; singular = the caller's own).
 
 /** embeddings.* — the ONE vector write path's bulk passes. `force` re-embeds matched rows (else resumable
- *  skip). `ownerId` scopes the enumeration (null = all owners). Consumed by `embed-corpus` / `embed-assets`. */
+ *  skip). `ownerId` scopes the enumeration (null = all owners). Both consumed by the parameterized `index`
+ *  runner (text source → embedCorpus, image → embedAssets, all → both). */
 export interface WorkloadEmbeddingsEnv {
   readonly embedCorpus: (args: {
     ownerId: UserId | null;
@@ -82,15 +84,22 @@ export interface WorkloadDiscoveryEnv {
   }) => Promise<AnalyticsResult>;
 }
 
-/** import.* — the ST bulk import loop (collect → import each → post-import reconcile). `ownerId` is the TARGET
- *  the imported rows are minted under (a CREATE-kind — singular = the caller's own, bulk = the designated
- *  user X; never `null` for import). Provided by `import`. Consumed by `import-st`. */
+/** import.* — the two import passes, both CREATE-kind (`ownerId` is the TARGET the rows are minted under, never
+ *  `null`). `importAll` is the ST bulk profile loop (collect → import each → reconcile), consumed by `import-st`.
+ *  `importBundle` reads ONE staged portability zip (`token` = the route's staging filename, resolved UNDER the
+ *  staging root) → the entity-agnostic `runBundleImport` over the registry → the summary counts, cleaning up the
+ *  staged zip in a `finally`; consumed by `import-bundle`. Provided by `import` (wired at `entry/`). */
 export interface WorkloadImportEnv {
   readonly importAll: (args: {
     ownerId: UserId;
     dryRun: boolean;
     signal: AbortSignal;
   }) => Promise<MaintenancePassCounts>;
+  readonly importBundle: (args: {
+    ownerId: UserId;
+    token: string;
+    signal: AbortSignal;
+  }) => Promise<BundleImportWorkloadResult>;
 }
 
 /** assets.* — the GC/backfill/fsck maintenance verbs that RUN AS WORKLOADS (PD-26). `backfillAvatars`

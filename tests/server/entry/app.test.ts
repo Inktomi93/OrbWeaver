@@ -88,6 +88,8 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     cas: stub,
     character: stub,
     exportService: stub,
+    portability: [],
+    importWorldInfo: stub,
     sessions: stub,
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,

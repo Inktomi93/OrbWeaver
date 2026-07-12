@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useMemo } from "react";
 import { useTRPC } from "#data";
+import { timeLib } from "#lib";
 import { selectChat, setActiveSection, startNewChat } from "#state";
 import type { ActivityNode } from "../lib/character-activity-tree";
 import { buildActivityForest, summarizeActivity } from "../lib/character-activity-tree";
@@ -56,7 +57,7 @@ export function CharacterActivityTab({ characterId }: CharacterActivityTabProps)
         <Text size="micro" tone="muted" className="font-mono">
           {summary.chatCount} {summary.chatCount === 1 ? "chat" : "chats"}
           {summary.lastPlayedAt !== null
-            ? ` · last played ${new Date(summary.lastPlayedAt).toLocaleDateString()}`
+            ? ` · last played ${timeLib.formatDate(summary.lastPlayedAt)}`
             : ""}
         </Text>
       ) : (

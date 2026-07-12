@@ -157,7 +157,7 @@ module.exports = {
     {
       name: "ui-satellite-seals",
       comment:
-        "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list,media-grid}/ · codemirror→code-editor/ · streamdown/remark→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ (gate icons-lucide-only) · minisearch→{primitives/macro-textarea/, fuzzy-search/} (the macro autocomplete seal + the generic browse-search hook — ONE lib, TWO sanctioned homes). Importing a sealed lib from any OTHER ui module is a seal breach.",
+        "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list,media-grid}/ · codemirror→code-editor/ · streamdown/remark/shiki→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ (gate icons-lucide-only) · minisearch→{primitives/macro-textarea/, fuzzy-search/} (the macro autocomplete seal + the generic browse-search hook — ONE lib, TWO sanctioned homes). Importing a sealed lib from any OTHER ui module is a seal breach.",
       severity: "error",
       from: {
         path: UI,
@@ -175,7 +175,7 @@ module.exports = {
         ],
       },
       to: {
-        path: "node_modules/(echarts|echarts-for-react|@tanstack/react-virtual|@tanstack/virtual-core|codemirror|@codemirror|streamdown|remark|strip-markdown|cmdk|@dnd-kit|diff|lucide-react|minisearch)/",
+        path: "node_modules/(echarts|echarts-for-react|@tanstack/react-virtual|@tanstack/virtual-core|codemirror|@codemirror|streamdown|remark|strip-markdown|cmdk|@dnd-kit|diff|lucide-react|minisearch|shiki|@shikijs)/",
       },
     },
     {
@@ -561,7 +561,10 @@ module.exports = {
     // TanStack Router codegen (client, Phase 6) — not ours to police. `__g_` is the check-gates
     // self-test's reserved throwaway-fixture sentinel (tsconfig.base.json's exclude note): excluding it
     // stops a concurrent `pnpm depcruise` from graphing a fixture mid-lifecycle → a phantom edge/error.
-    exclude: { path: ["routeTree\\.gen\\.ts$", "(^|/)__g_"] },
+    // The dist exclude is ANCHORED to workspace packages (`^packages/*/dist/`): a bare `(^|/)dist/` also
+    // matches `node_modules/<lib>/dist/`, dropping the sealed-lib import edges (minisearch/echarts/shiki/…)
+    // so the satellite-seal rules silently stop firing on their fixtures.
+    exclude: { path: ["routeTree\\.gen\\.ts$", "(^|/)__g_", "^packages/[^/]+/dist/"] },
     // content strategy (not git-metadata) so caching works in CI checkouts without full history.
     cache: { strategy: "content" },
     reporterOptions: {

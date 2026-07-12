@@ -94,7 +94,7 @@ The **provider-send model** — what is transmitted *to the model as input* — 
 | Tier-A HTML sanitize allowlist + url gate (Streamdown config) | `@orb/ui/markdown` (`policy.ts`) | BUILT |
 | asset storage + thumbnails/variants | `assets` domain + `infra/image` sharp | built (server) |
 | composer image attach · multimodal send · `forbidExternalMedia`/`cardTrust` resolution | chat domain (extends D21) | Phase 5/6 |
-| CSP headers (`img-src` · `connect-src` · `style-src`) | `entry/http` (reference policy: `proposed/client-tooling-setup.md` §7.5) | unbuilt |
+| CSP headers (`img-src` · `connect-src` · `style-src`) | `entry/http` (reference policy: `history/client-tooling-setup.md` §7.5) | BUILT |
 
 **One-home note (deliberate, recorded):** the `ThemeOverride` Zod clamp exists twice by design — the WIRE schema in `@orb/contracts/theme` and the ui-local RENDER clamp in `<ThemeScope>` (`@orb/ui` cannot import contracts — the cake). The structural pairing is asserted by a client-phase type test (tests may import both packages; the packages never import each other). Same discipline as the server's injected-op contract types.
 

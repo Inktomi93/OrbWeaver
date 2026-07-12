@@ -71,14 +71,17 @@ describe("spliceInChatInjections", () => {
     expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]" });
   });
 
-  test("co-located injections splice by order DESC (higher order lands first/top)", () => {
+  test("co-located injections splice by order ASC — LOWER order lands higher/top (ST parity)", () => {
+    // Input is high-then-low in array order, so passing this PROVES the ascending sort ran (array order
+    // alone would put "high" on top). ST semantics: "Ordered from low/top to high/bottom" — lower `order`
+    // sits higher (smaller index), higher `order` lands closer to the tail. (Was DESC — inverted vs ST.)
     const out = spliceInChatInjections(HIST, [
-      inj({ depth: 1, order: 10, content: "low" }),
       inj({ depth: 1, order: 200, content: "high" }),
+      inj({ depth: 1, order: 10, content: "low" }),
     ]);
-    const a = out.findIndex((m) => m.content === "[Note from user: high]");
-    const b = out.findIndex((m) => m.content === "[Note from user: low]");
-    expect(a).toBeLessThan(b);
+    const low = out.findIndex((m) => m.content === "[Note from user: low]");
+    const high = out.findIndex((m) => m.content === "[Note from user: high]");
+    expect(low).toBeLessThan(high);
   });
 
   test("resolveContent is applied BEFORE framing", () => {

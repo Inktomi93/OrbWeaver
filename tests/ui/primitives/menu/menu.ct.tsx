@@ -83,6 +83,30 @@ test("arrow keys move the highlight and Enter selects (closing the menu)", async
   await expect(page.getByRole("menu")).toBeHidden();
 });
 
+test("menu items animate the highlight color swap (motion guide §4.2 #9)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Menu>
+      <MenuTrigger>Actions</MenuTrigger>
+      <MenuPopup>
+        <MenuItem>Rename</MenuItem>
+      </MenuPopup>
+    </Menu>,
+  );
+  await page.getByRole("button", { name: "Actions" }).click();
+  const item = page.getByRole("menuitem", { name: "Rename" });
+  // The `data-highlighted:bg-accent` swap rides a `transition-colors` at --motion-fast rather than
+  // hard-cutting — assert the transition names the animated color properties + a real (non-zero)
+  // duration, so a future edit that drops the transition class is caught.
+  const props = await item.evaluate((el) => getComputedStyle(el).transitionProperty);
+  expect(props).toContain("background-color");
+  expect(props).toContain("color");
+  const duration = await item.evaluate((el) => getComputedStyle(el).transitionDuration);
+  expect(duration).not.toBe("0s");
+});
+
 test("Escape closes the menu without selecting", async ({ mount, page }) => {
   await mount(
     <Menu>

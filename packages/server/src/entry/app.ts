@@ -13,6 +13,7 @@
 // request-root span.
 
 import type { AuthMode, Principal } from "@orb/contracts/identity";
+import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
@@ -43,12 +44,13 @@ import {
   registerBlob,
   registerExport,
   registerHealthz,
+  registerImportBundle,
   registerJoin,
   registerUpload,
   securityHeaders,
   serializeSessionCookie,
 } from "./http";
-import type { ImportAssetPort, ImportCharacterPort } from "./import";
+import type { ImportAssetPort, ImportCharacterPort, ImportWorldInfoPort } from "./import";
 
 const MS_PER_SECOND = 1000;
 const TRPC_ENDPOINT = "/api/trpc";
@@ -80,6 +82,14 @@ export interface AppDeps {
   readonly assets: BlobAssetsPort & UploadAssetsPort & ImportAssetPort;
   readonly cas: BlobCasPort;
   readonly character: ImportCharacterPort;
+  /** The injected portability registry (export-import-portability.md §2/§3) — assembled at entry/compose from
+   *  each domain's export/import verbs. The GET /api/export/library + POST /api/import/bundle routes iterate
+   *  it; the entity-agnostic delivery core knows nothing else. A deployment with no registered entities
+   *  exports an empty bundle and imports nothing (never an error). */
+  readonly portability: PortabilityRegistry;
+  /** The world-info embedded-lorebook import op — passed to the card-upload route so an imported card's
+   *  embedded `character_book` actually writes (W1; previously the upload route wired no world-info port). */
+  readonly importWorldInfo: ImportWorldInfoPort;
   /** The export front door (PD-109) — composed at `services.ts` but kept OFF the transport `Services`
    *  bundle (export has no tRPC procedure, only this HTTP registrar), so it's threaded through separately,
    *  the same way `character`/`cas` are pulled out of the composed bundle above. */
@@ -239,8 +249,17 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     assets: deps.assets,
     character: deps.character,
     tag: deps.services.tag,
+    worldInfo: deps.importWorldInfo,
   });
-  registerExport(app, { export: deps.exportService });
+  registerExport(app, { export: deps.exportService, registry: deps.portability });
+  registerImportBundle(app, {
+    // Workload-backed (#113): the route stages the upload + starts a per-owner `import-bundle` run; the import
+    // executes off the request. The route writes the staged zip under this controlled root (the
+    // IMPORT_STAGING_DIR boot-env, mirroring how ASSETS_DIR feeds the CAS root); absent ⇒ the OS temp dir — the
+    // SAME default the runner-env op resolves, so the worker reads exactly where the route wrote.
+    workloads: deps.services.workloads,
+    ...(env.IMPORT_STAGING_DIR !== undefined ? { stagingDir: env.IMPORT_STAGING_DIR } : {}),
+  });
   // The auth mint routes (login, logout, oidc callback).
   // OIDC and local modes are strictly gated by the supplied deps (fail-closed).
   registerAuthRoutes(plain, {

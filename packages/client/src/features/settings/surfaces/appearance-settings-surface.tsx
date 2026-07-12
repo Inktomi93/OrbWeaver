@@ -30,13 +30,18 @@ import { useRef } from "react";
 // so it stays schema-only until PD-130 lands real timing data.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { Button } from "@orb/ui/button";
 import { FieldLayout } from "@orb/ui/field";
 import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
+import {
+  createEntityMutation,
+  QueryBoundary,
+  QueryErrorState,
+  useInvalidation,
+  useTRPC,
+} from "#data";
 import { useFocusOnMount } from "#lib";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
@@ -99,12 +104,7 @@ export function AppearanceSettingsSurface(): ReactElement {
       <QueryBoundary
         fallback={<Text tone="muted">Loading your appearance settings…</Text>}
         renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load your appearance settings.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
+          <QueryErrorState label="your appearance settings" onRetry={retry} />
         )}
       >
         <FieldLayout orientation="horizontal">

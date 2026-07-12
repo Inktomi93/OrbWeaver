@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 // The media-grid cell skin (ui-package-design §6.1 / work-order #6). Cells are square (aspect
 // reserved by the grid host, not by the image) so nothing shifts while thumbnails lazy-load. The
@@ -10,7 +10,7 @@ export const mediaGridVariants = tv({
       "group relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-control bg-muted outline-none",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "hover:ring-2 hover:ring-ring/50",
-      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      FOCUS_RING,
       "data-selected:ring-2 data-selected:ring-primary",
     ],
     image: "h-full w-full object-cover",

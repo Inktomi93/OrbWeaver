@@ -66,7 +66,11 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
   test("normalizes the daemon rows + defaults optional flags + interrupts the turn", async () => {
     const interruptSpy = vi.fn();
     const query = vi.fn(fakeQuery(SDK_MODELS, interruptSpy));
-    const backend = createAgentSdkBackend({ now: () => 0, query: query as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: query as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
 
     const models = await (backend.fetchModels as FetchModelsFn)({});
 
@@ -118,7 +122,11 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
           },
         }),
       );
-      const backend = createAgentSdkBackend({ now: () => 0, query: query as never });
+      const backend = createAgentSdkBackend({
+        now: () => 0,
+        query: query as never,
+        refreshHostSubToken: () => Promise.resolve(false),
+      });
 
       const pending = (backend.fetchModels as FetchModelsFn)({});
       const assertion = expect(pending).rejects.toThrow(DISCOVERY_TIMEOUT_RE);
@@ -144,7 +152,11 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
         },
       }),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: query as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: query as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
 
     await expect((backend.fetchModels as FetchModelsFn)({})).rejects.toThrow(DISCOVERY_FAILED_RE);
     expect(interruptSpy).toHaveBeenCalledTimes(1);

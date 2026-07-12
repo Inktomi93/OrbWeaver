@@ -13,9 +13,16 @@ const PRIMITIVES = "packages/ui/src/primitives";
 
 // §2.4 variants-exempt satellites UNDER primitives/ (icons = the lucide barrel; virtual-list AND
 // message-list = sealed TanStack Virtual wrappers — row styling is 100% owned by the caller's
-// renderItem, so there's no skin for a tv() to own). code-editor/content/markdown/lib/layout/stream
-// live outside primitives/.
-const VARIANTS_EXEMPT = new Set(["icons", "virtual-list", "message-list", "aria-announcer"]);
+// renderItem, so there's no skin for a tv() to own; file-trigger = headless render-prop, zero visual
+// chrome of its own — the caller's OWN trigger element carries the skin). code-editor/content/markdown/
+// lib/layout/stream live outside primitives/.
+const VARIANTS_EXEMPT = new Set([
+  "icons",
+  "virtual-list",
+  "message-list",
+  "aria-announcer",
+  "file-trigger",
+]);
 // §4.1 the ONLY test-exempt primitive (a trivial re-export).
 const TEST_EXEMPT = new Set(["icons", "aria-announcer"]);
 // §4.3 clause 6 — drawer-local providers are the sole inline-provider allowlist (fail-closed: every

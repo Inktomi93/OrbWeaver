@@ -241,7 +241,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 
 #### 4.3 Interaction & visual grammar — the ten UX rules (ledger D62)
 
-Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §8 + `proposed/design-enforcement.md`. When a build instinct conflicts with a rule, the rule wins.
+Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §8 + `history/design-enforcement.md`. When a build instinct conflicts with a rule, the rule wins.
 
 1. **No dead ends.** Every reachable state renders ≥1 enabled next-step affordance (empty teaches, error retries, draft offers a character).
 2. **Character-first entry.** Every "new chat" affordance goes through choosing/confirming a character; a characterless draft is an explicit "Blank chat" pick, never the default.

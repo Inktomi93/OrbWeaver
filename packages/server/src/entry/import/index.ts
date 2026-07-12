@@ -4,12 +4,27 @@
 // `ImportService` and wires the character/assets cross-feature ops (DECISIONS-LEDGER §7 D3).
 
 export type {
-  FailedCard,
   ImportAssetPort,
   ImportCharacterPort,
+  ImportContextWiring,
+  ImportTagPort,
+  ImportWorldInfoPort,
+} from "./build-import-context";
+export { buildImportContext } from "./build-import-context";
+export type {
+  BundleImportDeps,
+  BundleImportFileOutcome,
+  BundleImportReport,
+} from "./run-bundle-import";
+export {
+  IMPORT_MAX_DECOMPRESSED_BYTES,
+  IMPORT_MAX_TOTAL_BYTES,
+  runBundleImport,
+} from "./run-bundle-import";
+export type {
+  FailedCard,
   ImportedCard,
   ImportFile,
-  ImportTagPort,
   ProfileImportDeps,
   ProfileImportResult,
 } from "./run-profile-import";

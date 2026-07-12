@@ -49,6 +49,14 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
   "character-card-draft":
     "unsaved character-card editor draft — per-device crash-survival mirror (§13.4 obligation-5), never a " +
     "synced setting; a confirmed Save/Discard clears it (FINAL-Character §6.5)",
+  "import-onboarding":
+    "the first-run 'bring your SillyTavern stuff over' home-card dismiss — a purely presentational, " +
+    "per-device latch (the server userSettings.onboarding namespace carries no import latch; a fresh " +
+    "device re-showing the card is acceptable, the sanctioned client-persisted fallback)",
+  "recent-models":
+    "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
+    "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +
+    "server-side via the routing autosave form; CONNECTIONS-BUILD-SPEC §3 / §12.1)",
 };
 
 const RAW_STORAGE_MESSAGE =

@@ -15,7 +15,7 @@ fire as `error`** — turned on greenfield, before the code exists, so the code 
 | `no-loose-id-cast` | `as never` / `as unknown as <XId>` | no brand laundering |
 | `no-mint-via-cast` | `castId(<generator>)` | mint via `mintTypeId`/`newId` |
 | `no-await-db-in-loop` | `await db.<query>` in a loop | N+1 → batch |
-| `no-raw-intl-time` | `Intl.{DateTimeFormat,RelativeTimeFormat}` | the `@orb/kit/time` seam |
+| `no-raw-intl-time` | `Intl.{DateTimeFormat,RelativeTimeFormat}` + `.toLocale{Date,Time,}String()` (Intl by the back door) | the `@orb/kit/time` seam |
 | `no-raw-clock` | `Date.now()` / `new Date()` (no-arg) | the injected clock (determinism) |
 | `no-if-is-group` | `isGroup` identity boolean | unified group chat (solo = degenerate) |
 | `no-context-returntype` | `ReturnType<>` in `context.ts` | DI bundle = explicit interface (§7.4) |
@@ -39,6 +39,7 @@ system, layout primitives, TanStack Form (`_shared/form`), and a `surfaces/`↔`
 | `no-form-state-in-useeffect` | `useEffect` dep-array reading `form.state.values`/`store` |
 | `no-inline-optimistic-in-surface` | `cancelQueries`/`setQueryData` in a `surfaces/` file |
 | `no-layout-context-props` | layout-context props on JSX (`compact`/`inDrawer`/`isSheet`/`density`) — a surface adapts to its `@container`, never a mount-location prop (D43 §11.2) |
+| `no-raw-matchmedia` | raw `matchMedia(...)` / `matchMedia?.(...)` call outside the one-home reduced-motion lib | `usePrefersReducedMotion()` / `prefersReducedMotionNow()` (`@orb/ui`'s `#lib`) |
 
 These fire zero times today (no client code) but are armed. Their diagnostic *messages* and `Refs:` now
 point at the real orbweaver homes — the token set in `packages/ui/src/styles/theme.css` and the

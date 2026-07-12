@@ -17,13 +17,14 @@ import { initialsFor } from "@orb/kit/initials";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
+import { FileTrigger } from "@orb/ui/file-trigger";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph + Icon fine (the character-card.tsx precedent).
 import { Archive, Eye, EyeOff, Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Trpc } from "#data";
 import { uploadAsset, useInvalidation } from "#data";
 import type { AppFormInstance } from "#forms";
@@ -114,7 +115,8 @@ export function CharacterHeroBand({
 }
 
 /** The click-to-replace portrait — IMMEDIATE commit (upload-complete = commit, §2/§6.1). A confirmation ring
- *  flashes on the portrait (no toast). A hidden file input backs the click (the persona-panel-row precedent). */
+ *  flashes on the portrait (no toast). `FileTrigger` backs the click (the headless file-picker primitive —
+ *  rollup-audit C3/D1). */
 function HeroPortrait({
   detail,
   trpc,
@@ -124,7 +126,6 @@ function HeroPortrait({
 }): ReactElement {
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
-  const fileRef = useRef<HTMLInputElement>(null);
   const [previewHash, setPreviewHash] = useState<string | null>(detail.avatarHash);
   const [confirming, setConfirming] = useState(false);
 
@@ -144,36 +145,32 @@ function HeroPortrait({
 
   const avatarSrc = previewHash === null ? {} : { src: blobUrl(previewHash) };
   return (
-    <>
-      <Button
-        aria-label="Replace portrait"
-        intent="ghost"
-        size="icon"
-        className={
-          confirming
-            ? "relative size-auto shrink-0 rounded-card ring-2 ring-accent"
-            : "relative size-auto shrink-0 rounded-card"
+    <FileTrigger
+      accept="image/*"
+      onFilesSelected={([file]): void => {
+        if (file !== undefined) {
+          void onFile(file);
         }
-        onClick={(): void => fileRef.current?.click()}
-      >
-        <Avatar hueSeed={detail.id} shape="square" size="hero" {...avatarSrc}>
-          {initialsFor(detail.name)}
-        </Avatar>
-      </Button>
-      <input
-        aria-label="Upload portrait file"
-        accept="image/*"
-        hidden={true}
-        ref={fileRef}
-        onChange={(event): void => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file !== undefined) {
-            void onFile(file);
+      }}
+    >
+      {({ open }): ReactElement => (
+        <Button
+          aria-label="Replace portrait"
+          intent="ghost"
+          size="icon"
+          className={
+            confirming
+              ? "relative size-auto shrink-0 rounded-card ring-2 ring-accent"
+              : "relative size-auto shrink-0 rounded-card"
           }
-        }}
-      />
-    </>
+          onClick={open}
+        >
+          <Avatar hueSeed={detail.id} shape="square" size="hero" {...avatarSrc}>
+            {initialsFor(detail.name)}
+          </Avatar>
+        </Button>
+      )}
+    </FileTrigger>
   );
 }
 

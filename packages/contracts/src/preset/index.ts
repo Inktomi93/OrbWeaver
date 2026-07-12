@@ -28,8 +28,11 @@ import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
-import type { Verbosity } from "#connection";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, VERBOSITY_LEVELS } from "#connection";
+import {
+  EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
+  roleHandlingSchema,
+  VERBOSITY_LEVELS,
+} from "#connection";
 import { regexScriptSchema } from "#regex";
 import { defineVersionedConfig } from "#versioned-config";
 
@@ -49,22 +52,10 @@ const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
 const MAX_FORMAT_STRING_LENGTH = 10_000;
 const MIN_INJECT_DEPTH = 0;
-// ST `injection_order` priority within a single depth — symmetric large bound (descending priority).
+// ST `injection_order` — POSITION within a single depth: LOWER lands higher/top, HIGHER lands closer to
+// the tail (the assembler sorts ascending — see injections.ts). Symmetric large bound; ties keep rack order.
 const INJECT_ORDER_MIN = -1_000_000;
 const INJECT_ORDER_MAX = 1_000_000;
-
-/** Assign `value` to `target[key]` only when it is not `undefined` — the one-liner the flat-form mappers
- *  lean on so a long run of "copy this field when present" stays branch-free at the call site (keeps
- *  cognitive complexity down). The conditional lives here, once. */
-function assignIfDefined<T extends object, K extends keyof T>(
-  target: T,
-  key: K,
-  value: T[K] | undefined,
-): void {
-  if (value !== undefined) {
-    target[key] = value;
-  }
-}
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // UserIntent — the preset-facing, cross-runner, model-agnostic generation snapshot (PromptConfig.params)
@@ -189,9 +180,14 @@ export const userIntentSchema = z
         // squashSystemMessages (D66-C, W6) — a PROMPT-panel collapse: merge CONSECUTIVE system-note runs
         // BEFORE they convert to `user` rows at the SHAPE splice (injections mint system-role notes). An
         // independent collapse the user may want even with `roleHandling:none` — orthogonal to the
-        // adjacent-same-role (user|assistant) merge the connection knob controls. Absent ⇒ no system-note
-        // pre-merge (today's behavior).
+        // adjacent-same-role (user|assistant) merge below. Absent ⇒ no system-note pre-merge (today's behavior).
         squashSystemMessages: z.boolean().optional(),
+        // roleHandling (D66-C, W6 REVERSED) — adjacent-same-role (user|assistant) merge strategy. This is USER
+        // INTENT (a prompt-authoring preference), NOT connection/wire config — it moved OFF
+        // `RouteChatAssignment` to live here beside `squashSystemMessages`. The pipeline hands this preset value
+        // to SHAPE, which clamps it against the model's `capability.turns.roleHandlingFloor` (`max(floor, knob)`
+        // at shape.ts) — the user may go STRICTER than the floor, never looser. Unset ⇒ SHAPE falls to the floor.
+        roleHandling: roleHandlingSchema.optional(),
       })
       .optional(),
   })
@@ -773,338 +769,23 @@ export const promptConfigConfig = defineVersionedConfig({
 });
 
 /** Parse a stored config blob, lifting older shapes forward. LENIENT: a malformed blob degrades to
- *  DEFAULT_PROMPT_CONFIG rather than throwing mid-load (vs `parseNeoPresetFile`'s STRICT validation). */
+ *  DEFAULT_PROMPT_CONFIG rather than throwing mid-load (vs `parsePresetFile`'s STRICT validation). */
 export function parsePromptConfig(raw: unknown): PromptConfig {
   return promptConfigConfig.parse(raw);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// PresetFormValues — the FLAT client-side form shape + the wire ↔ flat-form mappers.
+// NO FLAT FORM MAPPER (D66 W10 — preset-form-mapper-elimination.md; deleted 2026-07-11).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// TanStack Form's bound shadcn fields consume flat keys cleanly. The form provider owns the
-// bidirectional mapping with the nested PromptConfig via `toPresetFormValues`/`toPromptConfig`.
-
-/** The flat form shape. Every key is optional — drafts overlay server values; absent = "use server
- *  default". The numeric-knob bounds come from `generationKnobSchemas` (one source — no client/server
- *  drift). Guided-action roles are `MessageRole` (D32). */
-export interface PresetFormValues {
-  quality?: Quality;
-
-  effort?: EffortLevel;
-  thinkingBudgetTokens?: number;
-  thinkingDisplay?: ThinkingDisplay;
-
-  maxOutputTokens?: number;
-  maxBudgetUsd?: number;
-  maxContextTokens?: number;
-
-  temperature?: number;
-  topP?: number;
-  topK?: number;
-  minP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  repetitionPenalty?: number;
-  seed?: number;
-  verbosity?: Verbosity;
-
-  compactionMode?: CompactionMode;
-  compactionThresholdPct?: number;
-  compactionInstructions?: string;
-
-  sections: PromptSection[];
-
-  namesBehavior?: NamesBehavior;
-  continuePostfix?: ContinuePostfix;
-
-  ppCollapseNewlines?: boolean;
-  ppTrimTrailingWhitespace?: boolean;
-  ppDropIncompleteSentence?: boolean;
-  ppSingleLine?: boolean;
-
-  reasoningAutoParse?: boolean;
-  reasoningPrefix?: string;
-  reasoningSuffix?: string;
-
-  continueNudgePrompt?: string;
-  wiFormat?: string;
-
-  guidedResponsePrompt?: string;
-  guidedResponseRole?: MessageRole;
-  guidedSwipePrompt?: string;
-  guidedSwipeRole?: MessageRole;
-  guidedImpersonatePrompt?: string;
-  guidedImpersonateRole?: MessageRole;
-  guidedRewritePrompt?: string;
-  guidedRewriteRole?: MessageRole;
-  guidedOpeningPrompt?: string;
-  guidedOpeningRole?: MessageRole;
-  guidedContinuePrompt?: string;
-  guidedContinueRole?: MessageRole;
-}
-
-export const presetFormValuesSchema = z.object({
-  quality: z.enum(QUALITY_LEVELS).optional(),
-
-  effort: z.enum(EFFORT_LEVELS).optional(),
-  thinkingBudgetTokens: generationKnobSchemas.thinkingBudgetTokens,
-  thinkingDisplay: z.enum(THINKING_DISPLAYS).optional(),
-
-  maxOutputTokens: generationKnobSchemas.maxOutputTokens,
-  maxBudgetUsd: generationKnobSchemas.maxBudgetUsd,
-  maxContextTokens: generationKnobSchemas.maxContextTokens,
-
-  temperature: generationKnobSchemas.temperature,
-  topP: generationKnobSchemas.topP,
-  topK: generationKnobSchemas.topK,
-  minP: generationKnobSchemas.minP,
-  frequencyPenalty: generationKnobSchemas.frequencyPenalty,
-  presencePenalty: generationKnobSchemas.presencePenalty,
-  repetitionPenalty: generationKnobSchemas.repetitionPenalty,
-  seed: generationKnobSchemas.seed,
-  verbosity: z.enum(VERBOSITY_LEVELS).optional(),
-
-  compactionMode: z.enum(COMPACTION_MODES).optional(),
-  compactionThresholdPct: generationKnobSchemas.compactionThresholdPct,
-  compactionInstructions: z.string().optional(),
-
-  sections: z.array(promptSectionSchema),
-
-  namesBehavior: z.enum(NAMES_BEHAVIOR).optional(),
-  continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
-
-  ppCollapseNewlines: z.boolean().optional(),
-  ppTrimTrailingWhitespace: z.boolean().optional(),
-  ppDropIncompleteSentence: z.boolean().optional(),
-  ppSingleLine: z.boolean().optional(),
-
-  reasoningAutoParse: z.boolean().optional(),
-  reasoningPrefix: z.string().optional(),
-  reasoningSuffix: z.string().optional(),
-
-  continueNudgePrompt: z.string().optional(),
-  wiFormat: z.string().optional(),
-
-  guidedResponsePrompt: z.string().optional(),
-  guidedResponseRole: z.enum(MESSAGE_ROLES).optional(),
-  guidedSwipePrompt: z.string().optional(),
-  guidedSwipeRole: z.enum(MESSAGE_ROLES).optional(),
-  guidedImpersonatePrompt: z.string().optional(),
-  guidedImpersonateRole: z.enum(MESSAGE_ROLES).optional(),
-  guidedRewritePrompt: z.string().optional(),
-  guidedRewriteRole: z.enum(MESSAGE_ROLES).optional(),
-  guidedOpeningPrompt: z.string().optional(),
-  guidedOpeningRole: z.enum(MESSAGE_ROLES).optional(),
-  guidedContinuePrompt: z.string().optional(),
-  guidedContinueRole: z.enum(MESSAGE_ROLES).optional(),
-});
-
-/** Copy the flat scalar generation knobs out of a UserIntent params blob into a form-values object
- *  (each only when present). Split out of `toPresetFormValues` to keep both under the complexity gate. */
-function copyParamsToForm(params: UserIntent, out: PresetFormValues): void {
-  assignIfDefined(out, "quality", params.quality);
-  assignIfDefined(out, "effort", params.effort);
-  assignIfDefined(out, "thinkingBudgetTokens", params.thinkingBudgetTokens);
-  assignIfDefined(out, "thinkingDisplay", params.thinkingDisplay);
-  assignIfDefined(out, "maxOutputTokens", params.maxOutputTokens);
-  assignIfDefined(out, "maxBudgetUsd", params.maxBudgetUsd);
-  assignIfDefined(out, "maxContextTokens", params.maxContextTokens);
-  assignIfDefined(out, "temperature", params.temperature);
-  assignIfDefined(out, "topP", params.topP);
-  assignIfDefined(out, "topK", params.topK);
-  assignIfDefined(out, "minP", params.minP);
-  assignIfDefined(out, "frequencyPenalty", params.frequencyPenalty);
-  assignIfDefined(out, "presencePenalty", params.presencePenalty);
-  assignIfDefined(out, "repetitionPenalty", params.repetitionPenalty);
-  assignIfDefined(out, "seed", params.seed);
-  assignIfDefined(out, "verbosity", params.verbosity);
-  if (params.compaction !== undefined) {
-    assignIfDefined(out, "compactionMode", params.compaction.mode);
-    assignIfDefined(out, "compactionThresholdPct", params.compaction.thresholdPct);
-    assignIfDefined(out, "compactionInstructions", params.compaction.instructions);
-  }
-}
-
-/** Flatten the 6 guided actions (× `{prompt, role}`) onto the form. The preset may omit guidedActions
- *  entirely (→ DEFAULT_GUIDED_ACTIONS at resolve time); when present every action is required, so we
- *  copy all 12 keys. */
-function copyGuidedToForm(ga: GuidedActionsConfig, out: PresetFormValues): void {
-  out.guidedResponsePrompt = ga.response.prompt;
-  out.guidedResponseRole = ga.response.role;
-  out.guidedSwipePrompt = ga.swipe.prompt;
-  out.guidedSwipeRole = ga.swipe.role;
-  out.guidedImpersonatePrompt = ga.impersonate.prompt;
-  out.guidedImpersonateRole = ga.impersonate.role;
-  out.guidedRewritePrompt = ga.rewrite.prompt;
-  out.guidedRewriteRole = ga.rewrite.role;
-  out.guidedOpeningPrompt = ga.opening.prompt;
-  out.guidedOpeningRole = ga.opening.role;
-  out.guidedContinuePrompt = ga.continue.prompt;
-  out.guidedContinueRole = ga.continue.role;
-}
-
-/** server → form (on seed). Each UserIntent field is optional; only set when present. */
-export function toPresetFormValues(config: PromptConfig): PresetFormValues {
-  const fs = config.formatStrings ?? {};
-  const ga = config.guidedActions;
-  const pp = config.postProcess;
-
-  const out: PresetFormValues = { sections: [...config.sections] };
-  copyParamsToForm(config.params, out);
-
-  assignIfDefined(out, "namesBehavior", config.namesBehavior);
-  assignIfDefined(out, "continuePostfix", config.continuePostfix);
-
-  // postProcess flattened (default false when the block is absent).
-  out.ppCollapseNewlines = pp?.collapseNewlines ?? false;
-  out.ppTrimTrailingWhitespace = pp?.trimTrailingWhitespace ?? false;
-  out.ppDropIncompleteSentence = pp?.dropIncompleteSentence ?? false;
-  out.ppSingleLine = pp?.singleLine ?? false;
-
-  // reasoningParse flattened (autoParse defaults false; prefix/suffix only when the block set them).
-  const rp = config.reasoningParse;
-  out.reasoningAutoParse = rp?.autoParse ?? false;
-  assignIfDefined(out, "reasoningPrefix", rp?.prefix);
-  assignIfDefined(out, "reasoningSuffix", rp?.suffix);
-
-  assignIfDefined(out, "continueNudgePrompt", fs.continueNudge);
-  assignIfDefined(out, "wiFormat", fs.wiFormat);
-
-  if (ga !== undefined) {
-    copyGuidedToForm(ga, out);
-  }
-
-  return out;
-}
-
-/** Reconstruct the UserIntent params blob from the flat form (preserving server-only fields the form
- *  never edits: advanced / logitBias / stop). Split out to keep `toPromptConfig` under the gate. */
-function formToParams(form: PresetFormValues, server: PromptConfig): UserIntent {
-  const params: UserIntent = {};
-  assignIfDefined(params, "quality", form.quality);
-  assignIfDefined(params, "effort", form.effort);
-  assignIfDefined(params, "thinkingBudgetTokens", form.thinkingBudgetTokens);
-  assignIfDefined(params, "thinkingDisplay", form.thinkingDisplay);
-  assignIfDefined(params, "maxOutputTokens", form.maxOutputTokens);
-  assignIfDefined(params, "maxBudgetUsd", form.maxBudgetUsd);
-  assignIfDefined(params, "maxContextTokens", form.maxContextTokens);
-  assignIfDefined(params, "temperature", form.temperature);
-  assignIfDefined(params, "topP", form.topP);
-  assignIfDefined(params, "topK", form.topK);
-  assignIfDefined(params, "minP", form.minP);
-  assignIfDefined(params, "frequencyPenalty", form.frequencyPenalty);
-  assignIfDefined(params, "presencePenalty", form.presencePenalty);
-  assignIfDefined(params, "repetitionPenalty", form.repetitionPenalty);
-  assignIfDefined(params, "seed", form.seed);
-  assignIfDefined(params, "verbosity", form.verbosity);
-
-  const serverParams = server.params;
-  assignIfDefined(params, "advanced", serverParams.advanced);
-  assignIfDefined(params, "logitBias", serverParams.logitBias);
-  assignIfDefined(params, "stop", serverParams.stop);
-
-  const compaction: NonNullable<UserIntent["compaction"]> = {};
-  assignIfDefined(compaction, "mode", form.compactionMode);
-  assignIfDefined(compaction, "thresholdPct", form.compactionThresholdPct);
-  assignIfDefined(compaction, "instructions", form.compactionInstructions);
-  if (Object.keys(compaction).length > 0) {
-    params.compaction = compaction;
-  }
-  return params;
-}
-
-const guidedActionFrom = (prompt: string, role: MessageRole | undefined): GuidedActionConfig => ({
-  prompt,
-  role: role ?? "system",
-});
-
-/** Build the guidedActions blob ONLY when every CORE steer (response/swipe/impersonate/rewrite) has its
- *  prompt set; otherwise undefined → the reader falls back to DEFAULT_GUIDED_ACTIONS. Guided actions have
- *  ONE home — the preset; there is NO AppSettings.guidedActions (D33). `opening` and `continue` ride along
- *  with a default-fallback (not part of the gate, so 4-action presets aren't suddenly dropped to default). */
-function formToGuidedActions(form: PresetFormValues): GuidedActionsConfig | undefined {
-  if (
-    form.guidedResponsePrompt === undefined ||
-    form.guidedSwipePrompt === undefined ||
-    form.guidedImpersonatePrompt === undefined ||
-    form.guidedRewritePrompt === undefined
-  ) {
-    return;
-  }
-  return {
-    response: guidedActionFrom(form.guidedResponsePrompt, form.guidedResponseRole),
-    swipe: guidedActionFrom(form.guidedSwipePrompt, form.guidedSwipeRole),
-    impersonate: guidedActionFrom(form.guidedImpersonatePrompt, form.guidedImpersonateRole),
-    rewrite: guidedActionFrom(form.guidedRewritePrompt, form.guidedRewriteRole),
-    opening: guidedActionFrom(
-      form.guidedOpeningPrompt ?? DEFAULT_GUIDED_ACTIONS.opening.prompt,
-      form.guidedOpeningRole,
-    ),
-    continue: guidedActionFrom(
-      form.guidedContinuePrompt ?? DEFAULT_GUIDED_ACTIONS.continue.prompt,
-      form.guidedContinueRole,
-    ),
-  };
-}
-
-/** form → server (on submit). MERGED onto the existing server config so the fields the form doesn't
- *  edit (schemaVersion / regexScripts / variables / customParameters) survive. Built field-by-field
- *  (no spread-then-delete — `delete` is banned: an absent form field round-trips to "unset"). */
-export function toPromptConfig(form: PresetFormValues, server: PromptConfig): PromptConfig {
-  const params = formToParams(form, server);
-
-  const formatStrings: NonNullable<PromptConfig["formatStrings"]> = {};
-  assignIfDefined(formatStrings, "continueNudge", form.continueNudgePrompt);
-  assignIfDefined(formatStrings, "wiFormat", form.wiFormat);
-
-  const guidedActions = formToGuidedActions(form);
-
-  const postProcess = {
-    collapseNewlines: form.ppCollapseNewlines ?? false,
-    trimTrailingWhitespace: form.ppTrimTrailingWhitespace ?? false,
-    dropIncompleteSentence: form.ppDropIncompleteSentence ?? false,
-    singleLine: form.ppSingleLine ?? false,
-  };
-  const hasPostProcess = Object.values(postProcess).some((flag): boolean => flag);
-
-  const reasoningParse = {
-    autoParse: form.reasoningAutoParse ?? false,
-    prefix: form.reasoningPrefix ?? THINK_PREFIX_DEFAULT,
-    suffix: form.reasoningSuffix ?? THINK_SUFFIX_DEFAULT,
-  };
-  // Persist the block only when the user actually engaged it (autoParse on, or a custom tag set) — an
-  // all-default block round-trips to "unset" so the schema default applies (mirrors hasPostProcess).
-  const hasReasoningParse =
-    reasoningParse.autoParse ||
-    form.reasoningPrefix !== undefined ||
-    form.reasoningSuffix !== undefined;
-
-  // Explicit construction (every PromptConfig field accounted for) — preserves the server-only fields
-  // the form never edits, and omitting an absent top-level field is how "unset" round-trips.
-  const next: PromptConfig = {
-    schemaVersion: server.schemaVersion,
-    sections: form.sections,
-    params,
-    regexScripts: server.regexScripts,
-    variables: server.variables,
-  };
-  assignIfDefined(next, "customParameters", server.customParameters);
-  assignIfDefined(next, "namesBehavior", form.namesBehavior);
-  assignIfDefined(next, "continuePostfix", form.continuePostfix);
-  if (Object.keys(formatStrings).length > 0) {
-    next.formatStrings = formatStrings;
-  }
-  if (guidedActions !== undefined) {
-    next.guidedActions = guidedActions;
-  }
-  if (hasPostProcess) {
-    next.postProcess = postProcess;
-  }
-  if (hasReasoningParse) {
-    next.reasoningParse = reasoningParse;
-  }
-  return next;
-}
+// The maintenance-tax `PresetFormValues` + `toPresetFormValues`/`toPromptConfig` flat mappers were
+// DELETED: the client preset editor now binds the nested `PromptConfig` DIRECTLY via TanStack Form's
+// nested-path binding (`name="params.temperature"`, `name="guidedActions.response.prompt"`), so there is
+// no flat key set to keep in sync with every new `PromptConfig` field. The numeric-knob bounds stay
+// sourced from `generationKnobSchemas` (the one bounds object) — the editor spreads them into its own
+// merge-on-submit, never re-typing a bound. Server-only fields the params-panel never edits
+// (`advanced`/`logitBias`/`stop`/`regexScripts`/`variables`/`customParameters`) are preserved by the
+// editor's merge-on-submit against the loaded server `PromptConfig`; the absent-field-round-trips-to-unset
+// discipline (`assignIfDefined`) now lives at that client seam, not in a contract mapper.
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PROMPT_MACROS — the canonical macro catalog (client autocomplete + future server linter + docs).
@@ -1210,7 +891,7 @@ export const PROMPT_MACRO_NAMES: readonly string[] = PROMPT_MACROS.map((m): stri
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Serde — the ST Chat-Completion preset importer + the neo native preset-file codec.
-// `parseNeoPresetFile` is STRICT (a broken file errors loudly); `parsePromptConfig` is LENIENT (a
+// `parsePresetFile` is STRICT (a broken file errors loudly); `parsePromptConfig` is LENIENT (a
 // malformed stored blob degrades to default). This distinction is load-bearing — preserved here.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -1460,6 +1141,13 @@ function mapParams(raw: Record<string, unknown>, dropped: StDroppedField[]): Use
     out["thinkingDisplay"] = showThoughts ? "summarized" : "omitted";
   }
 
+  // ST `squash_system_messages` maps onto the preset `advanced.squashSystemMessages` intent (D66-C W6, the
+  // REVERSED home): only carry a `true` (ST's default `false` = "no preference", never pinned). No longer a
+  // dropped field.
+  if (raw["squash_system_messages"] === true) {
+    out["advanced"] = { squashSystemMessages: true };
+  }
+
   // Sampling knobs with no neo vocabulary. (`min_p` now maps to `minP` above — no longer dropped.)
   const topA = readNum(raw, "top_a");
   if (topA !== undefined && topA !== ST_TOP_A_DEFAULT) {
@@ -1480,7 +1168,7 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 // Top-level ST fields with no neo home — reported (when present + meaningful) so the user knows.
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   { field: "impersonation_prompt", reason: "no impersonation-prompt slot" },
-  { field: "group_nudge_prompt", reason: "no group chats" },
+  { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
   { field: "new_chat_prompt", reason: "no new-chat injection slot" },
   { field: "new_group_chat_prompt", reason: "no group chats" },
   { field: "new_example_chat_prompt", reason: "no example-chat injection slot" },
@@ -1489,7 +1177,6 @@ const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   { field: "assistant_prefill", reason: "response prefill unsupported across providers" },
   { field: "assistant_impersonation", reason: "no impersonation prefill" },
   { field: "wrap_in_quotes", reason: "no quote-wrapping knob" },
-  { field: "squash_system_messages", reason: "neo squashes system messages automatically" },
   { field: "function_calling", reason: "no tool-calling in chat presets" },
   { field: "enable_web_search", reason: "no web-search knob" },
 ];
@@ -1596,12 +1283,14 @@ export function importStChatCompletionPreset(raw: unknown): StImportResult {
   return { config, dropped, sectionCount: sections.length };
 }
 
-// ── neo native preset file (the lossless full-preset export) ───────────────────────────────────────
-export const NEO_PRESET_SCHEMA_KIND = "neo-tavern-preset";
+// ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────
+// `PRESET_SCHEMA_KIND` is the ONE accepted kind — orb-native backup only. There is no legacy-kind accept:
+// neo-tavern never launched, so no foreign preset file exists to import.
+export const PRESET_SCHEMA_KIND = "orb.preset";
 
-export interface NeoPresetFile {
-  schemaKind: typeof NEO_PRESET_SCHEMA_KIND;
-  /** The PromptConfig schema version at export time — `parseNeoPresetFile` uses it as the lift-walk
+export interface PresetFile {
+  schemaKind: typeof PRESET_SCHEMA_KIND;
+  /** The PromptConfig schema version at export time — `parsePresetFile` uses it as the lift-walk
    *  start so older files are lifted forward before strict validation (falls back to the config blob's
    *  own `schemaVersion` when absent/garbage). */
   schemaVersion: number;
@@ -1610,31 +1299,31 @@ export interface NeoPresetFile {
 }
 
 /** Build the export payload for a preset (name + its full config). */
-export function buildNeoPresetFile(name: string, config: PromptConfig): NeoPresetFile {
+export function buildPresetFile(name: string, config: PromptConfig): PresetFile {
   return {
-    schemaKind: NEO_PRESET_SCHEMA_KIND,
+    schemaKind: PRESET_SCHEMA_KIND,
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     name,
     config,
   };
 }
 
-export type ParseNeoPresetResult =
+export type ParsePresetResult =
   | { ok: true; name: string; config: PromptConfig }
   | { ok: false; error: string };
 
-/** Parse a `neo-tavern-preset` file. Validates the envelope, LIFTS an older config forward through the
- *  `CONFIG_LIFTS` chain (v1/v2-era files import — the format IS the predecessor app's export shape), then
- *  STRICTLY validates the lifted config via `promptConfigSchema` directly: a structurally-wrong config is
- *  REJECTED (not degraded to DEFAULT) so a broken file errors loudly instead of silently importing as an
+/** Parse an `orb.preset` file. Validates the envelope, LIFTS an older config forward through the
+ *  `CONFIG_LIFTS` chain (a v1/v2-era orb config imports — the config blob carries its own schemaVersion),
+ *  then STRICTLY validates the lifted config via `promptConfigSchema` directly: a structurally-wrong config
+ *  is REJECTED (not degraded to DEFAULT) so a broken file errors loudly instead of silently importing as an
  *  empty preset — the deliberate contrast with `parsePromptConfig`'s lenient degrade-to-default. */
-export function parseNeoPresetFile(raw: unknown): ParseNeoPresetResult {
+export function parsePresetFile(raw: unknown): ParsePresetResult {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, error: "Not a JSON object." };
   }
   const o = raw as Record<string, unknown>;
-  if (o["schemaKind"] !== NEO_PRESET_SCHEMA_KIND) {
-    return { ok: false, error: `Not a ${NEO_PRESET_SCHEMA_KIND} file.` };
+  if (o["schemaKind"] !== PRESET_SCHEMA_KIND) {
+    return { ok: false, error: `Not a ${PRESET_SCHEMA_KIND} file.` };
   }
   const rawConfig = o["config"];
   if (rawConfig === null || typeof rawConfig !== "object" || Array.isArray(rawConfig)) {

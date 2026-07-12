@@ -1,6 +1,6 @@
 // verb: embedCharacterCard — the admin-gated INLINE single-card embed (PD-90; Tier-4-Transport.md
 // esoteric #10). adminProcedure-gated at transport AND `requireAdmin` here (defense-in-depth): it is the
-// only write that drives local GPU embedding inline (the bulk path is the admin-only `embed-corpus`
+// only write that drives local GPU embedding inline (the bulk path is the admin-only `index`
 // workload), so "who can drive the embed engine" stays consistent. The cross-domain producer-ownership
 // check (the caller must OWN the character; the vector row carries no ownerId to spoof — D20) lives in
 // the injected `EmbedProducerPort`, composed at the entry root from character (owner-scoped card read +

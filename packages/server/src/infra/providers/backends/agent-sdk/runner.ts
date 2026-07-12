@@ -26,6 +26,7 @@ import type {
 } from "../../contract";
 import { normalizeFinishReason, ProviderError } from "../../contract";
 import { resolveDynamicContext } from "../../resolve-chat";
+import { refreshHostSubTokenIfMode1 } from "./host-token";
 import {
   logProviderChannel,
   logProviderCompaction,
@@ -110,6 +111,12 @@ export async function runChatTurn(
   deps: AgentSdkDeps,
   sessions: SessionCache,
 ): Promise<ChatResult> {
+  // mode-1 (Max sub) ONLY: proactively refresh an expired host OAuth token BEFORE the spawn, so the
+  // symlinked `.credentials.json` is fresh. The spawned runtime's own refresh can't persist through the
+  // ephemeral-dir symlink (tmp+rename clobbers it), so this closes the "auth_failed every few hours" hole.
+  // Best-effort + never throws — a failed refresh lets the spawn surface the SDK's own error unchanged.
+  await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
+
   // Route the dynamic (volatile) system-prompt half per the funnel-RESOLVED `dynamicContextChannel`.
   const { systemPrompt, dynamicHook } = routeDynamicContext(req);
   const gen = toSdkGeneration(req.params, req.capability);

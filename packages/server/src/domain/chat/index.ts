@@ -23,6 +23,9 @@ export type {
 } from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors";
+// The chat-OWNED bulk-import WRITE op's DI bundle + op type (Option B; PD-77) — the entry root constructs
+// `ChatImportContext` and wires `createBulkImportChats` (below) into `import`'s `profile.bulkImportChats`.
+export type { BulkImportChats, ChatImportContext } from "./contract/import";
 // The memory tuning shape + the PD-41 backfill config-resolver op (the composition root types its shared
 // `resolveMemoryConfig` closure against these — one home for the turn/sweep memory-config merge).
 export type { MemoryConfig, ResolveBackfillMemoryConfig } from "./contract/memory";
@@ -44,6 +47,8 @@ export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard";
 export { generateDigests } from "./memory/build/digests";
 export { generateSegments } from "./memory/build/segments";
 export { loadChatMeta } from "./memory/persistence/queries";
+// The chat-OWNED bulk-import WRITE op (Option B; PD-77) — `import` injects it as `profile.bulkImportChats`.
+export { createBulkImportChats } from "./persistence/import-write";
 export { reclaimChatLocksOnBoot } from "./persistence/lock";
 export { createChatService } from "./service";
 // The PD-41 corpus sweeps (the workloads runner-env's memory/group-character backfill ops).

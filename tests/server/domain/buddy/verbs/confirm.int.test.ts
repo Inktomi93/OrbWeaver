@@ -95,17 +95,17 @@ describe("confirm — the sole executor", () => {
     const owner = await seedUser(db, { id: "user_o" });
     await svc.hatch({ principal: principal(owner) });
 
-    h.setToolCall({ name: "propose_workload", args: { kind: "embed-corpus" } });
+    h.setToolCall({ name: "propose_workload", args: { kind: "index" } });
     const res = await svc.ask({ principal: principal(owner), message: "embed my stuff" });
     h.setToolCall(null);
     const proposalId = res.proposal?.id ?? "";
 
     const ok = await svc.confirm({ principal: principal(owner), proposalId, confirmed: true });
     expect(ok.applied).toBe(true);
-    expect(h.startWorkloadCalls).toEqual([{ ownerId: owner, kind: "embed-corpus" }]);
+    expect(h.startWorkloadCalls).toEqual([{ ownerId: owner, kind: "index" }]);
 
     // A second proposal that collides with a running job → caught into a friendly, not-applied detail.
-    h.setToolCall({ name: "propose_workload", args: { kind: "embed-corpus" } });
+    h.setToolCall({ name: "propose_workload", args: { kind: "index" } });
     const res2 = await svc.ask({ principal: principal(owner), message: "again" });
     h.setToolCall(null);
     h.setStartWorkloadError(new DomainConflictError("already running"));

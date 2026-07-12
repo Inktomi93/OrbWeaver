@@ -5,15 +5,6 @@
 // deliberate DEFERRAL (no backend change implied), so there is no compare-before-restore here.
 
 import type { CharacterId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -21,7 +12,9 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useMemo } from "react";
+import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { timeLib } from "#lib";
 import {
   useRestoreCharacter,
   useSnapshotCharacter,
@@ -31,10 +24,10 @@ export interface CharacterHistoryTabProps {
   readonly characterId: CharacterId;
 }
 
-/** Epoch-ms → a readable local date. (`toLocaleDateString`, not `toLocaleString` — the latter resolves to
- *  the base `Object` signature under the noBaseToString gate; the date is enough for a browse log.) */
+/** Epoch-ms → a readable local date via the sanctioned `@orb/kit/time` seam (memoized, locale/tz-consistent,
+ *  injected-clock-pinnable — never raw Intl). The date alone is enough for a browse log. */
 function formatTimestamp(ms: number): string {
-  return new Date(ms).toLocaleDateString();
+  return timeLib.formatDate(ms);
 }
 
 export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): ReactElement {
@@ -86,28 +79,13 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
  *  Dialog). Uncontrolled trigger: no per-row open state to manage. */
 function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void }): ReactElement {
   return (
-    <AlertDialog>
-      <AlertDialogTrigger render={<Button intent="ghost">Restore</Button>} />
-      <AlertDialogPopup>
-        <Stack gap="block">
-          <AlertDialogTitle>Restore this snapshot?</AlertDialogTitle>
-          {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-          <AlertDialogDescription>
-            This replaces the character's current card with this snapshot. Your current state is
-            snapshotted first, so you can undo it.
-          </AlertDialogDescription>
-          <AlertDialogActions>
-            <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <AlertDialogClose
-              render={
-                <Button intent="primary" onClick={onConfirm}>
-                  Restore
-                </Button>
-              }
-            />
-          </AlertDialogActions>
-        </Stack>
-      </AlertDialogPopup>
-    </AlertDialog>
+    <ConfirmDialog
+      confirmIntent="primary"
+      confirmLabel="Restore"
+      description="This replaces the character's current card with this snapshot. Your current state is snapshotted first, so you can undo it."
+      onConfirm={onConfirm}
+      title="Restore this snapshot?"
+      triggerLabel="Restore"
+    />
   );
 }

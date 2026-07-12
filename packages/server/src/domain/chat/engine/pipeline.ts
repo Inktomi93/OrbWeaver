@@ -445,11 +445,12 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     namesBehavior: ctx.promptConfig.namesBehavior ?? "default",
     speakers,
     groupNudge: args.groupNudge ?? null,
-    // D66 (W5/W6): the resolved turn-shaping facts carried off the connection. `assistantPrefill` gates the
-    // CONTINUATION_NUDGE + the splice assistant@0 floor (SHAPE reads the capability flag, D45/D48 pattern);
-    // `roleHandling` (user knob) is clamped at SHAPE against the model `roleHandlingFloor` (part 01 §6).
+    // D66 (W5/W6): the resolved turn-shaping facts. `assistantPrefill` gates the CONTINUATION_NUDGE + the
+    // splice assistant@0 floor (SHAPE reads the capability flag, D45/D48 pattern). `roleHandling` is the PRESET
+    // user-intent knob (`params.advanced.roleHandling`, W6 REVERSED — it moved OFF the connection); SHAPE clamps
+    // it against the model `roleHandlingFloor` (`max(floor, knob)`, part 01 §6). The floor stays capability-derived.
     assistantPrefill: args.connection.capability.turns?.assistantPrefill === true,
-    roleHandling: args.connection.roleHandling,
+    roleHandling: ctx.promptConfig.params.advanced?.roleHandling,
     roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
   });
 

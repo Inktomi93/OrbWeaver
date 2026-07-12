@@ -93,7 +93,7 @@ export const adminRouter = t.router({
     ),
 
   // PD-90 — the inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
-  // embed engine inline; the bulk path is the admin-only embed-corpus workload). The producer-ownership
+  // embed engine inline; the bulk path is the admin-only index workload). The producer-ownership
   // check + the embeddings write live behind the AdminService verb (the composed EmbedProducerPort).
   embedCharacterCard: adminProcedure
     .input(z.object({ characterId: brandedId<CharacterId>() }))

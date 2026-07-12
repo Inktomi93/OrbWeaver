@@ -14,7 +14,7 @@ updated: 2026-07-09
 > the code + gates are the proof) — the still-open rows are the live obligations.
 >
 > **Triage 2026-07-09 — what is still ALIVE in this file (everything else is a landed record):**
-> **B1** (the ST-import data-port scripts — rides `proposed/import-st-profile-waves.md`,
+> **B1** (the ST-import data-port scripts — rides `history/export-import-portability.md` §5,
 > blocked:later) · **D1** (the `logAudit('WORKLOAD_FAILED')` terminal-failure emit — still open) ·
 > **D4** (`custom-byo contextWindow?` + the BYO response-mapping schema — still open, ships with the
 > BYO form) · **§E** (owned risks — permanent acceptance record, never "resolves"). D1/D4 have no PD

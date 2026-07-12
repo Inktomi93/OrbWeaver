@@ -9,7 +9,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
  *  `WorkloadKind`. FLAG(reconcile): when `domain/workloads` lands its `WorkloadKind` axis, confirm this
  *  curated subset is a true member set (it stays buddy-local + lite — the buddy never carries the full
  *  workload taxonomy). */
-export type BuddyWorkloadKind = "find-duplicates" | "embed-corpus";
+export type BuddyWorkloadKind = "find-duplicates" | "index";
 
 /** The injected cross-feature op the `confirm`→workload arm calls. `ownerId` scopes the queued job to
  *  the buddy's owner (borrowed-owner posture). Throws (a kit `DomainConflictError`) when a job of that

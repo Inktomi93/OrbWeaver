@@ -12,12 +12,18 @@
 // confirmed owner, so this is a trusted lookup, not an ownership bypass. `ownerId` is `principal.userId`
 // (§7.1) on the normal path; the `no-direct-users-read` chokepoint holds throughout.
 
-import type { AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@orb/contracts/assets";
+import type {
+  AssetBlobRef,
+  AssetKind,
+  AssetListItem,
+  GalleryItemView,
+  StoredAsset,
+} from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets, galleryItems } from "@orb/db";
 import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
-import { sniffMime } from "@orb/kit/image-sniff";
-import { and, desc, eq, isNull, like, lt, or } from "drizzle-orm";
+import { isAnimated, sniffMime } from "@orb/kit/image-sniff";
+import { and, asc, desc, eq, inArray, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
 
 const LIMIT_ONE = 1;
@@ -66,6 +72,25 @@ export async function loadAssetCasRefById(
     .where(eq(assets.id, assetId))
     .limit(LIMIT_ONE);
   return rows[0];
+}
+
+/** The `(assetId, hash)` pairs OWNED by `ownerId` among `assetIds` (#67 — the inline-image render resolver +
+ *  the send-verb attach trust boundary). OWNER-SCOPED: the `ownerId` predicate is in the WHERE, so a foreign
+ *  id (or a gone one) is simply absent from the result — never a leak, never a hash oracle for another owner's
+ *  blob. Empty input ⇒ empty result (no query). */
+export async function selectOwnedAssetRefs(
+  db: Db,
+  ownerId: UserId,
+  assetIds: readonly AssetId[],
+): Promise<AssetBlobRef[]> {
+  if (assetIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ assetId: assets.id, hash: assets.hash })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...assetIds])));
+  return rows;
 }
 
 /** Every IMAGE asset id (`mime LIKE 'image/%'`), ALL owners — NO owner scope (D20). The embeddings BULK
@@ -170,6 +195,10 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
       mime: input.mime,
       size: put.size,
       hash: put.hash,
+      // G2: the animated byte-fact, computed ONCE here (the one CAS+row writer) so the grid + variant
+      // pipeline never re-sniff. Pure inspection (`@orb/kit/image-sniff`), no decode. On a dedup conflict
+      // the existing row keeps its own (byte-identical → identical) value.
+      animated: isAnimated(input.bytes),
       uploadedAt: input.now,
     })
     .onConflictDoNothing({ target: [assets.ownerId, assets.hash] })
@@ -213,6 +242,7 @@ export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise
       mime: assets.mime,
       size: assets.size,
       uploadedAt: assets.uploadedAt,
+      animated: assets.animated,
     })
     .from(assets)
     .where(
@@ -311,6 +341,7 @@ export async function galleryItemViewById(
       assetId: galleryItems.assetId,
       hash: assets.hash,
       mime: assets.mime,
+      animated: assets.animated,
       subjectCharacterId: galleryItems.subjectCharacterId,
       createdAt: galleryItems.createdAt,
     })
@@ -352,6 +383,77 @@ interface ListGalleryInput {
   readonly cursorId: GalleryItemId | undefined;
 }
 
+// File-local (not exported — types-in-contract): one owner's curation row projected for portability export.
+interface GalleryExportRow {
+  readonly assetId: AssetId;
+  readonly subjectCharacterId: CharacterId | null;
+  readonly createdAt: number;
+}
+
+/** Every curation row the owner holds, for a portability export. Owner-scoped THROUGH the asset join
+ *  (`gallery_items → assets.ownerId`; no stamped owner column, §1.3). Ordered `(createdAt, id)` ASC for a
+ *  DETERMINISTIC export (stable bytes across runs); the serde carries the handle, this carries the raw ids the
+ *  verb resolves before build. */
+export async function listGalleryItemsForExport(
+  db: Db,
+  ownerId: UserId,
+): Promise<GalleryExportRow[]> {
+  const rows = await db
+    .select({
+      assetId: galleryItems.assetId,
+      subjectCharacterId: galleryItems.subjectCharacterId,
+      createdAt: galleryItems.createdAt,
+    })
+    .from(galleryItems)
+    .innerJoin(assets, eq(galleryItems.assetId, assets.id))
+    .where(eq(assets.ownerId, ownerId))
+    .orderBy(asc(galleryItems.createdAt), asc(galleryItems.id));
+  return rows;
+}
+
+// File-local (not exported — types-in-contract): the import-restore args for one curation row.
+interface ImportGalleryItemInput {
+  readonly id: GalleryItemId;
+  readonly assetId: AssetId;
+  readonly subjectCharacterId: CharacterId | null;
+  /** The carried curation timestamp (epoch-ms) — preserved across restore for stable gallery ORDER. */
+  readonly createdAt: number;
+}
+
+/** Restore ONE curation row, IDEMPOTENTLY, keyed on `(assetId, subjectCharacterId)` — the same dedup axis as
+ *  the `gallery_items_asset_subject_unique` index. Explicit existence check first (NOT `onConflictDoNothing`)
+ *  because SQLite treats NULL `subjectCharacterId` as distinct under the unique index, so an un-charactered
+ *  re-import would otherwise duplicate; the `isNull` branch closes that gap. Returns `{created}` — false when
+ *  the row already existed (a re-import writes zero dupes). The caller has already verified the asset is owned
+ *  by the importer (the FK never violates). */
+export async function importGalleryItem(
+  db: Db,
+  input: ImportGalleryItemInput,
+): Promise<{ readonly created: boolean }> {
+  const existing = await db
+    .select({ id: galleryItems.id })
+    .from(galleryItems)
+    .where(
+      and(
+        eq(galleryItems.assetId, input.assetId),
+        input.subjectCharacterId !== null
+          ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId)
+          : isNull(galleryItems.subjectCharacterId),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  if (existing[0] !== undefined) {
+    return { created: false };
+  }
+  await db.insert(galleryItems).values({
+    id: input.id,
+    assetId: input.assetId,
+    subjectCharacterId: input.subjectCharacterId,
+    createdAt: input.createdAt,
+  });
+  return { created: true };
+}
+
 /** Gallery v2 (§1.3): the caller's gallery via the asset join filtered on `assets.ownerId = actor` (no
  *  stamped owner column to scope on), `ORDER BY createdAt DESC, id DESC`, keyset-paged by `(createdAt, id)`.
  *  Optional `subjectCharacterId` filter. */
@@ -372,6 +474,7 @@ export async function listGalleryViewRows(
       assetId: galleryItems.assetId,
       hash: assets.hash,
       mime: assets.mime,
+      animated: assets.animated,
       subjectCharacterId: galleryItems.subjectCharacterId,
       createdAt: galleryItems.createdAt,
     })

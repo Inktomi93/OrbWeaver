@@ -11,9 +11,9 @@
 // `isPending` here).
 
 import type { UserIntent } from "@orb/contracts/preset";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, uploadAsset, useInvalidation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, subscribeUserMessageCommitted } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
@@ -30,6 +30,9 @@ interface SendVars {
   /** The per-turn generation intent, threaded onto the send when present. The wire (`chat.send` schema)
    *  accepts `intent: z.any().optional()`, so this typed `Partial<UserIntent>` rides it directly. */
   readonly intent?: Partial<UserIntent> | undefined;
+  /** #67 — the uploaded inline-attachment asset ids (the send verb trust-boundary-checks + persists them).
+   *  Mutable to match the wire mutation-input shape (`z.array(assetIdSchema)`). */
+  readonly attachmentAssetIds?: AssetId[] | undefined;
 }
 
 // Module-scope factory (§13.1 pattern — the returned hook has a stable identity). TData is `unknown`:
@@ -95,10 +98,22 @@ export interface UseSendMessageOptions {
 }
 
 export interface UseSendMessageResult {
-  readonly send: (content: string) => void;
+  /** Send the composer draft. `attachments` (#67) are uploaded to CAS first (errors surface via `error` +
+   *  keep the draft/attachments for retry); an attachment-only send (empty text) is allowed. */
+  readonly send: (content: string, attachments?: readonly File[]) => void;
   readonly isPending: boolean;
   readonly error: unknown | null;
   readonly clearError: () => void;
+}
+
+/** #67 — upload the picked attachment files to CAS (kind `attachment`) and return their asset ids, in the
+ *  picked order. Throws on the first failed upload (the caller keeps the draft + attachments for retry). */
+async function uploadAttachments(attachments: readonly File[]): Promise<AssetId[]> {
+  if (attachments.length === 0) {
+    return [];
+  }
+  const stored = await Promise.all(attachments.map((file) => uploadAsset(file, "attachment")));
+  return stored.map((s) => s.assetId);
 }
 
 export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResult {
@@ -129,7 +144,11 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   // the SUBSEQUENT `send` — so we subscribe AFTER startChat, keyed on the new id, before `send` fires
   // (startChat's own seeded-greeting `messageCommitted`s are assistant-role and pre-subscribe — neither
   // could satisfy the role==="user" gate). A `startChat` rejection is always pre-commit → draft survives.
-  const runSend = async (trimmed: string): Promise<void> => {
+  const runSend = async (trimmed: string, attachments: readonly File[]): Promise<void> => {
+    // #67 — upload the picked images to CAS FIRST (before startChat; asset ids are chat-independent). An
+    // upload throw propagates to `send`'s catch → the draft + its attachments survive for retry (no chat
+    // was created for an attachment-only draft yet, and a committed-chat send simply didn't fire).
+    const attachmentAssetIds = await uploadAttachments(attachments);
     let committedChatId: ChatId | null = isCommitted(opts.handle) ? opts.handle.id : null;
     let unsubscribe: (() => void) | null = null;
     try {
@@ -161,20 +180,21 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
         chatId: committedChatId,
         content: trimmed,
         ...(hasIntent ? { intent: opts.intent } : {}),
+        ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });
     } finally {
       unsubscribe?.();
     }
   };
 
-  const send = (content: string): void => {
+  const send = (content: string, attachments: readonly File[] = []): void => {
     const trimmed = content.trim();
-    if (trimmed.length === 0) {
+    if (trimmed.length === 0 && attachments.length === 0) {
       return; // continue-on-empty is a documented future enhancement (lib/continue-on-empty.ts)
     }
     setError(null);
     setIsPending(true);
-    runSend(trimmed)
+    runSend(trimmed, attachments)
       .catch((err: unknown) => setError(err))
       .finally(() => setIsPending(false));
   };

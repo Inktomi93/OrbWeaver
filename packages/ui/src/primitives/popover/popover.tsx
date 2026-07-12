@@ -11,13 +11,14 @@ import type {
 import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { ReactElement } from "react";
 import type { PortalContainer } from "#lib";
-import { usePortalContainer } from "#lib";
+import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
 import { popoverVariants } from "./variants";
 
 const slots = popoverVariants();
 
-// = --spacing-row (0.5rem) — Base UI Positioner offsets are px numbers, not classes.
-const DEFAULT_SIDE_OFFSET = 8;
+// The trigger-breathe gap (§13.0 C19 rollup, `#lib`) — = --spacing-row (0.5rem); Base UI Positioner
+// offsets are px numbers, not classes.
+const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 
 /**
  * Popover root — seals Base UI Popover (dismiss on outside press/Esc comes free). State-only.
@@ -31,7 +32,7 @@ export function Popover<Payload = unknown>(props: BaseRootProps<Payload>): React
 /**
  * Opens the popover. Unstyled passthrough — compose your own control via `render`.
  * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven popover.
- * `<PopoverTrigger render={<Button variant="ghost">Details</Button>} />`
+ * `<PopoverTrigger render={<Button intent="ghost">Details</Button>} />`
  * Spec: ui-package-design §6.1 / §13 R2.
  */
 export function PopoverTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
@@ -126,7 +127,7 @@ export function PopoverArrow(props: PopoverArrowProps): ReactElement {
 /**
  * Closes the popover — place inside `<PopoverPopup>`. Required for focus trapping in `<Popover modal>`
  * (touch screen readers escape through it). Unstyled passthrough — compose via `render`.
- * `<PopoverClose render={<Button variant="ghost">Done</Button>} />`
+ * `<PopoverClose render={<Button intent="ghost">Done</Button>} />`
  * Spec: ui-package-design §6.1 / §13 R2.
  */
 export function PopoverClose(props: BaseCloseProps): ReactElement {

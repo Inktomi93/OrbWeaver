@@ -36,6 +36,12 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
       throw new PersonaNotFoundError(personaId);
     }
 
+    // Owner invariant "never NO current persona while you own one": if the deleted persona was the global
+    // current/default pointer, re-point it (default -> first remaining -> null) so a live consumer never
+    // holds a dangling pointer. Injected settings write (persona imports no other domain); runs AFTER the
+    // delete commits so the re-point sees the post-delete roster. A no-op unless a seed named `personaId`.
+    await ctx.repointSeedsAfterPersonaDelete(ownerId, personaId);
+
     await ctx.audit(
       {
         actorUserId: ownerId,

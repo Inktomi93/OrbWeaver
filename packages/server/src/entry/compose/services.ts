@@ -23,6 +23,8 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { DomainEvent } from "@orb/contracts/events";
+import type { Principal } from "@orb/contracts/identity";
+import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type {
   AccountCredits,
   EndpointInspection,
@@ -36,16 +38,18 @@ import {
   assets as assetsTable,
   characters as charactersTable,
   chatParticipants,
+  messageAssets,
+  messages as messagesTable,
   personas as personasTable,
   users,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
+import type { Handle, PersonaId, SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { can, createAdminService, isAdmin, requireAdmin, requireOwner } from "#domain/admin";
-import type { AssetsService } from "#domain/assets";
+import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { BuddyAgentResult, BuddyToolServer } from "#domain/buddy";
 import { createBuddyService } from "#domain/buddy";
@@ -58,20 +62,28 @@ import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createExportService } from "#domain/export";
+import { createHubService } from "#domain/hub";
 import { createImageryService } from "#domain/imagery";
 import { createNotificationsService } from "#domain/notifications";
-import { createPersonaService } from "#domain/persona";
+import { createBulkImportPersonas, createPersonaService } from "#domain/persona";
+import type { PresetContext } from "#domain/preset";
 import { createPresetService } from "#domain/preset";
 import { createSearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
-import { createSettingsService } from "#domain/settings";
-import { applyStatsDelta, createStatsService } from "#domain/stats";
+import type { SettingsContext, SettingsServiceDeps } from "#domain/settings";
+import { createSettingsContext, createSettingsService } from "#domain/settings";
+import { applyStatsDelta, createStatsService, reconcileStats } from "#domain/stats";
+import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import { createToolUseService } from "#domain/tool-use";
 import type { StartWorkloadInput, WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import { createWorldInfoService } from "#domain/world-info";
+import {
+  createBulkImportLorebook,
+  createImportStandaloneLorebook,
+  createWorldInfoService,
+} from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { logAudit } from "#foundation/observability";
@@ -79,16 +91,26 @@ import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createImageAdapter } from "#infra/image";
-import { fetchImageBytes, fetchOpenAiModels } from "#infra/network";
+import {
+  fetchImageBytes,
+  fetchOpenAiModels,
+  fetchTenorGifImage,
+  GIF_IMPORT_MAX_BYTES,
+  searchTenorGifs,
+} from "#infra/network";
 import type { AgentToolSpec, BackendRegistryDeps, VllmEngineHandle } from "#infra/providers";
 import {
   createAgentToolServer,
   createBackendRegistry,
   createProviderDiagnostics,
   createProviderExecutor,
+  DEFAULT_EMBED_MODEL,
+  DEFAULT_IMAGE_EMBED_MODEL,
+  DEFAULT_RERANK_MODEL,
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
 import {
+  createBulkImportChats,
   createChatBus,
   requireAuthorOrHost,
   requireHost,
@@ -100,12 +122,14 @@ import type { Services } from "../../transport/trpc/context";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createHostPrincipalResolver } from "../auth";
+import type { ImportWorldInfoPort } from "../import";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
 import { createEffectiveConfigWiring } from "./effective-config";
 import { createCharacterUpdatedChatFan } from "./emit-character-updated";
 import type { DomainEventBus } from "./event-bus";
 import { createDomainEventBus } from "./event-bus";
+import { buildPortabilityRegistry } from "./portability";
 import { bindRoleClientsForUser } from "./role-clients";
 import { buildWorkloadRunnerEnv } from "./runner-env";
 
@@ -126,6 +150,10 @@ export interface ServicesDeps {
   readonly secretBoxKey: Buffer | null;
   readonly casDir: string;
   readonly variantDir: string;
+  /** The controlled staging root the `POST /api/import/bundle` route stages an uploaded zip under + the
+   *  `import-bundle` runner-env op reads it back from (the `IMPORT_STAGING_DIR` boot-env). Absent ⇒ the OS temp
+   *  dir — the SAME default the route resolves, so route-write and op-read agree without threading a value. */
+  readonly importStagingDir?: string;
   readonly sessionSecret: string | null;
   readonly vllmDisabled: boolean;
   readonly repoRoot?: string;
@@ -149,6 +177,13 @@ export interface ServicesResult {
   readonly indexer: EmbeddingsIndexer;
   readonly assets: AssetsService;
   readonly exportService: ExportService;
+  /** The injected portability registry (export-import-portability.md §2/§3) — assembled by `./portability`,
+   *  threaded to `createApp` for the export/import bundle routes. Empty until the orchestrator populates the
+   *  per-entity descriptors; the entity-agnostic delivery core iterates whatever is registered. */
+  readonly portability: PortabilityRegistry;
+  /** The world-info embedded-lorebook import op (W1) — threaded to `createApp` → the card-upload route so the
+   *  LIVE import path writes an imported card's embedded book (previously dropped). */
+  readonly importWorldInfo: ImportWorldInfoPort;
   readonly eventBus: DomainEventBus;
   readonly runnerEnv: WorkloadRunnerEnv;
   readonly roleClients: RoleClients;
@@ -197,7 +232,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   //    backend-registry so the registry can source the admin-resolved vLLM concurrency from the effective-
   //    config (PD-14). Its deps (db/now/audit + the pure guard fns) never touch the registry → safe hoist. ──
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
-  const settings = createSettingsService({
+  const settingsDeps: SettingsServiceDeps = {
     db,
     now,
     audit,
@@ -205,7 +240,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     requireOwner,
     newThemeId: minter(ID_PREFIX.theme),
     emitUserEvent: publishUserEvent,
-  });
+  };
+  const settings = createSettingsService(settingsDeps);
+  // The `SettingsContext` for the portability theme + user-settings descriptors (the front door exports the
+  // builder for exactly this). It carries the SAME per-user write serializer semantics the service uses (its
+  // own instance — a bundle import + a live settings write for one user are both idempotent merges).
+  const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
 
   // ── The effective-config boot surface: warm the resolved-config cache from the stored override so the SYNC
   //    getEffectiveConfig() returns the floor⊕override config (incl. vllmConcurrency) before the registry reads
@@ -266,6 +306,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     accountCredits: (req): Promise<AccountCredits> => diagnostics.accountCredits(req),
     generationCost: (req): Promise<GenerationCost> => diagnostics.generationCost(req),
     vllmAvailable,
+    // The local-light builtin model trio (embed/imageEmbed/rerank) — a DISPLAY fact for the Connections
+    // picker's `getModelsForSource` (the resolver keeps deriving via its empty-model pass-through, so this
+    // is never stamped). Imported through the providers front door (the seal forbids reaching
+    // `backends/local-light` directly; precedent: `fetchModels: fetchOpenAiModels` above).
+    localLightDefaults: {
+      embed: DEFAULT_EMBED_MODEL,
+      imageEmbed: DEFAULT_IMAGE_EMBED_MODEL,
+      rerank: DEFAULT_RERANK_MODEL,
+    },
     // Owner-ness via the admin seam (non-throwing boolean over `requireOwner`) — the resolver's
     // owner-conditional chat default (owner → max-pro-sub, else vllm) without re-spelling the D17 lattice.
     isOwner: (principal) => {
@@ -287,7 +336,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── Tag (built BEFORE character so character's by-name card-tag attach port wires to the real tag verb —
   //    PD-49 paid down; tag has no upward deps, so the hoist is safe) ─────────────────────────────────────
-  const tag = createTagService({
+  const tagCtx: TagContext = {
     db,
     newTagId: minter(ID_PREFIX.tag),
     // RESOLVED (PD-19): the chat membership gate is wired via the domain/chat/guard.
@@ -297,10 +346,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // the root's injected clock — the verbs hand only the entry.
     audit: (entry): Promise<void> => audit(entry, now()),
     emitUserEvent: publishUserEvent,
-  });
+  };
+  // The tag ctx is shared: the service + the portability `tag` library descriptor (writes the same `tags` table).
+  const tag = createTagService(tagCtx);
 
   // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──
-  const assets = createAssetsService({
+  // The `AssetsContext` is captured as a named const so the portability registry's `gallery` descriptor can
+  // reuse it (extended with the character handle resolvers, below) and the `assets` blob descriptor can read
+  // its `db`/`cas`/`now` slice — the delivery core's blob + curation transports (audit G-1).
+  const assetsCtx: AssetsContext = {
     db,
     cas,
     variants,
@@ -393,9 +447,81 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         )
         .where(eq(assetsTable.hash, hash))
         .limit(1);
-      return personaRows[0]?.ownerId;
+      if (personaRows[0] !== undefined) {
+        return personaRows[0].ownerId;
+      }
+
+      // Attachment arm (#67 co-participant render): the hash is an asset STRUCTURALLY referenced by a
+      // `message_assets` row for a message in a chat where BOTH the caller AND the asset's owner are PRESENT
+      // participants (`attachCallerSeat` / `attachOwnerSeat`). This is the blob-serve sibling of
+      // `loadChatAssetRefs` below — same reference-check discipline (the `message_assets` FK proves the asset
+      // is attached to a real message in a shared chat), never a bare co-participant hash oracle. Owner-
+      // present mirrors `resolve-image-ref.ts`'s gate: a member's upload stops resolving once they leave.
+      const attachOwnerSeat = alias(chatParticipants, "attach_owner_seat");
+      const attachCallerSeat = alias(chatParticipants, "attach_caller_seat");
+      const attachmentRows = await db
+        .select({ ownerId: assetsTable.ownerId })
+        .from(assetsTable)
+        .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
+        .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
+        .innerJoin(
+          attachCallerSeat,
+          and(
+            eq(attachCallerSeat.chatId, messagesTable.chatId),
+            eq(attachCallerSeat.userId, callerId),
+            isNull(attachCallerSeat.leftSeq),
+          ),
+        )
+        .innerJoin(
+          attachOwnerSeat,
+          and(
+            eq(attachOwnerSeat.chatId, messagesTable.chatId),
+            eq(attachOwnerSeat.userId, assetsTable.ownerId),
+            isNull(attachOwnerSeat.leftSeq),
+          ),
+        )
+        .where(eq(assetsTable.hash, hash))
+        .limit(1);
+      return attachmentRows[0]?.ownerId;
     },
-  });
+    // #67 co-participant RENDER resolver — the chat-scoped `(assetId, hash)` resolver a viewer (present member,
+    // not just the uploader) uses to render inline attachments. STRUCTURAL gate, mirroring
+    // `resolve-image-ref.ts` exactly: a pair is returned ONLY when the asset has a `message_assets` row for a
+    // message IN `chatId` (`ma`→`msg`), the asset OWNER is a present participant (`ownerSeat`), AND the CALLER
+    // is a present participant (`callerSeat`). Membership alone is NOT sufficient — the `message_assets` FK is
+    // the reference. A non-present caller / non-present owner / non-referenced asset all yield no row (no leak).
+    loadChatAssetRefs: async (callerId, forChatId, assetIds) => {
+      if (assetIds.length === 0) {
+        return [];
+      }
+      const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
+      const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
+      const rows = await db
+        .selectDistinct({ assetId: assetsTable.id, hash: assetsTable.hash })
+        .from(assetsTable)
+        .innerJoin(messageAssets, eq(messageAssets.assetId, assetsTable.id))
+        .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
+        .innerJoin(
+          callerSeat,
+          and(
+            eq(callerSeat.chatId, messagesTable.chatId),
+            eq(callerSeat.userId, callerId),
+            isNull(callerSeat.leftSeq),
+          ),
+        )
+        .innerJoin(
+          ownerSeat,
+          and(
+            eq(ownerSeat.chatId, messagesTable.chatId),
+            eq(ownerSeat.userId, assetsTable.ownerId),
+            isNull(ownerSeat.leftSeq),
+          ),
+        )
+        .where(and(eq(messagesTable.chatId, forChatId), inArray(assetsTable.id, [...assetIds])));
+      return rows;
+    },
+  };
+  const assets = createAssetsService(assetsCtx);
   const character = createCharacterService({
     db,
     now,
@@ -418,6 +544,62 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // shape; ownership is pre-gated by bulkRemoveCardTag.
     detachCardTag: tag.detachCardTagByName,
   });
+
+  // ── hub (D61 gif slice — gallery-design §5 / doc 02 §5): a thin leaf owning NO tables. Its ops bind the
+  //    Tenor adapter (infra/network — the SSRF media-host allowlist + the image guard live INSIDE the ops,
+  //    the domain never fetches raw), the ACTING user's gif-search credential (owner-scoped, no host
+  //    fallback), and the EXISTING assets CAS + gallery write. `importGif` gates the subject character EARLY
+  //    (leak-free NOT_FOUND before any fetch) via an owner-scoped `characters` read — mirroring the assets
+  //    ctx gate (assets re-checks it on the write too; belt-and-suspenders). ──
+  const hub = createHubService({
+    searchGifs: searchTenorGifs,
+    fetchGifImage: async (url) => {
+      const { bytes, image } = await fetchTenorGifImage(url);
+      return { bytes, mime: image.mime };
+    },
+    resolveGifKey: (principal) => credentials.resolveGifSearchKey({ principal }),
+    storeGalleryAsset: async ({ principal, bytes, mime }) => {
+      const stored = await assets.store({
+        principal,
+        bytes,
+        kind: "gallery",
+        mime,
+        enforceMagic: true,
+        maxBytes: GIF_IMPORT_MAX_BYTES,
+      });
+      return { assetId: stored.assetId };
+    },
+    addToGallery: (args) => assets.addToGallery(args),
+    assertCharacterOwned: async (ownerId, characterId) => {
+      const rows = await db
+        .select({ id: charactersTable.id })
+        .from(charactersTable)
+        .where(and(eq(charactersTable.id, characterId), eq(charactersTable.ownerId, ownerId)))
+        .limit(1);
+      return rows.length > 0;
+    },
+  });
+
+  // The gallery-portability `AssetsContext` (audit §1 gallery re-link): the live assets ctx EXTENDED with the
+  // two character-handle resolvers the gallery export/import verbs need — export resolves each curated item's
+  // subject character id → its portable HANDLE; import re-links a HANDLE → the owner's character id (the same
+  // owner-scoped `character.findByHandle` the card importer + PD-108 use). Wired HERE (after `character`) so
+  // the forward reference resolves; without these ops gallery export drops handles + import un-characters.
+  const galleryCtx: AssetsContext = {
+    ...assetsCtx,
+    resolveCharacterHandle: async (characterId): Promise<string | null> => {
+      const rows = await db
+        .select({ handle: charactersTable.handle })
+        .from(charactersTable)
+        .where(eq(charactersTable.id, characterId))
+        .limit(1);
+      return rows[0]?.handle ?? null;
+    },
+    findCharacterByHandle: async ({ ownerId, handle }) => {
+      const ref = await character.findByHandle({ ownerId, handle });
+      return ref?.characterId ?? null;
+    },
+  };
 
   // ── The default-card seeder (PD-32): the ONE idempotent instance boot + the app first-request hook share.
   //    The settings latch lives in a SIBLING domain (domain-no-cross-feature), so the read/write are injected
@@ -548,14 +730,61 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
       await setParticipantActivePersona(db, emitChatEvent, { chatId, targetUserId, personaId });
     },
+    // Owner invariant "never NO current persona while you own one": after `remove` deletes `deletedId`,
+    // re-point the global seed pointers if either named it. Runs THROUGH the settings section-patch verb
+    // (serialized per-user w.r.t. sibling settings writes + emits `settingsChanged` so a live device
+    // refetches) — persona owns no settings table. New current = default (if still valid) -> newest
+    // remaining owned persona -> null (only when the delete emptied the roster, which `remove`'s
+    // last-persona belt already refuses, so `null` is effectively unreachable here). Default is only
+    // re-pointed when the deleted id WAS the default (a stale default otherwise stays; `resolveDefaultPersona`
+    // already null-collapses a dead one). A synthetic host `Principal` (userId is all the verb consults).
+    repointSeedsAfterPersonaDelete: async (ownerId, deletedId) => {
+      const seeds = (await settings.loadUserSettings(ownerId)).seeds;
+      const currentHit = seeds.currentPersonaId === deletedId;
+      const defaultHit = seeds.defaultPersonaId === deletedId;
+      if (!(currentHit || defaultHit)) {
+        return;
+      }
+      const remaining = await db
+        .select({ id: personasTable.id })
+        .from(personasTable)
+        .where(eq(personasTable.ownerId, ownerId))
+        .orderBy(desc(personasTable.createdAt));
+      const firstRemaining: PersonaId | null = remaining[0]?.id ?? null;
+      // Prefer the surviving default; else the newest remaining persona (mirrors the client `personas[0]`
+      // + `list`'s `desc(createdAt)`), else null.
+      const survivingDefault = defaultHit ? firstRemaining : seeds.defaultPersonaId;
+      const nextCurrent = currentHit
+        ? (survivingDefault ?? firstRemaining)
+        : seeds.currentPersonaId;
+      const principal: Principal = {
+        userId: ownerId,
+        role: "user",
+        handle: castId<Handle>(ownerId),
+        externalId: null,
+        via: "fallback",
+      };
+      await settings.updateUserSettingsSection({
+        principal,
+        input: {
+          section: "seeds",
+          patch: {
+            ...(currentHit ? { currentPersonaId: nextCurrent } : {}),
+            ...(defaultHit ? { defaultPersonaId: survivingDefault } : {}),
+          },
+        },
+      });
+    },
   });
-  const preset = createPresetService({
+  const presetCtx: PresetContext = {
     db,
     now,
     newPresetId: minter(ID_PREFIX.preset),
     audit,
     emitUserEvent: publishUserEvent,
-  });
+  };
+  // Shared: the service + the portability `preset` descriptor (both write the domain's own `presets` table).
+  const preset = createPresetService(presetCtx);
   const stats = createStatsService(db);
   const search = createSearchService({ db, roleClients, now });
   const discovery = createDiscoveryService({
@@ -597,6 +826,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     newWorkloadId: minter(ID_PREFIX.workload),
+    newScheduleId: minter(ID_PREFIX.workloadSchedule),
     // MODE authz seam (D17/spine #6): `requireOwner` gates a BULK start/retry (BOX-OWNER only); `isAdmin`
     // chooses the per-user read scope (owner∪admin → all; a user → own).
     requireOwner,
@@ -693,7 +923,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         const input: StartWorkloadInput =
           kind === "find-duplicates"
             ? { kind: "find-duplicates", params: {} }
-            : { kind: "embed-corpus", params: {} };
+            : // The buddy's "build search embeddings" chore → the atomic reindex-everything pass (source: all).
+              { kind: "index", params: { source: "all" } };
         // A TRUSTED internal trigger (the agent-env is a backend principal, not a request) — `caller: null`
         // bypasses the mode gate. SINGULAR on the agent's OWNING user (no global bulk bypass): the pass scopes
         // to that owner's own data only (the ruling — the buddy acts for its owner, never across all owners).
@@ -786,6 +1017,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     memoryBackfill: chatCompose.backfill.memory,
     groupCharacterBackfill: chatCompose.backfill.groupCharacters,
+    // LAZY: `portability` is assembled below (after chat/world-info) — the `import-bundle` op derefs it at RUN
+    // time via this thunk, never at build time (the partial-deps construction order; the closure captures the
+    // binding, which is initialized long before any workload dispatches).
+    getPortabilityRegistry: () => portability,
+    ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
   });
 
   // ── world-info (built AFTER chat — its PD-30 chat scope injects chat's membership guards + the chat
@@ -806,6 +1042,84 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emitUserEvent: publishUserEvent,
   });
 
+  // The world-info-OWNED embedded-lorebook bulk-import WRITE op (Option B; W1; PD-77). Wired here so the LIVE
+  // card-import path (entry/http/upload → run-profile-import) ACTUALLY writes an imported card's embedded
+  // `character_book` — previously the upload route passed no world-info port, so embedded lorebooks were
+  // silently dropped on import. A purpose-built context (db + clock + book/entry minters only, D23).
+  const importWorldInfo: ImportWorldInfoPort = {
+    importLorebook: createBulkImportLorebook({
+      db,
+      now,
+      newBookId: minter(ID_PREFIX.worldBook),
+      newEntryId: minter(ID_PREFIX.worldEntry),
+    }),
+  };
+
+  // ── The portability registry (export-import-portability.md §2/§3) — all 10 entity descriptors, assembled
+  //    from the built domain verbs. The chat descriptor un-deads the PD-77 profile lane: `bulkImportChats` /
+  //    `bulkImportPersonas` (the chat/persona Option-B write ops) + the PD-78 backfill/reconcile ops are wired
+  //    HERE once, serving both the bundle chat path and (later) the ST-zip path. `resolveOwnerPrincipal` is the
+  //    PD-73 host-principal seam the character create/update verbs owner-scope off. ────────────────────────
+  const bulkImportChats = createBulkImportChats({
+    db,
+    now,
+    newChatId: minter(ID_PREFIX.chat),
+    newMessageId: minter(ID_PREFIX.message),
+    newMessageVariantId: minter(ID_PREFIX.messageVariant),
+    newMessageAssetId: minter(ID_PREFIX.messageAsset),
+    newParticipantId: minter(ID_PREFIX.chatParticipant),
+    // #67 — the bundle's `assets` entity imports FIRST (portability order), so a bundled inline attachment
+    // exists by the time chats import; this filters an imported message's `asset:<id>` refs to the ones that
+    // landed, so `message_assets` retaining rows re-create without a dangling FK (owner-scoped, D21).
+    filterExistingAssetIds: async (ownerId, assetIds) =>
+      (await assets.resolveOwnedAssetRefs(ownerId, assetIds)).map((r) => r.assetId),
+  });
+  const bulkImportPersonas = createBulkImportPersonas({
+    db,
+    now,
+    newPersonaId: minter(ID_PREFIX.persona),
+  });
+  const resolveOwnerPrincipal = createHostPrincipalResolver(sessions);
+  const portability = buildPortabilityRegistry({
+    db,
+    now,
+    tagCtx,
+    settingsCtx,
+    presetCtx,
+    worldInfoExportCtx: { db },
+    importStandaloneLorebook: createImportStandaloneLorebook({
+      db,
+      now,
+      newBookId: minter(ID_PREFIX.worldBook),
+      newEntryId: minter(ID_PREFIX.worldEntry),
+    }),
+    assetsCtx: galleryCtx,
+    persona,
+    exportService,
+    character,
+    listOwnedCharacterIds: character.listEmbeddableCharacterIds,
+    storeAvatar: assets.store,
+    attachCardTag: tag.attachCardTagByName,
+    importLorebook: importWorldInfo.importLorebook,
+    bulkImportChats,
+    bulkImportPersonas,
+    // PD-78: one memory-backfill per chat import run (the chat op writes real_conversation canon) + the inline
+    // stats rollup. A TRUSTED internal trigger (caller:null bypasses the mode gate — the import acts for the
+    // owner, SINGULAR on their own data).
+    enqueueBackfill: async ({ ownerId }): Promise<void> => {
+      await workloads.start({
+        input: { kind: "memory-backfill", params: {} },
+        caller: null,
+        mode: "singular",
+        ownerId,
+      });
+    },
+    reconcileImportStats: async ({ ownerId }): Promise<void> => {
+      await reconcileStats(db, { ownerId, now });
+    },
+    resolveOwnerPrincipal,
+  });
+
   const services: Services = {
     admin,
     assets,
@@ -815,6 +1129,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     connection,
     credentials,
     discovery,
+    hub,
     notifications,
     persona,
     preset,
@@ -834,6 +1149,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     indexer,
     assets,
     exportService,
+    // The entity-agnostic delivery-core registry (§2/§3) — all 10 entity descriptors, assembled above. The
+    // export/import bundle routes iterate it via createApp.
+    portability,
+    importWorldInfo,
     eventBus,
     runnerEnv,
     roleClients,

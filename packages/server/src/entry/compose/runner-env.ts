@@ -22,6 +22,10 @@
 //   handed in as BOUND ops from the chat compose product (the sweeps need the full ChatContext, so the
 //   env is built AFTER chat at the root).
 
+import { readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
+import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -41,6 +45,7 @@ import type {
   WorkloadStatsEnv,
 } from "#domain/workloads";
 import type { Cas } from "#infra/storage";
+import { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES, runBundleImport } from "../import";
 
 // Workload-owned result shapes derived from the front-door-exported sub-env interfaces (no deep import of
 // the internal `workload-result` contract — which would breach `domain-feature-front-door`; no re-spell).
@@ -74,6 +79,14 @@ export interface RunnerEnvDeps {
   /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx at the root (built after chat). */
   readonly memoryBackfill: WorkloadMemoryEnv["backfill"];
   readonly groupCharacterBackfill: WorkloadCharacterEnv["backfillGroupCharacters"];
+  /** The portability registry, accessed LAZILY — the registry is assembled AFTER this env is built (the
+   *  partial-deps construction order in services.ts), so the `import-bundle` op derefs it at RUN time, never
+   *  at build time. Do NOT eager-capture `deps.registry` (it does not exist yet when this runs). */
+  readonly getPortabilityRegistry: () => PortabilityRegistry;
+  /** The controlled staging root the `POST /api/import/bundle` route wrote the uploaded zip under (the
+   *  `IMPORT_STAGING_DIR` boot-env; absent ⇒ the OS temp dir — the SAME default the route resolves, so the op
+   *  reads exactly where the route wrote). */
+  readonly importStagingDir?: string;
 }
 
 /** A typed inert seam for a DEFERRED op — rejects loudly (never fakes a success). The arg is ignored; the
@@ -136,8 +149,40 @@ function bindBackfillAvatars(
   };
 }
 
+/** Bind the `import-bundle` workload op: read the staged zip the route wrote under `<stagingRoot>/<token>`
+ *  (`basename` strips any path-traversal — a `token` can only ever name a file INSIDE the staging root), run
+ *  the entity-agnostic `runBundleImport` over the LAZILY-resolved registry, project the report into the
+ *  workload-owned counts, and remove the staged zip in a `finally` (success AND error). The extract caps are
+ *  the ONE shared PD-94 posture (`entry/import`). */
+function bindImportBundle(
+  getRegistry: () => PortabilityRegistry,
+  stagingRoot: string,
+): WorkloadRunnerEnv["import"]["importBundle"] {
+  return async ({ ownerId, token, signal }) => {
+    const stagedPath = join(stagingRoot, basename(token));
+    try {
+      const bytes = await readFile(stagedPath);
+      const report = await runBundleImport({
+        registry: getRegistry(),
+        ownerId,
+        archive: bytes,
+        extractOptions: {
+          maxTotalBytes: IMPORT_MAX_TOTAL_BYTES,
+          maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES,
+          stagingRoot,
+        },
+        signal,
+      });
+      return { imported: report.imported, skipped: report.skipped, failed: report.failed };
+    } finally {
+      await rm(stagedPath, { force: true });
+    }
+  };
+}
+
 /** Assemble the cross-feature `WorkloadRunnerEnv` ONCE at boot (the worker threads it into every dispatch). */
 export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
+  const stagingRoot = deps.importStagingDir ?? tmpdir();
   return {
     // PD-53 cleared: the bulk catch-up sweeps (resumable, content_hash-gated) back the embed workloads.
     // The domain's BulkEmbedResult is projected field-for-field into the workload-owned EmbedPassResult
@@ -198,6 +243,9 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       importAll: notBuilt(
         "import.importAll not built — the entry/import run-profile-import driver owns it",
       ),
+      // The workload-backed bundle import (#113): reads the staged zip → runBundleImport over the lazily
+      // resolved registry (built AFTER this env) → the summary counts, staging cleaned up in the op's finally.
+      importBundle: bindImportBundle(deps.getPortabilityRegistry, stagingRoot),
     },
     // PD-26 cleared: the maintenance/DR verbs back the assets workloads. Each op PROJECTS the domain's richer
     // result into the workload-owned shape (the adapter discipline). `backfillAvatars` GATHERS staged cards at

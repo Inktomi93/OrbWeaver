@@ -21,6 +21,50 @@ const SPEAKER_TAG_PAIR = /<\s*speaker\b[^>]*>([^<>]{0,200})<\s*\/\s*speaker\s*>\
  *  per-call regex isn't recompiled (and so it satisfies the no-regex-in-function gate). */
 const START_SENTINEL = /^\s*<START>/i;
 
+export interface SpeakerSpan {
+  /** `null` = no attributed speaker for this span (narrator / plain text). */
+  readonly speaker: string | null;
+  readonly text: string;
+}
+
+/** Splits a SETTLED message body on `<speaker>NAME</speaker>` markers (§12.4) into ordered
+ *  `{speaker, text}` spans — the client narrator renderer's ONE parse (was mirrored client-side against
+ *  this module's private `SPEAKER_TAG_PAIR`; promoted here so kit tweaking the grammar can't silently
+ *  diverge the renderer's span split, C16). Zero markers is the load-bearing no-op: exactly ONE
+ *  `{speaker: null}` span whose `text` is byte-identical to `content` — the caller uses that single-span
+ *  shape as the signal to render through the untouched pre-#21 path.
+ *
+ *  Torn/mid-stream tags are already held back UPSTREAM by the streaming lane's `repairStreamingTail`
+ *  (`#fix-markdown`, the streaming-ghost path only) before content ever settles into canon — so by the
+ *  time a body reaches this parser it is assumed well-formed; a stray unterminated tag (one that never
+ *  got a matching close) is simply left as plain, un-matched text (no crash, no data loss). */
+export function parseSpeakerSpans(content: string): readonly SpeakerSpan[] {
+  const matches = [...content.matchAll(SPEAKER_TAG_PAIR)];
+  if (matches.length === 0) {
+    // The byte-identical no-op: `text` is `content`, untouched.
+    return [{ speaker: null, text: content }];
+  }
+
+  const spans: SpeakerSpan[] = [];
+  let cursor = 0;
+  for (const [matchPosition, match] of matches.entries()) {
+    const matchIndex = match.index ?? 0;
+    // Preamble / inter-marker plain text (no attributed speaker) ahead of this marker.
+    if (matchIndex > cursor) {
+      spans.push({ speaker: null, text: content.slice(cursor, matchIndex) });
+    }
+    const rawName = match[1]?.trim() ?? "";
+    const textStart = matchIndex + match[0].length;
+    const nextMatchIndex = matches[matchPosition + 1]?.index ?? content.length;
+    spans.push({
+      speaker: rawName.length > 0 ? rawName : null,
+      text: content.slice(textStart, nextMatchIndex),
+    });
+    cursor = nextMatchIndex;
+  }
+  return spans;
+}
+
 /** Convert a narrator message's inline `<speaker>NAME</speaker>` markers to plain `NAME: ` attribution
  *  for PROMPT HISTORY — the renderer needs the tags (per-speaker coloring) so STORED canon keeps them,
  *  but re-feeding the raw XML into every subsequent prompt wastes tokens AND trains the model to parrot

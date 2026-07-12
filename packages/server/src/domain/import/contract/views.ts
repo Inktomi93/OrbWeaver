@@ -1,80 +1,15 @@
-// domain/import/contract/views — the PARSER return contracts (§7.4 — one type home) for the ST-profile
-// waves (PD-77): the pure substrate parsers (`substrate/chat.ts` + `substrate/persona.ts`) produce these,
-// the chat/persona writers consume them, the loader (`loader/collect.ts`) bundles them, and the front door
-// re-exports the set for the driver + tests. Pure-type file (no `z.object`): the ST interchange is
-// validated structurally INSIDE the parsers (null-on-unparseable), not by a parallel import wire schema.
+// domain/import/contract/views — the import-local PARSER/loader return contracts (§7.4 — one type home) for
+// the ST-profile waves (PD-77). The chat wire shapes (`ParsedChat`/`ParsedChatMessage`/`ParsedVariant`/
+// `ChatBucket`) moved to the ONE chat serde core `#kit/serde/chat` (W0a — build+parse in one home); this file
+// imports `ParsedChat` DOWN for `CollectedChat`. The persona parse shapes + the loader/collector shapes stay
+// here (persona serde is legitimately separate; the loader is import-only). Pure-type file (no `z.object`):
+// the ST interchange is validated structurally INSIDE the parsers (null-on-unparseable).
 //
-// SCOPE (PD-77): the chats/personas/loader waves. The card-path types stay in `contract/params.ts` +
+// SCOPE (PD-77): the personas/loader waves. The card-path types stay in `contract/params.ts` +
 // `contract/results.ts` (the built 4c-W3 slice).
 
 import type { AssetId, CharacterId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
-
-// ── chat parser (substrate/chat.ts) ────────────────────────────────────────────────────────────────────
-
-/** RAG/analytics relevance class of an imported chat (the `classify` output). Import EVERYTHING, but the
- *  memory-backfill (PD-78) enqueues over `real_conversation` chats ONLY. `greeting_only` = no user turn;
- *  `all_empty_msgs` = only system/blank lines; `header_only` = no message lines at all. The ONE tuple home
- *  (§7.5 string-union dispatch — declared once, `ChatBucket` derives it). */
-export const CHAT_BUCKETS = [
-  "header_only",
-  "all_empty_msgs",
-  "greeting_only",
-  "real_conversation",
-] as const;
-export type ChatBucket = (typeof CHAT_BUCKETS)[number];
-
-/** One swipe in a message's variant pool (0-based `idx` after the empty-slot drop + re-index). The
- *  economics ride off `swipe_info[originIdx].extra`; `metadata` is the lossless full `swipe_info[idx]`
- *  sidecar (→ `message_variants.metadata`). */
-export interface ParsedVariant {
-  readonly idx: number;
-  readonly content: string;
-  readonly model: string | null;
-  readonly provider: string | null;
-  readonly tokensOut: number | null;
-  readonly reasoning: string | null;
-  readonly genStarted: number | null;
-  readonly genFinished: number | null;
-  readonly metadata: Record<string, unknown> | null;
-}
-
-/** One parsed chat message. `content` is `mes` (the RENDERED text — authoritative; can diverge from the
- *  active swipe). The economics are the PRIMARY generation's (`extra.*`) — the writer stamps them on the
- *  message's first/selected `message_variants` row (D26 — the slot carries no content/economics).
- *  `variants` is the multi-swipe pool (empty when ≤1 real generation); `activeVariantIdx` is `swipe_id`
- *  remapped onto the drop-filtered pool (null when out of range / no swipes). */
-export interface ParsedChatMessage {
-  readonly role: MessageRole;
-  readonly content: string;
-  readonly sendDate: number | null;
-  readonly model: string | null;
-  readonly provider: string | null;
-  readonly tokensOut: number | null;
-  readonly reasoning: string | null;
-  readonly genStarted: number | null;
-  readonly genFinished: number | null;
-  readonly ttftMs: number | null;
-  readonly metadata: Record<string, unknown> | null;
-  readonly activeVariantIdx: number | null;
-  readonly variants: ParsedVariant[];
-}
-
-/** One parsed ST chat `.jsonl`. `createDate` is the FILENAME date first (survives ST re-save/migration),
- *  then the header `create_date`, then null. `parentRef` is the normalized `chat_metadata.main_chat` (the
- *  real branch edge; falls back to the filename lineage). `bucket` is the memory-backfill gate (PD-78).
- *  `sourceMetadata` is the full `chat_metadata` (lossless → the chat metadata sidecar). */
-export interface ParsedChat {
-  readonly characterName: string;
-  readonly userName: string | null;
-  readonly createDate: number | null;
-  readonly isBranch: boolean;
-  readonly parentRef: string | null;
-  readonly notePrompt: string | null;
-  readonly bucket: ChatBucket;
-  readonly sourceMetadata: Record<string, unknown> | null;
-  readonly messages: ParsedChatMessage[];
-}
+import type { ParsedChat } from "#kit/serde/chat";
 
 // ── persona parser (substrate/persona.ts) ───────────────────────────────────────────────────────────────
 

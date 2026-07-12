@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 /**
  * Slot classes for the scroll-area (ui-package-design §5). Base UI hands us hover/scroll state on
@@ -10,8 +10,7 @@ import { tv } from "#lib";
 export const scrollAreaVariants = tv({
   slots: {
     root: "relative overflow-hidden",
-    viewport:
-      "h-full w-full overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    viewport: `h-full w-full overscroll-contain outline-none ${FOCUS_RING}`,
     // The sized content wrapper — min-w-max lets horizontal overflow measure past the viewport.
     content: "min-w-max",
     scrollbar:

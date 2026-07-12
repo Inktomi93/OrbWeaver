@@ -11,6 +11,7 @@
 // neutral primitives every injector uses — NOT from world-info (that would re-create the dissolved
 // persona→world-info edge).
 
+import type { AssetId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
@@ -78,3 +79,28 @@ export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 // `export` produces this shape; `import` consumes the SAME shape, so a round-trip is byte-identical.
 export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true });
 export type PersonaBackupInput = z.infer<typeof personaBackupSchema>;
+
+// ── Bulk import (Option B) — the persona-OWNED bulk-import op input/result. `import` maps its ST parse
+//    (`ParsedPersona`, import-owned) onto `BulkImportPersonaInput` and calls `persona`'s
+//    `createBulkImportPersonas`; the op dedups by name, batch-inserts, and returns `idByName` so import can
+//    attribute chat `user_name`s (populate `personaByUserName`). Shared by import + persona → contracts (D34). ──
+
+/** One resolved persona to bulk-import. `metadata` is the persona blob ({@link PersonaMetadata}); `isDefault`
+ *  marks the profile's `power_user.default_persona`. `avatarAssetId` is set by the driver after storing the
+ *  `User Avatars/<file>` bytes (import can't reach assets — the store is injected). */
+export interface BulkImportPersonaInput {
+  readonly name: string;
+  readonly description: string;
+  readonly avatarAssetId: AssetId | null;
+  readonly metadata: PersonaMetadata | null;
+  readonly isDefault: boolean;
+}
+
+/** The result of one persona bulk-import run. `idByName` maps the lowercased-trimmed name → the resolved id
+ *  for EVERY non-empty input name (created AND reused) — import copies it into `personaByUserName`. */
+export interface BulkImportPersonasResult {
+  readonly personasCreated: number;
+  readonly personasSkipped: number;
+  readonly defaultPersonaId: PersonaId | null;
+  readonly idByName: Record<string, PersonaId>;
+}

@@ -22,3 +22,14 @@ export function fieldErrorText(errors: readonly unknown[]): string | null {
   }
   return parts.length === 0 ? null : parts.join(", ");
 }
+
+interface TouchGatedMeta {
+  readonly errors: readonly unknown[];
+  readonly isTouched: boolean;
+}
+
+/** The bound-fields' repeated when-to-show-errors policy: `fieldErrorText` gated on touch, in one
+ *  place so the policy is a 1-file edit instead of a 9-file one. */
+export function touchedFieldError(meta: TouchGatedMeta): string | null {
+  return meta.isTouched ? fieldErrorText(meta.errors) : null;
+}

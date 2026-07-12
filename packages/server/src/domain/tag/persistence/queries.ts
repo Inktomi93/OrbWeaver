@@ -109,6 +109,26 @@ export async function fetchOwnedTagIds(
   return rows.map((r) => r.id);
 }
 
+/** Bulk-insert a set of prepared tag rows for one owner, IDEMPOTENTLY: each row NO-OPs on the
+ *  `(ownerId, lower(name))` functional unique (a name already in the owner's namespace is left untouched — a
+ *  library import MERGES, never duplicates). Returns the count actually CREATED (the `RETURNING` rows — a
+ *  conflicted row returns nothing). One statement; the caller pre-normalizes each `name` and mints each `id`
+ *  (the tag-library import verb). A re-import of the same file inserts zero (the round-trip idempotency guard). */
+export async function insertOwnedTagsIfAbsent(
+  db: Db,
+  values: readonly (typeof tags.$inferInsert)[],
+): Promise<number> {
+  if (values.length === 0) {
+    return 0;
+  }
+  const inserted = await db
+    .insert(tags)
+    .values([...values])
+    .onConflictDoNothing({ target: [tags.ownerId, sql`lower(${tags.name})`] })
+    .returning({ id: tags.id });
+  return inserted.length;
+}
+
 /** Apply an owner-scoped partial patch; returns the updated row, or `undefined` if no owned row matched. */
 export async function updateOwnedTag(
   db: Db,

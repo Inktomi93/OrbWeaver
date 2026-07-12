@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING_HAS, tv } from "#lib";
 
 // The dropzone skin. The native `<input type="file">` is the topmost element (absolutely
 // positioned, opacity-0, covering the full box) so every click/keyboard/drop interaction lands on
@@ -11,7 +11,7 @@ export const fileDropzoneVariants = tv({
     root: [
       "relative flex flex-col items-center justify-center gap-field rounded-card border-2 border-dashed border-border bg-input/30 p-section text-center",
       "transition-colors duration-(--motion-fast) ease-out-expo",
-      "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background",
+      FOCUS_RING_HAS,
       "data-disabled:pointer-events-none data-disabled:opacity-50",
       "data-drag-over:border-primary data-drag-over:bg-accent/15",
       // The 8-state contract's loading/success arms (ui-package-design §5) — the toast.tsx

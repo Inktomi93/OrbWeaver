@@ -20,7 +20,7 @@ const TOOL_PAYLOAD_MAX_CHARS = 8000;
 const NAME_MIN = 1;
 const NAME_MAX = 48;
 
-const WORKLOAD_KINDS = ["find-duplicates", "embed-corpus"] as const;
+const WORKLOAD_KINDS = ["find-duplicates", "index"] as const;
 
 /** Wrap a tool's text payload in the content shape, truncating past the ceiling with an explicit marker
  *  so the model knows the result was clipped. */
@@ -37,7 +37,7 @@ function asString(value: unknown): string {
 }
 
 function asWorkloadKind(value: unknown): BuddyWorkloadKind {
-  return value === "embed-corpus" ? "embed-corpus" : "find-duplicates";
+  return value === "index" ? "index" : "find-duplicates";
 }
 
 /** The deps each tool handler closes over (owner-scoped; the determinism seam threaded from the verb). */
@@ -129,7 +129,7 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
       // PROPOSE-ONLY: stashes a workload trigger; only `buddy.confirm` queues it.
       name: "propose_workload",
       description:
-        "Propose running a maintenance job on the user's data: 'find-duplicates' (scan for near-duplicate characters/chats) or 'embed-corpus' (build search embeddings). This does NOT run it — it asks the user to confirm. Use when the user asks you to tidy/scan/embed their stuff.",
+        "Propose running a maintenance job on the user's data: 'find-duplicates' (scan for near-duplicate characters/chats) or 'index' (build/refresh search embeddings across their whole library). This does NOT run it — it asks the user to confirm. Use when the user asks you to tidy/scan/embed their stuff.",
       inputSchema: { kind: z.enum(WORKLOAD_KINDS) },
       handler: (args: Record<string, unknown>): Promise<BuddyToolResult> => {
         const kind = asWorkloadKind(args["kind"]);

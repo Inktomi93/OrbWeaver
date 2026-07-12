@@ -15,8 +15,8 @@
 // security finding — this suite goes RED and the failure is a STOP-and-report item (route to
 // security-executor), NOT something the docs/test lane fixes.
 
-import { themes, userCredentials, workloads } from "@orb/db";
-import type { ThemeId, UserCredentialId, WorkloadId } from "@orb/kit/ids";
+import { themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
+import type { ThemeId, UserCredentialId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
@@ -38,6 +38,7 @@ const MARK = {
   message: "AlphaSecretMessage",
   credential: "AlphaSecretCred",
   workload: "AlphaSecretWorkload",
+  schedule: "AlphaSecretSchedule",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -52,6 +53,7 @@ interface OwnerIds {
   credentialId: string;
   themeId: string;
   workloadId: string;
+  scheduleId: string;
   snapshotId: string;
   chatId: string;
   messageId: string;
@@ -341,12 +343,40 @@ const PROBES: readonly Probe[] = [
     path: "credentials.fetchModels",
     call: (c, i) => c.credentials.fetchModels({ credentialId: i.credentialId }),
   },
+  // ── hub.importGif (D61 gif slice) — takes a cross-tenant `subjectCharacterId`. `importGif` gates the
+  //    subject character on the caller's ownership FIRST, before any network fetch, so a stranger passing A's
+  //    real characterId gets a leak-free NOT_FOUND (and no egress happens). The `url` is never reached (the
+  //    ownership gate throws first) — a fake Tenor-media URL keeps the probe self-contained. `searchGifs` is
+  //    EXEMPT (self-scoped: the caller's OWN gif-search key + query text, no foreign id). ──
+  {
+    path: "hub.importGif",
+    call: (c, i) =>
+      c.hub.importGif({
+        url: "https://media.tenor.com/probe-never-fetched.gif",
+        subjectCharacterId: i.characterId,
+      }),
+  },
   // ── workloads (F3 per-user owner-scoped; get/cancel/retry take a workloadId) — a non-admin stranger must
   //    see a leak-free NOT_FOUND on a foreign workload (its `error` carries A's marker, so a broken gate that
   //    resolved A's row would leak it here). `list`/`start`/`subscribe` are EXEMPT (see below). ──
   { path: "workloads.get", call: (c, i) => c.workloads.get({ id: i.workloadId }) },
   { path: "workloads.cancel", call: (c, i) => c.workloads.cancel({ id: i.workloadId }) },
   { path: "workloads.retry", call: (c, i) => c.workloads.retry({ id: i.workloadId }) },
+  // ── workload SCHEDULES (F3 per-user owner-scoped; update/delete/setEnabled take a scheduleId) — a stranger
+  //    must see leak-free NOT_FOUND on a foreign schedule (its `params` carries A's marker, so a broken gate
+  //    that resolved A's row would leak it via the returned row). `create`/`list` are EXEMPT (self-scoped). ──
+  {
+    path: "workloads.updateSchedule",
+    call: (c, i) => c.workloads.updateSchedule({ id: i.scheduleId, cadence: "weekly" }),
+  },
+  {
+    path: "workloads.deleteSchedule",
+    call: (c, i) => c.workloads.deleteSchedule({ id: i.scheduleId }),
+  },
+  {
+    path: "workloads.setScheduleEnabled",
+    call: (c, i) => c.workloads.setScheduleEnabled({ id: i.scheduleId, enabled: false }),
+  },
   // ── settings themes (owner-scoped) ──
   { path: "settings.getTheme", call: (c, i) => c.settings.getTheme({ id: i.themeId }) },
   {
@@ -556,6 +586,19 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "keyless-fixture: storage-disabled guard precedes the ownership check",
   "assets.listOwned": "self-scoped",
   "assets.listGallery": "self-scoped",
+  // #67 render resolvers — both return `{assetId, hash}` pairs (asset HASHES, never a marker NAME), so the
+  // marker-based leak detector is TOOTHLESS here; the cross-tenant/structural teeth live in the assets domain
+  // tests. `resolveBlobRefs` is owner-scoped (ownerId = principal.userId; a foreign asset id is simply absent
+  // — never a foreign owner), teeth in `resolve-owned-asset-refs.int.test.ts`. `resolveChatBlobRefs` is
+  // membership-scoped on `chatId` + the STRUCTURAL `message_assets` reference + owner-present (a non-
+  // participant caller, or an asset not attached in this chat, resolves to nothing) — teeth in
+  // `resolve-chat-asset-refs.int.test.ts` and the blob byte-serve attachment arm in `get-metadata.int.test.ts`.
+  "assets.resolveBlobRefs":
+    "self-scoped (ownerId = principal); see resolve-owned-asset-refs.int.test.ts",
+  "assets.resolveChatBlobRefs":
+    "membership + structural-reference scoped; asset hashes are not marker NAMES (sweep toothless) — see resolve-chat-asset-refs.int.test.ts + get-metadata attachment arm",
+  "hub.searchGifs":
+    "self-scoped: resolves the caller's OWN gif-search credential (owner-scoped, no host fallback); query text + opaque cursor, no foreign id (hub.importGif IS probed)",
   // Gallery ids are strict `typeIdSchema` — a synthesized id fails WIRE validation (BAD_REQUEST) before the
   // ownership gate, and seeding a real gallery item needs CAS bytes. Asset-ownership IDOR (the shared-avatar
   // reference check) is covered by the assets domain's `loadCoParticipantOwner` tests.
@@ -631,11 +674,16 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "connection.getAgentSdkCatalog":
     "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
   "connection.getModelCapability": "not-owned: a model/source lookup, no owned id",
+  "connection.getModelsForSource":
+    "self-scoped: the read-only picker facade over (source, role) — reads the caller's OWN credential " +
+    "availability + the deployment catalog; no owned/foreign id in the input",
   "connection.orCredits": "self-scoped: reads the caller's OWN provider key",
   "connection.orGenerationCost": "not-owned: an upstream OpenRouter generation handle",
   "connection.testClaudeAuth": "self-scoped: the caller's own max-pro-sub health check",
   "notifications.list": "self-scoped by principal.userId (multi-human belt)",
   "notifications.markRead": "self-scoped by principal.userId (inbox scoped inside the verb)",
+  "notifications.markAllRead":
+    "self-scoped by principal.userId (recipient-scoped inside the verb, no foreign id)",
   "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
   "notifications.notifications": "subscription: self-scoped per-user channel",
   "chat.streamMessages":
@@ -672,6 +720,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "workloads.subscribe":
     "subscription: the existence check is the OWNER-scoped `get` (throws NOT_FOUND on first pull, not on call) — the gate is probed via workloads.get + the F3 authz int tests",
+  "workloads.createSchedule":
+    "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
+  "workloads.listSchedules":
+    "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
   "connection.refreshAgentSdkCatalog":
     "admin-gated: writes the deployment agent-sdk catalog KV snapshot",
@@ -756,12 +808,28 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const workloadId = castId<WorkloadId>("workload_alpha");
     await db.insert(workloads).values({
       id: workloadId,
-      kind: "embed-corpus",
+      kind: "reconcile-stats",
       status: "failed",
       mode: "singular",
       ownerId: OWNER_USER_ID,
       error: MARK.workload,
       scheduledAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    // A recurring schedule owned by A — its `params.token` carries A's marker (a leaked update/setEnabled
+    // result row would surface it), so the schedule probes have teeth (F3 owner-scoping over the TIME dimension).
+    const scheduleId = castId<WorkloadScheduleId>("workload_schedule_alpha");
+    await db.insert(workloadSchedules).values({
+      id: scheduleId,
+      ownerId: OWNER_USER_ID,
+      kind: "import-bundle",
+      mode: "singular",
+      params: { token: MARK.schedule },
+      cadence: "daily",
+      nextRunAt: 1,
+      enabled: true,
       createdAt: 1,
       updatedAt: 1,
     });
@@ -791,6 +859,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       credentialId,
       themeId,
       workloadId,
+      scheduleId,
       snapshotId: snapshot.id,
       chatId,
       messageId,

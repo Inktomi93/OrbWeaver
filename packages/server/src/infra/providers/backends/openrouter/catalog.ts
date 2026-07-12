@@ -48,6 +48,7 @@ export async function fetchOrCatalog(client: OrCatalogClient): Promise<ModelCata
     cacheReadPrice: toNumberOrNull(model.pricing.inputCacheRead),
     cacheWritePrice: toNumberOrNull(model.pricing.inputCacheWrite),
     inputModalities: model.architecture.inputModalities.map(String),
+    outputModalities: model.architecture.outputModalities.map(String),
     supportedParameters: model.supportedParameters.map(String),
   }));
 }

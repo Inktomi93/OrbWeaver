@@ -115,7 +115,7 @@ export function DialogDescription(props: DialogDescriptionProps): ReactElement {
 
 /**
  * Closes the dialog. Unstyled passthrough — compose your own control via `render`.
- * `<DialogClose render={<Button variant="ghost">Cancel</Button>} />`
+ * `<DialogClose render={<Button intent="ghost">Cancel</Button>} />`
  * Spec: ui-package-design §6.1.
  */
 export function DialogClose(props: BaseCloseProps): ReactElement {

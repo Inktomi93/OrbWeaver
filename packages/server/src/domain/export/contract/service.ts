@@ -8,8 +8,8 @@
 //   • ExportService   the verb interface (the front door re-exports the type).
 //
 // SCOPE: the two verbs — `exportCharacter` (the character-card OUT half of the shared serde core) and
-// `exportChat` (PD-42 — the chat transcript OUT: ST JSONL interchange / TXT; the builders live in
-// `substrate/chat-jsonl.ts`).
+// `exportChat` (PD-42 — the chat transcript OUT: ST JSONL interchange / TXT; the builders live in the ONE
+// chat serde core `#kit/serde/chat`, W0a).
 //
 // `exportCharacter` is OWNER-SCOPED off `principal.userId` (§7.1 — never a `users` read; the
 // `no-direct-users-read` chokepoint). It gates through `fetchOwned` on the single-owned `characters` row

@@ -656,7 +656,7 @@ function resolvePersonaDescriptionCandidates(
  *
  *  STACKING (multiple notes at the SAME depth): the candidates are pushed in CAST ORDER (primary first) and
  *  budgetInjections preserves insertion order, so the emitted `chatInjections` array is cast-ordered; the
- *  SHAPE splice (`spliceInChatInjections`) sorts depth-DESC then `order`-DESC and is STABLE on ties, and no
+ *  SHAPE splice (`spliceInChatInjections`) sorts depth-DESC then `order`-ASC and is STABLE on ties, and no
  *  note sets `order` — so same-depth notes keep array order ("array order = output order", per that splice),
  *  i.e. the primary's note lands on top. Deterministic without an explicit per-note `order`.
  *

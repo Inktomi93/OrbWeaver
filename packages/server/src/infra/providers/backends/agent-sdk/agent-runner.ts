@@ -46,6 +46,7 @@ import type {
   ResponseFormat,
 } from "../../contract";
 import { ProviderError } from "../../contract";
+import { refreshHostSubTokenIfMode1 } from "./host-token";
 import { logProviderDialog, logProviderMcp } from "./log";
 import { consumeTurnStream } from "./runner";
 import { disciplineOptions, observabilityOptions } from "./translate";
@@ -207,6 +208,9 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps): P
       model: req.model,
     });
   }
+  // mode-1 (Max sub) ONLY: proactively refresh an expired host OAuth token before the spawn (the same
+  // ephemeral-symlink refresh-persistence hole runChatTurn guards against). Best-effort + never throws.
+  await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
   const overrides = {
     maxOutputTokens: req.maxOutputTokens ?? DEFAULT_AGENT_MAX_OUTPUT_TOKENS,
     ...(req.maxContextTokens !== undefined ? { maxContextTokens: req.maxContextTokens } : {}),

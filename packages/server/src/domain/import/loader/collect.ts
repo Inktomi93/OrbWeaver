@@ -13,6 +13,7 @@
 // (never silent — operator-auditable).
 
 import { slugifyHandle } from "@orb/kit/slug";
+import { parseChatJsonl } from "#kit/serde/chat";
 import type {
   CollectedCard,
   CollectedChat,
@@ -21,7 +22,6 @@ import type {
   ImportFsPort,
 } from "../contract/views";
 import { importFileHash, parseCardPng } from "../substrate/card";
-import { parseChatJsonl } from "../substrate/chat";
 import { parseStPersonas } from "../substrate/persona";
 
 // Per-directory entry ceiling: a real ST profile has a few hundred cards / a few thousand chats; a hostile

@@ -12,6 +12,24 @@
 // (Backfill/Gc/Fsck/Reap/Rebuild) are DOMAIN-INTERNAL (`contract/maintenance.ts`) — CLI/workload consumers
 // only, no client — so they are NOT re-exported here (a workload imports the service type; see service.ts).
 
-export type { AssetMetadata } from "./contract/results";
-export type { AssetsService } from "./contract/service";
+export type {
+  AssetMetadata,
+  GalleryImportOutcome,
+  GalleryPortableFile,
+} from "./contract/results";
+export type { AssetsContext, AssetsService } from "./contract/service";
 export { createAssetsService } from "./service";
+// The assets-portability halves (audit G-1): the entry root composes these into the `assets` PortableEntity
+// descriptor (kind:"assets", dir:"assets/") over the assembled AssetsContext. `exportAll` streams every
+// blob the owner references (FK registry ∪ chat-inline refs); `importFile` restores one blob under its
+// original id (hash-verified). They are NOT on AssetsService — a bundle descriptor, not the core path.
+export { createExportAssets } from "./verbs/export-assets";
+// The GALLERY-portability halves (export-import-portability.md §1): the entry root composes these into the
+// `gallery` PortableEntity descriptor (kind:"gallery", dir:"gallery/") over the assembled AssetsContext.
+// `createExportGallery` reads the owner's `gallery_items` curation rows → resolves each subject id to a
+// character HANDLE → the gallery serde; `createImportGallery` re-links the handle to the owner's character id
+// (or null) and restores the rows under the already-restored `assetId` (Option A). NOT on AssetsService — a
+// bundle descriptor, not the core path; carry NO `@orb/contracts/portability` dep (structural mirror shapes).
+export { createExportGallery } from "./verbs/export-gallery";
+export { createImportAsset } from "./verbs/import-asset";
+export { createImportGallery } from "./verbs/import-gallery";

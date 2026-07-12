@@ -15,7 +15,7 @@ export const selectionBarVariants = tv({
         root: "sticky inset-x-0 bottom-0 z-(--z-raised) border-border border-t bg-background",
       },
       floating: {
-        root: "fixed inset-x-0 bottom-section z-(--z-overlay) mx-auto w-fit rounded-card border border-border bg-popover shadow-lg",
+        root: "fixed inset-x-0 bottom-section z-(--z-overlay) mx-auto w-fit rounded-card border border-border bg-popover shadow-overlay",
       },
     },
   },

@@ -8,6 +8,12 @@
 // (the new-chat picker, which IS rail/⌘K-reachable, does). Composes `@orb/ui/command` for the search +
 // roving-listbox keyboard nav (the new-chat-picker precedent); reads ONE bounded `character.list` page
 // (a larger library needs server-side picker search — the same follow-up flagged there).
+//
+// SOURCE-AGNOSTIC (the J2/J3 committed/draft dual-mode, mirroring roster-panel.tsx): the popover chrome +
+// picker are PURE over an `onAdd(id)` callback — the committed `AddMemberPopover` wires it to the
+// `chat.addCharacterToChat` verb; the `DraftAddMemberPopover` wires it to the `addDraftCharacter` store
+// write (folded into the founding cast at commit, draft-commit.ts). Same picker, same look — only the
+// SAVE seam differs; a draft has no server row to invalidate, so its verb is a synchronous store patch.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -17,16 +23,16 @@ import { Button } from "@orb/ui/button";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { Icon, UserPlus } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { addDraftCharacter } from "#state";
 import { useAddCharacterToChat } from "../hooks/use-roster-mutations";
 import { initialsForAttribution } from "../lib/attribution";
 
@@ -35,17 +41,15 @@ const SKELETON_ROW_COUNT = 5;
 
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
-export interface AddMemberPopoverProps {
-  readonly chatId: ChatId;
-  /** The characters already in the roster — excluded from the picker (no double-seat). */
-  readonly existingCharacterIds: readonly CharacterId[];
-}
-
-/** The cast-bar "+" → an anchored character picker; picking adds the member (host-only affordance). */
-export function AddMemberPopover({
-  chatId,
+/** The shared picker shell — the "+" trigger, tooltip, and the QueryBoundary-wrapped list. Source-agnostic
+ *  over an `onAdd(id)`; the committed + draft wrappers supply the SAVE seam + the already-in-roster set. */
+function AddMemberShell({
   existingCharacterIds,
-}: AddMemberPopoverProps): ReactElement {
+  onAdd,
+}: {
+  readonly existingCharacterIds: readonly CharacterId[];
+  readonly onAdd: (id: CharacterId) => void;
+}): ReactElement {
   return (
     <Popover>
       <Tooltip>
@@ -64,20 +68,71 @@ export function AddMemberPopover({
       </Tooltip>
       <PopoverPopup>
         <QueryBoundary
-          fallback={<PickerSkeleton />}
-          renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+          fallback={<SkeletonRows count={SKELETON_ROW_COUNT} />}
+          renderError={(_error, retry): ReactElement => (
+            <QueryErrorState label="the character library" onRetry={retry} />
+          )}
         >
-          <PickerBody chatId={chatId} existingCharacterIds={existingCharacterIds} />
+          <PickerBody existingCharacterIds={existingCharacterIds} onAdd={onAdd} />
         </QueryBoundary>
       </PopoverPopup>
     </Popover>
   );
 }
 
-function PickerBody({ chatId, existingCharacterIds }: AddMemberPopoverProps): ReactElement {
+export interface AddMemberPopoverProps {
+  readonly chatId: ChatId;
+  /** The characters already in the roster — excluded from the picker (no double-seat). */
+  readonly existingCharacterIds: readonly CharacterId[];
+}
+
+/** The cast-bar "+" → an anchored character picker; picking adds the member (host-only affordance).
+ *  COMMITTED variant: the save seam is the `chat.addCharacterToChat` verb (invalidates `getChat`). */
+export function AddMemberPopover({
+  chatId,
+  existingCharacterIds,
+}: AddMemberPopoverProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const add = useAddCharacterToChat({ trpc, invalidation });
+  return (
+    <AddMemberShell
+      existingCharacterIds={existingCharacterIds}
+      onAdd={(id): void => add.mutate({ chatId, characterId: id })}
+    />
+  );
+}
+
+export interface DraftAddMemberPopoverProps {
+  /** The active draft's key — the `draft-config` partition the added members land in. */
+  readonly draftKey: string;
+  /** The draft's current founding cast (seed ∪ already-added) — excluded from the picker. */
+  readonly existingCharacterIds: readonly CharacterId[];
+}
+
+/** The DRAFT-side "+" → the same anchored picker; picking writes `addDraftCharacter` (no server row yet —
+ *  the added members fold into the founding cast at commit, draft-commit.ts). Host is implicit (a draft is
+ *  authored by, and visible only to, its creator — draft-context-panel-surface.tsx). */
+export function DraftAddMemberPopover({
+  draftKey,
+  existingCharacterIds,
+}: DraftAddMemberPopoverProps): ReactElement {
+  return (
+    <AddMemberShell
+      existingCharacterIds={existingCharacterIds}
+      onAdd={(id): void => addDraftCharacter(draftKey, id)}
+    />
+  );
+}
+
+function PickerBody({
+  existingCharacterIds,
+  onAdd,
+}: {
+  readonly existingCharacterIds: readonly CharacterId[];
+  readonly onAdd: (id: CharacterId) => void;
+}): ReactElement {
+  const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(
     trpc.character.list.queryOptions({ limit: PICKER_PAGE_LIMIT }),
   );
@@ -90,11 +145,7 @@ function PickerBody({ chatId, existingCharacterIds }: AddMemberPopoverProps): Re
       <CommandList className="max-h-80">
         <CommandEmpty>No other characters to add.</CommandEmpty>
         {candidates.map((character) => (
-          <AddRow
-            character={character}
-            key={character.id}
-            onAdd={(id): void => add.mutate({ chatId, characterId: id })}
-          />
+          <AddRow character={character} key={character.id} onAdd={onAdd} />
         ))}
       </CommandList>
     </Command>
@@ -125,29 +176,5 @@ function AddRow({ character, onAdd }: AddRowProps): ReactElement {
         </Text>
       </Row>
     </CommandItem>
-  );
-}
-
-/** The suspense-free loading skeleton (a search bar + a few placeholder rows). */
-function PickerSkeleton(): ReactElement {
-  return (
-    <Stack aria-busy={true} gap="row" padding="block">
-      <Skeleton className="h-control-md w-full" />
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => i).map((i) => (
-        <Skeleton className="h-control-lg w-full" key={i} />
-      ))}
-    </Stack>
-  );
-}
-
-/** The read-error surface — the QueryBoundary retry actually refetches (the reset handshake). */
-function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
-  return (
-    <Stack align="center" gap="row" justify="center" padding="section">
-      <Text tone="muted">Couldn't load the character library.</Text>
-      <Button intent="ghost" onClick={onRetry}>
-        Retry
-      </Button>
-    </Stack>
   );
 }

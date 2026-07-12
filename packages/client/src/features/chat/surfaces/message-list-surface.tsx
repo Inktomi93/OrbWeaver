@@ -45,16 +45,14 @@ import {
   buildPersonaNameMap,
 } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { MessageList } from "@orb/ui/message-list";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { QueryBoundary, useChatBus, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import {
@@ -121,8 +119,10 @@ export function MessageListSurface({
           }
           return (
             <QueryBoundary
-              fallback={<LoadingRows />}
-              renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+              fallback={<SkeletonRows count={3} />}
+              renderError={(_error, retry): ReactElement => (
+                <QueryErrorState label="this conversation" onRetry={retry} />
+              )}
             >
               <DraftGreetingThread
                 draftKey={handle.draftKey}
@@ -134,8 +134,10 @@ export function MessageListSurface({
         }
         return (
           <QueryBoundary
-            fallback={<LoadingRows />}
-            renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+            fallback={<SkeletonRows count={3} />}
+            renderError={(_error, retry): ReactElement => (
+              <QueryErrorState label="this conversation" onRetry={retry} />
+            )}
           >
             <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} />
           </QueryBoundary>
@@ -351,29 +353,6 @@ function EmptyThread(): ReactElement {
   return (
     <Stack align="center" justify="center" padding="section" className="h-full">
       <Text tone="muted">No messages yet.</Text>
-    </Stack>
-  );
-}
-
-/** The suspense-free loading skeleton (a few placeholder rows, never a spinner flash). */
-function LoadingRows(): ReactElement {
-  return (
-    <Stack gap="block" padding="section" className="h-full">
-      <Skeleton variant="text" className="h-block w-full" />
-      <Skeleton variant="text" className="h-block w-3/4" />
-      <Skeleton variant="text" className="h-block w-5/6" />
-    </Stack>
-  );
-}
-
-/** The read-error surface — the QueryBoundary retry actually refetches (the reset handshake). */
-function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
-  return (
-    <Stack gap="row" align="center" justify="center" padding="section" className="h-full">
-      <Text tone="muted">Couldn't load this conversation.</Text>
-      <Button intent="ghost" onClick={onRetry}>
-        Retry
-      </Button>
     </Stack>
   );
 }

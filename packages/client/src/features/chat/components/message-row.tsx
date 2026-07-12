@@ -74,6 +74,7 @@ import {
   useIsMessageSelected,
   useSelectionActive,
 } from "#state";
+import { AttachmentUrlProvider } from "../hooks/attachment-url-provider";
 import {
   initialsForAttribution,
   resolveRowAttribution,
@@ -231,6 +232,7 @@ export function MessageRow({
   // past the messiness-guard cap; see split-paragraphs.ts).
   const trainParagraphs =
     !editing && skin.bubbleLayout === "trains" ? splitIntoTrainParagraphs(message.content) : null;
+  const speakerThemes = speakerThemesByName(participants);
   const content = resolveRowContent({
     editing,
     message,
@@ -238,7 +240,7 @@ export function MessageRow({
     trainParagraphs,
     render,
     renderContext,
-    speakerThemes: speakerThemesByName(participants),
+    speakerThemes,
   });
 
   // §B.1/§B.2 — the avatar is a single sibling flex item, placed before the content column for
@@ -280,7 +282,10 @@ export function MessageRow({
   return (
     // Fragment: the §B.5.2 boundary divider is a SIBLING before the article (a transcript-level
     // marker, not part of THIS message's own semantic unit) — never nested inside `role="article"`.
-    <>
+    // #67 — the row resolves its inline `asset:<id>` attachment refs → `blobUrl`s ONCE and shares them
+    // (over context) with every `MessageMediaBlock` in its body, so `MessageContent`/the row-part helpers
+    // stay pure. A row with no image refs issues no query.
+    <AttachmentUrlProvider chatId={message.chatId} content={message.content}>
       {renderContextBoundaryDivider(contextBoundary)}
       {/* `group` is the hover/focus hook UIP-305's message-actions-row dims-then-brightens off
           (group-hover / group-focus-within) — the actions cluster rests at reduced opacity until
@@ -348,7 +353,7 @@ export function MessageRow({
               attributionTokens: attribution.tokens,
               render,
               renderContext,
-              speakerThemes: speakerThemesByName(participants),
+              speakerThemes,
             })}
             {editing ? null : (
               <MessageMetadataRow message={message} visibility={metadataVisibility} />
@@ -358,6 +363,6 @@ export function MessageRow({
           {trailingAvatar}
         </Row>
       </Stack>
-    </>
+    </AttachmentUrlProvider>
   );
 }

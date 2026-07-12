@@ -11,3 +11,8 @@ export interface ListInboxResult {
   /** The `seq` to pass as the next `cursor`, or `null` when no older active notification remains. */
   readonly nextCursor: number | null;
 }
+
+/** The bulk `markAllRead` result — just the count actually flipped (rows already read don't recount). */
+export interface MarkAllReadResult {
+  readonly markedCount: number;
+}

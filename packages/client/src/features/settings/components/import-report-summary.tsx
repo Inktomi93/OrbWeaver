@@ -1,0 +1,48 @@
+// import-report-summary — the leaf that renders a completed import's normalized `ImportSummary`: a tally
+// line (imported · skipped · failed) then a per-file list (glyph + path + detail), so a bundle restore
+// shows exactly what landed, deduped, was skipped (unknown kind), or failed. Pure presentation over the
+// hook's summary — no reads, no state.
+
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the file-dropzone.tsx precedent).
+import { AlertTriangle, Check, Icon } from "@orb/ui/icons";
+import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
+import type { ReactElement } from "react";
+import { testId } from "#lib";
+import type { ImportSummary } from "../lib/portability-model";
+import { summaryCaption } from "../lib/portability-model";
+
+export interface ImportReportSummaryProps {
+  readonly summary: ImportSummary;
+}
+
+/** The tally caption + per-file outcome list for a finished import. */
+export function ImportReportSummary({ summary }: ImportReportSummaryProps): ReactElement {
+  return (
+    <Stack gap="block" data-testid={testId("importReport")}>
+      <Text size="body" weight="semibold">
+        {summaryCaption(summary)}
+      </Text>
+      {summary.outcomes.length > 0 ? (
+        <Stack aria-label="Imported files" gap="field" role="list">
+          {summary.outcomes.map((outcome) => (
+            <Row key={outcome.path} align="center" gap="row" role="listitem">
+              <Icon
+                icon={outcome.ok ? Check : AlertTriangle}
+                size="sm"
+                className={outcome.ok ? "text-success" : "text-destructive"}
+                label={outcome.ok ? "Imported" : "Not imported"}
+              />
+              <Text size="body" className="min-w-0 flex-1 truncate font-mono">
+                {outcome.path}
+              </Text>
+              <Text size="micro" tone="muted" className="whitespace-nowrap">
+                {outcome.detail}
+              </Text>
+            </Row>
+          ))}
+        </Stack>
+      ) : null}
+    </Stack>
+  );
+}

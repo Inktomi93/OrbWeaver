@@ -3,13 +3,7 @@
 // table (no-direct-users-read). The cross-boundary input shapes (`RoutableChat`, the `ChatApi`/`ChatSource`
 // axes, `RoutingRoleKey`) live in `@orb/contracts/connection`; the verb param wrappers live here.
 
-import type {
-  ChatApi,
-  ChatSource,
-  RoleHandling,
-  RoutableChat,
-  RoutingRoleKey,
-} from "@orb/contracts/connection";
+import type { ChatApi, ChatSource, RoutableChat, RoutingRoleKey } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { ModelId } from "@orb/kit/ids";
 
@@ -22,9 +16,6 @@ export interface AgentOverride {
   readonly api?: ChatApi | undefined;
   readonly source?: ChatSource | undefined;
   readonly model?: string | null | undefined;
-  /** The adjacent-same-role handling knob (D66-C, W6) — carried from the chat row's
-   *  `RouteChatAssignment.roleHandling` so it reaches `ResolvedConnection.roleHandling` → SHAPE. */
-  readonly roleHandling?: RoleHandling | undefined;
 }
 
 /** `resolveRole(params)` — the one resolver for all 7 roles. Reads `routing.roleDefaults.<role>` for the
@@ -51,6 +42,16 @@ export interface GetModelCapabilityParams {
   readonly model: ModelId | string;
   readonly source: ChatSource;
   readonly api: ChatApi;
+}
+
+/** `getModelsForSource(params)` — the read-only Connections picker facade (CONNECTIONS-BUILD-SPEC §2.2).
+ *  Reads snapshots/config/state ONLY — ZERO outbound fetch (the SSRF-guarded probes stay on the
+ *  `.mutation()`s). `principal` gates `max-pro-sub` (owner) + resolves the per-source credential presence;
+ *  `role` selects which config/default the vllm/local-light/custom arms surface. */
+export interface GetModelsForSourceParams {
+  readonly principal: Principal;
+  readonly source: ChatSource;
+  readonly role: RoutingRoleKey;
 }
 
 /** `getCatalog(params)` — read the OR catalog snapshot (seeds the in-memory cache). `signal` for parity

@@ -8,14 +8,24 @@ import type {
 } from "@base-ui/react/tooltip";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactElement } from "react";
+import { createContext, useContext, useId } from "react";
 import type { PortalContainer } from "#lib";
-import { usePortalContainer } from "#lib";
+import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
 import { tooltipVariants } from "./variants";
 
 const slots = tooltipVariants();
 
-// = --spacing-row (0.5rem) — Base UI Positioner offsets are px numbers, not classes.
-const DEFAULT_SIDE_OFFSET = 8;
+// The trigger-breathe gap (§13.0 C19 rollup, `#lib`) — = --spacing-row (0.5rem); Base UI Positioner
+// offsets are px numbers, not classes.
+const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
+
+// Base UI 1.6's Tooltip does NOT wire the WCAG name/description relationship (verified empirically in
+// the shipped build — the popup carries no `role="tooltip"` and the trigger no `aria-describedby`; only
+// FOCUSABLE_POPUP_PROPS + dismiss/clientPoint flow to the popup). So the seal mints ONE id per `<Tooltip>`
+// and threads it: the popup gets `id` + `role="tooltip"`, the trigger gets `aria-describedby` — the APG
+// tooltip pattern. A `describedby` pointing at a not-yet-mounted popup is inert; the association becomes
+// live when the portaled popup mounts on open. One home for the id keeps trigger↔popup honest.
+const TooltipDescriptionContext = createContext<string | undefined>(undefined);
 
 /**
  * Shares hover delay/timeout across a subtree so adjacent tooltips open instantly.
@@ -33,7 +43,12 @@ export function TooltipProvider(props: BaseProviderProps): ReactElement {
  * Spec: ui-package-design §6.1 / UI-Arch §4b (tooltip-on-touch correctness is Base UI's).
  */
 export function Tooltip<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
-  return <BaseTooltip.Root {...props} />;
+  const descriptionId = useId();
+  return (
+    <TooltipDescriptionContext.Provider value={descriptionId}>
+      <BaseTooltip.Root {...props} />
+    </TooltipDescriptionContext.Provider>
+  );
 }
 
 /**
@@ -43,7 +58,10 @@ export function Tooltip<Payload = unknown>(props: BaseRootProps<Payload>): React
  * Spec: ui-package-design §6.1 / §13 R2.
  */
 export function TooltipTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
-  return <BaseTooltip.Trigger {...props} />;
+  const descriptionId = useContext(TooltipDescriptionContext);
+  // `aria-describedby` associates the trigger with the tooltip content (the popup carries the matching
+  // `id`). A caller-supplied `aria-describedby` wins — don't clobber an explicit one.
+  return <BaseTooltip.Trigger aria-describedby={descriptionId} {...props} />;
 }
 
 export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
@@ -75,6 +93,7 @@ export function TooltipPopup(props: TooltipPopupProps): ReactElement {
     ...rest
   } = props;
   const portalContainer = usePortalContainer();
+  const descriptionId = useContext(TooltipDescriptionContext);
   return (
     <BaseTooltip.Portal container={container ?? portalContainer}>
       <BaseTooltip.Positioner
@@ -85,6 +104,11 @@ export function TooltipPopup(props: TooltipPopupProps): ReactElement {
         sideOffset={sideOffset}
       >
         <BaseTooltip.Popup
+          // `role="tooltip"` + a stable `id` (matched by the trigger's `aria-describedby`, threaded via
+          // TooltipDescriptionContext) give the WCAG name/description relationship Base UI 1.6 omits. A
+          // caller `id`/`role` in `rest` wins (spread last).
+          id={descriptionId}
+          role="tooltip"
           className={slots.popup({ className })}
           data-slot="tooltip-popup"
           {...rest}

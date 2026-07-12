@@ -7,12 +7,14 @@
 
 import {
   ACTIVE_WORKLOAD_STATUSES,
+  SCHEDULE_CADENCES,
   WORKLOAD_KINDS,
   WORKLOAD_MODES,
+  WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
 } from "@orb/contracts/workloads";
-import { isConstraintViolation, users, workloads } from "@orb/db";
-import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
+import { isConstraintViolation, users, workloadSchedules, workloads } from "@orb/db";
+import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -31,6 +33,60 @@ test("workloads.mode enum mirrors WORKLOAD_MODES (db derives the contracts tuple
   expect(workloads.mode.enumValues).toEqual([...WORKLOAD_MODES]);
 });
 
+test("workloads.source enum mirrors WORKLOAD_SOURCES (db derives the contracts tuple)", () => {
+  expect(workloads.source.enumValues).toEqual([...WORKLOAD_SOURCES]);
+});
+
+// ── workload_schedules (the TIME dimension) — the enum columns derive the contracts tuples too ──────────
+test("workload_schedules.kind enum mirrors WORKLOAD_KINDS (db derives the contracts tuple)", () => {
+  expect(workloadSchedules.kind.enumValues).toEqual([...WORKLOAD_KINDS]);
+});
+
+test("workload_schedules.mode enum mirrors WORKLOAD_MODES", () => {
+  expect(workloadSchedules.mode.enumValues).toEqual([...WORKLOAD_MODES]);
+});
+
+test("workload_schedules.cadence enum mirrors SCHEDULE_CADENCES", () => {
+  expect(workloadSchedules.cadence.enumValues).toEqual([...SCHEDULE_CADENCES]);
+});
+
+test("workload_schedules insert→select round-trips (defaults mode=singular, enabled=true, JSON params)", async () => {
+  const db = await freshDb();
+  const ownerId = castId<UserId>("user_sched_owner");
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("so"), role: "user" });
+  const id = castId<WorkloadScheduleId>("workload_schedule_rt");
+  await db.insert(workloadSchedules).values({
+    id,
+    ownerId,
+    kind: "index",
+    params: { source: "text" },
+    cadence: "daily",
+    nextRunAt: 1000,
+  });
+  const rows = await db.select().from(workloadSchedules).where(eq(workloadSchedules.id, id));
+  expect(rows[0]?.mode).toBe("singular"); // column default
+  expect(rows[0]?.enabled).toBe(true); // column default
+  expect(rows[0]?.params).toEqual({ source: "text" });
+  expect(rows[0]?.nextRunAt).toBe(1000);
+  expect(rows[0]?.lastRunAt).toBeNull();
+});
+
+test("workload_schedules.ownerId CASCADE-deletes with its owner (live config, not an audit row)", async () => {
+  const db = await freshDb();
+  const ownerId = castId<UserId>("user_sched_cascade");
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("sc"), role: "user" });
+  await db.insert(workloadSchedules).values({
+    id: castId<WorkloadScheduleId>("workload_schedule_cascade"),
+    ownerId,
+    kind: "reconcile-stats",
+    cadence: "weekly",
+    nextRunAt: 1,
+  });
+  await db.delete(users).where(eq(users.id, ownerId));
+  const remaining = await db.select().from(workloadSchedules);
+  expect(remaining).toHaveLength(0); // cascaded away with the owner
+});
+
 // The index WHERE list is derived from ACTIVE_WORKLOAD_STATUSES — assert the active subset is what the
 // behavioral lock test below relies on (the named mirror of the partial-index predicate).
 test("ACTIVE_WORKLOAD_STATUSES is the [queued, running, cancelling] slot-holder set the index keys on", () => {
@@ -38,21 +94,22 @@ test("ACTIVE_WORKLOAD_STATUSES is the [queued, running, cancelling] slot-holder 
 });
 
 // ── Round-trip: branded id, kind, default status + mode, JSON params/result ────────────────────────────
-test("workloads insert→select round-trips (defaults status=queued + mode=singular, JSON params)", async () => {
+test("workloads insert→select round-trips (defaults status=queued + mode=singular + source=none, JSON params)", async () => {
   const db = await freshDb();
   const id = castId<WorkloadId>("workload_roundtrip");
   await db.insert(workloads).values({
     id,
-    kind: "embed-corpus",
+    kind: "reconcile-stats",
     params: { characterId: "character_x" },
   });
 
   const rows = await db.select().from(workloads).where(eq(workloads.id, id));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.id).toBe(id);
-  expect(rows[0]?.kind).toBe("embed-corpus");
+  expect(rows[0]?.kind).toBe("reconcile-stats");
   expect(rows[0]?.status).toBe("queued"); // the column default
   expect(rows[0]?.mode).toBe("singular"); // the column default
+  expect(rows[0]?.source).toBe("none"); // the column default — the non-index lock sentinel
   expect(rows[0]?.params).toEqual({ characterId: "character_x" });
   expect(rows[0]?.result).toBeNull();
   expect(rows[0]?.ownerId).toBeNull(); // nullable — a system/scheduler row has no owner
@@ -120,14 +177,15 @@ test("a second ACTIVE BULK row of a kind collides globally (reconcile-stats, que
   expect(violation?.kind).toBe("unique");
 });
 
-// A SINGULAR run locks PER-OWNER — the SAME owner can't hold two active slots of one kind.
-test("a second ACTIVE SINGULAR row + SAME owner collides (embed-corpus per (kind, owner))", async () => {
+// A SINGULAR run locks PER-(OWNER, SOURCE) — the SAME owner can't hold two active slots of one (kind, source).
+test("a second ACTIVE SINGULAR row + SAME owner + SAME source collides (index{text} per (kind, owner, source))", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_a1"),
-    kind: "embed-corpus",
+    kind: "index",
+    source: "text",
     mode: "singular",
     ownerId: owner,
   });
@@ -136,7 +194,8 @@ test("a second ACTIVE SINGULAR row + SAME owner collides (embed-corpus per (kind
   try {
     await db.insert(workloads).values({
       id: castId<WorkloadId>("workload_a2"),
-      kind: "embed-corpus",
+      kind: "index",
+      source: "text",
       mode: "singular",
       ownerId: owner,
     });
@@ -146,9 +205,60 @@ test("a second ACTIVE SINGULAR row + SAME owner collides (embed-corpus per (kind
   expect(isConstraintViolation(caught)?.kind).toBe("unique");
 });
 
-// A SINGULAR run is NOT global — two DIFFERENT owners each hold their OWN active slot of one kind (the core:
-// two users run their own embed-corpus concurrently).
-test("two DIFFERENT owners each run their own active SINGULAR row (per-owner, not global)", async () => {
+// THE CRUX of the flexible collapse: one owner runs index{text} + index{image} CONCURRENTLY — different
+// source, different lock slot. (What the two former embed-corpus/embed-assets kinds gave, preserved.)
+test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, source) — different slots)", async () => {
+  const db = await freshDb();
+  const owner = castId<UserId>("user_a");
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_text"),
+    kind: "index",
+    source: "text",
+    mode: "singular",
+    ownerId: owner,
+  });
+  // The same owner's concurrent image reindex is ALLOWED — a different source, a different singular slot.
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_image"),
+    kind: "index",
+    source: "image",
+    mode: "singular",
+    ownerId: owner,
+  });
+  const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));
+  expect(all).toHaveLength(2);
+});
+
+// The `all` reindex-everything pass is its OWN lock slot (distinct source), single-active against another all.
+test("a second ACTIVE index{all} collides (same source single-active), but coexists with a distinct source", async () => {
+  const db = await freshDb();
+  const owner = castId<UserId>("user_a");
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_all1"),
+    kind: "index",
+    source: "all",
+    mode: "singular",
+    ownerId: owner,
+  });
+  let caught: unknown;
+  try {
+    await db.insert(workloads).values({
+      id: castId<WorkloadId>("workload_all2"),
+      kind: "index",
+      source: "all",
+      mode: "singular",
+      ownerId: owner,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("unique");
+});
+
+// A SINGULAR run is NOT global — two DIFFERENT owners each hold their OWN active slot of one (kind, source).
+test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-owner, not global)", async () => {
   const db = await freshDb();
   const a = castId<UserId>("user_a");
   const b = castId<UserId>("user_b");
@@ -156,39 +266,62 @@ test("two DIFFERENT owners each run their own active SINGULAR row (per-owner, no
   await db.insert(users).values({ id: b, handle: castId<Handle>("b"), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_a"),
-    kind: "embed-corpus",
+    kind: "index",
+    source: "text",
     mode: "singular",
     ownerId: a,
   });
-  // B's concurrent embed-corpus is ALLOWED — a different owner, a different singular slot.
+  // B's concurrent index{text} is ALLOWED — a different owner, a different singular slot.
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_b"),
-    kind: "embed-corpus",
+    kind: "index",
+    source: "text",
     mode: "singular",
     ownerId: b,
   });
-  const all = await db.select().from(workloads).where(eq(workloads.kind, "embed-corpus"));
+  const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));
   expect(all).toHaveLength(2);
 });
 
 // A SINGULAR run and a BULK run of one kind DON'T collide (different lock partitions) — an owner's dev bulk
 // sweep can run alongside a user's own singular pass.
-test("a SINGULAR row and a BULK row of one kind coexist (disjoint mode partitions)", async () => {
+test("a SINGULAR row and a BULK row of one (kind, source) coexist (disjoint mode partitions)", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_singular"),
-    kind: "embed-corpus",
+    kind: "index",
+    source: "text",
     mode: "singular",
     ownerId: owner,
   });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_bulk"),
-    kind: "embed-corpus",
+    kind: "index",
+    source: "text",
     mode: "bulk",
   });
-  const all = await db.select().from(workloads).where(eq(workloads.kind, "embed-corpus"));
+  const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));
+  expect(all).toHaveLength(2);
+});
+
+// BULK also keys on source — an index{text} bulk sweep and an index{image} bulk sweep run concurrently.
+test("a BULK index{text} and a BULK index{image} coexist (per-(kind, source) bulk lock)", async () => {
+  const db = await freshDb();
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_bulk_text"),
+    kind: "index",
+    source: "text",
+    mode: "bulk",
+  });
+  await db.insert(workloads).values({
+    id: castId<WorkloadId>("workload_bulk_image"),
+    kind: "index",
+    source: "image",
+    mode: "bulk",
+  });
+  const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));
   expect(all).toHaveLength(2);
 });
 
@@ -242,10 +375,10 @@ test("a different kind never collides (the lock is per-kind)", async () => {
   const db = await freshDb();
   await db
     .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_k1"), kind: "embed-corpus", mode: "bulk" });
+    .values({ id: castId<WorkloadId>("workload_k1"), kind: "distill-characters", mode: "bulk" });
   await db
     .insert(workloads)
-    .values({ id: castId<WorkloadId>("workload_k2"), kind: "embed-assets", mode: "bulk" });
+    .values({ id: castId<WorkloadId>("workload_k2"), kind: "compute-themes", mode: "bulk" });
   const all = await db.select().from(workloads);
   expect(all).toHaveLength(2);
 });

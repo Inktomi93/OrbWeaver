@@ -355,6 +355,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newChatId: minter(ID_PREFIX.chat),
     newMessageId: minter(ID_PREFIX.message),
     newMessageVariantId: minter(ID_PREFIX.messageVariant),
+    newMessageAssetId: minter(ID_PREFIX.messageAsset),
     newParticipantId: minter(ID_PREFIX.chatParticipant),
     newInjectionId: minter(ID_PREFIX.chatInjection),
     newEventId: minter(ID_PREFIX.chatEvent),
@@ -650,6 +651,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const ref = await input.assets.assetCasRefById(assetId);
       return ref?.hash ?? null;
     },
+    // #67 send-attach TRUST BOUNDARY: the owned-id subset among the claimed attachments (owner-scoped off the
+    // acting principal's userId — the assets verb's `ownerId` predicate; a foreign/gone id is simply absent).
+    filterOwnedAssetIds: async (userId, assetIds) =>
+      (await input.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
     // The producer (chat) passes the canon `BatchStmt[]` + the db + the delta; the chat op type erases the
     // batch to `unknown` (the contract keeps Batch generic), so the wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {

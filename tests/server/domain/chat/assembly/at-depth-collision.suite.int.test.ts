@@ -3,8 +3,8 @@
 // stratification when they don't). Each source is individually covered elsewhere; NOTHING pins what happens
 // when several collide at the same depth — yet that is exactly the byte-order the KV cache + the model's
 // reading order depend on. The tie-order rule is DOCUMENTED in `spliceInChatInjections` (assembly/
-// injections.ts): primary depth DESC (deepest splices furthest from the tail), secondary `order` DESC
-// (higher `order` lands first/top within a depth), stable for equal keys, absent `order` ⇒ ST default 100.
+// injections.ts): primary depth DESC (deepest splices furthest from the tail), secondary `order` ASC
+// (LOWER `order` lands first/top within a depth — ST parity), stable for equal keys, absent `order` ⇒ 100.
 //
 // This drives the REAL assembly splice (and the real `shape` SHAPE composition that orchestrates it) — the
 // one home of the order, per the file's "one home, can't drift" note. The four sources are modeled as the
@@ -24,8 +24,8 @@ const USER_INJ = "MARK_USER_INJECTION";
 const CHAR_NOTE = "MARK_CHAR_NOTE";
 const PERSONA_NOTE = "MARK_PERSONA_NOTE";
 
-// The BUILD-assigned `order` per source (DATA): higher `order` = higher priority = lands first/top within a
-// depth. Chosen so the ranking WI > user-injection > char-note > persona-note is legible in the output.
+// The BUILD-assigned `order` per source (DATA). ST parity: LOWER `order` lands first/top within a depth,
+// so persona-note (100) sits highest and WI (400) closest to the tail — legible in the output below.
 const ORDER = { [WI]: 400, [USER_INJ]: 300, [CHAR_NOTE]: 200, [PERSONA_NOTE]: 100 } as const;
 
 /** A `user`-role in_chat injection (frames to `[Note from user: …]`, so the marker survives as a substring). */
@@ -40,7 +40,7 @@ function labels(rows: readonly { role: string; content: string }[]): string[] {
 }
 
 describe("spliceInChatInjections — four sources colliding at ONE shared depth", () => {
-  test("at a shared depth they collate strictly by `order` DESC (WI > user-inj > char-note > persona-note)", () => {
+  test("at a shared depth they collate by `order` ASC — lowest order lands top (persona → char → user → WI)", () => {
     // A two-row canon; every source injects at depth 1 (one slot before the trailing turn).
     const history = [
       { role: "user" as const, content: "U1" },
@@ -56,8 +56,8 @@ describe("spliceInChatInjections — four sources colliding at ONE shared depth"
 
     const out = spliceInChatInjections(history, injections);
 
-    // The four land between U1 and A1, top-to-bottom in `order` DESC (higher order = nearer the top).
-    expect(labels(out)).toEqual(["canon:U1", WI, USER_INJ, CHAR_NOTE, PERSONA_NOTE, "canon:A1"]);
+    // The four land between U1 and A1, top-to-bottom in `order` ASC (LOWER order = nearer the top — ST parity).
+    expect(labels(out)).toEqual(["canon:U1", PERSONA_NOTE, CHAR_NOTE, USER_INJ, WI, "canon:A1"]);
   });
 
   test("equal `order` at a shared depth is STABLE (array order preserved — no nondeterministic shuffle)", () => {
@@ -125,15 +125,15 @@ describe("shape — the same collision through the real SHAPE composition (end-t
       groupNudge: null,
     });
 
-    // The injected stage preserves the depth-1 `order`-DESC collation; the four user-role notes squash with
-    // the leading user turn but their RELATIVE order is intact top-to-bottom (WI → user → char → persona).
+    // The injected stage preserves the depth-1 `order`-ASC collation; the four user-role notes squash with
+    // the leading user turn but their RELATIVE order is intact top-to-bottom (persona → char → user → WI — ST parity).
     const wiAt = out.stages.injected.findIndex((r) => r.content.includes(WI));
     const userAt = out.stages.injected.findIndex((r) => r.content.includes(USER_INJ));
     const charAt = out.stages.injected.findIndex((r) => r.content.includes(CHAR_NOTE));
     const personaAt = out.stages.injected.findIndex((r) => r.content.includes(PERSONA_NOTE));
-    expect(wiAt).toBeGreaterThanOrEqual(0);
-    expect(wiAt).toBeLessThan(userAt);
-    expect(userAt).toBeLessThan(charAt);
-    expect(charAt).toBeLessThan(personaAt);
+    expect(personaAt).toBeGreaterThanOrEqual(0);
+    expect(personaAt).toBeLessThan(charAt);
+    expect(charAt).toBeLessThan(userAt);
+    expect(userAt).toBeLessThan(wiAt);
   });
 });

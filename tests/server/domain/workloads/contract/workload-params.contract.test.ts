@@ -27,9 +27,24 @@ describe("workload-params", () => {
     expect(() => parseParamsForKind("compute-themes", { k: -3 })).toThrow();
   });
 
-  test("embed kinds accept an optional force flag", () => {
-    expect(parseParamsForKind("embed-corpus", { force: true })).toEqual({ force: true });
-    expect(parseParamsForKind("embed-corpus", {})).toEqual({});
+  test("index requires a source and accepts an optional force flag", () => {
+    expect(parseParamsForKind("index", { source: "text" })).toEqual({ source: "text" });
+    expect(parseParamsForKind("index", { source: "all", force: true })).toEqual({
+      source: "all",
+      force: true,
+    });
+    // `source` is REQUIRED (it selects the pass AND stamps the single-active lock) — a missing/invalid
+    // source is rejected.
+    expect(() => parseParamsForKind("index", {})).toThrow();
+    expect(() => parseParamsForKind("index", { source: "corpus" })).toThrow();
+  });
+
+  test("import-bundle requires the staging token (the route mints it; empty/missing is rejected)", () => {
+    expect(parseParamsForKind("import-bundle", { token: "import-bundle-abc.zip" })).toEqual({
+      token: "import-bundle-abc.zip",
+    });
+    expect(() => parseParamsForKind("import-bundle", {})).toThrow();
+    expect(() => parseParamsForKind("import-bundle", { token: "" })).toThrow();
   });
 
   test("startWorkloadInput discriminates on kind and narrows params", () => {

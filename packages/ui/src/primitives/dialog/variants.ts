@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { OVERLAY_MOTION, tv } from "#lib";
 
 /**
  * Slot classes for the dialog overlay stack (ui-package-design §5 — slots for multi-part).
@@ -23,14 +23,12 @@ import { tv } from "#lib";
  */
 export const dialogVariants = tv({
   slots: {
-    backdrop:
-      "fixed inset-0 z-(--z-modal) bg-scrim backdrop-blur-sm transition-opacity duration-(--motion-base) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
+    backdrop: `fixed inset-0 z-(--z-modal) bg-scrim backdrop-blur-sm ${OVERLAY_MOTION.backdropFade("base")}`,
     // Viewport gutter is set PER-SIZE (below), never in the base — else `full`'s `p-0` and the base
     // `p-gutter` are two padding classes tailwind-merge can't dedupe (custom `gutter` scale), and the
     // gutter wins. One padding class per size = a clean override. NOT a scroll container (see header).
     viewport: "fixed inset-0 z-(--z-modal) flex items-center justify-center",
-    popup:
-      "flex max-h-full w-full flex-col rounded-card border border-border bg-popover p-section text-popover-foreground shadow-lg transition-all duration-(--motion-base) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+    popup: `flex max-h-full w-full flex-col rounded-card border border-border bg-popover p-section text-popover-foreground shadow-overlay ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
   },

@@ -2,7 +2,11 @@
 // settings shell comes through the feature front door, wrapped in the real data layer (`routeTrpc` stubs
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
-import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
+import {
+  ImportOnboardingCard,
+  SettingsShell,
+  ThemePickerSurface,
+} from "@orb/client/features/settings";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
@@ -11,6 +15,7 @@ import type { ReactElement } from "react";
 // not exported standalone.
 import { AdminSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/admin-settings-surface";
 import { AppearanceSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/appearance-settings-surface";
+import { BackupSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/backup-settings-surface";
 import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
 import { TagsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/tags-settings-surface";
 import { WorkloadsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/workloads-settings-surface";
@@ -134,6 +139,44 @@ export function WorkloadsSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
         <WorkloadsSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The real Backup & Restore pane (the export/import portability surface) in isolation — the export half
+ *  needs no network (checkboxes + a browser download href); the import half POSTs `/api/import/bundle`
+ *  (routed per-test) and tails `workloads.subscribe` (a local SSE route per-test). */
+export function BackupSettingsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <BackupSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The first-run import onboarding card in isolation — reads `chat.listChats` (stubbed per-test; empty ⇒
+ *  fresh ⇒ the card shows). Its Upload action deep-links to Settings → Backup & Restore via the shell
+ *  store; the dismiss is device-local (localStorage). */
+export function ImportOnboardingCardStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720 }}>
+        <ImportOnboardingCard />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The same card in a 375px-wide box — below the card's `@md` container width, so its text+button Row must
+ *  collapse to a column (heading wraps as normal lines, buttons stack BELOW the text, no horizontal overflow). */
+export function ImportOnboardingCardNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 375 }}>
+        <ImportOnboardingCard />
       </div>
     </CtDataProviders>
   );

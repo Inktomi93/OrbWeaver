@@ -29,6 +29,7 @@ export function makeAsset(overrides: Partial<AssetRow> = {}): AssetRow {
     mime: "image/png",
     size: 100,
     hash: id.padEnd(64, "0"),
+    animated: false,
     uploadedAt: FROZEN_AT_MS,
     ...overrides,
   };

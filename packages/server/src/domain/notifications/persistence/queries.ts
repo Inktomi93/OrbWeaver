@@ -143,6 +143,26 @@ export async function markReadScoped(
   return updated[0];
 }
 
+/**
+ * Bulk recipient-scoped read-flip: set `readAt` on every one of the caller's unread rows in ONE UPDATE
+ * (the bell's "open = mark everything read" gesture — no per-row loop). Same `COALESCE` idempotence as
+ * {@link markReadScoped} (an already-read row is left with its original instant); dismissed rows are
+ * included (dismissing doesn't imply read, and a re-open of a dismissed-then-undismissed row should still
+ * read as read). Returns the number of rows the UPDATE actually touched (rows that were unread).
+ */
+export async function markAllReadScoped(
+  db: Db,
+  recipientUserId: NotificationEvent["recipientUserId"],
+  now: number,
+): Promise<number> {
+  const updated = await db
+    .update(notifications)
+    .set({ readAt: now })
+    .where(and(eq(notifications.recipientUserId, recipientUserId), isNull(notifications.readAt)))
+    .returning({ id: notifications.id });
+  return updated.length;
+}
+
 /** Idempotent recipient-scoped dismiss-flip — `dismissedAt` set once; same scope/return as {@link markReadScoped}. */
 export async function dismissScoped(
   db: Db,

@@ -23,6 +23,7 @@ import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GuidedActionKind, GuidedImpersonatePerson, UserIntent } from "@orb/contracts/preset";
 import type {
+  AssetId,
   CharacterId,
   ChatId,
   ChatInjectionId,
@@ -195,6 +196,10 @@ export interface SendParams extends ChatScopedParams {
   readonly content: string;
   readonly personaId?: PersonaId | null | undefined;
   readonly blocks?: readonly MessageContentBlock[] | undefined;
+  /** #67 — the inline images the user attached to THIS send. Each must be `fetchOwned` by the actor (the
+   *  send-verb TRUST BOUNDARY rejects a foreign/gone id); on accept, the verb inserts a `message_assets`
+   *  retaining row per id (GC-visibility) AND appends one `![](asset:<id>)` ref to the body (D51 render). */
+  readonly attachmentAssetIds?: readonly AssetId[] | undefined;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }

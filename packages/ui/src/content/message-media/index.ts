@@ -1,1 +1,1 @@
-export { MessageMedia, type MessageMediaProps } from "./message-media";
+export { type MediaSource, MessageMedia, type MessageMediaProps } from "./message-media";

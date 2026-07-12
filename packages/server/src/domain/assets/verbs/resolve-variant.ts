@@ -9,6 +9,10 @@
 // `BANNER_WIDTHS`/`snapBannerWidth`, Whisper's header-art band) — both crops `fit:'cover',
 // position:'attention'` so a face-centric source isn't decapitated by a naive center-crop, §B.4).
 //
+// ANIMATED BAILOUT (gallery-design §2, G2): once the owner's original bytes are read, an animated source
+// (GIF/APNG/animated-WebP — `@orb/kit/image-sniff` `isAnimated`) short-circuits BEFORE the sharp transform
+// and is returned verbatim (sharp drops animation on re-encode); no variant-cache entry is written.
+//
 // Returns `undefined` (→ 404) for: a malformed hash, an off-ladder/absurd width, or a blob the caller
 // doesn't own. The per-user CAS keying is the physical gate — `cas.read(principal.userId, hash)` can only
 // resolve the caller's own bytes (ENOENT ⇒ undefined); the blob route owner-gates via `getMetadata` first,
@@ -19,6 +23,7 @@
 import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
+import { isAnimated } from "@orb/kit/image-sniff";
 import type { ResolveVariantParams } from "../contract/params";
 import type { AssetsContext, AssetsService } from "../contract/service";
 import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/variant-policy";
@@ -45,6 +50,12 @@ async function resolveIconVariant(
     return;
   }
   const original = await ctx.cas.read(ownerId, hash);
+  // Animated bailout (gallery-design §2): sharp's webp encoder DROPS animation, so downscaling an animated
+  // GIF/APNG/WebP freeze-frames it. Serve the original bytes verbatim and write NO variant-cache entry (the
+  // original IS the response — caching a byte-identical copy under a variant key doubles storage for nothing).
+  if (isAnimated(original)) {
+    return original;
+  }
   const variant = await ctx.imageTransform(original, { width: snapped, format: WEBP });
   await ctx.variants?.put(ownerId, hash, key, variant);
   return variant;
@@ -70,6 +81,12 @@ async function resolvePortraitVariant(
     return;
   }
   const original = await ctx.cas.read(ownerId, hash);
+  // Animated bailout (gallery-design §2): sharp's webp encoder DROPS animation, so downscaling an animated
+  // GIF/APNG/WebP freeze-frames it. Serve the original bytes verbatim and write NO variant-cache entry (the
+  // original IS the response — caching a byte-identical copy under a variant key doubles storage for nothing).
+  if (isAnimated(original)) {
+    return original;
+  }
   const variant = await ctx.imageTransform(original, {
     width: size.width,
     height: size.height,
@@ -102,6 +119,12 @@ async function resolveBannerVariant(
     return;
   }
   const original = await ctx.cas.read(ownerId, hash);
+  // Animated bailout (gallery-design §2): sharp's webp encoder DROPS animation, so downscaling an animated
+  // GIF/APNG/WebP freeze-frames it. Serve the original bytes verbatim and write NO variant-cache entry (the
+  // original IS the response — caching a byte-identical copy under a variant key doubles storage for nothing).
+  if (isAnimated(original)) {
+    return original;
+  }
   const variant = await ctx.imageTransform(original, {
     width: size.width,
     height: size.height,

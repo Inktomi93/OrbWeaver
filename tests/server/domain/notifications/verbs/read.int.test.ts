@@ -1,4 +1,5 @@
-// verbs: markRead · dismiss — recipient-scoping (a user can't touch another's inbox) + idempotence.
+// verbs: markRead · markAllRead · dismiss — recipient-scoping (a user can't touch another's inbox) +
+// idempotence.
 
 import type { Db } from "@orb/db";
 import type { NotificationId } from "@orb/kit/ids";
@@ -56,6 +57,48 @@ describe("markRead — recipient-scope + idempotence", () => {
     await expect(
       svc.markRead({ principal: principal(ALICE), notificationId: castId<NotificationId>("nope") }),
     ).rejects.toThrow();
+  });
+});
+
+describe("markAllRead — bulk recipient-scope + idempotence", () => {
+  test("marks every one of the caller's unread notifications read in one call", async () => {
+    await svc.record({ event: inviteEvent(ALICE) });
+    await svc.record({ event: inviteEvent(ALICE) });
+    await svc.record({ event: inviteEvent(ALICE) });
+    const result = await svc.markAllRead({ principal: principal(ALICE) });
+    expect(result.markedCount).toBe(3);
+    const page = await svc.list({ principal: principal(ALICE) });
+    expect(page.items.every((i) => i.readAt === clock.frozenAt)).toBe(true);
+  });
+
+  test("never touches another recipient's unread rows", async () => {
+    await svc.record({ event: inviteEvent(ALICE) });
+    await svc.record({ event: inviteEvent(BOB) });
+    await svc.markAllRead({ principal: principal(ALICE) });
+    const bobPage = await svc.list({ principal: principal(BOB) });
+    expect(bobPage.items[0]?.readAt).toBeNull();
+  });
+
+  test("a re-call after all rows are read marks nothing new (idempotent count)", async () => {
+    await svc.record({ event: inviteEvent(ALICE) });
+    await svc.markAllRead({ principal: principal(ALICE) });
+    clock.advance(5000);
+    const second = await svc.markAllRead({ principal: principal(ALICE) });
+    expect(second.markedCount).toBe(0);
+  });
+
+  test("an already-read row keeps its original readAt instant (COALESCE idempotence)", async () => {
+    const view = await svc.record({ event: inviteEvent(ALICE) });
+    const firstRead = await svc.markRead({ principal: principal(ALICE), notificationId: view.id });
+    clock.advance(5000);
+    await svc.markAllRead({ principal: principal(ALICE) });
+    const page = await svc.list({ principal: principal(ALICE) });
+    expect(page.items[0]?.readAt).toBe(firstRead.readAt);
+  });
+
+  test("an empty inbox marks zero rows", async () => {
+    const result = await svc.markAllRead({ principal: principal(ALICE) });
+    expect(result.markedCount).toBe(0);
   });
 });
 

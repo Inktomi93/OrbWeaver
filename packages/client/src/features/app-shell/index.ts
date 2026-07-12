@@ -16,6 +16,11 @@ export { YouSheet } from "./components/you-sheet";
 // Exposed for the ROUTE (the composition root) to lay CONTENT out against the panels — e.g. the Chats
 // landing drops its "Recent chats" when the LIST is docked (already the recents finder, §4.3 rule 5). A
 // FEATURE still cannot import it (dep-cruiser client-features-no-cross); only routes + app-shell may.
+// useIsMobileViewport — the shell-tier mobile-viewport signal (the JS twin of shell.css's ONE `@media`,
+// §4b axis 2). Exposed for the ROUTE to fork the section-reveal choreography (BUILD-SPEC §3.4: desktop
+// docks CONTEXT via `setPanelMode`, mobile opens it via `setMobileSheet`). Viewport-awareness is
+// shell-tier-legal; a FEATURE still cannot import it (dep-cruiser), only routes + app-shell.
+export { useIsMobileViewport } from "./hooks/use-is-mobile-viewport";
 export type { ShellLayout } from "./hooks/use-shell-layout";
 export { useShellLayout } from "./hooks/use-shell-layout";
 // The CONTEXT_SLOTS registry data (per-section context tab strip) — exposed so the ROUTE can read the

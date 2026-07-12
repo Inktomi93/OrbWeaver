@@ -10,16 +10,17 @@
 //      designated `targetOwnerId` (required — you can't mint ownerless rows). A bad target trips the owner FK
 //      on INSERT → a leak-free NOT_FOUND.
 // It catches the single-active collision (`isActiveKindUniqueViolation`) → `DomainConflictError`. `dependsOn`
-// is PERSISTED but NOT enforced — `start` warns loudly at the seam so a caller isn't silently misled.
+// is PERSISTED here and ENFORCED at dispatch (the §2 DAG scheduler in `persistence/nextRunnableWorkload`): the
+// row waits until every dep succeeds, or fails with `dependency_failed` if a dep does not — `start` just
+// records the edges.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
-import { getLog } from "#foundation/observability";
 import type { StartWorkloadParams } from "../contract/params";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { startWorkloadInput } from "../contract/workload-params";
+import { resolveWorkloadSource, startWorkloadInput } from "../contract/workload-params";
 import {
   isActiveKindUniqueViolation,
   isOwnerForeignKeyViolation,
@@ -66,13 +67,6 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
   async function start(params: StartWorkloadParams): Promise<{ id: WorkloadId }> {
     const input = startWorkloadInput.parse(params.input);
     const ownerId = authorizeAndResolveOwner(ctx, params, input.kind);
-
-    if (params.dependsOn !== undefined && params.dependsOn.length > 0) {
-      getLog().warn(
-        { kind: input.kind, dependsOn: params.dependsOn },
-        "workloads: dependsOn is persisted but NOT enforced — dispatch ignores it (no DAG scheduler)",
-      );
-    }
     const id = ctx.newWorkloadId();
     const now = ctx.now();
     try {
@@ -80,6 +74,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         id,
         kind: input.kind,
         mode: params.mode,
+        source: resolveWorkloadSource(input.kind, input.params),
         params: input.params as Record<string, unknown>,
         ownerId,
         dependsOn: params.dependsOn ?? null,

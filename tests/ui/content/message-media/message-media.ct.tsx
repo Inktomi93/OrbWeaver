@@ -1,4 +1,4 @@
-import { MessageMedia } from "@orb/ui/content";
+import { MessageMedia } from "@orb/ui/message-media";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const EXTERNAL = ["https://cdn.example", ".test/pic.png"].join("");

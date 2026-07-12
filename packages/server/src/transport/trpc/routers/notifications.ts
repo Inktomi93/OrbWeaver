@@ -52,6 +52,10 @@ export const notificationsRouter = t.router({
       }),
     ),
 
+  markAllRead: multiHumanProcedure.mutation(({ ctx }) =>
+    ctx.services.notifications.markAllRead({ principal: ctx.auth }),
+  ),
+
   dismiss: multiHumanProcedure
     .input(z.object({ notificationId: brandedId<NotificationId>() }))
     .mutation(({ ctx, input }) =>

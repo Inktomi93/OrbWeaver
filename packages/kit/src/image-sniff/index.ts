@@ -9,6 +9,10 @@
 //
 // Signatures are compared as HEX PREFIXES (string constants), not byte-array literals — the bytes carry
 // no arithmetic meaning, and the hex form is both linter-clean (noMagicNumbers) and self-documenting.
+//
+// NO BITWISE OPERATORS (repo `noBitwiseOperators` rule): the multi-byte integer + bitfield parsing below
+// composes bytes with multiplication/addition and masks with modulo/division — arithmetic-identical to the
+// `<<`/`|`/`&` a normal parser uses, just spelled the way this codebase mandates.
 
 const HEX_RADIX = 16;
 const BYTE_HEX_WIDTH = 2;
@@ -29,6 +33,7 @@ const PNG_MIME = "image/png";
 const JPEG_MIME = "image/jpeg";
 const GIF_MIME = "image/gif";
 const WEBP_MIME = "image/webp";
+const AVIF_MIME = "image/avif";
 const OCTET_STREAM = "application/octet-stream";
 
 // Exported (contracts/types-in-contract doesn't apply to `kit` — it's the leaf below contracts, and
@@ -68,4 +73,316 @@ export function sniffMime(bytes: Uint8Array): SniffedMime {
     return WEBP_MIME;
   }
   return OCTET_STREAM;
+}
+
+// ── Animation detection (gallery-design §3 · G2) ──────────────────────────────────────────────────────
+//
+// Pure chunk-signature inspection — NO decode, NO frame counting. The semantics are deliberately coarse:
+//   • GIF  ⇒ ALWAYS animated (a 1-frame GIF losing its variant-bailout costs nothing; frame-counting the
+//            GIF image blocks costs a parser — gallery-design §3).
+//   • APNG ⇒ the `acTL` animation-control chunk present in the header (it precedes `IDAT` by spec).
+//   • WebP ⇒ the VP8X extended header's animation flag bit, or an `ANIM`/`ANMF` chunk in the header.
+//   • else ⇒ false.
+// FourCC chunk tags are matched as ASCII (`charCodeAt`) so no magic-byte constants are needed.
+
+// A FourCC (four-character-code) chunk tag is 4 bytes — the RIFF/PNG/ISO-BMFF chunk-name width.
+const FOURCC_LEN = 4;
+// APNG's `acTL` / WebP's `ANIM`/`ANMF` / AVIF's brands live in the header; a 4 KiB window bounds the scan
+// (the sig is far smaller in a real file, but a padded/annotated header stays covered without a whole-blob scan).
+const ANIM_SCAN_WINDOW = 4096;
+// The WebP first-chunk FourCC sits at byte 12 (after `RIFF` + 4-byte size + `WEBP`).
+const WEBP_CHUNK_OFFSET = HEADER_LEN;
+// VP8X flags byte is the first byte of the VP8X chunk payload (byte 20 = 12 + 4 FourCC + 4 size).
+const VP8X_PAYLOAD_OFFSET = 20;
+// The VP8X animation flag is bit 1 (value 2) of the flags byte: set iff `floor(flags / 2)` is odd.
+const VP8X_ANIM_FLAG_BIT = 2;
+const EVEN_ODD_MOD = 2;
+const ODD = 1;
+
+/** True iff `bytes[offset..]` equals the ASCII FourCC `tag` (no allocation). */
+function fourccAt(bytes: Uint8Array, offset: number, tag: string): boolean {
+  for (let i = 0; i < tag.length; i += 1) {
+    if (bytes[offset + i] !== tag.charCodeAt(i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** True iff the ASCII FourCC `tag` appears anywhere in `bytes[start, endExclusive)` (bounded scan). */
+function containsFourcc(
+  bytes: Uint8Array,
+  tag: string,
+  start: number,
+  endExclusive: number,
+): boolean {
+  const last = Math.min(endExclusive, bytes.length) - tag.length;
+  for (let i = start; i <= last; i += 1) {
+    if (fourccAt(bytes, i, tag)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** A WebP is animated when its VP8X extended header sets the animation flag, or an `ANIM`/`ANMF` chunk is
+ *  present in the header window (a plain lossy `VP8 `/lossless `VP8L` WebP is always a single still frame). */
+function isAnimatedWebp(bytes: Uint8Array): boolean {
+  if (fourccAt(bytes, WEBP_CHUNK_OFFSET, "VP8X")) {
+    const flags = bytes[VP8X_PAYLOAD_OFFSET] ?? 0;
+    if (Math.floor(flags / VP8X_ANIM_FLAG_BIT) % EVEN_ODD_MOD === ODD) {
+      return true;
+    }
+  }
+  return (
+    containsFourcc(bytes, "ANIM", HEADER_LEN, ANIM_SCAN_WINDOW) ||
+    containsFourcc(bytes, "ANMF", HEADER_LEN, ANIM_SCAN_WINDOW)
+  );
+}
+
+/** Whether `bytes` is an animated image (GIF / APNG / animated WebP). Pure byte inspection — never throws,
+ *  never decodes. The variant pipeline calls this to BAIL on a downscale (sharp's webp encoder drops
+ *  animation), and the asset store computes it ONCE so `AssetListItem.animated` is a stored fact rather
+ *  than a per-list re-sniff (gallery-design §2/§3). */
+export function isAnimated(bytes: Uint8Array): boolean {
+  const mime = sniffMime(bytes);
+  if (mime === GIF_MIME) {
+    return true;
+  }
+  if (mime === PNG_MIME) {
+    return containsFourcc(bytes, "acTL", 0, ANIM_SCAN_WINDOW);
+  }
+  if (mime === WEBP_MIME) {
+    return isAnimatedWebp(bytes);
+  }
+  return false;
+}
+
+// ── Full byte-facts sniff (`sniffImageBytes`) — signature + parsed dimensions + animated (D61 B5a §3) ───
+//
+// The pure byte-facts the `infra/network/image-guard` policy composes over (magic-sniff + dimension caps
+// on REMOTE bytes) AND the assets domain re-exposes. Dimensions are parsed from each format's header math
+// (NO decode); `null` when the header is present but truncated/unparseable (the caps caller decides whether
+// null dims fail — gallery/hub `requireDimensions` defaults to fail-closed). AVIF is recognized by its
+// `ftyp` brand; its dimensions parse best-effort from the `ispe` box, else `null`.
+
+export interface SniffedImage {
+  readonly mime: "image/png" | "image/jpeg" | "image/webp" | "image/gif" | "image/avif";
+  readonly ext: "png" | "jpg" | "webp" | "gif" | "avif";
+  /** Header-parsed pixel dimensions; `null` when the header is present but truncated/unparseable. */
+  readonly width: number | null;
+  readonly height: number | null;
+  /** GIF ⇒ true, APNG `acTL`, animated WebP — the {@link isAnimated} semantics. */
+  readonly animated: boolean;
+}
+
+/** A parsed `(width, height)` pair, `null` fields when unreadable. */
+interface Dimensions {
+  readonly width: number | null;
+  readonly height: number | null;
+}
+
+const NO_DIMENSIONS: Dimensions = { width: null, height: null };
+
+// Header byte offsets — each literal IS the format spec's field position; grouped so the parsers below read
+// as `OFF.pngWidth` rather than a bare number (noMagicNumbers-clean, spec-legible).
+const OFF = {
+  pngWidth: 16,
+  pngHeight: 20,
+  pngEnd: 24,
+  gifWidth: 6,
+  gifHeight: 8,
+  gifEnd: 10,
+  webpPayload: 20,
+  vp8Width: 26,
+  vp8Height: 28,
+  vp8End: 30,
+  vp8lB0: 21,
+  vp8lB1: 22,
+  vp8lB2: 23,
+  vp8lB3: 24,
+  vp8lEnd: 25,
+  vp8xWidth: 24,
+  vp8xHeight: 27,
+  vp8xEnd: 30,
+  jpegScanStart: 2,
+  jpegMarker: 1,
+  jpegLenField: 2,
+  jpegSofHeight: 5,
+  jpegSofWidth: 7,
+  jpegSofEnd: 9,
+  ispeVersionFlags: 4,
+  ispeHeight: 4,
+  // Bytes spanned by the two u32 dimension fields (width at base+0, height at base+4).
+  ispeDimsSpan: 8,
+} as const;
+
+// Byte-composition + bitfield factors, spelled as multiply/divide/modulo (no bitwise). `SHIFT_n` = 2^n as a
+// multiplier; `*_MOD` masks the low k bits via `% 2^k`.
+const SHIFT_8 = 256; // << 8
+const SHIFT_16 = 65_536; // << 16
+const U14_MOD = 16_384; // & 0x3fff (low 14 bits)
+const LOW6_MOD = 64; // & 0x3f  (low 6 bits) — also the /64 for the high 2 bits
+const NIBBLE_MOD = 16; // & 0x0f  (low 4 bits)
+const SHIFT_2 = 4; // << 2
+const SHIFT_10 = 1024; // << 10
+const DIM_BIAS = 1; // VP8L/VP8X store dimension-minus-one
+
+function u16LE(b: Uint8Array, o: number): number {
+  return (b[o] ?? 0) + (b[o + 1] ?? 0) * SHIFT_8;
+}
+function u16BE(b: Uint8Array, o: number): number {
+  return (b[o] ?? 0) * SHIFT_8 + (b[o + 1] ?? 0);
+}
+function u24LE(b: Uint8Array, o: number): number {
+  return (b[o] ?? 0) + (b[o + 1] ?? 0) * SHIFT_8 + (b[o + 2] ?? 0) * SHIFT_16;
+}
+function u32BE(b: Uint8Array, o: number): number {
+  // Composed from two big-endian u16 reads (hi word * 2^16 + lo word) — avoids a literal byte-3 offset.
+  return u16BE(b, o) * SHIFT_16 + u16BE(b, o + OFF.jpegLenField);
+}
+
+function pngDimensions(b: Uint8Array): Dimensions {
+  if (b.length < OFF.pngEnd) {
+    return NO_DIMENSIONS;
+  }
+  return { width: u32BE(b, OFF.pngWidth), height: u32BE(b, OFF.pngHeight) };
+}
+
+function gifDimensions(b: Uint8Array): Dimensions {
+  if (b.length < OFF.gifEnd) {
+    return NO_DIMENSIONS;
+  }
+  return { width: u16LE(b, OFF.gifWidth), height: u16LE(b, OFF.gifHeight) };
+}
+
+/** WebP dimensions from the lossless `VP8L` bitstream: 14-bit width/height packed after the 0x2f signature
+ *  byte. Extracted (not inlined into {@link webpDimensions}) purely to keep the bitfield arithmetic legible. */
+function vp8lDimensions(b: Uint8Array): Dimensions {
+  const b0 = b[OFF.vp8lB0] ?? 0;
+  const b1 = b[OFF.vp8lB1] ?? 0;
+  const b2 = b[OFF.vp8lB2] ?? 0;
+  const b3 = b[OFF.vp8lB3] ?? 0;
+  const width = DIM_BIAS + (b0 + (b1 % LOW6_MOD) * SHIFT_8);
+  const height =
+    DIM_BIAS + (Math.floor(b1 / LOW6_MOD) + b2 * SHIFT_2 + (b3 % NIBBLE_MOD) * SHIFT_10);
+  return { width, height };
+}
+
+/** WebP dimensions dispatch on the first-chunk FourCC: `VP8 ` (lossy), `VP8L` (lossless), `VP8X` (extended). */
+function webpDimensions(b: Uint8Array): Dimensions {
+  if (fourccAt(b, WEBP_CHUNK_OFFSET, "VP8 ") && b.length >= OFF.vp8End) {
+    return { width: u16LE(b, OFF.vp8Width) % U14_MOD, height: u16LE(b, OFF.vp8Height) % U14_MOD };
+  }
+  if (fourccAt(b, WEBP_CHUNK_OFFSET, "VP8L") && b.length >= OFF.vp8lEnd) {
+    return vp8lDimensions(b);
+  }
+  if (fourccAt(b, WEBP_CHUNK_OFFSET, "VP8X") && b.length >= OFF.vp8xEnd) {
+    return {
+      width: u24LE(b, OFF.vp8xWidth) + DIM_BIAS,
+      height: u24LE(b, OFF.vp8xHeight) + DIM_BIAS,
+    };
+  }
+  return NO_DIMENSIONS;
+}
+
+// JPEG SOF (start-of-frame) markers carry the dimensions; C4/C8/CC are NOT frame markers (DHT/JPG/DAC).
+const JPEG_SOF_MIN = 0xc0;
+const JPEG_SOF_MAX = 0xcf;
+const JPEG_DHT = 0xc4; // define-Huffman-table — not a frame marker
+const JPEG_JPG = 0xc8; // reserved (JPG extension) — not a frame marker
+const JPEG_DAC = 0xcc; // define-arithmetic-conditioning — not a frame marker
+const JPEG_NON_SOF = new Set([JPEG_DHT, JPEG_JPG, JPEG_DAC]);
+const JPEG_MARKER_PREFIX = 0xff;
+// Standalone markers (RSTn 0xD0–0xD7, SOI 0xD8, EOI 0xD9, TEM 0x01) carry no length segment.
+const JPEG_STANDALONE_MIN = 0xd0;
+const JPEG_STANDALONE_MAX = 0xd9;
+const JPEG_TEM = 0x01;
+// Bound the marker walk to the first 64 KiB — a SOF deeper than that is a reject-by-null (D61 B5a §3).
+const JPEG_SCAN_LIMIT = 65_536;
+
+function isJpegSof(marker: number): boolean {
+  return marker >= JPEG_SOF_MIN && marker <= JPEG_SOF_MAX && !JPEG_NON_SOF.has(marker);
+}
+
+function isJpegStandalone(marker: number): boolean {
+  return (marker >= JPEG_STANDALONE_MIN && marker <= JPEG_STANDALONE_MAX) || marker === JPEG_TEM;
+}
+
+/** Scan JPEG segment markers for the first SOF and read its `(width, height)`; `null` when none is reached
+ *  within the bounded window. */
+function jpegDimensions(b: Uint8Array): Dimensions {
+  const limit = Math.min(b.length, JPEG_SCAN_LIMIT);
+  let p = OFF.jpegScanStart;
+  while (p + OFF.jpegSofEnd <= limit) {
+    if (b[p] !== JPEG_MARKER_PREFIX) {
+      return NO_DIMENSIONS;
+    }
+    const marker = b[p + OFF.jpegMarker] ?? 0;
+    if (marker === JPEG_MARKER_PREFIX) {
+      p += OFF.jpegMarker; // fill byte — advance one and re-read
+      continue;
+    }
+    if (isJpegSof(marker)) {
+      return { height: u16BE(b, p + OFF.jpegSofHeight), width: u16BE(b, p + OFF.jpegSofWidth) };
+    }
+    if (isJpegStandalone(marker)) {
+      p += OFF.jpegLenField; // no length segment
+      continue;
+    }
+    const segLen = u16BE(b, p + OFF.jpegLenField);
+    if (segLen < OFF.jpegLenField) {
+      return NO_DIMENSIONS;
+    }
+    p += OFF.jpegLenField + segLen;
+  }
+  return NO_DIMENSIONS;
+}
+
+/** AVIF dimensions from the first `ispe` (image spatial extents) box, best-effort; `null` when absent. */
+function avifDimensions(b: Uint8Array): Dimensions {
+  const last = Math.min(b.length, ANIM_SCAN_WINDOW) - FOURCC_LEN;
+  for (let i = 0; i <= last; i += 1) {
+    if (fourccAt(b, i, "ispe")) {
+      const base = i + FOURCC_LEN + OFF.ispeVersionFlags; // skip the FourCC + the version/flags word
+      if (base + OFF.ispeDimsSpan > b.length) {
+        return NO_DIMENSIONS;
+      }
+      return { width: u32BE(b, base), height: u32BE(b, base + OFF.ispeHeight) };
+    }
+  }
+  return NO_DIMENSIONS;
+}
+
+/** True iff `bytes` is an ISO-BMFF `ftyp` box carrying an AVIF-family brand (`avif`/`avis`). */
+function isAvif(bytes: Uint8Array): boolean {
+  if (!fourccAt(bytes, FOURCC_LEN, "ftyp")) {
+    return false;
+  }
+  return (
+    containsFourcc(bytes, "avif", FOURCC_LEN, ANIM_SCAN_WINDOW) ||
+    containsFourcc(bytes, "avis", FOURCC_LEN, ANIM_SCAN_WINDOW)
+  );
+}
+
+/** The full byte-facts of an image buffer — `{mime, ext, width, height, animated}` — or `null` when no
+ *  known signature matches (PNG/JPEG/GIF/WebP/AVIF). Pure: never throws, never decodes, never reads past the
+ *  bounded header window. The remote `Content-Type` is NEVER consulted — these bytes are the truth. */
+export function sniffImageBytes(bytes: Uint8Array): SniffedImage | null {
+  const animated = isAnimated(bytes);
+  switch (sniffMime(bytes)) {
+    case PNG_MIME:
+      return { mime: PNG_MIME, ext: "png", ...pngDimensions(bytes), animated };
+    case JPEG_MIME:
+      return { mime: JPEG_MIME, ext: "jpg", ...jpegDimensions(bytes), animated };
+    case GIF_MIME:
+      return { mime: GIF_MIME, ext: "gif", ...gifDimensions(bytes), animated };
+    case WEBP_MIME:
+      return { mime: WEBP_MIME, ext: "webp", ...webpDimensions(bytes), animated };
+    default:
+      if (isAvif(bytes)) {
+        return { mime: AVIF_MIME, ext: "avif", ...avifDimensions(bytes), animated };
+      }
+      return null;
+  }
 }

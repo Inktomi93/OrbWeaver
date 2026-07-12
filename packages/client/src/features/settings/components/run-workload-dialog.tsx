@@ -14,17 +14,20 @@
 // target — submit is validation-blocked until one is picked; the target list is the admin user table
 // filtered to enabled humans (a mint destination is a person's library, never an agent/disabled row).
 
+import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Field } from "@orb/ui/field";
+import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, timeLib } from "#lib";
 import { useRunWorkloadForm } from "../hooks/use-run-workload-form";
 import { useStartWorkload } from "../hooks/use-workload-mutations";
 import type { RunWorkloadFormValues } from "../lib/workloads-model";
@@ -33,14 +36,21 @@ import {
   isMaintenanceWorkloadKind,
   isRunnableWorkloadKind,
   isStartableWorkloadKind,
-  MAINTENANCE_WORKLOAD_KINDS,
-  RUNNABLE_WORKLOAD_KINDS,
   WORKLOAD_KIND_LABELS,
-  WORKLOAD_PARAM_SHAPE_BY_KIND,
+  workloadKindItems,
   workloadKindNeedsBulkTarget,
 } from "../lib/workloads-model";
+import { parseRunAt } from "../lib/workloads-run-model";
+import { WorkloadParamFields } from "./workload-kind-fields";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
+
+/** A candidate for the `dependsOn` gate — one of the viewer's currently in-flight (queued/running) runs. */
+export interface DependencyCandidate {
+  readonly id: string;
+  readonly kind: string;
+  readonly createdAt: number;
+}
 
 export interface RunWorkloadDialogProps {
   readonly open: boolean;
@@ -49,6 +59,8 @@ export interface RunWorkloadDialogProps {
   readonly viewerIsOwner: boolean;
   /** The target-picker candidates (the admin user table) — `[]` for a non-owner viewer. */
   readonly users: readonly AdminUser[];
+  /** The viewer's in-flight runs offered as `dependsOn` candidates (queued/running). `[]` hides the gate. */
+  readonly dependencyCandidates: readonly DependencyCandidate[];
 }
 
 /** The dialog shell — the form body mounts fresh per open (Base UI unmounts closed popups). */
@@ -57,6 +69,7 @@ export function RunWorkloadDialog({
   onOpenChange,
   viewerIsOwner,
   users,
+  dependencyCandidates,
 }: RunWorkloadDialogProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,6 +83,7 @@ export function RunWorkloadDialog({
           <RunWorkloadFormBody
             viewerIsOwner={viewerIsOwner}
             users={users}
+            dependencyCandidates={dependencyCandidates}
             onDone={(): void => onOpenChange(false)}
           />
         </Stack>
@@ -78,36 +92,15 @@ export function RunWorkloadDialog({
   );
 }
 
-const RUNNABLE_KIND_OPTIONS = RUNNABLE_WORKLOAD_KINDS.map((kind) => ({
-  value: kind as string,
-  label: WORKLOAD_KIND_LABELS[kind],
-}));
-
-const MAINTENANCE_KIND_OPTIONS = MAINTENANCE_WORKLOAD_KINDS.map((kind) => ({
-  value: kind as string,
-  label: WORKLOAD_KIND_LABELS[kind],
-}));
-
-// A non-owner sees the flat runnable list; the owner sees a GROUPED picker — "Run on my data" (the
-// singular kinds) + a distinct "Maintenance (all deployments)" group (the built bulk-only kinds, e.g.
-// refresh-model-catalog — a global sweep, no per-owner concept). The maintenance group is omitted when
-// there are no built bulk-only kinds, so the owner never sees an empty group.
-const NON_OWNER_KIND_ITEMS: SelectItems<string> = RUNNABLE_KIND_OPTIONS;
-const OWNER_KIND_ITEMS: SelectItems<string> =
-  MAINTENANCE_KIND_OPTIONS.length === 0
-    ? RUNNABLE_KIND_OPTIONS
-    : [
-        { label: "Run on my data", items: RUNNABLE_KIND_OPTIONS },
-        { label: "Maintenance (all deployments)", items: MAINTENANCE_KIND_OPTIONS },
-      ];
-
 function RunWorkloadFormBody({
   viewerIsOwner,
   users,
+  dependencyCandidates,
   onDone,
 }: {
   readonly viewerIsOwner: boolean;
   readonly users: readonly AdminUser[];
+  readonly dependencyCandidates: readonly DependencyCandidate[];
   readonly onDone: () => void;
 }): ReactElement {
   const trpc = useTRPC();
@@ -118,6 +111,14 @@ function RunWorkloadFormBody({
   const targetItems = users
     .filter((user) => user.kind === "human" && user.enabled)
     .map((user) => ({ value: user.id as string, label: user.handle as string }));
+
+  // The DAG-gate candidates — the viewer's in-flight runs, labelled by kind + when they were queued.
+  const dependencyItems: readonly SelectOption<string>[] = dependencyCandidates.map(
+    (candidate) => ({
+      value: candidate.id,
+      label: `${WORKLOAD_KIND_LABELS[candidate.kind as WorkloadKind]} · ${timeLib.formatRelative(candidate.createdAt)}`,
+    }),
+  );
 
   const save = async (values: RunWorkloadFormValues): Promise<RunWorkloadFormValues> => {
     if (!isStartableWorkloadKind(values.kind)) {
@@ -131,66 +132,29 @@ function RunWorkloadFormBody({
     const bulkOn = isMaintenance || bulkToggleOn;
     const needsTarget =
       !isMaintenance && bulkToggleOn && WORKLOAD_KIND_MODES[values.kind].bulkRequiresTarget;
+    // Deferral + DAG gate ride on top of the run — omitted when unset (run-now, no gate). `scheduledAt` +
+    // `dependsOn` inferInput are plain number/string[] (branded ids parse from the wire), so no cast here.
+    const scheduledAt = parseRunAt(values.runAt);
     await start.mutateAsync({
       input: buildStartInput(values.kind, values),
       mode: bulkOn ? "bulk" : "singular",
       ...(needsTarget ? { targetOwnerId: values.targetOwnerId } : {}),
+      ...(scheduledAt === undefined ? {} : { scheduledAt }),
+      ...(values.dependsOn.length > 0 ? { dependsOn: [...values.dependsOn] } : {}),
     });
     onDone();
     return values;
   };
 
   const { form } = useRunWorkloadForm({ entityId: "run-workload", serverValues: undefined, save });
-  const kindItems = viewerIsOwner ? OWNER_KIND_ITEMS : NON_OWNER_KIND_ITEMS;
+  const kindItems = workloadKindItems(viewerIsOwner);
 
   return (
     <Stack gap="block">
       <form.AppField name="kind">
         {(field): ReactElement => <field.SelectField label="Workload" items={kindItems} />}
       </form.AppField>
-      <form.Subscribe selector={(state): string => state.values.kind}>
-        {(kind): ReactElement | null => {
-          const shape = isRunnableWorkloadKind(kind) ? WORKLOAD_PARAM_SHAPE_BY_KIND[kind] : "none";
-          if (shape === "force") {
-            return (
-              <form.AppField name="force">
-                {(field): ReactElement => (
-                  <field.SwitchField
-                    label="Re-embed everything"
-                    description="Ignore matching content and rebuild every vector."
-                  />
-                )}
-              </form.AppField>
-            );
-          }
-          if (shape === "dryRun") {
-            return (
-              <form.AppField name="dryRun">
-                {(field): ReactElement => (
-                  <field.SwitchField
-                    label="Dry run"
-                    description="Report what the pass would do without changing anything."
-                  />
-                )}
-              </form.AppField>
-            );
-          }
-          if (shape === "k") {
-            return (
-              <form.AppField name="k">
-                {(field): ReactElement => (
-                  <field.NumberField
-                    label="Cluster count"
-                    description="Leave empty for the automatic default."
-                    min={1}
-                  />
-                )}
-              </form.AppField>
-            );
-          }
-          return null;
-        }}
-      </form.Subscribe>
+      <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
           {(kind): ReactElement | null => {
@@ -241,6 +205,43 @@ function RunWorkloadFormBody({
           }
         </form.Subscribe>
       ) : null}
+      {/* Deferral + DAG gate — offered for the singular-capable (runnable) kinds; a maintenance-only kind
+          is a global sweep with neither. "Run after" only renders when there are in-flight candidates. */}
+      <form.Subscribe selector={(state): string => state.values.kind}>
+        {(kind): ReactElement | null =>
+          isRunnableWorkloadKind(kind) ? (
+            <Stack gap="block">
+              <form.AppField name="runAt">
+                {(field): ReactElement => (
+                  <Field
+                    label="Run at"
+                    description="Leave empty to run now. Set a date and time to defer this run."
+                    name={field.name}
+                  >
+                    <Input
+                      type="datetime-local"
+                      value={field.state.value}
+                      onChange={(event): void => field.handleChange(event.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                  </Field>
+                )}
+              </form.AppField>
+              {dependencyItems.length === 0 ? null : (
+                <form.AppField name="dependsOn">
+                  {(field): ReactElement => (
+                    <field.MultiToggleField
+                      label="Run after these complete"
+                      description="This run waits until every selected job succeeds. If one fails, this run is skipped."
+                      items={dependencyItems}
+                    />
+                  )}
+                </form.AppField>
+              )}
+            </Stack>
+          ) : null
+        }
+      </form.Subscribe>
       {start.error === null ? null : (
         <Text size="label" tone="destructive">
           Couldn't start the workload — a run of that kind may already be active.

@@ -206,9 +206,16 @@ export function checkImageDistortion(input: ImageDistortionInput): Finding | nul
 }
 
 // ── Tap targets ──────────────────────────────────────────────────────────────
+// The relevant floor is pointer-conditional — WCAG has two target-size criteria and which one bites
+// depends on what's driving the page. A coarse/touch pointer owes the AAA 2.5.5 44px target; a fine
+// pointer (mouse) only owes the AA 2.5.8 24px minimum. This mirrors the app's own token split (D62 P1 /
+// theme.css's `@media (pointer: fine)` override, where control heights drop to 32/34/40px on desktop).
+// Judging a fine-pointer render against the 44px touch number is a category error: it flags deliberate
+// desktop density as a defect. So `checkTapTarget` takes the pointer type the page was measured under.
 
-const TAP_WARN_PX = 44;
-const TAP_FAIL_PX = 32;
+const TAP_COARSE_WARN_PX = 44; // WCAG 2.5.5 (AAA) — recommended touch target on a coarse pointer
+const TAP_COARSE_FAIL_PX = 32; // below this even a coarse pointer can't reliably hit — hard floor
+const TAP_FINE_MIN_PX = 24; // WCAG 2.5.8 (AA) — the only target-size floor a mouse actually owes
 
 export type TapTargetInput = {
   readonly selector: string;
@@ -216,20 +223,36 @@ export type TapTargetInput = {
   readonly height: number;
 };
 
-export function checkTapTarget(input: TapTargetInput): Finding | null {
+export function checkTapTarget(input: TapTargetInput, pointerCoarse: boolean): Finding | null {
   const shortSide = Math.min(input.width, input.height);
-  if (shortSide >= TAP_WARN_PX) {
+  if (pointerCoarse) {
+    if (shortSide >= TAP_COARSE_WARN_PX) {
+      return null;
+    }
+    const severity: Severity = shortSide < TAP_COARSE_FAIL_PX ? "P1" : "P2";
+    const floor =
+      severity === "P1"
+        ? `${TAP_COARSE_FAIL_PX}px hard floor`
+        : `${TAP_COARSE_WARN_PX}px recommended minimum`;
+    return {
+      rule: "tap-target",
+      severity,
+      selector: input.selector,
+      value: `${Math.round(input.width)}×${Math.round(input.height)}px`,
+      message: `interactive element's short side is ${Math.round(shortSide)}px — below the ${floor}; grow the hit area to ≥${TAP_COARSE_WARN_PX}×${TAP_COARSE_WARN_PX}px`,
+    };
+  }
+  // Fine pointer (mouse): only the AA 24px floor applies — the 32/34/40px desktop control scale passes
+  // by design, so nothing above 24px is flagged; a genuinely tiny control still fails hard.
+  if (shortSide >= TAP_FINE_MIN_PX) {
     return null;
   }
-  const severity: Severity = shortSide < TAP_FAIL_PX ? "P1" : "P2";
-  const floor =
-    severity === "P1" ? `${TAP_FAIL_PX}px hard floor` : `${TAP_WARN_PX}px recommended minimum`;
   return {
     rule: "tap-target",
-    severity,
+    severity: "P1",
     selector: input.selector,
     value: `${Math.round(input.width)}×${Math.round(input.height)}px`,
-    message: `interactive element's short side is ${Math.round(shortSide)}px — below the ${floor}; grow the hit area to ≥${TAP_WARN_PX}×${TAP_WARN_PX}px`,
+    message: `interactive element's short side is ${Math.round(shortSide)}px — below WCAG AA's ${TAP_FINE_MIN_PX}px minimum (fine pointer); grow the hit area to ≥${TAP_FINE_MIN_PX}×${TAP_FINE_MIN_PX}px`,
   };
 }
 
@@ -385,6 +408,8 @@ export type RawSamples = {
   readonly nestedCards: readonly NestedCardInput[];
   readonly gradientTexts: readonly GradientTextInput[];
   readonly animatedImgHovers: readonly AnimatedImgHoverInput[];
+  /** Whether the page was measured under `(pointer: coarse)` — selects the tap-target floor (44px vs 24px). */
+  readonly pointerCoarse: boolean;
 };
 
 /** Runs one check over one sample array, pushing every non-null Finding — factored out purely to keep
@@ -408,7 +433,7 @@ export function collectFindings(samples: RawSamples): Finding[] {
   const findings: Finding[] = [];
   pushFindings(findings, samples.texts, checkContrast);
   pushFindings(findings, samples.images, checkImageDistortion);
-  pushFindings(findings, samples.tapTargets, checkTapTarget);
+  pushFindings(findings, samples.tapTargets, (t) => checkTapTarget(t, samples.pointerCoarse));
   pushFindings(findings, samples.accessibleNames, checkAccessibleName);
   const landmark = checkMainLandmark({ main: samples.mainLandmarkPresent });
   if (landmark !== null) {

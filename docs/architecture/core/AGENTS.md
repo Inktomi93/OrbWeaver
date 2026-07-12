@@ -171,10 +171,12 @@ participants/agents/identity → the pointer subsection below.
 | ~~corpus~~ | → **discovery** | renamed (name required insider knowledge; it does library understanding). |
 
 Phase-7/8 additive domains (post-chat grafts — D47/D48/D49; scripting D46): **imagery** BUILT
-(`domain/imagery/` — chat-facing image gen, prompt-template modes, `/imagine` via automation); unbuilt →
+(`domain/imagery/` — chat-facing image gen, prompt-template modes, `/imagine` via automation);
+**gallery** BUILT (`domain/assets` gallery v1/v2 verbs + `domain/hub` gif search/import —
+[gallery.md](../history/gallery.md) · [gallery-design.md](../history/gallery-design.md)); unbuilt →
 `../proposed/`: [tool-use.md](../proposed/tool-use-design/tool-use.md) ·
 [databank.md](../proposed/databank-design/databank.md) ·
-[expressions.md](../proposed/expressions-design/expressions.md) · [gallery.md](../proposed/gallery.md) ·
+[expressions.md](../proposed/expressions-design/expressions.md) ·
 [automation.md](../proposed/automation-design/automation.md).
 
 ### Participants, agents & identity

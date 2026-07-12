@@ -29,8 +29,8 @@ describe("workloads.list", () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
     const bob = await seedUser(db, "user_bob");
-    await seedWorkloadRow(db, { id: "w_alice", kind: "embed-corpus", ownerId: alice });
-    await seedWorkloadRow(db, { id: "w_bob", kind: "embed-assets", ownerId: bob });
+    await seedWorkloadRow(db, { id: "w_alice", kind: "distill-characters", ownerId: alice });
+    await seedWorkloadRow(db, { id: "w_bob", kind: "compute-themes", ownerId: bob });
     await seedWorkloadRow(db, { id: "w_system", kind: "reconcile-stats", ownerId: null });
     const s = makeService(db);
 

@@ -28,7 +28,7 @@ export function AlertDialog<Payload = unknown>(props: BaseRootProps<Payload>): R
 /**
  * Opens the alert dialog. Unstyled passthrough — compose your own control via `render`.
  * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven dialog.
- * `<AlertDialogTrigger render={<Button variant="destructive">Delete</Button>} />`
+ * `<AlertDialogTrigger render={<Button intent="destructive">Delete</Button>} />`
  * Spec: ui-package-design §6.1 / §13 R2.
  */
 export function AlertDialogTrigger<Payload = unknown>(
@@ -117,7 +117,7 @@ export interface AlertDialogActionsProps extends HTMLAttributes<HTMLDivElement> 
 
 /**
  * Right-aligned action row for the cancel/confirm pair — a plain layout slot (no Base UI part).
- * Put the destructive confirm here as an `AlertDialogClose render={<Button variant="destructive">}`.
+ * Put the destructive confirm here as an `AlertDialogClose render={<Button intent="destructive">}`.
  * `<AlertDialogActions><AlertDialogClose>Cancel</AlertDialogClose>…</AlertDialogActions>`
  * Spec: ui-package-design §6.1 — a destructive-intent action slot.
  */
@@ -131,7 +131,7 @@ export function AlertDialogActions(props: AlertDialogActionsProps): ReactElement
 /**
  * Closes the alert dialog — use for BOTH the cancel and the confirm control (the confirm additionally
  * fires the destructive action via its own `onClick`). Unstyled passthrough — compose via `render`.
- * `<AlertDialogClose render={<Button variant="destructive" onClick={onDelete}>Delete</Button>} />`
+ * `<AlertDialogClose render={<Button intent="destructive" onClick={onDelete}>Delete</Button>} />`
  * Spec: ui-package-design §6.1.
  */
 export function AlertDialogClose(props: BaseCloseProps): ReactElement {

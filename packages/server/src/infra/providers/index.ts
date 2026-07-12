@@ -160,6 +160,15 @@ export type { AgentToolResult, AgentToolSpec } from "./backends/agent-sdk";
 // `supportedModels()` discovery (agent-sdk-fixed; connection injects it for refreshAgentSdkCatalog — the
 // daemon's family→version map, a control-channel call, not a billed turn).
 export { createAgentToolServer, fetchAgentSdkModels } from "./backends/agent-sdk";
+// ── The local-light builtin model trio (embed/imageEmbed/rerank defaults) — surfaced through the front
+//    door so the composition root can inject them into `ConnectionContext.localLightDefaults` (the seal
+//    forbids entry importing `backends/local-light` directly; these are DISPLAY facts for the Connections
+//    picker, NOT stamped values — the resolver keeps deriving via its empty-model pass-through). ───────
+export {
+  DEFAULT_EMBED_MODEL,
+  DEFAULT_IMAGE_EMBED_MODEL,
+  DEFAULT_RERANK_MODEL,
+} from "./backends/local-light";
 // ── The live OpenRouter `/models` fetch verb (OR-fixed; connection injects it for refreshCatalog) ─
 export { fetchOrCatalog } from "./backends/openrouter";
 // ── The contract surface (request/result/error/event vocab + the sealed-backend contract + re-exports) ─

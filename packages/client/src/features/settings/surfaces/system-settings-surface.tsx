@@ -21,13 +21,18 @@ import { useRef } from "react";
 // effective values with a footnote that overrides layer over environment defaults.
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
-import { Button } from "@orb/ui/button";
 import { FieldLayout } from "@orb/ui/field";
 import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
+import {
+  createEntityMutation,
+  QueryBoundary,
+  QueryErrorState,
+  useInvalidation,
+  useTRPC,
+} from "#data";
 import { useFocusOnMount } from "#lib";
 import {
   SYSTEM_SETTINGS_ENTITY_ID,
@@ -72,12 +77,10 @@ export function SystemSettingsSurface(): ReactElement {
       <QueryBoundary
         fallback={<Text tone="muted">Loading system settings…</Text>}
         renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load system settings — they're available to administrators only.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
+          <QueryErrorState
+            label="system settings — they're available to administrators only"
+            onRetry={retry}
+          />
         )}
       >
         <FieldLayout orientation="horizontal">

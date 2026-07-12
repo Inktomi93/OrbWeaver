@@ -8,14 +8,6 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
@@ -23,6 +15,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import {
@@ -115,29 +108,14 @@ export function CharacterBulkBar({
           </Stack>
         </DialogPopup>
       </Dialog>
-      <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>
-              {`Delete ${selectedCount} character${selectedCount === 1 ? "" : "s"}?`}
-            </AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <AlertDialogDescription>
-              This permanently deletes them. This can't be undone.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={confirmDelete}>
-                    Delete
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        confirmLabel="Delete"
+        description="This permanently deletes them. This can't be undone."
+        onConfirm={confirmDelete}
+        onOpenChange={setDeleteOpen}
+        open={deleteOpen}
+        title={`Delete ${selectedCount} character${selectedCount === 1 ? "" : "s"}?`}
+      />
     </>
   );
 }

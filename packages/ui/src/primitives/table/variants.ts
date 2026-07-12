@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 // The table skin — a hand-rolled data-grid (NO @tanstack/react-table: v8's useReactTable returns
 // an interior-mutable instance the React Compiler can only tolerate behind "use no memo", which
@@ -17,7 +17,8 @@ export const tableVariants = tv({
     th: "font-medium text-muted-foreground",
     sortButton: [
       "inline-flex w-full cursor-pointer items-center gap-field bg-transparent font-medium text-muted-foreground",
-      "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "outline-none",
+      FOCUS_RING,
     ],
     sortIcon: "shrink-0 text-muted-foreground/60",
     tbody: "divide-y divide-border",

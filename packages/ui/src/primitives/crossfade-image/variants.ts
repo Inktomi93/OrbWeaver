@@ -10,7 +10,7 @@ export const crossfadeImageVariants = tv({
   slots: {
     root: "relative block w-full overflow-hidden bg-muted",
     image:
-      "absolute inset-0 size-full object-cover opacity-100 transition-opacity duration-(--motion-base) ease-out-expo",
+      "absolute inset-0 size-full opacity-100 transition-opacity duration-(--motion-base) ease-out-expo",
     // The broken-image fallback (onError) — sits on the same muted box, no crossfade (there is
     // nothing to fade TO once the source has failed).
     fallback: "absolute inset-0 flex size-full items-center justify-center text-muted-foreground",
@@ -19,5 +19,15 @@ export const crossfadeImageVariants = tv({
     revealed: {
       false: { image: "opacity-0" },
     },
+    // `cover` (default) fills + crops the aspect box (avatars, cards, grid cells); `contain` letterboxes so
+    // the WHOLE image stays visible within the box (the gallery lightbox — never crop what a viewer opened
+    // expressly to see). The two never combine — one object-fit per render.
+    fit: {
+      cover: { image: "object-cover" },
+      contain: { image: "object-contain" },
+    },
+  },
+  defaultVariants: {
+    fit: "cover",
   },
 });

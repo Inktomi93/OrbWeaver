@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, FOCUS_RING_WITHIN, OVERLAY_MOTION, tv } from "#lib";
 
 // The multi-select combobox skin — chips render as pills flowing inline with the draft input
 // inside ONE wrapping box (`chips` rides `contents` so its children become direct flex items of
@@ -12,13 +12,13 @@ export const comboboxVariants = tv({
     inputGroup: [
       "relative flex min-h-control-sm w-full min-w-0 flex-wrap items-center gap-field rounded-control border border-border bg-input px-field py-field",
       "transition-colors duration-(--motion-fast) ease-out-expo",
-      "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
+      FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
     ],
     chips: "contents",
     chip: [
       "inline-flex items-center gap-field rounded-full bg-secondary py-field pr-field pl-block text-label leading-label text-secondary-foreground outline-none",
-      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      FOCUS_RING,
       "data-disabled:opacity-50",
     ],
     chipRemove: [
@@ -35,7 +35,7 @@ export const comboboxVariants = tv({
       "z-(--z-popover) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
       // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip/select (the shared
       // overlay animation contract). `--transform-origin` is Base UI Positioner-provided.
-      "origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+      OVERLAY_MOTION.anchoredPopup,
     ],
     // Base UI positions the arrow against the anchor and sets data-side; skinned as a `bg-popover`
     // diamond that continues the popup edge (mirrors PopoverArrow/MenuArrow/SelectArrow).

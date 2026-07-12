@@ -1,15 +1,12 @@
 import type { ReactElement } from "react";
 import { Dialog, DialogPopup } from "#primitives/dialog";
+import type { MediaSource } from "../message-media";
 import { MessageMedia } from "../message-media";
-
-type LightboxSource =
-  | { readonly kind: "asset"; readonly url: string }
-  | { readonly kind: "external"; readonly url: string };
 
 export interface LightboxProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly src: LightboxSource;
+  readonly src: MediaSource;
   readonly media: "image" | "video";
   readonly alt: string;
   /** Whether an external source may load in the zoom view (mirrors MessageMedia's gate). */

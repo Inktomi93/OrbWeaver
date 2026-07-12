@@ -24,6 +24,7 @@ export const SETTINGS_CATEGORY_IDS = [
   "appearance",
   "tags",
   "workloads",
+  "backup",
   "chat-behavior",
   "connections",
   "automation",

@@ -28,12 +28,12 @@ import { cslsRunner } from "../runners/csls";
 import { databankIngestRunner } from "../runners/databank-ingest";
 import { databankReindexRunner } from "../runners/databank-reindex";
 import { distillCharactersRunner } from "../runners/distill-characters";
-import { embedAssetsRunner } from "../runners/embed-assets";
-import { embedCorpusRunner } from "../runners/embed-corpus";
 import { expressionsSpriteSheetRunner } from "../runners/expressions-sprite-sheet";
 import { findDuplicatesRunner } from "../runners/find-duplicates";
 import { groupCharacterBackfillRunner } from "../runners/group-character-backfill";
+import { importBundleRunner } from "../runners/import-bundle";
 import { importStRunner } from "../runners/import-st";
+import { indexRunner } from "../runners/index";
 import { memoryBackfillRunner } from "../runners/memory-backfill";
 import { reconcileStatsRunner } from "../runners/reconcile-stats";
 import { reconcileWorldStateRunner } from "../runners/reconcile-world-state";
@@ -52,8 +52,7 @@ import { rpgWorldGenRunner } from "../runners/rpg-world-gen";
 /** The exhaustive kind → runner dispatch table. The `{ [K in WorkloadKind]: Runner<K> }` mapped type is the
  *  compile-time checklist for adding a kind (§7.5). The engine treats every kind uniformly. */
 export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {
-  "embed-corpus": embedCorpusRunner,
-  "embed-assets": embedAssetsRunner,
+  index: indexRunner,
   "distill-characters": distillCharactersRunner,
   "compute-themes": computeThemesRunner,
   "memory-backfill": memoryBackfillRunner,
@@ -65,6 +64,7 @@ export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {
   "assets-gc": assetsGcRunner,
   "assets-fsck": assetsFsckRunner,
   "import-st": importStRunner,
+  "import-bundle": importBundleRunner,
   "reconcile-stats": reconcileStatsRunner,
   "refresh-model-catalog": refreshModelCatalogRunner,
   "reconcile-world-state": reconcileWorldStateRunner,

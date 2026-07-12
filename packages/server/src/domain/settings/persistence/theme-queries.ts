@@ -54,6 +54,16 @@ export async function readableTheme(
   return rows.at(0);
 }
 
+/** The caller's OWNED theme rows ONLY (never a seed — `ownerId = caller`, so a NULL-owner seed can't match),
+ *  oldest-first. The portable theme-backup export reads THIS (seeds are code-authored and never travel). */
+export async function listOwnedThemes(db: Db, ownerId: UserId): Promise<ThemeRow[]> {
+  return await db
+    .select()
+    .from(themes)
+    .where(eq(themes.ownerId, ownerId))
+    .orderBy(asc(themes.createdAt));
+}
+
 /** Load an OWNED theme row (never a seed — `fetchOwned`'s predicate can't match a NULL owner). */
 export function loadOwnedTheme(
   db: Db,
@@ -76,6 +86,25 @@ export async function listOwnedThemeNames(db: Db, ownerId: UserId): Promise<stri
  *  surfaces as a unique-constraint violation — the caller classifies it via `isConstraintViolation`. */
 export async function insertTheme(db: Db, row: ThemeInsert): Promise<void> {
   await db.insert(themes).values(row);
+}
+
+/** Idempotent batch insert for the portable theme-backup import: insert the given owned rows, SKIPPING any
+ *  whose `(ownerId, name)` already exists (the `themes_owner_name_uq` index target — case-sensitive, matching
+ *  the manual-create conflict). Returns how many rows were NEWLY inserted (the rest deduped) — so a re-import
+ *  of the same backup creates zero. Mirrors `tag.insertOwnedTagsIfAbsent`. */
+export async function insertOwnedThemesIfAbsent(
+  db: Db,
+  values: readonly (typeof themes.$inferInsert)[],
+): Promise<number> {
+  if (values.length === 0) {
+    return 0;
+  }
+  const inserted = await db
+    .insert(themes)
+    .values([...values])
+    .onConflictDoNothing({ target: [themes.ownerId, themes.name] })
+    .returning({ id: themes.id });
+  return inserted.length;
 }
 
 /** Patch an OWNED row (scoped `id + ownerId` — a seed's NULL owner never matches). Returns the updated

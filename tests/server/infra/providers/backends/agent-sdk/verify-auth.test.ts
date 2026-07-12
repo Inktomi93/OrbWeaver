@@ -73,7 +73,11 @@ describe("agent-sdk verifyAuth", () => {
     const fakeQuery = vi.fn((_args: { options?: Record<string, unknown> }) =>
       queryOf([initMsg, assistantMsg, successResult], accountInfo),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
 
     const result = await (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL });
 
@@ -108,7 +112,11 @@ describe("agent-sdk verifyAuth", () => {
   test("a throwing accountInfo probe leaves `account` ABSENT — the verify turn still reports", async () => {
     const accountInfo = vi.fn(() => Promise.reject(new Error("control channel down")));
     const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], accountInfo));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
 
     const result = await (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL });
 
@@ -120,7 +128,11 @@ describe("agent-sdk verifyAuth", () => {
 
   test("no accountInfo control method (a bare stream) → `account` absent, verdict intact", async () => {
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
 
     const result = await (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL });
 
@@ -137,7 +149,11 @@ describe("agent-sdk verifyAuth", () => {
       total_cost_usd: 0,
     };
     const fakeQuery = vi.fn(() => streamOf([initMsg, errorResult]));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
 
     const result = await (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL });
 
@@ -148,7 +164,11 @@ describe("agent-sdk verifyAuth", () => {
   test("the init shape guard fires on a malformed init frame", async () => {
     const badInit = { type: "system", subtype: "init", session_id: SESSION_ID }; // no apiKeySource
     const fakeQuery = vi.fn(() => streamOf([badInit]));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
 
     await expect(
       (backend.verifyAuth as VerifyFn)({ credential: SUB_CRED, model: MODEL }),

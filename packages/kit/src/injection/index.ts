@@ -35,6 +35,16 @@ export const injectionDirectiveSchema = z.object({
 const depthSchema = z.number().int().min(0).max(MAX_INJECTION_DEPTH);
 const roleSchema = z.enum(MESSAGE_ROLES);
 
+/** The shared write-guard predicate (contracts' `cardDepthPromptWriteSchema`/`roomAuthorsNoteSchema`/
+ *  `personaMetadataWriteSchema` all reject this combo on the wire): assistant-role at depth 0 is a
+ *  response PREFILL, unsupported across providers. Was re-implemented per-editor (character/persona/room-
+ *  overrides form models) with copy that already drifted ("pick" vs "Use" depth ≥ 1) — one predicate, each
+ *  editor's "is this note/description/depthPrompt combo even meaningful right now" precondition (empty
+ *  text ⇒ no combo to warn about) stays local since it differs legitimately per form. */
+export function isAssistantPrefill(role: MessageRole, depth: number): boolean {
+  return role === "assistant" && depth === 0;
+}
+
 /** Field-isolated resolve of a raw `{depth?, role?}` blob into a concrete placement, filling each missing
  *  or malformed field INDEPENDENTLY from `defaults` — a bad `role` never drops a valid `depth`, and vice
  *  versa. The `defaults` are the consumer's own initial values (depth + role); passing them keeps each

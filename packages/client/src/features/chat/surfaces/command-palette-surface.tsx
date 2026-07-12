@@ -84,7 +84,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
       <Command
-        className="rounded-lg border shadow-md h-full flex flex-col"
+        className="rounded-card border shadow-overlay h-full flex flex-col"
         label="Command palette"
         onEscape={closeModal}
       >

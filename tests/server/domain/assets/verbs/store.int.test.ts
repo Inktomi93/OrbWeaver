@@ -17,6 +17,7 @@ import { makeHarness, pngBytes, principal, seedUser } from "../_support.ts";
 const PNG = "image/png";
 const MAGIC_RE = /magic/iu;
 const MISMATCH_RE = /mismatch/iu;
+const TOO_LARGE_RE = /over the .*cap/iu;
 
 describe("store", () => {
   test("dedups identical bytes within a user to one row (created:false on the second)", async () => {
@@ -135,6 +136,47 @@ describe("store", () => {
         enforceMagic: true,
       }),
     ).rejects.toThrow(MISMATCH_RE);
+  });
+
+  test("PD-94: rejects bytes over maxBytes BEFORE the CAS write (stores nothing, no emit)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const bytes = pngBytes(1, 2, 3, 4, 5, 6);
+
+    await expect(
+      svc.store({
+        principal: principal(owner),
+        bytes,
+        kind: "avatar",
+        mime: PNG,
+        maxBytes: bytes.byteLength - 1,
+      }),
+    ).rejects.toThrow(TOO_LARGE_RE);
+
+    // Nothing reached the CAS/index, and the indexer was not notified.
+    expect(await db.select().from(assets)).toHaveLength(0);
+    expect(h.emitted).toHaveLength(0);
+  });
+
+  test("maxBytes at the exact byte length is accepted (boundary is inclusive)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const bytes = pngBytes(1, 2, 3);
+
+    const stored = await svc.store({
+      principal: principal(owner),
+      bytes,
+      kind: "avatar",
+      mime: PNG,
+      maxBytes: bytes.byteLength,
+    });
+    expect(stored.created).toBe(true);
   });
 
   test("a card blob's CAS hash is the sha-256 of the whole file (== characters.importHash)", async () => {

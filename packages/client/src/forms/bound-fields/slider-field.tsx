@@ -9,7 +9,7 @@ import { Field } from "@orb/ui/field";
 import { Slider as UiSlider } from "@orb/ui/slider";
 import type { ReactElement, ReactNode } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 export interface BoundSliderFieldProps {
   readonly label: ReactNode;
@@ -29,12 +29,12 @@ export function BoundSliderField({
   disabled,
 }: BoundSliderFieldProps): ReactElement {
   const field = useFieldContext<number>();
-  const error = fieldErrorText(field.state.meta.errors);
+  const error = touchedFieldError(field.state.meta);
   return (
     <Field
       label={label}
       description={description}
-      error={field.state.meta.isTouched ? error : null}
+      error={error}
       disabled={disabled ?? false}
       name={field.name}
     >

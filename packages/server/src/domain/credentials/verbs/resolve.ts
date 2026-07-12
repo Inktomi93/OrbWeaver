@@ -81,6 +81,8 @@ async function resolveCustomOpenAi(
     apiKey: plaintext !== null && plaintext.length > 0 ? plaintext : null,
     headers: endpoint.headers,
     credentialId: active.id,
+    // GAP-6: carry the convenience default model from metadata (parse-metadata extracts it as `string|null`).
+    model: endpoint.model ?? undefined,
   });
 }
 

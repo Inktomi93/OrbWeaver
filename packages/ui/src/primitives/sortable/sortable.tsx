@@ -23,7 +23,7 @@ import type { DragEndEvent } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { ReactElement, ReactNode } from "react";
-import { cn } from "#lib";
+import { cn, usePrefersReducedMotion } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve GripVertical/Icon fine.
 import { GripVertical, Icon } from "#primitives/icons";
 import { sortableVariants } from "./variants";
@@ -34,13 +34,6 @@ import { sortableVariants } from "./variants";
 // Declaring the identical shape locally as `SortableItemKey` keeps the public API type-compatible
 // with `useSortable`'s `id` and `move()`'s array element type without importing the unlisted package.
 export type SortableItemKey = string | number;
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof globalThis.matchMedia === "function" &&
-    globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
 
 export interface SortableListProps<T> {
   readonly items: readonly T[];
@@ -68,6 +61,7 @@ interface SortableItemProps {
 }
 
 function SortableItem({ id, index, handle, disabled, children }: SortableItemProps): ReactElement {
+  const reducedMotion = usePrefersReducedMotion();
   const { ref, handleRef, isDragging } = useSortable({
     id,
     index,
@@ -80,7 +74,7 @@ function SortableItem({ id, index, handle, disabled, children }: SortableItemPro
     // duration. Extends `useSortable`'s own per-item plugin DEFAULTS (`SortableKeyboardPlugin` +
     // `OptimisticSortingPlugin`) via its documented `(defaults) => [...defaults, …]` shape rather
     // than replacing them.
-    ...(prefersReducedMotion()
+    ...(reducedMotion
       ? {
           plugins: (defaults) => [...defaults, Feedback.configure({ dropAnimation: null })],
         }

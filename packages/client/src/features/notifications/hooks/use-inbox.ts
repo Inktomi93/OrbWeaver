@@ -45,6 +45,16 @@ export const useMarkNotificationRead = createEntityMutation<
   invalidates: (trpc) => [trpc.notifications.list.pathFilter()],
 });
 
+/** Bulk "opening the bell reads everything" — ONE mutation + ONE reconcile, not a per-row loop
+ *  (the audit P3 fix: the popover used to fire `markRead` once per unread row on every open). */
+export const useMarkAllNotificationsRead = createEntityMutation<
+  inferInput<Trpc["notifications"]["markAllRead"]>,
+  unknown
+>({
+  options: (trpc) => trpc.notifications.markAllRead.mutationOptions(),
+  invalidates: (trpc) => [trpc.notifications.list.pathFilter()],
+});
+
 export const useDismissNotification = createEntityMutation<
   inferInput<Trpc["notifications"]["dismiss"]>,
   unknown

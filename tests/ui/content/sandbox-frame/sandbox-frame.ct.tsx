@@ -1,4 +1,4 @@
-import { SandboxFrame } from "@orb/ui/content";
+import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 test("the iframe is sandboxed with NO allow-scripts and NO allow-same-origin", async ({

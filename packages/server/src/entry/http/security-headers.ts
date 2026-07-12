@@ -4,9 +4,13 @@
 // `entry/app.ts` (headers apply to every response, including early 403s).
 //
 // The D44 deltas from neo (both deliberate):
-//   • `img-src` drops `data:` — `allowDataImages:false` (D44 §12.3) + the client build's
+//   • `img-src` drops `data:` IN PROD — `allowDataImages:false` (D44 §12.3) + the client build's
 //     `assetsInlineLimit: 0` mean no data-URI images exist; `blob:` stays for client-minted
 //     object URLs. `media-src` mirrors it (native a/v is the same external-load class — §12.3).
+//     DEV (`opts.dev`) re-adds `data:` ONLY for the TanStack Devtools floating trigger, whose logo
+//     is an inline data: PNG the dev-only tool injects; prod stays strict. App data:-images are
+//     still barred at source (markdown allowDataImages:false + assetsInlineLimit:0 + the
+//     no-external-media grit gate), so the dev relaxation drops no real guard.
 //   • Untrusted content is isolated by the PER-FRAME sandbox CSP (`@orb/ui` sandbox-frame
 //     `srcdoc.ts`), never by this app-document policy.
 //
@@ -26,6 +30,13 @@ import { secureHeaders } from "hono/secure-headers";
 
 const SELF = "'self'";
 const NONE = "'none'";
+// Tenor gif-search previews (D61 gallery-design §5): the picker renders Tenor CDN previews inline (an
+// explicit owner-action load in an owner-only picker — outside D44's message/card `forbidExternalMedia`
+// gate). `img-src` must allow Tenor's media subdomains (media.tenor.com / c.tenor.com) or the previews are
+// CSP-blocked. Scoped to `*.tenor.com` (subdomains only, not the apex) — a reputable Google CDN, no
+// attacker-controlled host, so it opens no exfil channel. The IMPORT fetch is separately host-gated
+// server-side (infra/network/gif-search); this line only permits the client-side PREVIEW <img> load.
+const TENOR_MEDIA = "https://*.tenor.com";
 
 export function securityHeaders(opts: { readonly dev: boolean }): MiddlewareHandler {
   return secureHeaders({
@@ -33,7 +44,7 @@ export function securityHeaders(opts: { readonly dev: boolean }): MiddlewareHand
       defaultSrc: [SELF],
       scriptSrc: opts.dev ? [SELF, "'unsafe-inline'", "'unsafe-eval'"] : [SELF],
       styleSrc: [SELF, "'unsafe-inline'"], // deliberate — see the header
-      imgSrc: [SELF, "blob:"], // no data: (D44)
+      imgSrc: opts.dev ? [SELF, "blob:", "data:", TENOR_MEDIA] : [SELF, "blob:", TENOR_MEDIA], // prod: no data: (D44); DEV adds data: for the TanStack Devtools inline logo. Tenor CDN for gif previews (D61)
       mediaSrc: [SELF, "blob:"], // the §12.3 native-a/v backstop, same posture as img-src
       connectSrc: opts.dev ? [SELF, "ws:", "wss:"] : [SELF], // SSE is plain HTTP; ws is HMR-only
       fontSrc: [SELF],

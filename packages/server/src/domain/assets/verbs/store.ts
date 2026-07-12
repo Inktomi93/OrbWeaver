@@ -10,12 +10,21 @@
 // single-replica) — the embeddings `content_hash` catch-up sweep (PD-53) is the reliability backstop;
 // a durable outbox is the multi-replica seam.
 
+import { DomainOperationError } from "@orb/kit/errors";
 import type { StoreParams } from "../contract/params";
 import type { AssetsContext, AssetsService } from "../contract/service";
 import { storeBlob } from "../persistence/queries";
 
 export function createStore(ctx: AssetsContext): AssetsService["store"] {
-  return async ({ principal, bytes, kind, mime, enforceMagic }: StoreParams) => {
+  return async ({ principal, bytes, kind, mime, enforceMagic, maxBytes }: StoreParams) => {
+    // PD-94 — reject an over-cap blob BEFORE it reaches the CAS. Defense in depth over the HTTP route's body
+    // cap (a trusted non-HTTP caller may omit `maxBytes`; the upload/import paths pass it).
+    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
+      throw new DomainOperationError(
+        "asset_too_large",
+        `asset is ${bytes.byteLength} bytes, over the ${maxBytes}-byte cap`,
+      );
+    }
     const stored = await storeBlob(ctx.db, ctx.cas, {
       ownerId: principal.userId,
       bytes,

@@ -9,42 +9,15 @@
 
 import type { AppearanceSettings, BlurSurface } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
-import { SettingRow } from "@orb/ui/setting-row";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds";
 import { BLUR_SURFACE_ITEMS } from "../lib/appearance-select-items";
 import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
-
-/** One label-left / switch-right effect row. The label association is the shared `id` SettingRow wires
- *  via `htmlFor` — a real (runtime) association the linter can't see across the component boundary. */
-function EffectSwitchRow({
-  id,
-  label,
-  description,
-  checked,
-  onChange,
-  onBlur,
-}: {
-  readonly id: string;
-  readonly label: string;
-  readonly description?: ReactNode;
-  readonly checked: boolean;
-  readonly onChange: (next: boolean) => void;
-  readonly onBlur: () => void;
-}): ReactElement {
-  return (
-    <SettingRow id={id} label={label} {...(description === undefined ? {} : { description })}>
-      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- SettingRow renders the
-          associated `<label htmlFor={id}>`; the shared id is the real label wiring, invisible here. */}
-      <Switch id={id} checked={checked} onBlur={onBlur} onCheckedChange={onChange} />
-    </SettingRow>
-  );
-}
+import { SettingSwitchRow } from "./setting-switch-row";
 
 export function AppearanceEffectsSection({
   form,
@@ -74,7 +47,7 @@ export function AppearanceEffectsSection({
                 // BLUR_SURFACES); the SelectOption shape widens it to string, so re-narrow at the toggle.
                 const surface = item.value as BlurSurface;
                 return (
-                  <EffectSwitchRow
+                  <SettingSwitchRow
                     key={item.value}
                     id={`${glassId}-${item.value}`}
                     label={item.label}
@@ -106,7 +79,7 @@ export function AppearanceEffectsSection({
       </form.AppField>
       <form.AppField name="shadowEffects">
         {(field): ReactElement => (
-          <EffectSwitchRow
+          <SettingSwitchRow
             id={shadowId}
             label="Prose shadow"
             description="A subtle readability halo on message text."
@@ -118,7 +91,7 @@ export function AppearanceEffectsSection({
       </form.AppField>
       <form.AppField name="enableThemeColorization">
         {(field): ReactElement => (
-          <EffectSwitchRow
+          <SettingSwitchRow
             id={tintId}
             label="Tint the UI with the accent color"
             description="Retints borders and hairlines across panels, dialogs, and the composer from your accent color."

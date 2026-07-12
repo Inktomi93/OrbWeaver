@@ -8,17 +8,10 @@
 // (ownerId, handle) match oracle.
 
 import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
-import type { Db } from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatParticipantId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  UserId,
-} from "@orb/kit/ids";
+import type { BulkImportChatInput } from "@orb/contracts/chat";
+import type { BulkImportPersonaInput } from "@orb/contracts/persona";
+import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
+import type { AssetId, CharacterId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type {
   ImportContext,
@@ -66,6 +59,12 @@ export interface TagAttachCall {
   readonly tagName: string;
 }
 
+export interface LorebookCall {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly book: BulkImportLorebookInput;
+}
+
 export interface ImportHarness {
   readonly ctx: ImportContext;
   readonly ownerId: UserId;
@@ -77,6 +76,8 @@ export interface ImportHarness {
   readonly findsByHandle: FindByHandleCall[];
   /** Every card-tag attach the verb issued (the injected `attachCardTag` op, bound to card/pending). */
   readonly tagAttaches: TagAttachCall[];
+  /** Every embedded-lorebook import the verb issued (the injected `importLorebook` op, W1). */
+  readonly lorebooks: LorebookCall[];
   /** Seed the byte-identical dedup oracle: a re-import with this `importHash` resolves to `characterId`. */
   readonly setExisting: (importHash: string, characterId: CharacterId) => void;
   /** Seed the PD-108 (ownerId, handle) match oracle: a re-import deriving this `handle` resolves to
@@ -93,6 +94,7 @@ export function makeHarness(): ImportHarness {
   const finds: FindCall[] = [];
   const findsByHandle: FindByHandleCall[] = [];
   const tagAttaches: TagAttachCall[] = [];
+  const lorebooks: LorebookCall[] = [];
   const existingByHash = new Map<string, CharacterId>();
   const existingByHandle = new Map<string, CharacterId>();
   let created = 0;
@@ -124,6 +126,14 @@ export function makeHarness(): ImportHarness {
       tagAttaches.push(args);
       return Promise.resolve(true);
     },
+    importLorebook: (args) => {
+      lorebooks.push(args);
+      return Promise.resolve({
+        worldBookId: castId<WorldBookId>("world_book_00000000000000000000000000"),
+        entryCount: args.book.entries.length,
+        replaced: false,
+      });
+    },
   };
 
   return {
@@ -136,6 +146,7 @@ export function makeHarness(): ImportHarness {
     finds,
     findsByHandle,
     tagAttaches,
+    lorebooks,
     setExisting: (importHash, characterId): void => {
       existingByHash.set(importHash, characterId);
     },
@@ -145,46 +156,95 @@ export function makeHarness(): ImportHarness {
   };
 }
 
-// ── the PROFILE-wave harness (PD-77): a REAL `freshDb`-backed `ImportContext` with `ctx.profile` wired ─────
-// (RULING A). The card ops are inert no-ops (the chats/personas verbs never touch them); the profile deps are
-// real — a fixed clock + counter-minted (deterministic + unique) ids + a live `personaByUserName` map + the
-// PD-78 ops recording their calls. Seed the owner + character with the test factories, then drive
-// `importChats`/`importPersonas` over `db`.
+// ── the PROFILE-wave harness (Option B; PD-77): a `ctx.profile` over RECORDING FAKES — the chats/personas
+// verbs perform NO db access, they translate ST → the canonical bulk-import input and delegate the WRITE to
+// the injected `bulkImportChats`/`bulkImportPersonas` ops. The import VERB tests exercise the ST→input mapping
+// + the PD-78 backfill gate against these fakes; the db-write correctness is pinned in the chat/persona
+// persistence mirror int-tests. No `freshDb` for import (import fabricates no db).
 
 /** A fixed clock for the profile harness (deterministic — no unseeded time under tests/). */
 export const IMPORT_NOW = 1_700_000_000_000;
 
+/** One recorded `bulkImportChats` call (the ST→canonical mapping assertion surface). */
+export interface BulkChatsCall {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly chats: readonly BulkImportChatInput[];
+}
+
+/** One recorded `bulkImportPersonas` call. */
+export interface BulkPersonasCall {
+  readonly ownerId: UserId;
+  readonly personas: readonly BulkImportPersonaInput[];
+}
+
 export interface ProfileHarness {
   readonly ctx: ImportContext;
   readonly profile: ImportProfileDeps;
-  /** Every `enqueueBackfill` call the run issued (the PD-78 gate assertion surface). */
+  /** Every `bulkImportChats` call the verb issued (the ST→canonical mapping assertion surface). */
+  readonly chatCalls: BulkChatsCall[];
+  /** Every `bulkImportPersonas` call the verb issued. */
+  readonly personaCalls: BulkPersonasCall[];
+  /** Every `enqueueBackfill` call (the PD-78 gate assertion surface). */
   readonly backfills: { readonly ownerId: UserId }[];
-  /** Every inline `reconcileStats` call the run issued. */
+  /** Every inline `reconcileStats` call. */
   readonly reconciles: { readonly ownerId: UserId }[];
 }
 
-/** Build a profile-wave `ImportContext` over a real `db`, owned by `ownerId`. Ids are counter-minted so the
- *  bulk writes are unique AND deterministic (test-determinism — no `mintTypeId`/clock under tests/). */
-export function makeProfileHarness(db: Db, ownerId: UserId): ProfileHarness {
+/** Build a profile-wave `ImportContext` over recording fakes, owned by `ownerId`. The fake `bulkImportChats`
+ *  derives its counts from the mapped input (so the backfill gate — `realConversationWritten` — reflects the
+ *  verb's ST→canonical mapping); the fake `bulkImportPersonas` returns an `idByName` for every input name. */
+export function makeProfileHarness(ownerId: UserId): ProfileHarness {
+  const chatCalls: BulkChatsCall[] = [];
+  const personaCalls: BulkPersonasCall[] = [];
   const backfills: { ownerId: UserId }[] = [];
   const reconciles: { ownerId: UserId }[] = [];
-  let n = 0;
-  const counter = (): string => {
-    n += 1;
-    return String(n).padStart(26, "0");
-  };
+  let personaSeq = 0;
+
   const profile: ImportProfileDeps = {
-    db,
     now: (): number => IMPORT_NOW,
     personaByUserName: new Map<string, PersonaId>(),
-    newChatId: (): ChatId => castId<ChatId>(`chat_${counter()}`),
-    newMessageId: (): MessageId => castId<MessageId>(`message_${counter()}`),
-    newVariantId: (): MessageVariantId => castId<MessageVariantId>(`message_variant_${counter()}`),
-    newParticipantId: (): ChatParticipantId =>
-      castId<ChatParticipantId>(`chat_participant_${counter()}`),
-    newPersonaId: (): PersonaId => castId<PersonaId>(`persona_${counter()}`),
-    newWorldBookId: () => castId("world_book_0"),
-    newWorldEntryId: () => castId("world_entry_0"),
+    bulkImportChats: (args) => {
+      chatCalls.push(args);
+      const realConversationWritten = args.chats.some((c) => c.isRealConversation);
+      return Promise.resolve({
+        chatsImported: args.chats.length,
+        chatsSkipped: 0,
+        messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),
+        variantsImported: args.chats.reduce(
+          (n, c) => n + c.messages.reduce((v, m) => v + m.variants.length, 0),
+          0,
+        ),
+        branchesLinked: 0,
+        realConversationWritten,
+      });
+    },
+    bulkImportPersonas: (args) => {
+      personaCalls.push(args);
+      const idByName: Record<string, PersonaId> = {};
+      let defaultPersonaId: PersonaId | null = null;
+      let created = 0;
+      for (const p of args.personas) {
+        const key = p.name.trim().toLowerCase();
+        if (key.length === 0) {
+          continue;
+        }
+        if (idByName[key] === undefined) {
+          personaSeq += 1;
+          idByName[key] = castId<PersonaId>(`persona_${String(personaSeq).padStart(26, "0")}`);
+          created += 1;
+        }
+        if (p.isDefault) {
+          defaultPersonaId = idByName[key];
+        }
+      }
+      return Promise.resolve({
+        personasCreated: created,
+        personasSkipped: args.personas.length - created,
+        defaultPersonaId,
+        idByName,
+      });
+    },
     enqueueBackfill: ({ ownerId: o }): Promise<void> => {
       backfills.push({ ownerId: o });
       return Promise.resolve();
@@ -209,5 +269,5 @@ export function makeProfileHarness(db: Db, ownerId: UserId): ProfileHarness {
     attachCardTag: inert,
     profile,
   };
-  return { ctx, profile, backfills, reconciles };
+  return { ctx, profile, chatCalls, personaCalls, backfills, reconciles };
 }

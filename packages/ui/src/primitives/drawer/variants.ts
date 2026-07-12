@@ -13,7 +13,7 @@ export const drawerVariants = tv({
       "fixed inset-0 z-(--z-modal) bg-scrim transition-opacity duration-(--motion-layout) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
     viewport: "fixed inset-0 z-(--z-modal)",
     popup:
-      "fixed flex flex-col bg-card text-card-foreground shadow-lg transition-transform duration-(--motion-layout) ease-out-expo data-swiping:transition-none",
+      "fixed flex flex-col bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo data-swiping:transition-none",
     // `flex-1 min-h-0` (NOT `h-full`) so the content scroll region resolves against the popup's `max-h-*`
     // cap: `h-full` needs a DEFINITE parent height, which a max-height alone doesn't provide — so tall
     // content grew unbounded and could not scroll (no-window-scroll #14: the overflow must live HERE, not

@@ -26,6 +26,7 @@ import type {
 import { ProviderError } from "../../contract";
 import { runAgentTurn } from "./agent-runner";
 import { fetchAgentSdkModels } from "./catalog";
+import { ensureFreshHostSubToken } from "./host-token";
 import { runChatTurn } from "./runner";
 import { SessionCache } from "./session";
 import { summarize } from "./summarize";
@@ -42,6 +43,11 @@ export {
   buildClaudeVllmEnv,
   RESERVED_CLAUDE_ENV_KEYS,
 } from "./env";
+export {
+  ensureFreshHostSubToken,
+  type HostTokenDeps,
+  refreshHostSubTokenIfMode1,
+} from "./host-token";
 export {
   logProviderCompaction,
   logProviderDialog,
@@ -76,6 +82,9 @@ export interface AgentSdkBackendDeps {
   readonly now: () => number;
   readonly query?: AgentSdkDeps["query"];
   readonly sessionStore?: AgentSdkDeps["sessionStore"];
+  /** Pre-spawn mode-1 host-token refresh. Defaults to the real {@link ensureFreshHostSubToken} bound to
+   *  `now`; tests inject a hermetic no-op so discovery/turn tests never hit the live OAuth endpoint. */
+  readonly refreshHostSubToken?: AgentSdkDeps["refreshHostSubToken"];
 }
 
 /**
@@ -90,6 +99,11 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     now: deps.now,
     query: deps.query ?? query,
     sessionStore: sessions.store,
+    // Real pre-spawn host-token refresh (mode-1). Bound to the composition-root clock; `fetch`/host path
+    // default to the real host resources inside the seam. Tests inject their own via `AgentSdkBackendDeps`.
+    refreshHostSubToken:
+      deps.refreshHostSubToken ??
+      ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
   };
   return {
     key: "agent-sdk",

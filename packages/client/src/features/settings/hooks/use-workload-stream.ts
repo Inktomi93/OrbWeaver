@@ -15,8 +15,7 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import type { Invalidation, Trpc } from "#data";
 import { useTRPC } from "#data";
 import type { WorkloadProgressView } from "../lib/workloads-model";
-
-const PERCENT_SCALE = 100;
+import { toProgressView } from "../lib/workloads-model";
 
 // The branded WorkloadId as the wire carries it — derived off the LIST row (`inferInput` doesn't
 // decorate subscription procedures, and the subscribe input's brandedId parses from `unknown`).
@@ -52,16 +51,7 @@ export function useWorkloadStream({
             return;
           }
           if (event.type === "progress") {
-            const { pct, current, total, message } = event.progress;
-            const derivedPct =
-              pct ??
-              (current !== undefined && total !== undefined && total > 0
-                ? Math.round((current / total) * PERCENT_SCALE)
-                : null);
-            const label =
-              message ??
-              (current !== undefined && total !== undefined ? `${current} of ${total}` : null);
-            onProgress({ pct: derivedPct, label });
+            onProgress(toProgressView(event.progress));
             return;
           }
           // started / status / terminal — the persisted row changed; refetch through the seam.

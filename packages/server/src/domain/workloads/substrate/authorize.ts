@@ -6,8 +6,23 @@
 // or simply not theirs — the verb collapses both to `DomainNotFoundError` (never a FORBIDDEN existence oracle).
 
 import type { Principal } from "@orb/contracts/identity";
+import type { WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
+import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { IsAdmin } from "../../admin/contract/guard";
+
+/**
+ * Assert a kind supports the requested run mode (the shared MODE-support gate the schedule verbs reuse — the
+ * `start` verb keeps its own inline copy so its bulk-target resolution stays one flow). A `singular` request
+ * against a bulk-only kind (or vice versa) throws `unsupported_mode` (BAD_REQUEST).
+ */
+export function assertKindSupportsMode(kind: WorkloadKind, mode: WorkloadMode): void {
+  const policy = WORKLOAD_KIND_MODES[kind];
+  if ((mode === "singular" && !policy.singular) || (mode === "bulk" && !policy.bulk)) {
+    throw new DomainOperationError("unsupported_mode", `"${kind}" does not support ${mode} mode`);
+  }
+}
 
 /**
  * May `caller` see/act on a row owned by `ownerId`? A `null` caller is a TRUSTED system/scheduler trigger

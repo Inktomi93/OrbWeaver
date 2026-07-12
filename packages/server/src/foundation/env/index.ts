@@ -62,6 +62,12 @@ const envSchema = z
     // host's `claude login` Max subscription (infra/providers/backends/agent-sdk).
     OPENROUTER_API_KEY: z.string().min(1).optional(),
 
+    // Tenor gif-search API key (D61 gallery-design §5). Optional — omit to disable gif search. First-time-
+    // setup ONLY (the a/seed env→DB pattern): at boot it seeds the OWNER's `gif-search` labeled credential
+    // ONCE, then wears no second hat at runtime (the key is resolved from the credential row, never re-read
+    // from env). A per-user metered third-party secret → it lives in `domain/credentials`, never logged.
+    TENOR_API_KEY: z.string().min(1).optional(),
+
     // Observability (foundation/observability). LOG_LEVELS is the ONE tuple, imported DOWN from
     // @orb/contracts/settings (the hand-kept mirror is eliminated).
     LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
@@ -74,6 +80,11 @@ const envSchema = z
     // Content-addressed asset blob root (card PNGs, avatars). A per-user-keyed sharded CAS tree (D21);
     // the DB holds metadata, bytes live here. Prod: a path on the mounted volume.
     ASSETS_DIR: z.string().min(1).default("./data/assets"),
+    // The controlled root the bundle-import extractor `mkdtemp`s its per-upload staging dir under (a portability
+    // zip is decompressed to DISK, not RAM — a heavy all-blobs library legitimately exceeds available memory).
+    // Optional: unset ⇒ the extractor defaults to the OS temp dir. Prod: point it at a dedicated volume with
+    // room for the largest bundle (its files are removed after each import — success AND error).
+    IMPORT_STAGING_DIR: z.string().min(1).optional(),
 
     // ── vLLM family — THE local inference family (embed / rerank / image-embed / summarize / VL gen).
     // Supervised loopback engines adopted/owned by the in-server supervisor (infra/providers/vllm).

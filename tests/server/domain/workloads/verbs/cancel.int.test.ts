@@ -32,7 +32,7 @@ describe("workloads.cancel", () => {
     await seedUser(db, "user_bob");
     const id = await seedWorkloadRow(db, {
       id: "w_alice",
-      kind: "embed-corpus",
+      kind: "reconcile-stats",
       ownerId: alice,
       status: "running",
     });

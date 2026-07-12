@@ -9,7 +9,11 @@
 // it imports from `@orb/kit/persona` + `@orb/contracts/chat` directly.
 
 export { AssetNotFoundError, LastPersonaError, PersonaNotFoundError } from "./contract/errors";
+// The persona-OWNED bulk-import WRITE op's DI bundle + op type (Option B; PD-77) — the entry root constructs
+// `PersonaImportContext` and wires `createBulkImportPersonas` (below) into `import`'s `bulkImportPersonas`.
+export type { BulkImportPersonas, PersonaImportContext } from "./contract/import";
 export type { CreatePersonaInput, UpdatePersonaInput } from "./contract/params";
 export type { PersonaService } from "./contract/service";
 export type { PersonaDetail } from "./contract/views";
+export { createBulkImportPersonas } from "./persistence/import-write";
 export { createPersonaService } from "./service";

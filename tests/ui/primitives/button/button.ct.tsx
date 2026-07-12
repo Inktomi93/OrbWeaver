@@ -130,6 +130,28 @@ test("active press darkens the primary intent from its hover color", async ({ mo
   await page.mouse.up();
 });
 
+test("active press scales the surface down (motion guide §4.2 #4)", async ({ mount, page }) => {
+  const button = await mount(<Button>Save</Button>);
+  const control = page.getByRole("button", { name: "Save" });
+  // Tailwind v4 `scale-95` drives the standalone `scale` CSS PROPERTY, not the `transform` matrix.
+  const readScale = (): Promise<string> => button.evaluate((el) => getComputedStyle(el).scale);
+  // At rest the button is unscaled (`scale: none`).
+  expect(await readScale()).toBe("none");
+  await control.hover();
+  await page.mouse.down();
+  // The transition animates `scale` from 1 down to 0.95 — poll the parsed value into the pressed band
+  // (the intermediate frames read as 0.95<v≤1, so assert on the settled value, not the first non-none).
+  await expect
+    .poll(async () => {
+      const v = await readScale();
+      return v === "none" ? 1 : Number.parseFloat(v);
+    })
+    .toBeLessThan(0.97);
+  await page.mouse.up();
+  // Released: scale returns to identity (`none`), proving the press is transient, not sticky.
+  await expect.poll(readScale).toBe("none");
+});
+
 test("keyboard focus shows a focus-visible ring", async ({ mount, page }) => {
   const button = await mount(<Button>Save</Button>);
   await expect(button).toHaveCSS("box-shadow", "none");

@@ -12,15 +12,15 @@ updated: 2026-07-09
 
 **File-layout law (triage ruling 2026-07-09, CORRECTED same day — measure citations before moving
 ANYTHING):** the ten `*-design/` set directories, **`ui-package-design.md` (195 code citations —
-untouchable, never renumber)**, and a small tail (design-enforcement · gallery-design ·
-import-st-profile-waves · client-tooling-setup · connection-capability-panel · saved-rosters-design ·
-export-deferred-surfaces · ux-flow-revamp · the deferred gap docs — 1–9 citation-shaped code refs
+untouchable, never renumber)**, and a small tail (connection-capability-panel · saved-rosters-design ·
+ux-flow-revamp · the deferred gap docs — 1–9 citation-shaped code refs
 each) are path-cited from CODE file headers/gates and are FROZEN in place. The four committed
 decision DIGESTS proved zero-code-cited and were CO-LOCATED into their sets (owner call, 2026-07-09):
 `tool-use-design/tool-use.md` · `automation-design/automation.md` · `databank-design/databank.md` ·
 `expressions-design/expressions.md` (basenames kept — prose citing "the digest `x.md`" stays true).
-`gallery.md` stays at root (its design doc is a single sibling file, not a set). Any future move:
-run the citation-shaped sweep first (`grep -rnE '<name>\.md|proposed/<name>|<name> §'` over
+`gallery.md` + `gallery-design.md` retired to `../history/` (2026-07-11) — gallery v1/v2 + gif
+search/import all landed; see `history/gallery.md`. Any future move: run the citation-shaped sweep
+first (`grep -rnE '<name>\.md|proposed/<name>|<name> §'` over
 packages/scripts/tests/config), and treat a bare-word count as noise. THIS README is the
 organization; §0 below is the dispatch order.
 
@@ -37,7 +37,7 @@ organization; §0 below is the dispatch order.
 | - | - | - |
 | Chats redesign Wave 0 | `FINAL-Chat-Tab-Redesign-UX.md` (repo root) §0 Wave 0 — the FINAL-Chats §12 FIX #1–#5 exposures + `compact`/lore router rows + the `guidedSteerSchema` wire fix (the redesign doc's build order now GOVERNS the chats client program; FINAL-Chats stays the as-built baseline) | domain code verified built + dark 2026-07-09; Wave 0 blocks on nothing |
 | automation A1–A3 | macro-DX · CEL+`{{expr}}` · global variables (kit-early) | zero deps — `automation-design/05` says buildable now; `global_variables` schema already landed |
-| hub-browse H1 | the egress guard (`safeFetch` + `isAllowedImageBuffer` + `@orb/kit/image-sniff`) | zero deps; unblocks gallery G7 + databank DB7 + D44 fetches |
+| hub-browse H1 | the egress guard (`safeFetch` + `isAllowedImageBuffer` + `@orb/kit/image-sniff`) | zero deps; gallery G7 already shipped (2026-07-11) on its own hardened-fetch guard — H1 now unblocks only databank DB7 + D44 fetches |
 | databank DB3 spike | `infra/extraction` (the declared long pole — start it early, it parallelizes) | zero deps; DB2 schema landed |
 | rpg R1-proper | the rpg contracts MODULE (views/verbs/substrate goldens) — schema/brands/stubs already landed | schema rider landed 2026-07-09; R1-proper is self-contained |
 | ~~Doc-corpus amendment sweep~~ | DONE 2026-07-09 (the `domains/*.md` citation repairs, landed-row annotations, digest co-location) | — |
@@ -56,7 +56,7 @@ organization; §0 below is the dispatch order.
    any of: the Presets rail section (ux-flow L7), the preset editor, `preset-form-mapper-elimination.md`,
    `connection-capability-panel.md`. Everything preset/connection-client is BLOCKED on this one ruling.
 4. **Settings IA finish** (ux-flow J11 partials + punchlist UIP-404 row grammar + the side-eye P3s).
-5. **Phase-6 stages of the grafts** (each after its server half): imagery I5 · gallery G4/G5 ·
+5. **Phase-6 stages of the grafts** (each after its server half): imagery I5 ·
    saved-rosters RP2 picker · expressions E5 · tool-use T7 (needs the `CHAT_SURFACE_SLOTS`/
    `CHAT_CONTEXT_SLOTS`/`TOOL_RENDERERS` registries — DESIGN-REVIEW §7 #23–25; land the registries
    with their first consumer, not speculatively).
@@ -83,7 +83,7 @@ search verb waves (per-demand) · import ST-profile waves (blocked:later).
 **Decision gates needing the OWNER (everything else is dispatchable without him):** presets
 placement (Track 1 #3) · the crew CW4 director playtest · nothing else found in triage.
 
-**Digest vs design set (read this before opening an effort):** five efforts have BOTH a committed decision digest (the promoted decision record expanding its D-entry) AND a full build design. The digests live INSIDE their sets (co-located 2026-07-09): `automation-design/automation.md` · `databank-design/databank.md` · `expressions-design/expressions.md` · `tool-use-design/tool-use.md`; gallery's digest `gallery.md` sits beside its single-file design `gallery-design.md` at root. **The `*-design/` set (for gallery: `gallery-design.md`) is canonical and wins on detail; the digest stays the decision record** — each digest carries a banner saying exactly this. Build from the set; cite the digest only for the committed decision's letter. When a built set retires to `../history/`, its digest rides with it.
+**Digest vs design set (read this before opening an effort):** five efforts have BOTH a committed decision digest (the promoted decision record expanding its D-entry) AND a full build design. The digests live INSIDE their sets (co-located 2026-07-09): `automation-design/automation.md` · `databank-design/databank.md` · `expressions-design/expressions.md` · `tool-use-design/tool-use.md`. **The `*-design/` set is canonical and wins on detail; the digest stays the decision record** — each digest carries a banner saying exactly this. Build from the set; cite the digest only for the committed decision's letter. When a built set retires to `../history/`, its digest rides with it — gallery already did (2026-07-11): both `gallery.md` and `gallery-design.md` now live in `../history/`.
 
 ## 1. Building NOW — the Phase-5 tail
 
@@ -142,9 +142,7 @@ placement (Track 1 #3) · the crew CW4 director playtest · nothing else found i
 | Effort | Decision · PD | State | What remains |
 | - | - | - | - |
 | imagery — `domain/imagery` | D49 #1 · PD-93 | **built** (landed early: leaf + `chat.generateImage` caller + `imagery_generations`) | I5 client (Phase 6). Docs [`imagery-design/`](imagery-design/README.md) (+ digest gone — never had one; the set's README flags record the deltas) |
-| gallery v1/v2 | D49 #2 · PD-55 | **built** (server: `listOwned` + gallery verbs + `gallery_items`) | G2 animated-sniff/thumb rung (unlanded) · G4 grid + G5 token-counter (Phase 6) · G6→hub H1, G7→hub H7 (home migrated per D61). Docs [`gallery-design.md`](gallery-design.md) (canonical) + digest `gallery.md` |
 | `@orb/ui` package | D42/D54 | **built** (waves 0–3 + the carve-out fleet) | the §6.2 client factories (Phase 6). Docs [`ui-package-design.md`](ui-package-design.md) — §-numbers are load-bearing (code cites them); do not renumber |
-| client tooling (ESLint + Vite) | — | **built** except the CSP | §7.5 reference CSP lands with the `entry/http` wave; §9 open flags. Docs [`client-tooling-setup.md`](client-tooling-setup.md) — §7/§9 numbers cited from code |
 | themes — `themes` entity in `domain/settings` | D44 §12.1 | **built** (server: `themes` table + 6 CRUD verbs + seed rows + `theme`/`appearance` UserSettings namespaces; client: `<ThemeScope>`, editor) | nothing — archived as the as-built design record. Docs moved to [`../history/themes-design.md`](../history/themes-design.md) |
 
 ## 5b. The D62 client program + the FINAL lane docs (live companions — previously untracked here)
@@ -153,7 +151,6 @@ placement (Track 1 #3) · the crew CW4 director playtest · nothing else found i
 | - | - | - |
 | [`ux-flow-revamp.md`](ux-flow-revamp.md) | the D62 journeys/parity/lanes program record | lanes L0–L6 LANDED (its §0.5 truth table is current); remaining = J10/J11 partials + L7 parity (Presets row BLOCKED on the presets-placement decision). The chat journeys are now governed by the FINAL-Chats doc; J9 by FINAL-Character |
 | [`ui-polish-punchlist.md`](ui-polish-punchlist.md) | the 43 UIP pixel/chrome fixes | re-verified against code 2026-07-09: LARGELY LANDED; open = UIP-404 SettingRow adoption · UIP-405 (auth #50) · §8 focus-ring audit + VERIFY-LIVE caret · §9 pending the presets decision (its banner carries the detail) |
-| [`design-enforcement.md`](design-enforcement.md) | the D62 gate machine (Tier A/B/C) | gate battery LIVE at 50 gates / 8 stages (`core/Core-Enforcement-Active-Gates.md` is the registry); presets rows PENDING the owner decision |
 
 **The FINAL lane docs (repo ROOT, one per active client lane — the convention):** a lane in active
 build carries an exhaustive `FINAL-<lane>.md` at the repo root (the build-spec the builders obey);
@@ -169,7 +166,6 @@ exactly this). Current: `FINAL-Character-Library-and-Editor-UX.md` (in build) ·
 | Capability-complete turn & wire shaping — the UNIFIED program: `ModelCapability.turns` (prefill/mid-conv-system/role-handling floor/explicit cache + per-model `cacheMinTokens`) + the role-merge prefix-cache fix + the SHAPE-clamped user role-handling knob (**D66**) · the anth-direct backend (paid-key-only, TOOL-LESS, additive; official `@anthropic-ai/sdk`; v1 rides the existing `openrouter` source; THE SUB-EXCLUSION + the extended ambient-credential belt; the `cli`/`direct` transport axis) (**D67**) · sampling completeness (minP end-to-end, verbosity live on the responses wire, per-model direct-transport Claude sampling) (**D68**) — all proposed | [`capability-turn-shaping/`](capability-turn-shaping/README.md) (a 4-part set: 01 capability-model · 02 anth-direct · 03 sampling · 04 migration+ledger; absorbed the former `anth-direct-backend/` 2026-07-10) | `draft` (ratification-ready; honor matrix + OR-key SDK path wire-tested 2026-07-10; adversarial review applied 2026-07-10) | ratify D66+D67+D68 together (part 04 §2), then the part-04 §1 waves in order: W1 contracts+resolver (incl. the api-threading fix) → W2 sampling → … — server-side, unblocked, ZERO new credential; the client picker/panels are W10 |
 | Descriptor-driven params panel + `quality` dial mapping | [`connection-capability-panel.md`](connection-capability-panel.md) | deferred:no-client-surface | the client params panel build |
 | `PresetFormValues` + mapper elimination | [`preset-form-mapper-elimination.md`](preset-form-mapper-elimination.md) | deferred:no-client-surface | the preset editor build (criterion: TanStack binds every nested path) |
-| Tag pending-review read verb | [`tag-pending-review.md`](tag-pending-review.md) | deferred:first-consumer | build WITH the Phase-6 tag/character surfaces |
 
 (`character-snapshot-ux.md` was RETIRED at the 2026-07-09 triage — both of its open questions are
 answered by `FINAL-Character-Library-and-Editor-UX.md` §7 History + §12 FIX #3.)
@@ -178,15 +174,10 @@ answered by `FINAL-Character-Library-and-Editor-UX.md` §7 History + §12 FIX #3
 
 | Effort | PD rows | One line | Trigger |
 | - | - | - | - |
-| [`assets-maintenance.md`](assets-maintenance.md) | PD-26 · PD-84 | backfill/GC/reap/fsck/rebuild — 5 verbs; seams already inert-wired | blob-store growth OR an ops/admin surface |
 | [`buddy-observer-reaction-engine.md`](buddy-observer-reaction-engine.md) | PD-45 · PD-64 | the `observer/` reaction engine + live SSE bus; pure machine + schema BUILT | buddy's call — the event sources now exist; land the D60 seated-buddy self-quip belt with it |
 | [`discovery-deferred-corpus-surface.md`](discovery-deferred-corpus-surface.md) | PD-40 · PD-39 | 10 corpus verb waves (distill → insights → image analytics → composed views) | per-wave; runner seams inert-wired |
-| [`export-deferred-surfaces.md`](export-deferred-surfaces.md) | PD row pending | **BUG-grade gap:** the HTTP download registrar — both export verbs composed but runtime-UNREACHABLE; + bulk zip (unflagged) | wire with `entry/http`; zip on demand |
-| [`import-st-profile-waves.md`](import-st-profile-waves.md) | PD-77 · PD-78 | chats/personas/lorebook/loader/backfill waves (parser esoterica carried verbatim) | blocked:later; PD-94 zip-bomb belt lands WITH the loader |
 | [`search-deferred-verbs.md`](search-deferred-verbs.md) | PD-35–38 | discover / cross-modal images / lexical fields+suggest / unified dispatch | per-verb demand |
-| [`sessions-token-rotation.md`](sessions-token-rotation.md) | — | deliberate NON-behavior + the rotate-on-privilege-transition design | the first user-driven privilege step (MFA/impersonation/self-grant) |
 | [`stats-discovery-seam.md`](stats-discovery-seam.md) | PD-22 · PD-40 | the economics/semantics disjoint-projection tiers 2–3; the `discovery-no-stats-rollups` lint could land NOW | with the PD-22/PD-40 builds |
-| [`workloads-deferred-designs.md`](workloads-deferred-designs.md) | — | per-user authz · `dependsOn` DAG scheduler · kind collapse | explicit criteria per item in the doc |
 
 ## 8. Records (closed — do not re-mine)
 

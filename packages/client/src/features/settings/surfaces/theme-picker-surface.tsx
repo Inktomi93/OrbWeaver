@@ -18,7 +18,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { ThemeEditor } from "../components/theme-editor";
 import { ThemeRowMenu } from "../components/theme-row-menu";
@@ -42,12 +42,7 @@ export function ThemePickerSurface(): ReactElement {
       <QueryBoundary
         fallback={<Text tone="muted">Loading your themes…</Text>}
         renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load your themes.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
+          <QueryErrorState label="your themes" onRetry={retry} />
         )}
       >
         <ThemeManager />

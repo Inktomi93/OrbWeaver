@@ -39,3 +39,46 @@ export const useRetryWorkload = createEntityMutation<
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
   errorToast: "Couldn't retry the workload — a run of that kind may already be active.",
 });
+
+// ── Schedules (the TIME dimension) — each self-invalidates the `listSchedules` read on settle. ──────────
+
+/** Create a recurring schedule. */
+export const useCreateSchedule = createEntityMutation<
+  inferInput<Trpc["workloads"]["createSchedule"]>,
+  unknown
+>({
+  options: (trpc) => trpc.workloads.createSchedule.mutationOptions(),
+  invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
+  errorToast: "Couldn't create the schedule.",
+});
+
+/** Retune a schedule in place (kind/params/cadence/mode). `enabled` is NOT here — that stays the Switch's
+ *  `setScheduleEnabled`. Owner-scoped + re-gated server-side (a bulk retune requires `requireOwner`). */
+export const useUpdateSchedule = createEntityMutation<
+  inferInput<Trpc["workloads"]["updateSchedule"]>,
+  unknown
+>({
+  options: (trpc) => trpc.workloads.updateSchedule.mutationOptions(),
+  invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
+  errorToast: "Couldn't update the schedule.",
+});
+
+/** Pause/resume a schedule. */
+export const useSetScheduleEnabled = createEntityMutation<
+  inferInput<Trpc["workloads"]["setScheduleEnabled"]>,
+  unknown
+>({
+  options: (trpc) => trpc.workloads.setScheduleEnabled.mutationOptions(),
+  invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
+  errorToast: "Couldn't update the schedule.",
+});
+
+/** Delete a schedule. */
+export const useDeleteSchedule = createEntityMutation<
+  inferInput<Trpc["workloads"]["deleteSchedule"]>,
+  unknown
+>({
+  options: (trpc) => trpc.workloads.deleteSchedule.mutationOptions(),
+  invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
+  errorToast: "Couldn't delete the schedule.",
+});

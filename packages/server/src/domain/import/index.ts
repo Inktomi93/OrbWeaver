@@ -6,7 +6,7 @@
 //   • ImportCardError (so the transport + tests discriminate the card-read/validate failure)
 //
 // SCOPE (4c W3): the SillyTavern character-card path. The chats/personas parsers + the profile collector
-// (`proposed/import-st-profile-waves.md`, PD-77) land with their waves.
+// (`history/export-import-portability.md` §5, PD-77) land with their waves.
 
 // The card content hash is single-homed in the serde kit (PD-33); the front door re-surfaces it so the
 // bulk driver + tests reach the import public surface in one place.

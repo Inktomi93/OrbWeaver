@@ -5,7 +5,7 @@ import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 export interface TextareaFieldProps {
   readonly label: ReactNode;
@@ -23,12 +23,12 @@ export function TextareaField({
   rows,
 }: TextareaFieldProps): ReactElement {
   const field = useFieldContext<string>();
-  const error = fieldErrorText(field.state.meta.errors);
+  const error = touchedFieldError(field.state.meta);
   return (
     <Field
       label={label}
       description={description}
-      error={field.state.meta.isTouched ? error : null}
+      error={error}
       disabled={disabled ?? false}
       name={field.name}
     >

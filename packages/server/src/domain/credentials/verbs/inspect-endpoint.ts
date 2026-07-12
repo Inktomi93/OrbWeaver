@@ -51,6 +51,7 @@ export function createInspectEndpoint(
       apiKey: apiKey !== null && apiKey.length > 0 ? apiKey : null,
       headers: endpoint.headers,
       credentialId,
+      model: endpoint.model ?? undefined,
     });
     return ctx.inspect({ credential, model: params.model ?? endpoint.model ?? "" });
   };

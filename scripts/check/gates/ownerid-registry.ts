@@ -38,6 +38,8 @@ export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
   tags: "D23 true producer",
   user_credentials: "D23 true producer",
   workloads: "D23 true producer",
+  workload_schedules:
+    "D23 true producer (a user-authored recurring-run config; no owned anchor to derive from — the TIME dimension over the workloads queue)",
   documents: "D49 databank producer / D23 top-level owned canon",
   roster_presets: "D61 true producer",
   themes: "D23 generalized producer list (themes) / D44/D63",

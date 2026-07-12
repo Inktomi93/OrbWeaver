@@ -1,12 +1,12 @@
 // One persona row in the rail-foot panel — LEAN redesign (identity edited IN THE ROW, no sub-editor
 // identity block). Interaction model:
-//   • Avatar click → a hidden file input → `uploadAsset(file,"avatar")` → `persona.update` PARTIAL patch
-//     (`avatarAssetId`), autosaved. NO drag-drop zone.
+//   • Avatar click → `@orb/ui/file-trigger` → `uploadAsset(file,"avatar")` → `persona.update` PARTIAL
+//     patch (`avatarAssetId`), autosaved. NO drag-drop zone.
 //   • Name click → inline rename (the name becomes an `Input` in place; Enter/blur commits via the SAME
 //     partial-patch mutation; Escape cancels).
 //   • Row-body click (anywhere but the avatar/name/actions) = set that persona as CURRENT (#2).
 //   • Hover-reveal actions: ♥ favorite (a `persona.update` partial patch, `starred`) · ★ set-Default
-//     (#1, gold Crown once set) · 🗑 delete (AlertDialog confirm). NO ✎ edit button.
+//     (#1, gold Crown once set) · 🗑 delete (`ConfirmDialog`). NO ✎ edit button.
 //   • An ALWAYS-visible ⌄ chevron is a disclosure toggle (`@orb/ui/collapsible`), not an edit
 //     button — it expands/collapses the row's DETAILS (`<PersonaEditor>`, itself fully autosaving).
 // A11y model (side-eye item 13 / no-interactive-role-in-features): the "set current" target is a real
@@ -16,21 +16,14 @@
 // the old `stopPropagation` crutches are gone (disjoint elements never fire each other). `@orb/ui/list-row`
 // is not used because its `title` is a plain string with no room for the live edit-in-place name control.
 //
-// A COMPONENT, not a surface — so the inline delete <AlertDialog> is legal (surface-purity §A.7b).
+// A COMPONENT, not a surface — so the inline delete `<ConfirmDialog>` is legal (surface-purity §A.7b).
 
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
+import { FileTrigger } from "@orb/ui/file-trigger";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the add-member-popover precedent).
 import { ChevronDown, ChevronRight, Crown, Heart, Icon, Star, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -39,7 +32,8 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { uploadAsset, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
@@ -76,7 +70,6 @@ export function PersonaPanelRow({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(persona.name);
-  const fileRef = useRef<HTMLInputElement>(null);
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
 
   const commitName = (): void => {
@@ -121,31 +114,28 @@ export function PersonaPanelRow({
           intent="ghost"
           onClick={onSetCurrent}
         />
-        <Button
-          aria-label="Change avatar"
-          className="relative shrink-0"
-          intent="ghost"
-          onClick={(): void => fileRef.current?.click()}
-          size="icon"
-        >
-          <Avatar fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
-            {initialsFor(persona.name)}
-          </Avatar>
-        </Button>
-        <input
-          aria-label="Upload avatar file"
+        <FileTrigger
           accept="image/*"
-          hidden={true}
-          onChange={(event): void => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
+          onFilesSelected={([file]): void => {
             if (file !== undefined) {
               void onAvatarFile(file);
             }
           }}
-          ref={fileRef}
-          type="file"
-        />
+        >
+          {({ open }): ReactElement => (
+            <Button
+              aria-label="Change avatar"
+              className="relative shrink-0"
+              intent="ghost"
+              onClick={open}
+              size="icon"
+            >
+              <Avatar fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
+                {initialsFor(persona.name)}
+              </Avatar>
+            </Button>
+          )}
+        </FileTrigger>
 
         {/* `pointer-events-none` lets the Stack's EMPTY space (right of the short name) fall through to the
             stretched select overlay below — only the actual name control re-enables pointer events. */}
@@ -250,28 +240,19 @@ export function PersonaPanelRow({
         </CollapsiblePanel>
       </Collapsible>
 
-      <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Delete this persona?</AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <AlertDialogDescription>
-              This permanently deletes “{persona.name}”. Past messages you authored as it keep their
-              name and avatar. This can't be undone.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={onDelete}>
-                    Delete
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        confirmLabel="Delete"
+        description={
+          <>
+            This permanently deletes “{persona.name}”. Past messages you authored as it keep their
+            name and avatar. This can't be undone.
+          </>
+        }
+        onConfirm={onDelete}
+        onOpenChange={setDeleteOpen}
+        open={deleteOpen}
+        title="Delete this persona?"
+      />
     </Stack>
   );
 }

@@ -35,6 +35,10 @@ export const assets = sqliteTable(
     size: integer("size").notNull(),
     // sha-256 of the blob bytes = the CAS key. A card PNG's hash doubles as `characters.importHash`.
     hash: text("hash").notNull(),
+    // A STORED byte-fact (gallery-design §3, G2): `isAnimated(bytes)` computed ONCE at store time so the
+    // gallery grid + variant pipeline read it without re-sniffing. GIF ⇒ true, APNG (acTL), animated WebP.
+    // Drives `resolveVariant`'s bailout (don't downscale an animated asset — sharp drops animation).
+    animated: integer("animated", { mode: "boolean" }).notNull().default(false),
     uploadedAt: integer("uploaded_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (table) => [

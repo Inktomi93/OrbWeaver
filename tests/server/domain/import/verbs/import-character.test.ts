@@ -94,6 +94,61 @@ describe("importCharacter", () => {
     expect(h.tagAttaches.map((t) => t.tagName)).toEqual(["Female", "female", " NSFW "]);
   });
 
+  test("an embedded character_book is extracted + handed to the injected importLorebook op (W1)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const withBook = JSON.stringify({
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: {
+        name: "Aria",
+        description: "a bard",
+        character_book: {
+          name: "Aria's World",
+          entries: [
+            {
+              keys: ["kingdom"],
+              content: "A realm of dusk.",
+              comment: "The Kingdom",
+              constant: true,
+              insertion_order: 10,
+            },
+          ],
+        },
+      },
+    });
+
+    const result = await svc.importCharacter({
+      card: { bytes: encoder.encode(withBook), filename: "aria.json" },
+    });
+
+    expect(h.lorebooks).toHaveLength(1);
+    const call = h.lorebooks[0];
+    if (call === undefined) {
+      throw new Error("expected a recorded lorebook call");
+    }
+    expect(call.ownerId).toBe(h.ownerId);
+    expect(call.characterId).toBe(result.characterId);
+    expect(call.book.name).toBe("Aria's World");
+    expect(call.book.entries).toHaveLength(1);
+    const entry = call.book.entries[0];
+    expect(entry?.title).toBe("The Kingdom"); // ST `comment` → title
+    expect(entry?.content).toBe("A realm of dusk.");
+    expect(entry?.keys).toEqual(["kingdom"]);
+    expect(entry?.priority).toBe(10); // ST `insertion_order` → priority
+    // `constant:true` → `scopeMode:'always'` (the load-bearing runtime-scope derivation, #kit/serde/card).
+    expect(entry?.metadata?.["scopeMode"]).toBe("always");
+  });
+
+  test("a card with no embedded book calls importLorebook zero times", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+
+    await svc.importCharacter({ card: { bytes: encoder.encode(V3_JSON), filename: "aria.json" } });
+
+    expect(h.lorebooks).toHaveLength(0);
+  });
+
   test("a card with no tags carries none (no tag-attach calls)", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);

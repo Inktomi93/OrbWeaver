@@ -10,7 +10,7 @@ import {
   useCommandState,
 } from "cmdk";
 import type { ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
-import { cn } from "#lib";
+import { cn, formatResultCount } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Search/Icon fine (the spinner.tsx precedent).
 import { Icon, Search } from "#primitives/icons";
 import { commandVariants } from "./variants";
@@ -242,7 +242,7 @@ export function CommandStatus(): ReactElement {
   const count = useCommandState((state) => state.filtered.count);
   return (
     <div aria-live="polite" className={slots.status()} data-slot="command-status" role="status">
-      {`${count} ${count === 1 ? "result" : "results"}`}
+      {formatResultCount(count)}
     </div>
   );
 }

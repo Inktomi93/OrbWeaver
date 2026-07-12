@@ -38,6 +38,7 @@ import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler";
 import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler";
+import { startWorkloadScheduleScheduler } from "../transport/jobs/workload-schedule-scheduler";
 import { startWorkloadsWorker } from "../transport/jobs/workloads-worker";
 import { createApp } from "./app";
 import { createAuthSeam } from "./auth";
@@ -77,6 +78,8 @@ export function createLifecycle(): Lifecycle {
   let db: Db | null = null;
   let server: ServerType | null = null;
   let stopScheduler: (() => void) | null = null;
+  // The recurring-schedule tick timer (the TIME dimension) — enqueues due `workload_schedules`; shutdown clears it.
+  let stopScheduleScheduler: (() => void) | null = null;
   // The OIDC PKCE-transaction GC timer (armed only in oidc mode); shutdown clears it.
   let stopOidcGc: (() => void) | null = null;
   // The workloads worker loop runs until its AbortSignal fires; shutdown aborts it to drain the in-flight row.
@@ -166,6 +169,9 @@ export function createLifecycle(): Lifecycle {
       secretBoxKey,
       casDir: env.ASSETS_DIR,
       variantDir: join(dirname(env.ASSETS_DIR), "variants"),
+      // The `import-bundle` staging root — the SAME env the bundle route reads, so route-write + runner-read
+      // land in one place (absent ⇒ both default to the OS temp dir).
+      ...(env.IMPORT_STAGING_DIR !== undefined ? { importStagingDir: env.IMPORT_STAGING_DIR } : {}),
       sessionSecret: env.SESSION_SECRET ?? null,
       vllmDisabled,
       repoRoot: process.cwd(),
@@ -194,6 +200,7 @@ export function createLifecycle(): Lifecycle {
       credentials: built.services.credentials,
       owner,
       openrouterApiKey: env.OPENROUTER_API_KEY,
+      tenorApiKey: env.TENOR_API_KEY,
     });
 
     // 8. the idempotent boot packs + the single-replica lock reclaim. The default-character pack seeds the
@@ -220,6 +227,20 @@ export function createLifecycle(): Lifecycle {
         };
       },
       checkIntervalMs: CATALOG_CHECK_INTERVAL_MS,
+    });
+    //   • recurring-schedule tick (the TIME dimension): scans `workload_schedules` for due rows + enqueues each
+    //     through the workloads `start` front door (so a scheduled run flows through dispatch + the single-active
+    //     lock + the DAG exactly like a manual start). Single-replica per-process interval; shutdown clears it.
+    stopScheduleScheduler = startWorkloadScheduleScheduler({
+      db,
+      now,
+      start: (params) => built.services.workloads.start(params),
+      scheduleInterval: (fn, ms) => {
+        const handle = setInterval(fn, ms);
+        return () => {
+          clearInterval(handle);
+        };
+      },
     });
     //   • workloads WORKER: the claim→run poll loop. Its per-dispatch role-clients come from the single
     //     async binder compose exposes (`built.bindRoleClients` — the PD-50 collapse); the engine ops + the
@@ -354,6 +375,8 @@ export function createLifecycle(): Lifecycle {
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,
       exportService: built.exportService,
+      portability: built.portability,
+      importWorldInfo: built.importWorldInfo,
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
@@ -405,6 +428,10 @@ export function createLifecycle(): Lifecycle {
     if (stopScheduler !== null) {
       stopScheduler();
       stopScheduler = null;
+    }
+    if (stopScheduleScheduler !== null) {
+      stopScheduleScheduler();
+      stopScheduleScheduler = null;
     }
     if (stopOidcGc !== null) {
       stopOidcGc();
