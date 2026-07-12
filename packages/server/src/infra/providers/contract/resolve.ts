@@ -100,6 +100,12 @@ export interface ResolvedSampling {
  * range").
  */
 export interface ResolvedChatKnobs {
+  /** A cheap per-turn correlation id (part 05 §4), minted where the funnel result is assembled
+   *  (`resolve-chat.ts`). ADDITIVE to the existing request-scoped `requestId` (never a replacement for
+   *  it) — it disambiguates MULTIPLE provider turns inside one request (a retry, a multi-turn agent
+   *  loop): `provider:true turnId:<id>` isolates one turn's capability → channel → sampling → cache →
+   *  turn chain. Rides this SAME carriage the resolved knobs already use — no new plumbing seam. */
+  readonly turnId: string;
   readonly reasoning: ResolvedReasoning;
   readonly sampling: ResolvedSampling;
   /** WHERE the volatile dynamic system-prompt half rides (D66) — resolved from the user `dynamicContext`

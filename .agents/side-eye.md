@@ -96,7 +96,10 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   itself): it skips any background whose value contains `gradient`, so a `linear-gradient(…),url(…)`
   layer is invisible to the contrast/distortion checks — when a surface uses that pattern (Echo/Whisper
   do), verify contrast + aspect BY HAND via `__orb`/`getComputedStyle`; a clean design-audit alone does
-  not clear it.
+  not clear it. **Its tap-target / aria-name findings are ALSO frequently FALSE POSITIVES** — Base UI
+  mints hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for Select/Slider, and Switch roots are
+  named via `aria-labelledby`, not textContent. VERIFY each with `--aria`/`--map` before reporting; NEVER
+  forward the raw count (last full pass: 52 such findings, all false).
 - **`pnpm snap <route> [flags]`** — the swiss-army probe; ONE call does a lot. **Discover targets and
   get computed receipts HERE before ever touching chrome-devtools:**
   - `--map [selector]` = the SELECTOR MAP — every interactive element as `role "name" → best selector`.
@@ -108,7 +111,9 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   - `--eval '<js>'` (repeatable) = run ANY in-page JS, get the JSON back — including `__orb`
     (`--eval '__orb.renders()'`, `--eval '__orb.snap()'`) and `getComputedStyle`/size/aspect/state. This
     is how you get a computed value in a Bash call; you should almost never need chrome-devtools for a
-    one-off query.
+    one-off query. **Footgun: `--eval` AUTO-INVOKES a function literal** — pass a BARE arrow
+    `'()=>{ …; return x }'` WITHOUT a trailing `()`; writing `'(()=>{…})()'` double-invokes → `EVAL
+    ERROR: … is not a function`. A plain expression (`'__orb.motion()'`, `'getComputedStyle(...).x'`) is fine.
   - `--text` / `--aria [selector]` = the ARIA tree (cheapest a11y-navigability receipt; `--aria-boxes`
     adds `[box=x,y,w,h]`); `--click/--press/--hover/--fill/--key/--wait-for` = interaction steps in argv
     order (reach a surface behind clicks in ONE call; `--press` = hover-then-forced-click); `--shot-of
@@ -120,6 +125,14 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   per-step input delay, long tasks (>50ms), worst rAF gap (dropped frames), layout-shift score; JSON →
   `reports/perf-meter/`. Use when "does it FEEL right" is the question — a janky mode switch, a slow
   open, jank that repeats (`--cycles`), or the flame graph for who burns the frame (`--cpuprofile`).
+- **`pnpm motion-audit <route> [--selector <sel>]`** + **`__orb.motion()` / `__orb.animations()`** (via
+  `snap --eval`) — the SMOOTHNESS receipts for "buttery": LoAF (`styleAndLayoutStart>0`, `blockingDuration
+  >50ms`), CLS, `compositorClean:false` animations, and Percent-Dropped-Frames (CDP trace, 4× throttle).
+  When a surface animates/slides/scrolls, read these — DON'T eyeball 60fps. **The desync trap (learned
+  live):** a slide desynced from the layout it displaces (e.g. a panel gliding while the grid track it
+  vacated snaps `0s`) produces NO LoAF — `__orb.motion()` misses it. So ALSO check `transition-duration`
+  PARITY between the moving element and the container/track it reflows, and watch the CONTENT. Full
+  protocol + the effect-axes to verify (grain/glow-elevation/shadow-glow/spotlight/aura) in §4/§11 of the skill.
 - **`window.__orb`** — the in-page introspection handle (full API in §11 of the design-review skill).
   You do NOT need chrome-devtools for it — read it in a Bash call via `pnpm snap <route> --eval
   '__orb.renders()'` (render heatmap — churn is a real UX defect), `--eval '__orb.snap()'` (one-call
@@ -129,7 +142,11 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
 **chrome-devtools MCP — genuine last resort (you should barely touch it).** Use it ONLY for the one
 thing snap can't script: a live, STATEFUL keyboard walk where each step depends on where focus just
 landed (`press_key` Tab-through + `evaluate_script` reading `document.activeElement` per stop), or a
-`performance_start_trace`. **Everything else is a `snap` Bash call now** — contrast (`--contrast`), any
+`performance_start_trace`. **Why the REAL keyboard walk is mandatory for focus:** Chromium does NOT
+promote a scripted `.focus()` to `:focus-visible`, so `snap --eval el.focus()` can't verify a focus
+ring — only a real `press_key` Tab traversal can (a static shot LIES: the active-rail "no keyboard
+focus" P0 looked fine until a real Tab exposed the glow overwriting the ring). **And chrome-devtools
+can HANG the session** — if it stalls, kill it, fall back to `snap`, and leave no stray browser. **Everything else is a `snap` Bash call now** — contrast (`--contrast`), any
 computed value or `__orb` (`--eval`), selectors (`--map`), the a11y tree (`--aria`), element shots
 (`--shot-of`). If you catch yourself opening `evaluate_script` to compute a ratio or read a style,
 STOP — that's a `snap --contrast`/`--eval`. `navigate_page` then `wait_for` `data-app-ready`. App quirks: it can apply an

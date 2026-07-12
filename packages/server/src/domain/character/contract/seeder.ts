@@ -8,7 +8,7 @@
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { CharacterService } from "./service";
 
 /** One authored default card: the `create` input PLUS its author-shipped native tags. The tags are attached
@@ -32,6 +32,23 @@ export interface DefaultCharacterSeederDeps {
     readonly characterId: CharacterId;
     readonly tagName: string;
   }) => Promise<boolean>;
+  /** Store this handle's BUNDLED avatar art and return its asset id, or `null` when the pack ships no avatar
+   *  for the handle / the store fails. Threaded into the card's `avatarAssetId` at create so the seeded card
+   *  is born with art (no post-create relink). Injected (assets is a SIBLING domain + the bundled bytes are an
+   *  ENTRY/fs concern — `domain-no-cross-feature`); the composition root wires it over `assets.store` + the
+   *  bundled `seed-assets` reader. Optional — absent in unit tests / non-avatar seed contexts (cards seed
+   *  avatar-less, exactly as before). */
+  readonly storeAvatar?: (principal: Principal, handle: string) => Promise<AssetId | null>;
+  /** Seed this seeded character's STARTER gallery (its avatar + a bundled generative piece) so a fresh
+   *  library isn't an empty grid. Idempotent (the gallery add is upsert-guarded on `(assetId, subject)`).
+   *  Injected (assets sibling + bundled-bytes ENTRY concern); wired over `assets.store` + `assets.addToGallery`.
+   *  Optional — absent in unit tests / non-gallery contexts; failures are swallowed by the caller (a gallery
+   *  seed never fails the card seed). */
+  readonly seedGallery?: (
+    principal: Principal,
+    characterId: CharacterId,
+    handle: string,
+  ) => Promise<void>;
   /** Reads `UserSettings.onboarding.defaultCharactersSeeded` for the acting principal. Injected (settings
    *  live in a sibling domain — `domain-no-cross-feature`); the composition root wires the settings read. */
   readonly isSeeded: (principal: Principal) => Promise<boolean>;

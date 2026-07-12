@@ -10,6 +10,6 @@ export { LoginShellAnchor } from "./anchors/login-shell-anchor";
 // notifications bell, the People tab, the /join landing). Config, not identity — the "who am I"
 // carve-out above still holds.
 export { useAuthConfig } from "./hooks/use-auth-meta";
-export { redirectIfAuthed, requireAdminRole, requireAuthed } from "./lib/route-guards";
+export { redirectIfAuthed, requireAuthed } from "./lib/route-guards";
 export { AccountSurface } from "./surfaces/account-surface";
 export { LoginSurface } from "./surfaces/login-surface";

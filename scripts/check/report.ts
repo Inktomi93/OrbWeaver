@@ -29,6 +29,7 @@ import { infraAuthNoUserId } from "./gates/infra-auth-no-userid.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
 import { modalBodyNotPlaceholder } from "./gates/modal-body-not-placeholder.ts";
+import { motionTokenPurity } from "./gates/motion-token-purity.ts";
 import { noArbitraryTwValues } from "./gates/no-arbitrary-tw-values.ts";
 import { noArrayLiteralQuerykey } from "./gates/no-array-literal-querykey.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
@@ -38,6 +39,7 @@ import { noFormResetInAutosave } from "./gates/no-form-reset-in-autosave.ts";
 import { noInlineInvalidateOutsideSeam } from "./gates/no-inline-invalidate-outside-seam.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
 import { noInteractiveRoleInFeatures } from "./gates/no-interactive-role-in-features.ts";
+import { noOffTokenInlineStyle } from "./gates/no-off-token-inline-style.ts";
 import { noOffTokenRadiusShadow } from "./gates/no-off-token-radius-shadow.ts";
 import { noRawEgress } from "./gates/no-raw-egress.ts";
 import { noRawInteractiveIntrinsics } from "./gates/no-raw-interactive-intrinsics.ts";
@@ -157,6 +159,15 @@ const BASE_CHECKS: readonly Check[] = [
   // no-arbitrary-tw-values (that gate catches brackets only; this one catches off-token rounded-*/
   // shadow-* utilities on the stock Tailwind scale).
   noOffTokenRadiusShadow,
+  // BASEUI-MOTION-AUDIT.md §5 Layer 3 (2026-07-12) — the CSS motion-token twin of the radius/shadow gate:
+  // bans a raw duration/easing in a transition/animation declaration where a --motion-*/--ease-* token
+  // belongs (the source arm of the never-desync guarantee; co-motion vars + a rendered-parity CT are the
+  // other two layers).
+  motionTokenPurity,
+  // design-enforcement.md §3 (2026-07-12) — the inline/imperative arm the className + CSS token gates
+  // can't see: a token-backed CSS property written as a raw literal in a JSX `style={{…}}` object or an
+  // imperative `.style`/`setProperty` (the last token-enforcement hole). A `var(--…)` inline value passes.
+  noOffTokenInlineStyle,
   // task #114 — every schema FK→assets.id column must be classified in asset-refs.ts's registry
   // (the static, pre-commit half of the runtime asset-refs.int.test.ts invariant).
   assetRefsFkCoverage,

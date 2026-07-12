@@ -28,6 +28,7 @@ import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
+import type { EffortLevel as ModelEffortLevel } from "#connection";
 import {
   EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
   roleHandlingSchema,
@@ -65,6 +66,19 @@ const INJECT_ORDER_MAX = 1_000_000;
 
 export const QUALITY_LEVELS = ["fast", "balanced", "deep"] as const;
 export type Quality = (typeof QUALITY_LEVELS)[number];
+
+// The canonical `quality → reasoning-effort` mapping — the ONE home both any display use and the server
+// funnel read. `quality` is the PRIMARY ergonomic dial (~95% of presets); the funnel feeds this effort as
+// the DEFAULT into its effort resolution (an explicit `effort` knob overrides it), then clamps it against
+// the model's real `effortLevels` — so a level the model can't honor is dropped with the existing
+// `effort_dropped` warning (a no-reasoning model gets nothing from quality; no branch on model id). Values
+// are members of connection's `EffortLevel` (NOT the `none`-bearing user-intent vocab) so they clamp
+// cleanly. fast → least reasoning, deep → most; the per-model SAMPLING numbers stay deferred to live tuning.
+export const QUALITY_EFFORT: Record<Quality, ModelEffortLevel> = {
+  fast: "minimal",
+  balanced: "medium",
+  deep: "high",
+};
 
 // Effort — the UNION of every effort value any supported runner accepts. DISTINCT from
 // `contracts/connection.EffortLevel` (the model-capability descriptor, which excludes `none`): this is

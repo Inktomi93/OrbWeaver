@@ -76,8 +76,10 @@
   --dimension-panel: clamp(16rem, 22vw, 22rem);
   --dimension-shell-breakpoint: 48rem;
   --shadow-glow: 0 0 0 1px oklch(0.72 0.175 52 / 0.4), 0 0 18px oklch(0.72 0.175 52 / 0.18);
-  --shadow-overlay: 0 24px 80px oklch(0 0 0 / 0.5);
+  --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.06), inset 0 1px 0 0 oklch(1 0 0 / 0.08), 0 2px 4px oklch(0 0 0 / 0.4), 0 12px 32px oklch(0 0 0 / 0.5);
   --shadow-prose: 0 1px 2px oklch(0 0 0 / 0.45), 0 0 6px oklch(0 0 0 / 0.25);
+  --shadow-cta: inset 0 1px 0 oklch(1 0 0 / 0.15);
+  --shadow-cta-glow: inset 0 1px 0 oklch(1 0 0 / 0.15), 0 0 0 1px oklch(0.72 0.175 52 / 0.4), 0 0 18px oklch(0.72 0.175 52 / 0.18);
   --blur-strength: 14px;
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;

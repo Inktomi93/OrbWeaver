@@ -44,7 +44,15 @@ import {
   users,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { Handle, PersonaId, SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  Handle,
+  PersonaId,
+  SessionId,
+  TypeIdOf,
+  UserId,
+  WorkloadId,
+} from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -122,6 +130,9 @@ import type { Services } from "../../transport/trpc/context";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createHostPrincipalResolver } from "../auth";
+import type { DefaultPersonaSeeder } from "../boot";
+import { createDefaultPersonaSeeder } from "../boot";
+import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets";
 import type { ImportWorldInfoPort } from "../import";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
@@ -201,6 +212,11 @@ export interface ServicesResult {
    *  first-request hook (`ensureSeeded(principal)`) share, so the in-process memo + persisted latch hold
    *  across both call sites. Constructed over the built `character` service + the settings latch ops. */
   readonly characterSeeder: DefaultCharacterSeeder;
+  /** The default-"You"-persona seeder — the ONE instance both boot (`ensureSeeded(owner)`) and the app
+   *  first-request hook share (same memo + `onboarding.defaultPersonaSeeded` latch). Mirrors
+   *  `characterSeeder`; constructed over the built `persona` service + the settings latch + the bundled
+   *  avatar store. */
+  readonly personaSeeder: DefaultPersonaSeeder;
 }
 
 /** Build a production id minter for a TypeID prefix (the composition root is the sanctioned mint site). */
@@ -611,6 +627,58 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // Each default card's native tags land as card/pending suggestions (same carry as an imported card).
     attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
       tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
+    // Store the bundled on-brand avatar PNG for the handle → its asset id (threaded into the card's
+    // `avatarAssetId` at create, so the seeded card is born with art). `enforceMagic` — the bundled bytes ARE
+    // PNG, so the sniff must agree. A missing bundled file / store hiccup returns null → the card seeds
+    // avatar-less (never blocks the seed).
+    storeAvatar: async (principal, handle): Promise<AssetId | null> => {
+      const art = await readSeedAvatar(handle);
+      if (art === null) {
+        return null;
+      }
+      const stored = await assets.store({
+        principal,
+        bytes: art.bytes,
+        kind: "avatar",
+        mime: art.mime,
+        enforceMagic: true,
+      });
+      return stored.assetId;
+    },
+    // Seed the character's starter gallery: its own avatar + a bundled generative piece (so a fresh library's
+    // gallery isn't empty). Both adds are upsert-guarded on `(assetId, subject)` → idempotent on re-run.
+    seedGallery: async (principal, characterId, handle): Promise<void> => {
+      const avatarArt = await readSeedAvatar(handle);
+      if (avatarArt !== null) {
+        const avatarAsset = await assets.store({
+          principal,
+          bytes: avatarArt.bytes,
+          kind: "avatar",
+          mime: avatarArt.mime,
+          enforceMagic: true,
+        });
+        await assets.addToGallery({
+          principal,
+          assetId: avatarAsset.assetId,
+          subjectCharacterId: characterId,
+        });
+      }
+      const galleryArt = await readSeedGalleryPiece(handle);
+      if (galleryArt !== null) {
+        const galleryAsset = await assets.store({
+          principal,
+          bytes: galleryArt.bytes,
+          kind: "gallery",
+          mime: galleryArt.mime,
+          enforceMagic: true,
+        });
+        await assets.addToGallery({
+          principal,
+          assetId: galleryAsset.assetId,
+          subjectCharacterId: characterId,
+        });
+      }
+    },
     isSeeded: async (principal): Promise<boolean> =>
       (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersSeeded,
     markSeeded: async (principal, welcomeAssistantId): Promise<void> => {
@@ -624,6 +692,56 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
           await settings.updateUserSettingsSection({
             principal,
             input: { section: "seeds", patch: { welcomeAssistantCharacterId: welcomeAssistantId } },
+          });
+        }
+      }
+    },
+  });
+
+  // ── The default-"You"-persona seeder (mirror of characterSeeder): the ONE idempotent instance boot + the
+  //    app first-request hook share. `storeAvatar` stores the bundled `persona-you.png` (avatar kind);
+  //    `markSeeded` stamps the `defaultPersonaSeeded` latch, then points seeds.defaultPersonaId +
+  //    seeds.currentPersonaId at the seeded persona ONLY when the user hasn't already picked one (never
+  //    clobbers an explicit choice — the exact welcomeAssistantCharacterId posture). ──
+  const personaSeeder = createDefaultPersonaSeeder({
+    createPersona: async ({ principal, input }): Promise<{ id: PersonaId }> => {
+      const detail = await persona.create({ principal, input });
+      return { id: detail.id };
+    },
+    storeAvatar: async (principal): Promise<AssetId | null> => {
+      const art = await readSeedAvatar("persona-you");
+      if (art === null) {
+        return null;
+      }
+      const stored = await assets.store({
+        principal,
+        bytes: art.bytes,
+        kind: "avatar",
+        mime: art.mime,
+        enforceMagic: true,
+      });
+      return stored.assetId;
+    },
+    isSeeded: async (principal): Promise<boolean> =>
+      (await settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded,
+    markSeeded: async (principal, seededPersonaId): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { defaultPersonaSeeded: true } },
+      });
+      if (seededPersonaId !== null) {
+        const current = (await settings.getUserSettings({ principal })).config;
+        const patch: { defaultPersonaId?: PersonaId; currentPersonaId?: PersonaId } = {};
+        if (current.seeds.defaultPersonaId === null) {
+          patch.defaultPersonaId = seededPersonaId;
+        }
+        if (current.seeds.currentPersonaId === null) {
+          patch.currentPersonaId = seededPersonaId;
+        }
+        if (Object.keys(patch).length > 0) {
+          await settings.updateUserSettingsSection({
+            principal,
+            input: { section: "seeds", patch },
           });
         }
       }
@@ -1162,5 +1280,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     secretBox,
     vllmEngine: registry.vllmEngine,
     characterSeeder,
+    personaSeeder,
   };
 }

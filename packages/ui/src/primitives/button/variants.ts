@@ -15,7 +15,7 @@ export const buttonVariants = tv({
     // Reduced-motion drops it via the globals.css floor (near-zero transition-duration) — REMOVE, not
     // shorten. Disabled/loading never presses (the `disabled:pointer-events-none` / `data-disabled`
     // arms already stop `:active` firing).
-    "transition-[color,background-color,scale] duration-(--motion-fast) ease-out-expo active:scale-95",
+    "transition-[color,background-color,box-shadow,scale] duration-(--motion-fast) ease-out-expo active:scale-95",
     "outline-none",
     FOCUS_RING,
     "disabled:pointer-events-none disabled:opacity-50 data-disabled:pointer-events-none data-disabled:opacity-50",
@@ -23,7 +23,11 @@ export const buttonVariants = tv({
   ],
   variants: {
     intent: {
-      primary: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
+      // A static top-highlight (shadow-cta — a light-from-above inset hairline) gives primary a raised,
+      // tactile read at rest; hover swaps to shadow-cta-glow (that highlight + the rationed Ember glow)
+      // via the existing color transition (no new motion). The press-scale (base) is untouched.
+      primary:
+        "bg-primary text-primary-foreground shadow-cta hover:bg-primary/90 hover:shadow-cta-glow active:bg-primary/80",
       // D62 P5: `secondary` is BORDERED — a 1px `--color-border` outline over a transparent surface;
       // hover fills `--accent`. NOT a new `outline` intent (P5 keeps the intent set small). The `border`
       // 1px is Tailwind's untokenized default (the dialog/avatar `border border-border` precedent).

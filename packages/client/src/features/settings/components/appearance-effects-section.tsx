@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds";
-import { BLUR_SURFACE_ITEMS } from "../lib/appearance-select-items";
+import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items";
 import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 import { SettingSwitchRow } from "./setting-switch-row";
@@ -86,6 +86,15 @@ export function AppearanceEffectsSection({
             checked={field.state.value}
             onBlur={field.handleBlur}
             onChange={field.handleChange}
+          />
+        )}
+      </form.AppField>
+      <form.AppField name="surfaceTexture">
+        {(field): ReactElement => (
+          <field.SelectField
+            label="Surface texture"
+            description="A subtle film-grain overlay on panels and cards that breaks up flat-color banding. Off by default; never on message text."
+            items={SURFACE_TEXTURE_ITEMS}
           />
         )}
       </form.AppField>

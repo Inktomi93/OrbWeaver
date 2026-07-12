@@ -81,6 +81,53 @@ describe("resolveChat — effort clamped to the model's effortLevels", () => {
   });
 });
 
+describe("resolveChat — the quality dial → reasoning effort (Proposal 2)", () => {
+  // A model that lists every quality-mapped level so the mapping rides through un-clamped here.
+  const wide = withReasoning({
+    mode: "effort",
+    enabled: true,
+    effortLevels: ["minimal", "medium", "high"],
+  });
+
+  test("quality:'deep' → effort:'high' (and reasoning ON)", () => {
+    const out = resolveChat({ quality: "deep" }, wide);
+    expect(out.reasoning.enabled).toBe(true);
+    expect(out.reasoning.effort).toBe("high");
+  });
+
+  test("quality:'fast' → effort:'minimal'", () => {
+    expect(resolveChat({ quality: "fast" }, wide).reasoning.effort).toBe("minimal");
+  });
+
+  test("quality:'balanced' → effort:'medium'", () => {
+    expect(resolveChat({ quality: "balanced" }, wide).reasoning.effort).toBe("medium");
+  });
+
+  test("an EXPLICIT effort knob OVERRIDES quality (advanced reveal wins)", () => {
+    // quality would map to 'minimal'; the explicit 'high' wins the precedence.
+    const out = resolveChat({ quality: "fast", effort: "high" }, wide);
+    expect(out.reasoning.effort).toBe("high");
+  });
+
+  test("quality on a NO-REASONING model contributes nothing (dropped, no crash)", () => {
+    const cap = withReasoning({ mode: "none", enabled: false });
+    const out = resolveChat({ quality: "deep" }, cap);
+    expect(out.reasoning.enabled).toBe(false);
+    expect(out.reasoning.effort).toBeUndefined();
+  });
+
+  test("a quality-derived effort the model can't honor is DROPPED with the existing warning", () => {
+    // FULL lists low/medium/high — quality:'fast' maps to 'minimal', which isn't among them.
+    const out = resolveChat({ quality: "fast" }, FULL);
+    expect(out.reasoning.enabled).toBe(true);
+    expect(out.reasoning.effort).toBeUndefined();
+    expect(out.warnings).toContainEqual({
+      code: "effort_dropped",
+      message: 'effort "minimal" ignored: model lists low, medium, high',
+    });
+  });
+});
+
 describe("resolveChat — the Opus-4.8 adaptive/budget guard (Esoteric §8)", () => {
   test("adaptive DROPS an explicit budget + warns (sending it 400s the model); effort survives", () => {
     const cap = withReasoning({ mode: "adaptive", enabled: true, effortLevels: ["high"] });
@@ -280,6 +327,20 @@ describe("resolveChat — the dynamic-context channel (D66)", () => {
 
   test("capability with no `turns` floors to system-block (conservative)", () => {
     expect(resolveChat({}, FULL).dynamicContextChannel).toBe("system-block");
+  });
+});
+
+describe("resolveChat — turnId (part 05 §4 correlation id)", () => {
+  test("mints a turnId on every call, ADDITIVE to (never replacing) the request-scoped requestId", () => {
+    const out = resolveChat({}, FULL);
+    expect(typeof out.turnId).toBe("string");
+    expect(out.turnId.length).toBeGreaterThan(0);
+  });
+
+  test("two turns in the same process get DISTINCT ids (disambiguates multiple turns in one request)", () => {
+    const a = resolveChat({}, FULL);
+    const b = resolveChat({}, FULL);
+    expect(a.turnId).not.toBe(b.turnId);
   });
 });
 

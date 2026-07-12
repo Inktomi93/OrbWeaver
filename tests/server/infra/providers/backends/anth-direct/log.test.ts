@@ -15,6 +15,7 @@ describe("logAnthDirectTurn — the provider.turn contract", () => {
   test("emits ONE info line tagged provider+backend, event provider.turn, transport:direct + source vocab", () => {
     const spy = vi.spyOn(logger, "info");
     logAnthDirectTurn({
+      turnId: "turn_1",
       chatId: "chat-1",
       transport: "direct",
       credentialSource: "openrouter",

@@ -66,6 +66,10 @@ export interface AgentSdkDeps {
  * just what the model could do.
  */
 export interface TurnStreamContext {
+  /** The per-turn correlation id (part 05 §4) — the `resolveChat` id `runChatTurn` already minted via
+   *  `toSdkGeneration`, threaded onto the `provider.turn` line so it correlates with this turn's
+   *  `provider.channel`. Optional so a hand-built test context (no live `resolveChat` call) stays valid. */
+  readonly turnId?: string | undefined;
   readonly model: string;
   readonly resumed: boolean;
   /** Which branch the resume decision took (from `SessionCache.ensureSeededSession`, or `resumed`/`fresh`

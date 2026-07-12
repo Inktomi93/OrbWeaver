@@ -1,0 +1,14 @@
+/* settings-shell.css — the settings surface's ONE bit of raw CSS: the jump-to-anchor FLASH highlight.
+ * Moved off imperative `el.style.*` writes (which bypass the token gates — no-off-token-inline-style) onto
+ * a class toggle. Every value references a generated token custom property (--color-*, --radius-*, --motion-*)
+ * — no raw literal. An INSET box-shadow (not an outline) so the ring is CLIPPED TO the section's border-box
+ * and can never bleed past / be clipped at the scroll container's edge (owner P3 · UI-Arch §4.3). */
+
+.settings-flash-anchor {
+  border-radius: var(--radius-card);
+  transition: box-shadow var(--motion-base) var(--ease-out-expo);
+}
+
+.settings-flash-anchor--lit {
+  box-shadow: inset 0 0 0 2px var(--color-ring);
+}

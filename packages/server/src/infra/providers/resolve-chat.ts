@@ -16,6 +16,7 @@
 
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
+import { QUALITY_EFFORT } from "@orb/contracts/preset";
 import type {
   DynamicContextChannel,
   ResolvedChatKnobs,
@@ -43,6 +44,17 @@ const VERBOSITY_DROPPED_WARNING = "verbosity ignored: model does not expose a ve
 /** Clamp a user value into `[min, max]`. */
 function clampRange(value: number, range: Range): number {
   return Math.min(Math.max(value, range.min), range.max);
+}
+
+// The `turnId` mint (part 05 §4): a monotonic per-process counter — the simplest scheme unique within a
+// run. It ADDS to the existing request-scoped `requestId` correlation (never replaces it); it exists only
+// to disambiguate multiple provider turns riding one request (a retry, a multi-turn agent loop). Module-
+// level state is fine here (an observability id, not a determinism-sensitive value — unlike `now`/`random`,
+// which the composition root injects).
+let turnCounter = 0;
+function mintTurnId(): string {
+  turnCounter += 1;
+  return `turn_${turnCounter}`;
 }
 
 /** A numeric sampling knob: undefined when the user didn't set it; clamped to the range when the model
@@ -85,6 +97,19 @@ function resolveFlag<T>(
     return;
   }
   return value;
+}
+
+/** The EFFECTIVE user-intent effort before the capability clamp — the precedence that makes `quality` the
+ *  primary control and the raw `effort` knob its "advanced" override: an EXPLICIT `effort` (including the
+ *  `none` off-sentinel) wins; else the `quality` dial's mapped effort (`QUALITY_EFFORT`, the one contract
+ *  home); else undefined (today's no-reasoning default). Quality never FORCES reasoning past what the model
+ *  supports — this returns intent; `resolveEffort`'s `effortLevels` clamp still drops an unhonorable level
+ *  with the existing `effort_dropped` warning, and `resolveReasoning` gates on the model's `enabled` axis. */
+function effectiveEffort(params: UserIntent): UserIntent["effort"] {
+  if (params.effort !== undefined) {
+    return params.effort;
+  }
+  return params.quality !== undefined ? QUALITY_EFFORT[params.quality] : undefined;
 }
 
 /** The effort dial, clamped to the model's published `effortLevels` (dropped + warned when the model
@@ -148,8 +173,11 @@ function resolveReasoning(
   warnings: ResolvedWarning[],
 ): ResolvedReasoning {
   const r = capability.reasoning;
+  // The user's asked-for effort: the explicit `effort` knob, else the `quality` dial's mapped default
+  // (`quality` is the primary control — effectiveEffort encodes the precedence). `none`/`undefined` = no ask.
+  const effort = effectiveEffort(params);
   // The model must SUPPORT reasoning AND the user must have asked (a real effort, not none/undefined).
-  const enabled = r.enabled && params.effort !== undefined && params.effort !== EFFORT_OFF;
+  const enabled = r.enabled && effort !== undefined && effort !== EFFORT_OFF;
   if (!enabled) {
     return { mode: r.mode, enabled: false };
   }
@@ -168,8 +196,15 @@ function resolveReasoning(
   if (r.mode === "adaptive" && params.thinkingBudgetTokens !== undefined) {
     warnings.push({ code: "adaptive_budget_dropped", message: ADAPTIVE_BUDGET_WARNING });
   }
-  const effort = resolveEffort(params.effort, r.effortLevels, warnings);
-  return { mode: r.mode, enabled, ...(effort !== undefined ? { effort } : {}), ...displayPart };
+  // Clamp the effective effort (explicit knob or the quality-derived default) to the model's real levels —
+  // a quality-derived level the model can't honor drops here with the existing `effort_dropped` warning.
+  const resolvedEffort = resolveEffort(effort, r.effortLevels, warnings);
+  return {
+    mode: r.mode,
+    enabled,
+    ...(resolvedEffort !== undefined ? { effort: resolvedEffort } : {}),
+    ...displayPart,
+  };
 }
 
 function resolveSampling(
@@ -177,6 +212,13 @@ function resolveSampling(
   capability: ModelCapability,
   warnings: ResolvedWarning[],
 ): ResolvedSampling {
+  // DEFER(quality-sampling): per-model quality→sampling numbers pending live tuning (both design docs defer
+  // them — connection-capability-panel.md Proposal 2 "per-model numbers open" / capability-turn-shaping 04
+  // "deferred to live tuning", the DEFER(promotion) catalog posture). `quality` maps to the REASONING axis
+  // now (resolveReasoning via QUALITY_EFFORT); it contributes NOTHING to sampling until per-model numbers
+  // are verified against live model behavior. When they land, apply them as a DEFAULT beneath the user's
+  // explicit sampling knobs here (same explicit-wins precedence as effort), still Range-clamped below — no
+  // model-id branch. Until then sampling reads only the user's own knobs.
   const s = capability.sampling;
   const temperature = resolveNumeric("temperature", params.temperature, s.temperature, warnings);
   const topP = resolveNumeric("topP", params.topP, s.topP, warnings);
@@ -284,6 +326,7 @@ export function resolveChat(params: UserIntent, capability: ModelCapability): Re
       ? clampRange(params.maxOutputTokens, capability.output.maxTokens)
       : undefined;
   return {
+    turnId: mintTurnId(),
     reasoning,
     sampling,
     dynamicContextChannel,

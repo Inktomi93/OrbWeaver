@@ -20,6 +20,7 @@ import {
   effortToOpenAIReasoning,
   isAnthropicModel,
   logProviderCache,
+  logProviderCapability,
   mapChatCompletionToTurnResult,
   providerErrorFromHttp,
   reduceChatCompletionStream,
@@ -131,7 +132,7 @@ function historyCacheOffsets(req: OpenRouterChatRequest): readonly number[] {
 // Decoupled: reads RESOLVED facts (usage counts + the placer's returned offsets + the resolved floor), no
 // model-id/wire branch. Only Anthropic-cache turns qualify (the static system block counts as breakpoint #1
 // on an Anthropic model; the history pair adds #2/#3), so a non-caching turn emits nothing.
-function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult): void {
+function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult, turnId: string): void {
   if (req.capability.turns?.explicitPromptCache !== true) {
     return;
   }
@@ -140,6 +141,7 @@ function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult): void {
   const cacheWriteTokens = turn.usage.cacheWriteTokens;
   const total = cacheReadTokens + cacheWriteTokens;
   logProviderCache("openrouter", {
+    turnId,
     cacheReadTokens,
     cacheWriteTokens,
     // The static system block is breakpoint #1 on an Anthropic model; the rolling pair adds the rest.
@@ -147,6 +149,22 @@ function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult): void {
     breakpointOffsets: offsets,
     hitRatio: total > 0 ? cacheReadTokens / total : 0,
     minCacheTokens: historyCacheMinTokens(req),
+  });
+}
+
+// The `provider.capability` resolution line (part 05 §3c). Decoupled: reads RESOLVED facts (`api` +
+// `credentialSource` off the request the runner already holds, the resolved `turns` cell, the funnel's
+// warnings) — NO `wireShape` string materialized (that stays domain-internal per the anti-ST bar); `api`
+// + `credentialSource` are REPORT-ONLY fields, information-equivalent to it, the SAME vocab `provider.turn`
+// already carries. NO model-id/wire branch at the emit site.
+function emitCapabilityReceipt(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs): void {
+  logProviderCapability("openrouter", {
+    turnId: resolved.turnId,
+    api: req.api,
+    credentialSource: req.credential.source,
+    requestedModel: req.model,
+    turns: { ...req.capability.turns },
+    droppedWarnings: resolved.warnings.map((w) => ({ code: w.code, message: w.message })),
   });
 }
 
@@ -321,7 +339,8 @@ export async function runChatCompletionTurn(
     maxOutputTokens: req.capability.output.maxTokens.max,
     reasoning: result.reasoning,
   });
-  emitCacheReceipt(req, turn);
+  emitCacheReceipt(req, turn, resolved.turnId);
+  emitCapabilityReceipt(req, resolved);
   emitSamplingReceipt(req.params, resolved);
   // Surface resolve-chat's dropped/ignored-knob notes as `warning` events (the mapper returns `events:[]`,
   // so they merge in here) and fire `onEvent` for each — never silently dropped. The chat-completions wire

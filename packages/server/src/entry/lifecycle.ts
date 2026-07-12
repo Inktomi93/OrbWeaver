@@ -47,6 +47,7 @@ import {
   runBootMigrations,
   seedCredentialFromEnv,
   seedDefaultCharacters,
+  seedDefaultPersona,
   seedDefaultPreset,
   seedOwner,
   seedThemes,
@@ -208,6 +209,7 @@ export function createLifecycle(): Lifecycle {
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
+    await seedDefaultPersona({ seeder: built.personaSeeder, owner });
     await reclaimLocksOnBoot({ db, now, holder });
 
     //   • vLLM engine: null when VLLM_DISABLED — start it + keep its (synchronous) drain-closer for shutdown.
@@ -380,9 +382,12 @@ export function createLifecycle(): Lifecycle {
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
-      // See AppDeps.seedUserCharacters for why the fire-and-forget void here is safe.
+      // See AppDeps.seedUserCharacters for why the fire-and-forget void here is safe. Fires BOTH first-run
+      // seeders (default cards + the default "You" persona) so a new SSO/admin-created user is fully set up
+      // on first touch; each is independently idempotent (its own persisted latch + in-process memo).
       seedUserCharacters: (principal: Principal): void => {
         void built.characterSeeder.ensureSeeded(principal);
+        void built.personaSeeder.ensureSeeded(principal);
       },
       ...(authenticate !== undefined ? { authenticate } : {}),
       ...(oidc !== undefined ? { oidc } : {}),

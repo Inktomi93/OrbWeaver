@@ -13,7 +13,6 @@ import { afterEach, vi } from "vitest";
 import type { AuthMe } from "../../../../../packages/client/src/features/auth/lib/auth-bootstrap";
 import {
   redirectIfAuthed,
-  requireAdminRole,
   requireAuthed,
 } from "../../../../../packages/client/src/features/auth/lib/route-guards";
 import { expect, test } from "../../../../support/fixtures";
@@ -82,22 +81,4 @@ test("redirectIfAuthed: an UNauthenticated caller STAYS on /login so the surface
 test("redirectIfAuthed: a bootstrap failure stays (the login surface renders the unreachable state)", async () => {
   vi.stubGlobal("fetch", () => Promise.reject(new Error("ECONNREFUSED")));
   await expect(redirectIfAuthed()).resolves.toBeUndefined();
-});
-
-// ── requireAdminRole (the /admin/* gate) ──
-
-test("requireAdminRole: a plain user bounces home; owner and admin pass", async () => {
-  stubMe({ authenticated: true, handle: "u", role: "user" });
-  expect(await redirectTargetOf(requireAdminRole)).toBe("/");
-
-  stubMe({ authenticated: true, handle: "a", role: "admin" });
-  await expect(requireAdminRole()).resolves.toBeUndefined();
-
-  stubMe({ authenticated: true, handle: "o", role: "owner" });
-  await expect(requireAdminRole()).resolves.toBeUndefined();
-});
-
-test("requireAdminRole: an unauthenticated request goes to /login before any role check", async () => {
-  stubMe(ANON);
-  expect(await redirectTargetOf(requireAdminRole)).toBe("/login");
 });

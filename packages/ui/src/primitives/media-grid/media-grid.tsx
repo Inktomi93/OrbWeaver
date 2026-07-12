@@ -1,7 +1,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { cn } from "#lib";
+import { cn, prefersReducedMotionNow } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Icon fine (the spinner.tsx precedent).
 import { Check, Icon } from "#primitives/icons";
 import { TOKENS } from "#tokens";
@@ -36,6 +36,40 @@ function computeColumns(containerWidthPx: number, minCellWidthPx: number, gapPx:
 
 function computeCellEstimatePx(containerWidthPx: number, columns: number, gapPx: number): number {
   return Math.max(1, (containerWidthPx - gapPx * (columns - 1)) / columns);
+}
+
+// Spotlight (effects catalog F) — a pointer-follow radial reveal on grid cells (globals.css paints it
+// through the cell's border). The ONLY effect needing JS: one delegated `pointermove` on the scroll
+// root writes `--x`/`--y` (px, cell-relative) onto whichever cell is under the pointer — a raw
+// style.setProperty, never React state, so a mousemove is a CSS-var write with ZERO re-render.
+// HARD GUARDS: fine-pointer only + honor prefers-reduced-motion (drop the follow entirely) — both
+// checked once via matchMedia so a touch / reduced-motion user never even installs the listener (the
+// CSS @media gate is the paint-side twin, so a stale attribute can never leak a static frame).
+function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
+  const matchMedia = globalThis.matchMedia?.bind(globalThis);
+  if (root === null || matchMedia === undefined) {
+    return;
+  }
+  // Fine-pointer only (never touch) + honor reduced-motion (one-home read) — a failing guard means the
+  // listener is never installed, so a touch/reduced-motion user has zero runtime cost and no stray var.
+  if (!matchMedia("(pointer: fine)").matches || prefersReducedMotionNow()) {
+    return;
+  }
+  const onMove = (event: PointerEvent): void => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const cell = target.closest<HTMLElement>('[data-slot="media-grid-cell"]');
+    if (cell === null) {
+      return;
+    }
+    const rect = cell.getBoundingClientRect();
+    cell.style.setProperty("--x", `${event.clientX - rect.left}px`);
+    cell.style.setProperty("--y", `${event.clientY - rect.top}px`);
+  };
+  root.addEventListener("pointermove", onMove);
+  return (): void => root.removeEventListener("pointermove", onMove);
 }
 
 export type MediaGridKey = string | number;
@@ -261,6 +295,12 @@ export function MediaGrid<T extends MediaGridItem>({
     observer.observe(el);
     return (): void => observer.disconnect();
   }, [minCellWidth, gapPx]);
+
+  // Spotlight pointer-follow (effects catalog F) — one delegated listener on the scroll root; the
+  // guards live in attachSpotlight (fine-pointer + reduced-motion), so this is a no-op teardown when
+  // they fail. Cells mount/unmount under virtualization, so delegating on the stable root beats a
+  // per-cell listener. Runs once (the root ref is stable for the grid's lifetime).
+  useLayoutEffect(() => attachSpotlight(scrollRef.current), []);
 
   // The unbounded-window tripwire (D43 §11.3) — thrown, not warned. Identical to VirtualList's.
   useLayoutEffect(() => {

@@ -64,7 +64,12 @@ export const avatarVariants = tv({
     },
     ring: {
       none: {},
-      accent: { root: "ring-2 ring-(--color-primary) ring-offset-2 ring-offset-background" },
+      accent: {
+        // The accent ring PLUS the one rationed Ember glow (--shadow-glow, DESIGN.md §5): an
+        // accent-ringed avatar IS the "character moment" that token is reserved for. The ring keeps
+        // the crisp offset edge; the glow gives it the halo.
+        root: "shadow-glow ring-2 ring-(--color-primary) ring-offset-2 ring-offset-background",
+      },
     },
     // The 5 chart hues as fallback surfaces, each paired with the dark primary-foreground text
     // (AA-verified against all five — see the doc-comment above). String keys so VariantProps stays

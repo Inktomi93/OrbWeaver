@@ -388,6 +388,63 @@ test("mobile: the You sheet hands off to Settings in the shared modal slot (sing
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
 });
 
+// ── Co-motion parity: the shell grid track + panel slide animate as ONE event (never-desync) ──────
+// BASEUI-MOTION-AUDIT.md §5 Layer 2 — the rendered-output guard the corpus desync needed. The grid
+// track (`grid-template-columns`) and the collapsed panel (`transform`) are one visual event; they MUST
+// carry the SAME transition duration + timing-function, and NEITHER may be `0s`/`none` (the `0s` arm is
+// what catches ABSENCE — the actual corpus bug, where the track had NO transition while the panel slid).
+// Layer 1's co-motion vars (`--shell-motion`/`--shell-ease` in shell.css) make divergence structurally
+// impossible; this test proves it at the COMPUTED-STYLE level (a source lint can't see a missing rule).
+// Had it existed pre-fix it fails on `0s !== 0.22s`. The panel is read in `collapsed` (an out-of-flow,
+// transform-animated mode) — `docked` has no transform transition, so the test collapses it first.
+
+/** The computed transition duration+easing of `prop` on the element behind `locator`. Reads the
+ *  per-property longhands (a multi-property `transition` shorthand serializes duration/easing as a
+ *  comma list aligned to `transition-property`); we index the arm whose property matches `prop`. */
+function transitionOf(locator: Locator, prop: string): Promise<{ duration: string; ease: string }> {
+  return locator.evaluate((el, wanted) => {
+    const s = getComputedStyle(el);
+    const props = s.transitionProperty.split(",").map((p) => p.trim());
+    const durations = s.transitionDuration.split(",").map((d) => d.trim());
+    const eases = s.transitionTimingFunction.split(",").map((e) => e.trim());
+    // The property arm we care about (grid-template-columns / transform). `all` covers every property,
+    // so a single-arm `all` transition matches too. Fall back to arm 0 if the list is single-valued.
+    const i = props.findIndex((p) => p === wanted || p === "all");
+    const at = i === -1 ? 0 : i;
+    return {
+      duration: durations[at] ?? durations[0] ?? "0s",
+      ease: eases[at] ?? eases[0] ?? "linear",
+    };
+  }, prop);
+}
+
+test("co-motion parity: the grid track and the collapsed panel share one non-zero duration + easing", async ({
+  mount,
+  page,
+}) => {
+  const shell = await mount(<AppShellStory />);
+  const grid = page.locator(".shell-grid");
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+
+  // Collapse the list panel so it enters the transform-animated `collapsed` mode (docked has no slide).
+  await shell.getByRole("button", { name: "Hide list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+
+  const gridMotion = await transitionOf(grid, "grid-template-columns");
+  const panelMotion = await transitionOf(listPanel, "transform");
+
+  // The absence arm (the corpus bug): neither side may be a no-transition. `220ms` = `--motion-base`.
+  expect(gridMotion.duration).not.toBe("0s");
+  expect(panelMotion.duration).not.toBe("0s");
+  expect(gridMotion.ease).not.toBe("none");
+  expect(panelMotion.ease).not.toBe("none");
+
+  // The divergence arm: they animate as ONE event — equal duration AND equal easing (the co-motion vars
+  // guarantee this by construction; this asserts it landed in computed style, not just source).
+  expect(gridMotion.duration).toBe(panelMotion.duration);
+  expect(gridMotion.ease).toBe(panelMotion.ease);
+});
+
 // ── Cascade-contract: glass/background beats elevation (the rendered cascade, not source text) ──
 // shell.css's `data-elevation="ramp"` fills are unlayered plain CSS living alongside globals.css's
 // `data-blur-*` glass rules and `data-has-bg-image` transparency rules — all three are specificity-

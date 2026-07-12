@@ -595,6 +595,24 @@
       }
     },
     {
+      "includes": ["scripts/seed/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noBitwiseOperators": "off"
+          },
+          "style": {
+            "noMagicNumbers": "off",
+            "useNumericSeparators": "off",
+            "useShorthandAssign": "off"
+          },
+          "correctness": {
+            "noProcessGlobal": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["tests/**"],
       "linter": {
         "rules": {

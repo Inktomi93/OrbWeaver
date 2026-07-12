@@ -17,6 +17,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { BusEventRecord } from "./bus-devlog";
 import { busEventRing, busLiveCount } from "./bus-devlog";
 import { IS_DEV } from "./dev-flag";
+import type { AnimationRecord, MotionSnapshot } from "./motion-stats";
+import { activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats";
 import { perfMeasureFromLoad, recentMeasures } from "./perf-marks";
 import { renderHeatmap } from "./render-stats";
 
@@ -88,6 +90,10 @@ export interface OrbDebugHandle {
   readonly perf: () => ReadonlyArray<{ name: string; ms: number }>;
   /** The render heatmap: which <Profiler>-wrapped surfaces re-render, how often, how expensive. */
   readonly renders: () => ReturnType<typeof renderHeatmap>;
+  /** LoAF ring + CLS/worst-blocking/worst-shift — the "what blocks the frame / instability" signals. */
+  readonly motion: () => MotionSnapshot;
+  /** Active animations, each classified compositor-clean (transform/opacity/filter) or a jank risk. */
+  readonly animations: () => readonly AnimationRecord[];
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
   readonly snap: () => Record<string, unknown>;
 }
@@ -98,10 +104,30 @@ declare global {
   var __orb: OrbDebugHandle | undefined;
 }
 
+/** The compact motion line for snap(): ring depth + the two headline jank numbers + the count of active
+ *  animations that AREN'T compositor-clean. Full detail lives behind .motion()/.animations(). */
+function motionSummary(): {
+  loafs: number;
+  worstBlocking: number;
+  cls: number;
+  dirtyAnimations: number;
+} {
+  const m = motionSnapshot();
+  return {
+    loafs: m.loafs.length,
+    worstBlocking: m.worstBlocking,
+    cls: m.cls,
+    dirtyAnimations: activeAnimations().filter((a) => !a.compositorClean).length,
+  };
+}
+
 export function installAgentDebugHandle(queryClient: QueryClient): void {
   if (!IS_DEV) {
     return;
   }
+  // LoAF + layout-shift observers feeding motion-stats' rings — the DATA behind __orb.motion(). Installed
+  // here (dev-only path) so they cost nothing in prod, same as the rest of this handle.
+  installMotionObservers();
   const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
@@ -139,6 +165,9 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
     },
     perf: recentMeasures(),
     renders: renderHeatmap(),
+    // One-line motion summary: LoAF count + the two headline jank numbers + how many active animations
+    // are NOT compositor-clean (at risk of per-frame layout). Full detail via .motion()/.animations().
+    motion: motionSummary(),
   });
   globalThis.__orb = {
     ready,
@@ -148,12 +177,14 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
     shell,
     perf: recentMeasures,
     renders: renderHeatmap,
+    motion: motionSnapshot,
+    animations: activeAnimations,
     snap,
   };
   // One-line discovery hint on load (dev only) so this isn't a forgotten seam — the console channels
   // ([bus]/[trpc]/[perf]) + this handle are easy to miss otherwise. Points at the README for the rest.
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .shell();  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell();  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

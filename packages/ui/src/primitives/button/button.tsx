@@ -29,6 +29,10 @@ export function Button({
   return (
     <BaseButton
       data-slot="button"
+      // The gradient-border accent ring (effects catalog E, globals.css) keys off this attr so it
+      // paints on the primary CTA only — the intent lives in a tv class, not a data-attr, so we stamp
+      // a stable hook here rather than fighting the class selector.
+      data-cta={intent === "primary" ? "" : undefined}
       aria-busy={loading ? true : undefined}
       className={cn(buttonVariants({ intent, size }), className)}
       disabled={disabled || loading}

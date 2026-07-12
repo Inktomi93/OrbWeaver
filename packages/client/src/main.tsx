@@ -48,7 +48,7 @@ const DevTools = import.meta.env.DEV
   : null;
 
 // vite:preloadError recovery (client-tooling-setup §9). A redeploy rotates hashed chunk names; an old
-// tab that then lazy-imports a route (e.g. /admin/*) requests a hash that no longer exists → a failed
+// tab that then lazy-imports a route (or any lazy chunk) requests a hash that no longer exists → a failed
 // dynamic import white-screens the app. Soft-reload ONCE to pull the new index — the sessionStorage
 // guard stops a genuinely-missing chunk from reload-looping.
 const PRELOAD_RELOAD_FLAG = "orb:preload-reloaded";

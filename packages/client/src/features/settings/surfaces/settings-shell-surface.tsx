@@ -46,6 +46,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { useSettingsTarget } from "#state";
+import "./settings-shell.css";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
 import { scrollBehavior } from "../lib/scroll-behavior";
 import { categoryIdsForGroup, SETTINGS_CATEGORIES } from "../lib/settings-nav";
@@ -340,11 +341,16 @@ export function SettingsShell(): ReactElement {
 }
 
 // A brief highlight of the jumped-to anchor: scroll it to the top of the pane, ring it, then fade the ring.
-// An INSET box-shadow (not an outline) so the ring is CLIPPED TO the section's border-box — it hugs the
-// section's rendered content box exactly (header → last field) and can never bleed past / be clipped at
-// the scroll container's edge the way an outset outline would (owner P3 · §4.3). Token vars only (no raw
-// hex). Respects reduced-motion for the scroll itself.
+// The ring is an INSET box-shadow (settings-shell.css `.settings-flash-anchor--lit`) — not an outline — so
+// it is CLIPPED TO the section's border-box and can never bleed past / be clipped at the scroll container's
+// edge the way an outset outline would (owner P3 · §4.3). Applied via a CLASS toggle (not imperative
+// `el.style.*`, which bypasses the token gates — no-off-token-inline-style): the base class carries the
+// token radius + the box-shadow transition, the `--lit` modifier carries the ring, so removing `--lit`
+// fades the ring out over --motion-base; the base class is removed once that fade ends. Respects
+// reduced-motion for the scroll itself.
 const FLASH_MS = 1200;
+const FLASH_BASE_CLASS = "settings-flash-anchor";
+const FLASH_LIT_CLASS = "settings-flash-anchor--lit";
 const MAX_ANCHOR_POLL_FRAMES = 20;
 // Scroll-spy tuning: the "active" section is the last whose top has crossed this fraction of the pane
 // height from the top; the fallback re-arms the spy if `scrollend` never fires (non-Chromium engines).
@@ -379,13 +385,14 @@ function computeActiveSub(container: HTMLElement, prefix: string): string | null
 }
 function flashAnchor(el: HTMLElement): void {
   el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
-  el.style.boxShadow = "inset 0 0 0 2px var(--color-ring)";
-  el.style.borderRadius = "var(--radius-card)";
-  el.style.transition = "box-shadow var(--motion-base) ease-out";
+  el.classList.add(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
   globalThis.setTimeout(() => {
-    el.style.removeProperty("box-shadow");
-    el.style.removeProperty("border-radius");
-    el.style.removeProperty("transition");
+    // Drop the ring — the base class's box-shadow transition fades it out over --motion-base; once that
+    // transition ends, shed the base class too so the section carries no lingering flash styling.
+    el.classList.remove(FLASH_LIT_CLASS);
+    el.addEventListener("transitionend", () => el.classList.remove(FLASH_BASE_CLASS), {
+      once: true,
+    });
   }, FLASH_MS);
 }
 

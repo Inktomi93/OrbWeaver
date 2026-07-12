@@ -32,6 +32,7 @@ test("ResolvedSampling has a minP slot + ResolvedChatKnobs a verbosity slot (D68
   // removed) is the RED signal a later wave broke the carriage.
   const sampling: ResolvedSampling = { minP: 0.05 };
   const knobs: ResolvedChatKnobs = {
+    turnId: "test-turn",
     reasoning: { mode: "none", enabled: false },
     sampling,
     dynamicContextChannel: "system-block",

@@ -337,6 +337,7 @@ export function toSdkGeneration(
   envOverrides: ClaudeRuntimeOverrides;
   options: SdkGenerationOptions;
   warnings: readonly ResolvedWarning[];
+  turnId: string;
 } {
   const resolved = resolveChat(params, capability);
   return {
@@ -344,5 +345,8 @@ export function toSdkGeneration(
     options: buildGenerationOptions(params, resolved),
     // resolve-chat's dropped/ignored-knob notes — the agent-sdk runner surfaces them as `warning` events.
     warnings: resolved.warnings,
+    // The per-turn correlation id (part 05 §4) — the runner threads it into every `provider.*` line for
+    // this turn (`routeDynamicContext`'s `provider.channel`, `provider.turn`).
+    turnId: resolved.turnId,
   };
 }

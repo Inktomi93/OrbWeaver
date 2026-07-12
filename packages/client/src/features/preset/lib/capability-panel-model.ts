@@ -227,27 +227,9 @@ export const QUALITY_OPTIONS: readonly QualityOption[] = QUALITY_LEVELS.map((val
   description: QUALITY_META[value].description,
 }));
 
-// The quality→axes MAPPING (Proposal 2): `quality` maps onto the descriptor's axes as DISTINCT fields —
-// `reasoning.mode`/effort + a per-model sampling preset — NEVER a merged cascade. The per-model NUMBERS
-// are deferred to live tuning (the catalog `DEFER(promotion)` posture, server-side resolver). What is
-// STABLE + testable now is the axis DIRECTION each level pushes: fast → least reasoning, deep → most. This
-// intent is what the panel copy communicates and what a preview/summary reads; the resolver owns the
-// concrete numbers. Modeled as a coarse effort-INTENT per level (distinct axes, no cascade collapse).
-
-/** The reasoning-effort INTENT a quality level expresses (the DISTINCT axis, coarse — the resolver maps it
- *  to the model's real `effortLevels` per model; not a merged sampling cascade). Ordered low→high. */
-export const QUALITY_EFFORT_INTENT: Record<Quality, "minimal" | "medium" | "high"> = {
-  fast: "minimal",
-  balanced: "medium",
-  deep: "high",
-};
-
-/**
- * The coarse effort-intent a quality level pushes onto the reasoning axis (fast → minimal, deep → high).
- * This is the DISTINCT-axis direction the resolver honors per model — NOT a concrete per-model number
- * (those are deferred to live tuning) and NOT a merged cascade over sampling. Pure; the panel's dial copy
- * + a preview read it, and the quality→axes test pins the direction.
- */
-export function qualityEffortIntent(quality: Quality): "minimal" | "medium" | "high" {
-  return QUALITY_EFFORT_INTENT[quality];
-}
+// The quality→axes MAPPING lives SERVER-SIDE, not here (Proposal 2 / R9): the resolver
+// (`infra/providers/resolve-chat.ts`) reads the ONE contract home `QUALITY_EFFORT` (@orb/contracts/preset)
+// and feeds it as the DEFAULT effort beneath an explicit `effort` knob, then clamps to the model's real
+// `effortLevels`. This client model owns ONLY the dial's display copy (QUALITY_OPTIONS above); it must NOT
+// re-map quality → effort (a second derivation would drift from the funnel). Per-model sampling numbers are
+// deferred to live tuning (the catalog `DEFER(promotion)` posture).

@@ -23,6 +23,9 @@ const BACKEND = "anth-direct";
  *  credentialSource VOCAB (the sub-vs-key canary, NEVER the secret), the normalized finish, timing, and
  *  usage economics. `undefined` fields are dropped by pino. */
 export interface AnthDirectTurnLog {
+  /** the per-turn correlation id (part 05 §4) — the same `resolveChat` id this turn's `provider.cache`
+   *  line carries. */
+  readonly turnId: string;
   readonly chatId?: string;
   /** The part 01 §4c transport axis — always `"direct"` here (vs the agent-sdk `"cli"`). */
   readonly transport: "direct";

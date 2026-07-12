@@ -67,7 +67,15 @@ export const AVATAR_RING_ITEMS: SelectItems<string> = [
 export const ELEVATION_ITEMS: SelectItems<string> = [
   { value: "flat", label: "Flat" },
   { value: "ramp", label: "Layered" },
+  { value: "glow", label: "Lifted (glow)" },
 ] satisfies readonly { value: AppearanceSettings["elevation"]; label: string }[];
+
+// surfaceTexture — the opt-in film-grain overlay (kills flat-color banding). Chrome/cards only, never
+// the reading surface (THE READING-SURFACE RULE).
+export const SURFACE_TEXTURE_ITEMS: SelectItems<string> = [
+  { value: "none", label: "None" },
+  { value: "grain", label: "Film grain" },
+] satisfies readonly { value: AppearanceSettings["surfaceTexture"]; label: string }[];
 
 export const MESSAGE_ACTIONS_ITEMS: SelectItems<string> = [
   { value: "hover", label: "Reveal on hover" },

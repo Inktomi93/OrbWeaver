@@ -16,6 +16,7 @@
     "snap": "tsx scripts/probes/snap.ts",
     "record": "tsx scripts/probes/record.ts",
     "perf-meter": "tsx scripts/probes/perf-meter.ts",
+    "motion-audit": "tsx scripts/probes/motion-audit.ts",
     "sdk:behavior-probe": "tsx scripts/probes/sdk-behavior-probe.ts",
     "sdk:cache-probe": "tsx scripts/probes/sdk-cache-probe.ts",
     "sdk:dynamic-probe": "tsx scripts/probes/sdk-dynamic-content-probe.ts",

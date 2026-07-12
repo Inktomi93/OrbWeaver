@@ -1,7 +1,7 @@
 // The route-level auth gates (FINAL-Auth-Modes §7 P0 — the `beforeLoad` guards; the TanStack idiom:
 // gate BEFORE render, so a protected pane never flashes then yanks). Thrown `redirect()`s — never a
 // rendered bounce. The URL discipline stays intact (UI-Arch §5.1): no `next` search param is carried —
-// the app's only real destinations are `/` and `/admin/*`, and post-login always lands on `/`.
+// the app's only real destination is `/`, and post-login always lands on `/`.
 //
 // THE AXIS IS `me.authenticated`, NOT `config.requiresLogin` (P1-a fix). `requiresLogin` is false for
 // BOTH single-user AND forward-header, so gating on it made the forward-header explainer unreachable
@@ -38,19 +38,6 @@ export async function requireAuthed(): Promise<void> {
   const me = await meOrNull();
   if (me === null || !me.authenticated) {
     throw redirect({ to: "/login" });
-  }
-}
-
-/** Gate an admin route (`/admin/*`): authenticated first (the same bounce as above), then owner ∪ admin —
- *  a plain user is redirected home (the surface exists; it is simply not theirs — no leak concern on a
- *  client hint; the server's `adminProcedure` is the real gate). */
-export async function requireAdminRole(): Promise<void> {
-  const me = await meOrNull();
-  if (me === null || !me.authenticated) {
-    throw redirect({ to: "/login" });
-  }
-  if (!(me.role === "owner" || me.role === "admin")) {
-    throw redirect({ to: "/" });
   }
 }
 

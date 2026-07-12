@@ -11,8 +11,14 @@
 // field below is metadata; the one string that carries subprocess output (`stderrTail`) is CLI runtime
 // diagnostics (spawn/auth failures), bounded + truncated at the call site, never model-generated text.
 
-import type { ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
-import { providerLog } from "@orb/server/infra/providers/backends/kit";
+import type {
+  ProviderCapabilityLog,
+  ProviderTurnUsage,
+} from "@orb/server/infra/providers/backends/kit";
+import {
+  logProviderCapability as kitLogProviderCapability,
+  providerLog,
+} from "@orb/server/infra/providers/backends/kit";
 import type { ContextUsage, DynamicContextChannel, ProviderError } from "../../contract";
 import type { SeededSessionDecision } from "./session";
 
@@ -26,6 +32,9 @@ const BACKEND = "agent-sdk";
  *  (chat/session/model), the resume disposition, the terminal classification, timings, and the usage
  *  economics. This is the debug anchor an operator greps first. `undefined` fields are dropped by pino. */
 export interface ProviderTurnLog {
+  /** the per-turn correlation id (part 05 §4) — the same `resolveChat` id this turn's `provider.channel`
+   *  line carries; absent only for a hand-built test context (no live `resolveChat` call). */
+  readonly turnId?: string;
   readonly chatId?: string;
   readonly sessionId?: string;
   /** The init frame's `apiKeySource` (oauth/user/… — the sub-vs-key canary). */
@@ -147,7 +156,15 @@ export function logProviderSummarize(entry: {
  *  + whether the user knob was demoted) and writes them — NO model-id / wire branch at the emit site (the
  *  §1 decoupling rule). Answers "which channel, and why" — the gating-flag value IS the why. `demoted:true`
  *  mirrors the `dynamic_context_demoted` funnel warning (a `message-tail` request an incapable model got). */
+/** Emit `provider.capability` for this backend (part 05 §3c) — a thin per-backend wrapper over the shared
+ *  kit emitter, mirroring `logProviderCache`/`logProviderSampling`'s hoisted-taxonomy shape. */
+export function logProviderCapability(entry: ProviderCapabilityLog): void {
+  kitLogProviderCapability(BACKEND, entry);
+}
+
 export function logProviderChannel(entry: {
+  /** the per-turn correlation id (part 05 §4) — the caller's `resolveChat` id, never re-minted here. */
+  readonly turnId: string;
   readonly channel: DynamicContextChannel;
   readonly midConvCapable: boolean;
   readonly demoted: boolean;

@@ -66,7 +66,7 @@ export function AssemblyRack({
                 gap="row"
                 align="center"
                 padding="row"
-                className="rounded-md border border-warning bg-warning/10"
+                className="rounded-card border border-warning bg-warning/10"
               >
                 <Icon icon={AlertTriangle} size="sm" />
                 <Text size="micro" tone="warning" className="flex-1">

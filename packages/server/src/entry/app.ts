@@ -97,10 +97,10 @@ export interface AppDeps {
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
   readonly credentialsKeyOk: () => boolean;
-  /** Per-new-user first-request default-card seed (PD-32). Fire-and-forget: the auth middleware calls it
-   *  AFTER the Principal resolves so an SSO/admin-created user gets the pack on first touch. MUST NOT block
-   *  the request — the seeder's in-process memo + persisted latch make it a Set lookup after the first run,
-   *  and `ensureSeeded` never throws. */
+  /** Per-new-user first-request default seed (PD-32): the default CARD pack AND the default "You" PERSONA.
+   *  Fire-and-forget: the auth middleware calls it AFTER the Principal resolves so an SSO/admin-created user
+   *  gets both on first touch. MUST NOT block the request — each seeder's in-process memo + persisted latch
+   *  make it a Set lookup after the first run, and neither `ensureSeeded` ever throws. */
   readonly seedUserCharacters: (principal: Principal) => void;
   /** Present in local mode. */
   readonly authenticate?: LocalAuthenticator;

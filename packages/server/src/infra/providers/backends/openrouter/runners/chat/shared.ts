@@ -321,6 +321,7 @@ export function emitSamplingReceipt(params: UserIntent, resolved: ResolvedChatKn
     requested["verbosity"] = params.verbosity;
   }
   logProviderSampling("openrouter", {
+    turnId: resolved.turnId,
     requested,
     applied,
     dropped: samplingDrops(resolved.warnings),
