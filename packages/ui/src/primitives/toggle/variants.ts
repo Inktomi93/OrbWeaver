@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 // The toggle skin — a pressable on/off button (bold/italic-style controls). Muted at rest; the
 // pressed state (data-pressed) flips to bg-accent (or bg-primary for the primary intent). Sizes
@@ -7,7 +7,8 @@ export const toggleVariants = tv({
   base: [
     "inline-flex select-none items-center justify-center gap-field whitespace-nowrap rounded-control font-sans font-medium text-muted-foreground",
     "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent hover:text-accent-foreground",
-    "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "outline-none",
+    FOCUS_RING,
     "data-pressed:bg-accent data-pressed:text-accent-foreground",
     "data-disabled:pointer-events-none data-disabled:opacity-50 disabled:pointer-events-none disabled:opacity-50",
   ],

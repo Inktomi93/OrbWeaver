@@ -34,6 +34,7 @@ import type {
   ChatParticipantId,
   ChatStreamEventId,
   Handle,
+  MessageAssetId,
   MessageId,
   MessageVariantId,
   ModelId,
@@ -361,6 +362,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newChatId: mint<ChatId>("chat"),
     newMessageId: mint<MessageId>("message"),
     newMessageVariantId: mint<MessageVariantId>("variant"),
+    newMessageAssetId: mint<MessageAssetId>("message_asset"),
     newParticipantId: mint<ChatParticipantId>("chat_participant"),
     newInjectionId: mint<ChatInjectionId>("chat_injection"),
     newEventId: mint<ChatEventId>("chat_event"),
@@ -390,6 +392,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // default), not `notStubbed`, or every existing roster test would need an override for a field it
     // never asserts on. A test asserting `avatarHash` overrides with a resolver fake.
     resolveAssetHash: () => Promise.resolve(null),
+    // #67 send-attach trust boundary — default "owns nothing" (safe floor); a test that attaches overrides
+    // this with a fake returning the ids it seeded as owned.
+    filterOwnedAssetIds: () => Promise.resolve([]),
     resolveUserPublics: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,
     // The assemble gather calls this every round (round-level recall over the shared bucket); default to

@@ -330,6 +330,11 @@ const COLLECT_SAMPLES_JS = `(async () => {
 
   var mainLandmarkPresent = document.querySelector("main, [role='main']") !== null;
 
+  // Which target-size floor applies is pointer-conditional (see design-audit-checks.ts checkTapTarget):
+  // sample the REAL pointer type this render is under so the tap-target check judges it against the
+  // right WCAG floor instead of holding a fine-pointer desktop scale to the 44px touch number.
+  var pointerCoarse = window.matchMedia("(pointer: coarse)").matches;
+
   // ── tabindex smell ────────────────────────────────────────────────────────
   var tabIndexes = [];
   var tabIndexEls = document.querySelectorAll("[tabindex]");
@@ -460,6 +465,7 @@ const COLLECT_SAMPLES_JS = `(async () => {
     nestedCards: nestedCards,
     gradientTexts: gradientTexts,
     animatedImgHovers: animatedImgHovers,
+    pointerCoarse: pointerCoarse,
   };
 })()`;
 

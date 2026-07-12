@@ -51,6 +51,18 @@ export function EchoBoundaryStory(): ReactElement {
   );
 }
 
+// `renderError` OMITTED — proves QueryBoundary's default falls back to `QueryErrorState` (rollup-audit
+// C2) and the retry it wires still resets both boundaries (a real refetch, not a re-throw).
+export function EchoBoundaryWithoutRenderErrorStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>}>
+        <EchoReader />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
 // ── useGatedQuery — a REAL `trpc.chat.getChat.queryOptions(...)` call (the type this primitive
 //    exists to wrap; a mock query-key would hide the exact key-variance bug the fix pins). ──────
 

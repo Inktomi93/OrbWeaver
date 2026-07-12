@@ -1,15 +1,23 @@
-// entry/http/upload — the multipart ingest routes. Pins: both routes require a principal (401 anonymous);
-// the asset route validates file + kind (400) and calls store with enforceMagic:true; the import route
-// delegates to run-profile-import (400 with no files; otherwise the per-card outcome). Hono isn't
-// test-resolvable, so the registrars run over a captured mock app + context.
+// entry/http/upload — the multipart ingest routes. Pins: both routes mount the belt chain
+// [authCsrfGuard, bodyCap, handler]; the guard 401s the anonymous caller + 403s a cookie mutation missing
+// the CSRF header (BEFORE the body is read); the asset route validates file + kind (400) and calls store
+// with enforceMagic:true + a maxBytes cap; the import route delegates to run-profile-import (400 with no
+// files; otherwise the per-card outcome). Hono isn't test-resolvable, so the registrars run over a captured
+// mock app + context: the belt CHAIN is captured per route, business tests drive the final handler directly,
+// and the guard is exercised on its own (its 401/403/next behavior is the CSRF pin).
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
-import type { ImportCharacterPort, ImportTagPort } from "@orb/server/entry/import";
+import type {
+  ImportCharacterPort,
+  ImportTagPort,
+  ImportWorldInfoPort,
+} from "@orb/server/entry/import";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
@@ -47,11 +55,13 @@ function makeCtx(principal: Principal | null, form: FormData): MockCtx {
   };
 }
 
-function uploadRoutes(deps: UploadDeps): Map<string, Handler> {
-  const routes = new Map<string, Handler>();
+/** Capture the FULL belt chain each route mounts (`[authCsrfGuard, bodyCap, handler]`), not just one handler
+ *  — the registrar now mounts middleware before the business handler. */
+function uploadChains(deps: UploadDeps): Map<string, Handler[]> {
+  const routes = new Map<string, Handler[]>();
   const app = {
-    post: (path: string, routeHandler: Handler): unknown => {
-      routes.set(`POST ${path}`, routeHandler);
+    post: (path: string, ...handlers: Handler[]): unknown => {
+      routes.set(`POST ${path}`, handlers);
       return app;
     },
   };
@@ -59,13 +69,57 @@ function uploadRoutes(deps: UploadDeps): Map<string, Handler> {
   return routes;
 }
 
-function handlerFor(deps: UploadDeps, key: string): Handler {
-  const handler = uploadRoutes(deps).get(key);
-  if (handler === undefined) {
+function chainFor(deps: UploadDeps, key: string): Handler[] {
+  const chain = uploadChains(deps).get(key);
+  if (chain === undefined) {
     throw new Error(`route not registered: ${key}`);
+  }
+  return chain;
+}
+
+/** The final business handler (last in the chain) — the business tests drive it with an already-authed ctx. */
+function handlerFor(deps: UploadDeps, key: string): Handler {
+  const handler = chainFor(deps, key).at(-1);
+  if (handler === undefined) {
+    throw new Error(`route has no handler: ${key}`);
   }
   return handler;
 }
+
+// ── The auth+CSRF guard (chain[0]) exercised on its own: a minimal middleware ctx with the principal + the
+// request headers + a `next` spy. The guard short-circuits (401/403) or falls through to `next`. ───────────
+interface GuardCtx {
+  readonly get: (key: string) => Principal | null;
+  readonly body: (data: null, status?: number) => Response;
+  readonly req: { readonly raw: { readonly headers: Headers } };
+}
+type GuardMw = (c: GuardCtx, next: () => Promise<void>) => Promise<Response | undefined>;
+
+function guardCtx(principal: Principal | null, headers?: Record<string, string>): GuardCtx {
+  return {
+    get: (key: string): Principal | null => (key === "principal" ? principal : null),
+    body: (data: null, status = 200): Response => new Response(data, { status }),
+    req: { raw: { headers: new Headers(headers) } },
+  };
+}
+
+async function runGuard(
+  deps: UploadDeps,
+  key: string,
+  ctx: GuardCtx,
+): Promise<{ readonly status: number | null; readonly nexted: boolean }> {
+  let nexted = false;
+  // Narrowing the real Hono `Handler` (chain[0]) to the minimal middleware call-shape to run it on a stub ctx.
+  // FABRICATION-OK: not a fabricated domain value — GuardMw is a test-local function type.
+  const guard = chainFor(deps, key)[0] as unknown as GuardMw;
+  const res = await guard(ctx, (): Promise<void> => {
+    nexted = true;
+    return Promise.resolve();
+  });
+  return { status: res instanceof Response ? res.status : null, nexted };
+}
+
+const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
 
 const STORED: StoredAsset = {
   assetId: castId<AssetId>("ast_1"),
@@ -88,7 +142,17 @@ const creatingCharacter: ImportCharacterPort = {
 const noopTag: ImportTagPort = {
   attachCardTagByName: (): Promise<boolean> => Promise.resolve(true),
 };
-const okDeps: UploadDeps = { assets: okAssets, character: creatingCharacter, tag: noopTag };
+// A no-op embedded-lorebook port (the W1 write is proven in the world-info + run-profile-import suites).
+const noopWorldInfo: ImportWorldInfoPort = {
+  importLorebook: () =>
+    Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false }),
+};
+const okDeps: UploadDeps = {
+  assets: okAssets,
+  character: creatingCharacter,
+  tag: noopTag,
+  worldInfo: noopWorldInfo,
+};
 
 describe("registerUpload — asset upload", () => {
   test("anonymous → 401", async () => {
@@ -111,17 +175,28 @@ describe("registerUpload — asset upload", () => {
     expect(res.status).toBe(400);
   });
 
-  test("valid upload → store(enforceMagic:true, kind, mime) → StoredAsset", async () => {
-    const calls: { kind: string; mime: string; enforceMagic: boolean | undefined }[] = [];
+  test("valid upload → store(enforceMagic:true, kind, mime, maxBytes) → StoredAsset", async () => {
+    const calls: {
+      kind: string;
+      mime: string;
+      enforceMagic: boolean | undefined;
+      maxBytes: number | undefined;
+    }[] = [];
     const deps: UploadDeps = {
       assets: {
-        store: (p): Promise<StoredAsset> => {
-          calls.push({ kind: p.kind, mime: p.mime, enforceMagic: p.enforceMagic });
+        store: (p: Parameters<UploadAssetsPort["store"]>[0]): Promise<StoredAsset> => {
+          calls.push({
+            kind: p.kind,
+            mime: p.mime,
+            enforceMagic: p.enforceMagic,
+            maxBytes: p.maxBytes,
+          });
           return Promise.resolve(STORED);
         },
       },
       character: creatingCharacter,
       tag: noopTag,
+      worldInfo: noopWorldInfo,
     };
     const form = new FormData();
     form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));
@@ -130,7 +205,13 @@ describe("registerUpload — asset upload", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(STORED);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toEqual({ kind: "avatar", mime: "image/png", enforceMagic: true });
+    // PD-94: the route passes the store's maxBytes belt (64 MiB) alongside enforceMagic.
+    expect(calls[0]).toEqual({
+      kind: "avatar",
+      mime: "image/png",
+      enforceMagic: true,
+      maxBytes: 64 * 1024 * 1024,
+    });
   });
 });
 
@@ -157,4 +238,42 @@ describe("registerUpload — import delegate", () => {
     expect(result.imported).toHaveLength(1);
     expect(result.failed).toHaveLength(0);
   });
+});
+
+describe("registerUpload — auth+CSRF guard (belt order, before the body is read)", () => {
+  test("both routes mount [authCsrfGuard, bodyCap, handler] — auth runs BEFORE the body cap", () => {
+    for (const key of [ASSET_ROUTE, IMPORT_ROUTE]) {
+      expect(chainFor(okDeps, key)).toHaveLength(3);
+    }
+  });
+
+  for (const key of [ASSET_ROUTE, IMPORT_ROUTE]) {
+    test(`${key}: anonymous → 401, never reaches next (no body buffered)`, async () => {
+      const { status, nexted } = await runGuard(okDeps, key, guardCtx(null));
+      expect(status).toBe(401);
+      expect(nexted).toBe(false);
+    });
+
+    test(`${key}: cookie session WITHOUT the CSRF header → 403`, async () => {
+      const { status, nexted } = await runGuard(okDeps, key, guardCtx(COOKIE_OWNER));
+      expect(status).toBe(403);
+      expect(nexted).toBe(false);
+    });
+
+    test(`${key}: cookie session WITH the CSRF header → passes to the body cap`, async () => {
+      const { status, nexted } = await runGuard(
+        okDeps,
+        key,
+        guardCtx(COOKIE_OWNER, { [CSRF_HEADER]: "1" }),
+      );
+      expect(status).toBeNull();
+      expect(nexted).toBe(true);
+    });
+
+    test(`${key}: non-cookie principal (fallback) is not CSRF-eligible → passes with no header`, async () => {
+      const { status, nexted } = await runGuard(okDeps, key, guardCtx(OWNER));
+      expect(status).toBeNull();
+      expect(nexted).toBe(true);
+    });
+  }
 });

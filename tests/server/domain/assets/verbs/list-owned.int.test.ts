@@ -8,7 +8,7 @@ import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, pngBytes, principal, row, seedUser } from "../_support.ts";
+import { gifBytes, makeHarness, pngBytes, principal, row, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
 const PAGE = 2;
@@ -64,6 +64,32 @@ describe("listOwned", () => {
 
     const all = await svc.listOwned({ principal: principal(owner), limit: ALL });
     expect(new Set(all.map((r) => r.assetId))).toEqual(new Set([avatar.assetId, card.assetId]));
+  });
+
+  test("the view carries the stored `animated` byte-fact (G2)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const gif = await svc.store({
+      principal: principal(owner),
+      bytes: gifBytes(1),
+      kind: "gallery",
+      mime: "image/gif",
+    });
+    const png = await svc.store({
+      principal: principal(owner),
+      bytes: pngBytes(1),
+      kind: "gallery",
+      mime: PNG,
+    });
+
+    const list = await svc.listOwned({ principal: principal(owner), limit: ALL });
+    const byId = new Map(list.map((r) => [r.assetId, r.animated]));
+    expect(byId.get(gif.assetId)).toBe(true); // every GIF ⇒ animated
+    expect(byId.get(png.assetId)).toBe(false); // a static PNG ⇒ not
   });
 
   test("keyset paging: rows sharing one uploadedAt walk in pages with no skip/dup", async () => {

@@ -8,15 +8,20 @@
 
 import {
   clearCharacterSelection,
+  clearPresetSection,
+  clearPresetSelection,
   clearTagFilter,
   closeModal,
   commitDraft,
+  dismissImportOnboarding,
   goToLanding,
   isCommitted,
   isLanding,
   openModal,
   selectCharacter,
   selectChat,
+  selectPreset,
+  selectPresetSection,
   setActiveSection,
   setBulkMode,
   setCharacterSortMode,
@@ -34,13 +39,16 @@ import {
   useCharacterSortMode,
   useCharacterViewMode,
   useFavoritesOnly,
+  useImportOnboardingDismissed,
   useOpenModal,
   usePanelOverride,
   useSelectedCharacterId,
+  useSelectedPresetId,
+  useSelectedPresetSectionId,
   useShowArchived,
   useTagFilter,
 } from "@orb/client/state";
-import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 
@@ -149,6 +157,34 @@ export function CharacterSelectionProbe(): ReactElement {
   );
 }
 
+const PROBE_PRESET = castId<PresetId>("preset_ct_probe");
+
+/** PresetSelectionProbe — renders the preset-selection store's read hooks as text + buttons that fire its
+ *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
+ *  assert select → clear for BOTH the open preset (W10) and the rack SECTION (The Assembly §2.2): selecting
+ *  a section reveals the inspector; opening a different preset clears a stale section. */
+export function PresetSelectionProbe(): ReactElement {
+  const selected = useSelectedPresetId();
+  const section = useSelectedPresetSectionId();
+  return (
+    <div>
+      <output>{`selected=${selected ?? "none"} section=${section ?? "none"}`}</output>
+      <button type="button" onClick={(): void => selectPreset(PROBE_PRESET)}>
+        select preset
+      </button>
+      <button type="button" onClick={(): void => selectPresetSection("sec_probe")}>
+        select section
+      </button>
+      <button type="button" onClick={(): void => clearPresetSection()}>
+        clear section
+      </button>
+      <button type="button" onClick={(): void => clearPresetSelection()}>
+        clear preset selection
+      </button>
+    </div>
+  );
+}
+
 const PROBE_TAG = castId<TagId>("tag_ct_probe");
 
 /** Drives the character-library VIEW-PREFS store (FINAL-Character §4/§12) through its module actions and
@@ -186,6 +222,20 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearTagFilter()}>
         clear tags
+      </button>
+    </div>
+  );
+}
+
+/** ImportOnboardingProbe — renders the first-run import-card dismiss latch as text + a dismiss button, so
+ *  a CT can drive the persisted store's module action + read hook (import-onboarding-store). */
+export function ImportOnboardingProbe(): ReactElement {
+  const dismissed = useImportOnboardingDismissed();
+  return (
+    <div>
+      <output>{`dismissed=${String(dismissed)}`}</output>
+      <button type="button" onClick={(): void => dismissImportOnboarding()}>
+        dismiss card
       </button>
     </div>
   );

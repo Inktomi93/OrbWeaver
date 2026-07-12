@@ -5,13 +5,13 @@ import type {
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import type { PortalContainer } from "#lib";
-import { cn, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine (the spinner.tsx precedent).
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants";
 
-// Breathing room between the input and the popup (a positioning input, not a styled length).
-const POPUP_SIDE_OFFSET = 4;
+// Breathing room between the input and the popup — the input-hug gap (§13.0 C19 rollup, `#lib`).
+const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
 const slots = autocompleteVariants();
 
@@ -93,7 +93,7 @@ function AutocompleteResultStatus(): ReactElement {
   }, 0);
   return (
     <BaseAutocomplete.Status className={slots.status()} data-slot="autocomplete-status">
-      {`${count} ${count === 1 ? "result" : "results"}`}
+      {formatResultCount(count)}
     </BaseAutocomplete.Status>
   );
 }

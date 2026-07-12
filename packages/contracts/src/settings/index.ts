@@ -18,7 +18,7 @@
 
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
-import { chatApiSchema, openRouterProviderRoutingSchema, roleHandlingSchema } from "#connection";
+import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
 import { regexScriptSchema } from "#regex";
 // memory retrieval-mode axis is single-homed in #search; settings derives its enum (no inline re-spell).
@@ -304,7 +304,14 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // Per-field `.catch(undefined)` so a stale/invalid stored source (e.g. a role re-pointed off a tier the
 // user dropped, or `local-light` left on `summarize`) heals to "no preference" instead of nuking the
 // blob — the same self-healing the chat role config and the rest of the settings tree use.
-const inferenceRoleSourceSchema = z.enum(["openrouter", "vllm", "local-light"]);
+// The per-role source SUBSETS of the canonical `CredentialSource` axis — each is a genuine axis in its own
+// right (a role's legal sources), homed ONCE here as an `as const` tuple and derived on both the schema
+// (`z.enum`) and the client picker (connections-model.ts imports these) — the one-home / no-respell rule
+// (`no-inline-union-redecl`, Spine-TypeScript-and-Patterns.md §7.5). Members are a subset of `CRED_SOURCES`.
+export const INFERENCE_SOURCES = ["openrouter", "vllm", "local-light"] as const;
+export const SUMMARIZE_SOURCES = ["openrouter", "vllm", "max-pro-sub"] as const;
+
+const inferenceRoleSourceSchema = z.enum(INFERENCE_SOURCES);
 const inferenceRoleConfigSchema = z.object({
   source: inferenceRoleSourceSchema.optional().catch(undefined),
   model: z.string().min(1).optional().catch(undefined),
@@ -313,7 +320,7 @@ const summarizeRoleConfigSchema = z.object({
   // summarize can additionally select `max-pro-sub`: the agent-sdk backend serves it as a
   // schema-validated summarizer on the owner's sub quota (resolve-role.ts's `isSub` arm), on top of the
   // two chat-completions engines below.
-  source: z.enum(["openrouter", "vllm", "max-pro-sub"]).optional().catch(undefined),
+  source: z.enum(SUMMARIZE_SOURCES).optional().catch(undefined),
   model: z.string().min(1).optional().catch(undefined),
 });
 const openrouterOnlyRoleConfigSchema = z.object({
@@ -330,9 +337,9 @@ const chatRoleConfigSchema = z.object({
   // OpenRouter provider-routing prefs travel with the chat role assignment (routing is global-per-user),
   // NOT on the chat row's metadata. Lenient + self-healing like the rest of the blob.
   providerRouting: openRouterProviderRoutingSchema.optional().catch(undefined),
-  // D66-C (W6): the adjacent-same-role handling knob — a per-connection wire concern beside
-  // `providerRouting` (part 01 §7a). Carried through the resolver to SHAPE, clamped against the model floor.
-  roleHandling: roleHandlingSchema.optional().catch(undefined),
+  // NOTE: adjacent-same-role handling (`roleHandling`) is NO LONGER a connection knob (D66-C W6 REVERSED) — it
+  // moved to the preset as `params.advanced.roleHandling` (USER INTENT, not wire config). A stored blob's stale
+  // `roleHandling` key is dropped by this non-strict parse.
 });
 
 const roleDefaultsSchema = z

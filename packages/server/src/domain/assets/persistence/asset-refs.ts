@@ -24,11 +24,13 @@
 //     live set ON PURPOSE — every image asset has an embedding, so counting it as retaining would make
 //     `reapIfOrphan` (avatar cleanup on `character.remove`) and `collectGarbage` reclaim NOTHING.
 //
-// KNOWN LIMITATION (flagged, not solved here): chat-canon `asset:<id>` references live in MESSAGE TEXT, not
-// an FK column, so this registry cannot see them. Generated chat images carry an `imagery_generations` row
-// (RETAINING), so they are safe; a bare user-uploaded image pasted into a chat with no gallery/avatar/
-// generation row is NOT — GC (a grace-windowed, operator-triggered v2 ops pass, never an automatic reaper)
-// could reclaim it after grace. Widening the registry to a canon-scan is a PD follow-up.
+// CHAT-CANON `asset:<id>` COVERAGE (#67): a message body stores its inline images as `asset:<id>` TEXT refs
+// (D51), which this registry — a list of FK COLUMNS — cannot see. The two producers each carry a STRUCTURAL
+// retaining FK so the blob is visible here: a generated chat image carries an `imagery_generations` row, and
+// a user-uploaded ATTACHMENT carries a `message_assets` row (`messageAssets.assetId`, registered below). Both
+// are RETAINING, so GC never reclaims a blob still shown in a live chat. The generic "any arbitrary asset id
+// typed into any body" canon-scan (a text ref with NO structural row — e.g. a hand-pasted foreign id) remains
+// a PD follow-up; both first-class inline-image paths (generate + attach) are now structurally covered.
 
 import type { Db } from "@orb/db";
 import {
@@ -37,6 +39,7 @@ import {
   documents,
   galleryItems,
   imageryGenerations,
+  messageAssets,
   personas,
   rpgNpcs,
 } from "@orb/db";
@@ -55,6 +58,7 @@ export const ASSET_REFS: readonly AssetRef[] = [
   { table: documents, column: documents.sourceAssetId },
   { table: rpgNpcs, column: rpgNpcs.avatarAssetId },
   { table: imageryGenerations, column: imageryGenerations.assetId },
+  { table: messageAssets, column: messageAssets.assetId },
 ];
 
 /** DERIVED asset-FK columns — regenerable downstream rows that do NOT pin the blob (they cascade-delete WITH

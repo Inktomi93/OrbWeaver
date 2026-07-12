@@ -131,7 +131,7 @@ export function DrawerDescription(props: DrawerDescriptionProps): ReactElement {
 
 /**
  * Closes the drawer. Unstyled passthrough — compose your own control via `render`.
- * `<DrawerClose render={<Button variant="ghost">Done</Button>} />`
+ * `<DrawerClose render={<Button intent="ghost">Done</Button>} />`
  * Spec: ui-package-design §6.1.
  */
 export function DrawerClose(props: BaseCloseProps): ReactElement {

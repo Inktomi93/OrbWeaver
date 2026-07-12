@@ -18,68 +18,24 @@
 // (re-running is safe + resumable).
 //
 // SCOPE (4c W3 — the SillyTavern character-card path): this drives `importService.importCharacter` over a
-// set of card files. The FULL profile driver (`proposed/import-st-profile-waves.md`: personas-first →
-// collect-from-dir → per-character store→import → reconcileStats → emit) is NOT buildable in this slice and
-// is deliberately NOT faked here:
-//   • FLAG[PD-77]: `collectBundlesFromDir` (the loader subsystem) + `importChats`/`importPersonas`
-//     are the chats/personas/loader waves (`proposed/import-st-profile-waves.md`) — not built, so a profile
-//     ZIP/dir is not collected here; callers pass already-extracted card files.
-//   • FLAG[PD-78]: `reconcileStats` (stats rollup) + the `emit`/`enqueueBackfill` ops are wired into
-//     the import CONTEXT only when the chats wave lands (`proposed/import-st-profile-waves.md`, PD-78);
-//     this card slice's `ImportContext` carries none, so no post-import reconcile/emit runs here yet.
+// set of card files (the LIVE `POST /api/import` multipart path). It composes a CARD-ONLY `ImportContext`
+// (no `profile` — RULING A): the chats/personas write ops + the PD-78 backfill/reconcile ops are wired only
+// where they are needed — the portability `chat` descriptor's per-owner context (`entry/compose/portability`
+// `buildOwnerImport`) and the bundle driver. `importChats`/`importPersonas` + `createBulkImportChats`/
+// `createBulkImportPersonas` ARE built (the chat/persona Option-B write ops) and are wired there; the
+// `collectBundlesFromDir` profile-DIR loader remains unbuilt (a ZIP bundle is the delivery path now, via
+// `run-bundle-import` + the registry). Callers here pass already-extracted card files.
 
-import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { TagSource, TagStatus } from "@orb/contracts/tag";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
-import type { ImportContext } from "#domain/import";
+import type { CharacterId } from "@orb/kit/ids";
 import { createImportService } from "#domain/import";
-
-/** The `character` front-door slice the driver wires the import create/dedup/edit-in-place ops to. */
-export interface ImportCharacterPort {
-  readonly create: (params: {
-    readonly principal: Principal;
-    readonly input: CreateCharacterInput;
-    readonly provenance?: { readonly importedFrom: string | null; readonly importHash: string };
-  }) => Promise<{ readonly id: CharacterId }>;
-  readonly update: (params: {
-    readonly principal: Principal;
-    readonly characterId: CharacterId;
-    readonly input: UpdateCharacterInput;
-  }) => Promise<{ readonly id: CharacterId }>;
-  readonly findByImportHash: (params: {
-    readonly ownerId: UserId;
-    readonly importHash: string;
-  }) => Promise<{ readonly characterId: CharacterId } | null>;
-  /** PD-108 — the ALREADY-BUILT default-card seeder's partial-rerun read, reused for the re-import match. */
-  readonly findByHandle: (params: {
-    readonly ownerId: UserId;
-    readonly handle: string;
-  }) => Promise<{ readonly characterId: CharacterId } | null>;
-}
-
-/** The `assets` front-door slice the driver wires the import avatar-store op to. */
-export interface ImportAssetPort {
-  readonly store: (params: {
-    readonly principal: Principal;
-    readonly bytes: Uint8Array;
-    readonly kind: "avatar";
-    readonly mime: string;
-    readonly enforceMagic?: boolean;
-  }) => Promise<{ readonly assetId: AssetId }>;
-}
-
-/** The `tag` front-door slice the driver wires the import card-tag carry to (`tag.attachCardTagByName`). The
- *  driver binds `source:'card'`, `status:'pending'` so each `card.tags` entry lands as a staged suggestion. */
-export interface ImportTagPort {
-  readonly attachCardTagByName: (params: {
-    readonly ownerId: UserId;
-    readonly characterId: CharacterId;
-    readonly tagName: string;
-    readonly source: TagSource;
-    readonly status: TagStatus;
-  }) => Promise<boolean>;
-}
+import type {
+  ImportAssetPort,
+  ImportCharacterPort,
+  ImportTagPort,
+  ImportWorldInfoPort,
+} from "./build-import-context";
+import { buildImportContext } from "./build-import-context";
 
 /** One card file to import: the raw bytes + an optional source filename (provenance + name fallback). */
 export interface ImportFile {
@@ -93,6 +49,8 @@ export interface ProfileImportDeps {
   readonly character: ImportCharacterPort;
   readonly assets: ImportAssetPort;
   readonly tag: ImportTagPort;
+  /** OPTIONAL (W1): when composed, embedded card lorebooks import to `world_books`/`character_books`. */
+  readonly worldInfo?: ImportWorldInfoPort;
   readonly files: readonly ImportFile[];
 }
 
@@ -120,43 +78,17 @@ export interface ProfileImportResult {
  * file, isolating per-card failures. Returns the per-card outcome (imported/deduped vs failed).
  */
 export async function runProfileImport(deps: ProfileImportDeps): Promise<ProfileImportResult> {
-  const { principal, character, assets, tag, files } = deps;
+  const { principal, character, assets, tag, worldInfo, files } = deps;
 
-  const ctx: ImportContext = {
-    ownerId: principal.userId,
-    createCharacter: async ({ input, importedFrom, importHash }) => {
-      const detail = await character.create({
-        principal,
-        input,
-        provenance: { importedFrom, importHash },
-      });
-      return { characterId: detail.id };
-    },
-    findByImportHash: async ({ importHash }) => {
-      const ref = await character.findByImportHash({ ownerId: principal.userId, importHash });
-      return ref?.characterId ?? null;
-    },
-    findByHandle: async ({ handle }) => {
-      const ref = await character.findByHandle({ ownerId: principal.userId, handle });
-      return ref?.characterId ?? null;
-    },
-    updateCharacter: async ({ characterId, input }) => {
-      await character.update({ principal, characterId, input });
-    },
-    storeAsset: async ({ bytes, mime }) => {
-      const stored = await assets.store({
-        principal,
-        bytes,
-        kind: "avatar",
-        mime,
-        enforceMagic: false,
-      });
-      return stored.assetId;
-    },
-    // Author-shipped card tags land as card/pending suggestions (the user's "Accept" flips them later).
-    attachCardTag: ({ ownerId, characterId, tagName }) =>
-      tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
-  };
+  // The card-only wiring: no `profile` block (RULING A); `importLorebook` only when a world-info importer was
+  // composed. Shared with the delivery/bundle path via `buildImportContext` (task #115 — one wiring seam).
+  const ctx = buildImportContext({
+    principal,
+    character,
+    storeAvatar: assets.store,
+    attachCardTag: tag.attachCardTagByName,
+    ...(worldInfo !== undefined ? { importLorebook: worldInfo.importLorebook } : {}),
+  });
 
   const service = createImportService(ctx);
   const imported: ImportedCard[] = [];

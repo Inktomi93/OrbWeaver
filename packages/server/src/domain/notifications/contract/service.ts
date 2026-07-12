@@ -9,8 +9,14 @@
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type { DismissParams, ListInboxParams, MarkReadParams, RecordParams } from "./params";
-import type { ListInboxResult } from "./results";
+import type {
+  DismissParams,
+  ListInboxParams,
+  MarkAllReadParams,
+  MarkReadParams,
+  RecordParams,
+} from "./params";
+import type { ListInboxResult, MarkAllReadResult } from "./results";
 import type { InboxView } from "./views";
 
 /**
@@ -66,6 +72,11 @@ export interface NotificationsService {
    *  it). Scoped to `principal.userId`; a notification not in the caller's inbox throws `DomainNotFoundError`
    *  (a user cannot probe another's inbox). Returns the updated `InboxView`. */
   markRead: (params: MarkReadParams) => Promise<InboxView>;
+  /** Mark EVERY one of the CALLER's currently-unread notifications read, in ONE db UPDATE (the notification
+   *  bell's "open = read everything" gesture — no per-row loop, no N mutations). Scoped to
+   *  `principal.userId`; idempotent (an already-read row is untouched, so re-opening costs nothing).
+   *  Returns the count of rows actually flipped. */
+  markAllRead: (params: MarkAllReadParams) => Promise<MarkAllReadResult>;
   /** Dismiss one of the CALLER's notifications (idempotent — `dismissedAt` set once). Removes it from the
    *  active `list`; same recipient-scope + not-found semantics as `markRead`. Returns the updated view. */
   dismiss: (params: DismissParams) => Promise<InboxView>;

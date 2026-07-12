@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
 
 // The switch skin. The visible track is switch-thumb (32px) tall × switch-track (48px) wide — dedicated
 // pointer-INDEPENDENT display tokens, so the desktop switch stays generous instead of collapsing toward
@@ -14,10 +14,12 @@ export const switchVariants = tv({
     root: [
       "relative inline-flex h-switch-thumb w-switch-track shrink-0 cursor-pointer items-center rounded-full border border-border bg-input p-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
-      "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "outline-none",
+      FOCUS_RING,
       "data-checked:border-primary data-checked:bg-primary data-disabled:pointer-events-none data-disabled:opacity-50",
       // Base UI sets data-invalid on the Root when wrapped in an invalid <Field> (FieldRootState).
-      "data-invalid:border-destructive data-invalid:focus-visible:ring-destructive",
+      "data-invalid:border-destructive",
+      FOCUS_RING_DESTRUCTIVE,
       "before:absolute before:top-1/2 before:left-1/2 before:size-touch-target before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
     ],
     thumb: [

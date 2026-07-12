@@ -6,6 +6,7 @@ import type { ReactElement } from "react";
 import { EmptyState } from "#primitives/empty-state";
 import type { OrbEChartsInstance } from "../chart";
 import { Chart } from "../chart";
+import { useChartTheme } from "../chart/use-chart-theme";
 import type { BarListItem } from "./option";
 import { buildBarListOption } from "./option";
 import { barListVariants } from "./variants";
@@ -50,6 +51,9 @@ export function BarList({
   onChartReady,
 }: BarListProps): ReactElement {
   const slots = barListVariants();
+  // Resolve chart-chrome tokens to concrete canvas colors live, re-reading on theme switch (§11.3).
+  // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
+  const colors = useChartTheme();
 
   if (items.length === 0) {
     return (
@@ -68,7 +72,7 @@ export function BarList({
         height={height ?? items.length * ROW_HEIGHT_PX + CHROME_HEIGHT_PX}
         label={label}
         onChartReady={onChartReady}
-        option={buildBarListOption(items, valueFormatter)}
+        option={buildBarListOption(items, valueFormatter, colors)}
       />
     </div>
   );

@@ -26,6 +26,8 @@ export type { ExportDeps } from "./export";
 export { registerExport } from "./export";
 export type { HealthzDeps } from "./healthz";
 export { registerHealthz } from "./healthz";
+export type { ImportBundleDeps } from "./import";
+export { registerImportBundle } from "./import";
 export type { JoinDeps } from "./join";
 export { registerJoin } from "./join";
 export { securityHeaders } from "./security-headers";

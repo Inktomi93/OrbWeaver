@@ -39,6 +39,62 @@ export interface AgentSdkAliasResolution {
   readonly capability: ModelCapability;
 }
 
+// --- The picker facade result (getModelsForSource — CONNECTIONS-BUILD-SPEC §2.1) --------------------
+/**
+ * One pickable model as the Connections role-slot picker renders it. Domain-INTERNAL (client receives it
+ * by tRPC inference, the `CredentialView` pattern — `domain/credentials/contract/views.ts`); it is NOT a
+ * cross-boundary `@orb/contracts` shape. Derived per-source in `verbs/get-models-for-source.ts` from
+ * snapshots/config/state ONLY (no outbound fetch). `promptPrice` carries the `ModelCatalogEntry` USD/token
+ * semantics (contracts/connection — the client formats ×1e6 as $/M); the modalities/parameters arrays are
+ * populated for OpenRouter catalog entries only (they feed the Vision/Tools filter chips).
+ */
+export interface SourceModelEntry {
+  /** The persistable model id — what `roleDefaults.<role>.model` stores. */
+  readonly id: string;
+  /** Display name (OR `name`; agent-sdk `displayName`; else the id). */
+  readonly label: string;
+  /** Secondary line (e.g. agent-sdk alias resolution `sonnet → claude-sonnet-5`). */
+  readonly detail?: string;
+  readonly contextLength?: number;
+  /** USD PER TOKEN (`ModelCatalogEntry` semantics — the client formats ×1e6 as $/M). */
+  readonly promptPrice?: number;
+  /** OR entries only — feeds the Vision chip (`inputModalities ∋ "image"`). */
+  readonly inputModalities?: readonly string[];
+  /** OR entries only — feeds the Tools chip (`supportedParameters ∋ "tools"`). */
+  readonly supportedParameters?: readonly string[];
+  /** OR entries only — the generateImage picker filters on `outputModalities ∋ "image"` (GAP-3). */
+  readonly outputModalities?: readonly string[];
+  /** Embed-role vllm/local-light entries — the fixed vector space (VLLM_EMBED_DIM / 1024 builtin). */
+  readonly dimensions?: number;
+  readonly origin: "catalog" | "curated" | "config" | "builtin";
+}
+
+/** The per-source availability state driving the role-slot status dot (CONNECTIONS-BUILD-SPEC §1.7). */
+export const SOURCE_MODELS_STATES = [
+  "ok",
+  "empty-catalog",
+  "needs-key",
+  "owner-only",
+  "engine-off",
+  "needs-probe",
+] as const;
+export type SourceModelsState = (typeof SOURCE_MODELS_STATES)[number];
+
+/**
+ * The `getModelsForSource` result — the read-only picker facade payload (CONNECTIONS-BUILD-SPEC §2.1).
+ * `defaultModelId` is what the resolver would pick for `(role, this source)` when the slot is UNSET (the
+ * ghost/auto-fill value — a ghost-parity test guards it against `resolveRole` drift). `allowsFreeText` is
+ * true ONLY for `custom_openai` (the "use \{query\} as typed" affordance).
+ */
+export interface SourceModelsResult {
+  readonly state: SourceModelsState;
+  readonly models: readonly SourceModelEntry[];
+  /** Snapshot `fetchedAt` (OR / agent-sdk); `null` for config/builtin/custom sources. */
+  readonly fetchedAt: number | null;
+  readonly defaultModelId: string | null;
+  readonly allowsFreeText: boolean;
+}
+
 /** The three OR slugs a mode-2 (OR-Anthropic skin) spawn maps its tier aliases to — the value
  *  `deriveOrSkinTierModels` produces from the two live catalogs, consumed by the agent-sdk env firewall's
  *  `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` envs (which the bundled CLI needs because it can't take a

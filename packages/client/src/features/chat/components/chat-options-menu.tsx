@@ -16,20 +16,9 @@
 
 import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 // biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the chat-list-row-menu.tsx precedent).
-import { Icon, MessagesSquare, MoreHorizontal, Pencil, Trash2, X } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Icon, Images, MessagesSquare, MoreHorizontal, Pencil, Trash2, X } from "@orb/ui/icons";
 import {
   Menu,
   MenuItem,
@@ -41,6 +30,7 @@ import {
 } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import {
   committedChat,
@@ -50,8 +40,16 @@ import {
   setPanelMode,
   startNewChat,
 } from "#state";
+import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { useGuidedActions } from "../hooks/use-guided-actions";
+import { RenameChatDialog } from "./rename-chat-dialog";
+
+/** One character in the chat's cast — id + resolved display name (seeds the per-character gallery entry). */
+export interface ChatOptionsCastMember {
+  readonly characterId: CharacterId;
+  readonly name: string;
+}
 
 /** Label per impersonate person word (the composer-wand `PERSON_LABEL` precedent — a `Record` dispatch,
  *  spine §5.5, so a new person word fails `tsc` here). */
@@ -65,8 +63,9 @@ export interface ChatOptionsMenuProps {
   readonly chatId: ChatId;
   /** The chat's current title (seeds the rename input). */
   readonly title: string | null;
-  /** The chat's character cast — seeds "New chat with same cast" (omitted when empty / a solo assistant). */
-  readonly characterIds: readonly CharacterId[];
+  /** The chat's character cast (id + name) — seeds "New chat with same cast" AND the per-character gallery
+   *  entries (empty for a solo assistant). */
+  readonly characters: readonly ChatOptionsCastMember[];
   /** Whether the viewer is the host — gates the Preview-request jump (host-only server-side). */
   readonly isHost: boolean;
 }
@@ -75,7 +74,7 @@ export interface ChatOptionsMenuProps {
 export function ChatOptionsMenu({
   chatId,
   title,
-  characterIds,
+  characters,
   isHost,
 }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
@@ -87,6 +86,11 @@ export function ChatOptionsMenu({
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [galleryFor, setGalleryFor] = useState<ChatOptionsCastMember | null>(null);
+
+  const characterIds = characters.map((c) => c.characterId);
+  // A solo cast gets a direct "[Name]'s gallery" row; a group gets a submenu (below).
+  const soloCharacter = characters.length === 1 ? characters[0] : undefined;
 
   const canTargetTail = guided.tailAssistantMessageId !== null;
 
@@ -132,6 +136,30 @@ export function ChatOptionsMenu({
               New chat with same cast
             </MenuItem>
           ) : null}
+          {soloCharacter !== undefined ? (
+            <MenuItem onClick={(): void => setGalleryFor(soloCharacter)}>
+              <Icon icon={Images} size="sm" />
+              {soloCharacter.name}'s gallery
+            </MenuItem>
+          ) : null}
+          {characters.length > 1 ? (
+            <MenuSubmenuRoot>
+              <MenuSubmenuTrigger>
+                <Icon icon={Images} size="sm" />
+                Character galleries
+              </MenuSubmenuTrigger>
+              <MenuPopup>
+                {characters.map((character) => (
+                  <MenuItem
+                    key={character.characterId}
+                    onClick={(): void => setGalleryFor(character)}
+                  >
+                    {character.name}
+                  </MenuItem>
+                ))}
+              </MenuPopup>
+            </MenuSubmenuRoot>
+          ) : null}
           <MenuItem disabled={!canTargetTail} onClick={(): void => guided.fireContinue("")}>
             Continue
           </MenuItem>
@@ -174,48 +202,37 @@ export function ChatOptionsMenu({
       </Menu>
 
       {/* Rename — a single controlled input (§13.4 single-rename carve-out, the ChatListRowMenu precedent). */}
-      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogPopup size="sm">
-          <Stack gap="block">
-            <DialogTitle>Rename chat</DialogTitle>
-            <Input
-              aria-label="Chat title"
-              value={renameValue}
-              onValueChange={setRenameValue}
-              placeholder="Untitled chat"
-            />
-            <Row gap="row" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button intent="primary" onClick={saveRename}>
-                Save
-              </Button>
-            </Row>
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <RenameChatDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        value={renameValue}
+        onValueChange={setRenameValue}
+        onSave={saveRename}
+      />
 
       {/* Delete — a hard, non-reversible cascade → an explicit confirm (never an undo-toast). */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <AlertDialogDescription>
-              This permanently deletes the chat and its messages for everyone. This can't be undone.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={confirmDelete}>
-                    Delete
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this chat?"
+        description="This permanently deletes the chat and its messages for everyone. This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
+
+      {/* The per-character gallery modal (grid + lightbox + add-picker), opened from the entries above. */}
+      {galleryFor === null ? null : (
+        <CharacterGalleryDialog
+          open={true}
+          onOpenChange={(next): void => {
+            if (!next) {
+              setGalleryFor(null);
+            }
+          }}
+          characterId={galleryFor.characterId}
+          characterName={galleryFor.name}
+        />
+      )}
     </>
   );
 }

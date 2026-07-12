@@ -20,7 +20,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { TagSettingsRow } from "../components/tag-settings-row";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
@@ -37,12 +37,7 @@ export function TagsSettingsSurface(): ReactElement {
       <QueryBoundary
         fallback={<Text tone="muted">Loading your tags…</Text>}
         renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load your tags.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
+          <QueryErrorState label="your tags" onRetry={retry} />
         )}
       >
         <TagsSettingsList />

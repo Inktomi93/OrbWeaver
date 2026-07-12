@@ -163,6 +163,44 @@ export interface BookAttachmentView extends BookView {
 // The three entry-level variants are declared but UNWIRED — kept for future per-entry keyword/scope edits
 // that must invalidate a chat's WI pool. Do NOT auto-delete and do NOT pre-wire emitters; the criterion to
 // wire is a per-entry edit needing pool invalidation, emitted from the `entries/` verbs.
+// ── Bulk import (Option B) — the world-info-OWNED bulk-import op input/result. `import` extracts the
+//    embedded ST `character_book` (via `#kit/serde/card` `extractLorebook`/`loreEntryColumns`/
+//    `loreEntryMetadata`) → these CANONICAL shapes and calls `world-info`'s `createBulkImportLorebook`; the
+//    op writes `world_books`/`world_entries` + the PRIMARY `character_books` attach, D28 replace-on-reimport.
+//    Shared by import + world-info → contracts (D34). ──
+
+/** One resolved lore entry to bulk-import (the `world_entries` typed columns + the raw ST metadata blob).
+ *  `keys` is null-collapsed by the writer (empty ⇒ NULL, honoring the `world_entries.keys` NULL-vs-`[]`
+ *  asymmetry); `metadata` is the raw ST entry blob (`loreEntryMetadata` output) — the op validates it through
+ *  `entryMetadataSchema` at the write seam (the create-entry pattern), never trusting it raw. */
+export interface BulkImportLoreEntryInput {
+  readonly title: string;
+  readonly description: string | null;
+  readonly content: string;
+  readonly keys: readonly string[];
+  readonly enabled: boolean;
+  readonly priority: number;
+  readonly ignoreBudget: boolean;
+  readonly metadata: Record<string, unknown> | null;
+}
+
+/** One resolved embedded lorebook to bulk-import into a character (the `world_books` header + its entries).
+ *  The card-bound book is the `character_books` `role:'primary'` slot (at-most-one per character) — the
+ *  replace key for a D28 re-import (there is no provenance column on `world_books`). */
+export interface BulkImportLorebookInput {
+  readonly name: string;
+  readonly description: string | null;
+  readonly entries: readonly BulkImportLoreEntryInput[];
+}
+
+/** The result of one lorebook bulk-import run. `replaced` = an existing primary book's entries were swapped
+ *  in place (a D28 re-import); false = a fresh book was created + primary-attached. */
+export interface BulkImportLorebookResult {
+  readonly worldBookId: WorldBookId;
+  readonly entryCount: number;
+  readonly replaced: boolean;
+}
+
 export type WiBusEvent =
   | { type: "wiBookAttached"; chatId: ChatId; surface: "chat"; bookId: WorldBookId }
   | { type: "wiBookDetached"; chatId: ChatId; surface: "chat"; bookId: WorldBookId }

@@ -221,7 +221,7 @@ const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
  * card wire (the avatar is stored separately at import; refinery is pipeline-derived), so both are null;
  * tags + the embedded lorebook are external junctions in orbweaver (not card columns) and are NOT carried
  * here (the world-info / tag junction writes are the full importCharacter path —
- * `proposed/import-st-profile-waves.md`, PD-77).
+ * `history/export-import-portability.md` §5, PD-77).
  */
 export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard {
   const cardJson = normalizeCardJson((raw ?? {}) as RawCard);
@@ -388,8 +388,8 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
 }
 
 // ── the lorebook IN half (PD-77) — the byte-identical inverse of `exportBookEntry`, co-located here ────
-// so the WI-entry round-trip is a one-file invariant (the OPEN call in `import-st-profile-waves.md` §"the
-// lorebook wave" — co-locate the IN half next to the OUT half rather than split a world-entry module).
+// so the WI-entry round-trip is a one-file invariant (the OPEN call in `export-import-portability.md` §5 —
+// co-locate the IN half next to the OUT half rather than split a world-entry module).
 // `cardFromJson` deliberately DROPS the embedded lorebook (a junction, not a card column); this half reads
 // it OFF the raw card (same pattern as the built import `extractCardTags`) so the import lorebook writer can
 // land `world_books`/`world_entries`/`character_books`. PURE — no DB, no domain types.

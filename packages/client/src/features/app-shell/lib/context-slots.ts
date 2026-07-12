@@ -37,4 +37,11 @@ export const CONTEXT_SLOTS: Partial<Record<SectionId, readonly ContextTabEntry[]
     { id: "relations", label: "Relations" },
     { id: "history", label: "History" },
   ],
+  // The Assembly (BUILD-SPEC §3.1) — the rack section INSPECTOR (Section tab, default/first) + the
+  // preset usage/bindings panel (Usage tab). Selecting a rack row docks CONTEXT open on Section; the
+  // shell's own placeholder shows when nothing is selected (the route passes `undefined`).
+  presets: [
+    { id: "section", label: "Section" },
+    { id: "usage", label: "Usage" },
+  ],
 };

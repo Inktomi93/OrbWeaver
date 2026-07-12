@@ -7,6 +7,7 @@ import type { ReactElement } from "react";
 import { ChevronDown, ChevronUp, Icon, Minus } from "#primitives/icons";
 import type { OrbEChartsInstance } from "../chart";
 import { Chart } from "../chart";
+import { useChartTheme } from "../chart/use-chart-theme";
 import { buildSparklineOption } from "./option";
 import { statFigureVariants } from "./variants";
 
@@ -57,6 +58,9 @@ export function StatFigure({
 }: StatFigureProps): ReactElement {
   const slots = statFigureVariants({ direction: delta?.direction });
   const DeltaGlyph = delta === undefined ? null : DELTA_GLYPH[delta.direction];
+  // Resolve chart-chrome tokens to concrete canvas colors live, re-reading on theme switch (§11.3).
+  // Called unconditionally (the sparkline only mounts with `trend`) to satisfy rules-of-hooks.
+  const colors = useChartTheme();
 
   return (
     <div className={slots.root({ className })} data-slot="stat-figure">
@@ -80,7 +84,7 @@ export function StatFigure({
             height={sparklineHeight}
             label={`${label} trend`}
             onChartReady={onChartReady}
-            option={buildSparklineOption(trend)}
+            option={buildSparklineOption(trend, colors)}
           />
         </div>
       )}

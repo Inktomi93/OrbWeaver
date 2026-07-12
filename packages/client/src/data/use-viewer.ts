@@ -24,9 +24,11 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "./trpc";
 import { useTRPC } from "./trpc";
 
-/** The lean current-persona summary derived client-side (null when the pointer is unset OR stale — a
- *  deleted/unowned id degrades to null, never a dangling render). `avatarHash` is the CAS key the avatar
- *  primitives resolve to a blob URL. */
+/** The lean current-persona summary derived client-side. Resolves the EFFECTIVE current persona:
+ *  current-pointer → default-pointer → first owned → null (null ONLY when the user owns zero personas,
+ *  the legitimate pre-first-run state — a stale/unset pointer with personas present still resolves one, the
+ *  owner "never no persona when you have one" ruling). `avatarHash` is the CAS key the avatar primitives
+ *  resolve to a blob URL. */
 export interface ViewerPersona {
   readonly id: string;
   readonly name: string;
@@ -51,7 +53,16 @@ export function useViewer(): Viewer {
   });
 
   const currentId = settings.config.seeds.currentPersonaId;
-  const persona = currentId === null ? undefined : personas.find((p) => p.id === currentId);
+  const defaultId = settings.config.seeds.defaultPersonaId;
+  // EFFECTIVE-current resolution (owner ruling: with >=1 persona, one MUST resolve as current —
+  // "no persona" is legitimate ONLY pre-first-run, i.e. `personas.length === 0`). The stored pointer is
+  // the source hardening's job (remove.ts re-points on delete); this fallback is the DISPLAY safety net so
+  // a stale/unset pointer with personas present still renders SOMEONE: current -> default -> first -> null.
+  // Kept semantically identical to `persona-panel-surface.tsx`'s `current` (the two are intentionally mirrored).
+  const persona =
+    personas.find((p) => p.id === currentId) ??
+    personas.find((p) => p.id === defaultId) ??
+    personas[0];
   const currentPersona: ViewerPersona | null =
     persona === undefined
       ? null

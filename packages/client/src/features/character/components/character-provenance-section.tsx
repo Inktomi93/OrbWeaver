@@ -8,9 +8,21 @@
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { StatFigure } from "@orb/ui/stat-figure";
+import type { StatFigureProps } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+// biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
+// specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
+// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
+import { lazy, Suspense } from "react";
+
+// `@orb/ui/stat-figure` pulls in the ECharts seal at module load (chart.tsx → echarts-setup
+// registers the full modular graph) — lazy so the ~60MB echarts package never lands in the entry
+// chunk for a tile that renders every character-detail view (P1, rollup audit).
+const StatFigure = lazy(async () => {
+  const mod = await import("@orb/ui/stat-figure");
+  return { default: mod.StatFigure };
+}) as (props: StatFigureProps) => ReactElement;
 
 /** The derived refinery signals (a numeric quality score + an opaque analysis blob), or null. */
 export interface CharacterRefinery {
@@ -41,7 +53,9 @@ export function CharacterProvenanceSection({
         {refinery === null || refinery.score === null ? (
           <Text tone="muted">Not analyzed yet.</Text>
         ) : (
-          <StatFigure label="Refinery score" value={refinery.score.toFixed(SCORE_DECIMALS)} />
+          <Suspense fallback={null}>
+            <StatFigure label="Refinery score" value={refinery.score.toFixed(SCORE_DECIMALS)} />
+          </Suspense>
         )}
       </Section>
 

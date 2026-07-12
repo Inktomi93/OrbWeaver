@@ -14,7 +14,7 @@
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { UserId, WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type { IsAdmin, RequireOwner } from "../../admin/contract/guard";
 import type {
@@ -26,12 +26,16 @@ import type {
   StartWorkloadParams,
 } from "./params";
 import type { WorkloadRunnerEnv } from "./runner-env";
+import type { WorkloadScheduleService } from "./schedule";
 import type { WorkloadRowAnyKind } from "./workload-row";
 
 // ── injected-op type aliases (the cross-feature/determinism seams, wired at entry/) ──────────────────────
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam (no ambient `mintTypeId()` in a verb). */
 export type NewWorkloadId = () => WorkloadId;
+
+/** Mint a fresh `WorkloadScheduleId` — the injected determinism seam for the schedule verbs. */
+export type NewWorkloadScheduleId = () => WorkloadScheduleId;
 
 /** Bind a `RoleClients` bundle for a specific acting user. ASYNC — the per-role `{credential, model}` pins
  *  resolve off the workload's `ownerId` via `connection.resolveRole` (honoring the user's per-role
@@ -53,6 +57,8 @@ export interface WorkloadServiceContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newWorkloadId: NewWorkloadId;
+  /** Mint a fresh `WorkloadScheduleId` (the schedule verbs' injected id minter). */
+  readonly newScheduleId: NewWorkloadScheduleId;
   /** MODE authz seam (injected from `#domain/admin` at entry — the sole role-comparison site, D17/spine #6):
    *  `requireOwner` gates a BULK run (BOX-OWNER only); `isAdmin` chooses the read scope (owner∪admin → all
    *  owners; a user → own `ownerId`). Verb-tier gate = layer 2 (transport is layer 1). */
@@ -90,11 +96,12 @@ export interface WorkloadRunnerDeps {
  * the resolved acting user (`row.ownerId` or the synthetic system id — for `roleClients`/settings binding);
  * `ownerId` is the RAW row owner (`null` for a BULK all-owners sweep) — the ENUMERATION SCOPE a runner passes
  * to its `env` op (singular = one owner; null = all). `roleClients` is PRE-BOUND for `userId`; `loadUserSettings`
- * is cached to `userId`; `env` is the cross-feature hub; `now` is the injected clock. A runner does pure
- * per-kind work over these — it NEVER touches the row lifecycle.
+ * is cached to `userId`; `env` is the cross-feature hub; `now` is the injected clock. NO `db` — a runner
+ * reaches persistence ONLY through `env.<feature>.<op>()` (the domain seam); the engine (which owns row
+ * lifecycle) keeps its own `db` via `WorkloadRunnerDeps`, never threaded down to a runner. A runner does
+ * pure per-kind work over these — it NEVER touches the row lifecycle.
  */
 export interface WorkloadRunnerContext {
-  readonly db: Db;
   readonly userId: UserId;
   readonly ownerId: UserId | null;
   readonly roleClients: RoleClients;
@@ -113,7 +120,7 @@ export interface WorkloadRunnerContext {
  * admin; reads/mutations are IDOR-scoped to a non-admin caller's own `ownerId`), a `null` caller being a
  * trusted system/scheduler/agent trigger.
  */
-export interface WorkloadService {
+export interface WorkloadService extends WorkloadScheduleService {
   readonly start: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>;
   readonly cancel: (params: CancelWorkloadParams) => Promise<CancelWorkloadResult>;
   readonly retry: (params: RetryWorkloadParams) => Promise<{ id: WorkloadId }>;

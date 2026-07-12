@@ -29,7 +29,11 @@ describe("workloads.get", () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
     await seedUser(db, "user_bob");
-    const id = await seedWorkloadRow(db, { id: "w_alice", kind: "embed-corpus", ownerId: alice });
+    const id = await seedWorkloadRow(db, {
+      id: "w_alice",
+      kind: "reconcile-stats",
+      ownerId: alice,
+    });
     const s = makeService(db);
     await expect(s.get({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(
       DomainNotFoundError,
@@ -41,7 +45,11 @@ describe("workloads.get", () => {
   test("an admin reads ANY owner's workload (the deployment-wide view)", async () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
-    const id = await seedWorkloadRow(db, { id: "w_alice", kind: "embed-corpus", ownerId: alice });
+    const id = await seedWorkloadRow(db, {
+      id: "w_alice",
+      kind: "reconcile-stats",
+      ownerId: alice,
+    });
     const s = makeService(db);
     expect((await s.get({ id, caller: principal("user_admin", "admin") })).ownerId).toBe(alice);
   });

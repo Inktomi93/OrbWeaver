@@ -12,7 +12,7 @@
 // runner-env (`assets-backfill`/`assets-gc`/`assets-fsck` kinds). Registry coverage note (D49 #4/#5): the
 // introspection test enforces "every FK-to-`assets.id` column is classified retain-or-derived", so a new
 // asset-bearing FK (`character_sprites.assetId`, `documents.sourceAssetId`, NPC/imagery art) cannot silently
-// become GC-eligible. Design: docs/architecture/proposed/assets-maintenance.md.
+// become GC-eligible. Design: docs/architecture/history/assets-maintenance.md.
 
 import type { AssetsContext, AssetsService } from "./contract/service";
 import { createAddToGallery } from "./verbs/add-to-gallery";
@@ -28,6 +28,8 @@ import { createLoadAssetBytes } from "./verbs/load-asset-bytes";
 import { createReapIfOrphan } from "./verbs/reap-if-orphan";
 import { createRebuildFromTree } from "./verbs/rebuild-from-tree";
 import { createRemoveFromGallery } from "./verbs/remove-from-gallery";
+import { createResolveChatAssetRefs } from "./verbs/resolve-chat-asset-refs";
+import { createResolveOwnedAssetRefs } from "./verbs/resolve-owned-asset-refs";
 import { createResolveVariant } from "./verbs/resolve-variant";
 import { createStore } from "./verbs/store";
 
@@ -43,6 +45,8 @@ export function createAssetsService(ctx: AssetsContext): AssetsService {
     addToGallery: createAddToGallery(ctx),
     removeFromGallery: createRemoveFromGallery(ctx),
     listGallery: createListGallery(ctx),
+    resolveOwnedAssetRefs: createResolveOwnedAssetRefs(ctx),
+    resolveChatAssetRefs: createResolveChatAssetRefs(ctx),
     backfillAvatars: createBackfillAvatars(ctx),
     collectGarbage: createCollectGarbage(ctx),
     reapIfOrphan: createReapIfOrphan(ctx),

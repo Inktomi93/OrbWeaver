@@ -152,13 +152,14 @@ export function ColorField({
   const slots = colorFieldVariants();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
-  const isValid = isSafeColor(draft);
+  const isDraftValid = isSafeColor(draft);
   // An EMPTY draft is the per-field "clear = inherit" state (FINAL-Character §8.1), a VALID unset —
   // NOT a validation error. `isSafeColor("")` is correctly false (it's a security predicate; empty is
   // not a safe COLOR), so the error must be gated on a NON-empty value that fails the clamp, never on
-  // `!isValid` alone — otherwise an unset/inherit field shows "Enter a valid color…" on mount before
-  // any interaction (the first thing seen on the theming money shot + the Settings global theme editor).
-  const showError = draft.trim() !== "" && !isValid;
+  // `!isDraftValid` alone — otherwise an unset/inherit field shows "Enter a valid color…" on mount
+  // before any interaction (the first thing seen on the theming money shot + the Settings global
+  // theme editor).
+  const showError = draft.trim() !== "" && !isDraftValid;
   const nativeHex = NATIVE_HEX_RE.test(draft) ? draft : FALLBACK_NATIVE_HEX;
 
   const handleOpenChange = (next: boolean): void => {
@@ -217,7 +218,7 @@ export function ColorField({
                 {...(ariaDescribedby === undefined ? {} : { "aria-describedby": ariaDescribedby })}
               >
                 <ColorFieldTriggerGlyph
-                  isValid={isValid}
+                  isValid={isSafeColor(value)}
                   loading={loading}
                   slots={slots}
                   success={success}

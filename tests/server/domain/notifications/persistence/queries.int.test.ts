@@ -9,6 +9,7 @@ import { beforeEach, describe } from "vitest";
 import {
   dismissScoped,
   insertNotification,
+  markAllReadScoped,
   markReadScoped,
   selectInbox,
 } from "../../../../../packages/server/src/domain/notifications/persistence/queries";
@@ -79,6 +80,33 @@ describe("selectInbox — recipient-scope + dismissed-exclusion + newest-first",
     const page = await selectInbox(db, ALICE, third.seq, 50);
     // Excludes third (the cursor itself) — returns the two older rows, newest-first.
     expect(page.map((r) => r.seq)).toEqual([second.seq, 1]);
+  });
+});
+
+describe("markAllReadScoped — bulk recipient-scope + COALESCE idempotence", () => {
+  test("flips every unread row for the recipient in one UPDATE, returns the touched count", async () => {
+    await insert(ALICE);
+    await insert(ALICE);
+    await insert(BOB);
+    const count = await markAllReadScoped(db, ALICE, 2000);
+    expect(count).toBe(2);
+    const rows = await selectInbox(db, ALICE, undefined, 50);
+    expect(rows.every((r) => r.readAt === 2000)).toBe(true);
+    const bobRows = await selectInbox(db, BOB, undefined, 50);
+    expect(bobRows[0]?.readAt).toBeNull();
+  });
+
+  test("an already-read row is left with its original instant", async () => {
+    const row = await insert(ALICE);
+    await markReadScoped(db, ALICE, row.id, 2000);
+    await markAllReadScoped(db, ALICE, 9999);
+    const [fresh] = await selectInbox(db, ALICE, undefined, 50);
+    expect(fresh?.readAt).toBe(2000);
+  });
+
+  test("no unread rows means zero touched", async () => {
+    const count = await markAllReadScoped(db, ALICE, 2000);
+    expect(count).toBe(0);
   });
 });
 

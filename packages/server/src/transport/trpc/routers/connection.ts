@@ -4,7 +4,7 @@
 // verbs are internal (chat's turn path, P5) — NOT exposed here. `source` derives from the credentials axis
 // (`ChatSource` = `CredentialSource`).
 
-import { chatApiSchema } from "@orb/contracts/connection";
+import { chatApiSchema, routingRoleKeySchema } from "@orb/contracts/connection";
 import { credentialSourceSchema } from "@orb/contracts/credentials";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc";
@@ -13,6 +13,19 @@ export const connectionRouter = t.router({
   getCatalog: authedProcedure.query(({ ctx, signal }) =>
     ctx.services.connection.getCatalog({ signal }),
   ),
+
+  // The read-only Connections role-slot picker facade — per-source models from snapshots/config/state ONLY
+  // (ZERO outbound fetch, so a safe `.query`; the SSRF-guarded probes stay on the credentials-router
+  // mutations). `source` from the credentials axis; `role` selects the config/default the arm surfaces.
+  getModelsForSource: authedProcedure
+    .input(z.object({ source: credentialSourceSchema, role: routingRoleKeySchema }))
+    .query(({ ctx, input }) =>
+      ctx.services.connection.getModelsForSource({
+        principal: ctx.auth,
+        source: input.source,
+        role: input.role,
+      }),
+    ),
 
   getModelCapability: authedProcedure
     .input(

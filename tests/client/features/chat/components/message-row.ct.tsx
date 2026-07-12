@@ -336,7 +336,7 @@ test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread thr
 
 // ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
 
-test("a message with {{char}}/{{user}} resolves real names once the roster + active persona are threaded", async ({
+test("a message with {{char}}/{{user}} resolves real names once the roster + anchor persona are threaded", async ({
   mount,
 }) => {
   const component = await mount(
@@ -347,7 +347,7 @@ test("a message with {{char}}/{{user}} resolves real names once the roster + act
       characterId={ALICE_ID}
       participants={[alice()]}
       personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
-      activePersonaId={NATE_PERSONA_ID}
+      anchorPersonaId={NATE_PERSONA_ID}
     />,
   );
   await expect(component.getByText("Alice waves at Alex.")).toBeVisible();

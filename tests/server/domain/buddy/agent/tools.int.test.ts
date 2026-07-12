@@ -81,7 +81,7 @@ describe("buddy tools", () => {
     const owner = await seedUser(db, { id: "user_w" });
     const specs = toolsFor(db, owner);
 
-    await tool(specs, "propose_workload").handler({ kind: "embed-corpus" });
+    await tool(specs, "propose_workload").handler({ kind: "index" });
     const stashed = peekProposal(owner, NOW);
     expect(stashed?.kind).toBe("workload");
   });

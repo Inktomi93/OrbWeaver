@@ -1,25 +1,17 @@
 // The CONTEXT Actions menu (FINAL-Character §7) — the persistent options menu ABOVE the CONTEXT tab strip
 // (secondary chrome, rule 4): Duplicate · Export card · Convert to persona · Set as welcome greeter ·
 // Delete. All immediate identity gestures (never the CONTENT save-bar). The two DESTRUCTIVE/irreversible-
-// feeling ops (Duplicate spawns a copy; Delete cascades hard) sit behind an AlertDialog INTERRUPT (§13.8
-// R4 — a legal AlertDialog, never a plain Dialog). Export is a straight `<a href>` to the SHIPPED route
-// (MenuLinkItem — no build). The AlertDialogs live OUTSIDE the Menu (a menu item closes the menu on click,
-// so the confirm is opened via controlled state — the chat-list-row-menu precedent).
+// feeling ops (Duplicate spawns a copy; Delete cascades hard) sit behind a `ConfirmDialog` INTERRUPT
+// (§13.8 R4 — a legal AlertDialog, never a plain Dialog). Export is a straight `<a href>` to the SHIPPED
+// route (MenuLinkItem — no build). The ConfirmDialogs live OUTSIDE the Menu (a menu item closes the menu
+// on click, so the confirm is opened via controlled state — the chat-list-row-menu precedent).
 
 import type { CharacterId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { clearCharacterSelection, selectCharacter } from "#state";
 import {
@@ -86,50 +78,24 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
         </MenuPopup>
       </Menu>
 
-      <AlertDialog open={duplicateOpen} onOpenChange={setDuplicateOpen}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Duplicate this character?</AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <AlertDialogDescription>
-              This creates an independent copy of the card. The copy opens in the editor.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="primary" onClick={confirmDuplicate}>
-                    Duplicate
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        confirmIntent="primary"
+        confirmLabel="Duplicate"
+        description="This creates an independent copy of the card. The copy opens in the editor."
+        onConfirm={confirmDuplicate}
+        onOpenChange={setDuplicateOpen}
+        open={duplicateOpen}
+        title="Duplicate this character?"
+      />
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Delete this character?</AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <AlertDialogDescription>
-              This permanently deletes the character and everything attached to it. This can't be
-              undone.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={confirmDelete}>
-                    Delete
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        confirmLabel="Delete"
+        description="This permanently deletes the character and everything attached to it. This can't be undone."
+        onConfirm={confirmDelete}
+        onOpenChange={setDeleteOpen}
+        open={deleteOpen}
+        title="Delete this character?"
+      />
     </>
   );
 }

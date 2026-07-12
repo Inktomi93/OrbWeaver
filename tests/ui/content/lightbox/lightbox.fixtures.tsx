@@ -2,7 +2,7 @@
 // forbids exporting a component from a `.ct.tsx`). Lightbox has no built-in trigger (it's fully
 // controlled), so focus-return-to-trigger needs an actual "trigger" element for Base UI's Dialog to
 // remember and restore focus to on close.
-import { Lightbox } from "@orb/ui/content";
+import { Lightbox } from "@orb/ui/lightbox";
 import type { ReactElement } from "react";
 import { useState } from "react";
 

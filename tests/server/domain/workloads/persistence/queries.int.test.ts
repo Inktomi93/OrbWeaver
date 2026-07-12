@@ -3,6 +3,7 @@
 // false), the race-safe cancel arms, the queued-row poison fail, the list filters/cap, the queue-head poison
 // window, the reaper's stale sweep input, and `toView` poison tolerance.
 
+import type { WorkloadStatus } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -186,6 +187,120 @@ describe("nextRunnableWorkload (queue head + poison fail-in-place)", () => {
   });
 });
 
+describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
+  const depId = castId<WorkloadId>("dep");
+  const depBId = castId<WorkloadId>("dep_b");
+
+  test("an empty dependsOn dispatches immediately (unchanged)", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "solo", kind: "reconcile-stats", dependsOn: null });
+    expect((await nextRunnableWorkload(db, T0))?.id).toBe("solo");
+  });
+
+  test("waits (not dispatched, not failed) while a dependency is still active", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "running" });
+    await seedWorkloadRow(db, {
+      id: "dependent",
+      kind: "reconcile-stats",
+      status: "queued",
+      dependsOn: [depId],
+    });
+    expect(await nextRunnableWorkload(db, T0)).toBeNull();
+    // still queued — the gate leaves it un-dispatched, it did NOT fail.
+    expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("queued");
+  });
+
+  test("dispatches once every dependency has succeeded", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "succeeded" });
+    await seedWorkloadRow(db, {
+      id: "dependent",
+      kind: "reconcile-stats",
+      status: "queued",
+      dependsOn: [depId],
+    });
+    expect((await nextRunnableWorkload(db, T0))?.id).toBe("dependent");
+  });
+
+  test("a FAILED dependency fails the dependent with dependency_failed (it never runs)", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "failed" });
+    await seedWorkloadRow(db, {
+      id: "dependent",
+      kind: "reconcile-stats",
+      status: "queued",
+      dependsOn: [depId],
+    });
+    expect(await nextRunnableWorkload(db, T0 + 9)).toBeNull();
+    const dependent = await loadWorkload(db, castId<WorkloadId>("dependent"));
+    expect(dependent?.status).toBe("failed");
+    expect(dependent?.error).toContain("did not succeed");
+  });
+
+  test("a cancelled/worker_died dependency also counts as a dependency failure", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "cancelled" });
+    await seedWorkloadRow(db, {
+      id: "dependent",
+      kind: "reconcile-stats",
+      status: "queued",
+      dependsOn: [depId],
+    });
+    expect(await nextRunnableWorkload(db, T0)).toBeNull();
+    expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
+  });
+
+  test("an absent dependency fails the dependent (it can never succeed)", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, {
+      id: "dependent",
+      kind: "reconcile-stats",
+      status: "queued",
+      dependsOn: [castId<WorkloadId>("never_existed")],
+    });
+    expect(await nextRunnableWorkload(db, T0)).toBeNull();
+    expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
+  });
+
+  describe("multi-dependency (EVERY dep must be terminal + succeeded)", () => {
+    async function seedTwoDepDependent(
+      db: Awaited<ReturnType<typeof freshDb>>,
+      a: WorkloadStatus,
+      b: WorkloadStatus,
+    ): Promise<void> {
+      await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: a });
+      await seedWorkloadRow(db, { id: "dep_b", kind: "find-duplicates", status: b });
+      await seedWorkloadRow(db, {
+        id: "dependent",
+        kind: "reconcile-stats",
+        status: "queued",
+        dependsOn: [depId, depBId],
+      });
+    }
+
+    test("waits while one of two deps is still active", async () => {
+      const db = await freshDb();
+      await seedTwoDepDependent(db, "succeeded", "running");
+      expect(await nextRunnableWorkload(db, T0)).toBeNull();
+      expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("queued");
+    });
+
+    test("dispatches only when BOTH deps succeeded", async () => {
+      const db = await freshDb();
+      await seedTwoDepDependent(db, "succeeded", "succeeded");
+      expect((await nextRunnableWorkload(db, T0))?.id).toBe("dependent");
+    });
+
+    test("fails fast when one dep failed even if the other is still active", async () => {
+      const db = await freshDb();
+      await seedTwoDepDependent(db, "running", "failed");
+      expect(await nextRunnableWorkload(db, T0)).toBeNull();
+      expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
+    });
+  });
+});
+
 describe("findStaleInFlight (reaper input)", () => {
   test("returns only in-flight rows older than the threshold", async () => {
     const db = await freshDb();
@@ -231,6 +346,7 @@ describe("toView (poison tolerance)", () => {
       id: castId<WorkloadId>("workload_rt"),
       kind: "compute-themes",
       mode: "singular",
+      source: "none",
       params: { k: 7 },
       ownerId: null,
       dependsOn: null,

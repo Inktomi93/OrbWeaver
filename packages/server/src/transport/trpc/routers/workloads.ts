@@ -17,11 +17,12 @@
 import { on } from "node:events";
 import type { Principal } from "@orb/contracts/identity";
 import {
+  scheduleCadenceSchema,
   workloadKindSchema,
   workloadModeSchema,
   workloadStatusSchema,
 } from "@orb/contracts/workloads";
-import type { UserId, WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -110,6 +111,79 @@ export const workloadsRouter = t.router({
       withSubscriptionErrors(
         workloadEvents(ctx.services.workloads, ctx.auth, input.workloadId, signal),
       ),
+    ),
+
+  // ── Schedules (the TIME dimension) — recurring auto-enqueue. Owner-scoped like the workload verbs: a
+  //    SINGULAR schedule is any authed caller; a BULK schedule is BOX-OWNER-only (LAYER-1 gate here, re-checked
+  //    in the verb); read/mutate-by-id collapse a foreign id to leak-free NOT_FOUND. ──
+  createSchedule: authedProcedure
+    .input(
+      z.object({
+        input: startWorkloadInput,
+        cadence: scheduleCadenceSchema,
+        mode: workloadModeSchema.default("singular"),
+        enabled: z.boolean().optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) => {
+      if (input.mode === "bulk") {
+        requireOwner(ctx.auth);
+      }
+      return ctx.services.workloads.createSchedule({
+        input: input.input,
+        caller: ctx.auth,
+        cadence: input.cadence,
+        mode: input.mode,
+        ownerId: ctx.auth.userId,
+        ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+      });
+    }),
+
+  updateSchedule: authedProcedure
+    .input(
+      z.object({
+        id: brandedId<WorkloadScheduleId>(),
+        input: startWorkloadInput.optional(),
+        cadence: scheduleCadenceSchema.optional(),
+        mode: workloadModeSchema.optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) => {
+      if (input.mode === "bulk") {
+        requireOwner(ctx.auth);
+      }
+      return ctx.services.workloads.updateSchedule({
+        id: input.id,
+        caller: ctx.auth,
+        ...(input.input !== undefined ? { input: input.input } : {}),
+        ...(input.cadence !== undefined ? { cadence: input.cadence } : {}),
+        ...(input.mode !== undefined ? { mode: input.mode } : {}),
+      });
+    }),
+
+  deleteSchedule: authedProcedure
+    .input(z.object({ id: brandedId<WorkloadScheduleId>() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.workloads.deleteSchedule({ id: input.id, caller: ctx.auth }),
+    ),
+
+  setScheduleEnabled: authedProcedure
+    .input(z.object({ id: brandedId<WorkloadScheduleId>(), enabled: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.workloads.setScheduleEnabled({
+        id: input.id,
+        caller: ctx.auth,
+        enabled: input.enabled,
+      }),
+    ),
+
+  listSchedules: authedProcedure
+    .input(z.object({ kind: workloadKindSchema.optional() }).optional())
+    .query(({ ctx, input }) =>
+      ctx.services.workloads.listSchedules({
+        caller: ctx.auth,
+        ...(input?.kind !== undefined ? { kind: input.kind } : {}),
+      }),
     ),
 });
 

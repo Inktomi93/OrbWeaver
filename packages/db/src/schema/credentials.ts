@@ -1,7 +1,7 @@
 // schema/credentials — the per-user encrypted credential store (producer: domain/credentials). One
 // row = one backend = N roles. The `provider` enum DERIVES the canonical `CRED_PROVIDERS` tuple from
 // `@orb/contracts/credentials` (D31 — the broader STORAGE axis `openrouter|anthropic|openai|
-// google_vertex|custom_openai`, NOT the narrower dispatch `CRED_SOURCES`); the column never re-spells
+// google_vertex|custom_openai|gif-search`, NOT the narrower dispatch `CRED_SOURCES`); the column never re-spells
 // the union, and a CHECK built from the same tuple enforces it at the SQL level (a test-mirror pins
 // db === contracts). `anthropic`/`openai`/`google_vertex` are storable forward-compat slots with no
 // resolver arm yet — a row may persist under them.

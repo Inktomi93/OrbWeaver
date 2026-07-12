@@ -10,7 +10,8 @@
 // provider shapes leak — the adapter discipline). The P5/v2 stub kinds carry a
 // `{ deferred: true }` marker so a consumer can tell an inert run apart from a zero-work real run.
 
-/** An embeddings pass outcome (text or image) — resumable, so it reports both halves. */
+/** An embeddings pass outcome (the `index` kind — text and/or image, per its `source` param) — resumable, so
+ *  it reports both halves. A `source:all` run folds the text + image pass counts into one result. */
 export interface EmbedPassResult {
   readonly embedded: number;
   readonly skipped: number;
@@ -29,6 +30,16 @@ export interface MaintenanceResult {
   readonly scanned: number;
   readonly changed: number;
   readonly dryRun: boolean;
+}
+
+/** A bundle-import pass (the `import-bundle` workload) — the per-file report's summary counts projected for
+ *  the workload row: `imported` = new+deduped rows written, `skipped` = files whose dir matched no registered
+ *  entity, `failed` = per-file import errors. Workload-OWNED (the driver's richer `BundleImportReport` also
+ *  carries the per-file outcomes; the runner projects into these counts — the adapter discipline). */
+export interface BundleImportWorkloadResult {
+  readonly imported: number;
+  readonly skipped: number;
+  readonly failed: number;
 }
 
 /** The assets `fsck` integrity report projected for the workload row (PD-26) — the three fault counts the
@@ -84,8 +95,7 @@ export interface MemoryBackfillResult {
  * into; `RUNNERS` + `Runner<K>` index it. Add a kind without a `ResultByKind` arm → `tsc` red.
  */
 export interface ResultByKind {
-  "embed-corpus": EmbedPassResult;
-  "embed-assets": EmbedPassResult;
+  index: EmbedPassResult;
   "distill-characters": AnalyticsResult;
   "compute-themes": AnalyticsResult;
   "memory-backfill": MemoryBackfillResult;
@@ -97,6 +107,7 @@ export interface ResultByKind {
   "assets-gc": MaintenanceResult;
   "assets-fsck": FsckReport;
   "import-st": MaintenanceResult;
+  "import-bundle": BundleImportWorkloadResult;
   "reconcile-stats": ReconcileStatsWorkloadResult;
   "refresh-model-catalog": CatalogRefreshResult;
   "reconcile-world-state": DeferredResult;

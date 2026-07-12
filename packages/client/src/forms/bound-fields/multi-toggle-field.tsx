@@ -11,7 +11,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 export interface MultiToggleFieldProps {
   readonly label: string;
@@ -27,12 +27,12 @@ export function MultiToggleField({
   disabled,
 }: MultiToggleFieldProps): ReactElement {
   const field = useFieldContext<readonly string[]>();
-  const error = fieldErrorText(field.state.meta.errors);
+  const error = touchedFieldError(field.state.meta);
   return (
     <Field
       label={label}
       description={description}
-      error={field.state.meta.isTouched ? error : null}
+      error={error}
       disabled={disabled ?? false}
       name={field.name}
     >

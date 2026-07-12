@@ -27,8 +27,9 @@ export interface ToolbarButtonProps
 
 /**
  * A toolbar item participating in the roving tabindex. Carries only a minimal touch-floor skin
- * (h-control-sm ≥44px — gate touch-target-floor); compose the real button primitive via Base UI's
- * `render` prop: `<ToolbarButton render={<Button variant="ghost" />} />`.
+ * (h-control-sm, POINTER-CONDITIONAL per D62 P1 — 44px at coarse/unknown, 32px at fine — gate
+ * touch-target-floor); compose the real button primitive via Base UI's `render` prop:
+ * `<ToolbarButton render={<Button intent="ghost" />} />`.
  */
 export function ToolbarButton({ className, ...props }: ToolbarButtonProps): ReactElement {
   return <BaseToolbar.Button {...props} className={toolbarButtonVariants({ className })} />;

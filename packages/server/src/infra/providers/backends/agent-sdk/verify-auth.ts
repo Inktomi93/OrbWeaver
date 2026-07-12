@@ -14,6 +14,7 @@
 import type { AccountInfo, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
 import type { VerifyAuthRequest } from "../../contract";
+import { refreshHostSubTokenIfMode1 } from "./host-token";
 import { disciplineOptions, observabilityOptions } from "./translate";
 import type { AgentSdkDeps } from "./types";
 import { assertInitFrameShape } from "./verify";
@@ -30,6 +31,9 @@ export async function verifyAuth(
   req: VerifyAuthRequest,
   deps: AgentSdkDeps,
 ): Promise<VerifyAuthResult> {
+  // Refresh an expired host token before the probe (mode-1 only) — so `testClaudeAuth` reports the SAME
+  // fresh-token state a real turn now gets, instead of a stale `auth_failed` that a manual login "fixes".
+  await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
   const stream = deps.query({
     prompt: VERIFY_PROMPT,
     options: {

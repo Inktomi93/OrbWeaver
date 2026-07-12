@@ -43,6 +43,23 @@ describe("remove", () => {
       await db.select().from(characterPersonas).where(eq(characterPersonas.personaId, created.id)),
     ).toHaveLength(0);
     expect(h.audits.map((a) => a.entry.action)).toContain("persona.remove");
+    // The seed re-point fires with the deleted id (owner invariant "never NO current persona while you own
+    // one" — the injected settings write itself is exercised at the composed-service level).
+    expect(h.repointCalls).toContainEqual({ ownerId: owner, deletedId: created.id });
+  });
+
+  test("a refused (last-persona) delete does NOT re-point the seeds", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const only = await svc.create({
+      principal: principal(owner),
+      input: { name: "Sole", description: "s" },
+    });
+    await svc.remove({ principal: principal(owner), personaId: only.id }).catch(() => undefined);
+    // No delete committed ⇒ no re-point (the pointer still resolves to the surviving sole persona).
+    expect(h.repointCalls).toHaveLength(0);
   });
 
   test("a not-owned persona throws PersonaNotFoundError (no delete)", async () => {

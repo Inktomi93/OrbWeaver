@@ -26,14 +26,25 @@
 // State-law recap (gate `state:files`): one store per file, ≤10 fields, no exported set/getState —
 // callers use the intent-named module actions + narrow read hooks below, never the raw handle.
 
+import { isPlainObject } from "@orb/kit/guards";
+import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store";
 
 // The shell axes as SINGLE-HOME tuples, unions DERIVED (Spine string-union discipline §5.5 —
 // `no-inline-union-redecl`: a member is added once, in one place, never re-spelled). The registries
 // (rail-slots/modal-slots) + the migrate membership checks below all read these same tuples.
 
-/** The rail's navigable sections (UI-Arch §4.1 — Chats · Characters · Corpus · Refinery · Analytics). */
-export const SECTION_IDS = ["chats", "characters", "corpus", "refinery", "analytics"] as const;
+/** The rail's navigable sections (UI-Arch §4.1 — Chats · Characters · Corpus · Presets · Refinery ·
+ *  Analytics). `presets` = the GENERATION-preset authoring section (W10 · capability-turn-shaping/04 §W10
+ *  + D-ledger row "W10 UI placement": presets stay a rail authoring section, NOT settings). */
+export const SECTION_IDS = [
+  "chats",
+  "characters",
+  "corpus",
+  "presets",
+  "refinery",
+  "analytics",
+] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** The rail/topbar/avatar-triggered modal surfaces (id-paired with MODAL_SLOTS bodies, §11.5). `newChat`
@@ -141,15 +152,15 @@ function withOverride(
 
 /** Keep only recognized section → panel → mode entries from an untrusted persisted blob. */
 function sanitizeOverrides(v: unknown): PanelOverrides {
-  if (typeof v !== "object" || v === null) {
+  if (!isPlainObject(v)) {
     return {};
   }
   const out: PanelOverrides = {};
   for (const [section, panels] of Object.entries(v)) {
-    if (!isSectionId(section) || typeof panels !== "object" || panels === null) {
+    if (!(isSectionId(section) && isPlainObject(panels))) {
       continue;
     }
-    const raw = panels as Record<string, unknown>;
+    const raw = panels;
     let entry: SectionPanels = {};
     const list = raw["list"];
     const context = raw["context"];
@@ -167,7 +178,7 @@ function sanitizeOverrides(v: unknown): PanelOverrides {
 /** TOTAL, crash-proof migrate: any unknown/corrupt persisted blob degrades to the default layout —
  *  a bad localStorage shape must never brick the shell (UI-Primitives §13.1). */
 function migrate(persisted: unknown): ShellState {
-  if (typeof persisted !== "object" || persisted === null) {
+  if (!isPlainObject(persisted)) {
     return DEFAULT_STATE;
   }
   const p = persisted as Partial<Record<keyof PersistedShellState, unknown>>;
@@ -201,7 +212,18 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>(
  *  Also closes any open mobile sheet (L6/J12): a rail-tab tap must land on CONTENT, never carry the prior
  *  section's list sheet across. */
 export function setActiveSection(id: SectionId): void {
-  useShellStore.setState({ activeSection: id, mobileSheet: null }, false, "shell/setActiveSection");
+  // D5 crossfade (UI-Arch §4a): a rail-section swap is an in-app pane change at a constant `/`, so the
+  // router's VT never fires — drive it by hand here (the shared write action) so EVERY leaf writer of the
+  // section inherits the crossfade for free. Pairs with the <Activity> pane-keeping (§4a): the transition
+  // animates the visible→hidden/hidden→visible flip that keeps the panes' state alive. `withViewTransition`
+  // gates `prefers-reduced-motion` + platform support once, so this is a plain wrap.
+  withViewTransition(() => {
+    useShellStore.setState(
+      { activeSection: id, mobileSheet: null },
+      false,
+      "shell/setActiveSection",
+    );
+  });
 }
 
 /** Set the ACTIVE section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). Signature is

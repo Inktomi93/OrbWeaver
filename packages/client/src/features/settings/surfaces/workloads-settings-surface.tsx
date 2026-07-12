@@ -25,19 +25,21 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { RunWorkloadDialog } from "../components/run-workload-dialog";
+import { SchedulesSection } from "../components/schedules-section";
 import { WorkloadRow } from "../components/workload-row";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations";
-import { WORKLOADS_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 import {
+  isActiveWorkloadStatus,
   WORKLOAD_FILTER_EMPTY_COPY,
   WORKLOAD_FILTER_LABELS,
   WORKLOAD_FILTERS,
   workloadFilterMatches,
 } from "../lib/workloads-model";
+import { WORKLOADS_SUBCATEGORY_IDS } from "../lib/workloads-nav";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -58,12 +60,7 @@ export function WorkloadsSettingsSurface(): ReactElement {
       <QueryBoundary
         fallback={<Text tone="muted">Loading workloads…</Text>}
         renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load your workloads.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
+          <QueryErrorState label="your workloads" onRetry={retry} />
         )}
       >
         <Container>
@@ -172,11 +169,27 @@ function WorkloadsPaneBody(): ReactElement {
         </Tabs>
       </Section>
 
+      <SchedulesSection
+        viewerIsOwner={isOwner}
+        viewerUserId={viewer.userId}
+        users={isPrivileged ? users : []}
+      />
+
       <RunWorkloadDialog
         open={runOpen}
         onOpenChange={setRunOpen}
         viewerIsOwner={isOwner}
         users={isOwner ? users : []}
+        dependencyCandidates={workloads
+          .filter(
+            (workload) =>
+              isActiveWorkloadStatus(workload.status) && workload.ownerId === viewer.userId,
+          )
+          .map((workload) => ({
+            id: workload.id as string,
+            kind: workload.kind,
+            createdAt: workload.createdAt,
+          }))}
       />
     </Stack>
   );

@@ -22,7 +22,7 @@ import {
 } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
@@ -40,6 +40,7 @@ import {
   useContextTab,
   useDraftConfig,
 } from "#state";
+import { DraftAddMemberPopover } from "../components/add-member-popover";
 import { GroupConfigForm } from "../components/group-config-form";
 import { InjectionsList } from "../components/injections-manager";
 import { RoomOverridesForm } from "../components/room-overrides-form";
@@ -65,7 +66,8 @@ const GROUP_FLOOR = 2;
 export interface DraftContextPanelProps {
   /** The active draft's key — the draft-config store partition every tab reads/writes. */
   readonly draftKey: string;
-  /** The founding cast — drives the Roster tab (its member rows) + the group gate. */
+  /** The founding SEED cast (from `draftSeed`). Pre-send add-member widens the effective cast internally
+   *  (seed ∪ `config.addedCharacterIds`) — home-page threads only the seed, mirroring `resolveDraftCommit`. */
   readonly characterIds: readonly CharacterId[];
 }
 
@@ -78,9 +80,14 @@ export function DraftContextPanel({
   useFocusOnMount(surfaceRef);
 
   const draftConfig = useDraftConfig(draftKey);
+  // The EFFECTIVE founding cast = the seed ∪ any pre-send add-member picks (the SAME fold the commit does,
+  // draft-commit.ts). Deduped so a re-add never double-seats. Drives the Roster/Group tabs + their gate,
+  // and the add-member picker's exclude set — so an added member disappears from the picker + appears in
+  // Roster the instant it's added, and a 2nd add flips a solo draft into a group (Roster/Group tabs appear).
+  const cast = [...new Set([...characterIds, ...(draftConfig.addedCharacterIds ?? [])])];
   // A draft is always hosted by its author. The Roster tab shows only for a GROUP draft (mirrors the
   // committed host-AND-group gate). A hidden/stale `contextTab` request safely falls back to Overrides.
-  const showRoster = characterIds.length >= GROUP_FLOOR;
+  const showRoster = cast.length >= GROUP_FLOOR;
   const contextTab = useContextTab();
   const visibleTabs = new Set<string>(["overrides", "injections"]);
   if (showRoster) {
@@ -99,6 +106,15 @@ export function DraftContextPanel({
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full outline-none">
+      {/* Pre-send add-member (the audit's D3): a "Cast" header row with the same "+" picker the committed
+          cast bar carries, ABOVE the tabs so it's reachable even on a solo draft (add-member is how a solo
+          draft grows into a group). Writes `addDraftCharacter`; `cast` excludes the current members. */}
+      <Row align="center" justify="between" className="px-block py-row">
+        <Text size="label" tone="muted" weight="medium">
+          Cast
+        </Text>
+        <DraftAddMemberPopover draftKey={draftKey} existingCharacterIds={cast} />
+      </Row>
       <Tabs
         value={activeTab}
         onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
@@ -135,7 +151,7 @@ export function DraftContextPanel({
             >
               <DraftRosterTab
                 draftKey={draftKey}
-                characterIds={characterIds}
+                characterIds={cast}
                 rosterOverrides={draftConfig.rosterOverrides}
               />
             </QueryBoundary>

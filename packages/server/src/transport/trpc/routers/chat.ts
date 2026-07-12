@@ -11,6 +11,7 @@
 // EVERY live yield so a kicked member's stream stops within the kick tx (the membership chokepoint
 // covers the SSE path). Any non-NotFound error propagates into `withSubscriptionErrors`' typed frame.
 
+import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import {
   chatInjectionInputSchema,
@@ -85,6 +86,9 @@ const sendSchema = z.object({
   content: z.string(),
   personaId: brandedId<PersonaId>().nullish(),
   blocks: z.array(z.any()).optional(),
+  // #67 — inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
+  // actor's own asset (rejecting a foreign/gone id), then persists a `message_assets` row + a body ref per id.
+  attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
   intent: z.any().optional(),
   guided: z.any().optional(),
 });

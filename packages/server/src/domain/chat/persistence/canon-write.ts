@@ -25,12 +25,14 @@
 import type { AssembledPrompt, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { messages, messageVariants } from "@orb/db";
+import { messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
 import type {
+  AssetId,
   CharacterId,
   ChatId,
+  MessageAssetId,
   MessageId,
   MessageVariantId,
   PersonaId,
@@ -209,6 +211,33 @@ export function insertCanonMessageStatements(
         .where(eq(messages.id, params.messageId)),
     ),
   ];
+}
+
+/** #67 — the `message_assets` retaining rows for a message's inline attachments (one per attached asset).
+ *  STRUCTURAL: this FK row is what the asset-ref registry (`domain/assets` `ASSET_REFS`) sees for GC, since
+ *  the body's `asset:<id>` refs are invisible text. Committed in the SAME atomic batch as the message slot +
+ *  variant, so the row and its body ref land together (or neither). Empty ids ⇒ no statements. */
+export function insertMessageAssetStatements(
+  db: Db,
+  params: {
+    readonly rows: readonly {
+      readonly id: MessageAssetId;
+      readonly messageId: MessageId;
+      readonly assetId: AssetId;
+    }[];
+    readonly now: number;
+  },
+): BatchStmt[] {
+  return params.rows.map((r) =>
+    batchStmt(
+      db.insert(messageAssets).values({
+        id: r.id,
+        messageId: r.messageId,
+        assetId: r.assetId,
+        createdAt: params.now,
+      }),
+    ),
+  );
 }
 
 /** The pointer flip (`selectVariant` — D26: a zero-copy pointer move to a sibling swipe, never a content

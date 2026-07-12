@@ -1,6 +1,6 @@
 // Seal-level CT for @orb/ui/markdown (Streamdown 2.5). The two trust policies + the capability
-// surface the rebuild wired in full: the GFM singleTilde fix, the token-sourced Shiki theme (RENDER
-// proof here; the TOKENS-value proof is deterministic in shiki-theme.test.ts), the KaTeX math plugin,
+// surface the rebuild wired in full: the GFM singleTilde fix, the token-sourced Shiki plugin (RENDER
+// proof here; the TOKENS-value proof is deterministic in shiki-plugin.test.ts), the KaTeX math plugin,
 // the token-styled Mermaid (render-or-graceful-error), the trusted `<speaker>` literal passthrough,
 // and the large-block guard, plus the STREAMING-mode goldens (unterminated fence / torn emphasis /
 // mode diff / reduced-motion) in the second half of this file. The end-to-end torn-`<speaker>`
@@ -90,12 +90,7 @@ test("trusted: ~~real strikethrough~~ (double tilde) still works", async ({ moun
 test("trusted: a fenced code block renders with the language header + copy/download controls", async ({
   mount,
 }) => {
-  // The code block renders (text present) and the `controls` default (copy + download) is wired. NOTE:
-  // Shiki's syntax-COLOR highlighting is async wasm that does NOT resolve inside the playwright-ct
-  // harness (verified empirically — even the bundled hex theme stays `--sdm-c:inherit`, one span for
-  // the whole line), so the token-THEME proof (every color sourced from TOKENS, not a literal) is
-  // asserted deterministically in shiki-theme.test.ts instead. Here we prove the block + its controls
-  // render and nothing crashes.
+  // The code block renders (text present) and the `controls` default (copy + download) is wired.
   const md = "```js\nconst answer = 42;\n```";
   const cmp = await mount(
     <Markdown trust="trusted" mode="static">
@@ -106,6 +101,42 @@ test("trusted: a fenced code block renders with the language header + copy/downl
   await expect(cmp.getByRole("button", { name: COPY_CODE_BTN })).toBeVisible();
   await expect(cmp.getByRole("button", { name: DOWNLOAD_BTN })).toBeVisible();
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
+test("trusted: a fenced code block is REAL Shiki-highlighted, not inert (D44 §12/UI-Gates §11.6)", async ({
+  mount,
+}) => {
+  // The regression this plugin fixes: Streamdown 2.5 dropped bundled Shiki, so an unwired `plugins.code`
+  // renders every token at `--sdm-c:inherit` (no color ever written, verified empirically pre-fix — every
+  // span shared one `text-[var(--sdm-c,inherit)]` with no inline `--sdm-c`). Assert the OPPOSITE — the
+  // rendered token spans carry REAL per-token `--sdm-c`/`--shiki-dark` inline custom properties resolved
+  // from `MARKDOWN_SHIKI_PLUGIN.highlight()` (the JS-regex engine + lazy grammar load complete well
+  // inside the CT mount), not the single shared `inherit` fallback the un-highlighted state produces.
+  const md = "```ts\nconst answer: number = 42;\n```";
+  const cmp = await mount(
+    <Markdown trust="trusted" mode="static">
+      {md}
+    </Markdown>,
+  );
+  const codeSpans = cmp.locator("pre code span");
+  await expect(codeSpans.first()).toBeVisible();
+  // Poll on the FINAL assertion directly (distinct real colors across tokens) rather than a two-step
+  // "some color present" then "read colors" — `highlight()`'s callback re-render can land in more than
+  // one paint, so reading colors in a separate step after only the FIRST non-empty poll can race a
+  // still-settling render. The "keyword" token (`const`) and identifiers (`answer`) must land on
+  // DIFFERENT colors — real scope-aware highlighting, not every token painted the same single hue.
+  await expect
+    .poll(
+      async () =>
+        codeSpans.evaluateAll((spans) => {
+          const colors = spans
+            .map((s) => s.style.getPropertyValue("--sdm-c").trim())
+            .filter(Boolean);
+          return new Set(colors).size;
+        }),
+      { timeout: 5000 },
+    )
+    .toBeGreaterThan(1);
 });
 
 test("trusted: inline math ($…$) renders a KaTeX element", async ({ mount }) => {

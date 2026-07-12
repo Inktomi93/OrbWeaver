@@ -2,7 +2,7 @@ import type { Range } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
-import { cn } from "#lib";
+import { cn, prefersReducedMotionNow } from "#lib";
 import { TOKENS } from "#tokens";
 
 // Intent-token gap between rows (maps to the `--spacing-*` scale — never a raw px). Declared once as
@@ -191,10 +191,9 @@ export function VirtualList<T>({
     if (scrollToIndex === undefined) {
       return;
     }
-    const reducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
     virtualizer.scrollToIndex(scrollToIndex, {
       align: "end",
-      behavior: reducedMotion ? "auto" : "smooth",
+      behavior: prefersReducedMotionNow() ? "auto" : "smooth",
     });
   }, [scrollToIndex, virtualizer, virtualizer.scrollToIndex]);
 

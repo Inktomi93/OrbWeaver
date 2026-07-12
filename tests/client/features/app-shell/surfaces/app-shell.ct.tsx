@@ -30,7 +30,29 @@ test("a rail click switches the section's CONTENT + LIST slots", async ({ mount,
   await shell.getByRole("button", { name: "Corpus" }).click();
   await expect(page.getByText("corpus content pane")).toBeVisible();
   await expect(page.getByText("corpus list pane")).toBeVisible();
-  await expect(page.getByText("chats content pane")).toHaveCount(0);
+  // <Activity> pane-keeping (UI-Arch §4a / D62 §4.2 rule 2): the prior section's CONTENT stays MOUNTED so
+  // its scroll/virtual/form state survives a rail round-trip — it is HIDDEN (display:none), not unmounted.
+  // (Only CONTENT is Activity-kept; LIST/CONTEXT still swap per-section, covered by the §4.2-rule-1 test.)
+  await expect(page.getByText("chats content pane")).toBeHidden();
+});
+
+test("<Activity> pane-keeping: switching away and back keeps the SAME CONTENT node (state survives)", async ({
+  mount,
+  page,
+}) => {
+  const shell = await mount(<AppShellStory />);
+  // Tag the live chats CONTENT node, switch away (it goes hidden, not unmounted), switch back — if the
+  // pane had unmounted/remounted the tag would be gone; a surviving tag proves the subtree (and its
+  // scroll/virtual/form state) was KEPT mounted across the round-trip (UI-Arch §4a / §4.2 rule 2).
+  await page.getByText("chats content pane").evaluate((el) => {
+    el.setAttribute("data-activity-probe", "kept");
+  });
+  await shell.getByRole("button", { name: "Corpus" }).click();
+  await expect(page.getByText("corpus content pane")).toBeVisible();
+  await expect(page.getByText("chats content pane")).toBeHidden();
+  await shell.getByRole("button", { name: "Chats", exact: true }).click();
+  await expect(page.getByText("chats content pane")).toBeVisible();
+  await expect(page.locator('[data-activity-probe="kept"]')).toHaveText("chats content pane");
 });
 
 test("the topbar toggle collapses the list panel to zero rendered width (clamp-overlay)", async ({
@@ -326,7 +348,8 @@ test("mobile: a tab click switches the section", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "Corpus", exact: true }).click();
   await expect(page.getByText("corpus content pane")).toBeVisible();
-  await expect(page.getByText("chats content pane")).toHaveCount(0);
+  // Same <Activity> pane-keeping as desktop: chats CONTENT stays mounted-but-hidden across the switch.
+  await expect(page.getByText("chats content pane")).toBeHidden();
 });
 
 test("mobile: the You tab opens the sheet; an overflow section routes and closes it", async ({

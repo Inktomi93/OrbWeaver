@@ -262,6 +262,9 @@ export const modelCatalogEntrySchema = z.object({
   cacheWritePrice: z.number().nullable(),
   /** e.g. ["text", "image"] — for multimodal filtering. */
   inputModalities: z.array(z.string()),
+  /** e.g. ["text", "image"] — what the model can PRODUCE; the generateImage picker filters on
+   *  `outputModalities ∋ "image"` (GAP-3). OPTIONAL so existing persisted snapshots parse unchanged. */
+  outputModalities: z.array(z.string()).optional(),
   /** Generation params the model/provider accepts (e.g. "tools", "reasoning", "temperature"). */
   supportedParameters: z.array(z.string()),
 });
@@ -313,11 +316,6 @@ export interface ResolvedConnection {
   readonly credential: ResolvedCredential;
   /** The descriptor for this `(model, backend)` — the one source the panel + translator read. */
   readonly capability: ModelCapability;
-  /** The resolved adjacent-same-role handling knob (D66-C, W6) — carried from `RouteChatAssignment.roleHandling`
-   *  through the resolver so SHAPE can clamp it against `capability.turns.roleHandlingFloor`. Unset ⇒ SHAPE
-   *  falls to the floor. NOT part of the wire body (unlike `providerRouting`, threaded separately); this rides
-   *  to `ShapeInput` (part 01 §6a). */
-  readonly roleHandling?: RoleHandling | undefined;
 }
 
 // --- The inference-role axis (RoutingRoleKey — NEW, §7.5) ---------------------
@@ -354,11 +352,6 @@ export interface RouteChatAssignment {
   readonly source?: CredentialSource | undefined;
   readonly model?: string | null | undefined;
   readonly providerRouting?: OpenRouterProviderRouting | undefined;
-  /** Adjacent-same-role handling knob (D66-C, W6) — a per-connection wire concern (not a generation param),
-   *  homed here beside `providerRouting`. The user may go STRICTER than the model's `roleHandlingFloor`, never
-   *  looser; SHAPE computes the effective strategy `max(roleHandlingFloor, roleHandling)` and runs the
-   *  boundary-aware squash (part 01 §6a). Unset ⇒ falls to the model floor at SHAPE. */
-  readonly roleHandling?: RoleHandling | undefined;
 }
 /** The UserSettings projection `resolveChat` overlays beneath the chat row (the per-user chat defaults).
  *  Structurally identical to {@link RouteChatAssignment} — aliased, never re-declared (one home). */

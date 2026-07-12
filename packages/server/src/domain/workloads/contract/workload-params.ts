@@ -8,7 +8,8 @@
 // IN THE RUNNER, not baked into the schema. A kind with no tunables keeps an explicit `z.object({})` (NOT
 // omitted) so the admin UI still renders a confirm dialog and `start()` validates every kind uniformly.
 
-import type { WorkloadKind } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadSource } from "@orb/contracts/workloads";
+import { indexSourceSchema, NON_INDEX_SOURCE } from "@orb/contracts/workloads";
 import { z } from "zod";
 
 // ── per-kind param schemas (tunables OPTIONAL — precedence lives in the runner, §7.2) ────────────────────
@@ -19,12 +20,20 @@ const noParams = z.object({});
 /** k-means cluster count for the theme pass. OPTIONAL — falls through to the user/floor precedence. */
 const computeThemesParams = z.object({ k: z.number().int().positive().optional() });
 
-/** Re-embed everything even where the content hash matches (a forced rebuild, e.g. after an embed-model
- *  change). OPTIONAL — defaults (via the runner) to a resumable skip-matched pass. */
-const embedParams = z.object({ force: z.boolean().optional() });
+/** The parameterized `index` (embeddings reindex) params. `source` (REQUIRED — it selects WHICH embed pass(es)
+ *  run AND is the single-active lock dimension the row stamps into `workloads.source`, so it must always be
+ *  present) picks `text` (corpus) / `image` (assets) / `all` (both). `force` re-embeds matched rows (OPTIONAL —
+ *  defaults via the runner to a resumable skip-matched pass; a forced rebuild, e.g. after an embed-model change). */
+const indexParams = z.object({ source: indexSourceSchema, force: z.boolean().optional() });
 
 /** Validate-only: report what the maintenance pass WOULD do without mutating (assets fsck / backfill). */
 const maintenanceParams = z.object({ dryRun: z.boolean().optional() });
+
+/** The `import-bundle` handoff: the SERVER-minted staging token (the filename the route wrote the uploaded zip
+ *  under, within `IMPORT_STAGING_DIR`). NOT a user tunable — the route stamps it; the runner-env op resolves
+ *  `basename(token)` UNDER the staging root (path-traversal-safe), reads the staged zip, imports, then removes
+ *  it. A caller-supplied token can only ever name a file inside the staging dir (basename strips any `../`). */
+const importBundleParams = z.object({ token: z.string().min(1) });
 
 /**
  * The exhaustive per-kind schema Record — the §7.5 backstop. `satisfies { [K in WorkloadKind]: ZodType }`
@@ -33,8 +42,7 @@ const maintenanceParams = z.object({ dryRun: z.boolean().optional() });
  * (empty) schema so `start()` validates them uniformly even before their runner bodies land.
  */
 export const PARAMS_SCHEMAS = {
-  "embed-corpus": embedParams,
-  "embed-assets": embedParams,
+  index: indexParams,
   "distill-characters": noParams,
   "compute-themes": computeThemesParams,
   "memory-backfill": noParams,
@@ -47,6 +55,7 @@ export const PARAMS_SCHEMAS = {
   "assets-gc": maintenanceParams,
   "assets-fsck": noParams,
   "import-st": maintenanceParams,
+  "import-bundle": importBundleParams,
   "reconcile-stats": noParams,
   "refresh-model-catalog": noParams,
   "reconcile-world-state": noParams,
@@ -86,8 +95,7 @@ export type ParamsByKind = { [K in WorkloadKind]: z.infer<(typeof PARAMS_SCHEMAS
  * discriminants); {@link PARAMS_SCHEMAS} is the exhaustiveness backstop that catches a forgotten kind.
  */
 export const startWorkloadInput = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("embed-corpus"), params: PARAMS_SCHEMAS["embed-corpus"] }),
-  z.object({ kind: z.literal("embed-assets"), params: PARAMS_SCHEMAS["embed-assets"] }),
+  z.object({ kind: z.literal("index"), params: PARAMS_SCHEMAS.index }),
   z.object({ kind: z.literal("distill-characters"), params: PARAMS_SCHEMAS["distill-characters"] }),
   z.object({ kind: z.literal("compute-themes"), params: PARAMS_SCHEMAS["compute-themes"] }),
   z.object({ kind: z.literal("memory-backfill"), params: PARAMS_SCHEMAS["memory-backfill"] }),
@@ -105,6 +113,7 @@ export const startWorkloadInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("assets-gc"), params: PARAMS_SCHEMAS["assets-gc"] }),
   z.object({ kind: z.literal("assets-fsck"), params: PARAMS_SCHEMAS["assets-fsck"] }),
   z.object({ kind: z.literal("import-st"), params: PARAMS_SCHEMAS["import-st"] }),
+  z.object({ kind: z.literal("import-bundle"), params: PARAMS_SCHEMAS["import-bundle"] }),
   z.object({ kind: z.literal("reconcile-stats"), params: PARAMS_SCHEMAS["reconcile-stats"] }),
   z.object({
     kind: z.literal("refresh-model-catalog"),
@@ -158,4 +167,16 @@ export function parseParamsForKind<K extends WorkloadKind>(
   params: unknown,
 ): ParamsByKind[K] {
   return PARAMS_SCHEMAS[kind].parse(params) as ParamsByKind[K];
+}
+
+/** The single-active lock partition a row inserts under (`workloads.source`): the `index` kind's own `source`
+ *  param, else the `none` sentinel (every non-index kind shares one bucket so its lock stays per-(kind, owner)
+ *  / per-(kind) exactly as before the column existed). `start`/`retry` call this to stamp the column from the
+ *  parsed params. The `kind === "index"` runtime check can't narrow the generic `ParamsByKind[K]`, so the
+ *  index arm casts (the same sanctioned per-kind narrowing seam as `toView`). */
+export function resolveWorkloadSource<K extends WorkloadKind>(
+  kind: K,
+  params: ParamsByKind[K],
+): WorkloadSource {
+  return kind === "index" ? (params as ParamsByKind["index"]).source : NON_INDEX_SOURCE;
 }

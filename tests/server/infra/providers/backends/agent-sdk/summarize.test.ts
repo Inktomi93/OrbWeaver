@@ -33,7 +33,11 @@ const HOSTED_HINT_RE = /openrouter/u;
 type SummarizeFn = (req: SummarizeRequest) => Promise<SummarizeResult>;
 
 function backendOf(query: unknown): SummarizeFn {
-  const backend = createAgentSdkBackend({ now: () => 0, query: query as never });
+  const backend = createAgentSdkBackend({
+    now: () => 0,
+    query: query as never,
+    refreshHostSubToken: () => Promise.resolve(false),
+  });
   return backend.summarize as SummarizeFn;
 }
 

@@ -16,7 +16,7 @@
 //
 // SCOPE (4c W3 — the SillyTavern character-card path): `importCharacter` (parse → validate/flatten →
 // dedup → store avatar → create with provenance). `importChats` / `importPersonas`
-// (`proposed/import-st-profile-waves.md`, PD-77) are
+// (`history/export-import-portability.md` §5, PD-77) are
 // the chats/personas waves — they need the chat-writer + persona normalizer + the `emit`/`enqueueBackfill`
 // ops, which are not part of this card slice.
 //
@@ -35,19 +35,10 @@
 // change was needed for either.
 
 import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
-import type { Db } from "@orb/db";
-import type {
-  AssetId,
-  CharacterId,
-  ChatId,
-  ChatParticipantId,
-  MessageId,
-  MessageVariantId,
-  PersonaId,
-  UserId,
-  WorldBookId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
+import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
+import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
+import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportCharacterInput } from "./params";
 import type {
   ImportCharacterResult,
@@ -133,6 +124,22 @@ export type AttachImportedCardTag = (args: {
 }) => Promise<boolean>;
 
 /**
+ * The world-info-OWNED lorebook bulk-import WRITE op (Option B; W1; PD-77), injected type-only. The
+ * composition root binds it to `world-info`'s `createBulkImportLorebook` (writes `world_books`/`world_entries`
+ * + the PRIMARY `character_books` attach, D28 replace-on-reimport). `import` extracts the embedded ST
+ * `character_book` → the canonical {@link BulkImportLorebookInput} (`@orb/contracts/world-info`,
+ * `#kit/serde/card`) and calls this after creating/matching the character; it never touches `@orb/db`. OPTIONAL
+ * on `ImportContext` — the card-only upload path may compose no world-info service (then embedded books are
+ * skipped); the full-profile / delivery path wires it. Throws the shared `DomainNotFoundError` when the
+ * character isn't the caller's.
+ */
+export type BulkImportLorebookOp = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly book: BulkImportLorebookInput;
+}) => Promise<BulkImportLorebookResult>;
+
+/**
  * PD-78 op — enqueue ONE `memory-backfill` workload for the owner, over the freshly imported chats (the
  * backfill sweep itself scopes to the owner's `real_conversation`-bucketed chats). Injected type-only; the
  * composition root binds it to `workloads.start({ kind:"memory-backfill", ownerId })` — import never
@@ -146,27 +153,46 @@ export type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Prom
 export type ReconcileImportStats = (args: { readonly ownerId: UserId }) => Promise<void>;
 
 /**
- * The PROFILE-wave deps (RULING A): the chats/personas/lorebook writers write against `@orb/db` DIRECTLY
- * (the sanctioned bulk-serializer exemption export's reads use — the row shapes are chat's
- * `persistence/roster.ts` + world-info's tables), so this bundle carries the `db` handle + the injected
- * clock + the caller-minted ids (determinism — the composition root is the mint site) + the cross-verb
- * `personaByUserName` attribution state + the PD-78 ops. ABSENT for the card-only slice: the built
- * `importCharacter` verb reads NONE of it (RULING A — "zero db access" → "the card verbs use zero db"),
- * so the card-slice harness needs no change. The chats/personas verbs assert it is present.
+ * The chat-OWNED bulk-import WRITE op (Option B; PD-77), injected type-only. The composition root binds it to
+ * `chat`'s `createBulkImportChats` (the D26 slot/variant write + founding roster + branch resolution +
+ * importHash dedup, ONE `db.batch` per chat). `import` maps its ST parse → the canonical
+ * {@link BulkImportChatInput} (`@orb/contracts/chat`) and calls this; it never touches `@orb/db`. Throws the
+ * shared `DomainNotFoundError` when the character isn't the caller's (the chat op's ownership precondition).
+ */
+export type BulkImportChatsOp = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly chats: readonly BulkImportChatInput[];
+}) => Promise<BulkImportChatsResult>;
+
+/**
+ * The persona-OWNED bulk-import WRITE op (Option B; PD-77), injected type-only. The composition root binds it
+ * to `persona`'s `createBulkImportPersonas` (dedup-by-name + the `personas` insert). `import` maps its ST
+ * parse → {@link BulkImportPersonaInput} (`@orb/contracts/persona`), calls this, and copies the returned
+ * `idByName` into `personaByUserName` for chat attribution.
+ */
+export type BulkImportPersonasOp = (args: {
+  readonly ownerId: UserId;
+  readonly personas: readonly BulkImportPersonaInput[];
+}) => Promise<BulkImportPersonasResult>;
+
+/**
+ * The PROFILE-wave deps (Option B): `import` performs ZERO direct `@orb/db` access — each entity's WRITE is
+ * an INJECTED, owning-domain op (`bulkImportChats`/`bulkImportPersonas`, and the W1 lorebook op). This bundle
+ * therefore carries NO `db` handle and NO id minters (the owning domains mint their own ids). It keeps:
+ *   - `now` — the injected clock for `import`'s ST DATE interpretation (the `createDate` fallback +
+ *     `updatedAt = Math.max(send_dates)`); a parse concern, not a db concern.
+ *   - `personaByUserName` — the cross-verb attribution state (`importPersonas` populates it from the persona
+ *     op's `idByName`; the chat mapping reads it to attribute each chat's `user_name`).
+ *   - the injected bulk-import ops + the PD-78 backfill/reconcile ops.
+ * ABSENT for the card-only slice: the built `importCharacter` verb reads NONE of it, so the card-slice
+ * harness needs no change. The chats/personas verbs assert it is present (`guard.ts`).
  */
 export interface ImportProfileDeps {
-  readonly db: Db;
   readonly now: () => number;
-  /** Cross-verb attribution: `importPersonas` populates it (lowercased display name → persona id); the
-   *  chat writer reads it to attribute each imported chat's `user_name` to the persona the user RP'd as. */
   readonly personaByUserName: Map<string, PersonaId>;
-  readonly newChatId: () => ChatId;
-  readonly newMessageId: () => MessageId;
-  readonly newVariantId: () => MessageVariantId;
-  readonly newParticipantId: () => ChatParticipantId;
-  readonly newPersonaId: () => PersonaId;
-  readonly newWorldBookId: () => WorldBookId;
-  readonly newWorldEntryId: () => WorldEntryId;
+  readonly bulkImportChats: BulkImportChatsOp;
+  readonly bulkImportPersonas: BulkImportPersonasOp;
   readonly enqueueBackfill: EnqueueImportBackfill;
   readonly reconcileStats: ReconcileImportStats;
 }
@@ -179,6 +205,9 @@ export interface ImportProfileDeps {
  *   - `createCharacter` / `findByImportHash` / `findByHandle` / `updateCharacter` / `storeAsset` /
  *     `attachCardTag` — the injected cross-feature ops (type-only; the root binds the character / assets /
  *     tag runtimes).
+ *   - `importLorebook` — the world-info-owned embedded-book WRITE op (W1). OPTIONAL: the card-only upload
+ *     path may compose no world-info service (embedded books are then skipped); the full-profile / delivery
+ *     path wires it. The card verb calls it (when present) after the character write.
  *   - `profile` — the PD-77 profile-wave deps (db + clock + minters + attribution + PD-78 ops). ABSENT for
  *     the card-only slice (RULING A); the chats/personas verbs require it, the card verb ignores it.
  */
@@ -190,6 +219,7 @@ export interface ImportContext {
   readonly updateCharacter: UpdateImportedCharacter;
   readonly storeAsset: StoreImportAsset;
   readonly attachCardTag: AttachImportedCardTag;
+  readonly importLorebook?: BulkImportLorebookOp;
   readonly profile?: ImportProfileDeps;
 }
 

@@ -32,6 +32,7 @@ import type {
   MaybeRevokeParams,
   RemoveCredentialParams,
   ResolveCredentialParams,
+  ResolveGifSearchKeyParams,
   SetActiveParams,
   TestHealthParams,
 } from "./params";
@@ -95,6 +96,12 @@ export interface CredentialsService {
   // Turn-time
   readonly resolve: (params: ResolveCredentialParams) => Promise<ResolvedCredential>;
   readonly maybeRevokeOnAuthFailed: (params: MaybeRevokeParams) => Promise<void>;
+  /** Resolve the ACTING principal's `gif-search` (Tenor) API key — the non-LLM external-service resolver
+   *  (D61). Owner-scoped (no cross-user read); the decrypted plaintext, or `null` when the user has no live
+   *  gif-search credential (the caller — `domain/hub` — surfaces "gif search not configured"). Distinct from
+   *  `resolve`: gif-search is a STORAGE-only provider with no runner arm, so it never rides the turn-time
+   *  chokepoint. NEVER logs the key. */
+  readonly resolveGifSearchKey: (params: ResolveGifSearchKeyParams) => Promise<string | null>;
 
   // CRUD
   readonly add: (params: AddCredentialParams) => Promise<CredentialView>;

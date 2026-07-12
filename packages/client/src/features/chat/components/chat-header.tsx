@@ -16,7 +16,6 @@
 // on its own account — it degrades to a neutral title until the cache populates.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
 import { AvatarStack } from "@orb/ui/avatar-stack";
@@ -26,6 +25,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { initialsForAttribution } from "../lib/attribution";
+import { filterCharacters } from "../lib/roster";
 import { ChatOptionsMenu } from "./chat-options-menu";
 
 export interface ChatHeaderSurfaceProps {
@@ -33,16 +33,10 @@ export interface ChatHeaderSurfaceProps {
   readonly chatId: ChatId;
 }
 
-/** A character participant (only characters carry an avatar/name in the identity cluster). `Omit` (not a
- *  same-key intersection — a known TS assignability footgun that gets harder for the checker to prove as
- *  `ParticipantView` grows optional fields, silently losing the `.filter` narrow). */
-type CharacterParticipant = Omit<ParticipantView, "characterId"> & {
-  readonly characterId: NonNullable<ParticipantView["characterId"]>;
-};
-
-function isCharacter(p: ParticipantView): p is CharacterParticipant {
-  return p.kind === "character" && p.characterId !== null;
-}
+/** A character participant (only characters carry an avatar/name in the identity cluster) — the
+ *  `filterCharacters` (../lib/roster) element type, derived locally (the type itself isn't exported
+ *  there — feature types don't live in a feature `lib/`, `no-inline-types`). */
+type CharacterParticipant = ReturnType<typeof filterCharacters>[number];
 
 /** The topbar chat-identity header: character avatar(s) · title · participant-count chip · ⋯ options
  *  menu. Route-composed into `AppShell.header`. */
@@ -52,12 +46,9 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   // to a neutral title until the (usually warm) getChat cache populates.
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const title = chat?.title ?? "Untitled chat";
-  // The explicit cast (not relying on the `.filter` narrowing overload) sidesteps a TS generic-inference
-  // limitation: as `ParticipantView` grows optional fields (`renderPolicy?`/`themeOverride?`), the checker
-  // stops proving `CharacterParticipant extends ParticipantView` for the `filter<S extends T>` overload
-  // and silently falls back to the non-narrowing one. `isCharacter` still does the real runtime filtering.
-  const cast = (chat?.participants ?? []).filter(isCharacter) as readonly CharacterParticipant[];
-  const characterIds: readonly CharacterId[] = cast.map((c) => c.characterId);
+  const cast = filterCharacters(chat?.participants ?? []);
+  // id + display name per character — seeds "New chat with same cast" AND the per-character gallery entries.
+  const castMembers = cast.map((c) => ({ characterId: c.characterId, name: c.displayName }));
   // Host gate: the server-resolved, per-viewer `ChatDetail.viewerIsHost` (the ONE honest source, shared
   // with the CONTEXT panel) — `=== true` so a load-window `undefined` / a member reads NON-host and the
   // host-only ⋯ actions never flash. NOT the first-human-seat proxy, which mis-grants once a 2nd human
@@ -81,7 +72,7 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
       <ChatOptionsMenu
         chatId={chatId}
         title={chat?.title ?? null}
-        characterIds={characterIds}
+        characters={castMembers}
         isHost={isHost}
       />
     </Row>

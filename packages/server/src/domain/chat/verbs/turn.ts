@@ -49,7 +49,7 @@ import { DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/cha
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
 import type { ChatContext } from "../contract/context";
@@ -75,6 +75,7 @@ import {
   buildCommittedMessageView,
   combineReasoning,
   insertCanonMessageStatements,
+  insertMessageAssetStatements,
   setVariantContentStatement,
 } from "../persistence/canon-write";
 import {
@@ -139,6 +140,21 @@ type TurnVerbs = Pick<
 
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
 const RECENT_TRANSCRIPT = 10;
+
+/** #67 — the alt text stamped on each inline attachment ref (one home — no scattered magic string). */
+const ATTACHMENT_ALT = "attachment";
+
+/** #67 — compose the persisted body from the (post-regex) user text + one `![](asset:<id>)` ref per attached
+ *  asset (D51 — refs are STRING in the body, parsed to media blocks at render; mirrors generate-image.ts).
+ *  An empty text + attachments yields an image-only body; no attachments returns the text unchanged. */
+function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly AssetId[]): string {
+  if (attachmentAssetIds.length === 0) {
+    return text;
+  }
+  const refs = attachmentAssetIds.map((id) => `![${ATTACHMENT_ALT}](asset:${id})`).join("\n");
+  const trimmed = text.trim();
+  return trimmed.length > 0 ? `${text}\n\n${refs}` : refs;
+}
 
 /** The synthetic trailing-user nudges: the UNSTEERED continue/impersonate
  *  baseline, riding `appendUserTurn`. A `guided` steer COMPOSES with these (the nudge says WHAT the turn is;
@@ -355,6 +371,10 @@ async function persistUserMessage(
     readonly personaId: PersonaId | null;
     /** The frozen host (D19) — the stats OWNER (the host's box funds/owns the canon). */
     readonly hostUserId: UserId;
+    /** #67 — the OWNERSHIP-VERIFIED attachment ids (the caller ran the trust boundary). Each gets a
+     *  `message_assets` retaining row in the SAME atomic batch as the slot; the body ref is already in
+     *  `content`. Empty ⇒ a plain message. */
+    readonly attachmentAssetIds: readonly AssetId[];
   },
 ): Promise<MessageView> {
   const now = ctx.now();
@@ -373,6 +393,18 @@ async function persistUserMessage(
       variant: { content: args.content },
     };
     const statements = insertCanonMessageStatements(ctx.db, params);
+    // #67 — the STRUCTURAL attachment rows ride the SAME atomic batch (ids minted fresh per attempt, keyed on
+    // THIS attempt's messageId so the U1 retry re-links to the retried slot, never a stale one).
+    statements.push(
+      ...insertMessageAssetStatements(ctx.db, {
+        rows: args.attachmentAssetIds.map((assetId) => ({
+          id: ctx.newMessageAssetId(),
+          messageId: params.messageId,
+          assetId,
+        })),
+        now,
+      }),
+    );
     // The canon-mutator stats push: the user turn's rollup delta rides the SAME batch as its
     // canon insert. characterId null — the rebuild's per-char grain is assistant-only.
     ctx.applyStatsDelta(
@@ -549,6 +581,29 @@ async function freezeGreetingVolatiles(
   }
 }
 
+/** #67 TRUST BOUNDARY (part a — no cross-user asset): every claimed attachment id MUST be owned by the ACTOR.
+ *  A foreign/gone id is absent from the owned subset → a coded, leak-free `attachment_not_owned` refusal (the
+ *  per-user D21 scope reveals nothing about another owner's asset). Part b (the actor may post to the chat) is
+ *  the caller's `requireParticipant`. No-op for an attachment-free send. */
+async function assertAttachmentsOwned(
+  ctx: ChatContext,
+  principalUserId: UserId,
+  chatId: ChatId,
+  attachments: readonly AssetId[],
+): Promise<void> {
+  if (attachments.length === 0) {
+    return;
+  }
+  const owned = new Set(await ctx.filterOwnedAssetIds(principalUserId, attachments));
+  const foreign = attachments.find((id) => !owned.has(id));
+  if (foreign !== undefined) {
+    throw new ChatOperationError(
+      CHAT_OP_CODES.attachmentNotOwned,
+      `chat ${chatId}: attachment ${foreign} is not owned by the sender`,
+    );
+  }
+}
+
 // ── send (the human turn → arbitration → round → optional auto-mode chain) ──────────────────────────────────
 /** `send` — persist the user message, build the ONE immutable assemble ctx, arbitrate the responders, drive the
  *  round, then (if `autoMode`) chain AI→AI. Member-gated (anyone present posts); the AI turns run as the host. */
@@ -558,10 +613,15 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
     chatId,
     content,
     personaId,
+    attachmentAssetIds,
     intent,
     guided,
   }: SendParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
+    // #67 TRUST BOUNDARY: `requireParticipant` above gated the target chat (part b — a member may post); this
+    // gates the attachments (part a — every id must be the actor's own asset).
+    const attachments = attachmentAssetIds ?? [];
+    await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
     const room = await loadRoom(ctx, chatId);
     const identity = resolveTurnIdentityVia({
       principalUserId: principal.userId,
@@ -607,14 +667,16 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
 
     const userView = await persistUserMessage(ctx, deps.emit, {
       chatId,
-      // The POST-USER_INPUT-regex text (canon-mutating at write — §7); raw `content` when no host script fired.
-      content: sendOut.sendUserText ?? content,
+      // The POST-USER_INPUT-regex text (canon-mutating at write — §7; raw `content` when no host script fired),
+      // then #67 appends one `![](asset:<id>)` ref per attachment so the body renders the inline images (D51).
+      content: composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments),
       authorUserId: principal.userId,
       // PD-100 attribution fallback: an OMITTED personaId stamps the acting participant's active persona
       // (the membership row assembly already reads); an explicit id — or an explicit null — wins.
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
       personaId: personaId !== undefined ? personaId : membership.activePersonaId,
       hostUserId: room.hostUserId,
+      attachmentAssetIds: attachments,
     });
 
     if (isFirstUserTurn) {

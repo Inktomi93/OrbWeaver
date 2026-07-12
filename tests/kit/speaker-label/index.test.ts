@@ -2,12 +2,64 @@ import {
   cleanPerSpeakerReply,
   LEADING_SPEAKER_TAG,
   normalizeExampleStart,
+  parseSpeakerSpans,
   speakerTagsToPlain,
   stripLeadingSpeakerName,
   stripSelfSpeakerLabel,
   truncateAtForeignLabel,
 } from "@orb/kit/speaker-label";
 import { expect, test } from "../../support/fixtures";
+
+// parseSpeakerSpans (§12.4): the `<speaker>NAME</speaker>` split feeding the client narrator renderer.
+// Pins the load-bearing byte-identical no-op (zero markers => one null-speaker span carrying `content`
+// untouched) plus the ordered multi-span shape a tagged/merged-narrator body produces. Promoted here
+// from the client with the source (C16) so kit tweaking the grammar can't silently diverge the renderer.
+
+test("parseSpeakerSpans: zero markers is the byte-identical no-op — one null-speaker span, text untouched", () => {
+  const content = "Just plain **markdown** with no speaker tags.";
+  expect(parseSpeakerSpans(content)).toEqual([{ speaker: null, text: content }]);
+});
+
+test("parseSpeakerSpans: empty content is also the no-op shape", () => {
+  expect(parseSpeakerSpans("")).toEqual([{ speaker: null, text: "" }]);
+});
+
+test("parseSpeakerSpans: a single marker attributes everything after it to that speaker", () => {
+  expect(parseSpeakerSpans("<speaker>Alice</speaker>Hello there!")).toEqual([
+    { speaker: "Alice", text: "Hello there!" },
+  ]);
+});
+
+test("parseSpeakerSpans: text before the first marker is a preceding null-speaker span (narrator preamble)", () => {
+  expect(parseSpeakerSpans("The room falls silent.<speaker>Bob</speaker>Well then.")).toEqual([
+    { speaker: null, text: "The room falls silent." },
+    { speaker: "Bob", text: "Well then." },
+  ]);
+});
+
+test("parseSpeakerSpans: multiple markers split into ordered per-speaker spans", () => {
+  const content = "<speaker>Alice</speaker>Hi!<speaker>Bob</speaker>Hey Alice.";
+  expect(parseSpeakerSpans(content)).toEqual([
+    { speaker: "Alice", text: "Hi!" },
+    { speaker: "Bob", text: "Hey Alice." },
+  ]);
+});
+
+test("parseSpeakerSpans: attrs on the open tag are tolerated", () => {
+  expect(parseSpeakerSpans('<speaker data-x="1">Alice</speaker>Hi!')).toEqual([
+    { speaker: "Alice", text: "Hi!" },
+  ]);
+});
+
+test("parseSpeakerSpans: an empty/blank speaker name normalizes to a null-speaker span", () => {
+  expect(parseSpeakerSpans("<speaker>   </speaker>Narration text.")).toEqual([
+    { speaker: null, text: "Narration text." },
+  ]);
+});
+
+test("parseSpeakerSpans: a trailing marker with no following text yields an empty text span (no crash)", () => {
+  expect(parseSpeakerSpans("<speaker>Alice</speaker>")).toEqual([{ speaker: "Alice", text: "" }]);
+});
 
 test("LEADING_SPEAKER_TAG matches a leading <speaker> open-tag case-insensitively", () => {
   expect(LEADING_SPEAKER_TAG.test("<speaker>hi")).toBe(true);

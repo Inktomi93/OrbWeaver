@@ -2,7 +2,7 @@ import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useImperativeHandle, useLayoutEffect, useRef } from "react";
-import { cn } from "#lib";
+import { cn, usePrefersReducedMotion } from "#lib";
 import { TOKENS } from "#tokens";
 
 // Same intent-token gap contract as the virtual-list seal (kept as a small local duplicate rather
@@ -66,13 +66,6 @@ function composeRangeExtractor<T>(
     }
     return Array.from(union).sort((a, b) => a - b);
   };
-}
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof globalThis.matchMedia === "function" &&
-    globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
 }
 
 export interface MessageListHandle {
@@ -250,6 +243,7 @@ export function MessageList<T>({
   ref,
 }: MessageListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   const itemAt = (index: number): T => {
     const item = items.at(index);
@@ -278,7 +272,7 @@ export function MessageList<T>({
     // `followOnAppend` only fires when the viewport was already at the end AND the item count grew
     // AND the last key actually changed — so it never fights a reader who scrolled up.
     anchorTo: "end",
-    followOnAppend: prefersReducedMotion() ? true : "smooth",
+    followOnAppend: reducedMotion ? true : "smooth",
     scrollEndThreshold,
     // `<Activity>`-hidden-pane measurement freeze (§4a/§5.1) — see the prop doc above for the
     // exact, source-verified semantics. Defaults false so a visible list always measures for real.
@@ -307,10 +301,9 @@ export function MessageList<T>({
     (): MessageListHandle => ({
       isAtEnd: () => virtualizer.isAtEnd(),
       getDistanceFromEnd: () => virtualizer.getDistanceFromEnd(),
-      scrollToEnd: () =>
-        virtualizer.scrollToEnd({ behavior: prefersReducedMotion() ? "auto" : "smooth" }),
+      scrollToEnd: () => virtualizer.scrollToEnd({ behavior: reducedMotion ? "auto" : "smooth" }),
     }),
-    [virtualizer],
+    [virtualizer, reducedMotion],
   );
 
   // The unbounded-window tripwire (D43 §11.3) — thrown, not warned. Identical to virtual-list.

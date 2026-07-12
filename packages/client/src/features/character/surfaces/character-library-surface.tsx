@@ -20,15 +20,19 @@ import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Search/Users fine.
 import { Icon, Search, Users } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
-import { Skeleton } from "@orb/ui/skeleton";
-import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { createCollectionSurface, useInvalidation, useTRPC } from "#data";
+import {
+  createCollectionSurface,
+  QueryErrorState,
+  SkeletonRows,
+  useInvalidation,
+  useTRPC,
+} from "#data";
 import { useFocusOnMount } from "#lib";
 import {
   selectCharacter,
@@ -50,6 +54,7 @@ import { CharacterBulkBar } from "../components/character-bulk-bar";
 import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCardTile } from "../components/character-card";
 import { CharacterCategorizedList } from "../components/character-categorized-list";
+import { CharacterCreateMenu } from "../components/character-create-menu";
 import { CharacterFavoritesStrip } from "../components/character-favorites-strip";
 import { CharacterFilterChips } from "../components/character-filter-chips";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar";
@@ -183,6 +188,7 @@ export function CharacterLibrarySurface({
           isFetchingNextPage={collection.isFetchingNextPage}
           isPending={collection.isPending}
           listProps={collection.listProps}
+          onClearSearch={(): void => setQuery("")}
           onRetry={collection.refetch}
           query={deferredQuery}
           renderRow={renderRow}
@@ -226,6 +232,7 @@ interface CharacterLibraryBodyProps {
   readonly hasNextPage: boolean;
   readonly isFetchingNextPage: boolean;
   readonly listProps: ReturnType<typeof useCharacterLibraryCollection>["listProps"];
+  readonly onClearSearch: () => void;
   readonly onRetry: () => void;
   readonly renderRow: (item: CharacterCardItem) => ReactNode;
 }
@@ -242,18 +249,20 @@ function CharacterLibraryBody({
   hasNextPage,
   isFetchingNextPage,
   listProps,
+  onClearSearch,
   onRetry,
   renderRow,
 }: CharacterLibraryBodyProps): ReactElement {
   if (isPending) {
-    return <LoadingRows />;
+    return <SkeletonRows count={SKELETON_ROW_COUNT} />;
   }
   if (error !== null) {
-    return <ErrorState onRetry={onRetry} />;
+    return <QueryErrorState label="the character library" onRetry={onRetry} />;
   }
   if (isEmpty) {
     return (
       <EmptyState
+        action={<CharacterCreateMenu />}
         description="Weave your first one to begin."
         icon={<Icon icon={Users} size="lg" />}
         title="No characters yet"
@@ -268,6 +277,11 @@ function CharacterLibraryBody({
     if (query.trim() !== "") {
       return (
         <EmptyState
+          action={
+            <Button intent="secondary" onClick={onClearSearch} size="sm">
+              Clear search
+            </Button>
+          }
           description={`No character matches "${query}".`}
           icon={<Icon icon={Search} size="lg" />}
           title="No matches"
@@ -322,30 +336,6 @@ function CharacterLibraryBody({
         onEndApproach={listProps.onEndApproach}
         renderItem={renderRow}
       />
-    </Stack>
-  );
-}
-
-/** The suspense-free loading skeleton (a few placeholder rows, never a spinner flash). */
-function LoadingRows(): ReactElement {
-  return (
-    <Stack aria-busy={true} gap="row" padding="block">
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => i).map((i) => (
-        <Skeleton className="h-control-lg w-full" key={i} />
-      ))}
-    </Stack>
-  );
-}
-
-/** The read-error surface — a Retry re-runs the query (`collection.refetch`), so a transient read failure
- *  is never a dead end (UI-Arch §4.3 rule 1). */
-function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
-  return (
-    <Stack align="center" gap="row" justify="center" padding="section">
-      <Text tone="muted">Couldn't load the character library.</Text>
-      <Button intent="secondary" onClick={onRetry} size="sm">
-        Retry
-      </Button>
     </Stack>
   );
 }

@@ -72,6 +72,10 @@ export const CHAT_OP_CODES = {
   /** `seatAgent` targeted a DISABLED agent principal (`users.enabled = false`) — the containment kill switch
    *  refuses the seat (D60, doc 03 §5). */
   agentDisabled: "agent_disabled",
+  /** #67 — `send` was given an `attachmentAssetIds` id the actor does not OWN (a foreign / gone asset). The
+   *  caller IS a present member (the send gate passed), so this is a coded validation refusal, not a
+   *  NOT_FOUND collapse — and it leaks nothing about another owner's asset (per-user D21 scope). */
+  attachmentNotOwned: "attachment_not_owned",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

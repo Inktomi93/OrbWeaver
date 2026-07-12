@@ -1,14 +1,15 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
-import { useQueryClient } from "@tanstack/react-query";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { ChatBusDeps } from "#data";
-import { createInvalidation, useTRPC, useUserBus } from "#data";
+import { useInvalidation, useUserBus } from "#data";
 import {
   AppShell,
   ContextTabsPanel,
   RAIL_SECTIONS,
+  useIsMobileViewport,
   useShellLayout,
   YouSheet,
 } from "#features/app-shell";
@@ -42,7 +43,15 @@ import {
 } from "#features/chat";
 import { NotificationBell } from "#features/notifications";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
-import { SettingsShell, ThemePickerSurface } from "#features/settings";
+import {
+  PresetEditorSurface,
+  PresetLibraryAnchor,
+  PresetLibrarySurface,
+  PresetLibraryWelcome,
+  PresetSectionInspector,
+  PresetUsageContext,
+} from "#features/preset";
+import { ImportOnboardingCard, SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   chatStream,
   commitDraft,
@@ -52,13 +61,16 @@ import {
   openModal,
   selectChat,
   setActiveSection,
+  setContextTab,
   setMobileSheet,
+  setPanelMode,
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSection,
   useActiveSessionKey,
   useSelectedCharacterId,
+  useSelectedPresetId,
 } from "#state";
 
 // The `/` home: the composition root + the app's central navigation seam. It mounts the four-region
@@ -84,8 +96,6 @@ import {
 // provided tRPC proxy + QueryClient (stateless + fire-and-forget — identity churn is harmless, the
 // subscription keys off ids, not deps identity).
 export function HomePage(): ReactElement {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
   // The PD-106 capability read (`/api/auth/config.multiHumanCapable`) — the HONEST gate for the three
   // multi-human surfaces (the bell, the People tab, the /join landing): single-user renders none of
   // them. `false` until the config lands (chrome appears once known-capable, never flashes-then-yanks).
@@ -99,7 +109,7 @@ export function HomePage(): ReactElement {
       clearJoinParam();
     }
   }, [joinToken]);
-  const invalidation = createInvalidation({ queryClient, trpc });
+  const invalidation = useInvalidation();
   const busDeps: ChatBusDeps = { stream: chatStream, invalidate: invalidation.invalidate };
   // PD user-bus lane: the ALWAYS-ON per-user entity-changed stream — device B's write to any owned
   // non-chat surface (or the chat LIST) invalidates this device's cache. Mounted ONCE here (the authed
@@ -113,12 +123,26 @@ export function HomePage(): ReactElement {
   const draftSeed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
   const activeSection = useActiveSection();
+  const selectedPresetId = useSelectedPresetId();
   // The resolved shell layout — the composition root reads it to lay CONTENT out against the panels. Here:
   // when the Chats LIST is DOCKED it already IS the recents finder (§4.3 rule 5), so the landing drops its
   // own "Recent chats" to kill the duplicate (#13). Collapsed/overlay/mobile ⇒ the landing owns recents.
   const shellLayout = useShellLayout();
   const selectedCharacterId = useSelectedCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
+  // THE ASSEMBLY reveal choreography (BUILD-SPEC §3.4) — the mobile fork lives HERE (the shell tier), not
+  // a feature→feature import. A rack row's name-button (which already wrote the section selection) calls
+  // `revealSectionInspector`: open the Section CONTEXT tab, then DOCK it on desktop / open it as a SHEET on
+  // mobile. Dismiss clears the section selection (the inspector's bridge guard then shows the EmptyState).
+  const isMobile = useIsMobileViewport();
+  const revealSectionInspector = (): void => {
+    setContextTab("section");
+    if (isMobile) {
+      setMobileSheet("context");
+    } else {
+      setPanelMode("context", "docked");
+    }
+  };
 
   // J5 delete-of-the-active-chat: after a host deletes the chat the CONTENT is showing, the id 404s —
   // return to the landing surface so the room never points at a dropped chat (the goToLanding consumer).
@@ -231,13 +255,21 @@ export function HomePage(): ReactElement {
             // renders the welcome hero, never an empty room (D62 P4 / J1). Else the chat room (TS narrows
             // `handle` to `ActiveChatHandle` in this branch — a landing handle can't reach the composer).
             content: isLanding(handle) ? (
-              <ChatLandingSurface
-                onSelect={selectChat}
-                onStartChat={startChatWithCharacter}
-                onNewChat={openNewChatPicker}
-                onBrowseCharacters={browseCharacters}
-                showRecents={shellLayout.listMode !== "docked"}
-              />
+              // The landing hero, with the first-run "bring your SillyTavern stuff over" card composed
+              // ABOVE it (R5 home-surface placement; the card renders null once the account has chats or
+              // dismisses). Route-composed (settings front door) so app-shell + chat stay domain-agnostic.
+              <Stack className="h-full min-h-0">
+                <ImportOnboardingCard />
+                <Stack className="min-h-0 flex-1">
+                  <ChatLandingSurface
+                    onSelect={selectChat}
+                    onStartChat={startChatWithCharacter}
+                    onNewChat={openNewChatPicker}
+                    onBrowseCharacters={browseCharacters}
+                    showRecents={shellLayout.listMode !== "docked"}
+                  />
+                </Stack>
+              </Stack>
             ) : (
               <ChatRoomSurface
                 key={sessionKey}
@@ -280,6 +312,39 @@ export function HomePage(): ReactElement {
                     appearance: <CharacterAppearanceTab characterId={selectedCharacterId} />,
                     relations: <CharacterRelationsTab characterId={selectedCharacterId} />,
                     history: <CharacterHistoryTab characterId={selectedCharacterId} />,
+                  }}
+                />
+              ),
+          },
+          // The PRESETS authoring section (W10 Panel A): LIST = the preset library; CONTENT = the tabbed
+          // editor for the open preset, else the teaching welcome (LIST selection drives CONTENT, §4.2 rule
+          // 1 — the route is the single reader of the preset-selection store, §5.1); CONTEXT = the usage
+          // panel (default-collapsed).
+          presets: {
+            list: (
+              <PresetLibraryAnchor>
+                <PresetLibrarySurface />
+              </PresetLibraryAnchor>
+            ),
+            content:
+              selectedPresetId === null ? (
+                <PresetLibraryWelcome />
+              ) : (
+                <PresetEditorSurface
+                  presetId={selectedPresetId}
+                  onRevealSection={revealSectionInspector}
+                />
+              ),
+            // CONTEXT (The Assembly §3.1): the registry-driven Section / Usage tab pair. Section = the
+            // rack inspector (reads the editor form via the bridge); Usage = the existing usage panel.
+            // Nothing selected ⇒ the shell's own placeholder (`undefined`).
+            context:
+              selectedPresetId === null ? undefined : (
+                <ContextTabsPanel
+                  section="presets"
+                  bodies={{
+                    section: <PresetSectionInspector />,
+                    usage: <PresetUsageContext presetId={selectedPresetId} />,
                   }}
                 />
               ),

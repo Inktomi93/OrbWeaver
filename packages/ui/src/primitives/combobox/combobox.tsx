@@ -6,13 +6,13 @@ import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { PortalContainer } from "#lib";
-import { cn, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine (the autocomplete.tsx precedent).
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants";
 
-// Breathing room between the input and the popup (a positioning input, not a styled length).
-const POPUP_SIDE_OFFSET = 4;
+// Breathing room between the input and the popup — the input-hug gap (§13.0 C19 rollup, `#lib`).
+const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
 const slots = comboboxVariants();
 
@@ -80,7 +80,7 @@ function ComboboxResultStatus(): ReactElement {
   const count = filtered.length;
   return (
     <BaseCombobox.Status className={slots.status()} data-slot="combobox-status">
-      {`${count} ${count === 1 ? "result" : "results"}`}
+      {formatResultCount(count)}
     </BaseCombobox.Status>
   );
 }

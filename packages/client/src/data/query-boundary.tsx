@@ -13,14 +13,22 @@ import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver misreads react's export map for Suspense; tsc resolves it (StrictMode/Component resolve identically elsewhere).
 import { Component, Suspense } from "react";
+import { QueryErrorState } from "./query-error-state";
 
 export interface QueryBoundaryProps {
   /** The suspense fallback (a skeleton, never a spinner-only flash). */
   readonly fallback: ReactNode;
-  /** Renders the error surface; `retry` resets BOTH boundaries so the refetch is real. */
-  readonly renderError: (error: unknown, retry: () => void) => ReactNode;
+  /**
+   * Renders the error surface; `retry` resets BOTH boundaries so the refetch is real.
+   * @defaultValue a generic `QueryErrorState label="this"` — pass a labeled one for a specific surface.
+   */
+  readonly renderError?: (error: unknown, retry: () => void) => ReactNode;
   readonly children: ReactNode;
 }
+
+const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => (
+  <QueryErrorState label="this" onRetry={retry} />
+);
 
 interface CatchState {
   readonly error: unknown | null;
@@ -28,7 +36,7 @@ interface CatchState {
 
 interface CatchProps {
   readonly onReset: () => void;
-  readonly renderError: QueryBoundaryProps["renderError"];
+  readonly renderError: NonNullable<QueryBoundaryProps["renderError"]>;
   readonly children: ReactNode;
 }
 
@@ -56,7 +64,7 @@ class QueryErrorCatch extends Component<CatchProps, CatchState> {
 
 export function QueryBoundary({
   fallback,
-  renderError,
+  renderError = defaultRenderError,
   children,
 }: QueryBoundaryProps): ReactElement {
   return (

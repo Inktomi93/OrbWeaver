@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 // The slider skin. The control row is h-control-sm so the drag surface meets the ≥44px touch
 // floor (§4b axis 3); the visible track stays h-field. Base UI positions Indicator/Thumb inline.
@@ -18,7 +18,8 @@ export const sliderVariants = tv({
     thumb: [
       "size-section rounded-full border border-border bg-foreground",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
-      "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "outline-none",
+      FOCUS_RING,
       "data-invalid:border-destructive",
     ],
   },

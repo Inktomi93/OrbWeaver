@@ -31,7 +31,6 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
-import { Button } from "@orb/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -43,14 +42,13 @@ import {
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { Check, Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { closeModal, setActiveSection, startNewChat } from "#state";
 import { initialsForAttribution } from "../lib/attribution";
@@ -70,8 +68,10 @@ export function NewChatPicker(): ReactElement {
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
-        fallback={<PickerSkeleton />}
-        renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} />}
+        renderError={(_error, retry): ReactElement => (
+          <QueryErrorState label="the character library" onRetry={retry} />
+        )}
       >
         <PickerBody />
       </QueryBoundary>
@@ -180,29 +180,5 @@ function CharacterPickRow({ character, selected, onToggle }: CharacterPickRowPro
         {selected ? <Icon icon={Check} size="sm" /> : null}
       </Row>
     </CommandItem>
-  );
-}
-
-/** The suspense-free loading skeleton (a search bar + a few placeholder rows, never a spinner flash). */
-function PickerSkeleton(): ReactElement {
-  return (
-    <Stack aria-busy={true} gap="row" padding="block">
-      <Skeleton className="h-control-md w-full" />
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => i).map((i) => (
-        <Skeleton className="h-control-lg w-full" key={i} />
-      ))}
-    </Stack>
-  );
-}
-
-/** The read-error surface — the QueryBoundary retry actually refetches (the reset handshake). */
-function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
-  return (
-    <Stack align="center" gap="row" justify="center" padding="section">
-      <Text tone="muted">Couldn't load the character library.</Text>
-      <Button intent="ghost" onClick={onRetry}>
-        Retry
-      </Button>
-    </Stack>
   );
 }

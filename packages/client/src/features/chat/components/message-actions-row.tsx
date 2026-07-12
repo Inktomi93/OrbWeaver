@@ -31,19 +31,13 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogPopup,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' re-export of the lucide-react glyphs (external .d.ts); tsc resolves the barrel (same class as swipe-strip.tsx).
 import { Copy, Eye, EyeOff, GitFork, Icon, Pencil, Trash2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
@@ -122,6 +116,7 @@ export function MessageActionsRow({
   const hide = useHideMutation({ trpc, invalidation });
   const remove = useDeleteMutation({ trpc, invalidation });
   const fork = useForkMutation({ trpc, invalidation });
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt } = message;
   const editable = isEditableRole(role);
@@ -142,6 +137,7 @@ export function MessageActionsRow({
       return;
     }
     remove.mutate({ chatId, messageIds: [messageId] });
+    setDeleteOpen(false);
   };
 
   const onFork = async (): Promise<void> => {
@@ -153,7 +149,7 @@ export function MessageActionsRow({
       // Navigate to the fork (the wired seam — see file header), then confirm. A caller without the
       // callback still forks (`chat.listChats` is invalidated above so any list refreshes) + notifies.
       onChatForked?.(result.chat.id);
-      notify.success(`Forked to a new chat (${result.chat.id}).`);
+      notify.success("Forked to a new chat.");
     } catch {
       // The sticky mutation error + the global errorToast already surfaced the failure.
     }
@@ -222,33 +218,23 @@ export function MessageActionsRow({
       >
         <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Copy} size="sm" />
       </Button>
-      <AlertDialog>
-        <AlertDialogTrigger
-          render={
-            <Button
-              intent="ghost"
-              size="icon"
-              loading={remove.isPending}
-              aria-label="Delete message"
-            >
-              <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Trash2} size="sm" />
-            </Button>
-          }
-        />
-        <AlertDialogPopup>
-          <AlertDialogTitle>Delete this message?</AlertDialogTitle>
-          <AlertDialogActions>
-            <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <AlertDialogClose
-              render={
-                <Button intent="destructive" onClick={onDelete}>
-                  Delete
-                </Button>
-              }
-            />
-          </AlertDialogActions>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <Button
+        intent="ghost"
+        size="icon"
+        loading={remove.isPending}
+        aria-label="Delete message"
+        onClick={(): void => setDeleteOpen(true)}
+      >
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Trash2} size="sm" />
+      </Button>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this message?"
+        description="This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={onDelete}
+      />
     </Row>
   );
 }

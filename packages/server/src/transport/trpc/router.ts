@@ -7,7 +7,7 @@
 // FLAG[PD-46]: the `chat` router (`send`/`swipe`/`start`/`streamMessages` + the chat SSE subscription) lands
 // when the chat + memory domains are built WHOLE at Phase 5 (ledger D16). The inline single-card embed
 // (PD-90) is `admin.embedCharacterCard` — the cross-domain producer-ownership check is composed at
-// `entry/` into admin's `EmbedProducerPort`; the bulk embed path is the admin `embed-corpus` workload.
+// `entry/` into admin's `EmbedProducerPort`; the bulk embed path is the admin `index` workload.
 
 import { z } from "zod";
 import { recordClientError } from "#foundation/observability";
@@ -19,6 +19,7 @@ import { chatRouter } from "./routers/chat";
 import { connectionRouter } from "./routers/connection";
 import { credentialsRouter } from "./routers/credentials";
 import { discoveryRouter } from "./routers/discovery";
+import { hubRouter } from "./routers/hub";
 import { invitesRouter } from "./routers/invites";
 import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
@@ -79,6 +80,7 @@ export const appRouter = t.router({
   connection: connectionRouter,
   credentials: credentialsRouter,
   discovery: discoveryRouter,
+  hub: hubRouter,
   invites: invitesRouter,
   notifications: notificationsRouter,
   persona: personaRouter,

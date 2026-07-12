@@ -34,6 +34,7 @@ test("credentialProviderSchema round-trips every storable provider", () => {
     "openai",
     "google_vertex",
     "custom_openai",
+    "gif-search",
   ]);
 });
 
@@ -42,8 +43,9 @@ test("the source axis and the storage axis are NOT conflated", () => {
   expect(credentialProviderSchema.safeParse("max-pro-sub").success).toBe(false);
   expect(credentialProviderSchema.safeParse("vllm").success).toBe(false);
   expect(credentialProviderSchema.safeParse("local-light").success).toBe(false);
-  // Storable providers with no resolver arm: storage-only.
-  for (const storageOnly of ["anthropic", "openai", "google_vertex"]) {
+  // Storable providers with no resolver arm: storage-only (gif-search is the non-LLM external-key slot,
+  // resolved by its own dedicated verb, never dispatched at turn time).
+  for (const storageOnly of ["anthropic", "openai", "google_vertex", "gif-search"]) {
     expect(credentialSourceSchema.safeParse(storageOnly).success).toBe(false);
   }
   // The overlap is exactly { openrouter, custom_openai }.

@@ -214,6 +214,27 @@ function writeFixtures(): void {
     // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a JSX role attribute), not a secret.
     'declare function Row(props: { role?: string; children?: unknown }): unknown;\nexport const G = <Row role="button">hi</Row>;\n',
   );
+  // no-raw-interactive-intrinsics: a raw <input> in a feature file (not app-shell, not in BURN_DOWN).
+  fx(
+    "packages/client/src/features/__g_rawintr/components/__g_rawintr.tsx",
+    'export const G = <input type="text" />;\n',
+  );
+  // empty-state-has-action: an <EmptyState> with no `action` prop, in a file not in the ALLOWLIST.
+  fx(
+    "packages/client/src/features/__g_emptyact/surfaces/__g_emptyact.tsx",
+    'export const G = <EmptyState title="Nothing here" />;\n',
+  );
+  // no-arbitrary-tw-values: a scoped-utility (w-) arbitrary-value class, off-token, not in ALLOWLIST.
+  fx(
+    "packages/client/src/features/__g_arbtw/components/__g_arbtw.tsx",
+    'export const G = <div className="w-[137px]" />;\n',
+  );
+  // no-off-token-radius-shadow: a default-scale shadow utility in a real className site, off-token,
+  // not in ALLOWLIST.
+  fx(
+    "packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx",
+    'export const G = <div className="rounded-lg shadow-md" />;\n',
+  );
   // no-effect-on-shared-selection: a feature effect depping a selection-hook result (the chase).
   // The hook is a local `declare` — the gate matches by NAME (AST-only), so the fixture parses
   // standalone without importing #state.
@@ -388,6 +409,14 @@ function writeFixtures(): void {
   fx(
     "tests/server/__g_fab.test.ts",
     `export const g = ({} ${["as", "unknown", "as"].join(" ")} { n: number }).n;\n`,
+  );
+  // asset-refs-fk-coverage: a schema column with a real FK to `assets.id` (importing the REAL
+  // packages/db/src/schema/assets.ts) that is registered in NEITHER ASSET_REFS nor
+  // DERIVED_ASSET_COLUMNS (domain/assets/persistence/asset-refs.ts) — the gate reads the real
+  // registry file, so an injected __g_ table with no matching registry row always fires.
+  fx(
+    "packages/db/src/schema/__g_assetfk.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nimport { assets } from "./assets";\nexport const gAssetFk = sqliteTable("__g_asset_fk", {\n  id: text("id").primaryKey(),\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
   );
   // warning-code-coverage: NOT fixtured here — it is a whole-corpus emit-coverage RATCHET (a tuple member
   // with no emit site across the real home + emit scope). An injected `__g_` file can neither match its

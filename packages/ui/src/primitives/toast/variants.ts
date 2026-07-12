@@ -17,9 +17,13 @@ export const toastVariants = tv({
     viewport:
       "pointer-events-none fixed right-0 bottom-0 z-(--z-toast) flex w-full max-w-cq-sm flex-col-reverse gap-row p-section outline-none",
     root: [
-      "pointer-events-auto relative w-full rounded-card border border-border bg-popover p-block text-popover-foreground shadow-lg",
+      "pointer-events-auto relative w-full rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay",
       "transition-all duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))]",
-      "data-limited:hidden data-starting-style:opacity-0 data-starting-style:translate-y-full data-ending-style:opacity-0",
+      // Enter: slide up + fade in from below the bottom-right stack edge. Exit: the REVERSE (motion
+      // guide §3.1 — exit matters as much as enter) — slide back DOWN + fade, not a bare opacity cut.
+      // The stagger-collapse of siblings when a stacked toast in the middle dismisses is Base UI's own
+      // job (it re-lays the stack and re-runs each remaining root's transition off the same classes).
+      "data-limited:hidden data-starting-style:opacity-0 data-starting-style:translate-y-full data-ending-style:opacity-0 data-ending-style:translate-y-full",
       // Suspend the transition while a swipe is in progress so the gesture tracks the pointer 1:1
       // instead of fighting the enter/exit transition (drawer's popup solved this the same way).
       "data-swiping:transition-none",

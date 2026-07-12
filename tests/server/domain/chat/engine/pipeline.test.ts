@@ -27,6 +27,7 @@ import type {
   TurnStreamChunk,
 } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
+import { makeModelCapability } from "../../../../support/factories";
 import { expect, test } from "../../../../support/fixtures";
 
 const CAPABILITY = {
@@ -390,6 +391,64 @@ describe("runTurnPipeline — history macro resolution", () => {
   });
 });
 
+// ── D66-C (W6 REVERSED): the adjacent-same-role knob is now sourced from the PRESET
+// (`params.advanced.roleHandling`), NOT the connection — the pipeline hands the preset value to SHAPE, which
+// clamps it against the model's `capability.turns.roleHandlingFloor` (`max(floor, knob)`). Two adjacent
+// assistant rows are the observable: `merge`/stricter collapses them into ONE assistant wire row; `none`
+// keeps them SEPARATE. These tests prove the PRESET value reached the clamp (a broken re-thread would read a
+// now-absent connection field → fall to the `strict` floor → always merge, failing case 1).
+describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE", () => {
+  const twoAssistants = [userRow("u1"), assistantRow("First.", ARIA), assistantRow("Second.", KAI)];
+  const withFloor = (floor: "none" | "merge" | "strict"): ResolvedConnection => {
+    const capability: ModelCapability = {
+      ...CAPABILITY,
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        roleHandlingFloor: floor,
+        explicitPromptCache: false,
+      },
+    };
+    return { ...CONNECTION, capability };
+  };
+  const presetWith = (roleHandling: "none" | "strict"): PromptConfig => ({
+    ...DEFAULT_PROMPT_CONFIG,
+    params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling } },
+  });
+  const assistantRows = (req: TurnRequest): TurnRequest["history"] =>
+    req.history.filter((h) => h.role === "assistant");
+
+  test("preset `none`, floor `none` ⇒ the adjacent assistant rows stay SEPARATE (preset value reached SHAPE)", async () => {
+    const { args } = baseArgs({
+      canon: twoAssistants,
+      connection: withFloor("none"),
+      assembleContext: ctxOf({ promptConfig: presetWith("none") }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(assistantRows(result.request)).toHaveLength(2);
+  });
+
+  test("preset `none`, floor `strict` ⇒ MERGED (the stricter floor wins the clamp `max(strict, none)`)", async () => {
+    const { args } = baseArgs({
+      canon: twoAssistants,
+      connection: withFloor("strict"),
+      assembleContext: ctxOf({ promptConfig: presetWith("none") }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(assistantRows(result.request)).toHaveLength(1);
+  });
+
+  test("preset `strict`, floor `none` ⇒ MERGED (the stricter preset intent wins the clamp `max(none, strict)`)", async () => {
+    const { args } = baseArgs({
+      canon: twoAssistants,
+      connection: withFloor("none"),
+      assembleContext: ctxOf({ promptConfig: presetWith("strict") }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(assistantRows(result.request)).toHaveLength(1);
+  });
+});
+
 // ── F4: the wire NAME-STAMP axis (SHAPE's authorName) is distinct from the {{user}} MACRO axis above — it
 // must ALSO derive from the row's OWN personaId, not the current active persona (else multi-human rooms
 // misattribute + "default" disambiguation is dead). Production now supplies the per-row name the unit
@@ -681,13 +740,7 @@ describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
 });
 
 // ── The D48 recurse loop (tool-use-design/03 §2 — the 05 §T4 goldens) ────────────────────────────
-const TOOL_CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-  tools: { parallel: false },
-} as unknown as ModelCapability;
+const TOOL_CAPABILITY: ModelCapability = makeModelCapability({ tools: { parallel: false } });
 
 const TOOL_CONNECTION: ResolvedConnection = { ...CONNECTION, capability: TOOL_CAPABILITY };
 

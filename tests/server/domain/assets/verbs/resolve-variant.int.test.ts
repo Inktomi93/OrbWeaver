@@ -9,7 +9,7 @@ import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, pngBytes, principal, seedUser } from "../_support.ts";
+import { gifBytes, makeHarness, pngBytes, principal, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
 // The fake webp the mocked imageTransform returns (mirrors _support FAKE_WEBP — identity assertion).
@@ -361,6 +361,44 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
       kind: "banner",
     });
     expect(out).toBeUndefined();
+    expect(h.imageTransform).not.toHaveBeenCalled();
+  });
+});
+
+// G2 — the animated bailout (gallery-design §2): an animated source (GIF/APNG/WebP) is served verbatim,
+// never downscaled (sharp drops animation), and writes NO variant-cache entry.
+describe("resolveVariant — animated bailout (G2)", () => {
+  test("an animated source returns the ORIGINAL bytes and never transforms", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: "gif_owner" });
+    const original = gifBytes(1, 2, 3);
+    const stored = await svc.store({
+      principal: principal(owner),
+      bytes: original,
+      kind: "gallery",
+      mime: "image/gif",
+    });
+
+    const out = await svc.resolveVariant({
+      principal: principal(owner),
+      hash: stored.hash,
+      width: REQUESTED_WIDTH,
+      kind: "icon",
+    });
+    // The original bytes verbatim — NOT the fake webp the transform would have returned.
+    expect(Array.from(out ?? [])).toEqual(Array.from(original));
+    expect(h.imageTransform).not.toHaveBeenCalled();
+
+    // A second resolve re-reads the original (no variant-cache entry was written for the bailout).
+    await svc.resolveVariant({
+      principal: principal(owner),
+      hash: stored.hash,
+      width: REQUESTED_WIDTH,
+      kind: "icon",
+    });
     expect(h.imageTransform).not.toHaveBeenCalled();
   });
 });

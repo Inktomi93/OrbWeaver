@@ -33,6 +33,7 @@
 // callers use the intent-named module actions + narrow read hooks below, never the raw handle.
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle";
 import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle";
 import { createGatedStore } from "./create-gated-store";
@@ -84,22 +85,33 @@ const useActiveChatStore = createGatedStore<ActiveChatState>(
 /** Start a brand-new draft chat, optionally seeded with a founding roster (the character library's
  *  "start chat with X"). Mints a fresh `sessionKey` so the composer remounts clean. */
 export function startNewChat(seed?: DraftSeed): void {
-  const sessionKey = nextSessionKey();
-  useActiveChatStore.setState(
-    { handle: draftChat(sessionKey), draftSeed: seed, sessionKey },
-    true,
-    "activeChat/startNew",
-  );
+  // D5 crossfade (UI-Arch §4a): the three USER-driven CONTENT pane swaps (new-chat, select-a-chat,
+  // return-to-landing) each swap what the CONTENT hero shows at a constant `/`, so the router's VT never
+  // fires — hand-drive it here so every leaf writer inherits the crossfade. `commitDraft` is deliberately
+  // NOT wrapped: it's a mid-first-turn draft→committed promotion that keeps the SAME `sessionKey` (no
+  // remount, THE KEY DISCIPLINE above), not a visible pane swap — animating it would flash the live room.
+  // `withViewTransition` gates reduced-motion + support once.
+  withViewTransition(() => {
+    const sessionKey = nextSessionKey();
+    useActiveChatStore.setState(
+      { handle: draftChat(sessionKey), draftSeed: seed, sessionKey },
+      true,
+      "activeChat/startNew",
+    );
+  });
 }
 
 /** Make an existing committed chat active (the chat-list select, and the Fork-nav landing). Keyed by
  *  the chat id, so re-selecting the same chat is idempotent and switching chats remounts the slot. */
 export function selectChat(chatId: ChatId): void {
-  useActiveChatStore.setState(
-    { handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId },
-    true,
-    "activeChat/select",
-  );
+  // D5 crossfade (see startNewChat) — a user-driven CONTENT pane swap.
+  withViewTransition(() => {
+    useActiveChatStore.setState(
+      { handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId },
+      true,
+      "activeChat/select",
+    );
+  });
 }
 
 /** Record that the active DRAFT has committed to a real chat (fired from the route's `onChatStarted`
@@ -130,11 +142,14 @@ export function commitDraft(chatId: ChatId, forDraftKey: string): void {
  *  J5's delete-of-the-active-chat: after a delete the CONTENT can't keep pointing at a now-404 chat id).
  *  Mints a fresh `sessionKey` so a subsequent new-chat/select remounts a clean slot. */
 export function goToLanding(): void {
-  useActiveChatStore.setState(
-    { handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey() },
-    true,
-    "activeChat/goToLanding",
-  );
+  // D5 crossfade (see startNewChat) — a user-driven CONTENT pane swap back to the landing hero.
+  withViewTransition(() => {
+    useActiveChatStore.setState(
+      { handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey() },
+      true,
+      "activeChat/goToLanding",
+    );
+  });
 }
 
 // ── The read API — narrow hooks so the route re-renders only on the slice it reads. ──

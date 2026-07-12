@@ -128,6 +128,10 @@ const FIXTURES: Record<string, { path: string; src: string }> = {
     path: "f.ts",
     src: 'export const f = Intl.DateTimeFormat("en");\n',
   },
+  "no-raw-matchmedia": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: 'export const f = globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n',
+  },
   "no-raw-spacing-in-features": {
     path: "packages/client/src/features/x/surfaces/c.tsx",
     src: 'export const C = () => <div className="flex gap-3" />;\n',

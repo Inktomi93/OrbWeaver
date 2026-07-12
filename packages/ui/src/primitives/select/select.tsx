@@ -4,15 +4,22 @@ import { Select as BaseSelect } from "@base-ui/react/select";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
 import type { PortalContainer } from "#lib";
-import { cn, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/ChevronDown/Icon fine.
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import { selectVariants } from "./variants";
 
-// Breathing room between trigger and popup (a positioning input, not a styled length).
-const POPUP_SIDE_OFFSET = 4;
+// Breathing room between trigger and popup — the input-hug gap (§13.0 C19 rollup, `#lib`).
+const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
 const slots = selectVariants();
+
+// Minimal DOM shape for the hidden-input a11y fixup: `setAttribute` only (view-transition.ts
+// structural-typing pattern) — the node typecheck lane has no `dom` lib, so `HTMLInputElement`
+// resolves without it.
+interface AttributeSettable {
+  setAttribute: (name: string, value: string) => void;
+}
 
 // The chevron on the trigger and the check on a selected item are seal glyphs (Base UI ships the
 // Icon/ItemIndicator containers, not the marks) — the lucide seal, not hand-SVG.
@@ -198,11 +205,11 @@ export function Select<Value = string, Multiple extends boolean = false>(
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (hiddenInputRef.current) {
+      // `setAttribute` rides a self-contained structural type (the view-transition.ts pattern): the
+      // node typecheck lane follows this file and has no `dom` lib, so `HTMLInputElement` lacks it.
+      const node = hiddenInputRef.current as AttributeSettable;
       // Provide a fallback name so screen readers (and axe-core) don't flag it as an unlabeled input.
-      hiddenInputRef.current.setAttribute(
-        "aria-label",
-        ariaLabel || ariaLabelledby || "Hidden select value",
-      );
+      node.setAttribute("aria-label", ariaLabel || ariaLabelledby || "Hidden select value");
     }
   }, [ariaLabel, ariaLabelledby]);
 

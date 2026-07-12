@@ -8,6 +8,7 @@ import type { ReactElement } from "react";
 import { EmptyState } from "#primitives/empty-state";
 import type { OrbEChartsInstance } from "../chart";
 import { Chart } from "../chart";
+import { useChartTheme } from "../chart/use-chart-theme";
 import type { HistogramBucket } from "./option";
 import { buildHistogramOption } from "./option";
 import { histogramVariants } from "./variants";
@@ -42,6 +43,9 @@ export function Histogram({
   onChartReady,
 }: HistogramProps): ReactElement {
   const slots = histogramVariants();
+  // Resolve chart-chrome tokens to concrete canvas colors live, re-reading on theme switch (§11.3).
+  // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
+  const colors = useChartTheme();
 
   if (buckets.length === 0) {
     return (
@@ -60,7 +64,7 @@ export function Histogram({
         height={height}
         label={label}
         onChartReady={onChartReady}
-        option={buildHistogramOption(buckets)}
+        option={buildHistogramOption(buckets, colors)}
       />
     </div>
   );

@@ -90,6 +90,9 @@ function stubExport(
       exportChat: (): Promise<null> => Promise.resolve(null),
       ...overrides,
     },
+    // The library route's injected portability registry — empty here (these tests exercise the single-entity
+    // character/chat routes; the library route + registry streaming is pinned in the zip + bundle suites).
+    registry: [],
   };
 }
 

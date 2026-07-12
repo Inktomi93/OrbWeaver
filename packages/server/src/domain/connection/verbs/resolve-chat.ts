@@ -22,9 +22,6 @@ export function createResolveChat(
       api: params.routableChat.api,
       source: params.routableChat.source,
       model: params.routableChat.model,
-      // D66-C (W6): the row's role-handling knob rides through to `ResolvedConnection.roleHandling` → SHAPE
-      // (a wire-shaping concern, carried like the other row fields; NOT part of the wire body).
-      roleHandling: params.routableChat.roleHandling,
     };
     return resolveRole({ role: "chat", principal: params.principal, agentOverride });
   };

@@ -53,6 +53,7 @@ import {
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
 import type {
+  AssetId,
   CharacterId,
   ChatEventId,
   ChatId,
@@ -60,6 +61,7 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
+  MessageAssetId,
   MessageId,
   MessageVariantId,
   PendingTurnId,
@@ -79,6 +81,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { assets } from "./assets";
 import { characters } from "./character";
 import { personas } from "./persona";
 import { users } from "./users";
@@ -298,6 +301,39 @@ export const messageVariants = sqliteTable(
   (t) => [
     // The swipe set + its position; idx is unique within a message.
     uniqueIndex("message_variants_message_idx_unique").on(t.messageId, t.idx),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// message_assets — #67 the STRUCTURAL chat-message ↔ asset link (producer: chat — the send verb writes it,
+// like message_variants). A message body stores its inline images as `asset:<id>` TEXT refs (D51 — content
+// is a STRING, blocks parsed at render); that text is invisible to the asset-reference REGISTRY
+// (`domain/assets/persistence/asset-refs`), which only sees FK-to-`assets.id` COLUMNS. THIS is the FK the
+// registry CAN see: one row per (message, attached asset), so a user-uploaded inline chat image is a
+// RETAINING reference and GC never reaps a blob still shown in a live chat. Keys on the message SLOT (D26 —
+// the attachment belongs to the authored message, not a swipe variant; a user turn has exactly one variant).
+// CASCADE on message delete (link dies with its message); CASCADE on asset delete (the link is meaningless
+// without its blob — the body text ref then degrades to literal markdown at render). `assetId` is registered
+// RETAINING in `asset-refs.ts`, so an explicit asset delete is the ONLY way the row goes.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const messageAssets = sqliteTable(
+  "message_assets",
+  {
+    id: text("id").$type<MessageAssetId>().primaryKey(),
+    messageId: text("message_id")
+      .$type<MessageId>()
+      .notNull()
+      .references(() => messages.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .$type<AssetId>()
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // The per-message lookup ("what did this message attach?") + the CASCADE parent index.
+    index("message_assets_message_idx").on(t.messageId),
   ],
 );
 

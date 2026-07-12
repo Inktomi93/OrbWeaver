@@ -28,7 +28,7 @@
 // `ChatCastBar`'s identical `cast.length <= 1 → null` size-gate for the member-visible glance strip.
 
 import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
@@ -54,21 +54,16 @@ import {
   useSetParticipantTalkativeness,
 } from "../hooks/use-roster-mutations";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
-import { resolveHumanParticipants, resolveIsGroupChat } from "../lib/roster";
+import { filterCharacters, resolveHumanParticipants, resolveIsGroupChat } from "../lib/roster";
 
 /** Project a committed chat's character participants into the source-agnostic `RosterMember` view. */
 function toRosterMembers(participants: readonly ParticipantView[]): RosterMember[] {
-  return participants
-    .filter(
-      (p): p is ParticipantView & { characterId: CharacterId } =>
-        p.kind === "character" && p.characterId !== null,
-    )
-    .map((p) => ({
-      characterId: p.characterId,
-      displayName: p.displayName,
-      disabled: p.disabled,
-      talkativeness: p.talkativeness,
-    }));
+  return filterCharacters(participants).map((p) => ({
+    characterId: p.characterId,
+    displayName: p.displayName,
+    disabled: p.disabled,
+    talkativeness: p.talkativeness,
+  }));
 }
 
 export interface ChatContextPanelProps {

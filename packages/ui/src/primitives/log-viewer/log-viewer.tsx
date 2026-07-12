@@ -1,6 +1,6 @@
 import type { ReactElement, UIEvent } from "react";
 import { useLayoutEffect, useRef } from "react";
-import { cn } from "#lib";
+import { cn, prefersReducedMotionNow } from "#lib";
 import { Button } from "#primitives/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/CircleAlert/Copy/Icon/Info fine (the spinner.tsx precedent).
 import { AlertTriangle, CircleAlert, Copy, Icon, Info } from "#primitives/icons";
@@ -88,6 +88,13 @@ function LogLineRow({ line, slots }: LogLineRowProps): ReactElement {
 // fraction of a pixel.
 const NEAR_BOTTOM_SLACK_PX = 4;
 
+// The virtualized-path tail threshold — mirrors message-list's own `DEFAULT_SCROLL_END_THRESHOLD_PX`
+// (its `isAtEnd`/`followOnAppend` "within N px of the true end" reads as pinned). We recompute
+// tail-proximity from the raw scroll node's live geometry (below) instead of the seal's `isAtEnd()`
+// so the two stay semantically aligned but our read never depends on virtual-core's INTERNAL scroll
+// offset being flushed first.
+const VIRTUAL_TAIL_SLACK_PX = 80;
+
 export interface LogViewerProps {
   readonly lines: readonly LogLine[];
   /** Cap the rendered window to the most recent N lines — a display cap; the caller owns the full log. */
@@ -152,8 +159,17 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   const virtualScrollNodeRef = useRef<HTMLDivElement | null>(null);
   // Stable handler (useRef initializer runs once): add/removeEventListener must pass the SAME
   // reference or a re-registration would leak listeners. Reads only refs, so it never goes stale.
+  // Computes tail-proximity from the scroll node's LIVE geometry (the same read as the plain path's
+  // `handleScroll`) rather than the seal's `isAtEnd()`: virtual-core's `isAtEnd` reads its OWN cached
+  // scroll offset, updated by virtual-core's own scroll listener on the same node — so calling it
+  // from a sibling scroll listener races that update and can still see the pre-scroll (bottomed)
+  // offset, wrongly reading a reader who just scrolled up as "at the tail" and yanking them on the
+  // next append. The DOM geometry here is always current at event time.
   const handleVirtualScrollRef = useRef((): void => {
-    wasAtEndRef.current = listHandleRef.current?.isAtEnd() ?? true;
+    const node = virtualScrollNodeRef.current;
+    wasAtEndRef.current =
+      node === null ||
+      node.scrollHeight - node.scrollTop - node.clientHeight <= VIRTUAL_TAIL_SLACK_PX;
   });
 
   // Attaches the scroll listener to message-list's real scroll node (its `scrollContainerRef`
@@ -208,8 +224,7 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
     if (el === null || !isNearBottomRef.current) {
       return;
     }
-    const reducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollTo({ top: el.scrollHeight, behavior: reducedMotion ? "auto" : "smooth" });
+    el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotionNow() ? "auto" : "smooth" });
   });
 
   const handleScroll = (event: UIEvent<HTMLDivElement>): void => {

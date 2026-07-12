@@ -1,9 +1,13 @@
 import type { WorkloadKind, WorkloadModePolicy, WorkloadStatus } from "@orb/contracts/workloads";
 import {
   ACTIVE_WORKLOAD_STATUSES,
+  INDEX_SOURCES,
+  indexSourceSchema,
+  NON_INDEX_SOURCE,
   WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
   WORKLOAD_MODES,
+  WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
   workloadKindSchema,
   workloadModeSchema,
@@ -14,10 +18,9 @@ import { expect, test } from "../../support/fixtures";
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the pinned 33-member kind axis (incl. the assets GC/fsck maintenance kinds, the reserved/crew/expressions/databank stubs + the 10 rpg-* stubs)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 33-member kind axis (the parameterized `index` reindex, the assets GC/fsck maintenance kinds, the workload-backed import-bundle, the reserved/crew/expressions/databank stubs + the 10 rpg-* stubs)", () => {
   expect(WORKLOAD_KINDS).toEqual([
-    "embed-corpus",
-    "embed-assets",
+    "index",
     "distill-characters",
     "compute-themes",
     "memory-backfill",
@@ -29,6 +32,7 @@ test("WORKLOAD_KINDS is exactly the pinned 33-member kind axis (incl. the assets
     "assets-gc",
     "assets-fsck",
     "import-st",
+    "import-bundle",
     "reconcile-stats",
     "refresh-model-catalog",
     "reconcile-world-state",
@@ -51,15 +55,30 @@ test("WORKLOAD_KINDS is exactly the pinned 33-member kind axis (incl. the assets
     "rpg-recruit-card",
   ]);
   expect(workloadKindSchema.options).toEqual(WORKLOAD_KINDS);
+  // The two former embed kinds are GONE — collapsed into the parameterized `index` kind.
+  expect(WORKLOAD_KINDS).not.toContain("embed-corpus");
+  expect(WORKLOAD_KINDS).not.toContain("embed-assets");
 });
 
-test("workloadKindSchema round-trips every valid kind and rejects non-members", () => {
+test("workloadKindSchema round-trips every valid kind and rejects non-members (incl. the removed embed kinds)", () => {
   for (const kind of WORKLOAD_KINDS) {
     expect(workloadKindSchema.parse(kind)).toBe(kind);
   }
+  expect(workloadKindSchema.safeParse("embed-corpus").success).toBe(false);
+  expect(workloadKindSchema.safeParse("embed-assets").success).toBe(false);
   expect(workloadKindSchema.safeParse("embed").success).toBe(false);
-  expect(workloadKindSchema.safeParse("reindex").success).toBe(false);
   expect(workloadKindSchema.safeParse("").success).toBe(false);
+});
+
+// ── The `index` SOURCE axis (the WorkloadKind-scoped param + the single-active LOCK sub-dimension) ──────
+test("INDEX_SOURCES is [text, image, all]; WORKLOAD_SOURCES prepends the `none` non-index sentinel", () => {
+  expect(INDEX_SOURCES).toEqual(["text", "image", "all"]);
+  expect(indexSourceSchema.options).toEqual(INDEX_SOURCES);
+  expect(WORKLOAD_SOURCES).toEqual(["none", "text", "image", "all"]);
+  // The sentinel is a real WORKLOAD_SOURCES member but NOT a selectable index source.
+  expect(NON_INDEX_SOURCE).toBe("none");
+  expect(WORKLOAD_SOURCES).toContain(NON_INDEX_SOURCE);
+  expect(INDEX_SOURCES).not.toContain(NON_INDEX_SOURCE);
 });
 
 test("WORKLOAD_STATUSES is exactly the 7-member lifecycle tuple", () => {
@@ -103,8 +122,7 @@ test("every ACTIVE_WORKLOAD_STATUSES member is a real WORKLOAD_STATUSES member (
 // A `Record<Axis, …>` goes tsc-red if a member is added/removed, so the inline literals here can't drift
 // from the tuple without a build break — no inline re-spelling anywhere else.
 const KIND_SEEN: Record<WorkloadKind, true> = {
-  "embed-corpus": true,
-  "embed-assets": true,
+  index: true,
   "distill-characters": true,
   "compute-themes": true,
   "memory-backfill": true,
@@ -116,6 +134,7 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "assets-gc": true,
   "assets-fsck": true,
   "import-st": true,
+  "import-bundle": true,
   "reconcile-stats": true,
   "refresh-model-catalog": true,
   "reconcile-world-state": true,
@@ -190,9 +209,16 @@ test("WORKLOAD_KIND_MODES classifies every kind to its expected mode policy", ()
     bulkRequiresTarget: false,
     stub: true,
   };
+  // SINGULAR-ONLY built: a per-owner run with no bulk mode (the workload-backed bundle import — one user's
+  // upload for themselves, never an all-owners sweep or a mint-into-X).
+  const singularOnlyBuilt: WorkloadModePolicy = {
+    singular: true,
+    bulk: false,
+    bulkRequiresTarget: false,
+    stub: false,
+  };
   const expected: Record<WorkloadKind, WorkloadModePolicy> = {
-    "embed-corpus": sweepBoth,
-    "embed-assets": sweepBoth,
+    index: sweepBoth,
     "distill-characters": sweepBoth,
     "compute-themes": sweepBoth,
     "memory-backfill": sweepBoth,
@@ -204,6 +230,7 @@ test("WORKLOAD_KIND_MODES classifies every kind to its expected mode policy", ()
     "assets-gc": bulkOnlyBuilt,
     "assets-fsck": bulkOnlyBuilt,
     "import-st": createBoth,
+    "import-bundle": singularOnlyBuilt,
     "reconcile-stats": sweepBoth,
     "refresh-model-catalog": bulkOnlyBuilt,
     "reconcile-world-state": bulkOnlyStub,

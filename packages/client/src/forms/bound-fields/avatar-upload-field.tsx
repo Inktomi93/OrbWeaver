@@ -21,7 +21,7 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 /** Client-side pre-check ceiling — mirrors the `FileDropzone` doc example's own avatar-size precedent. */
 const MAX_AVATAR_BYTES = 20_000_000;
@@ -49,7 +49,7 @@ export function AvatarUploadField({
   disabled = false,
 }: AvatarUploadFieldProps): ReactElement {
   const field = useFieldContext<AssetId | null>();
-  const fieldError = fieldErrorText(field.state.meta.errors);
+  const fieldError = touchedFieldError(field.state.meta);
   const [previewHash, setPreviewHash] = useState<string | null>(initialHash);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -74,7 +74,7 @@ export function AvatarUploadField({
     }
   }
 
-  const error = uploadError ?? (field.state.meta.isTouched ? fieldError : null);
+  const error = uploadError ?? fieldError;
   return (
     <Field
       label={label}

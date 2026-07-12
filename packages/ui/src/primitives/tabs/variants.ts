@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
 // with a hairline `--color-border` track along its bottom edge; the active marker is a 2px `--primary`
@@ -19,7 +19,8 @@ export const tabsVariants = tv({
     tab: [
       "relative z-(--z-raised) inline-flex h-control-sm cursor-pointer select-none items-center justify-center gap-field whitespace-nowrap px-block text-label font-medium leading-label text-muted-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground",
-      "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "outline-none",
+      FOCUS_RING,
       "data-active:text-foreground",
       "data-disabled:pointer-events-none data-disabled:opacity-50",
       "data-[orientation=vertical]:justify-start",

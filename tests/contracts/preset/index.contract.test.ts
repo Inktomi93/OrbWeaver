@@ -2,6 +2,7 @@
 // are exactly what an ST preset blob carries (the D68-A import mapping tests below).
 import type { GuidedActionKind, PromptConfig } from "@orb/contracts/preset";
 import {
+  buildPresetFile,
   CONFIG_LIFTS,
   customParametersSchema,
   DEFAULT_GUIDED_ACTIONS,
@@ -9,15 +10,13 @@ import {
   GUIDED_ACTION_KINDS,
   guidedActionsSchema,
   importStChatCompletionPreset,
-  NEO_PRESET_SCHEMA_KIND,
+  PRESET_SCHEMA_KIND,
   PROMPT_CONFIG_SCHEMA_VERSION,
-  parseNeoPresetFile,
+  parsePresetFile,
   parsePromptConfig,
   promptConfigSchema,
   THINK_PREFIX_DEFAULT,
   THINK_SUFFIX_DEFAULT,
-  toPresetFormValues,
-  toPromptConfig,
   userIntentSchema,
 } from "@orb/contracts/preset";
 import { expect, test } from "../../support/fixtures";
@@ -219,11 +218,17 @@ test("customParametersSchema rejects a `constructor` key (top level and nested)"
   );
 });
 
-// ── Serde: parseNeoPresetFile (STRICT) vs parsePromptConfig (LENIENT) ───────────────────────────────
+// ── Serde: parsePresetFile (STRICT) vs parsePromptConfig (LENIENT) ───────────────────────────────
 
-test("parseNeoPresetFile accepts a well-formed envelope and returns the parsed config", () => {
-  const result = parseNeoPresetFile({
-    schemaKind: NEO_PRESET_SCHEMA_KIND,
+test("buildPresetFile writes the orb.preset schemaKind (not the legacy neo kind)", () => {
+  const file = buildPresetFile("My preset", DEFAULT_PROMPT_CONFIG);
+  expect(file.schemaKind).toBe(PRESET_SCHEMA_KIND);
+  expect(PRESET_SCHEMA_KIND).toBe("orb.preset");
+});
+
+test("parsePresetFile accepts a well-formed orb.preset envelope and returns the parsed config", () => {
+  const result = parsePresetFile({
+    schemaKind: PRESET_SCHEMA_KIND,
     schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
     name: "My preset",
     config: DEFAULT_PROMPT_CONFIG,
@@ -235,15 +240,31 @@ test("parseNeoPresetFile accepts a well-formed envelope and returns the parsed c
   expect(result.config).toEqual(DEFAULT_PROMPT_CONFIG);
 });
 
-test("parseNeoPresetFile is STRICT: a structurally-broken config is REJECTED (errors, not degraded)", () => {
+test("round-trip pin: build(parse(build(x))) === build(x) over a full preset config", () => {
+  // The MANDATORY per-entity structural guarantee (export-import-portability.md §1): the build + parse
+  // halves can't drift. `x` is a normalized full config (a fixed point of the schema) so the equality holds
+  // by the codec's own idempotence, not by luck of the fixture.
+  const config: PromptConfig = parsePromptConfig({
+    ...DEFAULT_PROMPT_CONFIG,
+    params: { temperature: 0.85 },
+  });
+  const built = buildPresetFile("Round trip", config);
+  const reparsed = parsePresetFile(built);
+  if (!reparsed.ok) {
+    throw new Error(`expected build output to re-parse, got: ${reparsed.error}`);
+  }
+  expect(buildPresetFile(reparsed.name, reparsed.config)).toEqual(built);
+});
+
+test("parsePresetFile is STRICT: a structurally-broken config is REJECTED (errors, not degraded)", () => {
   // `sections` must be an array — a string is invalid. parsePromptConfig would LENIENTLY degrade to
-  // DEFAULT; parseNeoPresetFile rejects loudly. This is the load-bearing strict-vs-lenient distinction.
+  // DEFAULT; parsePresetFile rejects loudly. This is the load-bearing strict-vs-lenient distinction.
   const brokenConfig: unknown = {
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     sections: "not-an-array",
   };
-  const strict = parseNeoPresetFile({
-    schemaKind: NEO_PRESET_SCHEMA_KIND,
+  const strict = parsePresetFile({
+    schemaKind: PRESET_SCHEMA_KIND,
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     name: "Broken",
     config: brokenConfig,
@@ -255,7 +276,7 @@ test("parseNeoPresetFile is STRICT: a structurally-broken config is REJECTED (er
   expect(lenient).toEqual(DEFAULT_PROMPT_CONFIG);
 });
 
-test("parseNeoPresetFile LIFTS a v1-era file forward before strict validation (older files import)", () => {
+test("parsePresetFile LIFTS a v1-era file forward before strict validation (older files import)", () => {
   // The format IS the predecessor app's export shape — a v1 config (literal `main` section + `jailbreak`
   // marker, the shapes CONFIG_LIFTS[1] migrates) must import, not be rejected as "invalid prompt config".
   const v1Config: unknown = {
@@ -289,8 +310,8 @@ test("parseNeoPresetFile LIFTS a v1-era file forward before strict validation (o
     ],
     params: {},
   };
-  const result = parseNeoPresetFile({
-    schemaKind: NEO_PRESET_SCHEMA_KIND,
+  const result = parsePresetFile({
+    schemaKind: PRESET_SCHEMA_KIND,
     schemaVersion: 1,
     name: "legacy",
     config: v1Config,
@@ -308,9 +329,9 @@ test("parseNeoPresetFile LIFTS a v1-era file forward before strict validation (o
   ]);
 });
 
-test("parseNeoPresetFile rejects a non-object and a wrong schemaKind", () => {
-  expect(parseNeoPresetFile(null).ok).toBe(false);
-  expect(parseNeoPresetFile({ schemaKind: "something-else", config: {} }).ok).toBe(false);
+test("parsePresetFile rejects a non-object and a wrong schemaKind", () => {
+  expect(parsePresetFile(null).ok).toBe(false);
+  expect(parsePresetFile({ schemaKind: "something-else", config: {} }).ok).toBe(false);
 });
 
 // ── reasoningParse (D47 #3 / D53) — the inline <think> fallback config ──────────────────────────────
@@ -324,34 +345,11 @@ test("reasoningParse defaults: autoParse OFF + the <think> tag pair", () => {
   });
 });
 
-test("reasoningParse round-trips through the flat form mappers (server → form → server)", () => {
-  const config = toPromptConfig(
-    {
-      sections: DEFAULT_PROMPT_CONFIG.sections,
-      reasoningAutoParse: true,
-      reasoningPrefix: "<reason>",
-      reasoningSuffix: "</reason>",
-    },
-    DEFAULT_PROMPT_CONFIG,
-  );
-  expect(config.reasoningParse).toEqual({
-    autoParse: true,
-    prefix: "<reason>",
-    suffix: "</reason>",
-  });
-  const form = toPresetFormValues(config);
-  expect(form.reasoningAutoParse).toBe(true);
-  expect(form.reasoningPrefix).toBe("<reason>");
-  expect(form.reasoningSuffix).toBe("</reason>");
-});
-
-test("an unengaged reasoningParse (all-default form) is omitted — round-trips to unset", () => {
-  const config = toPromptConfig(
-    { sections: DEFAULT_PROMPT_CONFIG.sections },
-    DEFAULT_PROMPT_CONFIG,
-  );
-  expect(config.reasoningParse).toBeUndefined();
-});
+// NOTE: the flat-form-mapper round-trip tests (`toPromptConfig`/`toPresetFormValues`) were REMOVED with
+// the mappers (D66 W10 — preset-form-mapper-elimination.md). The client preset editor now binds the nested
+// `PromptConfig` directly via TanStack Form; the reasoningParse default + absent-round-trips-to-unset
+// invariants are exercised by `promptConfigSchema.parse` (the default test above) and the client editor's
+// own merge-on-submit round-trip test (tests/client/features/preset/lib/preset-editor-model.test.ts).
 
 // The SillyTavern chat-completions preset importer's sampling mapping (D68-A). `min_p` (was DROPPED with "no
 // neo sampling vocab") now maps → params.minP; ST's 0-default = "off" is NOT carried (the top_a/top_k
@@ -377,4 +375,25 @@ test("importStChatCompletionPreset (D68-A): an absent min_p produces no minP fie
   const result = importStChatCompletionPreset(stBlob({ temperature: 0.8 }));
   expect(result.config.params.minP).toBeUndefined();
   expect(result.config.params.temperature).toBe(0.8);
+});
+
+// D66-C (W6 REVERSED): ST `squash_system_messages` maps onto `params.advanced.squashSystemMessages` (the
+// preset now owns the knob) instead of being dropped. `group_nudge_prompt` STAYS dropped (room-owned, not
+// preset-owned) but its reason string was corrected off the stale "no group chats".
+test("importStChatCompletionPreset: squash_system_messages:true maps onto params.advanced.squashSystemMessages", () => {
+  const result = importStChatCompletionPreset(stBlob({ squash_system_messages: true }));
+  expect(result.config.params.advanced?.squashSystemMessages).toBe(true);
+  expect(result.dropped.some((d) => d.field === "squash_system_messages")).toBe(false);
+});
+
+test("importStChatCompletionPreset: squash_system_messages:false is NOT carried (ST default = off)", () => {
+  const result = importStChatCompletionPreset(stBlob({ squash_system_messages: false }));
+  expect(result.config.params.advanced?.squashSystemMessages).toBeUndefined();
+  expect(result.dropped.some((d) => d.field === "squash_system_messages")).toBe(false);
+});
+
+test("importStChatCompletionPreset: group_nudge_prompt still drops, with the corrected room-owned reason", () => {
+  const result = importStChatCompletionPreset(stBlob({ group_nudge_prompt: "poke the group" }));
+  const drop = result.dropped.find((d) => d.field === "group_nudge_prompt");
+  expect(drop?.reason).toBe("group nudge is room-owned, not preset-owned");
 });

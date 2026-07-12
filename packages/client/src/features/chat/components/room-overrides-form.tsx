@@ -16,12 +16,10 @@
 // Empty ⇒ inherit (the map seam in `use-room-overrides-form.ts` omits empty fields on save).
 
 import type { RoomOverrides } from "@orb/contracts/chat";
-import type { MessageRole } from "@orb/kit/message-role";
-import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { Row, Stack } from "@orb/ui/layout";
-import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import { useRoomOverridesForm } from "../hooks/use-room-overrides-form";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model";
 import {
@@ -29,18 +27,6 @@ import {
   isAuthorsNotePrefill,
   toRoomOverridesForm,
 } from "../lib/room-overrides-form-model";
-
-// Labelled role options for the author's-note placement (the injections-manager/persona-editor precedent —
-// same labels, built from the one-home `MESSAGE_ROLES` tuple).
-const ROLE_LABELS: Record<MessageRole, string> = {
-  system: "System",
-  user: "User",
-  assistant: "Assistant",
-};
-const ROLE_ITEMS: SelectItems<string> = MESSAGE_ROLES.map((value) => ({
-  value,
-  label: ROLE_LABELS[value],
-}));
 
 export interface RoomOverridesFormProps {
   /** The form's stable identity for seed/remount (committed → `room-overrides:${chatId}`; draft →
@@ -141,7 +127,7 @@ export function RoomOverridesForm({
           </form.AppField>
           <form.AppField name="authorsNoteRole">
             {(field): ReactElement => (
-              <field.SelectField label="Role" items={ROLE_ITEMS} disabled={!isHost} />
+              <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={!isHost} />
             )}
           </form.AppField>
         </Row>
@@ -149,8 +135,7 @@ export function RoomOverridesForm({
           {(prefill): ReactElement | null =>
             prefill ? (
               <Text size="micro" tone="warning">
-                Assistant role at depth 0 is a response prefill — pick depth ≥ 1, or role
-                system/user.
+                {ASSISTANT_PREFILL_WARNING}
               </Text>
             ) : null
           }

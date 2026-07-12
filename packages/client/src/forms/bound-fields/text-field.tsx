@@ -7,7 +7,7 @@ import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import type { ReactElement, ReactNode } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 export interface TextFieldProps {
   readonly label: ReactNode;
@@ -35,13 +35,13 @@ export function TextField({
   autoComplete,
 }: TextFieldProps): ReactElement {
   const field = useFieldContext<string>();
-  const error = fieldErrorText(field.state.meta.errors);
+  const error = touchedFieldError(field.state.meta);
   return (
     <Field
       label={label}
       description={description}
       hint={hint}
-      error={field.state.meta.isTouched ? error : null}
+      error={error}
       disabled={disabled ?? false}
       name={field.name}
     >

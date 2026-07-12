@@ -16,6 +16,7 @@
 // multi-field patch never step on each other or require re-sending identity on every save.
 
 import type { PersonaMetadata, UpdatePersonaInput } from "@orb/contracts/persona";
+import { isAssistantPrefill } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
@@ -111,15 +112,14 @@ export function personaInputFromForm(
   };
 }
 
-/** The write guard mirror (contract `personaMetadataWriteSchema`): assistant-role at depth 0 is a
- *  response prefill — unsupported across providers. Because the editor AUTOSAVES (no Save button to
- *  disable), the combo is handled two ways off this predicate: the editor shows an inline warning, and
- *  `metadataFromForm` WITHHOLDS the invalid placement from the write so the server never sees it while
- *  sibling edits still autosave. */
+/** The write guard mirror (contract `personaMetadataWriteSchema`, the shared `isAssistantPrefill` —
+ *  `@orb/kit/injection`): assistant-role at depth 0 is a response prefill — unsupported across providers.
+ *  Because the editor AUTOSAVES (no Save button to disable), the combo is handled two ways off this
+ *  predicate: the editor shows an inline warning, and `metadataFromForm` WITHHOLDS the invalid placement
+ *  from the write so the server never sees it while sibling edits still autosave. */
 export function isPrefillCombo(values: PersonaFormValues): boolean {
   return (
     values.descriptionPosition === "at_depth" &&
-    values.injectRole === "assistant" &&
-    (values.injectDepth ?? 0) === 0
+    isAssistantPrefill(values.injectRole, values.injectDepth ?? 0)
   );
 }

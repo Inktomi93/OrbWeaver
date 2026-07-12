@@ -32,6 +32,13 @@ export const SECTION_PLACEHOLDER_COPY: Record<SectionId, SectionPlaceholderCopy>
     title: "Characters",
     description: "Your cast lives here — browse the list, then open someone to see their card.",
   },
+  // Presets is route-composed with real content (home-page.tsx: the library + tabbed editor) — this entry
+  // exists for Record completeness + distinctness, and never actually paints.
+  presets: {
+    title: "Presets",
+    description:
+      "Your generation presets live here — pick one to tune sampling, reasoning, and prompts.",
+  },
   // The three genuinely-unbuilt hubs (their real surfaces are later lanes) — each distinct + branded.
   corpus: {
     title: "Corpus",

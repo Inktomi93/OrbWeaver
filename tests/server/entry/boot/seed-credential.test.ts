@@ -63,12 +63,13 @@ function credentialsDouble(seed: readonly CredentialProvider[]): Double {
   };
 }
 
-test("no-op when OPENROUTER_API_KEY is unset (nothing written)", async () => {
+test("no-op when both env keys are unset (nothing written)", async () => {
   const d = credentialsDouble([]);
   const wrote = await seedCredentialFromEnv({
     credentials: d.credentials,
     owner: OWNER,
     openrouterApiKey: undefined,
+    tenorApiKey: undefined,
   });
   expect(wrote).toBe(false);
   expect(d.store).toHaveLength(0);
@@ -80,6 +81,7 @@ test("adds the openrouter credential when none exists", async () => {
     credentials: d.credentials,
     owner: OWNER,
     openrouterApiKey: KEY,
+    tenorApiKey: undefined,
   });
   expect(wrote).toBe(true);
   expect(d.store).toHaveLength(1);
@@ -92,7 +94,30 @@ test("idempotent — does not add a second openrouter credential", async () => {
     credentials: d.credentials,
     owner: OWNER,
     openrouterApiKey: KEY,
+    tenorApiKey: undefined,
   });
   expect(wrote).toBe(false);
   expect(d.store).toHaveLength(1);
+});
+
+test("seeds the gif-search (Tenor) credential from TENOR_API_KEY, idempotently", async () => {
+  const d = credentialsDouble([]);
+  const wrote = await seedCredentialFromEnv({
+    credentials: d.credentials,
+    owner: OWNER,
+    openrouterApiKey: undefined,
+    tenorApiKey: "tenor-test-key",
+  });
+  expect(wrote).toBe(true);
+  expect(d.store.some((c) => c.provider === "gif-search")).toBe(true);
+
+  // Re-run: the existing gif-search row makes it a no-op (no second row).
+  const again = await seedCredentialFromEnv({
+    credentials: d.credentials,
+    owner: OWNER,
+    openrouterApiKey: undefined,
+    tenorApiKey: "tenor-test-key",
+  });
+  expect(again).toBe(false);
+  expect(d.store.filter((c) => c.provider === "gif-search")).toHaveLength(1);
 });

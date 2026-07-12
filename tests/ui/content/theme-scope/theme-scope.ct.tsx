@@ -1,8 +1,8 @@
-import { ThemeScope } from "@orb/ui/content";
 import { Dialog, DialogPopup, DialogTrigger } from "@orb/ui/dialog";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Select } from "@orb/ui/select";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ThemedFloatScope } from "./float-theming.fixtures";
 

@@ -19,7 +19,16 @@
 
 import type { ChatDeltaEvent, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import { perfMark, perfMeasure } from "#lib";
 import { createGatedStore } from "./create-gated-store";
+
+// The perf-marks turn layer (perf-marks.ts named consumer — the source of `__orb.perf()`'s TTFT +
+// turn-latency rows). The mark names are per-chat so concurrent rooms never cross-measure: `beginTurn`
+// stamps the start, the FIRST delta onto a `pending` slot measures TTFT, and the terminal events measure
+// end-to-end turn latency (both off the same start mark; `perfMeasure` is no-throw if it's absent).
+const turnStartMark = (chatId: ChatId): string => `turn-begin:${chatId}`;
+const ttftMeasure = (chatId: ChatId): string => `turn-ttft:${chatId}`;
+const turnLatencyMeasure = (chatId: ChatId): string => `turn-latency:${chatId}`;
 
 /** The per-chat turn slot — one phase at a time, fields per phase (never optional-field soup). */
 export type TurnSlot =
@@ -135,6 +144,7 @@ export function subscribeUserMessageCommitted(chatId: ChatId, listener: () => vo
 
 export const chatStream: ChatStreamApi = {
   beginTurn: (chatId, turn) => {
+    perfMark(turnStartMark(chatId));
     setSlot(chatId, { phase: "pending", ...turn }, "turn/begin");
   },
   appendDelta: (delta) => {
@@ -142,6 +152,8 @@ export const chatStream: ChatStreamApi = {
     // A delta with no live turn (raced past a terminal event / replay edge) is dropped — the durable
     // canon is the truth and the invalidation path already refetched it.
     if (slot.phase === "pending") {
+      // The FIRST delta onto a pending slot is TTFT (send → first token) — measured off the begin mark.
+      perfMeasure(ttftMeasure(delta.chatId), turnStartMark(delta.chatId));
       setSlot(
         delta.chatId,
         {
@@ -173,12 +185,15 @@ export const chatStream: ChatStreamApi = {
   completeTurn: (chatId, messageId) => {
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
+      // Terminal: send → done end-to-end turn latency (off the same begin mark as TTFT).
+      perfMeasure(turnLatencyMeasure(chatId), turnStartMark(chatId));
       setSlot(chatId, { phase: "completed", intent: slot.intent, messageId }, "turn/complete");
     }
   },
   abortTurn: (chatId, reason) => {
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
+      perfMeasure(turnLatencyMeasure(chatId), turnStartMark(chatId));
       setSlot(chatId, { phase: "aborted", intent: slot.intent, reason }, "turn/abort");
     }
   },

@@ -106,7 +106,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
           : "bytes are not a readable V2/V3 character-card JSON",
       );
     }
-    const { card: characterCard, tags } = parsed;
+    const { card: characterCard, tags, book } = parsed;
 
     const importHash = importFileHash(bytes);
 
@@ -140,6 +140,14 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       importHash,
     });
     await attachCardTags(ctx, characterId, tags);
+
+    // W1: carry the embedded ST lorebook (when the card shipped one AND a world-info importer is wired) —
+    // written keyed on the character (the PRIMARY `character_books` slot; D28 replace-on-reimport). Runs for
+    // BOTH new-create + handle-match (an edited card may ship a changed book); the byte-identical re-import
+    // path returned earlier (the book was written on the first import — a true no-op).
+    if (ctx.importLorebook !== undefined && book !== null) {
+      await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book });
+    }
 
     return { characterId, created, importHash };
   };

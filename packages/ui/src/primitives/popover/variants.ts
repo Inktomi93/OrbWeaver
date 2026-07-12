@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { OVERLAY_MOTION, tv } from "#lib";
 
 /**
  * Slot classes for the popover stack (ui-package-design §5). Positioner carries `--z-overlay`;
@@ -7,10 +7,8 @@ import { tv } from "#lib";
 export const popoverVariants = tv({
   slots: {
     positioner: "z-(--z-popover)",
-    backdrop:
-      "fixed inset-0 z-(--z-popover) bg-scrim transition-opacity duration-(--motion-fast) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
-    popup:
-      "max-w-cq-sm rounded-card border border-border bg-popover p-block text-popover-foreground shadow-md origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+    backdrop: `fixed inset-0 z-(--z-popover) bg-scrim ${OVERLAY_MOTION.backdropFade("fast")}`,
+    popup: `max-w-cq-sm rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
     // Base UI positions the arrow against the anchor and sets data-side; we skin it as a rotated
     // bordered square that reads as the popup edge continuing to a point.
     arrow: "size-row rotate-45 border border-border bg-popover",

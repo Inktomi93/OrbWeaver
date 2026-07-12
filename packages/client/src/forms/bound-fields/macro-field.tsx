@@ -2,13 +2,22 @@
 // `<Field>`. The first consumer is the persona editor's description (FINAL-Persona §A.6b — "macro-aware
 // textarea"); the macro catalog is passed in as `suggestions` (ui imports no domain registry). Controlled
 // always (see text-field.tsx — the reseed lifecycle depends on it).
+//
+// `showTokenCount` (C10 rollup): every prompt-bearing card/persona field wants the SAME live below-field
+// "~N tokens" line (FINAL-Character §6.3), computed off the draft via the ONE kit estimator
+// (`@orb/kit/tokens`). Promoted here instead of hand-assembled per call site (`character-main-tab.tsx`,
+// `character-advanced-tab.tsx`, `character-greeting-preview.tsx`, `persona-editor.tsx` all built the same
+// `form.Subscribe` + right-aligned mono row). Fields that never reach the model (creatorNotes) omit it.
 
+import { estimateTokens } from "@orb/kit/tokens";
 import { Field } from "@orb/ui/field";
+import { Row } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
+import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 export interface MacroFieldProps {
   readonly label: ReactNode;
@@ -21,6 +30,11 @@ export interface MacroFieldProps {
   readonly placeholder?: string;
   readonly rows?: number;
   readonly disabled?: boolean;
+  /** Extra classes forwarded to the underlying textarea (e.g. a taller min-height). */
+  readonly className?: string;
+  /** Renders a live "~N tokens" line below the field (§6.3) — omit for fields that never reach the
+   *  model (e.g. creatorNotes). @defaultValue false */
+  readonly showTokenCount?: boolean;
 }
 
 export function MacroField({
@@ -31,29 +45,41 @@ export function MacroField({
   placeholder,
   rows,
   disabled,
+  className,
+  showTokenCount,
 }: MacroFieldProps): ReactElement {
   const field = useFieldContext<string>();
-  const error = fieldErrorText(field.state.meta.errors);
+  const error = touchedFieldError(field.state.meta);
   return (
-    <Field
-      label={label}
-      description={description}
-      hint={hint}
-      error={field.state.meta.isTouched ? error : null}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
-      <MacroTextarea
-        value={field.state.value}
-        onChange={(next): void => {
-          field.handleChange(next);
-        }}
-        onBlur={field.handleBlur}
-        suggestions={suggestions}
+    <>
+      <Field
+        label={label}
+        description={description}
+        hint={hint}
+        error={error}
         disabled={disabled ?? false}
-        {...(placeholder === undefined ? {} : { placeholder })}
-        {...(rows === undefined ? {} : { rows })}
-      />
-    </Field>
+        name={field.name}
+      >
+        <MacroTextarea
+          value={field.state.value}
+          onChange={(next): void => {
+            field.handleChange(next);
+          }}
+          onBlur={field.handleBlur}
+          suggestions={suggestions}
+          disabled={disabled ?? false}
+          {...(placeholder === undefined ? {} : { placeholder })}
+          {...(rows === undefined ? {} : { rows })}
+          {...(className === undefined ? {} : { className })}
+        />
+      </Field>
+      {showTokenCount === true ? (
+        <Row gap="row" align="center" className="justify-end">
+          <Text size="micro" tone="muted" className="font-mono">
+            ~{estimateTokens(field.state.value)} tokens
+          </Text>
+        </Row>
+      ) : null}
+    </>
   );
 }

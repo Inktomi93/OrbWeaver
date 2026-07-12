@@ -7,25 +7,24 @@
 // (`createSavedEntityForm`, §13.4) — the preview above is live off the form's unsaved values; the Save
 // button is the only thing that persists.
 
-import type { Theme, ThemeChatStyle, ThemeDensity, ThemeRadius } from "@orb/contracts/theme";
-import {
-  THEME_CHAT_STYLES,
-  THEME_DENSITIES,
-  THEME_FONT_ALLOWLIST,
-  THEME_RADII,
-} from "@orb/contracts/theme";
+import type { Theme, ThemeRadius } from "@orb/contracts/theme";
+import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import type { ThemeId } from "@orb/kit/ids";
-import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
-import { CodeEditor } from "@orb/ui/code-editor";
+import type { CodeEditorDiagnostic, CodeEditorProps } from "@orb/ui/code-editor";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
+// biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
+// specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
+// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
+import { lazy, Suspense } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useThemeForm } from "../hooks/use-theme-form";
 import { useUpdateTheme } from "../hooks/use-theme-mutations";
+import { CHAT_STYLE_ITEMS, DENSITY_ITEMS } from "../lib/appearance-select-items";
 import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
 import type { ThemeFormValues } from "../lib/theme-editor-model";
 import {
@@ -34,6 +33,13 @@ import {
   themeInputFromForm,
   themeOverrideFromForm,
 } from "../lib/theme-editor-model";
+
+// `@orb/ui/code-editor` pulls in CodeMirror (~5 packages) at module load for a modal-only editor —
+// lazy so CodeMirror never lands in the entry chunk (P1, rollup audit).
+const CodeEditor = lazy(async () => {
+  const mod = await import("@orb/ui/code-editor");
+  return { default: mod.CodeEditor };
+}) as (props: CodeEditorProps) => ReactElement;
 
 const FONT_ITEMS: SelectItems<string> = THEME_FONT_ALLOWLIST.map((value) => ({
   value,
@@ -48,29 +54,6 @@ const RADIUS_LABELS: Record<ThemeRadius, string> = {
 const RADIUS_ITEMS: SelectItems<string> = THEME_RADII.map((value) => ({
   value,
   label: RADIUS_LABELS[value],
-}));
-const CHAT_STYLE_LABELS: Record<ThemeChatStyle, string> = {
-  bubble: "Bubble",
-  flat: "Flat",
-  document: "Document",
-  // §B.2 — the 5 immersive modes (FINAL-Persona-and-Immersive-Chat-Visuals.md).
-  echo: "Echo (bled portrait)",
-  whisper: "Whisper (avatar banner)",
-  hush: "Hush (flat + speaker stripe)",
-  ripple: "Ripple (VN sticky portrait)",
-  tide: "Tide (paragraph bubbles)",
-};
-const CHAT_STYLE_ITEMS: SelectItems<string> = THEME_CHAT_STYLES.map((value) => ({
-  value,
-  label: CHAT_STYLE_LABELS[value],
-}));
-const DENSITY_LABELS: Record<ThemeDensity, string> = {
-  comfortable: "Comfortable",
-  compact: "Compact",
-};
-const DENSITY_ITEMS: SelectItems<string> = THEME_DENSITIES.map((value) => ({
-  value,
-  label: DENSITY_LABELS[value],
 }));
 
 export interface ThemeEditorProps {
@@ -225,16 +208,18 @@ function CssEditorField({
     ...warnings.map((message) => ({ severity: "warning" as const, message, from: 0, to: 0 })),
   ];
   return (
-    <CodeEditor
-      lang="css"
-      ariaLabel="Custom theme CSS"
-      value={value}
-      onChange={onChange}
-      diagnostics={diagnostics}
-      // WS3 — real inline autocomplete of the themeable `--color-*`/etc vars, fed from the SAME
-      // machine-current list the reference chips below render (never a hand-kept second copy).
-      completions={THEMEABLE_VARS}
-    />
+    <Suspense fallback={null}>
+      <CodeEditor
+        lang="css"
+        ariaLabel="Custom theme CSS"
+        value={value}
+        onChange={onChange}
+        diagnostics={diagnostics}
+        // WS3 — real inline autocomplete of the themeable `--color-*`/etc vars, fed from the SAME
+        // machine-current list the reference chips below render (never a hand-kept second copy).
+        completions={THEMEABLE_VARS}
+      />
+    </Suspense>
   );
 }
 

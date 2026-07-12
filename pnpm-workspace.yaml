@@ -122,6 +122,14 @@ catalog:
   katex: ^0.16.25
   "remark-math": ^6.0.0
   "rehype-katex": ^7.0.1
+  # Shiki, fine-grained (@orb/ui/markdown's plugins.code — streamdown 2.5 dropped bundled Shiki, D44
+  #   §12/UI-Gates §11.6). `shiki` (the meta-package) is NOT installed: `@shikijs/core` +
+  #   `@shikijs/engine-javascript` (the JS-regex engine, no WASM oniguruma) + `@shikijs/langs` (per-lang
+  #   grammar entrypoints, dynamic-imported lazily per fence language) keep the highlighter tree-shaken
+  #   to only what's actually rendered.
+  "@shikijs/core": ^4.3.1
+  "@shikijs/engine-javascript": ^4.3.1
+  "@shikijs/langs": ^4.3.1
   codemirror: ^6.0.2
   "@codemirror/lang-css": ^6.3.1
   # jsdiff (docs said v8+; current major is 9 — same modern TS surface).

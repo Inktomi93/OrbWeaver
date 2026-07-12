@@ -66,6 +66,23 @@ export async function listOwnedPersonasWithAvatar(
   return rows;
 }
 
+/** The caller's existing owned persona with this exact `name`, or null — the `(ownerId, name)` backup-import
+ *  dedup key (the preset/world-info reuse-or-merge precedent). Newest wins when names collide (a degenerate
+ *  case; the dedup only needs ONE stable merge target). */
+export async function findOwnedPersonaByName(
+  db: Db,
+  ownerId: UserId,
+  name: string,
+): Promise<PersonaId | null> {
+  const rows = await db
+    .select({ id: personas.id })
+    .from(personas)
+    .where(and(eq(personas.ownerId, ownerId), eq(personas.name, name)))
+    .orderBy(desc(personas.createdAt))
+    .limit(LIMIT_ONE);
+  return rows[0]?.id ?? null;
+}
+
 /** Personas connected to a character (via `character_personas`), owner-scoped, newest first. The
  *  `personas.ownerId` predicate is belt-and-braces: the character is owner-gated by the caller and
  *  connections only link same-owner rows, but it keeps the read self-evidently owner-scoped. */

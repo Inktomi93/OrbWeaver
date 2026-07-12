@@ -68,7 +68,11 @@ test("picking a character in the library starts a chat with it (the library→ch
 
   // Go to the Characters section (exact — "Characters" is a substring of "Collapse Characters panel").
   await component.getByRole("button", { name: "Characters", exact: true }).click();
-  await expect(page.getByText("Aria Nightshade")).toBeVisible();
+  // Scope to the library row's unique "Chat with X" CTA — the bare name "Aria Nightshade" is now
+  // ambiguous (the landing surface stays mounted with a "Character quick-picks" row of the same name).
+  await expect(
+    page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }),
+  ).toBeVisible();
   // On the Characters section the chat composer is NOT mounted (CONTENT is the library).
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 

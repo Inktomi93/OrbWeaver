@@ -17,14 +17,14 @@ describe("workloads.start — enqueue + conflict", () => {
   test("enqueues a queued row (singular, system caller)", async () => {
     const s = makeService(await freshDb());
     const { id } = await s.start({
-      input: { kind: "embed-corpus", params: {} },
+      input: { kind: "index", params: { source: "text" } },
       caller: null,
       mode: "singular",
       ownerId: null,
     });
     const row = await s.get({ id, caller: null });
     expect(row.status).toBe("queued");
-    expect(row.kind).toBe("embed-corpus");
+    expect(row.kind).toBe("index");
     expect(row.mode).toBe("singular");
   });
 
@@ -65,7 +65,7 @@ describe("workloads.start — MODE authz", () => {
     const alice = await seedUser(db, "user_alice");
     const s = makeService(db);
     const { id } = await s.start({
-      input: { kind: "embed-corpus", params: {} },
+      input: { kind: "index", params: { source: "text" } },
       caller: principal("user_alice"),
       mode: "singular",
       ownerId: alice,
@@ -81,7 +81,7 @@ describe("workloads.start — MODE authz", () => {
     await seedUser(db, "user_bob");
     const s = makeService(db);
     const { id } = await s.start({
-      input: { kind: "embed-corpus", params: {} },
+      input: { kind: "index", params: { source: "text" } },
       caller: principal("user_alice"),
       mode: "singular",
       ownerId: principal("user_bob").userId, // hand-forged foreign owner — ignored
@@ -95,7 +95,7 @@ describe("workloads.start — MODE authz", () => {
     const s = makeService(db);
     await expect(
       s.start({
-        input: { kind: "embed-corpus", params: {} },
+        input: { kind: "index", params: { source: "text" } },
         caller: principal("user_alice"),
         mode: "bulk",
         ownerId: null,
@@ -108,7 +108,7 @@ describe("workloads.start — MODE authz", () => {
     await seedUser(db, "user_owner_box", "owner");
     const s = makeService(db);
     const { id } = await s.start({
-      input: { kind: "embed-corpus", params: {} },
+      input: { kind: "index", params: { source: "text" } },
       caller: principal("user_owner_box", "owner"),
       mode: "bulk",
       ownerId: null,
@@ -181,34 +181,59 @@ describe("workloads.start — bulk CREATE-kind target (import-st)", () => {
   });
 });
 
-describe("workloads.start — the per-owner singular lock", () => {
-  test("the same user can't start a 2nd of one SINGULAR kind, but two users each can", async () => {
+describe("workloads.start — the per-(kind, owner, source) singular lock", () => {
+  test("the same user can't start a 2nd of one SINGULAR (kind, source), but two users each can", async () => {
     const db = await freshDb();
     await seedUser(db, "user_alice");
     await seedUser(db, "user_bob");
     const s = makeService(db);
     await s.start({
-      input: { kind: "embed-corpus", params: {} },
+      input: { kind: "index", params: { source: "text" } },
       caller: principal("user_alice"),
       mode: "singular",
       ownerId: principal("user_alice").userId,
     });
-    // Alice's 2nd embed-corpus collides on her per-(kind, owner) singular slot.
+    // Alice's 2nd index{text} collides on her per-(kind, owner, source) singular slot.
     await expect(
       s.start({
-        input: { kind: "embed-corpus", params: {} },
+        input: { kind: "index", params: { source: "text" } },
         caller: principal("user_alice"),
         mode: "singular",
         ownerId: principal("user_alice").userId,
       }),
     ).rejects.toBeInstanceOf(DomainConflictError);
-    // Bob's concurrent embed-corpus is ALLOWED — a different owner, a different slot.
+    // Bob's concurrent index{text} is ALLOWED — a different owner, a different slot.
     const bob = await s.start({
-      input: { kind: "embed-corpus", params: {} },
+      input: { kind: "index", params: { source: "text" } },
       caller: principal("user_bob"),
       mode: "singular",
       ownerId: principal("user_bob").userId,
     });
     expect(bob.id).toBeTruthy();
+  });
+
+  // THE CRUX (flexible collapse, verb level): one user runs index{text} + index{image} CONCURRENTLY — a
+  // different source is a different lock slot, so the second start does NOT conflict.
+  test("one user runs index{text} + index{image} concurrently (different source, no conflict)", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const textRun = await s.start({
+      input: { kind: "index", params: { source: "text" } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+    });
+    const imageRun = await s.start({
+      input: { kind: "index", params: { source: "image" } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+    });
+    expect(textRun.id).toBeTruthy();
+    expect(imageRun.id).toBeTruthy();
+    // Both are live, un-conflicted, under their OWN slots.
+    const rows = await s.list({ caller: principal("user_alice") });
+    expect(rows.map((r) => r.status)).toEqual(["queued", "queued"]);
   });
 });

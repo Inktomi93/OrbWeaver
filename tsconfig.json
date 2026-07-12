@@ -39,6 +39,16 @@
     "tests/support/ct/**/*.tsx",
     "playwright",
     "**/__g_*",
-    "**/__g_*/**"
+    "**/__g_*/**",
+    // A DOM-coupled node int-test. The `.tsx` directory-exclude above catches browser TESTS, but this is a
+    // `.ts` vitest int-test (the int lane is `.ts`-only, so it can't be renamed `.tsx` without losing
+    // execution) whose subject — `features/preset/lib/preset-editor-bridge` — has an irreducibly
+    // DOM-coupled public type: `AssemblyFormHandle.form` is `AppFormInstance<PromptConfig>`, i.e.
+    // `ReturnType<typeof useAppForm>`, and `use-app-form.ts` value-imports every DOM bound-field. Any file
+    // that imports the bridge at runtime (which this test must, to exercise its functions) drags the whole
+    // `#forms` DOM barrel into this DOM-LESS node program → phantom lib.dom errors. The bridge SOURCE is
+    // still fully dom-typechecked by packages/client/tsconfig; only this fabrication-heavy test is scoped
+    // out here. Browser-render coverage of the bridge lives in the sibling `preset-editor-bridge.ct.tsx`.
+    "tests/client/features/preset/lib/preset-editor-bridge.int.test.ts"
   ]
 }

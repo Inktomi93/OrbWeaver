@@ -80,6 +80,10 @@ function PanelBody(): ReactElement {
   const [expandedId, setExpandedId] = useState<PersonaId | null>(null);
   const currentId = settings.config.seeds.currentPersonaId;
   const defaultId = settings.config.seeds.defaultPersonaId;
+  // EFFECTIVE current (owner ruling: with >=1 persona, one MUST resolve — "no persona" is legitimate only
+  // pre-first-run, `personas.length === 0`). Mirrors `useViewer.currentPersona` EXACTLY (the two are kept
+  // semantically identical): current-pointer -> default-pointer -> first owned -> null. The stored pointer
+  // is re-pointed server-side on delete (persona/verbs/remove.ts); this is the DISPLAY safety net.
   const current =
     personas.find((persona) => persona.id === currentId) ??
     personas.find((persona) => persona.id === defaultId) ??
@@ -134,6 +138,18 @@ function PanelBody(): ReactElement {
             <Stack gap="field">
               {personas.length === 0 ? (
                 <EmptyState
+                  action={
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={(): void => {
+                        void onCreate();
+                      }}
+                    >
+                      <Icon icon={Plus} size="sm" />
+                      Create persona
+                    </Button>
+                  }
                   icon={<Icon icon={Drama} size="md" />}
                   title="No personas yet"
                   description="Create one to start speaking as a distinct identity."

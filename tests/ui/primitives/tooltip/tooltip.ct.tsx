@@ -23,6 +23,27 @@ test("shows on hover and hides when the pointer leaves", async ({ mount, page })
   await expect(page.getByText("Regenerate the last reply")).toBeHidden();
 });
 
+// Base UI 1.6's Tooltip omits the WCAG name/description relationship; the seal adds it (role="tooltip" on
+// the popup + a matched aria-describedby on the trigger), so a screen reader tabbing to the trigger gets the
+// tooltip content as its description.
+test("wires role=tooltip + aria-describedby between trigger and popup", async ({ mount, page }) => {
+  await mount(
+    <Tooltip>
+      <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
+      <TooltipPopup>Regenerate the last reply</TooltipPopup>
+    </Tooltip>,
+  );
+
+  const trigger = page.getByRole("button", { name: "Regenerate" });
+  await trigger.hover();
+
+  const popup = page.locator('[data-slot="tooltip-popup"]');
+  await expect(popup).toHaveRole("tooltip");
+  const describedBy = await trigger.getAttribute("aria-describedby");
+  expect(describedBy).not.toBeNull();
+  await expect(popup).toHaveAttribute("id", describedBy ?? "");
+});
+
 test("renders an arrow inside the popup", async ({ mount, page }) => {
   await mount(
     <Tooltip>

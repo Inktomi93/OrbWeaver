@@ -43,6 +43,8 @@ export const ID_PREFIX = {
   persona: "persona",
   chat: "chat",
   message: "message",
+  // #67 — the STRUCTURAL chat-message ↔ asset FK row (registry-covered GC retention for inline attachments).
+  messageAsset: "message_asset",
   character: "character",
   // D28: the card is the flat `characters` row; history is `character_snapshots`
   // (no `character_version` brand — the table is gone).
@@ -74,6 +76,9 @@ export const ID_PREFIX = {
   characterKeywordProfile: "character_keyword_profile",
   keywordCooccurrence: "keyword_cooccurrence",
   workload: "workload",
+  // The recurring-execution schedule row (the TIME dimension over the workload queue): a cadence + params
+  // that auto-enqueues a `workload` on its `nextRunAt`.
+  workloadSchedule: "workload_schedule",
   auditLog: "audit_log",
   session: "session",
   userCredential: "user_credential",
@@ -161,6 +166,8 @@ export type StyleProfileId = TypeIdOf<"style_profile">;
 export type ChatId = TypeIdOf<"chat">;
 export type MessageId = TypeIdOf<"message">;
 export type MessageVariantId = TypeIdOf<"message_variant">;
+/** #67 — the structural chat-message ↔ asset link row (`message_assets`; inline-attachment GC retention). */
+export type MessageAssetId = TypeIdOf<"message_asset">;
 export type ChatEventId = TypeIdOf<"chat_event">;
 export type ChatStreamEventId = TypeIdOf<"chat_stream_event">;
 export type SessionEntryId = TypeIdOf<"session_entry">;
@@ -224,6 +231,8 @@ export type RpgSceneId = TypeIdOf<"rpgscene">;
 
 // --- Workloads (in-server bulk-work lifecycle) -------------------------------
 export type WorkloadId = TypeIdOf<"workload">;
+/** A recurring-execution schedule row — the TIME dimension that auto-enqueues a `workload` on a cadence. */
+export type WorkloadScheduleId = TypeIdOf<"workload_schedule">;
 
 // --- Notifications (D16 — the per-user durable inbox) ------------------------
 export type NotificationId = TypeIdOf<"notification">;

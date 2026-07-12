@@ -10,13 +10,12 @@
 // (`setRole` is `requireOwner` — the D17 `ownerOnly` pattern); self/owner/agent affordances mirror the
 // verb guards row-by-row (admin-user-row.tsx).
 
-import { Button } from "@orb/ui/button";
 import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { AdminEnginesSection } from "../components/admin-engines-section";
 import { AdminUsersSection } from "../components/admin-users-section";
@@ -36,12 +35,10 @@ export function AdminSettingsSurface(): ReactElement {
       <QueryBoundary
         fallback={<Text tone="muted">Loading the user table…</Text>}
         renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load the admin panel — it's available to administrators only.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
+          <QueryErrorState
+            label="the admin panel — it's available to administrators only"
+            onRetry={retry}
+          />
         )}
       >
         <Container>

@@ -24,6 +24,7 @@ import type { Principal, UserRole } from "../../../../packages/contracts/src/ide
 import type { UserSettings } from "../../../../packages/contracts/src/settings/index.ts";
 import { DEFAULT_USER_SETTINGS } from "../../../../packages/contracts/src/settings/index.ts";
 import type { Db } from "../../../../packages/db/src/client/index.ts";
+import { DomainNoCredentialError } from "../../../../packages/kit/src/errors/index.ts";
 import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";
 import type { ConnectionContext } from "../../../../packages/server/src/domain/connection/contract/service.ts";
@@ -68,6 +69,9 @@ export interface ConnHarness {
   readonly clock: Clock;
   /** Set the `routing.roleDefaults` the faked `loadUserSettings` returns. */
   readonly setRoleDefaults: (roleDefaults: RoleDefaults) => void;
+  /** Mark a source so the faked `resolveCredential` rejects with `DomainNoCredentialError` (the keyless /
+   *  missing-key path — e.g. openrouter browse-without-key, or an unconfigured custom_openai). */
+  readonly setNoCredentialSource: (source: ChatSource) => void;
   /** Set the OR catalog the faked `fetchOrCatalog` returns. */
   readonly setOrCatalog: (models: ModelCatalogEntry[]) => void;
   /** Set the agent-sdk daemon catalog the faked `fetchAgentSdkModels` returns. */
@@ -88,6 +92,7 @@ export function makeConnHarness(db: Db): ConnHarness {
   let orCatalog: ModelCatalogEntry[] = [];
   let agentSdkCatalog: AgentSdkModel[] = [];
   let vllmAvailable = true;
+  const noCredentialSources = new Set<ChatSource>();
   const credentialCalls: ChatSource[] = [];
   const verifyCalls: { readonly source: ChatSource; readonly model: string }[] = [];
 
@@ -96,6 +101,9 @@ export function makeConnHarness(db: Db): ConnHarness {
     now: clock.now,
     resolveCredential: ({ source }) => {
       credentialCalls.push(source);
+      if (noCredentialSources.has(source)) {
+        return Promise.reject(new DomainNoCredentialError(source));
+      }
       return Promise.resolve(fakeCredential(source));
     },
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
@@ -128,6 +136,13 @@ export function makeConnHarness(db: Db): ConnHarness {
     // Mirrors the compose `requireOwner`-over-`can` boolean; test code may spell the role (the
     // owner-role-split gate scans only packages/server/src).
     isOwner: (p) => p.role === "owner",
+    // The local-light builtin trio the compose root injects from `backends/local-light` (the jina-clip-v2
+    // embed/imageEmbed pair + the cross-encoder rerank) — the getModelsForSource local-light arm reads it.
+    localLightDefaults: {
+      embed: "jinaai/jina-clip-v2",
+      imageEmbed: "jinaai/jina-clip-v2",
+      rerank: "Xenova/ms-marco-MiniLM-L-6-v2",
+    },
   };
 
   return {
@@ -135,6 +150,9 @@ export function makeConnHarness(db: Db): ConnHarness {
     clock,
     setRoleDefaults: (rd: RoleDefaults): void => {
       roleDefaults = rd;
+    },
+    setNoCredentialSource: (source: ChatSource): void => {
+      noCredentialSources.add(source);
     },
     setOrCatalog: (models: ModelCatalogEntry[]): void => {
       orCatalog = models;

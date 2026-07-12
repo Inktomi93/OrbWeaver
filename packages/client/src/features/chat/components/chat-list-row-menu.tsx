@@ -10,23 +10,13 @@
 // stays controlled + Zod" carve-out — NOT a form factory).
 
 import type { ChatId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { Archive, Icon, MoreVertical, Pencil, Star, Trash2 } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import {
   useArchiveChat,
@@ -34,6 +24,7 @@ import {
   useStarChat,
   useUpdateChatTitle,
 } from "../hooks/use-chat-row-mutations";
+import { RenameChatDialog } from "./rename-chat-dialog";
 
 export interface ChatListRowMenuProps {
   readonly chatId: ChatId;
@@ -116,48 +107,23 @@ export function ChatListRowMenu({
       </Menu>
 
       {/* Rename — a single controlled input (the §13.4 single-rename carve-out, not a form factory). */}
-      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogPopup size="sm">
-          <Stack gap="block">
-            <DialogTitle>Rename chat</DialogTitle>
-            <Input
-              aria-label="Chat title"
-              value={renameValue}
-              onValueChange={setRenameValue}
-              placeholder="Untitled chat"
-            />
-            <Row gap="row" justify="end">
-              <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <Button intent="primary" onClick={saveRename}>
-                Save
-              </Button>
-            </Row>
-          </Stack>
-        </DialogPopup>
-      </Dialog>
+      <RenameChatDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        value={renameValue}
+        onValueChange={setRenameValue}
+        onSave={saveRename}
+      />
 
       {/* Delete — a hard, non-reversible cascade → an explicit confirm (never an undo-toast). */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <AlertDialogDescription>
-              This permanently deletes the chat and its messages for everyone. This can't be undone.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={confirmDelete}>
-                    Delete
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete this chat?"
+        description="This permanently deletes the chat and its messages for everyone. This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }

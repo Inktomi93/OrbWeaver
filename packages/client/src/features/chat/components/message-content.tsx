@@ -11,7 +11,8 @@
 // `no-external-media-without-gate`).
 //
 // SPEAKER SPLIT (#21, §12.4): the body is parsed on `<speaker>NAME</speaker>` markers UPSTREAM of
-// block projection (`lib/parse-speaker-spans`) — each span is THEN projected independently through
+// block projection (`@orb/kit/speaker-label` `parseSpeakerSpans` — C16: promoted from a client-local
+// mirror of kit's private tag-pair regex) — each span is THEN projected independently through
 // the same `toContentBlocks`/`renderBlock` machinery above. Zero markers is the load-bearing no-op:
 // exactly one `{speaker: null}` span whose `text` is the untouched `content` string, rendered through
 // the EXACT original single-path (`renderSegment`, no new wrapper element) — byte-identical to the
@@ -34,6 +35,7 @@
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { SandboxFrame } from "@orb/ui/sandbox-frame";
@@ -43,7 +45,6 @@ import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks";
-import { parseSpeakerSpans } from "../lib/parse-speaker-spans";
 import type { RowRenderPolicy } from "../lib/render-trust";
 import { colorForCharacter } from "../lib/speaker-color";
 import { MessageMediaBlock } from "./message-media-block";

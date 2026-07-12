@@ -142,11 +142,14 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
     const floor = inj.role === "assistant" && opts.allowAssistantPrefill !== true ? 1 : 0;
     return { inj, depth: Math.min(Math.max(inj.depth, floor), history.length) };
   });
-  // Primary: depth DESC (deepest splices first, from the back). Secondary: `order` DESC — within one
-  // depth, higher order lands first/top. Absent order ⇒ ST default 100.
+  // Primary: depth DESC (deepest splices first, from the back). Secondary: `order` ASC — within one
+  // depth, LOWER order lands first/top and HIGHER order lands closer to the tail. ST parity: ST's popup
+  // reads "Ordered from low/top to high/bottom" — the prior DESC secondary INVERTED every imported ST
+  // preset's within-depth order (the importer carries `injection_order` verbatim). Absent order ⇒ ST
+  // default 100; equal depth+order keeps array/rack order (stable sort, per the depth-clamp note above).
   const defaultOrder = 100;
   const sorted = clamped.sort(
-    (a, b) => b.depth - a.depth || (b.inj.order ?? defaultOrder) - (a.inj.order ?? defaultOrder),
+    (a, b) => b.depth - a.depth || (a.inj.order ?? defaultOrder) - (b.inj.order ?? defaultOrder),
   );
   // The last stable canon row (part 01 §1c): a depth-1 assistant injection landing same-role against it
   // would mutate the cached prefix once squashed → re-frame it to a user operator note instead.

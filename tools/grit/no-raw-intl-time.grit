@@ -1,14 +1,31 @@
-// Plugin: no-raw-intl-time — any reference to `Intl.DateTimeFormat` or `Intl.RelativeTimeFormat`.
+// Plugin: no-raw-intl-time — any reference to `Intl.DateTimeFormat`/`Intl.RelativeTimeFormat`, PLUS
+// a `.toLocaleDateString()`/`.toLocaleString()`/`.toLocaleTimeString()` method call — Intl by the
+// back door (`Date.prototype.toLocale*` is a thin wrapper over `Intl.DateTimeFormat` internally).
 // All time storage + display flows through ONE seam: `@orb/kit/time` (epoch-ms UTC everywhere,
-// rendered through one helper). Scattering Intl call sites silently drifts timezone/locale resolution.
-// Skips the seam module itself (packages/kit/src/time.ts). Suppress only by raising the seam.
+// rendered through one helper). Scattering Intl call sites — direct OR via `.toLocale*()` — silently
+// drifts timezone/locale resolution, is un-memoized (a fresh formatter built per call instead of
+// once per TimeLib), and is unpinnable by the injected-clock/locale/timeZone test discipline
+// `@orb/kit/time`'s `createTimeLib(config)` exists for (a gate blind spot the DC2 rollup found —
+// two `.toLocaleDateString()` sites passed lint clean because this rule matched only the literal
+// `Intl.*` spelling).
+// Skips the seam module itself (packages/kit/src/time/). Suppress only by raising the seam.
 // Refs: Spine-TypeScript-and-Patterns.md, @orb/kit/time.
 language js
 
 or {
-  `Intl.DateTimeFormat`,
-  `Intl.RelativeTimeFormat`
-} as $call where {
-  $filename <: not r".*/packages/kit/src/time/.*",
-  register_diagnostic(span=$call, message="raw Intl.{DateTimeFormat,RelativeTimeFormat} — use @orb/kit/time (the one seam for time display + zone resolution). Time is epoch-ms UTC everywhere, rendered through one helper. See Spine-TypeScript-and-Patterns.md.")
+  or {
+    `Intl.DateTimeFormat`,
+    `Intl.RelativeTimeFormat`
+  } as $intlCall where {
+    $filename <: not r".*/packages/kit/src/time/.*",
+    register_diagnostic(span=$intlCall, message="raw Intl.{DateTimeFormat,RelativeTimeFormat} — use @orb/kit/time (the one seam for time display + zone resolution). Time is epoch-ms UTC everywhere, rendered through one helper. See Spine-TypeScript-and-Patterns.md.")
+  },
+  or {
+    `$x.toLocaleDateString($args)`,
+    `$x.toLocaleString($args)`,
+    `$x.toLocaleTimeString($args)`
+  } as $localeCall where {
+    $filename <: not r".*/packages/kit/src/time/.*",
+    register_diagnostic(span=$localeCall, message="raw .toLocale*() date formatting — Intl by the back door: un-memoized (rebuilds an Intl formatter per call), locale/tz-inconsistent with every @orb/kit/time site, and unpinnable by the injected-clock/locale test discipline. Use @orb/kit/time's createTimeLib (client: timeLib.formatDate/formatDateTime/formatTime/formatRelative) instead. See Spine-TypeScript-and-Patterns.md.")
+  }
 }

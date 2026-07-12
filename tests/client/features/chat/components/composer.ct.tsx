@@ -195,6 +195,78 @@ test("the draft stays cleared after a POST-commit send failure (commit signal fi
   await expect(textarea).toHaveValue("");
 });
 
+// ── #67 composer attach ──────────────────────────────────────────────────────────────────────────────
+const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';
+const ATTACHMENT_PREVIEW = '[data-slot="composer-attachment"]';
+const REMOVE_BTN = /Remove/u;
+const PNG_1PX_BASE64 =
+  // biome-ignore lint/security/noSecrets: a fixed 1×1 transparent PNG (base64), a test image fixture, not a credential.
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+const PNG_1PX = Buffer.from(PNG_1PX_BASE64, "base64");
+// A valid `asset_…` TypeID the upload stub returns (the client re-parses `storedAssetSchema`, which
+// validates the prefix + base32 suffix — a bogus string would throw at the boundary).
+// biome-ignore lint/security/noSecrets: a fixed asset TypeID render fixture, not a credential.
+const STUB_ASSET_ID = "asset_01h455vb4pex5vsknk084sn02q";
+
+test("picking an image shows a removable preview and enables Send on an empty draft", async ({
+  mount,
+}) => {
+  const component = await mount(<ComposerStory />);
+  // Empty draft → Send disabled to start.
+  await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
+
+  await component
+    .locator(DROPZONE_INPUT)
+    .setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+
+  // The pending preview appears and an attachment-only draft is now sendable.
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Send message" })).toBeEnabled();
+
+  // Remove-before-send drops the preview and re-disables Send.
+  await component.getByRole("button", { name: REMOVE_BTN }).click();
+  await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
+});
+
+test("sending with an attachment uploads it to CAS and includes the asset id on chat.send", async ({
+  mount,
+  page,
+}) => {
+  // Stub the raw multipart upload route (not tRPC) → returns a StoredAsset.
+  let uploadCalled = 0;
+  await page.route("**/api/assets/upload", async (route) => {
+    uploadCalled += 1;
+    await route.fulfill({
+      json: { assetId: STUB_ASSET_ID, hash: "cthash", size: PNG_1PX.length, created: true },
+    });
+  });
+  // Hold chat.send so we can read its captured body (registered BEFORE routeTrpc — LIFO).
+  let sendBody: string | null = null;
+  await routeTrpc(page, {});
+  await page.route("**/api/trpc/**", async (route) => {
+    const req = route.request();
+    const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
+    if (!isSend) {
+      await route.fallback();
+      return;
+    }
+    sendBody = req.postData();
+    await new Promise<void>(() => undefined); // held in flight
+  });
+
+  const component = await mount(<ComposerStory />);
+  await component
+    .locator(DROPZONE_INPUT)
+    .setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+  await component.getByRole("button", { name: "Send message" }).click();
+
+  await expect.poll(() => uploadCalled).toBe(1);
+  await expect.poll(() => sendBody).not.toBeNull();
+  expect(sendBody).toContain(STUB_ASSET_ID);
+  expect(sendBody).toContain(COMPOSER_CHAT_ID);
+});
+
 test("the wand is disabled while a Send is in flight (clear-on-commit reopened the pre-commit window)", async ({
   mount,
   page,

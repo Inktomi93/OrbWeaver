@@ -5,7 +5,7 @@
 // union + `PresenceView`) are NOT re-declared here — their canonical home is `@orb/contracts/notifications`
 // (§7.4); the domain-internal contract shapes are re-exported type-only.
 
-export type { ListInboxResult } from "./contract/results";
+export type { ListInboxResult, MarkAllReadResult } from "./contract/results";
 export type { EmitNotification, NotificationsService } from "./contract/service";
 export type { InboxView } from "./contract/views";
 export { createNotificationsService } from "./service";

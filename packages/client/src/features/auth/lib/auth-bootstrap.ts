@@ -103,8 +103,3 @@ export async function logout(): Promise<void> {
     throw new Error(`logout failed (HTTP ${res.status})`);
   }
 }
-
-/** @internal — test seam: drop the config memo (module state survives between tests otherwise). */
-export function __resetAuthConfigMemo(): void {
-  configPromise = null;
-}

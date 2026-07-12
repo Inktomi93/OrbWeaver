@@ -2,34 +2,44 @@
 // job; the unit of audit + retry + observability. Rows are NEVER deleted — they accumulate as the
 // historical record.
 //
-// The `kind` + `status` + `mode` enum columns DERIVE the canonical tuples from `@orb/contracts/workloads`
+// The `kind` + `status` + `mode` + `source` enum columns DERIVE the canonical tuples from `@orb/contracts/workloads`
 // (D34 — the axes were promoted out of `domain/workloads/contract` so `@orb/db` can import them; db deps are
 // kit + contracts + drizzle only). Each column carries both the drizzle `{ enum }` (type-side) AND a
 // CHECK built from the same tuple (SQL-side) — never a re-spelled union. A `.int` test-mirror pins the
 // column enum === the contracts tuple (workloads.int.test.ts).
 //
 // The load-bearing concurrency guard is a PAIR of PARTIAL UNIQUE INDEXes, split by the run's `mode` column
-// (singular vs bulk):
-//   • `workloads_mode_active_singular` — unique on (kind, owner_id) WHERE status IN (active) AND
-//     mode='singular': at most one active {queued,running,cancelling} SINGULAR row per (kind, owner), so two
-//     different users each run their OWN embed-corpus concurrently, but one user can't start a 2nd.
-//   • `workloads_mode_active_bulk` — unique on (kind) WHERE status IN (active) AND mode='bulk': the global
-//     single-active lock (at most one bulk pass per kind deployment-wide) — a shared owner-triggered rebuild
-//     can't run twice at once.
-// The two WHERE `mode = …` predicates are DISJOINT (every row is exactly one mode), so any row is covered by
-// EXACTLY ONE index. Both `WHERE status` lists DERIVE from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over the tuple
-// — the same no-respell discipline as users.ts's role CHECK); the named tuple is the mirror of the predicate
-// and cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash). NOTE: a singular
-// row with a NULL owner (a rare system/scheduler trigger) does NOT self-lock — SQLite treats NULLs as distinct
-// in a unique index; singular runs are user-triggered (non-null owner) in practice, and runners are idempotent.
+// (singular vs bulk), each keyed on (kind, source, …):
+//   • `workloads_mode_active_singular` — unique on (kind, owner_id, source) WHERE status IN (active) AND
+//     mode='singular': at most one active {queued,running,cancelling} SINGULAR row per (kind, owner, source),
+//     so two different users each run their OWN index concurrently, but one user can't start a 2nd of the
+//     SAME (kind, source).
+//   • `workloads_mode_active_bulk` — unique on (kind, source) WHERE status IN (active) AND mode='bulk': the
+//     global single-active lock (at most one bulk pass per (kind, source) deployment-wide) — a shared
+//     owner-triggered rebuild can't run twice at once.
+// The `source` column is the per-(kind, source) lock DIMENSION added for the parameterized `index` kind: an
+// `index{source='text'}` run and an `index{source='image'}` run hold DIFFERENT slots (run CONCURRENTLY), while
+// two same-source runs collide. Every NON-`index` row carries the `none` sentinel (NOT NULL — SQLite treats
+// NULLs as DISTINCT in a unique index, so a nullable source would silently break the lock for every non-index
+// kind; the shared `none` bucket keeps their lock exactly per-(kind, owner) / per-(kind) as before source
+// existed). The two WHERE `mode = …` predicates are DISJOINT (every row is exactly one mode), so any row is
+// covered by EXACTLY ONE index. Both `WHERE status` lists DERIVE from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over
+// the tuple — the same no-respell discipline as users.ts's role CHECK); the named tuple is the mirror of the
+// predicate and cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash). NOTE: a
+// singular row with a NULL owner (a rare system/scheduler trigger) does NOT self-lock — SQLite treats NULLs as
+// distinct in a unique index; singular runs are user-triggered (non-null owner) in practice, and runners are
+// idempotent.
 
 import {
   ACTIVE_WORKLOAD_STATUSES,
+  NON_INDEX_SOURCE,
+  SCHEDULE_CADENCES,
   WORKLOAD_KINDS,
   WORKLOAD_MODES,
+  WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
 } from "@orb/contracts/workloads";
-import type { UserId, WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
@@ -38,12 +48,16 @@ import { users } from "./users";
 const DEFAULT_STATUS = "queued";
 // The default run mode (a plain enqueue is a singular, one-owner run; bulk is opt-in + owner-gated).
 const DEFAULT_MODE = "singular";
+// The default source lock-partition — the `none` sentinel every NON-`index` kind carries (only the
+// parameterized `index` kind stamps a real text/image/all source; see WORKLOAD_SOURCES).
+const DEFAULT_SOURCE = NON_INDEX_SOURCE;
 
 // CHECK lists derived from the canonical tuples (NOT re-spelled). A CHECK is static DDL and cannot carry
 // bound parameters, so it is built as a raw fragment from the tuple members (users.ts pattern).
 const KIND_CHECK_LIST = WORKLOAD_KINDS.map((kind) => `'${kind}'`).join(", ");
 const STATUS_CHECK_LIST = WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
 const MODE_CHECK_LIST = WORKLOAD_MODES.map((mode) => `'${mode}'`).join(", ");
+const SOURCE_CHECK_LIST = WORKLOAD_SOURCES.map((source) => `'${source}'`).join(", ");
 // The active-status set the partial unique indexes key on — derived from ACTIVE_WORKLOAD_STATUSES so the
 // index predicate and the named tuple can never drift.
 const ACTIVE_STATUS_LIST = ACTIVE_WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
@@ -58,8 +72,14 @@ export const workloads = sqliteTable(
     // The lifecycle state — derives WORKLOAD_STATUSES (D34); defaults to `queued` at enqueue.
     status: text("status", { enum: WORKLOAD_STATUSES }).notNull().default(DEFAULT_STATUS),
     // The run mode — derives WORKLOAD_MODES; `singular` (one owner) vs `bulk` (owner-triggered global/create).
-    // Drives which single-active index a row locks on (singular = per (kind, owner); bulk = per (kind)).
+    // Drives which single-active index a row locks on (singular = per (kind, owner, source); bulk = per
+    // (kind, source)).
     mode: text("mode", { enum: WORKLOAD_MODES }).notNull().default(DEFAULT_MODE),
+    // The single-active lock SUB-PARTITION (derives WORKLOAD_SOURCES; CHECK below mirrors the tuple). The
+    // parameterized `index` kind stamps a real `text`/`image`/`all` source so its per-source runs lock
+    // independently (text + image reindex concurrently); every other kind carries the `none` sentinel (a
+    // shared bucket → their lock stays per-(kind, owner) / per-(kind), exactly as before this column existed).
+    source: text("source", { enum: WORKLOAD_SOURCES }).notNull().default(DEFAULT_SOURCE),
     // Per-kind params (the ParamsByKind blob; the runner re-parses against its Zod schema at the read
     // seam). Always an object (a tunable-less kind uses `{}`), so notNull with an empty-object default.
     params: text("params", { mode: "json" })
@@ -91,20 +111,77 @@ export const workloads = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (table) => [
-    // SINGULAR lock: at most one active {queued,running,cancelling} SINGULAR row per (kind, owner_id) — two
-    // users each run their own instance concurrently; one user can't start a 2nd of the same kind. Partitioned
-    // by the `mode` column (disjoint from the bulk index). Terminal rows are NOT covered.
+    // SINGULAR lock: at most one active {queued,running,cancelling} SINGULAR row per (kind, owner_id, source)
+    // — two users each run their own instance concurrently; one user can't start a 2nd of the same (kind,
+    // source), but CAN run different sources of `index` at once (text + image). Non-index rows all carry the
+    // `none` source, so this stays per-(kind, owner) for them. Partitioned by the `mode` column (disjoint from
+    // the bulk index). Terminal rows are NOT covered.
     uniqueIndex("workloads_mode_active_singular")
-      .on(table.kind, table.ownerId)
+      .on(table.kind, table.ownerId, table.source)
       .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'singular'`)),
-    // BULK lock: the global single-active lock (at most one bulk pass per kind deployment-wide) on (kind).
-    // An owner-triggered shared rebuild/create can't run twice at once.
+    // BULK lock: the global single-active lock (at most one bulk pass per (kind, source) deployment-wide). An
+    // owner-triggered shared rebuild/create can't run twice at once; an `index` bulk over text + one over
+    // image still run concurrently (distinct source). Non-index rows carry `none` → per-(kind) as before.
     uniqueIndex("workloads_mode_active_bulk")
-      .on(table.kind)
+      .on(table.kind, table.source)
       .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'bulk'`)),
     // SQL-side enum enforcement derived from the tuples (mirrors the drizzle `{ enum }` type-side).
     check("workloads_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     check("workloads_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
     check("workloads_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),
+    check("workloads_source_check", sql.raw(`source in (${SOURCE_CHECK_LIST})`)),
+  ],
+);
+
+// The recurring-execution schedule (the TIME dimension complementing the `dependsOn` DAG): one row per
+// standing "run this workload every <cadence>" order. UNLIKE `workloads` (a never-deleted audit log), a
+// schedule is LIVE CONFIG — it is mutated (enable/disable, retune) and DELETED, and CASCADE-drops with its
+// owner (an orphaned schedule would keep enqueuing forever). The scheduler tick (single-replica; the
+// `assumes-single-replica` stance) finds `enabled` rows with `next_run_at <= now`, ENQUEUES a `workloads`
+// row through the normal start/enqueue path (so the run still flows through dispatch + the single-active
+// lock + the DAG), then advances `next_run_at` (= `last_run_at + interval`) and stamps `last_run_at`. The
+// per-run `source` lock partition is NOT a column here — it rides inside `params` (the `index` kind's
+// `source`), resolved at enqueue exactly like a manual start.
+const CADENCE_CHECK_LIST = SCHEDULE_CADENCES.map((cadence) => `'${cadence}'`).join(", ");
+
+export const workloadSchedules = sqliteTable(
+  "workload_schedules",
+  {
+    // TypeID PK (`workload_schedule_…`); the brand is type-only, SQL is plain TEXT.
+    id: text("id").$type<WorkloadScheduleId>().primaryKey(),
+    // The owning user — the F3 permission + enqueue scope. NOT NULL + CASCADE: a schedule is live config
+    // (not an audit row), so it dies with its owner rather than orphaning into an ownerless auto-enqueue.
+    // A SINGULAR schedule enqueues for THIS owner; a BULK schedule is box-owner-owned (the tick still
+    // enqueues the deployment-wide sweep — the owner here is the permission subject, not the sweep scope).
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // The workload kind this schedule enqueues — derives WORKLOAD_KINDS (D34); CHECK below mirrors the tuple.
+    kind: text("kind", { enum: WORKLOAD_KINDS }).notNull(),
+    // The run mode the enqueued workload uses (`singular` for a user's own maintenance; `bulk` for a
+    // box-owner deployment cadence) — derives WORKLOAD_MODES; CHECK mirrors the tuple.
+    mode: text("mode", { enum: WORKLOAD_MODES }).notNull().default(DEFAULT_MODE),
+    // The workload params the run enqueues (the `ParamsByKind` blob, incl. the `index` kind's `source`). The
+    // tick passes this straight into `start`; the runner re-parses against its Zod schema. Always an object.
+    params: text("params", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'`),
+    // The recurring cadence — derives SCHEDULE_CADENCES; the tick advances `next_run_at` by its interval.
+    cadence: text("cadence", { enum: SCHEDULE_CADENCES }).notNull(),
+    // The next due instant (epoch ms). The tick dispatches every `enabled` row with `next_run_at <= now`.
+    nextRunAt: integer("next_run_at").notNull(),
+    // The last instant the tick enqueued from this schedule (null until it first fires). The advance base.
+    lastRunAt: integer("last_run_at"),
+    // Whether the tick considers this schedule (a paused schedule stays but never enqueues). Defaults on.
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  () => [
+    check("workload_schedules_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
+    check("workload_schedules_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),
+    check("workload_schedules_cadence_check", sql.raw(`cadence in (${CADENCE_CHECK_LIST})`)),
   ],
 );

@@ -3,5 +3,6 @@
 // `SettingsShell` (J11 — a left category nav + one pane column); Appearance is its first REAL pane (the
 // #31 surface migrated in). The theme picker (J8) mounts over the `theme` modal slot.
 
+export { ImportOnboardingCard } from "./components/import-onboarding-card";
 export { SettingsShell } from "./surfaces/settings-shell-surface";
 export { ThemePickerSurface } from "./surfaces/theme-picker-surface";

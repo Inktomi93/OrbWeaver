@@ -37,7 +37,8 @@
     "./tools/grit/no-media-queries-in-features.grit",
     "./tools/grit/no-raw-container-widths.grit",
     "./tools/grit/no-arbitrary-tw-values.grit",
-    "./tools/grit/no-manual-token-estimate.grit"
+    "./tools/grit/no-manual-token-estimate.grit",
+    "./tools/grit/no-raw-matchmedia.grit"
   ],
   "vcs": {
     "enabled": true,
@@ -544,6 +545,16 @@
     },
     {
       "includes": ["eslint.config.js"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnresolvedImports": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/client/src/features/app-shell/components/section-content.tsx"],
       "linter": {
         "rules": {
           "correctness": {

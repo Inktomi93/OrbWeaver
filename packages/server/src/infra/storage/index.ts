@@ -8,3 +8,5 @@ export type { Cas, PutResult } from "./cas";
 export { createCas } from "./cas";
 export type { VariantCache } from "./variant-cache";
 export { createVariantCache } from "./variant-cache";
+export type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry } from "./zip";
+export { extractZip, packZip, ZipRejectedError } from "./zip";

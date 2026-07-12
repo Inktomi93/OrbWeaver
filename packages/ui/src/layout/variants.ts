@@ -1,7 +1,7 @@
 // @orb/ui/layout variants — the intent-token mapping layer (UI-Arch §4; ui-package-design §6.1).
 // layout/ is the gate-allowlisted home that DEFINES the spacing-intent mapping: gap/padding variant
 // unions here are the ONLY place the intent scale is written; features consume the variants.
-import { tv } from "#lib";
+import { FOCUS_RING, tv } from "#lib";
 
 const GAP = {
   field: "gap-field",
@@ -100,12 +100,13 @@ export const toolbarVariants = tv({
 });
 
 /**
- * `<ToolbarButton>` skin — meets the ≥44px touch floor via h-control-sm (gate touch-target-floor,
- * UI-Arch §4b axis 3); the full button skin belongs to primitives/button, composed via the Base UI
- * `render` prop.
+ * `<ToolbarButton>` skin — meets the touch floor via h-control-sm, POINTER-CONDITIONAL per D62 P1
+ * (44px at coarse/unknown pointers, 32px at fine — the `control-sm` token's own `@media(pointer:fine)`
+ * override, gate touch-target-floor, UI-Arch §4b axis 3); the full button skin belongs to
+ * primitives/button, composed via the Base UI `render` prop.
  */
 export const toolbarButtonVariants = tv({
-  base: "inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  base: `inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label hover:bg-accent focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 ${FOCUS_RING}`,
 });
 
 export const toolbarSeparatorVariants = tv({

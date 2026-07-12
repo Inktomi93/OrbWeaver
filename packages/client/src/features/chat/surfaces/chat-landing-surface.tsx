@@ -17,8 +17,8 @@
 // FIELD NOTE (ChatSummary): the summary carries no per-participant avatar/id and no last-message preview
 // (participantNames is names-only) — recents render the initials fallback + participant names, the same
 // honest shape the chat-list rows use. First-run persona ask (the zero-personas onboarding the wider J1
-// spec folds into this hero) is DEFERRED: `features/persona` is an unbuilt `.gitkeep` slice with no
-// client read/write to wire — TODO(persona-lane) fold it in when that feature lands; no fabricated field.
+// spec folds into this hero) is OWNED ELSEWHERE: persona shipped, and the ask lives in the AppShell-
+// sibling `<FirstRunPersonaDialog>` (routes/home-page.tsx), not this surface.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -37,7 +37,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { timeLib, useFocusOnMount, WeaveGlyph } from "#lib";
 import { initialsForAttribution } from "../lib/attribution";
 
@@ -80,7 +80,9 @@ export function ChatLandingSurface(props: ChatLandingSurfaceProps): ReactElement
       <Stack className="w-full max-w-(--width-shell-content)" gap="section">
         <QueryBoundary
           fallback={<LandingSkeleton />}
-          renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => (
+            <QueryErrorState label="your landing" onRetry={retry} />
+          )}
         >
           <LandingBody {...props} />
         </QueryBoundary>
@@ -234,18 +236,6 @@ function LandingSkeleton(): ReactElement {
           <Skeleton className="h-control-lg w-full" key={i} />
         ))}
       </Stack>
-    </Stack>
-  );
-}
-
-/** The read-error surface — the QueryBoundary retry actually refetches (the reset handshake). */
-function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
-  return (
-    <Stack align="center" gap="row" justify="center" padding="section">
-      <Text tone="muted">Couldn't load your landing.</Text>
-      <Button intent="ghost" onClick={onRetry}>
-        Retry
-      </Button>
     </Stack>
   );
 }

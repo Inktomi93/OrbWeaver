@@ -10,19 +10,11 @@
 // reconciles through the central invalidation seam + the bus's `messagesDeleted` re-fold (already wired).
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { ReactElement } from "react";
+import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import {
   exitSelectionMode,
@@ -56,6 +48,7 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const remove = useDeleteMessages({ trpc, invalidation });
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (!active) {
     return null;
@@ -78,39 +71,23 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
 
   return (
     <SelectionBar count={count} onClear={exitSelectionMode}>
-      <AlertDialog>
-        <AlertDialogTrigger
-          render={
-            <Button
-              intent="destructive"
-              size="sm"
-              disabled={count === 0}
-              loading={remove.isPending}
-            >
-              Delete
-            </Button>
-          }
-        />
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Delete {count} selected message(s)?</AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
-            <AlertDialogDescription>
-              This permanently removes them for everyone. This can't be undone.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={confirmDelete}>
-                    Delete
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <Button
+        intent="destructive"
+        size="sm"
+        disabled={count === 0}
+        loading={remove.isPending}
+        onClick={(): void => setDeleteOpen(true)}
+      >
+        Delete
+      </Button>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete ${count} selected message(s)?`}
+        description="This permanently removes them for everyone. This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </SelectionBar>
   );
 }

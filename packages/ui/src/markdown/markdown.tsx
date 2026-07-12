@@ -11,7 +11,7 @@ import {
   TRUSTED_LITERAL_TAG_CONTENT,
   untrustedUrlTransform,
 } from "./policy";
-import { MARKDOWN_SHIKI_THEME } from "./shiki-theme";
+import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin";
 
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;
@@ -91,8 +91,9 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 /**
  * `@orb/ui/markdown` — the ONE markdown renderer (seals Streamdown 2.5; UI-Gates §6.3/§11.6). It wires
  * Streamdown's FULL useful surface behind a 4-prop API: BOTH `mode`s (settled `static` + live
- * `streaming`), the token-sourced `shikiTheme` (fenced code tracks the app palette — the charts-seal
- * lesson), the KaTeX `math` + token-styled `mermaid` plugins, `controls` (copy/download/fullscreen —
+ * `streaming`), the token-sourced Shiki `code` highlighter plugin (fenced code tracks the app palette in
+ * BOTH light/dark slots — the charts-seal lesson; Streamdown 2.5 dropped its bundled Shiki, so this
+ * plugin IS the highlighting), the KaTeX `math` + token-styled `mermaid` plugins, `controls` (copy/download/fullscreen —
  * Streamdown's default), `linkSafety` (its default external-link confirm), the streaming `caret`, and
  * the per-block `fadeIn` (reduced-motion-gated). Two trust policies (D44 §12.0/§12.2), **untrusted by
  * default**: `untrusted` (LLM output / imported cards / other users) applies the Tier-A element
@@ -141,9 +142,8 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
       <Streamdown
         mode={mode}
         dir="auto"
-        shikiTheme={MARKDOWN_SHIKI_THEME}
         remarkPlugins={MARKDOWN_REMARK_PLUGINS}
-        plugins={{ math: MARKDOWN_MATH_PLUGIN }}
+        plugins={{ code: MARKDOWN_SHIKI_PLUGIN, math: MARKDOWN_MATH_PLUGIN }}
         {...mermaidProp}
         // Streamdown's incomplete-markdown REPAIR is a STREAMING concern (auto-close a dangling `*`/fence
         // mid-stream so it doesn't flash); a settled body is complete + must render as-authored. Gate it to

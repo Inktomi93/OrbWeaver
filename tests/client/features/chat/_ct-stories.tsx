@@ -43,13 +43,14 @@ import {
   buildPersonaNameMap,
   DEFAULT_GROUP_CONFIG,
 } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
@@ -58,12 +59,14 @@ import { GroupConfigForm } from "../../../../packages/client/src/features/chat/c
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
 import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea";
+import { MessageMediaBlock } from "../../../../packages/client/src/features/chat/components/message-media-block";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import type { RosterMember } from "../../../../packages/client/src/features/chat/components/roster-panel";
 import { RosterPanel } from "../../../../packages/client/src/features/chat/components/roster-panel";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
+import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 
@@ -95,6 +98,9 @@ export interface MessageRowStoryProps {
   /** CT-serializable macro-name producer entries (see `PersonaNameStoryEntry`). */
   readonly personas?: readonly PersonaNameStoryEntry[];
   readonly activePersonaId?: PersonaId | null;
+  /** The chat's ANCHOR persona id — the null-stamp `{{user}}`/`{{persona}}` MACRO fallback subject
+   *  (ruling A moved this off `activePersonaId`). Distinct from the badge/avatar `activePersonaId`. */
+  readonly anchorPersonaId?: PersonaId | null;
   /** #31 appearance — the attribution-avatar chrome knobs (default to the schema defaults). */
   readonly avatarSize?: "sm" | "md" | "lg";
   readonly avatarShape?: "round" | "square" | "rounded";
@@ -115,6 +121,7 @@ export function MessageRowStory({
   participants,
   personas,
   activePersonaId,
+  anchorPersonaId,
   avatarSize,
   avatarShape,
   avatarAspect,
@@ -162,6 +169,7 @@ export function MessageRowStory({
           characterNamesById={characterNamesById}
           personaNamesById={personaNamesById}
           activePersonaId={activePersonaId}
+          anchorPersonaId={anchorPersonaId}
         />
       </MessageThreadAnchor>
     </CtDataProviders>
@@ -888,7 +896,7 @@ export function ChatOptionsMenuStory(): ReactElement {
       {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
           assertions use the PAGE locator, the composer-wand precedent). */}
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characterIds={[]} isHost={true} />
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} isHost={true} />
       </div>
     </CtDataProviders>
   );
@@ -947,6 +955,29 @@ export function SpeakAsSelectStory({
  *  the `.ct.tsx` scripts `invites.previewInvite` (the minimal room/host/count/mode preview OR the
  *  leak-free NOT_FOUND) + `invites.redeemInvite`. `onDone` surfaces as rendered text so the CT can
  *  assert the close/teardown path without a route harness. */
+/** The per-character gallery modal (grid + lightbox + destructive-remove confirm) over the stubbed
+ *  network: the `.ct.tsx` scripts `assets.listGallery` (the curated grid) + `assets.removeFromGallery`.
+ *  Starts OPEN so the CT drives grid → lightbox → confirm without a trigger. */
+export function CharacterGalleryDialogStory({
+  characterName = "Aria",
+}: {
+  readonly characterName?: string;
+}): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtDataProviders>
+      <div>
+        <CharacterGalleryDialog
+          open={open}
+          onOpenChange={setOpen}
+          characterId={castId<CharacterId>("character_ct_gallery")}
+          characterName={characterName}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 export function JoinInviteDialogStory({ token }: { readonly token: string }): ReactElement {
   const [done, setDone] = useState(false);
   return (
@@ -957,5 +988,41 @@ export function JoinInviteDialogStory({ token }: { readonly token: string }): Re
         <JoinInviteDialog token={token} onDone={(): void => setDone(true)} />
       )}
     </CtDataProviders>
+  );
+}
+
+// ── Attachment media render story (#67) — the asset arm of `MessageMediaBlock` over the resolver context ──
+
+/** A stable asset id the render CT keys its provided url on. */
+const CT_ATTACH_ASSET_ID = castId<AssetId>("asset_ct_attach");
+
+/** A valid 1×1 transparent PNG data URL — an ASSET src (own origin) renders it directly (no network, no
+ *  `onError` broken-fallback), so the CT can assert the real `<img>` src deterministically. */
+const CT_PNG_DATA_URL =
+  // biome-ignore lint/security/noSecrets: a fixed 1×1 transparent PNG data URL (a render fixture), not a credential.
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+export interface AttachmentMediaStoryProps {
+  /** `true` mounts the context EMPTY (the provider-less / still-loading placeholder path); default provides
+   *  the resolved data-URL blob for the asset (the render path). A boolean — not an optional url — so the
+   *  empty case can't be swallowed by a default param. */
+  readonly empty?: boolean;
+}
+
+/** `MessageMediaBlock`'s ASSET arm (#67) over the `AttachmentUrlContext`: the resolved case provides a url
+ *  (renders the gated `<MessageMedia>` image); `empty` provides an empty map (the `[image]` placeholder
+ *  degrade). A pure-render story (no data layer — the context IS the seam). */
+export function AttachmentMediaStory({ empty = false }: AttachmentMediaStoryProps): ReactElement {
+  const block = {
+    kind: "media",
+    media: "image",
+    src: { kind: "asset", assetId: CT_ATTACH_ASSET_ID },
+    alt: "an attached image",
+  } as const;
+  const map = new Map<AssetId, string>(empty ? [] : [[CT_ATTACH_ASSET_ID, CT_PNG_DATA_URL]]);
+  return (
+    <AttachmentUrlContext.Provider value={map}>
+      <MessageMediaBlock block={block} allowExternal={false} />
+    </AttachmentUrlContext.Provider>
   );
 }

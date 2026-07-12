@@ -69,7 +69,6 @@ async function buildRunnerContext(
 ): Promise<WorkloadRunnerContext> {
   const userId: UserId = row.ownerId ?? SYSTEM_OWNER_ID;
   return {
-    db: deps.db,
     userId,
     // The RAW row owner — the enumeration scope (`null` = a BULK all-owners sweep; a `UserId` = the SINGULAR
     // one-owner pass). Distinct from `userId` (which maps null → the synthetic system id for role binding).

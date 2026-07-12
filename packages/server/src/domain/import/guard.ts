@@ -9,7 +9,7 @@ import type { ImportContext, ImportProfileDeps } from "./contract/service";
 export function requireProfile(ctx: ImportContext): ImportProfileDeps {
   if (ctx.profile === undefined) {
     throw new Error(
-      "import: ctx.profile not wired — the chats/personas verbs require the profile-wave deps (db/clock/minters/personaByUserName/PD-78 ops); RULING A",
+      "import: ctx.profile not wired — the chats/personas verbs require the profile-wave deps (the injected bulkImportChats/bulkImportPersonas ops + now + personaByUserName + the PD-78 ops); Option B",
     );
   }
   return ctx.profile;

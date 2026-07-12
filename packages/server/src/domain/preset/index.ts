@@ -15,7 +15,20 @@ export type {
   ResetToDefaultParams,
   UpdatePresetParams,
 } from "./contract/params";
+// The orb-native preset backup lane (export-import-portability.md §1, W-preset): the two portability verb
+// factories + their op/result types. The entry-root registry descriptor wires `createExportPresets` /
+// `createImportPresets` over the SAME `PresetContext` the service uses, and composes their `{filename,bytes}` /
+// `{ok,created,error}` result shapes (structurally the delivery-core `PortableFile` / `PortableImportOutcome`)
+// into the delivery core — this domain never imports the `@orb/contracts/portability` registry contract.
+export type {
+  ExportPresets,
+  ImportPreset,
+  PresetExportFile,
+  PresetImportOutcome,
+} from "./contract/portability";
 export type { PresetContext, PresetService } from "./contract/service";
 export type { PresetDetail, PresetSummary } from "./contract/views";
 export { ensureSystemDefaultPreset } from "./seed";
 export { createPresetService } from "./service";
+export { createExport as createExportPresets } from "./verbs/export";
+export { createImport as createImportPresets } from "./verbs/import";

@@ -36,9 +36,9 @@ import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { timeLib } from "#lib";
 import { useWorkloadStream } from "../hooks/use-workload-stream";
+import { friendlyWorkloadError } from "../lib/workloads-failure-copy";
 import type { WorkloadProgressView } from "../lib/workloads-model";
 import {
-  friendlyWorkloadError,
   isActiveWorkloadStatus,
   isRetryableWorkloadStatus,
   WORKLOAD_KIND_LABELS,
@@ -46,6 +46,12 @@ import {
   WORKLOAD_STATUS_LABELS,
   workloadResultPreview,
 } from "../lib/workloads-model";
+import {
+  dependencyWaitLabel,
+  isDeferredWorkload,
+  isDependencyFailure,
+  isWaitingOnDependencies,
+} from "../lib/workloads-run-model";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -90,6 +96,12 @@ function WorkloadRowBody({
   const [confirmCancel, setConfirmCancel] = useState(false);
   const kindLabel = WORKLOAD_KIND_LABELS[workload.kind];
   const active = isActiveWorkloadStatus(workload.status);
+  // Queue-state overlays the server has no distinct status for (derived from scheduledAt/dependsOn/error):
+  // a deferred run (future scheduledAt), a run blocked on its DAG gate, and the dependency_failed terminal.
+  const deferred = isDeferredWorkload(workload);
+  const waiting = isWaitingOnDependencies(workload);
+  const depFailed = workload.status === "failed" && isDependencyFailure(workload.error);
+  const statusLabel = depFailed ? "Dependency failed" : WORKLOAD_STATUS_LABELS[workload.status];
   const resultPreview =
     workload.status === "succeeded" ? workloadResultPreview(workload.result) : null;
 
@@ -106,11 +118,15 @@ function WorkloadRowBody({
         actions={
           <Row align="center" gap="row">
             {workload.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
+            <QueueStateBadges deferred={deferred} waiting={waiting} />
             {/* aria-live so a screen-reader user hears a Running→Failed/Succeeded flip without
-                re-navigating to the row (the badge text IS the announced status). */}
+                re-navigating to the row (the badge text IS the announced status). A dependency_failed
+                terminal is labelled apart from a plain failure though the underlying status is `failed`. */}
             <Row aria-live="polite" data-slot="workload-status">
-              <Badge intent={WORKLOAD_STATUS_INTENT[workload.status]}>
-                {WORKLOAD_STATUS_LABELS[workload.status]}
+              {/* dependency_failed is a distinct terminal from a plain failure (never ran because a
+                  dependency failed) — warning tone keeps it visually apart from destructive-red Failed. */}
+              <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]}>
+                {statusLabel}
               </Badge>
             </Row>
             {active ? (
@@ -138,13 +154,16 @@ function WorkloadRowBody({
           </Row>
         }
       />
-      {active ? (
+      {/* A deferred or dep-gated row is queued but NOT processing — show its wait detail, not a
+          (misleading) indeterminate progress bar; a genuinely active row keeps the live bar. */}
+      {active && !deferred && !waiting ? (
         <Progress
           label={progress?.label ?? WORKLOAD_STATUS_LABELS[workload.status]}
           showValue={true}
           value={progress?.pct ?? null}
         />
       ) : null}
+      <WorkloadWaitDetail workload={workload} deferred={deferred} waiting={waiting} />
       {resultPreview === null ? null : (
         <Text size="micro" tone="muted">
           {resultPreview}
@@ -173,6 +192,55 @@ function WorkloadRowBody({
         </AlertDialogPopup>
       </AlertDialog>
     </Stack>
+  );
+}
+
+/** The queue-state badges next to the status badge — a deferred (future-dated) or dep-gated run is queued
+ *  but distinct from a plain "Queued" (it isn't processing). */
+function QueueStateBadges({
+  deferred,
+  waiting,
+}: {
+  readonly deferred: boolean;
+  readonly waiting: boolean;
+}): ReactElement | null {
+  if (!(deferred || waiting)) {
+    return null;
+  }
+  return (
+    <>
+      {deferred ? <Badge intent="neutral">Scheduled</Badge> : null}
+      {waiting ? <Badge intent="neutral">Waiting</Badge> : null}
+    </>
+  );
+}
+
+/** The wait-detail line under a deferred/dep-gated row — when it will run / how many deps it waits on. */
+function WorkloadWaitDetail({
+  workload,
+  deferred,
+  waiting,
+}: {
+  readonly workload: WorkloadItem;
+  readonly deferred: boolean;
+  readonly waiting: boolean;
+}): ReactElement | null {
+  if (!(deferred || waiting)) {
+    return null;
+  }
+  return (
+    <>
+      {deferred ? (
+        <Text size="micro" tone="muted">
+          {`Scheduled for ${timeLib.formatRelative(workload.scheduledAt)}`}
+        </Text>
+      ) : null}
+      {waiting ? (
+        <Text size="micro" tone="muted">
+          {dependencyWaitLabel(workload.dependsOn?.length ?? 0)}
+        </Text>
+      ) : null}
+    </>
   );
 }
 

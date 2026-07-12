@@ -21,10 +21,11 @@
 // the anchor node (the pane may be suspending on its settings read when switched into from another
 // category), then lights the first section at rest.
 //
-// REAL vs PLACEHOLDER (J11): Appearance + Personas + System (the APP-tier AppSettings home, Task #37) are
-// the real panes (setting-row / form grammar); every other category renders its distinct teaching
-// placeholder (SettingsPanePlaceholder). Generation config is NOT here (it is the Presets rail section —
-// the governing split).
+// REAL vs PLACEHOLDER (J11): Appearance + Personas + Tags + Workloads + Connections (the role-slot +
+// key-library pane, W10 Panel 1) + System (the APP-tier AppSettings home, Task #37) + Admin are the real
+// panes (setting-row / form / list grammar); every other category renders its distinct teaching placeholder
+// (SettingsPanePlaceholder). Generation config is NOT here (it is the Presets rail section — the governing
+// split).
 
 import {
   Command,
@@ -46,6 +47,7 @@ import { useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { useSettingsTarget } from "#state";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
+import { scrollBehavior } from "../lib/scroll-behavior";
 import { categoryIdsForGroup, SETTINGS_CATEGORIES } from "../lib/settings-nav";
 import {
   SETTINGS_CATEGORY_IDS,
@@ -57,6 +59,8 @@ import type { SettingsSearchEntry } from "../lib/settings-search";
 import { SETTINGS_SEARCH_ENTRIES } from "../lib/settings-search";
 import { AdminSettingsSurface } from "./admin-settings-surface";
 import { AppearanceSettingsSurface } from "./appearance-settings-surface";
+import { BackupSettingsSurface } from "./backup-settings-surface";
+import { ConnectionsSettingsSurface } from "./connections-settings-surface";
 import { PersonaSettingsSurface } from "./persona-settings-surface";
 import { SystemSettingsSurface } from "./system-settings-surface";
 import { TagsSettingsSurface } from "./tags-settings-surface";
@@ -153,7 +157,7 @@ export function SettingsShell(): ReactElement {
     setActive(id);
     setActiveSub(null);
     beginProgrammaticScroll();
-    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() });
   };
 
   const selectSub = (id: CategoryId, subId: string): void => {
@@ -170,7 +174,7 @@ export function SettingsShell(): ReactElement {
     setQuery("");
     if (entry.subId === null) {
       beginProgrammaticScroll();
-      contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() });
     } else {
       scrollToAnchor(entry.categoryId, entry.subId);
     }
@@ -374,8 +378,7 @@ function computeActiveSub(container: HTMLElement, prefix: string): string | null
   return current === undefined ? null : current.id.slice(prefix.length);
 }
 function flashAnchor(el: HTMLElement): void {
-  const reduce = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-  el.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
   el.style.boxShadow = "inset 0 0 0 2px var(--color-ring)";
   el.style.borderRadius = "var(--radius-card)";
   el.style.transition = "box-shadow var(--motion-base) ease-out";
@@ -402,6 +405,12 @@ function SettingsPane({ category }: { readonly category: CategoryId }): ReactEle
   }
   if (category === "workloads") {
     return <WorkloadsSettingsSurface />;
+  }
+  if (category === "backup") {
+    return <BackupSettingsSurface />;
+  }
+  if (category === "connections") {
+    return <ConnectionsSettingsSurface />;
   }
   if (category === "system") {
     return <SystemSettingsSurface />;

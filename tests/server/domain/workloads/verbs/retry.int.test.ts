@@ -42,7 +42,7 @@ describe("workloads.retry", () => {
     await seedUser(db, "user_bob");
     const id = await seedWorkloadRow(db, {
       id: "w_alice",
-      kind: "embed-corpus",
+      kind: "reconcile-stats",
       ownerId: alice,
       status: "failed",
     });
@@ -61,7 +61,7 @@ describe("workloads.retry", () => {
     const alice = await seedUser(db, "user_alice");
     const id = await seedWorkloadRow(db, {
       id: "w_alice",
-      kind: "embed-corpus",
+      kind: "reconcile-stats",
       ownerId: alice,
       status: "failed",
     });

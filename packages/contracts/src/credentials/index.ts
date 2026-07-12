@@ -56,12 +56,22 @@ export const credentialSourceSchema = z.enum(CRED_SOURCES);
 // with no runner is a stranded credential that shows as "revoked / not found" to the user; adding a
 // provider means the union member + the resolver arm + the `infra/providers` runner land TOGETHER).
 // The neo `CredProvider` re-export collapses (now `CredentialProvider`) to this one home.
+//
+// `gif-search` is a NON-LLM storage slot (D61 / gallery-design §5): the Tenor gif-search API key, a metered
+// third-party secret. It is a STORAGE-axis member ONLY — deliberately NOT a `CredentialSource` (it is never
+// dispatched at turn time and has no `infra/providers` runner). It is resolved by its OWN dedicated verb
+// (`domain/credentials/resolveGifSearchKey`), never through the turn-time `resolve()` chokepoint, so the
+// `assertNever` there stays green. Its own provider slot (not a label under an LLM provider) gives it a
+// distinct AAD binding (`${userId}|gif-search`) and keeps it out of the LLM credential lifecycle (a health
+// probe against it would false-revoke a key stored under `openrouter`/`anthropic` — the reason it is not a
+// label). Future external-service keys (hub:<key>, D61 doc 02 §6) follow this per-service-provider shape.
 export const CRED_PROVIDERS = [
   "openrouter",
   "anthropic",
   "openai",
   "google_vertex",
   "custom_openai",
+  "gif-search",
 ] as const;
 export type CredentialProvider = (typeof CRED_PROVIDERS)[number];
 export const credentialProviderSchema = z.enum(CRED_PROVIDERS);
@@ -177,6 +187,9 @@ export type CustomOpenAiCredential = CredentialBrand & {
   readonly headers: Record<string, string> | null;
   readonly credentialId: UserCredentialId;
   readonly contextWindow: number | undefined;
+  /** The convenience default model string carried from the credential's `metadata.model` (GAP-6) — the
+   *  Connections custom picker's `defaultModelId`. `undefined` until the add-key form supplies one. */
+  readonly model: string | undefined;
 };
 
 /**

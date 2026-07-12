@@ -26,6 +26,12 @@ export interface ResolveCredentialParams extends CredentialActorParams {
   readonly source: CredentialSource;
 }
 
+/** Resolve the ACTING principal's `gif-search` (Tenor) API key — the non-LLM external-service resolver
+ *  (D61 gallery-design §5). Owner-scoped off `principal.userId` (no cross-user credential read); returns
+ *  the decrypted plaintext or `null` when the user has no live gif-search credential. NOT the turn-time
+ *  `resolve` path (gif-search has no runner arm). */
+export interface ResolveGifSearchKeyParams extends CredentialActorParams {}
+
 /** Post-turn `auth_failed` side-effect input (chat + compaction inject this verb). `credentialId` is
  *  `null` for keyless sources (vllm/local-light/max-pro-sub) — those have no row to revoke. */
 export interface MaybeRevokeParams {

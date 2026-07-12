@@ -13,6 +13,7 @@
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { throwHttpError } from "./http-error";
 
 const UPLOAD_URL = "/api/assets/upload";
 const UPLOAD_FIELD = "file";
@@ -32,7 +33,7 @@ export async function uploadAsset(file: File, kind: AssetKind): Promise<StoredAs
     headers: { [CSRF_HEADER]: "1" },
   });
   if (!response.ok) {
-    throw new Error(`uploadAsset: ${response.status} ${response.statusText}`);
+    await throwHttpError("uploadAsset", response);
   }
   return storedAssetSchema.parse(await response.json());
 }

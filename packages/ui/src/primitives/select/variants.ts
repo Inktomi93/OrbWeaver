@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FOCUS_RING, OVERLAY_MOTION, tv } from "#lib";
 
 // The select skin — slots across the sealed anatomy (trigger in-flow; positioner/popup portaled).
 // Popup rides bg-popover + z-(--z-popover) (the stacking contract); items meet the touch floor.
@@ -11,7 +11,8 @@ export const selectVariants = tv({
     trigger: [
       "flex h-control-sm w-full min-w-0 cursor-pointer select-none items-center justify-between gap-row rounded-control border border-border bg-input px-block text-body leading-body text-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent",
-      "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "outline-none",
+      FOCUS_RING,
       "data-disabled:pointer-events-none data-disabled:opacity-50",
     ],
     icon: "flex shrink-0 text-muted-foreground",
@@ -21,7 +22,7 @@ export const selectVariants = tv({
       // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip (the shared overlay
       // animation contract). `--transform-origin` is Base UI Positioner-provided (scale grows from
       // the trigger edge, not center).
-      "origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+      OVERLAY_MOTION.anchoredPopup,
     ],
     group: "flex flex-col",
     groupLabel:
@@ -38,7 +39,9 @@ export const selectVariants = tv({
     // Between-group divider — Base UI Select.Separator (role="separator"); bleeds to the popup edge.
     separator: "-mx-field my-field h-px bg-border",
     // Opt-in dimming layer for the modal-by-default select (theme-aware scrim, never black/50).
-    backdrop: "fixed inset-0 z-(--z-popover) bg-scrim",
+    // Fades on enter/exit like every sibling scrim (menu/popover/dialog/alert-dialog) — this one
+    // used to hard-cut (the C6 rollup-audit drift).
+    backdrop: `fixed inset-0 z-(--z-popover) bg-scrim ${OVERLAY_MOTION.backdropFade("fast")}`,
     // Sticky hover-to-scroll affordances for long lists — Base UI ScrollUp/DownArrow. They only
     // mount when the popup overflows and are suppressed on touch input (Base UI behavior).
     scrollArrow:

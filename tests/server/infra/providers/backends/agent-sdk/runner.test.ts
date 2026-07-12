@@ -613,7 +613,11 @@ describe("createAgentSdkBackend", () => {
     const fakeQuery = vi.fn((_args: { options?: { resume?: string } }) =>
       streamOf([initMsg, assistantMsg, successResult]),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     expect(backend.runChatTurn).toBeDefined();
     const run = backend.runChatTurn as ChatTurn;
 
@@ -630,7 +634,11 @@ describe("createAgentSdkBackend", () => {
     const fakeQuery = vi.fn((_args: { options?: { resume?: string } }) =>
       streamOf([initMsg, assistantMsg, successResult]),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     const seed = [
       { role: "user" as const, content: "hello" },
@@ -654,7 +662,11 @@ describe("createAgentSdkBackend", () => {
         options?: { systemPrompt?: string | string[]; hooks?: Record<string, unknown[]> };
       }) => streamOf([initMsg, assistantMsg, successResult]),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     // CAPABILITY has no `turns` → floors to midConversationSystem:false → the channel resolves to
     // system-block regardless of the knob (the funnel-driven default).
@@ -674,7 +686,11 @@ describe("createAgentSdkBackend", () => {
       (_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
         streamOf([initMsg, assistantMsg, successResult]),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     await run({
       ...buildReq("chat-hook"),
@@ -694,7 +710,11 @@ describe("createAgentSdkBackend", () => {
       (_args: { options?: { systemPrompt?: string; hooks?: Record<string, unknown[]> } }) =>
         streamOf([initMsg, assistantMsg, successResult]),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     // CAPABILITY floors mid-conv-system to false → the funnel demotes the tail request to system-block.
     await run({
@@ -710,7 +730,11 @@ describe("createAgentSdkBackend", () => {
   test("contextUsage: a best-effort getContextUsage probe surfaces on the ChatResult", async () => {
     const getContextUsage = vi.fn(() => Promise.resolve(CONTEXT_USAGE_RESPONSE));
     const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], getContextUsage));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const result = await (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx"));
     // The SDK response is mapped to the SDK-free contract shape (only the four aggregates).
     expect(result.contextUsage).toEqual({
@@ -726,7 +750,11 @@ describe("createAgentSdkBackend", () => {
   test("contextUsage: a throwing probe leaves it ABSENT and the turn still succeeds", async () => {
     const getContextUsage = vi.fn(() => Promise.reject(new Error("control channel down")));
     const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], getContextUsage));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const result = await (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx-throw"));
     // The probe failed — contextUsage absent, but the turn is fully intact.
     expect(result.contextUsage).toBeUndefined();
@@ -741,7 +769,11 @@ describe("createAgentSdkBackend", () => {
       const fakeQuery = vi.fn(() =>
         queryOf([initMsg, assistantMsg, successResult], getContextUsage),
       );
-      const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+      const backend = createAgentSdkBackend({
+        now: () => 0,
+        query: fakeQuery as never,
+        refreshHostSubToken: () => Promise.resolve(false),
+      });
       const runPromise = (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx-hang"));
       // Drain microtasks so the stream completes and the probe's timeout timer is armed, then trip it.
       await vi.advanceTimersByTimeAsync(2000);
@@ -756,7 +788,11 @@ describe("createAgentSdkBackend", () => {
   test("contextUsage: absent when the query exposes no getContextUsage control method", async () => {
     // A bare async-generator stream (no control channel) — the probe self-guards on method presence.
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const result = await (backend.runChatTurn as ChatTurn)(buildReq("chat-no-ctx"));
     expect(result.contextUsage).toBeUndefined();
   });
@@ -765,13 +801,21 @@ describe("createAgentSdkBackend", () => {
     const fakeQuery = vi.fn((_args: { options?: { title?: string } }) =>
       streamOf([initMsg, assistantMsg, successResult]),
     );
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     await (backend.runChatTurn as ChatTurn)(buildReq("chat-titled"));
     expect(fakeQuery.mock.calls[0]?.[0]?.options?.title).toBe("orb:chat-titled");
   });
 
   test("a non-agent-sdk request fail-closes with a typed ProviderError", async () => {
-    const backend = createAgentSdkBackend({ now: () => 0, query: vi.fn() as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: vi.fn() as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     expect(backend.runChatTurn).toBeDefined();
     const run = backend.runChatTurn as ChatTurn;
     const wrongApi = { api: "chat-completions" } as unknown as ChatRequest;
@@ -780,7 +824,11 @@ describe("createAgentSdkBackend", () => {
 
   test("surfaces a resolve-chat dropped knob as a `warning` event (in events AND via onEvent)", async () => {
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const backend = createAgentSdkBackend({ now: () => FIXED_NOW, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => FIXED_NOW,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     const onEvent = vi.fn();
     // CAPABILITY (reasoning none, sampling {}) exposes no temperature range → resolve-chat drops it + warns.
@@ -841,7 +889,11 @@ describe("provider.* observability taxonomy", () => {
     const info = vi.spyOn(logger, "info");
     const getContextUsage = vi.fn(() => Promise.resolve(CONTEXT_USAGE_RESPONSE));
     const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], getContextUsage));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     await (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx-log"));
     const turns = providerLines(info, "provider.turn");
     expect(turns).toHaveLength(1);
@@ -905,7 +957,11 @@ describe("provider.* observability taxonomy", () => {
   test("provider.session (debug) fires on a NON-resume decision (a seeded cold cache), not a plain resume", async () => {
     const debug = vi.spyOn(logger, "debug");
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     const seed = [{ role: "user" as const, content: "hello" }];
     await run({ ...buildReq("chat-sess"), seed });
@@ -917,7 +973,11 @@ describe("provider.* observability taxonomy", () => {
   test("provider.channel (debug) records the RESOLVED channel + gating flag on a capable model", async () => {
     const debug = vi.spyOn(logger, "debug");
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     // Absent knob + capable model ⇒ the funnel picks the cache-safe message-tail; nothing was demoted.
     await run({ ...buildReq("chat-chan"), capability: MID_CONV_CAPABILITY });
@@ -933,7 +993,11 @@ describe("provider.* observability taxonomy", () => {
   test("provider.channel records demoted:true when a 'hook' request hits an incapable model", async () => {
     const debug = vi.spyOn(logger, "debug");
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const backend = createAgentSdkBackend({ now: () => 0, query: fakeQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     // CAPABILITY floors mid-conv-system to false → the tail request is demoted to system-block.
     await run({
@@ -962,7 +1026,11 @@ describe("provider.* observability taxonomy", () => {
       }
       return boom() as ReturnType<typeof streamOf>;
     });
-    const backend = createAgentSdkBackend({ now: () => 0, query: explodingQuery as never });
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: explodingQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     const run = backend.runChatTurn as ChatTurn;
     await run(buildReq("chat-death")).catch(() => undefined);
     const errs = providerLines(error, "provider.error");
@@ -979,7 +1047,11 @@ describe("provider.* observability taxonomy", () => {
       args.options?.stderr?.("some benign cli chatter");
       return streamOf([initMsg, assistantMsg, successResult]);
     });
-    const healthy = createAgentSdkBackend({ now: () => 0, query: healthyQuery as never });
+    const healthy = createAgentSdkBackend({
+      now: () => 0,
+      query: healthyQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
     await (healthy.runChatTurn as ChatTurn)(buildReq("chat-ok"));
     expect(providerLines(error, "provider.error")).toHaveLength(0);
   });

@@ -106,14 +106,17 @@ test("switching to an unbuilt category shows ITS distinct teaching copy", async 
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
-  await component.getByRole("button", { name: "Connections" }).click();
-  await expect(component.getByText("Provider credentials and model connections.")).toBeVisible();
+  // Automation is still an unbuilt teaching placeholder — its distinct copy renders on switch.
+  await component.getByRole("button", { name: "Automation" }).click();
+  await expect(
+    component.getByText("Scheduled and triggered actions across your library."),
+  ).toBeVisible();
 });
 
-// Task #37 — the System category is now a REAL pane (the placeholder is GONE for it), while the two
-// unbuilt APP categories STAY teaching placeholders; Admin is a REAL pane too (its own gate tests
-// below + admin-settings-surface.ct.tsx).
-test("System is a real pane; Connections/Automation stay teaching placeholders", async ({
+// Task #37 — System and Connections are now REAL panes (the placeholder is GONE for both), while the
+// last unbuilt APP category (Automation) STAYS a teaching placeholder; Admin is a REAL pane too (its own
+// gate tests below + admin-settings-surface.ct.tsx).
+test("System + Connections are real panes; Automation stays a teaching placeholder", async ({
   mount,
   page,
 }) => {
@@ -121,6 +124,7 @@ test("System is a real pane; Connections/Automation stay teaching placeholders",
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "settings.getAppSettings": () => APP_CONFIG,
     "sessions.me": () => OWNER_VIEWER,
+    "credentials.list": () => [],
   });
   const component = await mount(<SettingsShellStory />);
 
@@ -131,9 +135,13 @@ test("System is a real pane; Connections/Automation stay teaching placeholders",
     component.getByText("Deployment-wide media safety, compute, shared access, and operations."),
   ).toHaveCount(0);
 
-  // The two unbuilt APP categories still render their OWN distinct teaching copy.
+  // Connections → the real role-slot + key-library surface (its "Model roles" SECTION heading), NOT the
+  // old teaching copy.
   await component.getByRole("button", { name: "Connections" }).click();
-  await expect(component.getByText("Provider credentials and model connections.")).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Model roles" })).toBeVisible();
+  await expect(component.getByText("Provider credentials and model connections.")).toHaveCount(0);
+
+  // The last unbuilt APP category still renders its OWN distinct teaching copy.
   await component.getByRole("button", { name: "Automation" }).click();
   await expect(
     component.getByText("Scheduled and triggered actions across your library."),

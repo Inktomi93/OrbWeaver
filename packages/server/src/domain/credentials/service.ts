@@ -15,12 +15,14 @@ import { createMaybeRevokeOnAuthFailed } from "./verbs/maybe-revoke-on-auth-fail
 import { createProbeKeyDecrypt } from "./verbs/probe-key-decrypt";
 import { createRemove } from "./verbs/remove";
 import { createResolve } from "./verbs/resolve";
+import { createResolveGifSearchKey } from "./verbs/resolve-gif-search-key";
 import { createSetActive } from "./verbs/set-active";
 import { createTestHealth } from "./verbs/test-health";
 
 export function createCredentialsService(ctx: CredentialContext): CredentialsService {
   return {
     resolve: createResolve(ctx),
+    resolveGifSearchKey: createResolveGifSearchKey(ctx),
     maybeRevokeOnAuthFailed: createMaybeRevokeOnAuthFailed(ctx),
     add: createAdd(ctx),
     setActive: createSetActive(ctx),

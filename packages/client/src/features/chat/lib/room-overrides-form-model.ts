@@ -17,6 +17,7 @@
 
 import type { RoomOverrides } from "@orb/contracts/chat";
 import { AUTHORS_NOTE_DEFAULT_DEPTH, AUTHORS_NOTE_DEFAULT_ROLE } from "@orb/contracts/chat";
+import { isAssistantPrefill } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** The form's edit shape (see the header — text fields as strings, the authorsNote depth as the
@@ -85,16 +86,19 @@ export function fromRoomOverridesForm(values: RoomOverridesFormValues): RoomOver
   return overrides;
 }
 
-/** The write-guard mirror (contract `roomAuthorsNoteSchema` / `cardDepthPromptWriteSchema`): assistant-role
- *  at depth 0 is a response prefill — unsupported across providers. The editor surfaces a warning on this
- *  combination (the persona-editor precedent); the server guard rejects it if submitted. Only meaningful when
- *  the note is non-empty (an empty note is omitted on save, so it never reaches the guard). */
+/** The write-guard mirror (contract `roomAuthorsNoteSchema` / `cardDepthPromptWriteSchema`, the shared
+ *  `isAssistantPrefill` — `@orb/kit/injection`): assistant-role at depth 0 is a response prefill —
+ *  unsupported across providers. The editor surfaces a warning on this combination (the persona-editor
+ *  precedent); the server guard rejects it if submitted. Only meaningful when the note is non-empty (an
+ *  empty note is omitted on save, so it never reaches the guard). */
 export function isAuthorsNotePrefill(values: RoomOverridesFormValues): boolean {
   return (
     values.authorsNote.trim() !== "" &&
-    values.authorsNoteRole === "assistant" &&
     // Align with the save's own coercion (a null/cleared depth writes AUTHORS_NOTE_DEFAULT_DEPTH, NOT 0):
     // a cleared depth field lands at the default (≥1), so it's not a prefill and shows no warning.
-    (values.authorsNoteDepth ?? AUTHORS_NOTE_DEFAULT_DEPTH) === 0
+    isAssistantPrefill(
+      values.authorsNoteRole as MessageRole,
+      values.authorsNoteDepth ?? AUTHORS_NOTE_DEFAULT_DEPTH,
+    )
   );
 }

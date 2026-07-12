@@ -49,6 +49,14 @@ export interface AgentSdkDeps {
   readonly now: () => number;
   readonly query: typeof query;
   readonly sessionStore: SessionStore;
+  /**
+   * PRE-SPAWN host-token refresh for the mode-1 (Max sub) path — proactively refreshes an expired host
+   * OAuth token so the ephemeral-dir symlink resolves to a fresh token (the SDK's own refresh can't persist
+   * through the symlink; see host-token.ts). Injected so tests stay hermetic (no live network / real host
+   * file); the factory wires the real {@link ensureFreshHostSubToken}. Best-effort — resolves `false` and
+   * never throws. A no-op arm for a non-mode-1 credential is the caller's guard (`refreshHostSubTokenIfMode1`).
+   */
+  readonly refreshHostSubToken: () => Promise<boolean>;
 }
 
 /**

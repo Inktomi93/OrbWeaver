@@ -58,12 +58,15 @@ export function mintLocalLight(): LocalLightCredential {
 }
 
 /** Mint a user-defined OpenAI-compatible endpoint credential. `apiKey` is `null` for no-auth local
- *  servers; `headers` is the per-endpoint request transform; `credentialId` is the active row's id. */
+ *  servers; `headers` is the per-endpoint request transform; `credentialId` is the active row's id;
+ *  `model` is the convenience default model string from `metadata.model` (GAP-6 — the Connections custom
+ *  picker's `defaultModelId`), `undefined` when the row carries none. */
 export function mintCustomOpenAi(args: {
   readonly baseUrl: string;
   readonly apiKey: string | null;
   readonly headers: Record<string, string> | null;
   readonly credentialId: UserCredentialId;
+  readonly model: string | undefined;
 }): CustomOpenAiCredential {
   return {
     source: "custom_openai",
@@ -71,5 +74,6 @@ export function mintCustomOpenAi(args: {
     apiKey: args.apiKey,
     headers: args.headers,
     credentialId: args.credentialId,
+    model: args.model,
   } as CustomOpenAiCredential;
 }

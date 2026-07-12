@@ -260,6 +260,10 @@ export async function summarize(
     });
   }
 
+  // Refresh an expired host token before the sub spawns (mode-1 only, and this path is max-pro-sub by the
+  // gate above) — same ephemeral-symlink refresh-persistence hole the turn runners guard against.
+  await deps.refreshHostSubToken();
+
   const startedAt = deps.now();
   const hadSchema = req.jsonSchema !== undefined;
   const items: (SummarizeResultItem | undefined)[] = new Array(req.inputs.length).fill(undefined);

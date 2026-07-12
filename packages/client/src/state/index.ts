@@ -1,8 +1,8 @@
 // state/ front door — ALL gated Zustand stores + the client-state types (UI-Arch §2.1/§5). Server
 // state NEVER lives here (TanStack Query owns it); these are the transient/device-local concerns.
-// Store minting has exactly TWO doors, both devtools-instrumented + action-labeled:
-// `createGatedStore` (hook-shaped singletons) and `createEntityDraftStore` (persist-shaped,
-// per-entity vanilla factories).
+// Store minting has THREE doors, all devtools-instrumented + action-labeled: `createGatedStore`
+// (hook-shaped singletons), `createEntityDraftStore` (persist-shaped, per-entity vanilla factories),
+// and `createPersistedStore` (hook-shaped singletons that persist to storage).
 
 export type { DraftSeed } from "./active-chat-store";
 export {
@@ -44,7 +44,6 @@ export { committedChat, draftChat, isCommitted, isLanding, landingChat } from ".
 export type { ChatStreamApi, TurnSlot } from "./chat-stream";
 export {
   chatStream,
-  IDLE_TURN,
   isLiveTurnPhase,
   subscribeTurnSlot,
   subscribeUserMessageCommitted,
@@ -71,6 +70,7 @@ export {
   setDraftRosterOverride,
   useDraftConfig,
 } from "./draft-config-store";
+export { dismissImportOnboarding, useImportOnboardingDismissed } from "./import-onboarding-store";
 export {
   cancelEditingMessage,
   readMessageEditDraft,
@@ -89,6 +89,21 @@ export {
   useSelectedCount,
   useSelectionActive,
 } from "./message-selection-store";
+export {
+  clearPresetSection,
+  clearPresetSelection,
+  selectPreset,
+  selectPresetSection,
+  useSelectedPresetId,
+  useSelectedPresetSectionId,
+} from "./preset-selection-store";
+export {
+  clearAllRecentModels,
+  pushRecentModel,
+  RECENT_MODELS_CAP,
+  readRecentModels,
+  useRecentModels,
+} from "./recent-models-store";
 export type { ModalSlotId, PanelMode, PanelName, SectionId } from "./shell-store";
 export {
   closeModal,

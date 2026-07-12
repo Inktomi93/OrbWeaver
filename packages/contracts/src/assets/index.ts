@@ -136,8 +136,9 @@ export const ASSET_LIST_LIMIT_MAX = 100;
 
 /** One row of the owned-asset grid. `hash` → `blobUrl(hash)` + `?w=` for the thumbnail; `(uploadedAt, id)`
  *  is the keyset cursor the client derives the next page from (both fields are on the view → the return
- *  type stays a plain array, no page envelope — §1.2). NO `animated`: deferred to G2 (the grid that needs
- *  the animated bailout is Phase 6; adding it now means a byte-sniff + an `assets` column with no consumer). */
+ *  type stays a plain array, no page envelope — §1.2). `animated` (G2, from the stored `assets.animated`
+ *  byte-fact) lets the grid render the ORIGINAL for GIF/APNG/animated-WebP instead of a `?w=` variant that
+ *  would freeze-frame it (gallery-design §1.2/§3). */
 export const assetListItemSchema = z.object({
   assetId: assetIdSchema,
   hash: z.string(),
@@ -145,6 +146,7 @@ export const assetListItemSchema = z.object({
   mime: z.string(),
   size: z.number().int(),
   uploadedAt: z.number().int(),
+  animated: z.boolean(),
 });
 export type AssetListItem = z.infer<typeof assetListItemSchema>;
 
@@ -179,14 +181,50 @@ export const galleryListParamsSchema = z.object({
 });
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 
-/** One curated gallery item. `hash`/`mime` are joined from the `assets` row (owner derives through that FK
- *  — no stamped owner column). NO `animated`: deferred to G2 (same reason as {@link assetListItemSchema}). */
+/** One curated gallery item. `hash`/`mime`/`animated` are joined from the `assets` row (owner derives
+ *  through that FK — no stamped owner column). `animated` (G2) drives the same grid original-vs-variant
+ *  choice as {@link assetListItemSchema}. */
 export const galleryItemViewSchema = z.object({
   galleryItemId: galleryItemIdSchema,
   assetId: assetIdSchema,
   hash: z.string(),
   mime: z.string(),
+  animated: z.boolean(),
   subjectCharacterId: characterIdSchema.nullable(),
   createdAt: z.number().int(),
 });
 export type GalleryItemView = z.infer<typeof galleryItemViewSchema>;
+
+// ── assetId → blob ref (#67) — the inline-image RENDER resolver. A message body stores its images as
+//    `asset:<id>` refs (D51), but the blob route is keyed by HASH (D21), so the client resolves id → hash to
+//    build `blobUrl(hash)` for the media primitive. Owner-scoped server-side (the SAME per-user CAS gate as
+//    every other asset read). ──────────────────────────────────────────────────────────────────────────────
+
+/** `resolveBlobRefs` wire params — the asset ids a rendered message body references. The acting principal is
+ *  server-side (the router derives the owner from the session); a caller cannot ask for a foreign owner. Bounded
+ *  to avoid an unbounded `IN (…)` (a chat page shows a handful of images). */
+export const resolveBlobRefsParamsSchema = z.object({
+  assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
+});
+export type ResolveBlobRefsParams = z.infer<typeof resolveBlobRefsParamsSchema>;
+
+/** One resolved `(assetId, hash)` pair — the client builds `blobUrl(hash)`. Only the caller's OWN assets among
+ *  the requested ids come back (owner-scoped server-side); a foreign / gone id is simply absent (no leak). */
+export const assetBlobRefSchema = z.object({
+  assetId: assetIdSchema,
+  hash: z.string(),
+});
+export type AssetBlobRef = z.infer<typeof assetBlobRefSchema>;
+
+/** `resolveChatBlobRefs` wire params (#67 co-participant render — the CHAT-SCOPED sibling of
+ *  {@link resolveBlobRefsParamsSchema}). Carries the `chatId` the ids are rendered in so a co-participant (not
+ *  just the owner) can render an inline attachment. The server resolves a pair ONLY when the asset is
+ *  STRUCTURALLY referenced by a `message_assets` row for a message IN that chat, its owner is a PRESENT
+ *  participant, AND the caller (session principal) is a PRESENT participant — the same gate as the model
+ *  render path (`entry/compose/resolve-image-ref.ts`); membership alone is NOT sufficient. Bounded like the
+ *  owned variant (a chat page shows a handful of images). */
+export const resolveChatBlobRefsParamsSchema = z.object({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
+});
+export type ResolveChatBlobRefsParams = z.infer<typeof resolveChatBlobRefsParamsSchema>;

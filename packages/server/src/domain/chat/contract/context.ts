@@ -47,6 +47,7 @@ import type {
   ChatParticipantId,
   ChatStreamEventId,
   Handle,
+  MessageAssetId,
   MessageId,
   MessageVariantId,
   PersonaId,
@@ -214,6 +215,16 @@ export type ResolveImageUrlOp = (params: {
  *  BYTES lives at the blob route), so this is a bare id→hash lookup, never an existence/ownership oracle.
  *  `null` for a null id or a gone row — never throws. */
 export type ResolveAssetHashOp = (assetId: AssetId | null) => Promise<string | null>;
+
+/** `assets.resolveOwnedAssetRefs` narrowed to the owned-id subset — the #67 send-attach TRUST BOUNDARY.
+ *  Given the acting principal's `userId` + the ids they claim to attach, returns the subset they actually OWN
+ *  (D21 per-user assets, owner-scoped). The verb rejects a send whose claimed ids are not ALL returned (no
+ *  cross-user asset attach). Owner-scoped by the injected `userId` (the acting principal's), never a user-
+ *  supplied owner. */
+export type FilterOwnedAssetIdsOp = (
+  userId: UserId,
+  assetIds: readonly AssetId[],
+) => Promise<readonly AssetId[]>;
 
 /** A handle to a synthetic group-character identity row (chat consumes character's `CharacterRef` shape
  *  cross-feature; declared structurally so chat takes no `→ character` server edge). */
@@ -416,6 +427,7 @@ export interface ChatContext {
   readonly newMessageId: () => MessageId;
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newParticipantId: () => ChatParticipantId;
+  readonly newMessageAssetId: () => MessageAssetId;
   readonly newInjectionId: () => ChatInjectionId;
   readonly newEventId: () => ChatEventId;
   readonly newStreamEventId: () => ChatStreamEventId;
@@ -451,6 +463,9 @@ export interface ChatContext {
   readonly resolveImageUrl: ResolveImageUrlOp;
   /** The `ParticipantView`/`MemberCardView` avatar-hash bridge (see {@link ResolveAssetHashOp}). */
   readonly resolveAssetHash: ResolveAssetHashOp;
+  /** #67 — the send-attach TRUST BOUNDARY: which of the claimed attachment ids the actor OWNS (see
+   *  {@link FilterOwnedAssetIdsOp}). */
+  readonly filterOwnedAssetIds: FilterOwnedAssetIdsOp;
   readonly applyStatsDelta: ApplyStatsDeltaOp;
   readonly summarize: SummarizeOp;
   /** The summarizer model's resolved context window (tokens) — the memory build's token-guard reads it to fit

@@ -8,7 +8,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import type { UserId, WorkloadId } from "@orb/kit/ids";
+import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
@@ -97,6 +97,15 @@ export function makeSchedulerDeps(
     cancel: vi.fn(() => Promise.resolve({ status: null })),
     retry: vi.fn(() => Promise.resolve({ id: castId<WorkloadId>("workload_retry") })),
     get: vi.fn(() => Promise.resolve(makeRow())),
+    // The schedule verbs are unused by the catalog-refresh scheduler (it drives list/start), but the
+    // service type requires them — inert fakes keep the shape complete.
+    createSchedule: vi.fn(() =>
+      Promise.resolve({ id: castId<WorkloadScheduleId>("workload_schedule_x") }),
+    ),
+    updateSchedule: vi.fn(() => Promise.reject(new Error("unused"))),
+    deleteSchedule: vi.fn(() => Promise.resolve()),
+    setScheduleEnabled: vi.fn(() => Promise.reject(new Error("unused"))),
+    listSchedules: vi.fn(() => Promise.resolve([])),
   };
   return {
     service,

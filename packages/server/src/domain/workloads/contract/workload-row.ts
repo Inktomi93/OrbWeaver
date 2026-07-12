@@ -23,10 +23,13 @@ export interface WorkloadRowBase {
   /** The acting/triggering user (`null` for a scheduler/system row — the runner maps it to a synthetic id).
    *  SET NULL on user delete so the never-deleted audit row outlives the user. */
   readonly ownerId: UserId | null;
-  /** Forward-compat DAG hint — PERSISTED but NOT ENFORCED (dispatch is `(status='queued', scheduledAt)`
-   *  order; `start`/`retry` warn at the seam). `null` when no deps were supplied. */
+  /** The DAG ordering set — ENFORCED by the scheduler (§2). A row with a non-empty `dependsOn` is dispatched
+   *  ONLY once EVERY dep is `succeeded`; while a dep is still active the row waits (stays queued), and if any
+   *  dep hits a non-success terminal (or is absent) the dependent fails with `dependency_failed` instead of
+   *  running (persistence `nextRunnableWorkload`). `null` when no deps were supplied (dispatches immediately,
+   *  in `(scheduledAt, createdAt)` order). */
   readonly dependsOn: readonly WorkloadId[] | null;
-  /** A human-readable terminal-failure reason (failed/worker_died); `null` otherwise. */
+  /** A human-readable terminal-failure reason (failed/worker_died/dependency_failed); `null` otherwise. */
   readonly error: string | null;
   readonly scheduledAt: number;
   readonly createdAt: number;

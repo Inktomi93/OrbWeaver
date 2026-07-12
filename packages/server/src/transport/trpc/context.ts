@@ -18,6 +18,7 @@ import type { ChatService } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { CredentialsService } from "#domain/credentials";
 import type { DiscoveryService } from "#domain/discovery";
+import type { HubService } from "#domain/hub";
 import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
@@ -50,6 +51,7 @@ export interface Services {
   readonly connection: ConnectionService;
   readonly credentials: CredentialsService;
   readonly discovery: DiscoveryService;
+  readonly hub: HubService;
   readonly notifications: NotificationsService;
   readonly persona: PersonaService;
   readonly preset: PresetService;

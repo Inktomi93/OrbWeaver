@@ -62,7 +62,7 @@ export interface VllmSupervisorPort {
  * card read + the card-text projection: the producer-ownership check that made this a composition, not a
  * thin driver) and `embeddings` (the ONE write path, `store(kind:'card', lens:'card-text')`). Resolves
  * `false` when the caller does not own the character / it is gone / it has no embeddable text — the verb
- * maps that to a leak-free not-found. The bulk path stays the admin-only `embed-corpus` workload.
+ * maps that to a leak-free not-found. The bulk path stays the admin-only `index` workload.
  */
 export interface EmbedProducerPort {
   readonly embedCharacterCard: (principal: Principal, characterId: CharacterId) => Promise<boolean>;

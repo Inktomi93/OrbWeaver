@@ -26,7 +26,6 @@ import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -34,7 +33,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
 import { initialsForAttribution } from "../lib/attribution";
@@ -65,6 +64,7 @@ export function ChatListSurface({
 }: ChatListSurfaceProps): ReactElement {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
+  const clearSearch = (): void => setQuery("");
 
   return (
     <Stack className="h-full min-h-0" gap="block">
@@ -93,12 +93,16 @@ export function ChatListSurface({
       />
       <Stack className="min-h-0 flex-1">
         <QueryBoundary
-          fallback={<LoadingRows />}
-          renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+          fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+          renderError={(_error, retry): ReactElement => (
+            <QueryErrorState label="your chats" onRetry={retry} />
+          )}
         >
           <ChatListBody
             activeChatId={activeChatId}
+            onClearSearch={clearSearch}
             onDeletedChat={onDeletedChat}
+            onNewChat={onNewChat}
             onSelect={onSelect}
             query={deferredQuery}
           />
@@ -112,6 +116,8 @@ interface ChatListBodyProps {
   readonly activeChatId: ChatId | null;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
+  readonly onNewChat: () => void;
+  readonly onClearSearch: () => void;
   readonly query: string;
 }
 
@@ -120,6 +126,8 @@ function ChatListBody({
   activeChatId,
   onSelect,
   onDeletedChat,
+  onNewChat,
+  onClearSearch,
   query,
 }: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
@@ -128,6 +136,12 @@ function ChatListBody({
   if (chats.length === 0) {
     return (
       <EmptyState
+        action={
+          <Button intent="primary" onClick={onNewChat} size="sm">
+            <Icon icon={Plus} size="sm" />
+            New chat
+          </Button>
+        }
         description="Pick a character to start your first conversation."
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title="No chats yet"
@@ -139,6 +153,11 @@ function ChatListBody({
   if (filtered.length === 0) {
     return (
       <EmptyState
+        action={
+          <Button intent="secondary" onClick={onClearSearch} size="sm">
+            Clear search
+          </Button>
+        }
         description={`No chat matches "${query}".`}
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title="No matches"
@@ -209,34 +228,5 @@ function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowPro
       subtitle={subtitle}
       title={title}
     />
-  );
-}
-
-/** The suspense-free loading skeleton — avatar circle + two text lines per row (shape-matched, UIP-309). */
-function LoadingRows(): ReactElement {
-  return (
-    <Stack aria-busy={true} gap="row" padding="block">
-      {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => i).map((i) => (
-        <Row align="center" gap="row" key={i}>
-          <Skeleton className="size-8 rounded-full" />
-          <Stack className="min-w-0 flex-1" gap="field">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-          </Stack>
-        </Row>
-      ))}
-    </Stack>
-  );
-}
-
-/** The read-error surface — the QueryBoundary retry actually refetches (the reset handshake). */
-function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
-  return (
-    <Stack align="center" gap="row" justify="center" padding="section">
-      <Text tone="muted">Couldn't load your chats.</Text>
-      <Button intent="ghost" onClick={onRetry}>
-        Retry
-      </Button>
-    </Stack>
   );
 }

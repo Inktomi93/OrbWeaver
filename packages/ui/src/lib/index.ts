@@ -23,11 +23,22 @@ import { createTV } from "tailwind-variants";
 // file's header); re-exported so ui consumers keep their `#lib` import.
 export { isSafeColor } from "@orb/kit/safe-color";
 export { cn } from "tailwind-variants";
+export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap";
+export {
+  FOCUS_RING,
+  FOCUS_RING_DESTRUCTIVE,
+  FOCUS_RING_HAS,
+  FOCUS_RING_INSET,
+  FOCUS_RING_WITHIN,
+} from "./focus-ring";
+export { OVERLAY_MOTION } from "./overlay-motion";
 export {
   type PortalContainer,
   PortalContainerContext,
   usePortalContainer,
 } from "./portal-container";
+export { prefersReducedMotionNow } from "./reduced-motion-now";
+export { formatResultCount } from "./result-count";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 
 export const tv = createTV({

@@ -2,7 +2,7 @@
 //
 // `ExportedCard` is the `exportCharacter` envelope: the PNG bytes + the download filename for the entry
 // HTTP registrar to stream (Content-Disposition; the registrar itself is UNBUILT — see the front door +
-// `docs/architecture/proposed/export-deferred-surfaces.md`). It is server-only (the client will use the
+// `docs/architecture/history/export-import-portability.md` §3). It is server-only (the client will use the
 // `/api/export/...` href, not the bytes), so it stays a domain-internal contract type. A not-owned /
 // missing character surfaces as `null` (→ 404) from the verb, NOT this shape — there is no error class.
 //

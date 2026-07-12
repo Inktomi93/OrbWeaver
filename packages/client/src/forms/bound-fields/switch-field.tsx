@@ -5,7 +5,7 @@ import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import type { ReactElement, ReactNode } from "react";
 import { useFieldContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { touchedFieldError } from "./field-error";
 
 export interface SwitchFieldProps {
   readonly label: ReactNode;
@@ -23,13 +23,13 @@ export function SwitchField({
   disabled,
 }: SwitchFieldProps): ReactElement {
   const field = useFieldContext<boolean>();
-  const error = fieldErrorText(field.state.meta.errors);
+  const error = touchedFieldError(field.state.meta);
   return (
     <Field
       label={label}
       description={description}
       hint={hint}
-      error={field.state.meta.isTouched ? error : null}
+      error={error}
       disabled={disabled ?? false}
       name={field.name}
     >

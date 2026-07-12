@@ -14,7 +14,6 @@
 // `chat.getChat` — the same warm cache the cast bar + message list share (non-suspense; degrades to
 // `null` until populated).
 
-import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the composer-wand.tsx precedent).
@@ -25,6 +24,7 @@ import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#
 import { testId } from "#lib";
 import type { ChatHandle } from "#state";
 import { isCommitted, useTurnPhase } from "#state";
+import { filterCharacters } from "../lib/roster";
 
 /** `chat.generate` vars — an on-demand turn, optionally forced to a specific speaker (null ⇒ arbitrate). */
 interface SpeakAsGenerateVars {
@@ -42,15 +42,6 @@ const useSpeakAsGenerate = createEntityMutation<SpeakAsGenerateVars, unknown>({
   errorToast: "Couldn't generate that response.",
 });
 
-/** A character participant — narrowed from the roster (only characters can be a `speakerCharacterId`). */
-type CharacterParticipant = ParticipantView & {
-  readonly characterId: NonNullable<ParticipantView["characterId"]>;
-};
-
-function isCharacter(p: ParticipantView): p is CharacterParticipant {
-  return p.kind === "character" && p.characterId !== null;
-}
-
 export interface SpeakAsSelectProps {
   readonly handle: ChatHandle;
 }
@@ -66,7 +57,7 @@ export function SpeakAsSelect({ handle }: SpeakAsSelectProps): ReactElement | nu
   // Non-suspense roster read (shared cache), `skipToken`-gated on a committed chatId (no fetch for a
   // draft) — degrades to `null` until populated (the useGatedQuery seam, kills the `castId("")` sentinel).
   const rosterQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  const cast = (rosterQuery.data?.participants ?? []).filter(isCharacter);
+  const cast = filterCharacters(rosterQuery.data?.participants ?? []);
 
   // Size-gate (D16 roster-of-1) + draft: no "which character" choice to make.
   if (chatId === null || cast.length <= 1) {

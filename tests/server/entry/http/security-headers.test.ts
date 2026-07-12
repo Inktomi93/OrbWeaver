@@ -23,6 +23,7 @@ describe("securityHeaders", () => {
     expect(csp).not.toContain("unsafe-eval");
     expect(csp).toContain("style-src 'self' 'unsafe-inline'"); // deliberate — Tailwind + Base UI inline styles
     expect(csp).toContain("img-src 'self' blob:");
+    expect(csp).toContain("https://*.tenor.com"); // D61: gif-search previews (Tenor CDN)
     expect(csp).not.toContain("img-src 'self' data:"); // D44: no data-URI images
     expect(csp).toContain("media-src 'self' blob:");
     expect(csp).toContain("connect-src 'self'");

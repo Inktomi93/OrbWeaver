@@ -18,6 +18,7 @@
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
+import { isPlainObject } from "@orb/kit/guards";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersistedStore } from "./create-persisted-store";
@@ -77,7 +78,7 @@ function toTagFilter(v: unknown): readonly TagId[] {
 
 // TOTAL migrate: any unknown/corrupt persisted shape degrades field-by-field to the default (never throws).
 function migrate(persisted: unknown, _version: number): CharacterLibraryState {
-  if (persisted === null || typeof persisted !== "object") {
+  if (!isPlainObject(persisted)) {
     return DEFAULT_STATE;
   }
   const p = persisted as Partial<Record<keyof PersistedCharacterLibraryState, unknown>>;

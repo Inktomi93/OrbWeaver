@@ -1,4 +1,4 @@
-import { Lightbox } from "@orb/ui/content";
+import { Lightbox } from "@orb/ui/lightbox";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { LightboxHarness } from "./lightbox.fixtures";
 

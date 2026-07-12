@@ -27,6 +27,7 @@ import { CustomThemeStyle } from "../components/custom-theme-style";
 import { ModalHost } from "../components/modal-host";
 import { PanelChrome } from "../components/panel-chrome";
 import { Rail } from "../components/rail";
+import { SectionContent } from "../components/section-content";
 import { SectionPlaceholder } from "../components/section-placeholder";
 import { ShellTopbar } from "../components/shell-topbar";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer";
@@ -123,13 +124,30 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
   // Weave rides the CONTENT placeholder only (DESIGN.md: at most ONE Weave per screen) — the LIST
   // placeholder keeps the muted sparkle so a user-docked LIST never paints a second glyph.
   const listContent = slot?.list ?? <SectionPlaceholder title={`${placeholderCopy.title} list`} />;
-  const content = slot?.content ?? (
+  // The active section's CONTENT fallback (unwired section ⇒ its teaching placeholder). Passed to
+  // <SectionContent>, which renders it ONLY when the active section has no wired body and never keeps it
+  // mounted (a static surface has no scroll/form state to preserve).
+  const contentFallback = (
     <SectionPlaceholder
       title={placeholderCopy.title}
       description={placeholderCopy.description}
       weave={true}
     />
   );
+  // Per-section CONTENT bodies — the <Activity> pane-keeping map (UI-Arch §4a): every WIRED section's
+  // content, so the multiplexer keeps recently-visited panes mounted-but-hidden (scroll/virtual/form
+  // state survives a rail switch) instead of unmounting on every flip.
+  const contentBySection: Partial<Record<SectionId, ReactNode>> = {};
+  for (const id of Object.keys(sections) as SectionId[]) {
+    const body = sections[id]?.content;
+    if (body !== undefined) {
+      contentBySection[id] = body;
+    }
+  }
+  // The CONTENT pane's stable focus anchor (the `<main>` landmark) — <SectionContent> lands focus here on
+  // a hidden→visible reveal so a keyboard user is never stranded on a subtree that just went inert
+  // (§4a companion rule 1). `tabIndex={-1}` makes it programmatically focusable without a tab stop.
+  const mainRef = useRef<HTMLElement>(null);
 
   // Dismiss whichever panel is floating (desktop overlay OR a mobile sheet — both resolve to "overlay").
   // Routed through the mobile-aware `collapsePanel` so a tap on the scrim closes the mobile sheet too.
@@ -208,9 +226,17 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
                 onOpenCommand={(): void => openModal("command")}
               />
               {/* CONTENT is the ONE `main` landmark (a11y + Playwright/agent nav: "jump to main",
-              `getByRole("main")`) — the topbar banner is its sibling, never inside it. */}
-              <main className="shell-content">
-                <RegionAnchor region="content">{content}</RegionAnchor>
+              `getByRole("main")`) — the topbar banner is its sibling, never inside it. It also serves as
+              the CONTENT pane's stable focus anchor for <Activity> reveal (§4a); `tabIndex={-1}` makes it
+              programmatically focusable. <SectionContent> owns the per-section RegionAnchor wrap so each
+              kept-mounted pane carries its own `content` container. */}
+              <main className="shell-content" ref={mainRef} tabIndex={-1}>
+                <SectionContent
+                  activeSection={layout.activeSection}
+                  contentBySection={contentBySection}
+                  fallback={contentFallback}
+                  focusAnchorRef={mainRef}
+                />
               </main>
             </div>
 

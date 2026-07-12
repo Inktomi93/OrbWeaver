@@ -16,7 +16,7 @@ export const macroTextareaVariants = tv({
     // (persona-panel redesign — a long description wants more room on demand).
     textarea: "min-h-0 flex-1 resize-y font-mono text-code",
     listbox: [
-      "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-64 overflow-y-auto rounded-card border border-border bg-popover py-field shadow-md",
+      "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-64 overflow-y-auto rounded-card border border-border bg-popover py-field shadow-overlay",
     ],
     groupLabel:
       "px-block py-field text-label leading-label font-semibold text-muted-foreground uppercase tracking-wide",

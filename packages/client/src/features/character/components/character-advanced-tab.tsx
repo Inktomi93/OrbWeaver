@@ -10,33 +10,20 @@
 // depthPrompt write guard (§6.4): assistant-role @ depth 0 is a response prefill (`cardDepthPromptWriteSchema`
 // rejects it) — the editor SURFACES the message, never silently drops it.
 
-import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { estimateTokens } from "@orb/kit/tokens";
 import { FieldLayout } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
+import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import { isDepthPromptPrefill } from "../lib/character-card-form-model";
 import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
 import { CharacterProvenanceSection } from "./character-provenance-section";
 import { CharacterRegexScriptsField } from "./character-regex-scripts-field";
-import { CharacterTokenCounter } from "./character-token-counter";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
-
-const ROLE_LABELS: Record<(typeof MESSAGE_ROLES)[number], string> = {
-  system: "System",
-  user: "User",
-  assistant: "Assistant",
-};
-const ROLE_ITEMS: SelectItems<string> = MESSAGE_ROLES.map((value) => ({
-  value,
-  label: ROLE_LABELS[value],
-}));
 
 export interface CharacterAdvancedTabProps {
   readonly form: CardForm;
@@ -69,19 +56,19 @@ export function CharacterAdvancedTab({ form, readOnly }: CharacterAdvancedTabPro
               hint="A recurring note spliced into history at a fixed depth."
               suggestions={CHARACTER_CARD_MACROS}
               rows={3}
+              showTokenCount={true}
             />
           )}
         </form.AppField>
-        <form.Subscribe selector={(s): string => s.values.depthPromptText}>
-          {(text): ReactElement => <CharacterTokenCounter tokens={estimateTokens(text)} />}
-        </form.Subscribe>
         <FieldLayout orientation="horizontal">
           <Row gap="field" className="flex-wrap">
             <form.AppField name="depthPromptDepth">
               {(field): ReactElement => <field.NumberField label="Depth" min={0} />}
             </form.AppField>
             <form.AppField name="depthPromptRole">
-              {(field): ReactElement => <field.SelectField label="Role" items={ROLE_ITEMS} />}
+              {(field): ReactElement => (
+                <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} />
+              )}
             </form.AppField>
           </Row>
         </FieldLayout>
@@ -89,8 +76,7 @@ export function CharacterAdvancedTab({ form, readOnly }: CharacterAdvancedTabPro
           {(prefill): ReactElement | null =>
             prefill ? (
               <Text size="micro" tone="warning">
-                Assistant role at depth 0 is a response prefill — unsupported across providers. Use
-                depth ≥ 1, or role system/user.
+                {ASSISTANT_PREFILL_WARNING}
               </Text>
             ) : null
           }
@@ -117,7 +103,8 @@ export function CharacterAdvancedTab({ form, readOnly }: CharacterAdvancedTabPro
   );
 }
 
-/** One macro-aware prompt-override field + its live token counter. */
+/** One macro-aware prompt-override field, its live token counter riding `field.MacroField`'s
+ *  `showTokenCount` (C10). */
 function CountedMacroField({
   form,
   name,
@@ -138,12 +125,10 @@ function CountedMacroField({
             hint={hint}
             suggestions={CHARACTER_CARD_MACROS}
             rows={5}
+            showTokenCount={true}
           />
         )}
       </form.AppField>
-      <form.Subscribe selector={(s): string => s.values[name]}>
-        {(value): ReactElement => <CharacterTokenCounter tokens={estimateTokens(value)} />}
-      </form.Subscribe>
     </Stack>
   );
 }

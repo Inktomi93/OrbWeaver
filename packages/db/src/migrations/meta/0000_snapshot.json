@@ -1,8 +1,6 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ac60bd37-5a4e-4678-a05f-6ab5d26da6a8",
-  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
       "name": "agent_principals",
@@ -95,6 +93,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "animated": {
+          "name": "animated",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "uploaded_at": {
           "name": "uploaded_at",
@@ -2206,6 +2212,70 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "message_assets": {
+      "name": "message_assets",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "asset_id": {
+          "name": "asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "message_assets_message_idx": {
+          "name": "message_assets_message_idx",
+          "columns": ["message_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "message_assets_message_id_messages_id_fk": {
+          "name": "message_assets_message_id_messages_id_fk",
+          "tableFrom": "message_assets",
+          "tableTo": "messages",
+          "columnsFrom": ["message_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_assets_asset_id_assets_id_fk": {
+          "name": "message_assets_asset_id_assets_id_fk",
+          "tableFrom": "message_assets",
+          "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "message_variants": {
       "name": "message_variants",
       "columns": {
@@ -2833,7 +2903,7 @@
       "checkConstraints": {
         "user_credentials_provider_check": {
           "name": "user_credentials_provider_check",
-          "value": "provider in ('openrouter', 'anthropic', 'openai', 'google_vertex', 'custom_openai')"
+          "value": "provider in ('openrouter', 'anthropic', 'openai', 'google_vertex', 'custom_openai', 'gif-search')"
         }
       }
     },
@@ -8897,6 +8967,121 @@
         }
       }
     },
+    "workload_schedules": {
+      "name": "workload_schedules",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'singular'"
+        },
+        "params": {
+          "name": "params",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "cadence": {
+          "name": "cadence",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "next_run_at": {
+          "name": "next_run_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_run_at": {
+          "name": "last_run_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "workload_schedules_owner_id_users_id_fk": {
+          "name": "workload_schedules_owner_id_users_id_fk",
+          "tableFrom": "workload_schedules",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "workload_schedules_kind_check": {
+          "name": "workload_schedules_kind_check",
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit', 'expressions-sprite-sheet', 'databank-ingest', 'databank-reindex', 'rpg-world-gen', 'rpg-recap', 'rpg-session-distill', 'rpg-director', 'rpg-lorebook-upkeep', 'rpg-illustration', 'rpg-npc-portrait', 'rpg-scene-plan', 'rpg-scene-distill', 'rpg-recruit-card')"
+        },
+        "workload_schedules_mode_check": {
+          "name": "workload_schedules_mode_check",
+          "value": "mode in ('singular', 'bulk')"
+        },
+        "workload_schedules_cadence_check": {
+          "name": "workload_schedules_cadence_check",
+          "value": "cadence in ('hourly', 'daily', 'weekly', 'monthly')"
+        }
+      }
+    },
     "workloads": {
       "name": "workloads",
       "columns": {
@@ -8929,6 +9114,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'singular'"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'none'"
         },
         "params": {
           "name": "params",
@@ -8994,13 +9187,13 @@
       "indexes": {
         "workloads_mode_active_singular": {
           "name": "workloads_mode_active_singular",
-          "columns": ["kind", "owner_id"],
+          "columns": ["kind", "owner_id", "source"],
           "isUnique": true,
           "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular'"
         },
         "workloads_mode_active_bulk": {
           "name": "workloads_mode_active_bulk",
-          "columns": ["kind"],
+          "columns": ["kind", "source"],
           "isUnique": true,
           "where": "status in ('queued', 'running', 'cancelling') and mode = 'bulk'"
         }
@@ -9021,7 +9214,7 @@
       "checkConstraints": {
         "workloads_kind_check": {
           "name": "workloads_kind_check",
-          "value": "kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit', 'expressions-sprite-sheet', 'databank-ingest', 'databank-reindex', 'rpg-world-gen', 'rpg-recap', 'rpg-session-distill', 'rpg-director', 'rpg-lorebook-upkeep', 'rpg-illustration', 'rpg-npc-portrait', 'rpg-scene-plan', 'rpg-scene-distill', 'rpg-recruit-card')"
+          "value": "kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit', 'expressions-sprite-sheet', 'databank-ingest', 'databank-reindex', 'rpg-world-gen', 'rpg-recap', 'rpg-session-distill', 'rpg-director', 'rpg-lorebook-upkeep', 'rpg-illustration', 'rpg-npc-portrait', 'rpg-scene-plan', 'rpg-scene-distill', 'rpg-recruit-card')"
         },
         "workloads_status_check": {
           "name": "workloads_status_check",
@@ -9030,6 +9223,10 @@
         "workloads_mode_check": {
           "name": "workloads_mode_check",
           "value": "mode in ('singular', 'bulk')"
+        },
+        "workloads_source_check": {
+          "name": "workloads_source_check",
+          "value": "source in ('none', 'text', 'image', 'all')"
         }
       }
     },
@@ -9440,7 +9637,6 @@
   "views": {},
   "enums": {},
   "_meta": {
-    "schemas": {},
     "tables": {},
     "columns": {}
   },
@@ -9454,5 +9650,7 @@
         }
       }
     }
-  }
+  },
+  "id": "3b5274e9-8fc3-454f-8389-d69b8d4b0c92",
+  "prevId": "00000000-0000-0000-0000-000000000000"
 }

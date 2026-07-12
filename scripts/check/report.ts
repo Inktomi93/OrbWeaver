@@ -8,6 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { assetRefsFkCoverage } from "./gates/asset-refs-fk-coverage.ts";
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
 import { baselineSingleMigration } from "./gates/baseline-single-migration.ts";
 import { busCoverage } from "./gates/bus-coverage.ts";
@@ -20,6 +21,7 @@ import { contractVerbPresence } from "./gates/contract-verb-presence.ts";
 import { dbEnumFromTuple } from "./gates/db-enum-from-tuple.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { diagnosticLegibility } from "./gates/diagnostic-legibility.ts";
+import { emptyStateHasAction } from "./gates/empty-state-has-action.ts";
 import { createEnforcementRegistryParity } from "./gates/enforcement-registry-parity.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { formFactoryForMultifield } from "./gates/form-factory-for-multifield.ts";
@@ -27,6 +29,7 @@ import { infraAuthNoUserId } from "./gates/infra-auth-no-userid.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
 import { modalBodyNotPlaceholder } from "./gates/modal-body-not-placeholder.ts";
+import { noArbitraryTwValues } from "./gates/no-arbitrary-tw-values.ts";
 import { noArrayLiteralQuerykey } from "./gates/no-array-literal-querykey.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
 import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
@@ -35,7 +38,9 @@ import { noFormResetInAutosave } from "./gates/no-form-reset-in-autosave.ts";
 import { noInlineInvalidateOutsideSeam } from "./gates/no-inline-invalidate-outside-seam.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
 import { noInteractiveRoleInFeatures } from "./gates/no-interactive-role-in-features.ts";
+import { noOffTokenRadiusShadow } from "./gates/no-off-token-radius-shadow.ts";
 import { noRawEgress } from "./gates/no-raw-egress.ts";
+import { noRawInteractiveIntrinsics } from "./gates/no-raw-interactive-intrinsics.ts";
 import { noTestFabrication } from "./gates/no-test-fabrication.ts";
 import { noUntypedSoftRef } from "./gates/no-untyped-soft-ref.ts";
 import { ownerRoleSplit } from "./gates/owner-role-split.ts";
@@ -112,6 +117,8 @@ const BASE_CHECKS: readonly Check[] = [
   zustandSelectorDerived,
   noEffectOnSharedSelection,
   noInteractiveRoleInFeatures,
+  noRawInteractiveIntrinsics,
+  emptyStateHasAction,
   persistenceBoundary,
   componentSize,
   vectorScopeDerived,
@@ -144,6 +151,15 @@ const BASE_CHECKS: readonly Check[] = [
   // D54 §13.3/§13.4 form-factory gate — activated 2026-07-09 once its ONE real-tree hit
   // (chat/components/group-config-form.tsx) was migrated onto createAutosaveEntityForm (0-violation).
   formFactoryForMultifield,
+  // design-enforcement.md §3 — the last PLANNED gate in the doc (2026-07-11).
+  noArbitraryTwValues,
+  // design-enforcement.md §3, DC8 rollup-audit blind spot (2026-07-12) — the default-scale twin of
+  // no-arbitrary-tw-values (that gate catches brackets only; this one catches off-token rounded-*/
+  // shadow-* utilities on the stock Tailwind scale).
+  noOffTokenRadiusShadow,
+  // task #114 — every schema FK→assets.id column must be classified in asset-refs.ts's registry
+  // (the static, pre-commit half of the runtime asset-refs.int.test.ts invariant).
+  assetRefsFkCoverage,
 ];
 
 /** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which

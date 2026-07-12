@@ -13,7 +13,7 @@
 // `reapIfOrphan` · `fsck` · `rebuildFromTree`, over the asset-ref registry (`persistence/asset-refs.ts`) +
 // the drop-row-before-blob primitive (`substrate/purge-asset.ts`). The maintenance verbs are UN-PRINCIPAL
 // (CLI/workload/DR callers, not user-facing); their param/result types are domain-internal
-// (`contract/maintenance.ts`). As-built rationale: `docs/architecture/proposed/assets-maintenance.md`.
+// (`contract/maintenance.ts`). As-built rationale: `docs/architecture/history/assets-maintenance.md`.
 //
 // Every surface is OWNER-SCOPED off `principal.userId` (§7.1 — never a `users` read; the
 // `no-direct-users-read` chokepoint). Assets predate the permission model: there is NO admin/owner guard
@@ -21,7 +21,7 @@
 
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type {
@@ -45,7 +45,7 @@ import type {
   StoreParams,
 } from "./params";
 import type { AssetCasRef, AssetMetadata, StoredAsset } from "./results";
-import type { AssetListItem, GalleryItemView } from "./views";
+import type { AssetBlobRef, AssetListItem, GalleryItemView } from "./views";
 
 /**
  * The DI bundle every assets verb closes over (wired at `service.ts`). Explicit interface (not
@@ -80,13 +80,32 @@ export interface AssetsContext {
    * it is the `avatarAssetId` of EITHER (a) a CHARACTER rostered (`kind='character'`, present) in a chat
    * where the caller is a PRESENT member, OR (b) a PERSONA that is a present HUMAN co-participant's CURRENT
    * `activePersonaId` in a chat where the caller is ALSO a present member (the multi-human group sibling
-   * case — a co-participant's OWN persona avatar); `undefined` otherwise (a co-participant's non-avatar
-   * asset, an identity outside the caller's chats, a left caller/identity all miss on both arms). Returns
-   * the ASSET owner (the CAS-partition key for the downstream bytes read), never a bare-hash existence
-   * signal. Optional — absent on non-HTTP/DR/workload callers that never need the roster gate. (Sprite-set
-   * widening is deferred — PD-56.)
+   * case — a co-participant's OWN persona avatar), OR (c) an ATTACHMENT: the hash is an asset STRUCTURALLY
+   * referenced by a `message_assets` row for a message in a chat where the caller is PRESENT and the asset's
+   * OWNER is also PRESENT (#67 co-participant render — the blob-serve sibling of {@link loadChatAssetRefs},
+   * so a hash the render resolver hands a co-participant actually fetches). `undefined` otherwise (a
+   * co-participant's non-avatar / non-attached asset, an identity outside the caller's chats, a left
+   * caller/identity/owner all miss on every arm). Returns the ASSET owner (the CAS-partition key for the
+   * downstream bytes read), never a bare-hash existence signal. Optional — absent on non-HTTP/DR/workload
+   * callers that never need the roster gate. (Sprite-set widening is deferred — PD-56.)
    */
   readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
+  /**
+   * (#67 co-participant render — D21 chat-scoped RENDER resolver, wired at the entry root) Resolve the
+   * `(assetId, hash)` pairs among `assetIds` a caller may RENDER in `chatId`, by the SAME reference-check
+   * discipline as {@link loadCoParticipantOwner} (NOT a hash / ownership oracle). A pair is returned ONLY IF
+   * (a) the asset has a `message_assets` row for a message IN `chatId` (the STRUCTURAL reference — membership
+   * alone is NOT sufficient), (b) the asset's owner is a PRESENT participant of `chatId`, AND (c) the CALLER
+   * is a PRESENT participant of `chatId`. An id missing a structural reference in this chat, owned by a
+   * non-present user, or requested by a non-present caller is simply absent (no leak). Mirrors
+   * `entry/compose/resolve-image-ref.ts`'s model-path gate exactly. Optional — absent on non-HTTP/DR/workload
+   * callers that never render a chat.
+   */
+  readonly loadChatAssetRefs?: (
+    callerId: UserId,
+    chatId: ChatId,
+    assetIds: readonly AssetId[],
+  ) => Promise<readonly AssetBlobRef[]>;
   /**
    * Gallery owner-only posture (§1.3 `can()`): does `ownerId` own `characterId`? Wired at the entry root
    * as a direct owner-scoped `characters` read (assets never sideways-imports the character domain — the
@@ -95,6 +114,28 @@ export interface AssetsContext {
    * asset ONLY and skips the subject-character check (documented degradation).
    */
   readonly assertCharacterOwned?: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+  /**
+   * Gallery EXPORT re-link (export-import-portability.md §1): the `handle` of a character by id, or null when
+   * the character is gone. The gallery serde carries the subject character's HANDLE, not the raw
+   * `subjectCharacterId` (ids are not preserved across a fresh box); this resolves each row's subject id to
+   * its portable handle. Wired at the entry root as a direct owner-agnostic `characters.handle` read (assets
+   * never sideways-imports the character domain — the same injected-op seam as `assertCharacterOwned`).
+   * Optional — absent on non-portability callers; when absent, `exportGallery` degrades every item to an
+   * un-charactered (null-handle) row.
+   */
+  readonly resolveCharacterHandle?: (characterId: CharacterId) => Promise<string | null>;
+  /**
+   * Gallery IMPORT re-link (PD-108 handle oracle): the owner's OWN character id carrying `handle`, or null
+   * when no such character exists on this box. Wired at the entry root to the SAME owner-scoped
+   * `character.findByHandle` read the card importer + default-card seeder already inject (the PD-108 seam —
+   * NOT a parallel lookup). Optional — absent on non-portability callers; when absent (or when a handle does
+   * not resolve), `importGallery` writes the item UN-CHARACTERED (`subjectCharacterId = null`, matching the
+   * schema's SET NULL).
+   */
+  readonly findCharacterByHandle?: (args: {
+    readonly ownerId: UserId;
+    readonly handle: string;
+  }) => Promise<CharacterId | null>;
 }
 
 export interface AssetsService {
@@ -142,6 +183,25 @@ export interface AssetsService {
   /** Gallery v2 (§1.3): the caller's gallery, newest-first, keyset-paged by `(createdAt, galleryItemId)`.
    *  Owner-scoped via the asset join (no stamped owner column); optional `subjectCharacterId` filter. */
   readonly listGallery: (params: GalleryListParams) => Promise<GalleryItemView[]>;
+  /** (#67) Resolve the `(assetId, hash)` pairs the OWNER owns among `assetIds` — the inline-image render
+   *  resolver (a message body carries `asset:<id>` refs; the blob route is keyed by HASH, so the client
+   *  resolves id → hash to build `blobUrl`) AND the send-verb attach trust boundary (the owned subset is the
+   *  ownership proof). Owner-scoped by explicit `ownerId` (the router derives it from the session, chat passes
+   *  the acting principal's id) — a foreign / gone id is simply absent (no existence leak, no hash oracle). */
+  readonly resolveOwnedAssetRefs: (
+    ownerId: UserId,
+    assetIds: readonly AssetId[],
+  ) => Promise<readonly AssetBlobRef[]>;
+  /** (#67 co-participant render) Resolve the `(assetId, hash)` pairs among `assetIds` a caller may RENDER in
+   *  `chatId` — the CHAT-SCOPED sibling of {@link resolveOwnedAssetRefs} (which is owner-only). Gate
+   *  (delegated to the injected {@link AssetsContext.loadChatAssetRefs} op): STRUCTURAL `message_assets`
+   *  reference in `chatId` + owner PRESENT + caller PRESENT — never bare chat-membership. Empty when the op
+   *  is unwired, the input is empty, or nothing passes the gate (no leak, no hash oracle). */
+  readonly resolveChatAssetRefs: (
+    callerId: UserId,
+    chatId: ChatId,
+    assetIds: readonly AssetId[],
+  ) => Promise<readonly AssetBlobRef[]>;
 
   // ── Maintenance / DR (PD-26 + PD-84) — CLI/workload-driven, NOT user-facing (no principal gate). ──
 

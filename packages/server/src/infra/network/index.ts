@@ -17,6 +17,16 @@ export {
   shouldBlockEgress,
 } from "./egress";
 export {
+  fetchTenorGifImage,
+  GIF_IMPORT_MAX_BYTES,
+  isTenorMediaHost,
+  type SearchTenorGifsArgs,
+  searchTenorGifs,
+  TENOR_API_HOST,
+  TENOR_MEDIA_HOST_SUFFIX,
+} from "./gif-search";
+export { type ImageGuardCaps, ImageRejectedError, isAllowedImageBuffer } from "./image-guard";
+export {
   clientIp,
   ipAllowlistMiddleware,
   isIngressAllowed,

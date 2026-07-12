@@ -18,7 +18,15 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatParticipants, chats, personas } from "@orb/db";
+import {
+  assets,
+  characters,
+  chatParticipants,
+  chats,
+  messageAssets,
+  messages,
+  personas,
+} from "@orb/db";
 import type {
   AssetId,
   CharacterId,
@@ -26,12 +34,14 @@ import type {
   ChatParticipantId,
   GalleryItemId,
   Handle,
+  MessageAssetId,
+  MessageId,
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
@@ -153,7 +163,72 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         )
         .where(eq(assets.hash, hash))
         .limit(1);
-      return personaRows[0]?.ownerId;
+      if (personaRows[0] !== undefined) {
+        return personaRows[0].ownerId;
+      }
+
+      // Attachment arm (#67 co-participant render) — mirrors the compose-root impl: the hash is an asset
+      // referenced by a `message_assets` row for a message in a chat where BOTH the caller and the asset
+      // owner are present participants.
+      const attachOwnerSeat = alias(chatParticipants, "attach_owner_seat");
+      const attachCallerSeat = alias(chatParticipants, "attach_caller_seat");
+      const attachmentRows = await db
+        .select({ ownerId: assets.ownerId })
+        .from(assets)
+        .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
+        .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+        .innerJoin(
+          attachCallerSeat,
+          and(
+            eq(attachCallerSeat.chatId, messages.chatId),
+            eq(attachCallerSeat.userId, callerId),
+            isNull(attachCallerSeat.leftSeq),
+          ),
+        )
+        .innerJoin(
+          attachOwnerSeat,
+          and(
+            eq(attachOwnerSeat.chatId, messages.chatId),
+            eq(attachOwnerSeat.userId, assets.ownerId),
+            isNull(attachOwnerSeat.leftSeq),
+          ),
+        )
+        .where(eq(assets.hash, hash))
+        .limit(1);
+      return attachmentRows[0]?.ownerId;
+    },
+    // #67 co-participant RENDER resolver — mirrors the compose-root impl (`entry/compose/services.ts`) so the
+    // structural gate (a `message_assets` reference IN `chatId` + owner present + caller present, NOT bare
+    // membership) is exercised against the real seeded DB.
+    loadChatAssetRefs: async (callerId, forChatId, assetIds) => {
+      if (assetIds.length === 0) {
+        return [];
+      }
+      const ownerSeat = alias(chatParticipants, "chat_ref_owner_seat");
+      const callerSeat = alias(chatParticipants, "chat_ref_caller_seat");
+      const rows = await db
+        .selectDistinct({ assetId: assets.id, hash: assets.hash })
+        .from(assets)
+        .innerJoin(messageAssets, eq(messageAssets.assetId, assets.id))
+        .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+        .innerJoin(
+          callerSeat,
+          and(
+            eq(callerSeat.chatId, messages.chatId),
+            eq(callerSeat.userId, callerId),
+            isNull(callerSeat.leftSeq),
+          ),
+        )
+        .innerJoin(
+          ownerSeat,
+          and(
+            eq(ownerSeat.chatId, messages.chatId),
+            eq(ownerSeat.userId, assets.ownerId),
+            isNull(ownerSeat.leftSeq),
+          ),
+        )
+        .where(and(eq(messages.chatId, forChatId), inArray(assets.id, [...assetIds])));
+      return rows;
     },
   };
   return {
@@ -200,6 +275,15 @@ export function principal(
  *  content hashes). `sniffMime` recognizes the signature; the CAS just hashes/stores the bytes opaquely. */
 export function pngBytes(...tail: number[]): Uint8Array {
   return new Uint8Array([...PNG_SIGNATURE, ...tail]);
+}
+
+// "GIF89a" — every GIF is treated animated by `@orb/kit/image-sniff` `isAnimated` (gallery-design §3).
+const GIF89A_SIGNATURE = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] as const;
+
+/** Fake but well-formed GIF bytes: the GIF89a signature + a distinguishing tail. `isAnimated` returns true
+ *  for any GIF, so these drive the store `animated` fact + the `resolveVariant` bailout under test. */
+export function gifBytes(...tail: number[]): Uint8Array {
+  return new Uint8Array([...GIF89A_SIGNATURE, ...tail]);
 }
 
 /** Index into a query result with a non-empty assertion — narrows `T | undefined` (noUncheckedIndexedAccess)
@@ -315,4 +399,31 @@ export async function setPersonaAvatar(
   avatarAssetId: AssetId,
 ): Promise<void> {
   await db.update(personas).set({ avatarAssetId }).where(eq(personas.id, personaId));
+}
+
+/** Insert a minimal `messages` row (the #67 attachment structural reference — a `message_assets` row FKs to
+ *  it). Only the notNull/no-default columns are supplied (id, chatId, seq, role). Returns the branded id. */
+export async function seedMessage(
+  db: Db,
+  chatId: ChatId,
+  overrides: { readonly id?: string; readonly seq?: number } = {},
+): Promise<MessageId> {
+  const id = castId<MessageId>(overrides.id ?? `message_${chatId}`);
+  await db.insert(messages).values({ id, chatId, seq: overrides.seq ?? 0, role: "user" });
+  return id;
+}
+
+/** Insert a `message_assets` row — the STRUCTURAL chat-message ↔ asset link the #67 co-participant render
+ *  gate keys on (an asset is renderable in a chat ONLY when it has one of these for a message in that chat). */
+export async function seedMessageAsset(
+  db: Db,
+  messageId: MessageId,
+  assetId: AssetId,
+  id?: string,
+): Promise<void> {
+  await db.insert(messageAssets).values({
+    id: castId<MessageAssetId>(id ?? `message_asset_${messageId}_${assetId}`),
+    messageId,
+    assetId,
+  });
 }

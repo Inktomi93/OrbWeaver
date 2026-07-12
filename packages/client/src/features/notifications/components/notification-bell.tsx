@@ -6,8 +6,9 @@
 // in the shell's `topbarTrail` slot ONLY while the deployment is multi-human capable (`/api/auth/config
 // .multiHumanCapable` — the honest belt signal, never a probe-and-catch).
 //
-// Read/act contract: OPENING the popover marks every unread row read (the badge is "new since you
-// looked", not "un-acted"); ACTING on an invite (accept or decline) dismisses its row. Navigation on
+// Read/act contract: OPENING the popover marks every unread row read via ONE `markAllRead` mutation (the
+// badge is "new since you looked", not "un-acted") — NOT a per-row `markRead` loop; ACTING on an invite
+// (accept or decline) dismisses its row. Navigation on
 // accept rides the sanctioned #state seam (`selectChat` + `setActiveSection` — §5.1: leaf writers
 // write, the route composes), never a feature→feature import.
 //
@@ -35,7 +36,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
-import { useDismissNotification, useInbox, useMarkNotificationRead } from "../hooks/use-inbox";
+import { useDismissNotification, useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox";
 import { useInboxStream } from "../hooks/use-inbox-stream";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions";
 
@@ -67,7 +68,7 @@ export function NotificationBell(): ReactElement {
   const invalidation = useInvalidation();
   const { items, unreadCount } = useInbox();
   useInboxStream({ invalidation });
-  const markRead = useMarkNotificationRead({ trpc, invalidation });
+  const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });
   const dismiss = useDismissNotification({ trpc, invalidation });
   const accept = useAcceptInvite({ trpc, invalidation });
   const decline = useDeclineInvite({ trpc, invalidation });
@@ -75,13 +76,10 @@ export function NotificationBell(): ReactElement {
 
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
-    if (next) {
-      // Opening = "I've seen these" — the badge clears; the rows stay until acted on/dismissed.
-      for (const item of items) {
-        if (item.readAt === null) {
-          markRead.mutate({ notificationId: item.id });
-        }
-      }
+    if (next && unreadCount > 0) {
+      // Opening = "I've seen these" — ONE bulk mutation flips every unread row; the badge clears, the
+      // rows stay until acted on/dismissed.
+      markAllRead.mutate(undefined);
     }
   };
 

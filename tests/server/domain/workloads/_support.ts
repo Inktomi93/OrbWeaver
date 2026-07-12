@@ -8,10 +8,15 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
+import type {
+  WorkloadKind,
+  WorkloadMode,
+  WorkloadSource,
+  WorkloadStatus,
+} from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
-import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
+import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import { isAdmin, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
@@ -38,7 +43,19 @@ export function makeService(db: Db): WorkloadService {
     n += 1;
     return castId<WorkloadId>(`workload_${n}`);
   };
-  return createWorkloadService({ db, now: () => T0, newWorkloadId, requireOwner, isAdmin });
+  let sn = 0;
+  const newScheduleId = (): WorkloadScheduleId => {
+    sn += 1;
+    return castId<WorkloadScheduleId>(`workload_schedule_${sn}`);
+  };
+  return createWorkloadService({
+    db,
+    now: () => T0,
+    newWorkloadId,
+    newScheduleId,
+    requireOwner,
+    isAdmin,
+  });
 }
 
 /** Insert a `users` row (the FK parent for an owner-scoped workload). Thin delegate over the canonical
@@ -119,6 +136,13 @@ export function fakeEnv(
           changed: 4,
         }),
       ),
+      importBundle: vi.fn(
+        async (_args: { ownerId: UserId; token: string; signal: AbortSignal }) => ({
+          imported: 7,
+          skipped: 1,
+          failed: 0,
+        }),
+      ),
     },
     assets: {
       backfillAvatars: vi.fn(
@@ -174,7 +198,6 @@ export function makeRunnerContext(
   overrides: Partial<WorkloadRunnerContext> = {},
 ): WorkloadRunnerContext {
   return {
-    db: {} as Db,
     userId: RUNNER_OWNER_ID,
     // The enumeration scope a runner threads to its op (SINGULAR by default; a bulk test overrides to null).
     ownerId: RUNNER_OWNER_ID,
@@ -215,8 +238,12 @@ export async function seedWorkloadRow(
     kind?: WorkloadKind;
     status?: WorkloadStatus;
     mode?: WorkloadMode;
+    /** The single-active lock partition (`workloads.source`). Defaults to `none` (the non-index sentinel);
+     *  seed a real `text`/`image`/`all` for an `index`-kind row. */
+    source?: WorkloadSource;
     ownerId?: UserId | null;
     params?: Record<string, unknown>;
+    dependsOn?: readonly WorkloadId[] | null;
     updatedAt?: number;
     scheduledAt?: number;
     createdAt?: number;
@@ -228,8 +255,10 @@ export async function seedWorkloadRow(
     kind: overrides.kind ?? "reconcile-stats",
     status: overrides.status ?? "queued",
     mode: overrides.mode ?? "singular",
+    source: overrides.source ?? "none",
     params: overrides.params ?? {},
     ownerId: overrides.ownerId ?? null,
+    dependsOn: overrides.dependsOn ?? null,
     scheduledAt: overrides.scheduledAt ?? T0,
     createdAt: overrides.createdAt ?? T0,
     updatedAt: overrides.updatedAt ?? T0,
