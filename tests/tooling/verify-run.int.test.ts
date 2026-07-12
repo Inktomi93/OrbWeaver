@@ -18,9 +18,14 @@ import {
   REGISTRY,
   stagesForTier,
 } from "../../scripts/verify/registry.ts";
-import { aggregateExit } from "../../scripts/verify/run.ts";
+import { aggregateExit, parse } from "../../scripts/verify/run.ts";
 import { resolveSelection } from "../../scripts/verify/selection.ts";
 import { expect, test } from "../support/fixtures.ts";
+
+/** A parse result that IS a misuse error (what main() maps to exit 3). */
+function isMisuse(argv: readonly string[]): boolean {
+  return "error" in parse(argv);
+}
 
 function stage(name: string): StageDef {
   const s = REGISTRY.find((r) => r.name === name);
@@ -181,6 +186,61 @@ test("structure:full scopedArgv: routes to check:scope with the selection's flag
     "--package",
     "ui",
   ]);
+});
+
+// ── argv parsing (parseArgs, strict schema §3.4) — the misuse (exit 3) matrix + good invocations ──
+
+test("parse: an UNKNOWN flag is misuse (exit 3), never silent-ignore", () => {
+  expect(isMisuse(["--bogus", "--list"])).toBe(true);
+});
+
+test("parse: a value option with NO value (or a flag as its value) is misuse", () => {
+  expect(isMisuse(["--package"])).toBe(true); // no value
+  expect(isMisuse(["--package", "--json"])).toBe(true); // next token is a flag, not a value
+  expect(isMisuse(["--scope"])).toBe(true);
+  expect(isMisuse(["--tier"])).toBe(true);
+});
+
+test("parse: --package=db (inline value) parses and runs (not misuse)", () => {
+  const r = parse(["--package=db", "--list"]);
+  expect("error" in r).toBe(false);
+});
+
+test("parse: --file with no path is misuse; --file a b (space-separated paths) parses", () => {
+  expect(isMisuse(["--file"])).toBe(true);
+  expect(isMisuse(["--file", "nonexistent-xyz-123.ts"])).toBe(true); // path not under repo/nonexistent
+  const r = parse(["--file", "scripts/verify/run.ts", "scripts/verify/registry.ts"]);
+  if ("error" in r) {
+    throw new Error(`expected a parse, got misuse: ${r.error}`);
+  }
+  expect(r.selection?.kind).toBe("file");
+  expect(r.selection?.paths).toEqual(["scripts/verify/run.ts", "scripts/verify/registry.ts"]);
+});
+
+test("parse: more than one scope selector is misuse", () => {
+  expect(isMisuse(["--package", "db", "--scope", "packages/ui"])).toBe(true);
+});
+
+test("parse: more than one tier is misuse; --tier <bad> is misuse", () => {
+  expect(isMisuse(["--static", "--push"])).toBe(true);
+  expect(isMisuse(["--tier=bogus"])).toBe(true);
+});
+
+test("parse: bare positionals with no scope selector are misuse (not silently dropped)", () => {
+  expect(isMisuse(["foo", "bar"])).toBe(true);
+});
+
+test("parse: valid tier flags resolve to the right tier (default = static, scope implies changed)", () => {
+  const asTier = (argv: readonly string[]): string | undefined => {
+    const r = parse(argv);
+    return "error" in r ? undefined : r.tier;
+  };
+  expect(asTier([])).toBe("static"); // default
+  expect(asTier(["--push"])).toBe("push");
+  expect(asTier(["--full"])).toBe("full");
+  expect(asTier(["--tier", "push"])).toBe("push");
+  expect(asTier(["--package", "db"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
+  expect(asTier(["--changed", "git"])).toBe("changed");
 });
 
 test("every stage carries a classify + non-empty tiers", () => {
