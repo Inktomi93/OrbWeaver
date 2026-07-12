@@ -30,12 +30,17 @@ const processor = remark()
   .use(remarkGfm, { tableCellPadding: true, tablePipeAlign: false, singleTilde: false })
   .use({ settings: { bullet: "-", emphasis: "*", strong: "*", fence: "`", rule: "-" } });
 
+// The 0/1/2/3 exit scheme (TSMORPH-SINGLE-PASS-AUDIT.md §9.4): 1 = dirty docs (violations), 3 = bad CLI
+// args (misuse — neither --write nor --check, or both). 2 (tool error) is reserved for a crash. A usage
+// error is NOT a violation — a direct caller (and `pnpm verify`'s classifier) must tell them apart.
+const EXIT_MISUSE = 3;
+
 const args = process.argv.slice(2);
 const write = args.includes("--write");
 const check = args.includes("--check");
 if (write === check) {
   console.error("usage: format-md.ts (--write | --check) [files…]");
-  process.exit(2);
+  process.exit(EXIT_MISUSE);
 }
 
 const explicit = args.filter((a) => !a.startsWith("--"));

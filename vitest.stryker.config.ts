@@ -21,6 +21,13 @@ import base from "./vitest.config";
 
 const RUNTIME_LANES = new Set(["unit", "integration", "contract"]);
 const TOOLING_GLOB = "tests/tooling/**";
+// GENERATED-FILE FRESHNESS meta-tests: they regenerate a committed generated file and byte-compare it to
+// disk. Stryker's `disableTypeChecks` preprocessor INJECTS a `// @ts-nocheck` header into every .ts in the
+// sandbox — so the sandbox copy of packages/ui/src/tokens/index.ts gains a header the freshness test's
+// regeneration does NOT produce, failing the initial dry run by construction (same class as the tooling
+// meta-tests, just for a generated artifact rather than the source tree). Excluded from the mutation lanes
+// — they prove nothing about assemble.ts / resolve.ts mutation coverage. (2026-07-12, V4 calibration.)
+const FRESHNESS_GLOBS = ["tests/ui/tokens/**"];
 
 const cfg = base as unknown as {
   test: { projects: Array<{ test: { name?: string; exclude?: readonly string[] } }> };
@@ -28,7 +35,10 @@ const cfg = base as unknown as {
 
 cfg.test.projects = cfg.test.projects
   .filter((p) => RUNTIME_LANES.has(p.test.name ?? ""))
-  .map((p) => ({ ...p, test: { ...p.test, exclude: [...(p.test.exclude ?? []), TOOLING_GLOB] } }));
+  .map((p) => ({
+    ...p,
+    test: { ...p.test, exclude: [...(p.test.exclude ?? []), TOOLING_GLOB, ...FRESHNESS_GLOBS] },
+  }));
 
 // Export the (mutated-in-place) local binding, not the raw import — `cfg` aliases the same object, so the
 // lane edits above are applied. (Re-exporting the import directly trips biome's noExportedImports.)

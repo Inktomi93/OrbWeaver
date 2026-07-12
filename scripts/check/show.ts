@@ -27,7 +27,10 @@ import process from "node:process";
 
 const DEFAULT_LIMIT = 10;
 const REPORT_PATH = join(import.meta.dirname, "..", "..", "reports", "check-structure.json");
-const EXIT_MISSING_REPORT = 2;
+// The 0/1/2/3 exit scheme (TSMORPH-SINGLE-PASS-AUDIT.md §9.4): a missing report is MISUSE (3) — you
+// invoked the viewer without generating the report first (run `pnpm check:structure`). Not a tool error
+// (2 = the viewer itself broke) and not a violation (1 = the report says dirty).
+const EXIT_MISSING_REPORT = 3;
 
 interface Violation {
   readonly file: string;

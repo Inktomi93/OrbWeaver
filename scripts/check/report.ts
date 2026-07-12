@@ -1,6 +1,9 @@
-// The structural-gate orchestrator: registers every ts-morph/fs check and runs them.
-// Wired into `pnpm check` (after biome + tsc). Add a gate by dropping it in gates/ and listing it here.
-// The catalog of every enforcement (these gates + biome rules + grit + dep-cruiser) lives in
+// The structural-gate orchestrator (`pnpm check:structure`). POST-V5-CUTOVER: the entrypoint runs the
+// SINGLE-PASS machine (loadGates auto-discovers every scripts/check/gates/*.ts descriptor → runPass → one
+// walk → renderPass) as the LIVE gate authority. Add a gate by DROPPING it in gates/ — the loader IS the
+// registry (no hand-listing). The `ALL_CHECKS`/`BASE_CHECKS` legacy arrays below are RETAINED as the parity
+// ORACLE (the per-gate int tests + single-pass-parity drive them) and no longer gate — they retire with the
+// per-gate int-test review (the ts-morph audit's phase-5 tail). The catalog of every enforcement lives in
 // docs/architecture/core/Core-Enforcement-Active-Gates.md; the deferred backlog in
 // Core-Enforcement-Deferred-Dropped.md.
 
@@ -8,6 +11,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import type { GateDescriptor } from "./contract.ts";
 import { assetRefsFkCoverage } from "./gates/asset-refs-fk-coverage.ts";
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
 import { baselineSingleMigration } from "./gates/baseline-single-migration.ts";
@@ -75,10 +79,14 @@ import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
 import { userBusCoverage } from "./gates/user-bus-coverage.ts";
 import { vectorScopeDerived } from "./gates/vector-scope-derived.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
+import { verifyRegistryParity } from "./gates/verify-registry-parity.ts";
 import { warningCodeCoverage } from "./gates/warning-code-coverage.ts";
 import { zustandSelectorDerived } from "./gates/zustand-selector-derived.ts";
-import type { Check, GateResult, RunChecksResult } from "./harness.ts";
-import { runChecks } from "./harness.ts";
+import type { Check, GateResult, Violation } from "./harness.ts";
+import { loadGates } from "./loader.ts";
+import type { PassResult } from "./pass.ts";
+import { projectCtx, runPass } from "./pass.ts";
+import { renderPass } from "./render.ts";
 
 // Every gate EXCEPT enforcement-registry-parity, which needs the FULL name list (itself included) to
 // check doc/registry parity — built separately below to avoid a report.ts↔gate import cycle (see
@@ -171,6 +179,9 @@ const BASE_CHECKS: readonly Check[] = [
   // task #114 — every schema FK→assets.id column must be classified in asset-refs.ts's registry
   // (the static, pre-commit half of the runtime asset-refs.int.test.ts invariant).
   assetRefsFkCoverage,
+  // UNIFIED-VERIFICATION-DESIGN.md §3.6 — every package.json verification-shaped script must be a `pnpm
+  // verify` stage (the registry is the ledger that makes a forgotten script structurally impossible).
+  verifyRegistryParity,
 ];
 
 /** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which
@@ -192,31 +203,72 @@ interface StructureReport {
   readonly ok: boolean;
 }
 
-/** Additive JSON companion to the stdout report — written UNCONDITIONALLY (clean or dirty run
- *  alike), strictly AFTER `runChecks` has already printed, so it can never change stdout or the
- *  exit code (verified: `diff` of a captured `pnpm check:structure` run before vs after this
- *  function existed is empty). Consumes the SAME `runChecks` result the is-main block already
- *  computed — no second gate execution (the four whole-project scanners are the dominant cost;
- *  they now run exactly once per `pnpm check:structure`, not twice). */
-function writeStructureReport(root: string, result: RunChecksResult): void {
-  const report: StructureReport = {
-    gates: result.gates,
-    total: result.total,
-    ok: result.total === 0,
-  };
+// ── V5 CUTOVER (TSMORPH-SINGLE-PASS-AUDIT.md phases 4–5) ───────────────────────────────────────────────
+// `pnpm check:structure` now runs the SINGLE-PASS machine (loadGates → runPass → renderPass) as the LIVE
+// gate authority — ONE forEachDescendant walk over one shared workspace, per-gate try/catch (a thrown gate
+// is a native tool-error → exit 2, not a laundered violation). The legacy `runChecks(ALL_CHECKS)` path is
+// retained above ONLY as the parity ORACLE (tests/tooling/single-pass-parity.int.test.ts + the per-gate
+// int tests drive it); it no longer gates. Whole-run parity is proven LIVE: the single-pass finding SET
+// equals the legacy set on the real tree (both clean today) and a break-confirm catches an introduced
+// violation exactly as legacy would — see the acceptance evidence in the V5 report.
+const EXIT_CLEAN = 0;
+const EXIT_VIOLATIONS = 1;
+const EXIT_TOOL_ERROR = 2;
+
+/** Map the single-pass PassResult into the legacy `check-structure.json` shape (show.ts's consumer):
+ *  each gate's per-occurrence findings collapse into `{file,line,message}` violations, where the message
+ *  is the finding's own override or — the common case — the gate descriptor's `message` (the reason lives
+ *  ONCE on the descriptor). A gate that TOOL-ERRORED is reported with a synthetic violation so the JSON +
+ *  the total reflect the broken checker. */
+function toStructureReport(
+  pass: PassResult,
+  gatesByName: ReadonlyMap<string, GateDescriptor>,
+): StructureReport {
+  const gates: GateResult[] = pass.gates.map((g) => {
+    const descriptor = gatesByName.get(g.name);
+    const violations: Violation[] = g.findings.map((f) => ({
+      file: f.file,
+      line: f.line,
+      message: f.message ?? descriptor?.message ?? g.name,
+    }));
+    return { name: g.name, ok: violations.length === 0, violations };
+  });
+  const total = gates.reduce((n, g) => n + g.violations.length, 0);
+  return { gates, total, ok: total === 0 && pass.toolErrors.length === 0 };
+}
+
+function writeStructureReport(root: string, report: StructureReport): void {
   const reportsDir = join(root, "reports");
   mkdirSync(reportsDir, { recursive: true });
   writeFileSync(join(reportsDir, "check-structure.json"), `${JSON.stringify(report, null, 2)}\n`);
 }
 
-// Direct-run guard: `pnpm check:structure` (tsx runs this file as the entrypoint) executes every
-// gate exactly as before — same output, same exit(1)-on-violation; an import (file.ts) gets the
-// list only. argv[1] is the tsx entry script, so the URL comparison is the ESM "is main" idiom.
+/** The single-pass run entrypoint: load the descriptors, run ONE pass, render, write the JSON, exit on the
+ *  0/1/2/3 scheme (2 when any gate threw — the checker is broken; 1 on violations; 0 clean). */
+async function runSinglePass(root: string): Promise<void> {
+  const gates = await loadGates(root);
+  const gatesByName = new Map(gates.map((g) => [g.name, g]));
+  const pass = runPass(gates, projectCtx(root));
+
+  process.stdout.write(renderPass(pass, gatesByName));
+  process.stdout.write("\n");
+
+  const report = toStructureReport(pass, gatesByName);
+  writeStructureReport(root, report);
+
+  if (pass.toolErrors.length > 0) {
+    process.exit(EXIT_TOOL_ERROR); // a gate threw — the checker is broken, not your code
+  }
+  if (report.total > 0) {
+    process.exit(EXIT_VIOLATIONS);
+  }
+  process.exitCode = EXIT_CLEAN;
+}
+
+// Direct-run guard: `pnpm check:structure` (tsx runs this file as the entrypoint) runs the single-pass
+// machine; an import (the parity oracle) gets the ALL_CHECKS list only (the is-main guard fires
+// only under `tsx scripts/check/report.ts`).
 const entry = process.argv[1];
 if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
-  const result = runChecks(ALL_CHECKS);
-  writeStructureReport(process.cwd(), result);
-  if (result.total > 0) {
-    process.exit(1);
-  }
+  await runSinglePass(process.cwd());
 }

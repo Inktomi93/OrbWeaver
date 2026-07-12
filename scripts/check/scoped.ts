@@ -24,6 +24,11 @@ import { renderPass } from "./render.ts";
 
 const TRAILING_SLASH_RE = /\/+$/u;
 
+// The 0/1/2/3 exit scheme (TSMORPH-SINGLE-PASS-AUDIT.md §9.4): 2 = a gate threw (the checker is broken),
+// 3 = bad CLI args (the run never happened). Named so a magic 2/3 can't drift back in.
+const EXIT_TOOL_ERROR = 2;
+const EXIT_MISUSE = 3;
+
 type ScopeSelection = {
   readonly scope: Scope;
   /** repo-relative posix path → is this file in scope? Applied to every workspace source file. */
@@ -214,7 +219,7 @@ async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if ("error" in parsed) {
     process.stderr.write(`${parsed.error}\n${USAGE}\n`);
-    process.exit(2); // bad args — the run never happened
+    process.exit(EXIT_MISUSE); // bad CLI args; the run never happened (§9.4: 2 = tool error, 3 = misuse)
   }
   const root = process.cwd();
   const selection = selectionFor(parsed, root);
@@ -227,7 +232,7 @@ async function main(): Promise<void> {
 
   const violations = pass.gates.reduce((n, g) => n + g.findings.length, 0);
   if (pass.toolErrors.length > 0) {
-    process.exit(2); // a gate threw — the checker is broken
+    process.exit(EXIT_TOOL_ERROR); // a gate threw — the checker is broken
   }
   if (violations > 0) {
     process.exit(1);
