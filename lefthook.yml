@@ -12,18 +12,23 @@
 # files — and `pnpm check` (which runs `test:types`, the vitest typecheck lane that catches exactly
 # those) only fired at pre-push, which never ran across a long no-push session.
 #
-# Split (type/structure gate at COMMIT, behavioral tests at PUSH):
-#   • pre-commit → the full `pnpm check`: lint (Biome, whole repo) + per-package `tsc` + `test:types`
-#     (vitest typecheck of the tests/ tree — the lane that was the blind spot) + check:structure
-#     (the ts-morph gates) + dep-cruiser (all 5 packages). ~30s. A type/lint/boundary-red tree cannot
-#     be committed. (No separate staged-Biome step — `pnpm check`'s lint covers the whole repo.)
-#   • pre-push → `pnpm check` + `pnpm test` (unit/integration/contract, ~3.5min) + `pnpm test:ct` (the
-#     Playwright CT suite, ~2-4min, `CT_GATE=1` so parallelism flakes retry instead of blocking) +
-#     `pnpm e2e:smoke` (the fast `@smoke` end-to-end subset, ~6s, model-free) — the full green bar before
-#     code leaves the machine; all kept off pre-commit only for commit speed. CTs + e2e are the ONE class
-#     `pnpm check` can't hold (browser — vitest-browser hangs, Spine-Testing §7), so they gate HERE, not at
-#     commit. NOTE: needs Playwright chromium on the pushing machine (`pnpm exec playwright install chromium`
-#     once); the sandbox can't push, so this fires on the host.
+# Split (type/structure gate at COMMIT, behavioral tests at PUSH) — both via the ONE `pnpm verify` entry
+# (UNIFIED-VERIFICATION-DESIGN.md §3): the tiers ARE the hook wiring, so "run everything" is a named tier,
+# not a folklore 4-command pipe. Repointed 2026-07-12 (V3).
+#   • pre-commit → `pnpm check` (= `verify --static`): lint (Biome, whole repo) + per-package `tsc` +
+#     `test:types` (vitest typecheck of the tests/ tree — the lane that was the blind spot) + check:structure
+#     (the ts-morph gates) + dep-cruiser (all 5 packages). ~30s. A type/lint/boundary-red tree cannot be
+#     committed. Pre-commit stays at the STATIC tier (design §4.3: full-static-at-commit is the born-compliant
+#     doctrine; --changed+related-tests would be faster but weakens it).
+#   • pre-push → `pnpm verify --push` (ONE command, ONE summary, ONE exit code, ONE json): the static
+#     bundle + `pnpm test` (unit/integration/contract, ~3.5min) + the Playwright CT suite (CT_GATE=1 so
+#     parallelism flakes retry instead of blocking) + `pnpm e2e:smoke` (the fast `@smoke` model-free subset).
+#     This REPLACES the old 4-command `piped` pipe: run-all-report-all (every stage runs, all failures shown
+#     at once) instead of piped early-abort — strictly more informative, and the max-severity exit (§3.3) is
+#     the single verdict. CTs + e2e are the ONE class the static tier can't hold (browser — vitest-browser
+#     hangs, Spine-Testing §7), so they gate HERE, not at commit. NOTE: needs Playwright chromium on the
+#     pushing machine (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires
+#     on the host.
 #   • e2e ANTI-ROT (2026-07-12): the full e2e suite is manual (`pnpm e2e`) and CI is workflow_dispatch-only
 #     (auto-triggers off, 2026-07-05 — the real gate is these hooks), so a smoke SUBSET gates HERE (the only
 #     automated per-push surface). It boots the stack via playwright's webServer (reuses a running dev daemon,
@@ -51,22 +56,11 @@ pre-commit:
         NO_COLOR: "1"
 
 pre-push:
-  piped: true
   commands:
-    check:
-      run: pnpm check
-      env:
-        NO_COLOR: "1"
-    test:
-      run: pnpm test
-      env:
-        NO_COLOR: "1"
-    test:ct:
-      run: pnpm test:ct
-      env:
-        NO_COLOR: "1"
-        CT_GATE: "1"
-    e2e:smoke:
-      run: pnpm e2e:smoke
+    # The ONE push-tier command (V3 repoint): static + node tests + CT (CT_GATE=1, set per-stage in the
+    # registry) + e2e-smoke, with the unified summary + max-severity exit. Replaces the 4-command piped
+    # pipe — verify runs ALL stages and reports ALL failures (no piped early-abort), then exits max-severity.
+    verify:push:
+      run: pnpm verify --push
       env:
         NO_COLOR: "1"

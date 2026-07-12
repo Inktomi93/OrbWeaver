@@ -89,6 +89,12 @@ concept→domain map: §6 below.
   verifies, domain resolves, entry constructs).
 - **Green-to-commit:** `pnpm check` AND `pnpm test` must BOTH pass before any commit. Commit on `main`;
   end the message with the `Co-Authored-By` trailer.
+- **The ONE verification surface (`UNIFIED-VERIFICATION-DESIGN.md`):** iterate on `pnpm verify --changed`
+  (scoped, fast inner loop); claim "done" only after `pnpm verify` (= `--static`, = `pnpm check`); the
+  pre-push bar is `pnpm verify --push` (adds the node tests + CT + e2e-smoke — the behavioral suites a
+  bare `pnpm check` does NOT run); `pnpm verify --full` is the works (cpd + full e2e + parity + mutation).
+  Exit codes are a hard contract: 0 clean · 1 violations · 2 tool error (a checker BROKE — the run is not
+  a verdict) · 3 misuse (bad args). `pnpm verify --list` prints every stage + its tier.
 - **Testing — the explicit exception to the global "quality over quantity":** comprehensive coverage IS
   the bar — every persistence verb, contract, and load-bearing invariant gets a test
   (`test-presence`/`test-layout`/`test-determinism` gates). Still no padding: test real behavior, not

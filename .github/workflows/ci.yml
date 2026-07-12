@@ -22,21 +22,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # The blocking gate suite: biome + tsc + the ts-morph gates + dependency-cruiser.
-      - run: pnpm check
+      # Playwright chromium — the --full tier runs the CT suite + full e2e (browser lanes).
+      - run: pnpm exec playwright install --with-deps chromium
 
-      # The node test lanes (unit + integration + contract). CI=true → vitest uses the github-actions
-      # + junit reporters (vitest.config.ts) and `allowOnly`/determinism rigor applies.
-      - run: pnpm test
-
-      # The type lane (`.test-d.ts`, typecheck-only) — nothing else runs it (per-package tsc covers src,
-      # not tests/). Passes-with-no-tests until type tests land.
-      - run: pnpm test:types
-
-      # The copy-paste CI lane (jscpd, threshold 5%) — kept out of the fast pre-commit `check`.
-      - run: pnpm cpd
-
-      # Browser lanes gate at the pre-push lefthook, not here (CI is workflow_dispatch-only, 2026-07-05):
-      # the CT suite (`pnpm test:ct`) + the fast `@smoke` e2e subset (`pnpm e2e:smoke`) both run pre-push on
-      # the host. The FULL e2e suite is manual (`pnpm e2e`); the live-model spec is opt-in (`pnpm e2e:live`,
-      # E2E_LIVE=1). Mutation testing (Stryker) is on-demand (Phase 4c/5), never in CI's fast path.
+      # The ONE "nothing omitted" bar (UNIFIED-VERIFICATION-DESIGN.md §3.2, V4): the full tier — static
+      # (biome + tsc×3 + the ts-morph gates + depcruise + docs) + node tests + CT + e2e-smoke + cpd + full
+      # e2e + parity (loud-skips if the steady clone is absent) + the mutation gate. ONE command, ONE
+      # summary, ONE max-severity exit; the per-stage logs land in reports/verify/. Replaces the old
+      # check + test + cpd trio (which omitted the browser + quality lanes entirely). CI is
+      # workflow_dispatch-only (2026-07-05), so the operator dispatches this when the works is wanted; the
+      # per-push automated bar is the pre-push lefthook (`pnpm verify --push`).
+      - run: pnpm verify --full
+        env:
+          CI: "true"

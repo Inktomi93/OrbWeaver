@@ -127,14 +127,13 @@ function writeFixtures(): void {
   // baseline-single-migration: an extra migration .sql alongside 0000_baseline.sql (the
   // squash-not-incremental law) — real migrations/ dir already exists, this just adds a stray file.
   fx("packages/db/src/migrations/__g_0001_fake.sql", "-- fake incremental migration\n");
-  // enforcement-registry-parity: a gate .ts file dropped in scripts/check/gates/ with no ALL_CHECKS
-  // registration and no DORMANT_GATES entry (the anti-drift arm promoted from check-gates.int.test.ts
-  // to every pnpm check). GATE_FILES above is computed at module load, BEFORE this fixture is written,
-  // so it doesn't also trip the "every gate file is registered" test below.
-  fx(
-    "scripts/check/gates/__g_unregistered.ts",
-    'import type { Check } from "../harness.ts";\nexport const gUnregistered: Check = { name: "g-unregistered", run: () => [] };\n',
-  );
+  // enforcement-registry-parity: NO fixture (V5 cutover) — the contract-form gate reconciles the DISCOVERED
+  // DESCRIPTOR SET vs the doc; its old arm-2 (a gate file missing from ALL_CHECKS) is STRUCTURALLY RETIRED
+  // (the loader's fail-closed assertDescriptor makes an unwired/invalid gate file a load-time RED, §7). A
+  // `__g_` fixture can't cleanly trigger the doc-reconciliation arm (it would need a valid mustFlag/mustPass
+  // descriptor whose name is absent from the real doc — a heavy live-doc edit), so this gate is exempted
+  // from the anti-drift assertion below; its bite is proven by gate-conformance (its mustFlag) +
+  // single-pass-parity's "reconciles the DISCOVERED DESCRIPTOR SET" test.
   // test-layout: a test with no source mirror.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).
@@ -440,7 +439,17 @@ function writeFixtures(): void {
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
 // trigger needs the real single-home tuple + emit corpus (removing an emit / adding a tuple member),
 // which a throwaway file can't reproduce. Each is proven to fire by its OWN self-test in tests/tooling/.
-const UNFIXTURABLE_GATES = new Set(["warning-code-coverage"]);
+// verify-registry-parity reconciles the ROOT package.json against the verify registry — a throwaway `__g_`
+// file can't add a verification-shaped script to the real package.json (and injecting one there would be a
+// real, non-throwaway edit), so it can't be driven by a fixture. Its bite is proven by its conformance
+// mustFlag (a synthetic package.json with an unplaced test:* script) + its dedicated verify-run test.
+// enforcement-registry-parity: V5 cutover retired its `__g_` arm (arm-2 is now the loader's fail-closed
+// job); its contract-form doc-reconciliation bite is proven by gate-conformance + single-pass-parity §7.
+const UNFIXTURABLE_GATES = new Set([
+  "warning-code-coverage",
+  "verify-registry-parity",
+  "enforcement-registry-parity",
+]);
 
 let registry = new Set<string>();
 let fired = new Set<string>();

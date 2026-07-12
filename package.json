@@ -43,7 +43,7 @@
     "depcruise:graph": "mkdir -p reports && depcruise packages --config .dependency-cruiser.cjs --output-type mermaid --output-to reports/dependency-graph.mmd",
     "depcruise:focus": "depcruise packages --config .dependency-cruiser.cjs --output-type mermaid --focus",
     "depcruise:reaches": "depcruise packages --config .dependency-cruiser.cjs --output-type mermaid --reaches",
-    "check:file": "tsx scripts/check/file.ts",
+    "check:file": "tsx scripts/verify/run.ts --file",
     "check:scope": "tsx scripts/check/scoped.ts",
     "check:structure": "tsx scripts/check/report.ts",
     "check:show": "tsx scripts/check/show.ts",
@@ -59,7 +59,8 @@
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
     "test:mutation": "bash scripts/dev/mutation.sh stryker.config.json",
     "test:mutation:gate": "bash scripts/dev/mutation.sh stryker.gate.config.json",
-    "check": "tsx scripts/check/run.ts"
+    "check": "tsx scripts/verify/run.ts --static",
+    "verify": "tsx scripts/verify/run.ts"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
