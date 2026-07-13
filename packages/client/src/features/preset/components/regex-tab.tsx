@@ -46,8 +46,11 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
   const [editIndex, setEditIndex] = useState<number | null>(null);
 
   const onAdd = (): void => {
+    // Capture the PRE-push length: pushFieldValue applies synchronously, so reading `.length`
+    // AFTER the push yields one PAST the new item's real index (an out-of-bounds phantom row on Done).
+    const newIndex = form.state.values.regexScripts.length;
     form.pushFieldValue("regexScripts", makeScript());
-    setEditIndex(form.state.values.regexScripts.length);
+    setEditIndex(newIndex);
   };
 
   return (

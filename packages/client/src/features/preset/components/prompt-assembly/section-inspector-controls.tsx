@@ -5,6 +5,7 @@
 // Spliced (inject object). The section BODY moved to the CENTER `SectionBodyEditor` (the CONTENT drill-in).
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
@@ -65,6 +66,7 @@ export function SectionPlacementControl({ form, section, index }: ControlProps):
                 label="Depth"
                 description="0 = the tail; N = N turns back from your latest message."
                 min={0}
+                max={MAX_INJECTION_DEPTH}
               />
             )}
           </form.AppField>

@@ -44,8 +44,16 @@ import {
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";
 
+export interface PresetLibrarySurfaceProps {
+  /** Open a preset in CONTENT (the §5.1 writer-only seam). The route injects a wrapper that ALSO closes
+   *  the mobile LIST sheet (else the sheet stays open over the editor); defaults to the bare `selectPreset`
+   *  writer for non-mobile / non-route usage. Used at every "open a preset" moment (row · New · Duplicate ·
+   *  Import). */
+  readonly onSelectPreset?: ((id: PresetId) => void) | undefined;
+}
+
 /** The Presets LIST body (rendered inside the shell's `presets` LIST slot). */
-export function PresetLibrarySurface(): ReactElement {
+export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -62,13 +70,17 @@ export function PresetLibrarySurface(): ReactElement {
           </Text>
         )}
       >
-        <PresetList />
+        <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
       </QueryBoundary>
     </Stack>
   );
 }
 
-function PresetList(): ReactElement {
+function PresetList({
+  onSelectPreset,
+}: {
+  readonly onSelectPreset: (id: PresetId) => void;
+}): ReactElement {
   const trpc = useTRPC();
   const client = useTRPCClient();
   const invalidation = useInvalidation();
@@ -100,7 +112,7 @@ function PresetList(): ReactElement {
   const onCreate = (): void => {
     void create
       .mutateAsync({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND })
-      .then((created) => selectPreset(created.id));
+      .then((created) => onSelectPreset(created.id));
   };
 
   const onSetActive = (id: string): void => {
@@ -117,7 +129,7 @@ function PresetList(): ReactElement {
         kind: NEW_PRESET_KIND,
         config: detail.config,
       });
-      selectPreset(created.id);
+      onSelectPreset(created.id);
     })();
   };
 
@@ -200,7 +212,7 @@ function PresetList(): ReactElement {
               preset={preset}
               selected={preset.id === selectedId}
               active={preset.id === activeId}
-              onSelect={selectPreset}
+              onSelect={onSelectPreset}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
               onRename={(id): void => setRenameId(id)}
@@ -229,7 +241,7 @@ function PresetList(): ReactElement {
         onImport={({ name, config }): void => {
           void create.mutateAsync({ name, kind: NEW_PRESET_KIND, config }).then((created) => {
             setImportOpen(false);
-            selectPreset(created.id);
+            onSelectPreset(created.id);
           });
         }}
       />

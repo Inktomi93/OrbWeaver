@@ -94,8 +94,10 @@ export function MessageHandlingSection({
                   — stricter always wins.
                 </Text>
                 {isBelowFloor(roleHandling, floor) ? (
+                  // The dropdown still SHOWS the below-floor pick, but the resolver applies the floor — so
+                  // annotate the value that actually takes effect (not just "clamped").
                   <Badge intent="warning" size="sm">
-                    Clamped to {ROLE_HANDLING_LABELS[floor].split(" — ")[0]}
+                    Applies as {ROLE_HANDLING_LABELS[floor].split(" — ")[0]}
                   </Badge>
                 ) : null}
               </Row>

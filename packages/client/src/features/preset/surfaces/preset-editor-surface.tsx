@@ -40,12 +40,16 @@ export interface PresetEditorSurfaceProps {
   /** Reveal the CONTEXT section inspector (the route-built choreography, §3.4) — a rack row's name-button
    *  click calls this AFTER writing the section selection. Threaded to the rack via the Prompt tab. */
   readonly onRevealSection?: (() => void) | undefined;
+  /** Dismiss the section drill-in (§3.4: `clearPresetSection` + close the mobile CONTEXT sheet) — the
+   *  CENTER `SectionBodyEditor` back button. Threaded to the Prompt tab. */
+  readonly onDismissSection?: (() => void) | undefined;
 }
 
 /** The tabbed preset editor for the selected preset. */
 export function PresetEditorSurface({
   presetId,
   onRevealSection,
+  onDismissSection,
 }: PresetEditorSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -67,13 +71,21 @@ export function PresetEditorSurface({
           </Text>
         )}
       >
-        <PresetEditor presetId={presetId} onRevealSection={onRevealSection} />
+        <PresetEditor
+          presetId={presetId}
+          onRevealSection={onRevealSection}
+          onDismissSection={onDismissSection}
+        />
       </QueryBoundary>
     </Stack>
   );
 }
 
-function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): ReactElement {
+function PresetEditor({
+  presetId,
+  onRevealSection,
+  onDismissSection,
+}: PresetEditorSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
@@ -170,6 +182,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
               form={form}
               tab="prompt"
               onRevealSection={onRevealSection}
+              onDismissSection={onDismissSection}
               capability={capability}
             />
           </TabsPanel>

@@ -4,24 +4,30 @@
 // IN-REGION (the Prompt tab already holds `form`), so it binds the form DIRECTLY via the `form` prop — no
 // bridge (the CONTEXT inspector keeps the bridge; this is the sibling CENTER surface).
 //
-// The body collapses to ONE field, no Default/Custom/Silent tri-state:
+// The body branches per section kind (BUILD-SPEC §3.5):
 //   • literal        → a MacroField bound to `sections[i].content` (empty by default).
-//   • templated marker → ONE MacroTextarea bound to `sections[i].template`, DISPLAYING the built-in default
-//     when unset (value = template ?? DEFAULT_MARKER_TEMPLATES[marker]); typing sets `template`. A subtle
-//     "↺ Reset to default" ghost Button appears only when `template !== undefined`, clearing it back to
-//     undefined so the built-in default re-shows and future default changes flow through.
-//   • plain marker   → the explainer one-liner only (nothing to author — content comes from the card/lorebook).
+//   • templated marker → a Default / Custom / Silent tri-state (ToggleGroup) mapping `template` to
+//     unset / string / "" respectively. DEFAULT ghosts `DEFAULT_MARKER_TEMPLATES[marker]`; for the
+//     empty-default markers (`main_prompt`/`post_history`, whose default is "") DEFAULT shows the
+//     plain-language explainer instead of a bare empty ghost. CUSTOM reveals the MacroTextarea bound to
+//     `template`; SILENT records an explicitly-empty template ("" ⇒ render nothing).
+//   • world-info marker (`world_info_before/after`) → the SHARED `formatStrings.wiFormat` wrapper (default
+//     `{{entry}}`), surfaced with a "shared by both WI markers" hint (one wrapper, both markers).
+//   • other plain marker (chat_history) → the explainer one-liner only (content comes from the transcript).
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-library-surface.tsx precedent).
-import { Anchor, ArrowLeft, Icon, Pencil, RotateCcw, Sparkles } from "@orb/ui/icons";
+import { Anchor, ArrowLeft, Icon, Pencil, Sparkles } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
+import { Toggle } from "@orb/ui/toggle";
+import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { isTemplatedMarker, sectionKind } from "../../lib/assembly-model";
 import { PRESET_PROMPT_MACROS } from "../../lib/preset-prompt-macros";
@@ -94,7 +100,7 @@ export function SectionBodyEditor({
   );
 }
 
-/** The collapsed body — literal MacroField · templated single-field-with-default · plain explainer. */
+/** The body — literal MacroField · templated tri-state · shared WI wrapper · plain explainer. */
 function SectionBody({
   form,
   section,
@@ -117,6 +123,9 @@ function SectionBody({
   if (isTemplatedMarker(section.marker)) {
     return <TemplatedMarkerBody form={form} section={section} index={index} />;
   }
+  if (section.marker === "world_info_before" || section.marker === "world_info_after") {
+    return <WorldInfoBody form={form} section={section} />;
+  }
   return (
     <Text size="micro" tone="muted">
       This section fills in automatically — there's nothing to write here.
@@ -124,47 +133,165 @@ function SectionBody({
   );
 }
 
-/** ONE MacroTextarea bound to `template`, showing the built-in default when unset. The "↺ Reset to
- *  default" ghost appears only when a value is set (so a future default change can flow through again). */
+/** The tri-state (§3.5) a templated marker's `template` maps onto: unset · non-empty string · "". */
+const TEMPLATE_MODES = ["default", "custom", "silent"] as const;
+type TemplateMode = (typeof TEMPLATE_MODES)[number];
+
+/** `template` → its tri-state: undefined ⇒ Default, "" ⇒ Silent (explicitly empty), else Custom. */
+function deriveTemplateMode(template: string | undefined): TemplateMode {
+  if (template === undefined) {
+    return "default";
+  }
+  return template === "" ? "silent" : "custom";
+}
+
+/** Default / Custom / Silent tri-state for a templated marker. DEFAULT ghosts the built-in template (or,
+ *  for the empty-default markers, shows the plain-language explainer instead of a bare ghost); CUSTOM
+ *  reveals the MacroTextarea bound to `template`; SILENT records `template = ""` (render nothing). */
 function TemplatedMarkerBody({
   form,
   section,
   index,
 }: Omit<SectionBodyEditorProps, "onBack">): ReactElement | null {
+  const template =
+    section.type === "marker" && "template" in section ? section.template : undefined;
+  // Mode is LOCAL: it lets Custom stay active with an as-yet-unwritten body (an empty custom would
+  // otherwise derive back to Default/Silent). Seeded from the persisted template on mount (top-level hook).
+  const [mode, setMode] = useState<TemplateMode>(() => deriveTemplateMode(template));
   if (section.type !== "marker" || !isTemplatedMarker(section.marker)) {
     return null;
   }
-  const template = "template" in section ? section.template : undefined;
-  const factoryDefault = DEFAULT_MARKER_TEMPLATES[section.marker];
+  const marker = section.marker;
+  const factoryDefault = DEFAULT_MARKER_TEMPLATES[marker];
+  const emptyDefault = factoryDefault === "";
   const name = `sections[${index}].template` as const;
+
+  const pick = (next: TemplateMode): void => {
+    setMode(next);
+    if (next === "default") {
+      form.setFieldValue(name, undefined);
+    } else if (next === "silent") {
+      form.setFieldValue(name, "");
+    } else if (!emptyDefault && (template === undefined || template === "")) {
+      // Custom on a marker WITH a real default: seed the editor from that default so the user edits it.
+      form.setFieldValue(name, factoryDefault);
+    }
+  };
+
   return (
     <Stack gap="field">
+      <ToggleGroup
+        aria-label="Template mode"
+        value={[mode]}
+        onValueChange={(picked): void => pick((picked[0] ?? "default") as TemplateMode)}
+      >
+        <Toggle value="default" aria-label="Use the built-in default">
+          Default
+        </Toggle>
+        <Toggle value="custom" aria-label="Write a custom template">
+          Custom
+        </Toggle>
+        <Toggle value="silent" aria-label="Render nothing">
+          Silent
+        </Toggle>
+      </ToggleGroup>
+      <TemplateModeBody
+        mode={mode}
+        template={template}
+        marker={marker}
+        factoryDefault={factoryDefault}
+        emptyDefault={emptyDefault}
+        onChange={(next): void => form.setFieldValue(name, next)}
+      />
+    </Stack>
+  );
+}
+
+interface TemplateModeBodyProps {
+  readonly mode: TemplateMode;
+  readonly template: string | undefined;
+  readonly marker: keyof typeof DEFAULT_MARKER_TEMPLATES;
+  readonly factoryDefault: string;
+  readonly emptyDefault: boolean;
+  readonly onChange: (next: string) => void;
+}
+
+/** The per-mode body: Custom editor · Silent note · empty-default explainer · ghosted built-in default. */
+function TemplateModeBody({
+  mode,
+  template,
+  marker,
+  factoryDefault,
+  emptyDefault,
+  onChange,
+}: TemplateModeBodyProps): ReactElement {
+  if (mode === "custom") {
+    return (
       <Field label="Template">
         <MacroTextarea
           aria-label="Template"
-          value={template ?? factoryDefault}
-          onChange={(next): void => {
-            form.setFieldValue(name, next);
-          }}
+          value={template ?? ""}
+          onChange={onChange}
           suggestions={PRESET_PROMPT_MACROS}
           rows={BODY_ROWS}
           className={BODY_MIN_H}
         />
       </Field>
-      {template !== undefined ? (
-        <Row gap="row" align="center">
-          <Button
-            intent="ghost"
-            size="sm"
-            onClick={(): void => {
-              form.setFieldValue(name, undefined);
-            }}
-          >
-            <Icon icon={RotateCcw} size="sm" />
-            Reset to default
-          </Button>
-        </Row>
-      ) : null}
+    );
+  }
+  if (mode === "silent") {
+    return (
+      <Text size="micro" tone="muted">
+        Silent — this marker renders nothing.
+      </Text>
+    );
+  }
+  if (emptyDefault) {
+    return (
+      <Text size="micro" tone="muted">
+        {MARKER_COPY[marker].oneLiner} There's no built-in text — switch to Custom to write your
+        own.
+      </Text>
+    );
+  }
+  return (
+    <Stack gap="field">
+      <Text size="micro" tone="muted">
+        Using the built-in default:
+      </Text>
+      <Text size="code" tone="muted">
+        {factoryDefault}
+      </Text>
+    </Stack>
+  );
+}
+
+/** The shared World-Info wrapper (§3.5): `formatStrings.wiFormat` (default `{{entry}}`) framing EACH
+ *  lorebook entry — one wrapper, shared by both WI markers (hence the shared-scope hint). */
+function WorldInfoBody({
+  form,
+  section,
+}: {
+  readonly form: AssemblyForm;
+  readonly section: PromptSection;
+}): ReactElement {
+  const oneLiner =
+    section.type === "marker" ? MARKER_COPY[section.marker].oneLiner : "Lorebook entries.";
+  return (
+    <Stack gap="field">
+      <Text size="micro" tone="muted">
+        {oneLiner}
+      </Text>
+      <form.AppField name="formatStrings.wiFormat">
+        {(field): ReactElement => (
+          <field.MacroField
+            label="Entry wrapper"
+            description="Wraps each lorebook entry — {{entry}} is the entry text. Shared by both World Info markers; blank uses {{entry}}."
+            suggestions={PRESET_PROMPT_MACROS}
+            rows={3}
+          />
+        )}
+      </form.AppField>
     </Stack>
   );
 }
