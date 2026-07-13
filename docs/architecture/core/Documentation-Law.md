@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-09
+updated: 2026-07-13
 ---
 
 # Documentation & Comments Law
@@ -104,6 +104,16 @@ Tag verdicts (exported/public API; enforce in review):
 
 **Non-exported code** gets no TSDoc ceremony: plain `//` comments, subject to the same decision procedure. A rung-4 WHY on a private helper is a `//` line, not a doc block.
 
+### Comment budgets (D66 — the diet convention; hold the line)
+
+The 2026-07-13 fleet diet cut the comment corpus ~60% (39%→~15% comment-to-code) under these budgets. They are now standing law — regrowing the old density is a review defect:
+
+- **File header: ≤3 lines** — what the file is + its non-obvious invariant. A file whose purpose is obvious from its name and exports gets NONE. (Gate files in `scripts/check/gates/` get ≤5 — a gate's header IS its contract. Probe tools' usage-manual headers are the other sanctioned exception.)
+- **A WHY is ONE line.** If it can't be said in one line it's narration — the ledger or nothing. The rung-4 verbosity license (security belts, deliberate-surprise markers) survives, but it is a license for load-bearing warnings, not essays.
+- **No history in comments:** no dates, no "audited/verified," no "was a bug/the old code," no campaign or wave references, no attribution. Git history is the archaeology.
+- **No doc citations in comments** — no D-numbers, no §-refs, no doc filenames. The ONE exception: `FLAG[PD-n]` (gate-reconciled). Cross-cutting WHY lives in `core/`; the comment states the constraint itself, not a pointer to where it was decided.
+- **JSDoc on an exported symbol: one line**, only when the name alone is insufficient. No `@param`/`@returns` restatement (unchanged rule above).
+
 ### Drift is a defect
 
 Change code → fix or delete its comment **in the same change**. A lying comment is a bug and is gated like one. This includes `@example` blocks that no longer compile and `@deprecated` pointers to removed replacements.
@@ -115,18 +125,19 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 ## Prose / knowledge docs (`docs/`)
 
-- **Taxonomy is physical.** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers) · `proposed/` = unbuilt specs (+ deferrals-with-triggers; `proposed/README.md` is the tracker) · repo ROOT = the active lane's `FINAL-*.md` build-spec (→ `history/` when the lane ships — the persona-doc precedent). A doc lives in exactly one. A committed decision DIGEST lives inside its `*-design/` set (the gallery single-file pair is the root-level exception).
+- **Taxonomy is physical (D66).** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers, landed program records) · `proposed/` = **exactly ONE active program doc at a time** (+ its README, which is the rule + the map). Unbuilt/future design sets live OUT of the repo in the owner's staging area (`../orbweaver-proposed-staging/`) until scheduled — an agent can only quote what's in the tree, and the tree carries one program. Nothing lives at repo root. A doc lives in exactly one tier.
 - **Built code has no prose doc.** For a built module/domain, the code + its file-headers + tests ARE the doc. The cross-cutting law it carries promotes UP to `core/`; the per-module prose is deleted.
+- **Ledger-entry style (D66).** A D-entry records the STANDING RULING only: the rule, the non-obvious constraint that protects it, and the homes. No provenance trails, no audit stamps, no attribution quotes, no alternatives-considered, no supersession archaeology — a superseded ruling's text is ABSORBED into its winner and the loser dies (git history keeps the journey). An enumeration that grows with code (a tuple's members) is cited as "currently X, Y — the tuple is the truth, not this list," never as a bare closed list that rots. Future-committed designs write "COMMITTED (not yet built): …", never present tense — a cold agent must be able to tell landed from planned.
 
 ### Relocation & retirement (run this BEFORE moving, renaming, or deleting any doc)
 
-Docs are path-cited from code file headers, gates, and other docs — a blind move is silent citation rot. The procedure (established at the 2026-07-09 triage; the worked verdicts live in `proposed/README.md` §File-layout law):
+Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `FLAG[PD-n]`, which cites the debt REGISTRY, not a path) — so doc moves are a docs-tree concern plus two hard anchors:
 
-1. **Classify by CITATION-SHAPED sweep, never bare-word counts.** `/usr/bin/grep -rnE '<name>\.md|proposed/<name>|<name> §' packages scripts tests .dependency-cruiser.cjs biome.jsonc` (and the docs tree separately). A bare-word count is noise — `automation` hits domain code, not citations. Then inspect the FORM of each code-side hit: **path-form** (embeds a directory — `proposed/x.md`, `../core/x.md`) vs **name-form** (bare filename + § — `UI-Lib-TanStack-Query.md §5`; how code comments usually cite). Verdicts: **FROZEN** (≥1 path-form code ref, or any §-cited doc whose numbering would change) · **NAME-PINNED** (name-form code refs only — the DIRECTORY may change if the basename and § numbering are kept; the UI-Lib→history/ move is the precedent) · **MOVABLE** (doc-side refs only) · **FREE** (none).
-2. **FROZEN freezes the PATH and §-numbers, never the content; NAME-PINNED freezes the BASENAME and §-numbers.** Edit in place freely; never rename a cited file or renumber cited §s (`ui-package-design.md` and `client-tooling-setup.md` §7/§9 are the canonical examples). Unfreezing a FROZEN file is legal but is a CODE change: move + repoint every code-side citation in ONE commit, from a lane that may touch `packages/**`, with the sweep re-run as proof — never from a docs-only lane, never split across commits.
-3. **MOVABLE move checklist (one commit):** `git mv` (keep the basename unless the name itself is wrong — prose cites docs by name) → repoint every doc-side citation (sweep the whole docs tree + root `*.md`) → re-fix the moved file's OWN relative links (depth changed) → update `proposed/README.md` if the file is tracked there → `pnpm check:docs` → re-run the sweep and prove zero references to the old path.
-4. **Retirement paths (pick by why the doc is done):** SUBSUMED by a newer spec → `git rm` + repoint citations to the subsuming doc (the character-snapshot-ux precedent — never leave a tombstone file) · CLOSED record / dated audit → `git mv` to `history/` (the Marinara precedent) · BUILT → delete per the built-code rule above, promoting any cross-cutting WHY to `core/` first · a lane's `FINAL-*.md` on ship → `history/`, its `*-design/` set + digest ride along.
-5. **Never** invent a new directory tier, "tidy" for aesthetics without the sweep, or move a file another live session has dirty (check `git -C ../orbweaver status` when parallel sessions run).
+1. **The two hard anchors, checked first:** (a) the `pd-citation-integrity` gate reads `Core-Audits-and-Debt.md` + `history/Core-Debt-Cleared-Ledger.md` by PATH — those two files never move without updating the gate in the same commit; (b) sweep `scripts/` for any other tool that reads a doc path (`/usr/bin/grep -rn 'docs/architecture' scripts/`).
+2. **Doc-side sweep:** repoint every citation in the docs tree + `AGENTS.md`/`CLAUDE.md`, re-fix the moved file's OWN relative links (depth changed), update `proposed/README.md` if tracked there, `pnpm check:docs`, then re-run the sweep and prove zero references to the old path. One commit.
+3. **§-numbers of law docs stay stable** (`ui-package-design.md` is the canonical example) — other docs and future doc text cite them; renumbering is drift by another name.
+4. **Retirement paths:** SUBSUMED → `git rm` + repoint to the subsuming doc (never a tombstone) · CLOSED record / landed program → `git mv` to `history/` · BUILT → delete per the built-code rule, promoting cross-cutting WHY to `core/` first · NOT-YET → move OUT of the repo to the staging area (the D66 eviction pattern), never parked in-tree.
+5. **Never** invent a new directory tier, reintroduce doc citations into code comments, or move a file another live session has dirty.
 
 - **Structure.** One topic per file, under \~40 KB. Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
 - **Frontmatter (required, deliberately minimal):**

@@ -38,7 +38,7 @@ updated: 2026-07-13
 
 - **D14** — `substrate/`/`persistence/` are OPTIONAL template slots — a feature without one is deliberate, not an omission.
 
-- **D15** — Uniform directory-modules: every importable module is a directory with `index.ts`; internals are flat + relative-imported. All packages use the identical `exports`/`imports` maps (`"./*": "./src/*/index.ts"`, `"#*"` likewise). Constraint: Node `exports` wildcards resolve ONE template with no flat→dir fallback, so a mixed layout forces exception lists that rot — never mix.
+- **D15** — Uniform directory-modules: every importable module is a directory with `index.ts`; internals are flat + relative-imported. The five app packages (kit, contracts, db, server, client) use the identical `exports`/`imports` maps (`"./*": "./src/*/index.ts"`, `"#*"` likewise, `.` → `./src/index.ts`). `@orb/ui` is the sanctioned exception: its nested `primitives/`/`charts/`/`content/` layout uses an explicit per-subpath `exports` map — every target still a directory `index.ts` front door; never "normalize" it to the wildcard (a single template cannot address nested groups). Constraint: Node `exports` wildcards resolve ONE template with no flat→dir fallback, so a mixed flat/dir layout forces exception lists that rot — never mix.
 
 - **D16** — Group/multi-human chat: group-ness is DATA, not a branch — no `if (isGroup)`; solo = roster-of-1, byte-identical. Homes: roster + `chat_invites` + `pending_turns` → `domain/chat`; the durable per-user notification inbox/stream → `domain/notifications` (chat emits via an injected op); presence → transport (SSE ref-count per userId), injected into chat. Member room/corpus search is host-only in v1, derived from membership (not a stamped digest owner, per D20); a membership-gated union widens it for free later.
 
@@ -70,7 +70,7 @@ updated: 2026-07-13
 
 - **D30** — `chat_tags` is a PER-USER overlay: it keeps its OWN `ownerId` (the tagger; the D23 no-derivable-owner case since chats are ownerless), `unique(chatId, tagId, ownerId)`, gated `requireParticipant`, each user sees only their own tags. The other four tag junctions derive from their owned target.
 
-- **D31** — The provider-source axis has ONE home: `CredentialSource` (+ tuple + schema) in `@orb/contracts/credentials`; `@orb/contracts/connection` re-exports it as `ChatSource`. `ChatApi` (protocol: `agent-sdk | chat-completions | responses`) is a separate axis in connection.
+- **D31** — The provider-source axis has ONE home: `CredentialSource` (+ tuple + schema) in `@orb/contracts/credentials`; `@orb/contracts/connection` re-exports it as `ChatSource`. `ChatApi` (the protocol axis — `CHAT_APIS` in connection, currently agent-sdk/chat-completions/responses/anthropic-messages) is a separate union; the tuple is the truth, not this parenthetical.
 
 - **D32** — `kit/message-role` owns `MESSAGE_ROLES`/`MessageRole` (THE canonical role axis) + the ST numeric bimap; the wire schema (`messageRoleSchema`) lives in `@orb/contracts/chat` importing the tuple down. `kit/injection` owns `InjectionPlacement {depth, role}`, `MAX_INJECTION_DEPTH`, `injectionDirectiveSchema`, `resolveInjectionPlacement(raw, defaults)` — every injector (world-info, author's notes, persona, memory recall, guided) imports these; consumers share the SHAPE, never the default values.
 
