@@ -1,5 +1,7 @@
 # UI Polish Punchlist — layout · placement · hierarchy · polish
 
+> **CLOSED 2026-07-13 (D66):** open-remainder tracking moved to `../proposed/ui-cohesion-north-star.md` §6 (each item re-verified against code there). This file is a frozen program record — its own status tables are a 2026-07-09 snapshot; do not work from them.
+
 **Audit date:** 2026-07-05 (main @ f133379). **Status: COMMITTED program — ledger D62**
 (`core/Core-Path-Registry-D62.md`); the D-ledger and the core `UI-*.md` law win on any conflict.
 Tasks here slot into the `core/Core-BUILD-PLAN.md` Phase-6 lanes (L0–L6). Every task is a

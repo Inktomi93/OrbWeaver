@@ -1,5 +1,7 @@
 # UX / Layout / Flow Revamp — the D62 build program (journeys · parity · lanes)
 
+> **CLOSED 2026-07-13 (D66):** open-remainder tracking moved to `../proposed/ui-cohesion-north-star.md` §6 (each item re-verified against code there). This file is a frozen program record — its own status tables are a 2026-07-09 snapshot; do not work from them.
+
 **Audit date:** 2026-07-05 (main @ f133379). **Status: COMMITTED program — ledger D62**
 (`core/Core-Path-Registry-D62.md` is the decision record; this doc wins on step-level detail).
 **The LAW this program implements was folded into core 2026-07-05:** the region map + interaction

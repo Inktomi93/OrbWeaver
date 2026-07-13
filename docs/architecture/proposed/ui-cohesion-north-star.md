@@ -316,16 +316,25 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
    worst single-viewport ember count: ~15).
 3. **World Info / Corpus / Refinery / Analytics / Settings** — apply the north-star pattern
    (N1 band + P2 ownership + §7 autosave) per section.
-4. **Ported open remainders** (from the archived docs — unchanged scope, new home):
-   - **UIP-404** (punchlist): finish `SettingRow` row-grammar adoption across settings panes.
-   - **UIP-405** (punchlist): account modal — BLOCKED on auth (#50), do not start.
-   - Punchlist §8 slivers: app-wide focus-ring audit (now PP3) · streaming-caret VERIFY-LIVE
-     (delegated to the markdown seal) · devtools FAB masked/gated in snaps.
-   - **J10** (ux-flow): Corpus client-side chat-search preview (`features/corpus/` is a .gitkeep).
-   - **J11** (ux-flow): Account/Personas/Chat-behavior/Connections settings panes (each rides its
-     feature; Account rides auth #50).
-   - **L7** (ux-flow): NT-parity growth per its §3 table (Presets stays a rail section — the
-     placement question is settled by this program treating it as one).
+4. **Ported open remainders — THE one UI to-do board** (every open UI item from the archived
+   D62-era records, each CODE-VERIFIED 2026-07-13; the history docs are closed — nothing UI-shaped
+   is tracked anywhere but here):
+   - **UIP-404 — `SettingRow` row-grammar adoption.** OPEN, verified: `SettingRow` renders in only
+     3 files; the appearance pane still composes `Grid`/`Section`/`Stack`. The persona settings
+     pane already adopted it — use it as the pattern. Fold into the Settings stop of the rollout.
+   - **Streaming caret + typing dots.** OPEN, verified: `ghost-message-row.tsx` has neither the
+     2px primary caret nor the typing dots today. Verify-live what streaming actually shows, then
+     build the missing chrome (respecting `reducedMotion`). Fold into the N3/N4 chat lane.
+   - **Account settings pane completion.** Surface exists (`auth/surfaces/account-surface.tsx`);
+     finish rides auth #50 — do not start independently.
+   - **J10 — Corpus chat-search preview.** OPEN, verified: `features/corpus/` does not exist.
+     This is FEATURE work (the Corpus section), not cohesion polish — park until the Corpus
+     feature is scheduled; the section placeholder stays honest meanwhile.
+   - **RESOLVED, no work (recorded so nobody re-opens):** the presets/world-info rail sections are
+     BUILT (the placement question is settled — D66 keeps Presets in the rail, Connections in
+     Settings); J11's Personas/Chat-behavior/Connections panes are BUILT; the focus-ring audit is
+     PP3; the devtools FAB snap-gating landed; DESIGN-REVIEW-2026-07-01's findings were all
+     applied; every design-enforcement item is BUILT or DROPPED-by-ruling (no-CI model, D62).
 
 ---
 
