@@ -115,6 +115,12 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "raw zustand persist" },
       why: "a bare persist() outside the two minting factories — persistence footguns aren't baked in (§11.5)",
     },
+    {
+      files: "export const s = persist(() => ({}), { version: 1 });\n",
+      at: "packages/client/src/state/create-persisted-store.ts",
+      expect: { messageIncludes: "persist options missing" },
+      why: "ARM B — the factory's persist options object is missing `partialize`/`migrate` (only version present)",
+    },
   ],
   mustPass: [
     {

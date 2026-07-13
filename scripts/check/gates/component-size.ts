@@ -99,5 +99,11 @@ export const gate: GateDescriptor = {
       files: { "packages/client/src/small/small.tsx": "export const x = 1;\n" },
       why: "a small client file well under the cap — passes",
     },
+    {
+      files: {
+        "packages/client/src/boundary/boundary.tsx": "export const x = 1;\n".repeat(CAP_DEFAULT),
+      },
+      why: "a client file EXACTLY at the 450 cap (lines > cap, so 450 is not over) — the boundary passes",
+    },
   ],
 };

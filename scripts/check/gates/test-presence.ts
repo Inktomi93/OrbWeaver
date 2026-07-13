@@ -188,6 +188,44 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "verb has no test" },
       why: "a domain verb file with no mirror .test/.int.test — an untested behavioral surface (§5)",
     },
+    {
+      files: {
+        "packages/server/src/domain/chat/persistence/chat-store.ts":
+          "export const createChatStore = 1;\n",
+      },
+      expect: { messageIncludes: "persistence file has no .int.test" },
+      why: "a domain persistence file with no mirror .int.test — the persistence arm (distinct message)",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/contract/schema.ts": "export const S = z.object({});\n",
+      },
+      expect: { messageIncludes: "contract schema has no .contract.test" },
+      why: "a domain contract file WITH a zod schema and no mirror .contract.test — the contract arm",
+    },
+    {
+      files: {
+        "packages/server/src/infra/providers/backends/agent-sdk/env-firewall.ts":
+          "export function firewall(): void {}\n",
+      },
+      expect: { messageIncludes: "infra/foundation file with runtime logic has no test" },
+      why: "an infra/ file with a callable export (runtime logic) and no mirror test — the infra arm (PD-blindspot)",
+    },
+    {
+      files: {
+        "packages/server/src/domain/workloads/runners/recall.ts":
+          "export const run = (ctx: { env: { x: number } }) => ctx.env.x;\n",
+      },
+      expect: { messageIncludes: "workloads runner with real logic has no test" },
+      why: "a workloads runner that touches ctx.env (real logic, NOT a D58 stub) with no mirror test — the runner arm",
+    },
+    {
+      files: {
+        "packages/contracts/src/chat/index.ts": "export const S = z.object({});\n",
+      },
+      expect: { messageIncludes: "shared contract schema has no .contract.test" },
+      why: "a shared @orb/contracts schema-bearing file (even index.ts) with no mirror .contract.test — the contracts arm",
+    },
   ],
   mustPass: [
     {
@@ -197,6 +235,13 @@ export const gate: GateDescriptor = {
         "tests/server/domain/chat/verbs/start-chat.test.ts": "export const t = 1;\n",
       },
       why: "the verb file has its mirror .test.ts — presence satisfied, passes",
+    },
+    {
+      files: {
+        "packages/server/src/domain/workloads/runners/stub.ts":
+          "export const run = () => ({ deferred: true });\n",
+      },
+      why: "a D58 no-op stub runner (deferred: true, never touches ctx.env) — exempt until filled in, passes",
     },
   ],
 };

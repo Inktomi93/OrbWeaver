@@ -101,5 +101,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/hub/z.ts",
       why: "a process.env mention in a COMMENT — only real access nodes are read, docs are exempt",
     },
+    {
+      files: 'export const owners = process.env["OWNER_HANDLES"];\n',
+      at: "packages/server/src/domain/sessions/substrate/role-policy.ts",
+      why: "the sanctioned call-time role-policy read (OWNER_HANDLES in role-policy.ts) — the isSanctionedRolePolicyRead allowlist, passes",
+    },
   ],
 };

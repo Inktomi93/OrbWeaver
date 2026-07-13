@@ -107,5 +107,10 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/x/lib/modal-slots.tsx",
       why: "the same placeholder render WITH placeholder:true — an explicit, counted state, passes",
     },
+    {
+      files: "export const MODAL_SLOTS = {\n  theme: { render: () => <ThemePanel /> },\n};\n",
+      at: "packages/client/src/features/x/lib/modal-slots.tsx",
+      why: "an entry rendering a REAL body (no <SectionPlaceholder>) with no flag — the rendersPlaceholder false branch, passes",
+    },
   ],
 };

@@ -222,12 +222,25 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "re-spells the canonical tuple" },
       why: "an inline union re-spelling a homed `as const` tuple (arm B, cross-file) — derive instead",
     },
+    {
+      files: {
+        "packages/contracts/src/mode-home.ts": "export const MODE = ['a', 'b', 'c'] as const;\n",
+        "packages/server/src/z.ts": "export const schema = z.enum(['a', 'b', 'c']);\n",
+      },
+      expect: { messageIncludes: "z.enum([...]) re-spells the canonical tuple" },
+      why: "a `z.enum([...])` respelling a homed `as const` tuple (arm B ZENUM sub-kind — the AUTH_MODE bug) — use z.enum(X)",
+    },
   ],
   mustPass: [
     {
       files: "export type NodeEnv = 'development' | 'production';\n",
       at: "packages/contracts/src/y.ts",
       why: "a 2-member one-off union with no canonical tuple — under the ≥3 floor + no home, passes",
+    },
+    {
+      files: "export const schema = z.enum(['development', 'production', 'test']);\n",
+      at: "packages/contracts/src/env.ts",
+      why: "a `z.enum([...])` one-off (NODE_ENV-class) with NO matching canonical tuple in the tree — arm B no-op, passes",
     },
   ],
 };

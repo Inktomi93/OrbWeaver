@@ -132,6 +132,19 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "missing template" },
       why: "a domain feature with only index.ts — missing service.ts/context.ts/contract/verbs (§4)",
     },
+    {
+      files: {
+        "packages/server/src/domain/loose/index.ts": "export const x = 1;\n",
+        "packages/server/src/domain/loose/service.ts": "export const s = 1;\n",
+        "packages/server/src/domain/loose/context.ts": "export const c = 1;\n",
+        "packages/server/src/domain/loose/contract/service.ts": "export const cs = 1;\n",
+        "packages/server/src/domain/loose/verbs/x.ts": "export const v = 1;\n",
+        // all required slots present, but a non-template file sits at the feature root.
+        "packages/server/src/domain/loose/helpers.ts": "export const h = 1;\n",
+      },
+      expect: { messageIncludes: "loose file 'helpers.ts' not allowed" },
+      why: "a feature with every required slot PLUS a loose non-template root file — the checkLooseFiles arm",
+    },
   ],
   mustPass: [
     {

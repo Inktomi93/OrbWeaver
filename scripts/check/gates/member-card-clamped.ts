@@ -135,5 +135,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/chat/substrate/auth/clamp.ts",
       why: "the clamp in its ONE home (domain/chat/substrate/auth) — the canonical decision site, passes",
     },
+    {
+      files: "export const note = getRosterCardView;\n",
+      at: "packages/contracts/src/chat/card.ts",
+      why: "the resurrection-verb identifier OUTSIDE server-src (in contracts) — the verb arm's SERVER_SRC scope, passes",
+    },
   ],
 };

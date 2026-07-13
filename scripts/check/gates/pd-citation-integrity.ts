@@ -122,6 +122,14 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "no row in the PD registry" },
       why: "a FLAG[PD-999] citation with no matching registry row — an orphan (the link must be physics)",
     },
+    {
+      files: {
+        "docs/architecture/core/Core-Audits-and-Debt.md":
+          "| PD-7 | active debt |\n| PD-7 | a second row with the same id |\n",
+      },
+      expect: { messageIncludes: "appears 2× across the PD registry" },
+      why: "the same PD-7 row twice in the registry — the concurrent-append dupe arm (distinct message + code path)",
+    },
   ],
   mustPass: [
     {

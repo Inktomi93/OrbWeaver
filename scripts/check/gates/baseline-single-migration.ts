@@ -121,6 +121,26 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "incremental migration" },
       why: "an incremental 0001 migration alongside the baseline — pre-launch changes must squash (db-baseline-squash)",
     },
+    {
+      files: {
+        // a stray *.sql present but NO 0000_baseline.sql → the MISSING_BASELINE arm.
+        "packages/db/src/migrations/0001_stray.sql": "-- stray\n",
+        "packages/db/src/migrations/meta/_journal.json":
+          '{ "entries": [{ "idx": 0, "tag": "0001_stray" }] }\n',
+      },
+      expect: { messageIncludes: "missing 0000_baseline.sql" },
+      why: "migrations/ has a .sql but no 0000_baseline.sql — the MISSING_BASELINE arm (distinct message)",
+    },
+    {
+      files: {
+        "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
+        // a valid single baseline .sql but a SECOND journal entry → the JOURNAL_SHAPE arm.
+        "packages/db/src/migrations/meta/_journal.json":
+          '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }, { "idx": 1, "tag": "0001_extra" }] }\n',
+      },
+      expect: { messageIncludes: "EXACTLY one entry" },
+      why: "a second _journal.json entry (idx 1) — the JOURNAL_SHAPE arm (distinct message + code path)",
+    },
   ],
   mustPass: [
     {

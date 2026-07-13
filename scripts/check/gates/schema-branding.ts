@@ -164,12 +164,31 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "no .$type" },
       why: "a primary-key id column with no .$type<> brand — the TypeID discipline it enforces",
     },
+    {
+      files:
+        'export const parent = sqliteTable("parent", { id: text("id").primaryKey().$type<ParentId>() });\nexport const child = sqliteTable("child", { parentId: text("parent_id").references(() => parent.id) });\n',
+      at: "packages/db/src/schema/fk.ts",
+      expect: { messageIncludes: "FK to branded" },
+      why: "an unbranded FK to a BRANDED target's id — the brand-must-flow-across-the-FK arm (cross-file lookup, distinct message)",
+    },
   ],
   mustPass: [
     {
       files: 'export const t = sqliteTable("t", { id: text("id").primaryKey().$type<TId>() });\n',
       at: "packages/db/src/schema/y.ts",
       why: "a branded pk id (`.$type<TId>()`) — the sanctioned shape, passes",
+    },
+    {
+      files:
+        'export const t = sqliteTable("t", {\n  // plain-id: intentionally plain, not a TypeID entity\n  id: text("id").primaryKey(),\n});\n',
+      at: "packages/db/src/schema/plain.ts",
+      why: "an unbranded pk id marked with a leading // plain-id: comment — the escape hatch, passes",
+    },
+    {
+      files:
+        'export const parent = sqliteTable("parent", {\n  // plain-id: deliberately plain target\n  id: text("id").primaryKey(),\n});\nexport const child = sqliteTable("child", { parentId: text("parent_id").references(() => parent.id) });\n',
+      at: "packages/db/src/schema/plainfk.ts",
+      why: "an unbranded FK to a PLAIN (unbranded, plain-id-marked) target — brandedTableId is false so the FK auto-exempts, passes",
     },
   ],
 };

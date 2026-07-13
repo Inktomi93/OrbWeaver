@@ -152,6 +152,23 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "no MODAL_SLOTS body" },
       why: "a modal trigger with no body — 'the panel won't open' (§11.5)",
     },
+    {
+      files: {
+        "packages/client/src/features/x/lib/rail-slots.ts": "export const RAIL = [];\n",
+        "packages/client/src/features/x/lib/modal-slots.tsx":
+          "export const MODAL_SLOTS = { orphanBody: {} };\n",
+      },
+      expect: { messageIncludes: "no rail/topbar/avatar trigger" },
+      why: "an orphan MODAL_SLOTS body with no reachable trigger — an unreachable modal (§11.5)",
+    },
+    {
+      files: {
+        "packages/client/src/features/x/lib/rail-slots.ts":
+          'export const RAIL = [{ kind: "modal", id: "theme" }];\n',
+      },
+      expect: { messageIncludes: "no sibling lib/modal-slots.tsx" },
+      why: "a rail-slots.ts with no sibling modal-slots.tsx — the pairing has nothing to check against (§11.5)",
+    },
   ],
   mustPass: [
     {

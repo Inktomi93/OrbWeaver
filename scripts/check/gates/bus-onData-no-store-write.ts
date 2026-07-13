@@ -81,5 +81,10 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/data/bus/use-chat-bus-ok.ts",
       why: "an onData body routing to the pure reducer (applyChatBusEvent) — the sanctioned shape",
     },
+    {
+      files: "export function init() {\n  useX.setState({ a: 1 });\n}\n",
+      at: "packages/client/src/data/bus/setup.ts",
+      why: "a .setState OUTSIDE any onData/onConnectionStateChange body (top-level) — the insideHandler false branch, passes",
+    },
   ],
 };

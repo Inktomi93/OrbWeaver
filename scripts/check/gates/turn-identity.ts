@@ -72,5 +72,11 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/chat/verbs/c.ts",
       why: "the same `principal` identifier OUTSIDE the engine (a verb) passes — only engine/ is blind",
     },
+    {
+      files:
+        'import { Principal } from "@orb/contracts/identity";\nexport const p: Principal = null as never;\n',
+      at: "packages/server/src/domain/chat/verbs/d.ts",
+      why: "the `Principal` import OUTSIDE the engine (a verb) — the verb layer legitimately holds the caller's id, passes",
+    },
   ],
 };

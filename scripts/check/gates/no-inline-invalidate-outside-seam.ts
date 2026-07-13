@@ -63,5 +63,11 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/a/mutation2.ts",
       why: ".cancelQueries (createEntityMutation's optimistic flow) is a different concern — not flagged",
     },
+    {
+      files:
+        "export function f(qc: { invalidateQueries: (x?: unknown) => void }) {\n  qc.invalidateQueries();\n}\n",
+      at: "packages/client/src/data/invalidation.ts",
+      why: "the ONE sanctioned invalidateQueries call — the seam file itself is scanRoot-excluded, passes",
+    },
   ],
 };
