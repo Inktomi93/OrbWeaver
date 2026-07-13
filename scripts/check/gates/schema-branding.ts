@@ -11,7 +11,7 @@
 import type { CallExpression, Project, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const SCHEMA_DIR = "/packages/db/src/schema/";
 const REF_RE = /references\(\s*\([^)]*\)[^=]*=>\s*([A-Za-z_$][\w$]*)\.id\b/u;
@@ -136,11 +136,6 @@ function reconcileSchemaBranding(root: string, project: Project): Violation[] {
   }
   return violations;
 }
-
-export const schemaBranding: Check = {
-  name: "schema-branding",
-  run: ({ root, project }): Violation[] => reconcileSchemaBranding(root, project),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
 // schema-branding is a whole-tree reconciliation: collect every schema id/FK column, build the

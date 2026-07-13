@@ -28,7 +28,7 @@
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 /** Current legit raw-motion files → reason (continuous loop / isolated hover / the a11y kill-switch — no
  *  coordination partner to desync from; not worth a token migration). */
@@ -135,34 +135,6 @@ function scanCss(
   }
   return { violations, seenAllowlisted };
 }
-
-/** The ratchet-down arm: an allowlisted file that never surfaced a raw motion value (absent OR clean). */
-function staleEntries(
-  allowlist: Record<string, string>,
-  seenAllowlisted: ReadonlySet<string>,
-): Violation[] {
-  return Object.keys(allowlist)
-    .filter((rel) => !seenAllowlisted.has(rel))
-    .map((rel) => ({
-      file: "scripts/check/gates/motion-token-purity.ts",
-      line: 1,
-      message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/motion-token-purity.ts`,
-    }));
-}
-
-/** Factory (the createNoOffTokenRadiusShadow precedent): the self-test drives BOTH ratchet arms with an
- *  injected registry + a real temp tree (withTree). */
-export function createMotionTokenPurity(allowlist: Record<string, string>): Check {
-  return {
-    name: "motion-token-purity",
-    run: ({ root }: CheckContext): Violation[] => {
-      const { violations, seenAllowlisted } = scanCss(root, allowlist);
-      return [...violations, ...staleEntries(allowlist, seenAllowlisted)];
-    },
-  };
-}
-
-export const motionTokenPurity: Check = createMotionTokenPurity(ALLOWLIST);
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a CSS-glob fs `run` gate with a ratchet, fsBacked conformance) ─
 // motion-token-purity reads the real fs (globSync of packages/{ui,client}/src/**/*.css + readFileSync) —

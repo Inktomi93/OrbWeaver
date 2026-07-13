@@ -13,13 +13,11 @@
 // case (a search/filter yielding zero results, "nothing left to do") or real debt awaiting a CTA design
 // call. An allowlisted file that has gone CLEAN (every EmptyState in it now passes `action`) is RED (stale
 // entry — remove it); a NEW file with a dead-end EmptyState not in the allowlist is RED immediately.
-import type { JsxAttributeLike, JsxSelfClosingElement, SourceFile } from "ts-morph";
+import type { JsxAttributeLike, JsxSelfClosingElement } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
 import { fileLoaded } from "../pass.ts";
 
-const FEATURES_DIR = "/packages/client/src/features/";
 const TAG_NAME = "EmptyState";
 
 /** Current dead-end files → reason. See no-interactive-role-in-features.ts for the ratchet contract. */
@@ -72,77 +70,11 @@ function hasAction(el: JsxSelfClosingElement): boolean {
   });
 }
 
-/** Lines of every dead-end `<EmptyState>` (no `action`) in this file. */
-function offenceLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)) {
-    if (el.getTagNameNode().getText() === TAG_NAME && !hasAction(el)) {
-      lines.push(el.getStartLineNumber());
-    }
-  }
-  return lines;
-}
-
-/** The offender scan: new-offender violations + which allowlisted files still carry a dead-end render. */
-function scanFeatures(
-  project: CheckContext["project"],
-  allowlist: Record<string, string>,
-): { violations: Violation[]; seenAllowlisted: Set<string> } {
-  const violations: Violation[] = [];
-  const seenAllowlisted = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    const path = sf.getFilePath();
-    if (!(path.includes(FEATURES_DIR) && path.endsWith(".tsx"))) {
-      continue;
-    }
-    const rel = clientRel(path);
-    const lines = offenceLines(sf);
-    if (rel in allowlist) {
-      if (lines.length > 0) {
-        seenAllowlisted.add(rel);
-      }
-      continue;
-    }
-    for (const line of lines) {
-      violations.push({ file: rel, line, message: MESSAGE });
-    }
-  }
-  return { violations, seenAllowlisted };
-}
-
-/** The ratchet-down arm: an allowlisted file that never surfaced a dead-end render (absent OR gone clean). */
-function staleEntries(
-  allowlist: Record<string, string>,
-  seenAllowlisted: ReadonlySet<string>,
-): Violation[] {
-  return Object.keys(allowlist)
-    .filter((rel) => !seenAllowlisted.has(rel))
-    .map((rel) => ({
-      file: "scripts/check/gates/empty-state-has-action.ts",
-      line: 1,
-      message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/empty-state-has-action.ts`,
-    }));
-}
-
-/** Factory (the createNoInteractiveRoleInFeatures precedent): the self-test drives BOTH ratchet arms with
- *  an injected registry. */
-export function createEmptyStateHasAction(allowlist: Record<string, string>): Check {
-  return {
-    name: "empty-state-has-action",
-    run: ({ project }): Violation[] => {
-      const { violations, seenAllowlisted } = scanFeatures(project, allowlist);
-      return [...violations, ...staleEntries(allowlist, seenAllowlisted)];
-    },
-  };
-}
-
-export const emptyStateHasAction: Check = createEmptyStateHasAction(ALLOWLIST);
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — reference-gate shape: offender arm + finalize stale) ─────────
 // The legacy predicate as a JsxSelfClosingElement subscription: an `<EmptyState … />` in features/**.tsx
 // with no `action` prop (and no spread that might carry one). scanRoot mirrors the legacy FEATURES_DIR +
 // `.tsx` filter; the live non-empty ALLOWLIST's stale arm is finalize-guarded to project scope (§4.4).
-// Per-occurrence. Kept ALONGSIDE the legacy Check.
+// Per-occurrence.
 const GATE_SELF = "scripts/check/gates/empty-state-has-action.ts";
 const passSeenAllowlisted = new Set<string>();
 

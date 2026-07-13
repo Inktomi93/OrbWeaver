@@ -6,10 +6,8 @@
 // rest of `domain/chat`, transport) stays `content: string` — the wasteful "content-parts everywhere"
 // retrofit D51 explicitly avoids. Enforced as the sanctioned-importer allowlist on the symbol: a
 // `ChatContentPart` import from a file outside the seam set is RED (an upstream module reaching for parts).
-import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const SYMBOL = "ChatContentPart";
 const CONTRACTS_CHAT = /^@orb\/contracts\/chat(?:\/|$)/u;
@@ -35,48 +33,6 @@ const MESSAGE =
   "pipeline.ts` · the request DTO `domain/chat/contract/results.ts` · the infra/providers consumers · the " +
   "@orb/contracts/chat home) — content-parts are produced ONCE at the engine request seam and everything " +
   "upstream stays `content: string`. See Core-Path-Registry-D44-D52.md D51.";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-/** `ChatContentPart` named imports from `@orb/contracts/chat` in one file (value or type-only). */
-function contentPartImportLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const decl of sf.getImportDeclarations()) {
-    if (!CONTRACTS_CHAT.test(decl.getModuleSpecifierValue())) {
-      continue;
-    }
-    for (const named of decl.getNamedImports()) {
-      if (named.getName() === SYMBOL) {
-        lines.push(named.getStartLineNumber());
-      }
-    }
-  }
-  return lines;
-}
-
-export const contentPartSeam: Check = {
-  name: "content-part-seam",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!PROD_SRC.test(path)) {
-        continue;
-      }
-      if (SANCTIONED.some((re) => re.test(path))) {
-        continue;
-      }
-      const rel = relPath(root, path);
-      for (const line of contentPartImportLines(sf)) {
-        violations.push({ file: rel, line, message: MESSAGE });
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as an ImportSpecifier subscription: a `ChatContentPart` named import from
 // @orb/contracts/chat, in a prod-src file outside the D51 seam set. scanRoot mirrors the legacy

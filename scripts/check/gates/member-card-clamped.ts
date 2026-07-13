@@ -14,10 +14,9 @@
 //     by chat over the one clamp).
 // NOT gated: `.memberCardVisibility` property reads — config plumbing (turn.ts's group normalizer)
 // legitimately copies the knob; only the field-gating DECISION is confined, and that is the symbols.
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
 import { Node as NodeGuards, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const CONTRACTS = /\/packages\/contracts\//u;
 const SERVER_SRC = /\/packages\/server\/src\//u;
@@ -36,65 +35,6 @@ const VERB_MESSAGE =
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
-
-/** `interface MemberCardView` / `type MemberCardView =` outside contracts. */
-function duplicateViewDeclarations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const decl of [...sf.getInterfaces(), ...sf.getTypeAliases()]) {
-    if (decl.getName() === VIEW_TYPE) {
-      out.push({ file: rel, line: decl.getStartLineNumber(), message: TYPE_MESSAGE });
-    }
-  }
-  return out;
-}
-
-/** A clamp-symbol FUNCTION/VARIABLE declaration outside the clamp home (re-exports don't declare). */
-function strayClampDeclarations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const fn of sf.getFunctions()) {
-    const name = fn.getName();
-    if (name !== undefined && CLAMP_SYMBOLS.has(name)) {
-      out.push({ file: rel, line: fn.getStartLineNumber(), message: CLAMP_MESSAGE });
-    }
-  }
-  for (const v of sf.getVariableDeclarations()) {
-    if (CLAMP_SYMBOLS.has(v.getName())) {
-      out.push({ file: rel, line: v.getStartLineNumber(), message: CLAMP_MESSAGE });
-    }
-  }
-  return out;
-}
-
-/** Any `getRosterCardView` identifier in server src (property key, import, call — all resurrection). */
-function resurrectedVerb(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    if (id.getText() === DELETED_VERB) {
-      out.push({ file: rel, line: id.getStartLineNumber(), message: VERB_MESSAGE });
-    }
-  }
-  return out;
-}
-
-export const memberCardClamped: Check = {
-  name: "member-card-clamped",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!CONTRACTS.test(path)) {
-        violations.push(...duplicateViewDeclarations(sf, relPath(root, path)));
-      }
-      if (SERVER_SRC.test(path)) {
-        if (!CLAMP_HOME.test(path)) {
-          violations.push(...strayClampDeclarations(sf, relPath(root, path)));
-        }
-        violations.push(...resurrectedVerb(sf, relPath(root, path)));
-      }
-    }
-    return violations;
-  },
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — multi-arm, per-arm SCOPE) ────────────────────
 // Three arms, THREE scopes, THREE messages — ONE gate. The type arm (MemberCardView decl outside

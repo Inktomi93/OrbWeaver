@@ -22,7 +22,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const FEATURES = "packages/client/src/features";
 const DOMAINS = "packages/server/src/domain";
@@ -227,16 +227,11 @@ function scanClientStructure(root: string): Violation[] {
   return out;
 }
 
-export const clientStructure: Check = {
-  name: "client-structure",
-  run: (ctx: CheckContext): Violation[] => scanClientStructure(ctx.root),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
 // client-structure reads the real filesystem (readdirSync/existsSync/readFileSync of the features + domain
 // dirs), never the ts-morph Project — so it ports as a `run` descriptor over ctx.root reusing the exact
 // scan, and declares `fsBacked` so the conformance runner materializes its examples into a real temp dir.
-// Findings are file-level (line 0). Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// Findings are file-level (line 0). Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "client-structure",
   docRow: "UI-Architecture-and-Layout.md §2.1 (§4)",

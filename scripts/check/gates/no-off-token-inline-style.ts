@@ -36,13 +36,9 @@
 // object property — the conservative scope). So they don't need an allowlist entry, and adding one would be
 // a permanent STALE-entry RED. An allowlisted file gone CLEAN is RED ("stale entry — remove it"); a NEW
 // offender not in the allowlist is RED immediately.
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
-
-const CLIENT_SRC_DIR = "/packages/client/src/";
-const UI_SRC_DIR = "/packages/ui/src/";
 
 /** Legit off-Tailwind inline-style sinks → reason. EMPTY: the two known off-Tailwind radius sinks (ECharts
  *  canvas + CodeMirror decoration) are framework-config OBJECT PROPERTIES, not JSX `style={{…}}`/imperative
@@ -163,27 +159,6 @@ function styleObjectLiterals(attr: Node): Node[] {
   return obj?.isKind(SyntaxKind.ObjectLiteralExpression) === true ? [obj] : [];
 }
 
-/** A raw-literal-value line from a JSX inline `style={{ <prop>: <value> }}` object literal. Walks every
- *  `style={{…}}` attribute's property assignments; a shorthand/spread/computed key or a non-token property
- *  is skipped, a dynamic value is skipped, a `var(--…)` value passes. */
-function jsxInlineStyleLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-    for (const obj of styleObjectLiterals(attr)) {
-      for (const prop of obj.getChildrenOfKind(SyntaxKind.PropertyAssignment)) {
-        const key = prop.getNameNode().getText().replace(/["']/gu, "");
-        if (
-          TOKEN_BACKED_PROPS.has(key) &&
-          isRawLiteralValue(staticLiteral(prop.getInitializer()))
-        ) {
-          lines.push(prop.getStartLineNumber());
-        }
-      }
-    }
-  }
-  return lines;
-}
-
 /** Is `expr` a `<something>.style` member access (`el.style`, `ref.current.style`)? */
 function isStyleAccess(expr: Node): boolean {
   return expr.isKind(SyntaxKind.PropertyAccessExpression) && expr.getName() === "style";
@@ -198,113 +173,12 @@ function isStyleTokenTarget(lhs: Node): boolean {
   );
 }
 
-/** A raw-literal-value line from an imperative `<expr>.style.<prop> = <value>`. */
-function imperativeAssignLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const bin of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
-    if (bin.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
-      continue;
-    }
-    if (isStyleTokenTarget(bin.getLeft()) && isRawLiteralValue(staticLiteral(bin.getRight()))) {
-      lines.push(bin.getStartLineNumber());
-    }
-  }
-  return lines;
-}
-
-/** A raw-literal-value line from an imperative `<expr>.style.setProperty("<prop>", <value>)`. */
-function imperativeSetPropertyLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const callee = call.getExpression();
-    if (!callee.isKind(SyntaxKind.PropertyAccessExpression) || callee.getName() !== "setProperty") {
-      continue;
-    }
-    if (!isStyleAccess(callee.getExpression())) {
-      continue;
-    }
-    const [propArg, valueArg] = call.getArguments();
-    if (!TOKEN_BACKED_PROPS.has(staticLiteral(propArg))) {
-      continue;
-    }
-    if (isRawLiteralValue(staticLiteral(valueArg))) {
-      lines.push(call.getStartLineNumber());
-    }
-  }
-  return lines;
-}
-
-/** Every raw-literal off-token inline-style line in one file — the union of the three carriers. */
-function offenceLines(sf: SourceFile): number[] {
-  return [
-    ...jsxInlineStyleLines(sf),
-    ...imperativeAssignLines(sf),
-    ...imperativeSetPropertyLines(sf),
-  ];
-}
-
-/** The offender scan: new-offender violations + which allowlisted files still carry a raw-literal inline
- *  style. */
-function scanSrc(
-  project: CheckContext["project"],
-  allowlist: Record<string, string>,
-): { violations: Violation[]; seenAllowlisted: Set<string> } {
-  const violations: Violation[] = [];
-  const seenAllowlisted = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    const path = sf.getFilePath();
-    if (!(path.includes(CLIENT_SRC_DIR) || path.includes(UI_SRC_DIR))) {
-      continue;
-    }
-    const rel = clientRel(path);
-    const lines = offenceLines(sf);
-    if (rel in allowlist) {
-      if (lines.length > 0) {
-        seenAllowlisted.add(rel);
-      }
-      continue;
-    }
-    for (const line of lines) {
-      violations.push({ file: rel, line, message: MESSAGE });
-    }
-  }
-  return { violations, seenAllowlisted };
-}
-
-/** The ratchet-down arm: an allowlisted file that never surfaced a raw-literal inline style (absent OR clean). */
-function staleEntries(
-  allowlist: Record<string, string>,
-  seenAllowlisted: ReadonlySet<string>,
-): Violation[] {
-  return Object.keys(allowlist)
-    .filter((rel) => !seenAllowlisted.has(rel))
-    .map((rel) => ({
-      file: "scripts/check/gates/no-off-token-inline-style.ts",
-      line: 1,
-      message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-off-token-inline-style.ts`,
-    }));
-}
-
-/** Factory (the createNoOffTokenRadiusShadow / createMotionTokenPurity precedent): the self-test drives
- *  BOTH ratchet arms with an injected registry. */
-export function createNoOffTokenInlineStyle(allowlist: Record<string, string>): Check {
-  return {
-    name: "no-off-token-inline-style",
-    run: ({ project }: CheckContext): Violation[] => {
-      const { violations, seenAllowlisted } = scanSrc(project, allowlist);
-      return [...violations, ...staleEntries(allowlist, seenAllowlisted)];
-    },
-  };
-}
-
-export const noOffTokenInlineStyle: Check = createNoOffTokenInlineStyle(ALLOWLIST);
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — the reference-gate shape: offender arm + finalize stale arm) ─
 // Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
 // `<expr>.style.<prop> = <raw>` BinaryExpression, and a `.style.setProperty("<prop>", <raw>)`
 // CallExpression. scanRoot mirrors the legacy scanSrc filter (client|ui src). The empty ALLOWLIST's
 // stale arm is finalize-guarded to project scope (§4.4), exactly like no-off-token-radius-shadow.
-// Per-occurrence (each offending inline-style site). Kept ALONGSIDE the legacy Check.
+// Per-occurrence (each offending inline-style site).
 const GATE_SELF = "scripts/check/gates/no-off-token-inline-style.ts";
 const passSeenAllowlisted = new Set<string>();
 

@@ -32,7 +32,7 @@ import type {
 } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { CheckContext } from "../harness.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
 const ASSET_REFS_FILE = /\/packages\/server\/src\/domain\/assets\/persistence\/asset-refs\.ts$/u;
@@ -269,43 +269,13 @@ function partitionProject(project: CheckContext["project"]): {
   return { registrySf, schemaFiles };
 }
 
-/** The Check: every schema FK→`assets.id` column must be classified in ASSET_REFS (JS-identifier
- *  space) or DERIVED_ASSET_COLUMNS (snake-case space) — vacuous when the registry file isn't in the
- *  project (a schema-only fixture with nothing to check against). */
-export const assetRefsFkCoverage: Check = {
-  name: "asset-refs-fk-coverage",
-  run: ({ root, project }: CheckContext): Violation[] => {
-    const { registrySf, schemaFiles } = partitionProject(project);
-    if (registrySf === undefined) {
-      return [];
-    }
-    const { retaining, derived } = parseRegistry(registrySf);
-    const violations: Violation[] = [];
-    for (const sf of schemaFiles) {
-      for (const col of fkColumnsToAssets(sf)) {
-        const jsKey = `${col.tableJs}.${col.columnJs}`;
-        const sqlKey = `${col.tableSql}.${col.columnSql}`;
-        if (retaining.has(jsKey) || derived.has(sqlKey)) {
-          continue;
-        }
-        violations.push({
-          file: relPath(root, sf.getFilePath()),
-          line: col.line,
-          message: MESSAGE(col.tableSql, col.columnSql),
-        });
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project reconciliation via `run`) ───────────
 // asset-refs-fk-coverage reconciles every schema FK→`assets.id` column against the two registry arrays
 // in domain/assets/persistence/asset-refs.ts. Pure-AST (no fs — it reads the registry + schema through
 // the shared Project, symbol-resolving aliased `assets` imports via the checker), so NOT fsBacked. STRICT
 // — no allowlist, no ratchet arm — so it ports as a `run` reusing the exact scan (vacuous when the
 // registry file isn't loaded, exactly like the legacy). Distinct per-column messages → per-occurrence
-// overrides. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy.
+// overrides. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "asset-refs-fk-coverage",
   docRow: "domain/assets/persistence/asset-refs.ts (task #114)",

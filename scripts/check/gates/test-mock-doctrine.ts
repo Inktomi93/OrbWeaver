@@ -4,7 +4,7 @@
 import type { CallExpression } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 function checkMockCall(call: CallExpression, filePath: string): Violation | null {
   const expr = call.getExpression();
@@ -36,31 +36,11 @@ function checkMockCall(call: CallExpression, filePath: string): Violation | null
   };
 }
 
-export const testMockDoctrine: Check = {
-  name: "test-mock-doctrine",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const filePath = sf.getFilePath();
-      if (!filePath.includes("/tests/")) {
-        continue;
-      }
-      for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-        const violation = checkMockCall(call, filePath);
-        if (violation) {
-          violations.push(violation);
-        }
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a CallExpression subscription: a `vi.mock("<internal>")` call (relative /
 // packages/ / @orb/ target) in a /tests/ file. scanRoot mirrors the legacy `/tests/` filter. The message
 // names the mock target (varies), so each finding carries a per-occurrence override. The node-anchored
-// finding lands on the vi.mock call. Per-occurrence. Kept ALONGSIDE the legacy Check.
+// finding lands on the vi.mock call. Per-occurrence.
 const MOCK_MESSAGE =
   "vi.mock on an internal module — fake at the edges, inject at the composition root (core/Spine-Testing.md §3).";
 

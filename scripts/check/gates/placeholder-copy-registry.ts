@@ -13,9 +13,8 @@
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
-const COPY_SUFFIX = "/lib/section-placeholder-copy.ts";
 const COPY_MAP = "SECTION_PLACEHOLDER_COPY";
 
 /** `packages/...`-relative path for a violation location. */
@@ -73,24 +72,11 @@ function checkFile(sf: SourceFile, out: Violation[]): void {
   }
 }
 
-export const placeholderCopyRegistry: Check = {
-  name: "placeholder-copy-registry",
-  run: ({ project }): Violation[] => {
-    const out: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      if (sf.getFilePath().endsWith(COPY_SUFFIX)) {
-        checkFile(sf, out);
-      }
-    }
-    return out;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE dedup gate via visitFile) ─────────────────────────
 // The legacy predicate as a per-file hook: within each section-placeholder-copy.ts, every entry's
 // (title, description) pair must be DISTINCT (a within-file dedup — the per-file scan is the unit).
 // scanRoot mirrors the legacy COPY_SUFFIX. The duplicate-entry message varies → per-occurrence override.
-// Not fsBacked. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// Not fsBacked. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "placeholder-copy-registry",
   docRow: "design-enforcement.md §3.2 (ux-flow-revamp.md J10)",

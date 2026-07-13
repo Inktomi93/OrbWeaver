@@ -16,7 +16,7 @@
 import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const CONTRACTS_USER_BUS = /\/packages\/contracts\/src\/user-bus\/index\.ts$/u;
 const EMIT_SCOPE = /\/packages\/server\/src\/(?:domain|transport)\//u;
@@ -99,16 +99,11 @@ function reconcileUserBusCoverage(project: Project): Violation[] {
   return violations;
 }
 
-export const userBusCoverage: Check = {
-  name: "user-bus-coverage",
-  run: ({ project }): Violation[] => reconcileUserBusCoverage(project),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
 // The twin of bus-coverage: a pure whole-tree reconciliation (USER_BUS_EVENT_TYPES keys vs the server
 // literal corpus), ported as a `run` descriptor reusing the exact reconcile logic. The vacuous guards
 // (no contracts file / empty union → []) are the synthetic-tree protection. Findings byte-identical to
-// the legacy Check. Kept ALONGSIDE the legacy Check.
+// the legacy Check.
 export const gate: GateDescriptor = {
   name: "user-bus-coverage",
   docRow: "PD user-bus lane (ledger D50 twin; @orb/contracts/user-bus)",

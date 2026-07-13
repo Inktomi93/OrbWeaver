@@ -16,7 +16,7 @@
 import type { ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const RAIL_SUFFIX = "/lib/rail-slots.ts";
 const MODAL_BASENAME = "/lib/modal-slots.tsx";
@@ -123,17 +123,12 @@ function scanRegistryPairing(project: Project): Violation[] {
   return out;
 }
 
-export const registryPairing: Check = {
-  name: "registry-pairing",
-  run: ({ project }): Violation[] => scanRegistryPairing(project),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a cross-FILE PAIRING scan via `run`) ───────────────
 // registry-pairing is a cross-file bijection check (each rail-slots.ts vs its SIBLING modal-slots.tsx,
 // looked up by path) — not a per-node predicate — so it ports as a `run` descriptor reusing the exact
 // pairing logic over the SAME shared project. No begin/finalize (each pair is judged inside `run`). A
 // synthetic tree with no rail-slots.ts is naturally vacuous. Distinct per-id messages → per-occurrence
-// overrides. Findings byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// overrides. Findings byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "registry-pairing",
   docRow: "UI-Gates-and-Lessons.md §11.5 (design-enforcement.md §3.1)",

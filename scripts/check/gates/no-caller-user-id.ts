@@ -6,34 +6,11 @@
 // literals that mention the term (e.g. the identity-doc "no `callerUserId`" note) are exempt.
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const FORBIDDEN = "callerUserId";
 
 const MESSAGE =
   "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` (the responsible human) / `runAsUserId` (the funded identity). Never route the caller's id into credential/settings resolution. See Spine-Identity-and-Auth.md (turn-identity: triggeredBy vs runAsUserId; D19).";
-
-export const noCallerUserId: Check = {
-  name: "no-caller-user-id",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-        if (id.getText() !== FORBIDDEN) {
-          continue;
-        }
-        const abs = sf.getFilePath();
-        violations.push({
-          file: abs.startsWith(root) ? abs.slice(root.length + 1) : abs,
-          line: id.getStartLineNumber(),
-          message: MESSAGE,
-        });
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The same predicate as the legacy Check, re-expressed as an Identifier subscription: no project loop,
 // no getDescendantsOfKind sweep — the runner's ONE walk feeds each Identifier to `visit`. Per-occurrence

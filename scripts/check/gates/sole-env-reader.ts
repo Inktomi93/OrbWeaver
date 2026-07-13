@@ -5,12 +5,9 @@
 // (which biome's global rule can miss) and reads only real access nodes — comments naming `process.env`
 // (e.g. the agent-sdk firewall docs) are ignored. `domain/sessions`' sanctioned call-time reads are
 // allowlisted below (foundation.md inv #1).
-import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
-const SERVER_SRC = "/packages/server/src/";
 const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//u;
 
 // The ONE sanctioned call-time process.env EXCEPTION: the
@@ -26,11 +23,6 @@ const SANCTIONED_KEYS = new Set([
   "OIDC_ADMIN_GROUPS",
   "OIDC_ALLOWED_GROUPS",
 ]);
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
 // A `process.env` node is a sanctioned role-policy read iff it is the object of `process.env["<KEY>"]`
 // where KEY is one of the three allowlisted vars.
 function isSanctionedRolePolicyRead(node: Node): boolean {
@@ -64,44 +56,12 @@ function isProcessEnvAccess(node: Node): boolean {
   return false;
 }
 
-function scan(sf: SourceFile, root: string, out: Violation[]): void {
-  const isRolePolicy = ROLE_POLICY.test(sf.getFilePath());
-  for (const node of sf.getDescendants()) {
-    if (isProcessEnvAccess(node)) {
-      if (isRolePolicy && isSanctionedRolePolicyRead(node)) {
-        continue;
-      }
-      out.push({
-        file: relPath(root, sf.getFilePath()),
-        line: node.getStartLineNumber(),
-        message:
-          "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (core/Tier-2-Foundation.md inv #1).",
-      });
-    }
-  }
-}
-
-export const soleEnvReader: Check = {
-  name: "sole-env-reader",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!path.includes(SERVER_SRC) || ENV_HOME.test(path)) {
-        continue;
-      }
-      scan(sf, root, violations);
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as a Property/ElementAccessExpression subscription (the two node shapes a
 // `process.env` / `process["env"]` access can take): no getDescendants() over every node — the runner's
 // ONE walk feeds only these two kinds. scanRoot mirrors the legacy filter (server-src ∧ ¬foundation/env).
 // The role-policy sanctioned-read exception is applied in `visit` exactly as the legacy `scan`.
-// Per-occurrence (each process.env access). Kept ALONGSIDE the legacy Check.
+// Per-occurrence (each process.env access).
 const SOLE_ENV_MESSAGE =
   "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (core/Tier-2-Foundation.md inv #1).";
 

@@ -4,11 +4,11 @@
 // shared harness project (harness.ts's `getProject`) already loads `tests/**/*.ts` + `tests/**/*.tsx`,
 // so every lane (`.test.ts`/`.int.test.ts`/`.ct.tsx`/`.spec.ts`/…) is covered without a second glob.
 //
-// DORMANT BY DECISION (Alex 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — NOT listed in
-// `ALL_CHECKS` (scripts/check/report.ts), so it never runs as part of `pnpm check:structure` today.
-// ACTIVATE by adding, verbatim:
-//   import { monotonicTests } from "./gates/monotonic-tests.ts";
-// and a `monotonicTests,` entry to the `ALL_CHECKS` array in scripts/check/report.ts.
+// DORMANT BY DECISION (Alex 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — the `gate` descriptor
+// below carries `status:"dormant"`, so the live pass (runPass filters to status:"active") never runs it as
+// part of `pnpm check:structure` today. ACTIVATE by flipping the descriptor's `status` to `"active"` and
+// adding its Layer-3 ACTIVE row (+ count bump) in Core-Enforcement-Active-Gates.md. The legacy
+// `monotonicTests` Check export is RETAINED only because monotonic-tests.residual.test.ts drives it directly.
 //
 // The permanent "wrong-but-green" guard: every OTHER gate verifies the code; this one verifies the
 // SUITE — a green `pnpm check` must never be reachable by quietly deleting or disabling tests (the

@@ -15,25 +15,13 @@
 //     identifier to its declaration, so a `const K = ["..."]` mint stays a legal proxy-shaped seam).
 //   • `.queryKey()` / `.queryFilter()` / `.pathFilter()` proxy calls — those are call expressions, not
 //     a `queryKey:` property at all.
-import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
-
-const CLIENT_SRC = "/packages/client/src/";
 
 const MESSAGE =
   "inline array-literal queryKey — client query keys are 100% tRPC-proxy-derived " +
   "(trpc.<router>.<proc>.queryKey()/.queryFilter()/.pathFilter()); a hand-written key array silently " +
   "diverges from the reader/invalidator's key. Mint it from the proxy (UI-Gates-and-Lessons.md §11.1).";
-
-function clientRel(path: string): string | undefined {
-  const idx = path.indexOf(CLIENT_SRC);
-  if (idx === -1) {
-    return;
-  }
-  return `packages/client/src/${path.slice(idx + CLIENT_SRC.length)}`;
-}
 
 /** Strip `as` / `satisfies` / parens so the underlying initializer is reachable — but NEVER resolve an
  *  identifier to its declaration (a `const K = [...]` proxy-shaped mint is legal). */
@@ -48,33 +36,6 @@ function unwrap(node: Node): Node {
   }
   return n;
 }
-
-function violationsIn(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
-    if (pa.getName() !== "queryKey") {
-      continue;
-    }
-    if (Node.isArrayLiteralExpression(unwrap(pa.getInitializerOrThrow()))) {
-      out.push({ file: rel, line: pa.getStartLineNumber(), message: MESSAGE });
-    }
-  }
-  return out;
-}
-
-export const noArrayLiteralQuerykey: Check = {
-  name: "no-array-literal-querykey",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = clientRel(sf.getFilePath());
-      if (rel !== undefined) {
-        violations.push(...violationsIn(sf, rel));
-      }
-    }
-    return violations;
-  },
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as a PropertyAssignment subscription: a `queryKey:` property whose (unwrapped)

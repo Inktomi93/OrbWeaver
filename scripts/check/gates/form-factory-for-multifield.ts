@@ -28,7 +28,7 @@
 import type { JsxAttribute, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const FEATURES_SRC = "/packages/client/src/features/";
 const TSX_RE = /\.tsx$/u;
@@ -174,27 +174,12 @@ function fileViolations(sf: SourceFile, rel: string): Violation[] {
   return violations;
 }
 
-export const formFactoryForMultifield: Check = {
-  name: "form-factory-for-multifield",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = featureRel(sf.getFilePath());
-      if (rel === undefined || importsFactory(sf)) {
-        continue;
-      }
-      violations.push(...fileViolations(sf, rel));
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE component-count gate via visitFile) ───────────────
 // The legacy predicate as a per-file hook: a feature .tsx whose enclosing component hand-rolls ≥3
 // controlled form inputs while importing NEITHER editor factory (the per-component count is a per-file
 // aggregation — the whole-file scan is the unit). scanRoot mirrors the legacy FEATURES_SRC + `.tsx`
 // filter. The finding names the component + count → per-occurrence override. Not fsBacked. Byte-identical
-// to the legacy Check. Kept ALONGSIDE the legacy Check.
+// to the legacy Check.
 export const gate: GateDescriptor = {
   name: "form-factory-for-multifield",
   docRow: "D54 §13.4 (UI-Primitives-and-Reuse.md §13.4)",

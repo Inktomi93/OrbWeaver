@@ -18,10 +18,9 @@
 //   • SCOPE-SUBJECT (the ownerId IS the partition subject, not a derivable parent mirror — the D23 "no
 //     derivable owner → KEEP" case): chat_tags (D30 per-user overlay on an ownerless chat) · global_documents
 //     (D49 — the ownerId is the scope subject of the personal bank).
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 import { fileLoaded } from "../pass.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
@@ -58,51 +57,9 @@ export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
   chat_tags: "D30 per-user overlay on an ownerless chat (the tagger IS the owner)",
   global_documents: "D49 personal-bank scope junction (the ownerId IS the scope subject)",
 };
-
-const STAMP_MESSAGE = (table: string): string =>
-  `table "${table}" stamps an \`ownerId\` column but is NOT on the D23 ownership-stamp allowlist — an ` +
-  "ownerId is legal ONLY on a TRUE PRODUCER (authored artifact, no owned anchor), a parentless per-user " +
-  "aggregate, or a sanctioned scope-subject (chat_tags D30 / global_documents D49). Every other table " +
-  "DERIVES its owner via ONE FK to an owned entity — drop the stamp or add a justified allowlist row " +
-  "(scripts/check/gates/ownerid-registry.ts) with a D-cite. See Core-Path-Registry-D1-D34.md D23.";
 const STALE_MESSAGE = (table: string): string =>
   `OWNERID_ALLOWLIST names "${table}" but no schema table of that name carries an \`ownerId\` column — ` +
   "delete the stale entry (scripts/check/gates/ownerid-registry.ts). See Core-Path-Registry-D1-D34.md D23.";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-/** Every `sqliteTable("<name>", { … })` whose columns object declares an `ownerId` property, as
- *  (sqlName, file, line) — the AST truth the allowlist is measured against. */
-function ownerIdTables(sf: SourceFile): { name: string; line: number }[] {
-  const out: { name: string; line: number }[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const callee = call.getExpression();
-    if (!(callee.isKind(SyntaxKind.Identifier) && callee.getText() === TABLE_FN)) {
-      continue;
-    }
-    const [nameArg, colsArg] = call.getArguments();
-    if (nameArg === undefined || !nameArg.isKind(SyntaxKind.StringLiteral)) {
-      continue;
-    }
-    if (colsArg === undefined || !colsArg.isKind(SyntaxKind.ObjectLiteralExpression)) {
-      continue;
-    }
-    const hasOwner = colsArg
-      .getProperties()
-      .some(
-        (p) =>
-          (p.isKind(SyntaxKind.PropertyAssignment) ||
-            p.isKind(SyntaxKind.ShorthandPropertyAssignment)) &&
-          p.getName() === OWNER_COL,
-      );
-    if (hasOwner) {
-      out.push({ name: nameArg.getLiteralText(), line: call.getStartLineNumber() });
-    }
-  }
-  return out;
-}
 
 /** If this node is a `sqliteTable("<name>", { … ownerId … })` call, its SQL table name — else undefined.
  *  The single-node form of `ownerIdTables`, for the single-pass visit (no per-file re-walk). */
@@ -132,64 +89,13 @@ function ownerIdTableOf(node: Node): string | undefined {
   return hasOwner ? nameArg.getLiteralText() : undefined;
 }
 
-/** Stamp-side arm: every ownerId table not on the allowlist is RED; returns the set of seen owner
- *  tables so the caller can run the stale-side arm. */
-function stampViolations(
-  root: string,
-  project: { getSourceFiles: () => SourceFile[] },
-  allowlist: Readonly<Record<string, string>>,
-): { violations: Violation[]; seen: Set<string> } {
-  const violations: Violation[] = [];
-  const seen = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    if (!SCHEMA_DIR.test(sf.getFilePath())) {
-      continue;
-    }
-    const rel = relPath(root, sf.getFilePath());
-    for (const table of ownerIdTables(sf)) {
-      seen.add(table.name);
-      if (!(table.name in allowlist)) {
-        violations.push({ file: rel, line: table.line, message: STAMP_MESSAGE(table.name) });
-      }
-    }
-  }
-  return { violations, seen };
-}
-
-/** Factory: the gate over an injected allowlist (the ratchet-arm test seam — the same
- *  createEnforcementRegistryParity precedent). `ownerIdRegistry` below is the live-allowlist instance. */
-export function createOwnerIdRegistry(allowlist: Readonly<Record<string, string>>): Check {
-  return {
-    name: "ownerid-registry",
-    run: ({ root, project }): Violation[] => {
-      const { violations, seen } = stampViolations(root, project, allowlist);
-      // Vacuous on the placeholder tree (no schema loaded) — never flag stale entries then.
-      if (seen.size === 0) {
-        return violations;
-      }
-      for (const table of Object.keys(allowlist)) {
-        if (!seen.has(table)) {
-          violations.push({
-            file: "packages/db/src/schema",
-            line: 0,
-            message: STALE_MESSAGE(table),
-          });
-        }
-      }
-      return violations;
-    },
-  };
-}
-
-export const ownerIdRegistry: Check = createOwnerIdRegistry(OWNERID_ALLOWLIST);
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — collect-then-judge ratchet) ────────────────────────
 // STAMP arm (per-node): a sqliteTable with an ownerId column not on the allowlist → per-site finding at
 // visit. STALE arm (whole-tree): a listed table with no ownerId column anywhere → finalize. The stale arm
 // is name-keyed against the LIVE OWNERID_ALLOWLIST, so a synthetic conformance/parity tree (which omits
 // the real schema tables) would misfire — guarded on (a) project scope and (b) the schema BARREL being
 // LOADED (the batch-3 fileLoaded pattern, keyed to a sentinel file since the registry is name-keyed). The
-// barrel is loaded on every real full-tree run, so the ratchet is preserved. Kept ALONGSIDE the legacy.
+// barrel is loaded on every real full-tree run, so the ratchet is preserved.
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const seenOwnerTables = new Set<string>();
 

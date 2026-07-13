@@ -17,14 +17,9 @@
 // with the value + reason when no token exists for it. An allowlisted file that has gone CLEAN (no
 // scoped arbitrary-value class remains) is RED (stale entry — remove it); a NEW offender not in the
 // allowlist is RED immediately.
-import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
 import { fileLoaded } from "../pass.ts";
-
-const CLIENT_SRC_DIR = "/packages/client/src/";
-const UI_SRC_DIR = "/packages/ui/src/";
 
 /** Current legit arbitrary-value files → reason (no token exists). See no-raw-interactive-intrinsics.ts
  *  for the ratchet contract (both arms). */
@@ -78,88 +73,12 @@ function clientRel(path: string): string {
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-/** Lines of every banned arbitrary-value class token in every string literal of this file. Template
- *  literals with interpolation (TemplateHead/Middle/Tail) are skipped — className strings never carry
- *  interpolated tokens (only tv() slot values do, always plain strings/no-substitution templates). */
-function offenceLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const kind of [
-    SyntaxKind.StringLiteral,
-    SyntaxKind.NoSubstitutionTemplateLiteral,
-  ] as const) {
-    for (const lit of sf.getDescendantsOfKind(kind)) {
-      // Strip the one enclosing delimiter char (`"`/`'`/`` ` ``) each side — getText() includes it.
-      const text = lit.getText().slice(1, -1);
-      const tokens = text.split(WHITESPACE_RE);
-      if (tokens.some(isBannedArbitrary)) {
-        lines.push(lit.getStartLineNumber());
-      }
-    }
-  }
-  return lines;
-}
-
-/** The offender scan: new-offender violations + which allowlisted files still carry a banned arbitrary. */
-function scanSrc(
-  project: CheckContext["project"],
-  allowlist: Record<string, string>,
-): { violations: Violation[]; seenAllowlisted: Set<string> } {
-  const violations: Violation[] = [];
-  const seenAllowlisted = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    const path = sf.getFilePath();
-    if (!(path.includes(CLIENT_SRC_DIR) || path.includes(UI_SRC_DIR))) {
-      continue;
-    }
-    const rel = clientRel(path);
-    const lines = offenceLines(sf);
-    if (rel in allowlist) {
-      if (lines.length > 0) {
-        seenAllowlisted.add(rel);
-      }
-      continue;
-    }
-    for (const line of lines) {
-      violations.push({ file: rel, line, message: MESSAGE });
-    }
-  }
-  return { violations, seenAllowlisted };
-}
-
-/** The ratchet-down arm: an allowlisted file that never surfaced a banned arbitrary (absent OR clean). */
-function staleEntries(
-  allowlist: Record<string, string>,
-  seenAllowlisted: ReadonlySet<string>,
-): Violation[] {
-  return Object.keys(allowlist)
-    .filter((rel) => !seenAllowlisted.has(rel))
-    .map((rel) => ({
-      file: "scripts/check/gates/no-arbitrary-tw-values.ts",
-      line: 1,
-      message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-arbitrary-tw-values.ts`,
-    }));
-}
-
-/** Factory (the createNoInteractiveRoleInFeatures precedent): the self-test drives BOTH ratchet arms with
- *  an injected registry. */
-export function createNoArbitraryTwValues(allowlist: Record<string, string>): Check {
-  return {
-    name: "no-arbitrary-tw-values",
-    run: ({ project }): Violation[] => {
-      const { violations, seenAllowlisted } = scanSrc(project, allowlist);
-      return [...violations, ...staleEntries(allowlist, seenAllowlisted)];
-    },
-  };
-}
-
-export const noArbitraryTwValues: Check = createNoArbitraryTwValues(ALLOWLIST);
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — per-token, reference-gate shape: offender arm + finalize stale) ─
 // The legacy predicate as a String/NoSubstitutionTemplate subscription (interpolated template parts are
 // deliberately skipped — className strings never carry them). PER-TOKEN: each banned arbitrary token in a
 // class string is its own finding at its real column (owner ruling 1). scanRoot mirrors the legacy
 // scanSrc filter (client|ui src); the live non-empty ALLOWLIST's stale arm is finalize-guarded to project
-// scope (§4.4). Kept ALONGSIDE the legacy Check.
+// scope (§4.4).
 const GATE_SELF = "scripts/check/gates/no-arbitrary-tw-values.ts";
 const passSeenAllowlisted = new Set<string>();
 

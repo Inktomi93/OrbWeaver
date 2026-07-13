@@ -1,8 +1,10 @@
 // Pins that EVERY ts-morph/fs structural gate actually fires on a violation — the gate self-test the
 // dep-cruiser suite has, now for scripts/check/gates/*. A gate with a broken regex / AST query silently
 // matches nothing and passes green (the exact failure the dep-cruiser test was built to catch); this is
-// its structural-gate twin. The gate registry is DERIVED from `report.ts`'s own output (every gate it
-// prints must fire on some fixture) — so a new gate added without a fixture FAILS here (anti-drift).
+// its structural-gate twin. The gate registry is DERIVED from `report.ts`'s own output — the LIVE
+// single-pass run (loadGates → runPass → renderPass); every ACTIVE gate it prints must fire on some
+// fixture, so a new gate added without a fixture FAILS here (anti-drift). This is the live-tree complement
+// to gate-conformance.int.test.ts's synthetic mustFlag/mustPass examples.
 //
 // Each fixture is a minimal violation at the path its gate anchors on, all named `__g_*` so cleanup is a
 // single find -prune -rm. We run `check:structure` clean (→ the registry), then with fixtures (→ the
@@ -127,13 +129,12 @@ function writeFixtures(): void {
   // baseline-single-migration: an extra migration .sql alongside 0000_baseline.sql (the
   // squash-not-incremental law) — real migrations/ dir already exists, this just adds a stray file.
   fx("packages/db/src/migrations/__g_0001_fake.sql", "-- fake incremental migration\n");
-  // enforcement-registry-parity: NO fixture (V5 cutover) — the contract-form gate reconciles the DISCOVERED
-  // DESCRIPTOR SET vs the doc; its old arm-2 (a gate file missing from ALL_CHECKS) is STRUCTURALLY RETIRED
-  // (the loader's fail-closed assertDescriptor makes an unwired/invalid gate file a load-time RED, §7). A
-  // `__g_` fixture can't cleanly trigger the doc-reconciliation arm (it would need a valid mustFlag/mustPass
-  // descriptor whose name is absent from the real doc — a heavy live-doc edit), so this gate is exempted
-  // from the anti-drift assertion below; its bite is proven by gate-conformance (its mustFlag) +
-  // single-pass-parity's "reconciles the DISCOVERED DESCRIPTOR SET" test.
+  // enforcement-registry-parity: NO fixture — the contract-form gate reconciles the DISCOVERED DESCRIPTOR
+  // SET vs the doc; the old "gate file missing from the registry" arm is STRUCTURALLY RETIRED (the loader's
+  // fail-closed assertDescriptor makes an unwired/invalid gate file a load-time RED, §7). A `__g_` fixture
+  // can't cleanly trigger the doc-reconciliation arm (it would need a valid mustFlag/mustPass descriptor
+  // whose name is absent from the real doc — a heavy live-doc edit), so this gate is exempted from the
+  // anti-drift assertion below; its bite is proven by gate-conformance (its mustFlag).
   // test-layout: a test with no source mirror.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).
@@ -443,8 +444,8 @@ function writeFixtures(): void {
 // file can't add a verification-shaped script to the real package.json (and injecting one there would be a
 // real, non-throwaway edit), so it can't be driven by a fixture. Its bite is proven by its conformance
 // mustFlag (a synthetic package.json with an unplaced test:* script) + its dedicated verify-run test.
-// enforcement-registry-parity: V5 cutover retired its `__g_` arm (arm-2 is now the loader's fail-closed
-// job); its contract-form doc-reconciliation bite is proven by gate-conformance + single-pass-parity §7.
+// enforcement-registry-parity: its `__g_` arm is retired (the gate-file-vs-registry job is now the loader's
+// fail-closed responsibility); its contract-form doc-reconciliation bite is proven by gate-conformance.
 // tsconfig-routing-parity spawns `tsgo --showConfig` over the REAL tsconfig tree (the 7 programs) and
 // reconciles their root membership against selection.ts's routing algebra — a throwaway `__g_` file can't
 // alter a program's resolved include/files, so it can't be fixture-driven. Its bite is proven by its
@@ -484,35 +485,18 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
   expect(unfired).toEqual([]);
 });
 
-// Gates DELIBERATELY not wired into `ALL_CHECKS` — written but DORMANT by decision (Alex 2026-07-04,
-// scratch/dev-tooling-support-kit-plan.md), each with its own header explaining why + its own
-// self-test proving it actually fires (tests/tooling/{monotonic-tests,audit-client-tests}.int.test.ts
-// drive them directly, never through report.ts). This is the ONE sanctioned exemption from the
-// anti-drift check below — a gate added here without ALSO getting a self-test is still a bug; the
-// exemption is for the ALL_CHECKS registration only, not for having no test at all.
-const DORMANT_GATES = new Set([
-  "monotonic-tests",
-  "audit-client-tests",
-  // The 8 ledger-gate-wave gates (2026-07-09) were ACTIVATED once the doc freeze lifted — they now live
-  // in report.ts's BASE_CHECKS (+ their Core-Enforcement-Active-Gates.md rows), so they are no longer here.
-  // The D54 §13.3 form-factory gate (2026-07-09) was likewise ACTIVATED once its ONE real-tree hit
-  // (chat/components/group-config-form.tsx) was migrated onto createAutosaveEntityForm — no longer here.
-  //
-  // W1-0c (2026-07-04): built + self-tested, deliberately unregistered pending its own future
-  // consumer — `table.tsx` stays at 461 lines by the owner's decision until a table consumer lands and
-  // the primitive naturally splits under the 450-line cap (UI-Primitives-and-Reuse.md §13.9).
-  // `test-presence-client` and `surface-in-a-container` were the OTHER two W1-0c gates in this set;
-  // W1-1 (2026-07-04) backfilled test-presence-client's findings + calibrated
-  // surface-in-a-container's anchor-provided exemption against the chat feature's first real
-  // anchor+surface pair, and flipped BOTH live in `ALL_CHECKS` — they are no longer here.
-  "component-size-ui",
-]);
+// Gates DELIBERATELY held DORMANT (`status:"dormant"` descriptors) — built + self-tested but not run by
+// the live pass (runPass filters to status:"active"), so report.ts never prints them and they're absent
+// from `registry`. Each has its own header explaining why + a residual self-test proving it still fires
+// (tests/tooling/{monotonic-tests}.residual.test.ts drives the monotonic gate directly). This is the ONE
+// sanctioned exemption from the file-vs-registry anti-drift check below.
+const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests", "component-size-ui"]);
 
-test("every gate file in scripts/check/gates is registered in report.ts (anti-drift)", () => {
-  // A gate file that exists but is never listed in report.ts silently does nothing — it never runs,
-  // so the "fires on its fixture" test above can't catch it (it's not in the registry). This closes
-  // that hole: the gate file's basename (kebab) must equal a gate name report.ts prints — UNLESS it's
-  // an explicitly DORMANT gate (see DORMANT_GATES above), which is deliberately unregistered.
+test("every ACTIVE gate file in scripts/check/gates is run by report.ts (anti-drift)", () => {
+  // A gate file whose descriptor is status:"active" but that report.ts's live pass never prints would be
+  // silently doing nothing. The loader IS the registry — an invalid/unwired gate file is a load-time RED —
+  // so this closes the residual hole: every gate-file basename (kebab) must equal a gate name report.ts
+  // prints, UNLESS it's an explicitly DORMANT gate (status:"dormant", not run by the live pass).
   const unregistered = GATE_FILES.filter((g) => !(registry.has(g) || DORMANT_GATES.has(g)));
   expect(unregistered).toEqual([]);
 });

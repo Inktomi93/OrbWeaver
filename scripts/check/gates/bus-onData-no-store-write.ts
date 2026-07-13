@@ -21,12 +21,9 @@
 // `notify.*(...)` — none is a `.setState(`. The chatStream api itself lives in state/chat-stream.ts
 // (whose `useChatStreamStore.setState` IS the sanctioned write, out of scope here); and who may IMPORT
 // that api is the twin grit `chat-stream-writes-in-bus-only`'s job (the import-side half).
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
-
-const BUS_DIR = "/packages/client/src/data/bus/";
 
 /** The subscription-callback property names whose bodies must stay store-write-free. */
 const HANDLER_NAMES = new Set(["onData", "onConnectionStateChange"]);
@@ -35,14 +32,6 @@ const MESSAGE =
   "raw store write (.setState) inside a bus onData/onConnectionStateChange body — the subscription seam " +
   "buffers through the chatStream api + routes to the invalidation seam, never a second store " +
   "(UI-Gates-and-Lessons.md §11.1; the reducer is data/bus/apply-chat-bus-event.ts).";
-
-function clientRel(path: string): string | undefined {
-  const idx = path.indexOf(BUS_DIR);
-  if (idx === -1) {
-    return;
-  }
-  return `packages/client/src/data/bus/${path.slice(idx + BUS_DIR.length)}`;
-}
 
 /** True if `node` sits inside an `onData`/`onConnectionStateChange` handler's function body — an
  *  `onData:`/`onConnectionStateChange:` property (arrow value) or method shorthand. */
@@ -58,37 +47,10 @@ function insideHandler(node: Node): boolean {
   return false;
 }
 
-function violationsIn(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const access of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    if (access.getName() !== "setState") {
-      continue;
-    }
-    if (access.getParent()?.isKind(SyntaxKind.CallExpression) === true && insideHandler(access)) {
-      out.push({ file: rel, line: access.getStartLineNumber(), message: MESSAGE });
-    }
-  }
-  return out;
-}
-
-export const busOnDataNoStoreWrite: Check = {
-  name: "bus-onData-no-store-write",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = clientRel(sf.getFilePath());
-      if (rel !== undefined) {
-        violations.push(...violationsIn(sf, rel));
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a PropertyAccessExpression subscription: a `.setState(` call lexically inside
 // an onData/onConnectionStateChange handler body, in data/bus/**. scanRoot mirrors the legacy BUS_DIR
-// filter. Per-occurrence (each store write in a handler). Kept ALONGSIDE the legacy Check.
+// filter. Per-occurrence (each store write in a handler).
 export const gate: GateDescriptor = {
   name: "bus-onData-no-store-write",
   docRow: "UI-Gates-and-Lessons.md §11.1",

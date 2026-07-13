@@ -6,17 +6,16 @@
 // and the §13.7 primitive is if anything TIGHTER than a client surface, so the shared default is the
 // conservative floor.
 //
-// DORMANT BY DECISION (W1-0c, 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — NOT listed in
-// `ALL_CHECKS` (scripts/check/report.ts), so it never runs in `pnpm check:structure` today, because it
-// finds REAL debt on the current tree that would block the W1-0 wave from committing (green-to-commit):
+// DORMANT BY DECISION (W1-0c, 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — the `gate` descriptor
+// below carries `status:"dormant"`, so the live pass (runPass filters to status:"active") never runs it in
+// `pnpm check:structure` today, because it finds REAL debt on the current tree that would block the W1-0
+// wave from committing (green-to-commit):
 //   FINDING (W1-1 backfill): packages/ui/src/primitives/table/table.tsx = 461 lines (> 450 by 11).
 // The doctrine (constitution §1) is to EXPOSE such debt, not silently raise the cap to accommodate it —
-// so this gate is built + self-tested, and its activation rides W1-1, which splits table.tsx (extract
-// the header/row/cell sub-parts to sibling files) and THEN flips this gate live (a one-line ALL_CHECKS
-// add + import, verbatim below), same as monotonic-tests/audit-client-tests.
-// ACTIVATE by adding, verbatim:
-//   import { componentSizeUi } from "./gates/component-size-ui.ts";
-// and a `componentSizeUi,` entry to the `ALL_CHECKS` array in scripts/check/report.ts.
+// so this gate is built + self-tested, and its activation rides W1-1, which splits table.tsx (extract the
+// header/row/cell sub-parts to sibling files) and THEN flips this gate live. ACTIVATE by flipping the
+// descriptor's `status` to `"active"` and adding its Layer-3 ACTIVE row (+ count bump) in
+// Core-Enforcement-Active-Gates.md, same as monotonic-tests/audit-client-tests.
 //
 // Self-tested: tests/tooling/component-size-ui.int.test.ts drives it over a temp-dir fixture tree
 // (real fs — the gate line-counts via readFileSync) proving fire (a 451-line file) AND no-false-
@@ -24,7 +23,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const UI_SRC = "packages/ui/src";
 const CAP = 450;
@@ -56,7 +55,7 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
-/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
+/** The fs scan the descriptor's `run` drives. */
 function scanComponentSizeUi(root: string): Violation[] {
   const base = join(root, UI_SRC);
   if (!existsSync(base)) {
@@ -80,16 +79,11 @@ function scanComponentSizeUi(root: string): Violation[] {
   return out;
 }
 
-export const componentSizeUi: Check = {
-  name: "component-size-ui",
-  run: (ctx: CheckContext): Violation[] => scanComponentSizeUi(ctx.root),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a DORMANT pure-FS `run` gate, fsBacked conformance) ──────────
-// The @orb/ui twin of component-size. DORMANT (not in ALL_CHECKS — it finds real debt on the current
-// tree; activation rides W1-1). `status: "dormant"` in the descriptor replaces the hand-kept DORMANT_GATES
-// list (§1.3); the runner skips it, conformance still proves it. Reads the real fs (readFileSync line
-// counts of ui src) → fsBacked. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// The @orb/ui twin of component-size. DORMANT (it finds real debt on the current tree; activation rides
+// W1-1). `status: "dormant"` in the descriptor is what holds it out of the live pass (runPass filters to
+// status:"active"); conformance still proves it. Reads the real fs (readFileSync line counts of ui src)
+// → fsBacked.
 export const gate: GateDescriptor = {
   name: "component-size-ui",
   docRow: "UI-Primitives-and-Reuse.md §13.7",

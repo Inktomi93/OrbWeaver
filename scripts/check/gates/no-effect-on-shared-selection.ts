@@ -26,10 +26,6 @@
 import type { ArrayLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
-
-const FEATURES_DIR = "/packages/client/src/features/";
-const SHELL_EXEMPT = "/packages/client/src/features/app-shell/";
 
 /** The shared-selection pointer hooks (the state/ selection stores' read APIs — NOT the
  *  lifecycle/draft stores). Kept in sync with state/index.ts by the fixture in
@@ -44,11 +40,6 @@ const MESSAGE =
   "§5.1: selection readers are RENDER-only). Derive in render instead, or use `useEffectEvent` for a " +
   "non-reactive read inside an unrelated effect; if this surface genuinely can't be render-driven, " +
   "that's a §5.1 amendment conversation, not a workaround.";
-
-function clientRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
 
 /** All identifier names bound by a declaration's name node (plain or destructured). */
 function boundNames(decl: VariableDeclaration): string[] {
@@ -141,48 +132,12 @@ function effectDepsOf(call: Node): ArrayLiteralExpression | undefined {
   return deps;
 }
 
-function checkFile(sf: SourceFile, tainted: ReadonlySet<string>): Violation[] {
-  const violations: Violation[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const deps = effectDepsOf(call);
-    if (deps === undefined) {
-      continue;
-    }
-    if (deps.getElements().some((el) => touchesName(el, tainted))) {
-      violations.push({
-        file: clientRel(sf.getFilePath()),
-        line: call.getStartLineNumber(),
-        message: MESSAGE,
-      });
-    }
-  }
-  return violations;
-}
-
-export const noEffectOnSharedSelection: Check = {
-  name: "no-effect-on-shared-selection",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!path.includes(FEATURES_DIR) || path.includes(SHELL_EXEMPT)) {
-        continue;
-      }
-      const tainted = taintedNames(sf);
-      if (tainted.size > 0) {
-        violations.push(...checkFile(sf, tainted));
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a CallExpression subscription: a useEffect-family call whose dep array touches
 // a shared-selection-tainted name. Taint is FILE-scoped (seed = selection-hook results + a name-level
 // fixpoint), so it's memoized per source file — a per-FILE computation, not cross-FILE, so the gate stays
 // incremental-safe. scanRoot mirrors the legacy FEATURES_DIR filter minus app-shell. The memo is cleared
-// in begin (the pass may run more than once — §1.1). Per-occurrence. Kept ALONGSIDE the legacy Check.
+// in begin (the pass may run more than once — §1.1). Per-occurrence.
 const taintMemo = new Map<string, ReadonlySet<string>>();
 
 function taintFor(sf: SourceFile): ReadonlySet<string> {

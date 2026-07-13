@@ -24,7 +24,7 @@ import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const GATES_REL = "scripts/check/gates";
 const GRIT_REL = "tools/grit";
@@ -205,14 +205,6 @@ export function scanDirs(gatesDir: string, gritDir: string): Violation[] {
   return [...scanGatesDir(gatesDir, ""), ...scanGritDir(gritDir, "")];
 }
 
-export const diagnosticLegibility: Check = {
-  name: "diagnostic-legibility",
-  run: ({ root }): Violation[] => [
-    ...scanGatesDir(join(root, GATES_REL), `${GATES_REL}/`),
-    ...scanGritDir(join(root, GRIT_REL), `${GRIT_REL}/`),
-  ],
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§2.2 fold-in — read the gate corpus from the SHARED project) ─────────
 // THE ONE INTENDED FINDING CHANGE in the whole port (TSMORPH-SINGLE-PASS-AUDIT.md §2.2 / §8.1 phase 3 /
 // risk §8.4). Today diagnostic-legibility scans the gate corpus via its OWN third `new Project` (scanGatesDir
@@ -226,7 +218,7 @@ export const diagnosticLegibility: Check = {
 // tests. Those four are pinned in this same change, so the net finding change on the real corpus is ZERO —
 // the fold-in is behavior-preserving by construction; this gate's parity test proves the pins hold by showing
 // a scanner WOULD fire on a gate-file fixture without its pin and does NOT with it. The GRIT arm stays fs
-// (grit files aren't in the ts project), so this descriptor is fsBacked. Kept ALONGSIDE the legacy Check.
+// (grit files aren't in the ts project), so this descriptor is fsBacked.
 const GATE_SCAN_ROOT = `${GATES_REL}/`;
 
 /** Every message-diagnostic Violation in ONE gate SourceFile (read from the shared project's AST). */

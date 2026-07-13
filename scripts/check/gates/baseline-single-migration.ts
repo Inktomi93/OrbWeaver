@@ -16,7 +16,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 // Widened to `boolean` (not the `false` literal) so flipping this to `true` on launch day doesn't
 // require silencing a "condition always falsy" lint — the annotation is the deliberate escape hatch.
@@ -90,17 +90,12 @@ function scanBaselineSingleMigration(root: string): Violation[] {
   return [...checkSqlFiles(migrationsDir), ...checkJournal(migrationsDir)];
 }
 
-export const baselineSingleMigration: Check = {
-  name: "baseline-single-migration",
-  run: ({ root }): Violation[] => scanBaselineSingleMigration(root),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
 // baseline-single-migration reads the real fs (readdirSync of migrations/ *.sql + readFileSync of
 // meta/_journal.json) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
 // materializes examples to a real temp dir (its .sql/.json fixture files are written to disk though not
 // added to the ts-morph Project — exactly what a pure-fs gate needs). Byte-identical to the legacy Check.
-// Kept ALONGSIDE the legacy Check.
+//
 export const gate: GateDescriptor = {
   name: "baseline-single-migration",
   docRow: "Core-Laws-and-Precedents.md (db-baseline-squash)",

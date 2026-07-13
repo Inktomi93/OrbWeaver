@@ -10,7 +10,6 @@
 // `requireAdmin` (the seam fix landed with this gate).
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const SERVER_SRC = /\/packages\/server\/src\//u;
 const ALLOWLIST = /\/packages\/server\/src\/domain\/admin\/guard\.ts$/u;
@@ -21,10 +20,6 @@ const ROLE_REF = /(?:^|\.)role$/iu;
 const MESSAGE =
   "global-role literal comparison outside domain/admin/guard.ts — can() is the ONE privilege seam (D17; Spine-Identity inv #6): owner ⊇ admin lives inside it, everything else calls can()/requireAdmin/requireOwner and never re-spells the lattice.";
 
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
 /** `<x>.role === "owner"|"admin"` (either operand order). */
 function isRoleCompare(leftText: string, rightText: string): boolean {
   if (ROLE_LITERALS.has(rightText) && ROLE_REF.test(leftText)) {
@@ -33,33 +28,10 @@ function isRoleCompare(leftText: string, rightText: string): boolean {
   return ROLE_LITERALS.has(leftText) && ROLE_REF.test(rightText);
 }
 
-export const ownerRoleSplit: Check = {
-  name: "owner-role-split",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!SERVER_SRC.test(path) || ALLOWLIST.test(path)) {
-        continue;
-      }
-      const rel = relPath(root, path);
-      for (const bin of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
-        if (!EQUALITY_OPS.has(bin.getOperatorToken().getText())) {
-          continue;
-        }
-        if (isRoleCompare(bin.getLeft().getText(), bin.getRight().getText())) {
-          violations.push({ file: rel, line: bin.getStartLineNumber(), message: MESSAGE });
-        }
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a BinaryExpression subscription: a global-role literal compared (either side)
 // in server-src outside the ONE allowlisted guard file. scanRoot mirrors the legacy SERVER_SRC ∧ ¬ALLOWLIST
-// filter. Per-occurrence (each role comparison). Kept ALONGSIDE the legacy Check.
+// filter. Per-occurrence (each role comparison).
 export const gate: GateDescriptor = {
   name: "owner-role-split",
   docRow: "ledger D17 (Spine-Identity inv #6)",

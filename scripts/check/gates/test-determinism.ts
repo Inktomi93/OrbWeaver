@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const TS_FILE = /\.tsx?$/u;
 const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
@@ -73,16 +73,11 @@ function scanTestDeterminism(root: string): Violation[] {
   return violations;
 }
 
-export const testDeterminism: Check = {
-  name: "test-determinism",
-  run: ({ root }): Violation[] => scanTestDeterminism(root),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
 // test-determinism reads the real fs (recursive readdirSync of tests/ + readFileSync line-scan for ambient
 // clock/random) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
 // materializes examples to a real temp dir. Distinct per-source messages (which banned call) → per-
-// occurrence overrides. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// occurrence overrides. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "test-determinism",
   docRow: "core/Spine-Testing.md §3 (core/Core-0-Architecture-and-Structure.md §7)",

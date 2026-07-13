@@ -8,7 +8,6 @@
 // cannot catch because it's newly introduced, not a type error).
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const AUTH_DIR = /\/packages\/server\/src\/infra\/auth\//u;
 const FORBIDDEN = "userId";
@@ -18,30 +17,6 @@ const MESSAGE =
   "into a pre-row `ResolvedIdentity` (NO userId); the seam (`entry/auth/seam.ts`) resolves the id ONCE via " +
   "a domain step (`sessions.validate`/`provisionIdentity`) and constructs the immutable Principal. See " +
   "Spine-Identity-and-Auth.md + Core-Path-Registry-D35-D43.md D40.";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-export const infraAuthNoUserId: Check = {
-  name: "infra-auth-no-userid",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      if (!AUTH_DIR.test(sf.getFilePath())) {
-        continue;
-      }
-      const rel = relPath(root, sf.getFilePath());
-      for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-        if (id.getText() === FORBIDDEN) {
-          violations.push({ file: rel, line: id.getStartLineNumber(), message: MESSAGE });
-        }
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as an Identifier subscription scoped to infra/auth/** via scanRoot. Per-occurrence
 // (each `userId` identifier is its own finding). Kept ALONGSIDE the legacy Check; itemized parity proves

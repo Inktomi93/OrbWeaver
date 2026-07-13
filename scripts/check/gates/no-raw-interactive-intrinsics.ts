@@ -13,13 +13,9 @@
 // BURN_DOWN ratchet (the no-interactive-role-in-features precedent): BURN_DOWN names current offenders,
 // each citing its fix owner/reason. An allowlisted file that has gone CLEAN is RED ("stale entry —
 // remove it"); a NEW offender not in BURN_DOWN is RED immediately.
-import type { JsxOpeningElement, JsxSelfClosingElement, Node, SourceFile } from "ts-morph";
+import type { JsxOpeningElement, JsxSelfClosingElement, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
-
-const FEATURES_DIR = "/packages/client/src/features/";
-const APP_SHELL_DIR = "/packages/client/src/features/app-shell/";
 
 const BANNED_TAGS: ReadonlySet<string> = new Set(["button", "input", "select", "textarea"]);
 
@@ -60,82 +56,11 @@ function isBannedIntrinsic(el: JsxOpeningElement | JsxSelfClosingElement): boole
     );
 }
 
-/** Lines of every banned raw-intrinsic JSX element in this file. */
-function offenceLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement)) {
-    if (isBannedIntrinsic(el)) {
-      lines.push(el.getStartLineNumber());
-    }
-  }
-  for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)) {
-    if (isBannedIntrinsic(el)) {
-      lines.push(el.getStartLineNumber());
-    }
-  }
-  return lines;
-}
-
-/** The offender scan: new-offender violations + which burnDown files still carry their raw intrinsic. */
-function scanFeatures(
-  project: CheckContext["project"],
-  burnDown: Record<string, string>,
-): { violations: Violation[]; seenAllowlisted: Set<string> } {
-  const violations: Violation[] = [];
-  const seenAllowlisted = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    const path = sf.getFilePath();
-    if (!(path.includes(FEATURES_DIR) && path.endsWith(".tsx")) || path.includes(APP_SHELL_DIR)) {
-      continue;
-    }
-    const rel = clientRel(path);
-    const lines = offenceLines(sf);
-    if (rel in burnDown) {
-      if (lines.length > 0) {
-        seenAllowlisted.add(rel);
-      }
-      continue;
-    }
-    for (const line of lines) {
-      violations.push({ file: rel, line, message: MESSAGE });
-    }
-  }
-  return { violations, seenAllowlisted };
-}
-
-/** The ratchet-down arm: a burnDown file that never surfaced a raw intrinsic (absent OR gone clean). */
-function staleEntries(
-  burnDown: Record<string, string>,
-  seenAllowlisted: ReadonlySet<string>,
-): Violation[] {
-  return Object.keys(burnDown)
-    .filter((rel) => !seenAllowlisted.has(rel))
-    .map((rel) => ({
-      file: "scripts/check/gates/no-raw-interactive-intrinsics.ts",
-      line: 1,
-      message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-raw-interactive-intrinsics.ts`,
-    }));
-}
-
-/** Factory (the createNoInteractiveRoleInFeatures precedent): the self-test drives BOTH ratchet arms with
- *  an injected registry. */
-export function createNoRawInteractiveIntrinsics(burnDown: Record<string, string>): Check {
-  return {
-    name: "no-raw-interactive-intrinsics",
-    run: ({ project }): Violation[] => {
-      const { violations, seenAllowlisted } = scanFeatures(project, burnDown);
-      return [...violations, ...staleEntries(burnDown, seenAllowlisted)];
-    },
-  };
-}
-
-export const noRawInteractiveIntrinsics: Check = createNoRawInteractiveIntrinsics(BURN_DOWN);
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — multi-kind, reference-gate shape: offender arm + finalize stale) ─
 // The legacy predicate as a JsxOpeningElement + JsxSelfClosingElement subscription: a banned raw
 // intrinsic (button/input/select/textarea, or <a href>) in features/** (excluding app-shell). scanRoot
 // mirrors the legacy FEATURES_DIR + `.tsx` filter minus app-shell. The empty BURN_DOWN's stale arm is
-// finalize-guarded to project scope (§4.4). Per-occurrence. Kept ALONGSIDE the legacy Check.
+// finalize-guarded to project scope (§4.4). Per-occurrence.
 const GATE_SELF = "scripts/check/gates/no-raw-interactive-intrinsics.ts";
 const passSeenBurnDown = new Set<string>();
 

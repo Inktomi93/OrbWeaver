@@ -31,13 +31,9 @@
 // precedent): a file lands here with the value + reason when the drift is real pre-existing debt, not
 // a new offense. An allowlisted file that has gone CLEAN is RED ("stale entry — remove it"); a NEW
 // offender not in the allowlist is RED immediately.
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
-
-const CLIENT_SRC_DIR = "/packages/client/src/";
-const UI_SRC_DIR = "/packages/ui/src/";
 
 /** Current legit off-token files → reason. EMPTY: the whole overlay-primitive family (dialog/menu/
  *  popover/tooltip/alert-dialog/drawer/toast/selection-bar/macro-textarea + the chat command-palette
@@ -125,94 +121,12 @@ function isClassStringSite(node: Node): boolean {
   return CLASS_STRING_CALLEES.has(callee);
 }
 
-/** Lines of every banned off-token radius/shadow class token in every class-string-site string/
- *  template-literal PART of this file (a `tv()` slot value freely interpolates, e.g.
- *  `` `... shadow-lg ${motion}` `` — a plain string/no-substitution scan alone would miss it). */
-function offenceLines(sf: SourceFile): number[] {
-  const lines: number[] = [];
-  for (const kind of [
-    SyntaxKind.StringLiteral,
-    SyntaxKind.NoSubstitutionTemplateLiteral,
-    SyntaxKind.TemplateHead,
-    SyntaxKind.TemplateMiddle,
-    SyntaxKind.TemplateTail,
-  ] as const) {
-    for (const lit of sf.getDescendantsOfKind(kind)) {
-      if (!isClassStringSite(lit)) {
-        continue;
-      }
-      const text = stripTemplateDelimiters(lit.getText());
-      const tokens = text.split(WHITESPACE_RE);
-      if (tokens.some(isBannedScale)) {
-        lines.push(lit.getStartLineNumber());
-      }
-    }
-  }
-  return lines;
-}
-
-/** The offender scan: new-offender violations + which allowlisted files still carry a banned scale
- *  utility. */
-function scanSrc(
-  project: CheckContext["project"],
-  allowlist: Record<string, string>,
-): { violations: Violation[]; seenAllowlisted: Set<string> } {
-  const violations: Violation[] = [];
-  const seenAllowlisted = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    const path = sf.getFilePath();
-    if (!(path.includes(CLIENT_SRC_DIR) || path.includes(UI_SRC_DIR))) {
-      continue;
-    }
-    const rel = clientRel(path);
-    const lines = offenceLines(sf);
-    if (rel in allowlist) {
-      if (lines.length > 0) {
-        seenAllowlisted.add(rel);
-      }
-      continue;
-    }
-    for (const line of lines) {
-      violations.push({ file: rel, line, message: MESSAGE });
-    }
-  }
-  return { violations, seenAllowlisted };
-}
-
-/** The ratchet-down arm: an allowlisted file that never surfaced a banned scale utility (absent OR clean). */
-function staleEntries(
-  allowlist: Record<string, string>,
-  seenAllowlisted: ReadonlySet<string>,
-): Violation[] {
-  return Object.keys(allowlist)
-    .filter((rel) => !seenAllowlisted.has(rel))
-    .map((rel) => ({
-      file: "scripts/check/gates/no-off-token-radius-shadow.ts",
-      line: 1,
-      message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — scripts/check/gates/no-off-token-radius-shadow.ts`,
-    }));
-}
-
-/** Factory (the createNoArbitraryTwValues precedent): the self-test drives BOTH ratchet arms with an
- *  injected registry. */
-export function createNoOffTokenRadiusShadow(allowlist: Record<string, string>): Check {
-  return {
-    name: "no-off-token-radius-shadow",
-    run: ({ project }): Violation[] => {
-      const { violations, seenAllowlisted } = scanSrc(project, allowlist);
-      return [...violations, ...staleEntries(allowlist, seenAllowlisted)];
-    },
-  };
-}
-
-export const noOffTokenRadiusShadow: Check = createNoOffTokenRadiusShadow(ALLOWLIST);
-
 // ── SINGLE-PASS CONTRACT FORM (TSMORPH-SINGLE-PASS-AUDIT.md §1.2) ─────────────────────────────────
 // The same predicate as the legacy `Check` above, re-expressed as a node subscription: no project loop,
 // no 5 kind sweeps — the runner's ONE walk feeds each class-string-carrier literal to `visit`. Findings
 // are byte-identical to the legacy path (proven by the parity harness + this gate's conformance proofs).
 // The offender arm is per-literal (incremental-safe); the stale ALLOWLIST arm is finalize-guarded to the
-// full-project scope (§4.4). Kept ALONGSIDE the legacy export while the old runner stays authoritative.
+// full-project scope (§4.4).
 
 /** GATE_SELF is where a stale-allowlist finding points (the gate file itself), matching the legacy arm. */
 const GATE_SELF = "scripts/check/gates/no-off-token-radius-shadow.ts";

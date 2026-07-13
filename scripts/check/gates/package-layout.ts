@@ -6,7 +6,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const PACKAGES = ["kit", "contracts", "client", "db", "ui"];
 
@@ -31,15 +31,10 @@ function scanPackageLayout(root: string): Violation[] {
   return violations;
 }
 
-export const packageLayout: Check = {
-  name: "package-layout",
-  run: ({ root }): Violation[] => scanPackageLayout(root),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
 // package-layout reads the real fs (readdirSync of each packages/<pkg>/src) — a `run` descriptor over
 // ctx.root reusing the scan, with `fsBacked` so conformance materializes examples to a real temp dir.
-// File-level findings. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// File-level findings. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "package-layout",
   docRow: "core/Core-0-Architecture-and-Structure.md §7 (D15)",

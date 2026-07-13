@@ -4,7 +4,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui"]);
 // Most-specific suffixes first (so `.int.test.ts` isn't mis-stripped as `.test.ts`).
@@ -115,15 +115,10 @@ function scanTestLayout(root: string): Violation[] {
   return violations;
 }
 
-export const testLayout: Check = {
-  name: "test-layout",
-  run: ({ root }): Violation[] => scanTestLayout(root),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
 // test-layout reads the real fs (recursive readdirSync of tests/ + existsSync of the mirrored source) —
 // a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance materializes examples
-// to a real temp dir. File-level findings. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy.
+// to a real temp dir. File-level findings. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "test-layout",
   docRow: "core/Core-0-Architecture-and-Structure.md §5 (core/Spine-Testing.md)",
