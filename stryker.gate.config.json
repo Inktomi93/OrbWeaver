@@ -35,7 +35,9 @@
     "docs/**",
     "playwright-report/**",
     "test-results/**",
-    ".claude/**"
+    ".claude/**",
+    "reference/**",
+    "scratch/**"
   ],
 
   "_coverage_comment": "coverageAnalysis NOT set — the vitest-runner ignores it and always uses perTest.",

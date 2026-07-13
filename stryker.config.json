@@ -41,7 +41,9 @@
     "docs/**",
     "playwright-report/**",
     "test-results/**",
-    ".claude/**"
+    ".claude/**",
+    "reference/**",
+    "scratch/**"
   ],
 
   "_coverage_comment": "coverageAnalysis is deliberately NOT set — the @stryker-mutator/vitest-runner IGNORES it and always uses perTest (verified in its docs + the installed runner). Each mutant runs only its covering tests; the libSQL native binding survives the runner's forced pool:'threads'.",
