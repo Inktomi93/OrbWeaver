@@ -95,21 +95,26 @@ test("the static tier is EXACTLY the legacy `pnpm check` 8 stages, in order (byt
   ]);
 });
 
-test("changed ⊂ static ⊂ push ⊂ full — every scoped tier's stages are a subset of the next", () => {
+test("static ⊂ push ⊂ full (the whole-tree ladder); changed ⊆ push (the scoped inner loop)", () => {
   const names = (t: "changed" | "static" | "push" | "full"): Set<string> =>
     new Set(stagesForTier(t).map((s) => s.name));
   const changed = names("changed");
   const staticT = names("static");
   const push = names("push");
   const full = names("full");
-  for (const n of changed) {
-    expect(staticT.has(n)).toBe(true);
-  }
+  // The WHOLE-TREE ladder strictly nests — each tier adds stages, never drops one.
   for (const n of staticT) {
     expect(push.has(n)).toBe(true);
   }
   for (const n of push) {
     expect(full.has(n)).toBe(true);
+  }
+  // `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static: it carries related-tests
+  // (tests:node, run over vitest's changed-file graph) that static omits by doctrine — static is the
+  // born-compliant TEST-FREE commit gate (the `bots run check and miss` line below). But everything the
+  // inner loop runs, the push tier also runs whole-tree, so the honest containment is changed ⊆ push.
+  for (const n of changed) {
+    expect(push.has(n)).toBe(true);
   }
 });
 
