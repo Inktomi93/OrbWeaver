@@ -12,7 +12,8 @@
 //     single shift, so a review has the layout-instability number without a probe.
 //
 // `animations()` walks `document.getAnimations()` and classifies each active animation as compositor-CLEAN
-// (only transform/opacity/filter — the GPU-composited props that never touch main-thread layout) or not
+// (only transform/translate/scale/rotate/opacity/filter — the GPU-composited props that never touch
+// main-thread layout) or not
 // (animating width/height/top/margin/… = a per-frame layout pass = jank risk). Best-effort surface
 // attribution mirrors the render heatmap's intent: resolve the animated Element up to the nearest stable
 // surface marker (testid / slot / aria-label / role / landmark) so a finding names the COMPONENT, not a
@@ -24,7 +25,18 @@
 
 // The animated props that stay on the compositor (GPU) and never trigger a main-thread style/layout pass.
 // An animation touching ONLY these is smooth by construction; anything else risks per-frame layout.
-const COMPOSITOR_SAFE_PROPS = new Set(["transform", "opacity", "filter"]);
+// `translate`/`scale`/`rotate` are the CSS Transforms L2 INDIVIDUAL transform properties — Tailwind v4
+// compiles its scale-*/translate-* utilities to them, and they composite exactly like `transform`
+// (without them the house's own button `active:scale-95` and the message-list enter `translate`
+// false-positived as compositor-dirty — caught live 2026-07-12).
+const COMPOSITOR_SAFE_PROPS = new Set([
+  "transform",
+  "opacity",
+  "filter",
+  "translate",
+  "scale",
+  "rotate",
+]);
 
 // Ring caps — a long session must not grow these unbounded (same reasoning as bus-devlog's BUS_RING_CAP).
 const LOAF_RING_CAP = 64;

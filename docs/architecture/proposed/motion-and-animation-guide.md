@@ -49,7 +49,7 @@ parts with a common vocabulary of `data-*` attributes reflecting state. The univ
 for anything that mounts/unmounts or opens/closes:
 
 | Attribute | Meaning |
-|---|---|
+| - | - |
 | `[data-open]` | present while the element is open/visible |
 | `[data-closed]` | present while the element is closed (but see `keepMounted` below) |
 | `[data-starting-style]` | present for one frame when the element **begins** its enter transition — the "from" state |
@@ -198,7 +198,7 @@ existing tokens (`--motion-fast` 130ms / `--motion-base` 220ms / `--motion-layou
 right bands.
 
 | Category | What it is | Duration | Easing | Existing token |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | **Micro-interaction** | button press, checkbox check, switch toggle, icon hover | 100–150ms | ease-out (snappy, no float) | `--motion-fast` |
 | **State transition** | menu highlight, selected-item change, color/background swap | 150–220ms | ease-out | `--motion-fast`/`--motion-base` |
 | **Overlay** | dialog, popover, menu, tooltip, select, drawer open/close | 130–220ms (anchored) / 220ms (modal) | ease-out on enter, can be same curve reversed on exit | `--motion-fast` (anchored) / `--motion-base` (modal) — **already correct, see §4** |
@@ -225,6 +225,7 @@ matches which edge the popup opened from, rather than a symmetric scale for ever
 Optional polish, not a gap.
 
 **List & layout** — the biggest real gap (§4). Two different techniques apply:
+
 1. **Enter/exit of individual items** (add/remove a row): CSS transitions on the item
    itself keyed off mount/unmount — needs `AnimatePresence`-equivalent (Base UI's
    `keepMounted` pattern doesn't apply to plain `.map()`-rendered lists; see §4.2 for the
@@ -243,7 +244,7 @@ API), not a hand-rolled crossfade. Nothing to add here structurally; see §4 for
 **Loading** — shimmer already exists and is correct (continuous, `linear`, no
 ease-in-out — a shimmer that "settles" reads as glitchy). The gap: **loading→content
 transition**. When a skeleton resolves to real content, the swap should cross-fade
-(~150ms opacity) rather than hard-cut, or the shimmer's abrupt disappearance reads as a
+(\~150ms opacity) rather than hard-cut, or the shimmer's abrupt disappearance reads as a
 flash. See §4.
 
 ---
@@ -279,7 +280,7 @@ principles that actually distinguish good motion, not generic "add transitions" 
    animations... needlessly waste precious time"* and should be judged by whether they
    "draw attention, explain a change, or add meaning" — not vibes.
 
-5. **Sane defaults: ~150–250ms, ease-out for entrances, ease-in-out for on-screen movement,
+5. **Sane defaults: \~150–250ms, ease-out for entrances, ease-in-out for on-screen movement,
    linear-ish for continuous loops.** This app's `--motion-fast` (130ms) / `--motion-base`
    (220ms) already sit in the correct band. Material 3's token scale (`short` 50–200ms,
    `medium` 250–400ms, `long` 450–600ms+) confirms 130–220ms is squarely "micro-interaction
@@ -325,7 +326,7 @@ principles that actually distinguish good motion, not generic "add transitions" 
 
 10. **Staggering communicates grouping, not just delight.** When multiple items enter
     together (a list populating, a set of cards), a small stagger (20–50ms per item, capped
-    at ~5-6 items before it becomes a queue) tells the eye "these are one group arriving,"
+    at \~5-6 items before it becomes a queue) tells the eye "these are one group arriving,"
     which a simultaneous pop does not. Never stagger removals the same way — an item you
     just deleted should leave immediately, not wait in a queue behind other items' exits.
 
@@ -350,10 +351,32 @@ choice — native browser API, not a hand-rolled crossfade library. No change ne
 
 ### 4.2 The actual gaps, ranked by leverage
 
+> **Status (2026-07-12): the punch list is CLOSED.** 1–4 and 7–9 are built; 5 and 6 were
+> deliberately decided against (reasoning lives in-code at the cited lines). Per-item
+> status notes below; the pattern sketches are kept as reference.
+
 **1. List item add/remove (chat message list, any `.map()`-rendered collection)** — HIGHEST
 LEVERAGE. Today items almost certainly pop in/out with a hard cut (scout found no
 list-item-level transition code). This is the most-seen surface in the whole app (every
-chat is a list). Pattern:
+chat is a list).
+
+> **BUILT (enter) / DECIDED-AGAINST (exit), 2026-07-12.** The sketch below assumes a plain
+> `.map()` list; the real chat list is a TanStack **virtualizer** (`@orb/ui/message-list`)
+> where rows mount/unmount on every scrollback — so a mount-keyed enter (this pattern
+> verbatim) would replay constantly, violating §3.8's own litmus. The shipped design detects
+> arrival in **item space** instead: a pure id-keyed diff
+> (`packages/client/src/features/chat/lib/new-arrivals.ts` — seen/fresh sets, appended-only,
+> ghost-aware) decides which keys GENUINELY arrived; the row latches that verdict at mount
+> and runs the rAF-flip enter (`features/chat/hooks/use-enter-motion.ts` —
+> opacity+translate, `--motion-base`/ease-out-expo, reduced-motion = REMOVED per §3.9).
+> Scrolled-in rows, chat-open, history prepends, and the ghost→committed settle (content the
+> reader already watched stream in) never animate. **Exit is deliberately NOT animated** —
+> a deleted row leaves canon and the virtualizer in the same render (no unmount phase;
+> `keepMounted` pins live items, not gone ones), and the honest visual is a height collapse
+> §3.7 forbids animating; full reasoning in `new-arrivals.ts`'s header (the
+> `query-boundary.tsx` honesty precedent). `useExitDelay` below stays unbuilt.
+
+Pattern (reference — the plain-list form, NOT what shipped; see the status note):
 
 ```tsx
 // Item enters: mount already in the "from" state, then flip to resting state next frame
@@ -397,7 +420,13 @@ If this pattern recurs 3+ times, it's worth promoting to a small `@orb/ui` primi
 (`<Presence>`), matching the DRY threshold in global preferences — not before.
 
 **2. Tabs / rail-section indicator glide** — Base UI's `Tabs.Indicator` exists specifically
-to solve this and ships the six position vars for free (§1.1). Confirm whichever primitive
+to solve this and ships the six position vars for free (§1.1).
+
+> **BUILT.** `packages/ui/src/primitives/tabs/tabs.tsx` renders `Tabs.Indicator`;
+> `tabs/variants.ts` glides it on the runtime `--active-tab-*` vars
+> (`transition-all duration-(--motion-base) ease-out-expo`).
+
+Confirm whichever primitive
 wraps `@base-ui-components/react/tabs` in `packages/ui/src/primitives/tabs/` is actually
 rendering `Tabs.Indicator` and transitioning it:
 
@@ -420,8 +449,15 @@ already done the hard measurement work.
 or `@keyframes` (§1.1 shows the exact pattern). If any settings/disclosure section in the
 app collapses instantly today, this is a two-line CSS fix riding an existing primitive.
 
+> **BUILT.** Both panels transition `h-(--…-panel-height)` from/to
+> `data-starting-style:h-0`/`data-ending-style:h-0` at `--motion-layout`
+> (`packages/ui/src/primitives/accordion/variants.ts`, `collapsible/variants.ts`).
+
 **4. Button press feedback** — micro-interaction category, near-zero cost, high perceived-
 polish payoff. Add to the shared button primitive if not already present:
+
+> **BUILT.** `packages/ui/src/primitives/button/variants.ts` — `active:scale-95` with the
+> transition NAMING `scale` (Tailwind v4 standalone property) at `--motion-fast`.
 
 ```css
 .Button {
@@ -437,6 +473,12 @@ isolation, but confirm the swap from skeleton to real content cross-fades rather
 cutting — wrap the swap point in the same enter-transition pattern as #1 above
 (`opacity-0` → `opacity-100` at `--motion-fast`), so the shimmer doesn't just vanish.
 
+> **DECIDED-AGAINST.** `packages/client/src/data/query-boundary.tsx:7-11` reasons it out
+> in-code: pane REVISITS never flash a fallback (`<Activity>` keeps visited panes warm), a
+> first-visit mount legitimately shows its skeleton, and React's `startTransition` can't
+> suppress an initial-mount fallback anyway — the prior guide claim documented a policy
+> nobody could wire.
+
 **6. Success/save confirmation.** No dedicated pattern found in the audit. When a save/
 action completes, a brief acknowledgment (checkmark scale-in + fade, or a color pulse on
 the triggering control) closes the causality loop the user's action opened — this is
@@ -445,11 +487,21 @@ exactly the "communicate causality" principle in §3.4. Keep it small and single
 easing is explicitly what `--ease-out-expo`'s own inline comment rules out — "no bounce, no
 elastic" — stay consistent with that house style).
 
+> **DECIDED-AGAINST (keyframe form).**
+> `packages/client/src/features/character/components/character-hero-band.tsx:144` — the
+> save confirmation shipped as a **static ring flash, no keyframe** (reduced-motion-safe by
+> construction); autosave surfaces confirm via their form-state chrome instead. No shared
+> keyframe pattern is warranted.
+
 **7. Toasts (if/when added).** Whatever toast primitive lands should get enter (slide+fade
 in from the edge it stacks from) AND exit (reverse, or a stagger-collapse if multiple toasts
 are stacked and one in the middle dismisses) — this is the textbook case for spring-based
 interruptibility (Sonner, Emil Kowalski's own library, is the reference implementation) since
 toasts can be dismissed mid-animation by a second toast arriving or a manual swipe.
+
+> **BUILT.** `packages/ui/src/primitives/toast/variants.ts` — enter/exit on
+> `data-starting-style`/`data-ending-style` (fade + `translate-y-full`), swipe tracked 1:1
+> via the Base UI swipe vars with `data-swiping:transition-none`.
 
 **8. Drag / sortable.** Scout found `primitives/sortable/sortable.tsx` already gates on
 `usePrefersReducedMotion` — confirm the actual reorder transition uses `transform`
@@ -457,10 +509,16 @@ toasts can be dismissed mid-animation by a second toast arriving or a manual swi
 `CSS.Transform.toString()` helper already does this correctly, so this is likely a
 verify-not-build item.
 
+> **BUILT (verified).** `packages/ui/src/primitives/sortable/sortable.tsx` — transform-only
+> reorder, reduced-motion gated.
+
 **9. Selection/checked state.** Cheap state-transition category — checkbox check, radio
 select, menu-item highlight should all get `transition-colors` at `--motion-fast` if they
 don't already have it via a shared control-token class. Lowest individual leverage but
 broadest surface area (every form control in the app).
+
+> **BUILT.** `checkbox/variants.ts`, `radio-group/variants.ts` (and siblings) carry
+> `transition-colors duration-(--motion-fast) ease-out-expo`.
 
 ### 4.3 What NOT to add
 
@@ -480,26 +538,29 @@ broadest surface area (every form control in the app).
 ## 5. Sources
 
 **Base UI (mechanics, fetched 2026-07, current v1.x docs):**
-- Animation handbook — https://base-ui.com/react/handbook/animation
-- Styling handbook (data-attributes, CSS variables) — https://base-ui.com/react/handbook/styling
-- `useRender` utility — https://base-ui.com/react/utils/use-render
-- Popover component (anchor CSS vars, `keepMounted`) — https://base-ui.com/react/components/popover
-- Dialog component (`data-nested`, focus/scroll behavior) — https://base-ui.com/react/components/dialog
-- Accordion component (`--accordion-panel-height`) — https://base-ui.com/react/components/accordion
-- Collapsible component (`--collapsible-panel-height`) — https://base-ui.com/react/components/collapsible
-- Tabs component (`--active-tab-*` indicator vars) — https://base-ui.com/react/components/tabs
-- Drawer component (swipe CSS vars, `data-swipe-*`) — https://base-ui.com/react/components/drawer
-- Floating UI `useTransitionStatus` (confirmed NOT Base UI public API) — https://floating-ui.com/docs/usetransition
+
+- Animation handbook — <https://base-ui.com/react/handbook/animation>
+- Styling handbook (data-attributes, CSS variables) — <https://base-ui.com/react/handbook/styling>
+- `useRender` utility — <https://base-ui.com/react/utils/use-render>
+- Popover component (anchor CSS vars, `keepMounted`) — <https://base-ui.com/react/components/popover>
+- Dialog component (`data-nested`, focus/scroll behavior) — <https://base-ui.com/react/components/dialog>
+- Accordion component (`--accordion-panel-height`) — <https://base-ui.com/react/components/accordion>
+- Collapsible component (`--collapsible-panel-height`) — <https://base-ui.com/react/components/collapsible>
+- Tabs component (`--active-tab-*` indicator vars) — <https://base-ui.com/react/components/tabs>
+- Drawer component (swipe CSS vars, `data-swipe-*`) — <https://base-ui.com/react/components/drawer>
+- Floating UI `useTransitionStatus` (confirmed NOT Base UI public API) — <https://floating-ui.com/docs/usetransition>
 
 **Modern motion best practice (2026):**
-- Emil Kowalski, "Great Animations" — https://emilkowal.ski/ui/great-animations
-- Material Design 3, Motion overview — https://m3.material.io/styles/motion/overview/how-it-works
-- Material Design 3, Easing and duration tokens — https://m3.material.io/styles/motion/easing-and-duration/tokens-specs
-- Apple Human Interface Guidelines, Motion — https://developer.apple.com/design/human-interface-guidelines/motion
-- Nielsen Norman Group, "Animation for Attention and Comprehension" — https://www.nngroup.com/articles/animation-usability/
-- IBM Carbon Design System, Motion guidelines — https://carbondesignsystem.com/guidelines/motion/overview/
+
+- Emil Kowalski, "Great Animations" — <https://emilkowal.ski/ui/great-animations>
+- Material Design 3, Motion overview — <https://m3.material.io/styles/motion/overview/how-it-works>
+- Material Design 3, Easing and duration tokens — <https://m3.material.io/styles/motion/easing-and-duration/tokens-specs>
+- Apple Human Interface Guidelines, Motion — <https://developer.apple.com/design/human-interface-guidelines/motion>
+- Nielsen Norman Group, "Animation for Attention and Comprehension" — <https://www.nngroup.com/articles/animation-usability/>
+- IBM Carbon Design System, Motion guidelines — <https://carbondesignsystem.com/guidelines/motion/overview/>
 
 **This app's existing motion infrastructure (audited 2026-07-12):**
+
 - `packages/ui/src/tokens/tokens.json` (DTCG duration/easing tokens)
 - `packages/ui/src/styles/theme.css` (generated `@theme` block)
 - `packages/ui/src/lib/overlay-motion.ts` (`OVERLAY_MOTION` fragments)

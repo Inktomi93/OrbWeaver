@@ -316,6 +316,79 @@ export function HandleExposingList({
 }
 
 /**
+ * The stick-to-bottom-on-RESIZE shape (the "sending a message strands you ~130px away" regression).
+ * The LAST row starts at the row-height ESTIMATE and can grow far taller (the "grow tail" button) —
+ * exactly what a just-committed message + a streaming ghost do when they re-measure past their 96px
+ * estimate. Pre-fix, `followOnAppend` never re-fires on a size-only change and virtual-core's own
+ * resize anchor abandons the pin once one delta clears `scrollEndThreshold`, stranding the reader.
+ * The handle readout (mirrors `HandleExposingList`) lets the CT assert the pin held.
+ */
+export function TailGrowthList({
+  initialCount,
+  rowHeightPx,
+  listHeightPx,
+}: AppendableListProps): ReactElement {
+  const [items, setItems] = useState<FixtureItem[]>(() => makeItems(initialCount));
+  const [tailHeightPx, setTailHeightPx] = useState(rowHeightPx);
+  const handleRef = useRef<MessageListHandle>(null);
+  const [isAtEnd, setIsAtEnd] = useState<string>("unread");
+  const [distanceFromEnd, setDistanceFromEnd] = useState<string>("unread");
+  const lastIndex = items.length - 1;
+  return (
+    <div>
+      <button
+        type="button"
+        data-testid="grow-tail"
+        onClick={(): void => setTailHeightPx((h) => h + 360)}
+      >
+        grow tail
+      </button>
+      {/* Append a new tall row at the tail — an "arriving message". Grows the container (so the seal's
+          ResizeObserver fires) even when the reader has scrolled the old tail off-screen. */}
+      <button
+        type="button"
+        data-testid="append-tall"
+        onClick={(): void => setItems((prev) => [...prev, ...makeItems(1, prev.length)])}
+      >
+        append tall
+      </button>
+      <button
+        type="button"
+        data-testid="read-status"
+        onClick={(): void => {
+          const handle = handleRef.current;
+          if (handle === null) {
+            setIsAtEnd("no-handle");
+            setDistanceFromEnd("no-handle");
+            return;
+          }
+          setIsAtEnd(String(handle.isAtEnd()));
+          setDistanceFromEnd(String(Math.round(handle.getDistanceFromEnd())));
+        }}
+      >
+        Read status
+      </button>
+      <div data-testid="is-at-end">{isAtEnd}</div>
+      <div data-testid="distance-from-end">{distanceFromEnd}</div>
+      <div style={{ height: listHeightPx }}>
+        <MessageList
+          ref={handleRef}
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => rowHeightPx}
+          renderItem={(item, index): ReactElement => (
+            <div style={{ height: index === lastIndex ? tailHeightPx : rowHeightPx }}>
+              {item.label}
+            </div>
+          )}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Proves `useCachedMeasurements`'s exact semantics verified from `virtual-core`'s shipped source
  * (see the prop's own doc in `message-list.tsx`): while frozen, a REAL DOM resize of row 0 is
  * observed by the ResizeObserver but discarded by `measureElement` (which returns the cached size
