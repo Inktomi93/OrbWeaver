@@ -26,17 +26,13 @@ import {
 
 const STORY_PRESET = castId<PresetId>("preset_delundostoryy");
 
+// `sec_del` sits in the MIDDLE (index 1 of 3) ON PURPOSE: deleting the LAST element makes
+// `insertFieldValue(index, …)` and a plain append produce the SAME array, so a middle target is the only
+// fixture that can distinguish restore-at-original-index from append-to-end.
 const SECTIONS: PromptSection[] = [
   { type: "literal", id: "sec_a", name: "Alpha", role: "system", content: "a", enabled: true },
-  {
-    type: "marker",
-    id: "sec_hist",
-    name: "History",
-    marker: "chat_history",
-    role: "system",
-    enabled: true,
-  },
   { type: "literal", id: "sec_del", name: "DeleteMe", role: "system", content: "d", enabled: true },
+  { type: "literal", id: "sec_z", name: "Zeta", role: "system", content: "z", enabled: true },
 ];
 
 const useStoryForm = createSavedEntityForm<PromptConfig>({
