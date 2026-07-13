@@ -67,6 +67,8 @@ rsync -a --delete \
   --exclude 'playwright-report/' \
   --exclude 'test-results/' \
   --exclude '.claude/' \
+  --exclude 'reference/' \
+  --exclude 'scratch/' \
   "$SRC/" "$DST/" || { echo "mutation: rsync failed" >&2; exit 1; }
 
 cd "$DST" || exit 1
