@@ -200,7 +200,8 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
   `Button intent="primary" size="sm"` **New** with `Plus` (A2). The current ghost `+`
   (`[aria-label="Start a new chat"]` header instance) is replaced; the two `intent="primary"`
   EmptyState News (`chat-list-surface.tsx:150,170`) are fine as-is (empty state = its own surface).
-- Search row directly under the band, full width, `--spacing-block` inset.
+- Search row directly under the band, full width, `--spacing-block` inset. Row/group gaps come
+  from the layout primitives' defaults — never override them per-surface.
 - **Horizontal scrollbar — diagnose live, then fix.** **[CORRECTED]** the design review blamed a
   non-shrinking row child, but `list-row/variants.ts` already has root `min-w-0`, title `truncate`,
   and a deliberate `min-w-24` content floor. Reproduce against the longest title
@@ -304,7 +305,9 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
    to ONE header readout (`787 total · 637 permanent` pattern), per-field `~N` chips deleted (exact
    counts live in Context → Field detail); the five ember `Set` rows (VOICE/EXTRAS/ADVANCED,
    `character-facet-editor.tsx`) become empty=`ghost` "Add…" / filled=preview+drill-in; suggested-tag
-   chips group under one "Suggested" label; Context Field empty state names the entity ("Pick a field
+   chips group under one "Suggested" label and `Suggest tags` / `Manage tags` are `ghost`; the
+   opening-message card keeps `+ Add opening` / `Edit` as `ghost` and `Back` is `ghost` with a
+   leading chevron, top-LEFT (not bottom); Context Field empty state names the entity ("Pick a field
    on **JFC**…"). **[CORRECTED]** the Options color swatches ALREADY use `field.ColorField` with
    labels (`character-appearance-tab.tsx:240-258`) — verify rendered labels are visible, else a
    sizing fix only, not a rebuild.

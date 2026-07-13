@@ -70,10 +70,10 @@ The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft sema
 
 | Surface | Factory | Why |
 | - | - | - |
-| Character card editor | `createSavedEntityForm` | many fields, draft, explicit save |
-| Persona editor | `createSavedEntityForm` | multi-field, draft |
-| Preset editor | `createSavedEntityForm` | many fields |
-| Prompt-manager | `createSavedEntityForm` | multi-field |
+| Character card editor | `createAutosaveEntityForm` (D66 A4 — autosave everywhere; was saved-form) | many fields, autosave status |
+| Persona editor | `createAutosaveEntityForm` (D66 A4; obligation-5 already cited `use-persona-form` as the autosave precedent) | multi-field |
+| Preset editor | `createAutosaveEntityForm` (D66 A4 — `Save preset` is removed) | many fields |
+| Prompt-manager | `createAutosaveEntityForm` (D66 A4) | multi-field |
 | Connection / credential add+edit | `createSavedEntityForm` | multi-field + validation — was hand-rolled in neo |
 | Group-chat create + config | `createAutosaveEntityForm` | immediate-commit chat law (no save-bar, FINAL-Chats §2); the whole-object DU rebuild lives in the save fn |
 | User-admin create / edit user | `createSavedEntityForm` | multi-field + validation |

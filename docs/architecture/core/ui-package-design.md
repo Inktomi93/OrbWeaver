@@ -155,6 +155,8 @@ packages/ui/
 
 ## 5. Variants — the tailwind-variants conventions
 
+> **Button defaults to `intent="primary"`** (`defaultVariants`) — a bare `<Button>` renders ember. Every accent audit must sweep `<Button $$$>` structurally (ast-grep / `pnpm ast jsx Button`), never text-grep `intent="primary"`. (D66.)
+
 - Every styled primitive has a `variants.ts` exporting a `tv()` config; multi-part primitives use
   **`slots`** (D54). Component props extend `VariantProps<typeof x>` — **a bad variant is a `tsc`
   error**; ad-hoc `className` styling on a primitive is lint-flagged (the token grit gates now
