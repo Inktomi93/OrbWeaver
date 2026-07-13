@@ -70,6 +70,9 @@ interface ChatRow {
   parentChatId: ChatId | null;
   forkedAt: number | null;
   anchorPersonaId: PersonaId | null;
+  /** The pending host-handoff nominee (Part III §2) — carried onto `ChatDetail` so the host's Members
+   *  panel can render the pending-nomination chip; null = no nomination in flight. */
+  pendingHostUserId: UserId | null;
   compactSummary: string | null;
   compactedAtSeq: number | null;
   metadata: ChatMetadata;
@@ -92,6 +95,7 @@ const chatRowSelection = {
   parentChatId: chats.parentChatId,
   forkedAt: chats.forkedAt,
   anchorPersonaId: chats.anchorPersonaId,
+  pendingHostUserId: chats.pendingHostUserId,
   compactSummary: chats.compactSummary,
   compactedAtSeq: chats.compactedAtSeq,
   metadata: chats.metadata,

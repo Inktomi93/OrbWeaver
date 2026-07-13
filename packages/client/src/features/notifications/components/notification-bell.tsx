@@ -2,7 +2,10 @@
 // deliberately separate from the transient toast region (`@orb/ui/toast` = fire-and-forget; this =
 // rows that persist until acted on). An unread-badged bell opening an anchored Popover of inbox rows;
 // an `invite` row carries inline Accept (`invites.acceptInvite` → navigate into the joined chat) +
-// Decline; the other delivery reasons render their copy + a dismiss. Mounted by the composition root
+// Decline; a `handoff-nominated` row carries Accept (`invites.acceptHostHandoff` — the two-party
+// handoff's step-2 self-action → navigate into the now-hosted room) + Dismiss (no decline verb exists
+// by design — a nomination is host-retractable, not invitee-settleable); the other delivery reasons
+// render their copy + a dismiss. Mounted by the composition root
 // in the shell's `topbarTrail` slot ONLY while the deployment is multi-human capable (`/api/auth/config
 // .multiHumanCapable` — the honest belt signal, never a probe-and-catch).
 //
@@ -36,6 +39,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
+import { useAcceptHostHandoff } from "../hooks/use-handoff-actions";
 import { useDismissNotification, useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox";
 import { useInboxStream } from "../hooks/use-inbox-stream";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions";
@@ -72,6 +76,7 @@ export function NotificationBell(): ReactElement {
   const dismiss = useDismissNotification({ trpc, invalidation });
   const accept = useAcceptInvite({ trpc, invalidation });
   const decline = useDeclineInvite({ trpc, invalidation });
+  const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation });
   const [open, setOpen] = useState(false);
 
   const onOpenChange = (next: boolean): void => {
@@ -97,6 +102,26 @@ export function NotificationBell(): ReactElement {
     // The sanctioned cross-feature navigation seam (§5.1): land in the joined room.
     setActiveSection("chats");
     selectChat(result.chat.id);
+  };
+
+  const onAcceptHandoff = async (item: InboxItem): Promise<void> => {
+    if (item.payload.type !== "handoff-nominated") {
+      return;
+    }
+    const chatId = item.payload.chatId;
+    // A stale/withdrawn nomination surfaces via the errorToast; the row stays until dismissed.
+    const ok = await acceptHandoff
+      .mutateAsync({ chatId })
+      .then(() => true)
+      .catch(() => false);
+    if (!ok) {
+      return;
+    }
+    dismiss.mutate({ notificationId: item.id });
+    setOpen(false);
+    // Land in the room you now host (the same §5.1 seam the invite accept uses).
+    setActiveSection("chats");
+    selectChat(chatId);
   };
 
   const onDecline = async (item: InboxItem): Promise<void> => {
@@ -145,6 +170,7 @@ export function NotificationBell(): ReactElement {
                 key={item.id}
                 item={item}
                 onAccept={(): void => void onAccept(item)}
+                onAcceptHandoff={(): void => void onAcceptHandoff(item)}
                 onDecline={(): void => void onDecline(item)}
                 onDismiss={(): void => dismiss.mutate({ notificationId: item.id })}
               />
@@ -159,13 +185,22 @@ export function NotificationBell(): ReactElement {
 interface InboxRowProps {
   readonly item: InboxItem;
   readonly onAccept: () => void;
+  readonly onAcceptHandoff: () => void;
   readonly onDecline: () => void;
   readonly onDismiss: () => void;
 }
 
-/** One inbox row: the delivery copy + its actions (invite → Accept/Decline; the rest → Dismiss). */
-function InboxRow({ item, onAccept, onDecline, onDismiss }: InboxRowProps): ReactElement {
+/** One inbox row: the delivery copy + its actions (invite → Accept/Decline; handoff-nominated →
+ *  Accept/Dismiss; the rest → Dismiss). */
+function InboxRow({
+  item,
+  onAccept,
+  onAcceptHandoff,
+  onDecline,
+  onDismiss,
+}: InboxRowProps): ReactElement {
   const isInvite = item.payload.type === "invite";
+  const isHandoff = item.payload.type === "handoff-nominated";
   return (
     <Row gap="field" align="center" justify="between" data-slot="inbox-row">
       <Text as="span" size="label" weight={item.readAt === null ? "medium" : undefined}>
@@ -181,7 +216,13 @@ function InboxRow({ item, onAccept, onDecline, onDismiss }: InboxRowProps): Reac
               Decline
             </Button>
           </>
-        ) : (
+        ) : null}
+        {isHandoff ? (
+          <Button type="button" intent="secondary" size="sm" onClick={onAcceptHandoff}>
+            Accept
+          </Button>
+        ) : null}
+        {isInvite ? null : (
           <Button type="button" intent="ghost" size="sm" onClick={onDismiss}>
             Dismiss
           </Button>

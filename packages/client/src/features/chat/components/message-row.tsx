@@ -75,6 +75,7 @@ import {
   useSelectionActive,
 } from "#state";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider";
+import { useEnterMotion } from "../hooks/use-enter-motion";
 import {
   initialsForAttribution,
   resolveRowAttribution,
@@ -157,6 +158,10 @@ export interface MessageRowProps {
    *  message the model's most recent generation actually saw, `lib/context-boundary`'s resolved id).
    *  Renders a quiet divider ABOVE this row. Default false (no caller wired ⇒ unchanged render). */
   readonly contextBoundary?: boolean;
+  /** Motion guide §4.2 item 1 — true ONLY when this mount is a genuinely-NEW arrival (the surface's
+   *  `useNewArrivalKeys` verdict, never "the row mounted": a windowed row remounts on every
+   *  scrollback). Latched at mount by `useEnterMotion`; default false ⇒ no enter transition. */
+  readonly enterMotion?: boolean;
 }
 
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
@@ -189,7 +194,9 @@ export function MessageRow({
   metadataVisibility = NO_METADATA_VISIBLE,
   messageActions,
   contextBoundary = false,
+  enterMotion = false,
 }: MessageRowProps): ReactElement {
+  const enterClasses = useEnterMotion(enterMotion);
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
   const attribution = resolveRowAttribution({
@@ -304,7 +311,7 @@ export function MessageRow({
         data-slot="message-row"
         data-role={role}
         data-kind={attribution.kind}
-        className={cn("group", skin.outer(role))}
+        className={cn("group", skin.outer(role), enterClasses)}
       >
         {selecting ? (
           <Checkbox

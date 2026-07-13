@@ -1,7 +1,11 @@
 /* The CT harness stylesheet: @orb/ui's globals (tailwind + the generated @theme) + the explicit
  * source roots tailwind must scan for class usage (v4 auto-detection anchors at the css file's
- * package — the ui sources + the .ct.tsx specs live elsewhere). The Phase-6 client repeats this
- * model: import the ui globals, @source its own src. */
+ * package — the ui sources + the .ct.tsx specs live elsewhere). The client FEATURE sources are
+ * scanned too: client-feature CTs mount real feature components, and a feature-only utility (e.g.
+ * the Members panel's `pointer-fine:group-hover/member:flex` reveal) must compile into the CT
+ * bundle or the CT renders different pixels than prod (caught 2026-07-13 — the inline-cluster
+ * hover reveal was invisible in CT while fine in the app build). */
 @import "@orb/ui/styles/globals.css";
 @source "../packages/ui/src";
+@source "../packages/client/src";
 @source "../tests";

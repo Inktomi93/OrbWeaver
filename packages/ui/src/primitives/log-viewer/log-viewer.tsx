@@ -256,6 +256,10 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
           estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
           renderItem={(line): ReactElement => <LogLineRow line={line} slots={slots} />}
           scrollContainerRef={registerVirtualScrollNode}
+          // This seal owns its OWN pin-not-yank logic (`wasAtEndRef` + the autoscroll effect above,
+          // driving `scrollToEnd()` on the handle), including the ring-buffer follow. Opt OUT of
+          // message-list's built-in tail-follow so the two don't both drive the scroll.
+          followTail={false}
           className={slots.scroll()}
         />
       ) : (

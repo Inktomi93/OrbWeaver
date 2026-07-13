@@ -470,6 +470,10 @@ export interface RevokeInviteParams extends ChatScopedParams {
   readonly inviteId: ChatInviteId;
 }
 
+/** `listInvites` — host-only (FIX #4). The host-management outstanding-invites read: every invite for the
+ *  chat as `InviteView`s (tokens — raw OR hashed — are never re-derivable from the view). */
+export interface ListInvitesParams extends ChatScopedParams {}
+
 /** `declineInvite` — first-class decline of a TARGETED invite the caller was notified about (status →
  *  `declined`). Keyed by `inviteId` (carried in the notification), not the raw token. */
 export interface DeclineInviteParams extends ChatActorParams {

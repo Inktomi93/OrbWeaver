@@ -34,13 +34,16 @@ import { createPersistedStore } from "./create-persisted-store";
 // `no-inline-union-redecl`: a member is added once, in one place, never re-spelled). The registries
 // (rail-slots/modal-slots) + the migrate membership checks below all read these same tuples.
 
-/** The rail's navigable sections (UI-Arch §4.1 — Chats · Characters · Corpus · Presets · Refinery ·
- *  Analytics). `presets` = the GENERATION-preset authoring section (W10 · capability-turn-shaping/04 §W10
- *  + D-ledger row "W10 UI placement": presets stay a rail authoring section, NOT settings). */
+/** The rail's navigable sections (UI-Arch §4.1 — Chats · Characters · Corpus · World Info · Presets ·
+ *  Refinery · Analytics). `presets` = the GENERATION-preset authoring section (W10 · capability-turn-
+ *  shaping/04 §W10 + D-ledger row "W10 UI placement": presets stay a rail authoring section, NOT settings).
+ *  `worldInfo` = the world-books authoring section (books + keyword-triggered lore entries + the four-scope
+ *  attachment surface — global / character / persona / chat). */
 export const SECTION_IDS = [
   "chats",
   "characters",
   "corpus",
+  "worldInfo",
   "presets",
   "refinery",
   "analytics",

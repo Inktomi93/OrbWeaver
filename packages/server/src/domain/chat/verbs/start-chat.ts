@@ -144,6 +144,7 @@ function toChatDetail({
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
     viewerIsHost: viewer?.role === "host",
     viewerUserId,
+    pendingHostUserId: chat.pendingHostUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     opening: chat.metadata.opening ?? null,

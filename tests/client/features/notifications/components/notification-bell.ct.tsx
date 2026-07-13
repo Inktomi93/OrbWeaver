@@ -191,3 +191,49 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
   // The scripted stream frame lands → onData invalidates → the refetch surfaces the unread badge.
   await expect(page.getByRole("button", { name: "Notifications (1 unread)" })).toBeVisible();
 });
+
+/** A handoff-nominated inbox row (the two-party host handoff, step 1's delivery). */
+function handoffRow(): Record<string, unknown> {
+  return {
+    id: "ntf_ct_handoff",
+    type: "handoff-nominated",
+    payload: {
+      type: "handoff-nominated",
+      recipientUserId: "user_ct_nominee",
+      chatId: "chat_ct_target",
+    },
+    seq: 2,
+    readAt: null,
+    dismissedAt: null,
+    createdAt: 1_750_000_000_001,
+  };
+}
+
+test("a handoff-nominated row carries Accept — fires acceptHostHandoff with the chatId, then dismisses", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await routeTrpc(page, {
+    "notifications.list": () => ({ items: [handoffRow()], unreadCount: 1 }),
+    "notifications.markAllRead": () => null,
+    "notifications.dismiss": () => null,
+    "invites.acceptHostHandoff": () => null,
+  });
+  await routeInboxStream(page, []);
+
+  const component = await mount(<NotificationBellStory />);
+  await component.getByRole("button", { name: "Notifications (1 unread)" }).click();
+
+  await expect(page.getByText("You've been nominated to host a chat")).toBeVisible();
+  await page.getByRole("button", { name: "Accept" }).click();
+
+  await expect
+    .poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
+  const accepted = trpc.lastInput("invites.acceptHostHandoff") as { chatId?: unknown };
+  expect(accepted.chatId).toBe("chat_ct_target");
+  // Acting on the nomination clears its inbox row.
+  await expect
+    .poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
+});

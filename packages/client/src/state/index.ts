@@ -132,3 +132,11 @@ export {
   usePanelOverride,
   useSettingsTarget,
 } from "./shell-store";
+export {
+  clearWorldBookSelection,
+  clearWorldEntrySelection,
+  selectWorldBook,
+  selectWorldEntry,
+  useSelectedWorldBookId,
+  useSelectedWorldEntryId,
+} from "./world-info-selection-store";

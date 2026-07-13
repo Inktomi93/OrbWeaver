@@ -622,3 +622,63 @@ describe("previewInvite — minimal preview-then-confirm", () => {
     expect(preview.modeLabel).toBe("per-speaker · natural");
   });
 });
+
+describe("listInvites — the host-management outstanding-invites read (FIX #4)", () => {
+  test("the host sees every invite newest-first with remainingUses computed; no token field exists", async () => {
+    const host = await seedUser(db, "host");
+    const target = await seedUser(db, "target");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const unlimitedId = await seedInvite(chatId, "tok-a");
+    const finiteId = await seedInvite(chatId, "tok-b", { invitedUserId: target, maxUses: 3 });
+    // Burn one use on the finite invite so remainingUses proves it's DERIVED (maxUses - uses), not echoed.
+    await db.update(chatInvites).set({ uses: 1 }).where(eq(chatInvites.id, finiteId));
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const views = await invites.listInvites({ principal: principal(host), chatId });
+
+    expect(views.map((v) => v.id).sort()).toEqual([unlimitedId, finiteId].sort());
+    const unlimited = views.find((v) => v.id === unlimitedId);
+    expect(unlimited?.remainingUses).toBeNull(); // maxUses null = unlimited
+    expect(unlimited?.invitedUserId).toBeNull();
+    const finite = views.find((v) => v.id === finiteId);
+    expect(finite?.maxUses).toBe(3);
+    expect(finite?.remainingUses).toBe(2);
+    expect(finite?.invitedUserId).toBe(target);
+    // The view never carries the token, raw OR hashed (a leak would let anyone redeem).
+    for (const view of views) {
+      expect(Object.keys(view)).not.toContain("tokenHash");
+      expect(Object.keys(view)).not.toContain("token");
+    }
+  });
+
+  test("a plain member is refused with not_host (the sibling createInvite/revokeInvite belt)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedInvite(chatId, "tok");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const err = await invites
+      .listInvites({ principal: principal(member), chatId })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+  });
+
+  test("a non-member outsider gets the leak-free NOT_FOUND (requireHost's membership floor)", async () => {
+    const host = await seedUser(db, "host");
+    const outsider = await seedUser(db, "outsider");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedInvite(chatId, "tok");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    const err = await invites
+      .listInvites({ principal: principal(outsider), chatId })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(DomainNotFoundError);
+  });
+});

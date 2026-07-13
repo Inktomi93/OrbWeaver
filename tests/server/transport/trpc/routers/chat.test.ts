@@ -527,6 +527,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       viewerActivePersonaId: null,
       viewerIsHost: true,
       viewerUserId: MEMBER,
+      pendingHostUserId: null,
       group: DEFAULT_GROUP_CONFIG,
       roomOverrides: DEFAULT_ROOM_OVERRIDES,
       opening: null,

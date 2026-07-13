@@ -51,6 +51,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
+import { useEnterMotion } from "../hooks/use-enter-motion";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream";
 import type { RowAttribution } from "../lib/attribution";
 import { initialsForAttribution } from "../lib/attribution";
@@ -97,6 +98,10 @@ export interface GhostMessageRowProps {
   readonly showInChatAvatars?: boolean | undefined;
   /** Phase 4b §B.5.5 appearance.showLLMReasoningIcon — threaded straight to `<ReasoningBlock>`. */
   readonly showLLMReasoningIcon?: boolean | undefined;
+  /** Motion guide §4.2 item 1 — true ONLY on the render the ghost genuinely APPEARS (the surface's
+   *  `useNewArrivalKeys` verdict over the ghost's synthetic key), so a turn starting fades/rises in
+   *  once; a mid-stream scrollback remount gets false and paints resting. Default false. */
+  readonly enterMotion?: boolean;
 }
 
 /** The in-progress assistant row, streaming paced markdown (or a TTFT shimmer before first token). */
@@ -113,7 +118,9 @@ export function GhostMessageRow({
   avatarRing = "none",
   showInChatAvatars = true,
   showLLMReasoningIcon = false,
+  enterMotion = false,
 }: GhostMessageRowProps): ReactElement {
+  const enterClasses = useEnterMotion(enterMotion);
   const rawText = useGhostText(chatId);
   const rawReasoning = useGhostReasoning(chatId);
   const thinking = useGhostThinking(chatId);
@@ -208,7 +215,7 @@ export function GhostMessageRow({
       data-slot="ghost-message-row"
       data-role="assistant"
       data-kind={attribution?.kind ?? undefined}
-      className={skin.outer("assistant")}
+      className={cn(skin.outer("assistant"), enterClasses)}
     >
       <Row align="start" gap="row" data-slot="message-row-body" className="w-full">
         {avatarNode}

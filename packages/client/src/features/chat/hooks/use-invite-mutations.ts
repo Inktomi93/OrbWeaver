@@ -5,13 +5,17 @@
 //
 // Mutation-vs-bus audit (data/invalidation.ts):
 //   • createInvite — persists an invite row + (targeted) fans the invitee's durable notification;
-//     NOTHING this client reads changes (no invite-list surface exists), so `invalidates` is an
-//     honest explicit `[]`. The result's `token` returns ONCE — the caller builds the /join link.
+//     the HOST-side read it changes is the invite dialog's outstanding list (`invites.listInvites`) —
+//     no bus event covers it (invites aren't room-public), so it is this mutation's own key. The
+//     result's `token` returns ONCE — the caller builds the /join link. NO errorToast: the invite
+//     dialog surfaces failures inline per mode (the coded target-unknown refusal is field-level copy).
 //   • previewInvite — semantically a READ riding a mutation (the token-in-URL security shape,
 //     transport header); invalidates nothing.
 //   • redeemInvite — inserts the caller as a participant and emits `chatUpdated` on a chat bus the
 //     joiner is NOT yet subscribed to, and no user-bus `chatsChanged` fans to the joiner — so the
 //     joined room's list row is this mutation's own key (`chat.listChats`).
+//   • revokeInvite — flips one invite row's status; same no-bus-event surface as create, so the
+//     outstanding list is its own key too.
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -22,8 +26,16 @@ export const useCreateInvite = createEntityMutation<
   inferOutput<Trpc["invites"]["createInvite"]>
 >({
   options: (trpc) => trpc.invites.createInvite.mutationOptions(),
-  invalidates: () => [],
-  errorToast: "Couldn't create the invite.",
+  invalidates: (trpc) => [trpc.invites.listInvites.pathFilter()],
+});
+
+export const useRevokeInvite = createEntityMutation<
+  inferInput<Trpc["invites"]["revokeInvite"]>,
+  unknown
+>({
+  options: (trpc) => trpc.invites.revokeInvite.mutationOptions(),
+  invalidates: (trpc) => [trpc.invites.listInvites.pathFilter()],
+  errorToast: "Couldn't revoke the invite.",
 });
 
 export const usePreviewInvite = createEntityMutation<

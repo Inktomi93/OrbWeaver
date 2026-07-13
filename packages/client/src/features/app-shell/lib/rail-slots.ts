@@ -11,6 +11,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import {
+  BookOpen,
   ChartColumn,
   CircleUser,
   Command,
@@ -86,10 +87,12 @@ export const RAIL_SECTIONS: readonly RailSectionEntry[] = [
     group: "primary",
     mobilePrimary: true,
   },
-  // The AUTHORING group (§4.1: World Info · Presets · Refinery). Presets = the GENERATION-preset library +
-  // tabbed editor (W10 · capability-turn-shaping/04 §W10 — presets stay a rail authoring section, not
-  // settings; the D-ledger "W10 UI placement" row resolves the presets-moving-to-settings PENDING marker
-  // toward the existing law).
+  // The AUTHORING group (§4.1: World Info · Presets · Refinery). World Info = the world-books library +
+  // entry editor + the four-scope attachment surface (global / character / persona / chat). Presets = the
+  // GENERATION-preset library + tabbed editor (W10 · capability-turn-shaping/04 §W10 — presets stay a rail
+  // authoring section, not settings; the D-ledger "W10 UI placement" row resolves the presets-moving-to-
+  // settings PENDING marker toward the existing law).
+  { kind: "section", id: "worldInfo", label: "World Info", icon: BookOpen, group: "authoring" },
   { kind: "section", id: "presets", label: "Presets", icon: SlidersHorizontal, group: "authoring" },
   { kind: "section", id: "refinery", label: "Refinery", icon: FlaskConical, group: "authoring" },
   { kind: "section", id: "analytics", label: "Analytics", icon: ChartColumn, group: "insight" },
@@ -114,6 +117,9 @@ export const SECTION_PANEL_DEFAULTS: Record<SectionId, Record<PanelName, PanelMo
   chats: { list: "docked", context: "collapsed" },
   characters: { list: "docked", context: "collapsed" },
   corpus: { list: "collapsed", context: "collapsed" },
+  // World Info: LIST docked (§4.1 — a collection-first section: the book library drives CONTENT); CONTEXT
+  // (the book's attachment/activation panel) defaults collapsed until a book is open.
+  worldInfo: { list: "docked", context: "collapsed" },
   // Presets: LIST docked (§4.1 — a collection-first section, like Chats/Characters/World Info); CONTEXT
   // (the usage/bindings panel) defaults collapsed (§4.2 Presets row: "usage/bindings (default-collapsed)").
   presets: { list: "docked", context: "collapsed" },
