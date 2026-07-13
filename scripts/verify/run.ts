@@ -31,7 +31,7 @@
 // stages (2 > 3 > 1 > 0). A whole-only stage the scope can't run is DEFERRED with a printed + recorded
 // notice — a scoped green is visibly a scoped green — unless --strict-scope makes it a refusal.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -352,6 +352,21 @@ function logPathFor(stageName: string): string {
   return join("reports", "verify", `${stageName.replace(/:/gu, "-")}.log`);
 }
 
+// A monotonic counter over this process's atomic writes — combined with the pid it makes a temp name that
+// cannot collide with a CONCURRENT verify run (different pid) or an EARLIER write in THIS run (different n).
+let atomicWriteSeq = 0;
+
+/** Write `content` to `absPath` atomically: write to a unique temp file in the SAME directory (same
+ *  filesystem ⇒ POSIX rename is atomic), then renameSync over the target. A concurrent reader always sees
+ *  either the old complete file or the new complete file — never a torn write. No lock, no blocking: two
+ *  concurrent verify runs both succeed, last writer wins (intended — concurrent commits must not block). */
+function writeFileAtomic(absPath: string, content: string): void {
+  atomicWriteSeq += 1;
+  const tmp = `${absPath}.tmp.${process.pid}.${atomicWriteSeq}`;
+  writeFileSync(tmp, content);
+  renameSync(tmp, absPath);
+}
+
 // A whole-scope stage runs `pnpm <script>` (pnpm resolves the workspace bin). A scoped stage invokes a
 // bin DIRECTLY (biome/eslint/tsc/depcruise/vitest/tsx) — with shell:false those aren't on PATH, so resolve
 // them against node_modules/.bin (the check/file.ts idiom). `pnpm`/`node` stay as-is (PATH-resolved).
@@ -417,7 +432,7 @@ function runOneStage(
     process.stderr.write(result.stderr ?? "");
   }
   const logFile = logPathFor(stage.name);
-  writeFileSync(join(root, logFile), `${header}${body}`);
+  writeFileAtomic(join(root, logFile), `${header}${body}`);
 
   const exitCode = stage.classify(result.status);
   const ok = exitCode === EXIT_CLEAN;
@@ -451,7 +466,7 @@ function runOneStage(
 }
 
 function writeReport(root: string, report: VerifyReport): void {
-  writeFileSync(join(root, "reports", "verify.json"), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileAtomic(join(root, "reports", "verify.json"), `${JSON.stringify(report, null, 2)}\n`);
 }
 
 function stageMark(r: StageResult): string {
