@@ -1,8 +1,11 @@
 ---
-kind: spec
+kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
+
+<!-- Promoted proposed/ → core/ under D66 (2026-07-13): this is the @orb/ui law. §-numbers are
+     load-bearing history; do not renumber. -->
 
 # `@orb/ui` — the package design (structure · scaffold · factories · build order)
 

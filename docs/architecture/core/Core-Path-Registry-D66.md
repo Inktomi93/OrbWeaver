@@ -17,10 +17,19 @@ updated: 2026-07-13
   actions, token-count noise. Root cause was partly DOC SPRAWL — 8+ quotable UI sources at 4 authority
   levels let each spawned agent cherry-pick. **The program:**
   [`../proposed/ui-cohesion-north-star.md`](../proposed/ui-cohesion-north-star.md) is now **THE one
-  active UI work doc**; `ui-polish-punchlist.md`, `ux-flow-revamp.md`, and `DESIGN-REVIEW-2026-07-01.md`
+  active UI work doc**, and `proposed/` holds exactly ONE active program doc at a time (its README is
+  the rule + the map). `ui-polish-punchlist.md`, `ux-flow-revamp.md`, and `DESIGN-REVIEW-2026-07-01.md`
   are ARCHIVED to `../history/` (their open remainders ported to the program doc §6 — UIP-404, UIP-405
   (blocked #50), the §8 slivers, J10/J11/L7); `ui-package-design.md` and `motion-and-animation-guide.md`
-  are relabeled `kind: law` IN PLACE (108/5 code files cite their §-numbers — never move or renumber).
+  are PROMOTED to `core/` as `kind: law` (ui-package-design's §-numbers stay stable); every unbuilt
+  design set moved OUT of the repo to `../orbweaver-proposed-staging/` (sibling dir); the four
+  root-level `FINAL-*.md` design-competition docs are RETIRED (deleted; git history keeps them —
+  everything but the two chat ones had fully landed, and the chat ones are superseded by this
+  program); the gitignored
+  `reference/` copies (neo-tavern, design mockup) were deleted (real checkouts live in the development
+  folder). Same day, a fleet comment-diet pass removed port-era narration/doc-citations from code
+  comments (keep-list: functional directives, ≤3-line file headers, one-line constraint WHYs,
+  FLAG[PD-n]).
   **Build strategy: north star first** — the Chats rail entry is polished end-to-end (program doc §4
   N1–N5) and gates every other section's lane; sections then copy a working example, not prose.
   **The four amendments** (full text + why: program doc §3):

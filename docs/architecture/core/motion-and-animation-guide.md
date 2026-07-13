@@ -1,6 +1,12 @@
-# Motion & Animation Guide (proposed)
+---
+kind: law
+status: active
+updated: 2026-07-13
+---
 
-Status: proposed / playbook — not yet ratified. No D-numbers claimed. This is a reference
+# Motion & Animation Guide
+
+Promoted proposed/ → core/ under D66 (2026-07-13) — this is the motion law. This is a reference
 for where and how to add motion, grounded in Base UI's actual current API (v1.6.0) and 2026
 motion-design consensus. It builds ON the existing token/overlay system — it does not
 replace it.

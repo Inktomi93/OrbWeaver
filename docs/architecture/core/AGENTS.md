@@ -112,7 +112,7 @@ each section here is a pointer only. **Read the Spine doc IN FULL before touchin
 **Canonical: [`Spine-Identity-and-Auth.md`](Spine-Identity-and-Auth.md).** Identity resolves ONCE at
 the edge into one immutable `Principal`; permission = global-role × resource-role × capability; agents
 are FIRST-CLASS PRINCIPALS (model locked; mint + ceiling BUILT (AP1/AP2), seat wave remaining, per D60 —
-`../proposed/agent-principal-design/`); BFF sessions ≠ SDK chat sessions.
+agent-principal design set (staged out-of-repo — see `../proposed/README.md`)); BFF sessions ≠ SDK chat sessions.
 
 ### 5.2 settings / config / the env FOUR natures
 
@@ -146,7 +146,7 @@ Each domain follows the 8-slot template in `Core-0-Architecture-and-Structure.md
 IS the domain name:** `packages/server/src/domain/<name>/` — and for built domains the code + its file
 headers ARE the doc (per-domain prose gutted per `Documentation-Law.md`). Special cases: `memory` lives
 at `domain/chat/memory/` (a chat subsystem; boundary: `Knowledge-Cluster.md`); `character` snapshot-UX:
-`FINAL-Character-Library-and-Editor-UX.md` (repo root) §7 History + §12 FIX #3; `stats`↔`discovery` seam: `../proposed/stats-discovery-seam.md`;
+the retired FINAL-Character competition doc (yeeted under D66; git history has it) §7/§12; `stats`↔`discovery` seam: the stats-discovery-seam doc (staged out-of-repo — see `../proposed/README.md`);
 participants/agents/identity → the pointer subsection below.
 
 | Domain | Origin | Owns |
@@ -180,15 +180,12 @@ Phase-7/8 additive domains (post-chat grafts — D47/D48/D49; scripting D46): **
 (`domain/imagery/` — chat-facing image gen, prompt-template modes, `/imagine` via automation);
 **gallery** BUILT (`domain/assets` gallery v1/v2 verbs + `domain/hub` gif search/import —
 [gallery.md](../history/gallery.md) · [gallery-design.md](../history/gallery-design.md)); unbuilt →
-`../proposed/`: [tool-use.md](../proposed/tool-use-design/tool-use.md) ·
-[databank.md](../proposed/databank-design/databank.md) ·
-[expressions.md](../proposed/expressions-design/expressions.md) ·
-[automation.md](../proposed/automation-design/automation.md).
+tool-use · databank · expressions · automation design sets (staged out-of-repo — see `../proposed/README.md`).
 
 ### Participants, agents & identity
 
 **→ [`Spine-Identity-and-Auth.md`](Spine-Identity-and-Auth.md)** (identity/persona/permission; the
-stateless chat-turn foundation) · [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md)
+stateless chat-turn foundation) · the agent-principal design set (staged out-of-repo — see `../proposed/README.md`)
 (agent principals, D60) · ledger D28 + the `character` code (character).
 
 ### Memory ↔ search / the knowledge & derived-data untangle
@@ -214,7 +211,7 @@ the capability descriptor). The tell that it's right: `providers` imports zero d
 None remain open here — every call formerly listed (memory placement, `hub_score` seam, serde core,
 bulk-import/proposedTags, the stats/discovery line, assets vs `infra/storage`, discovery shape,
 per-agent connection) is RESOLVED in the ledger, `Knowledge-Cluster.md`, `Tier-3b-Providers.md`,
-`proposed/agent-principal-design/`, or the built code. Live open work is tracked in
+the agent-principal design set (staged out-of-repo), or the built code. Live open work is tracked in
 `Core-Audits-and-Debt.md` (the PD registry) + `../proposed/`.
 
 ## 7. The index — where the law lives
@@ -226,21 +223,21 @@ per-agent connection) is RESOLVED in the ledger, `Knowledge-Cluster.md`, `Tier-3
 | build phases · checkpoints · stack + version pins | `Core-BUILD-PLAN.md` (§0 for the stack) |
 | build cursor / status | `Core-STATUS.md` |
 | planning + checklists | `Core-Planning-and-Checklists.md` |
-| identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ `../proposed/agent-principal-design/`, D60) |
+| identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ the agent-principal design set, staged out-of-repo, D60) |
 | settings / config / serialization | `Spine-Config-and-Serialization.md` |
 | types · schemas · string-union dispatch · house TS style | `Spine-TypeScript-and-Patterns.md` |
 | testing policy (lanes, presence, determinism, factories) | `Spine-Testing.md` |
 | the derived-data cluster boundary (embeddings/search/discovery/memory/stats) | `Knowledge-Cluster.md` |
 | the domain map | §6 above |
 | server tier law | `Tier-1-DB.md` · `Tier-2-Foundation.md` · `Tier-3-Infra.md` · `Tier-3b-Providers.md` · `Tier-4-Transport.md` · `Tier-5-Entry.md` |
-| UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` |
+| UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md` (+ the active program: `../proposed/ui-cohesion-north-star.md`, D66) |
 | UI library evidence mines (re-homed 2026-07-09) | `../history/UI-Lib-TanStack-Form.md` · `../history/UI-Lib-TanStack-Query.md` · `../history/UI-Lib-TanStack-Router.md` · `../history/UI-Lib-TanStack-Virtual.md` · `../history/UI-Lib-Zustand.md` |
 | legacy migration / ST parity | `Core-Legacy-Migration-and-Gaps.md` (split index) → `Core-Shared-Dissolution.md` + `Core-ST-Feature-Gap-Register.md`; feature map: `Core-SillyTavern-Feature-Map.md` |
 | live debt registry | `Core-Audits-and-Debt.md` |
 | doc/comment law + markdown mechanics | `Documentation-Law.md` (this dir) · `Core-Docs-Formatting-Law.md` |
 | mission | `../../Mission.md` |
 | the domain re-audit protocol + running log | `../Parity-Audit-Protocol.md` |
-| unbuilt specs (staging — not yet law) | `../proposed/README.md` — the inventory of every proposal/design set |
+| the ONE active program doc | `../proposed/README.md` (D66 rule: one at a time; currently `ui-cohesion-north-star.md`) — unbuilt design sets are staged OUT of the repo, see that README |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |
 
 ## 8. Archeology (moved to history/)
@@ -254,4 +251,4 @@ per-agent connection) is RESOLVED in the ledger, `Knowledge-Cluster.md`, `Tier-3
   blast radius, doc-claim verification, escape hatches, the codemod-kit instrument) →
   [`../history/Grounded-Intelligence-AST-Scan.md`](../history/Grounded-Intelligence-AST-Scan.md).
   Its findings are law only where they were promoted (the gates, the ledger, `Knowledge-Cluster.md`,
-  `proposed/agent-principal-design/` for §8.6).
+  the agent-principal design set, staged out-of-repo, for §8.6).

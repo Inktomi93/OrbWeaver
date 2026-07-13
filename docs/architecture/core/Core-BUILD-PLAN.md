@@ -130,7 +130,7 @@ Phase-6 lane.**
    (`message-media` wiring) · **token-counter panel** (CONTEXT tab, over `@orb/kit/tokens`).
 6. **L5 — sections & modals — DONE (`ab54d38`)** (J8–J11 + punchlist §4/§5): distinct Weave placeholders per section ·
    character detail card (J9; the editor is its own follow-on lane — `createSavedEntityForm`, with
-   `FINAL-Character-Library-and-Editor-UX.md` (repo root) §7 History + §12 FIX #3 + the parity-map satellite dialogs riding it) · corpus
+   the retired FINAL-Character competition doc (yeeted under D66; git history has it) §7/§12 + the parity-map satellite dialogs riding it) · corpus
    interim search (J10) · the settings full-bleed overlay shell (J11 — Appearance pane migrates
    first; **`proposed/connection-capability-panel.md`** lands as the Connections pane's
    descriptor-driven params half when credentials UI arrives) · the interim theme picker

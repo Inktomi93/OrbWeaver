@@ -9,10 +9,11 @@ updated: 2026-07-13
 **THE one active UI work doc.** Every UI/UX task dispatched after 2026-07-13 builds from THIS file.
 The prior program records (`ui-polish-punchlist.md`, `ux-flow-revamp.md`, `DESIGN-REVIEW-2026-07-01.md`)
 are ARCHIVED to `../history/` — they are history, not law; do not quote them as authority. Their open
-remainders are ported into §6 here. **Precedence:** `Core-Laws-and-Precedents.md` (D-ledger, D66 =
-this program) → the core `UI-*.md` law set + `ui-package-design.md` + `motion-and-animation-guide.md`
-(both `kind: law`, in `proposed/` only because 100+ code comments cite their §-numbers — do not move
-or renumber) → this doc. On any conflict, the higher tier wins.
+remainders are ported into §6 here. Unbuilt design sets are staged OUT of the repo
+(`../proposed/README.md` has the map). **Precedence:** `Core-Laws-and-Precedents.md` (D-ledger,
+D66 = this program) → the core `UI-*.md` law set + `../core/ui-package-design.md` +
+`../core/motion-and-animation-guide.md` (promoted to core under D66; ui-package-design's §-numbers
+stay stable) → this doc. On any conflict, the higher tier wins.
 
 **Origin:** a 2026-07-13 Claude-Design review of the LIVE app (not mockups) found the four panes
 don't read as one frame: no shared chrome baseline, ember (accent) on ~everything, always-on action

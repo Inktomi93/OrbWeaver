@@ -8,7 +8,7 @@ updated: 2026-07-09
 
 > **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: a deleted `client.md`; these nine carry the D43/D44/D52/D54/D58 corrections and WIN on any conflict with any archive copy). The ledger entries (D42–D44, D52, D54 in `Core-Laws-and-Precedents.md`) are the decision records; these docs are the expansion.
 >
-> **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → the five lib companions (`../history/UI-Lib-TanStack-{Query,Form,Router,Virtual}.md` · `../history/UI-Lib-Zustand.md` — evidence/provenance mines; distilled verdicts already live in the spec sections).
+> **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → `ui-package-design.md` (the @orb/ui package law, promoted D66) → `motion-and-animation-guide.md` (the motion law, promoted D66) → **the ONE active program doc** `../proposed/ui-cohesion-north-star.md` (D66 — build tasks live THERE, not here) → the five lib companions (`../history/UI-Lib-TanStack-{Query,Form,Router,Virtual}.md` · `../history/UI-Lib-Zustand.md` — evidence/provenance mines; distilled verdicts already live in the spec sections).
 >
 > **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.9 → `UI-Primitives-and-Reuse.md`.
 >
