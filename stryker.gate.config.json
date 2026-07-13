@@ -22,7 +22,7 @@
     "!packages/**/*.d.ts"
   ],
 
-  "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes.",
+  "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes. data/** + *.db* (the dev database) are pruned too — ignorePatterns is ACTIVE now that the sandbox patch makes a NORMAL sandbox work (it was a no-op under the old --inPlace).",
   "ignorePatterns": [
     ".stryker-tmp/**",
     ".git/**",
@@ -37,7 +37,11 @@
     "test-results/**",
     ".claude/**",
     "reference/**",
-    "scratch/**"
+    "scratch/**",
+    "data/**",
+    "*.db*",
+    "playwright/**",
+    "FINAL-*.md"
   ],
 
   "_coverage_comment": "coverageAnalysis NOT set — the vitest-runner ignores it and always uses perTest.",

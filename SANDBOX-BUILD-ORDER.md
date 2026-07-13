@@ -184,7 +184,7 @@ BUILD-PLAN Phase 6 checkpoint (app opens on the landing; every section distinct;
   (`--text`/`--aria`, ~5-8× cheaper than PNG); DEADCSS/EMPTYCSS audit; `--diff` SSIM + `--probe`
   determinism; `--click/--press/--fill/--ls` pre-shot interaction; ffmpeg is in the container.
   Non-zero exit with `failed-req=N` still wrote the PNG — read the RESULT line.
-- **`pnpm check:file <path...>`** (~9s mid-tier verify) · `pnpm check:show` (read last gate JSON)
+- **`pnpm verify --file <path...>`** (~9s mid-tier verify) · `pnpm check:show` (read last gate JSON)
   · `pnpm record` (streaming gifs) · `trace:render/tail/fire` · `sse-tap`.
 - **CT substrate** (`tests/support/ct/`): `routeTrpc` + `CtDataProviders` + `_ct-stories`
   convention + the `query-boundary.ct.tsx` exemplar. Node substrate: composed caller fixtures +
@@ -238,7 +238,7 @@ rulings pre-answered the known ones).
 ## Quick commands
 
 - `pnpm check` (full gate battery) · `pnpm test` · `pnpm vitest run <path>` · `pnpm check:structure`
-  · `pnpm check:file <path>` · `pnpm check:show`
+  · `pnpm verify --file <path>` · `pnpm check:show`
 - `pnpm stack start|stop|status|logs` · `pnpm snap <route> --text` · `pnpm test:ct <file>`
 - Registries: `Core-Audits-and-Debt.md` (live PDs) · `Core-Enforcement-Active-Gates.md` (gates) ·
   `Core-Path-Registry-D62.md` (the program you're executing) · `history/Core-Debt-Cleared-Ledger.md`

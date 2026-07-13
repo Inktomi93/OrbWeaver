@@ -1,4 +1,4 @@
-// The SCOPED single-pass runner: `pnpm check:scope` drives the ts-morph single-pass machine (loader →
+// The SCOPED single-pass runner: `tsx scripts/check/scoped.ts` drives the ts-morph single-pass machine (loader →
 // pass → render) over a SUBSET of the tree — a folder glob, a package, or the git-changed set — so a dev
 // gets the incremental-safe structural verdicts for exactly the files they touched, without the ~1s
 // full-tree gate load being spent judging files they didn't. This DRIVES the single-pass path for real
@@ -108,7 +108,7 @@ type Args = {
 
 const USAGE =
   // biome-ignore lint/security/noSecrets: a CLI usage string (the long dashed flag run trips the entropy heuristic), not a secret.
-  "usage: pnpm check:scope (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
+  "usage: tsx scripts/check/scoped.ts (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
 
 /** Reject a selector combination that isn't exactly one non-empty selector — the first failing rule's
  *  message, or undefined when the args are well-formed. */
@@ -239,7 +239,7 @@ async function main(): Promise<void> {
   }
 }
 
-// Direct-run guard (the report.ts/run.ts idiom): `pnpm check:scope` runs main(); an import (the tests)
+// Direct-run guard (the report.ts/run.ts idiom): `tsx scripts/check/scoped.ts` runs main(); an import (the tests)
 // gets only the exported `runScoped` core — importing this module must NOT execute a run.
 const entry = process.argv[1];
 if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {

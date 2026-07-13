@@ -28,7 +28,7 @@
     "!packages/**/*.d.ts"
   ],
 
-  "_ignore_comment": "ignorePatterns prune the sandbox copy — Stryker COPIES the project tree into .stryker-tmp, so without this it tries to copy node_modules (huge), .stryker-tmp (recursive!), AND the in-repo model/venv caches: .cache/ holds the 8.8G vLLM venv (whose lib64 symlink crashes copyfile with EISDIR) and .models/ holds 25G of HF weights. Keep packages/ + tests/ + the configs.",
+  "_ignore_comment": "ignorePatterns prune the sandbox copy — Stryker COPIES the project tree into .stryker-tmp, so without this it tries to copy node_modules (huge), .stryker-tmp (recursive!), AND the in-repo model/venv caches: .cache/ holds the 8.8G vLLM venv (whose lib64 symlink crashes copyfile with EISDIR) and .models/ holds 25G of HF weights. Keep packages/ + tests/ + the configs. (Now that the sandbox patch makes a NORMAL sandbox work, ignorePatterns is ACTIVE — it was a no-op under the old --inPlace; hence data/** + *.db* are pruned here too.)",
   "ignorePatterns": [
     ".stryker-tmp/**",
     ".git/**",
@@ -43,7 +43,11 @@
     "test-results/**",
     ".claude/**",
     "reference/**",
-    "scratch/**"
+    "scratch/**",
+    "data/**",
+    "*.db*",
+    "playwright/**",
+    "FINAL-*.md"
   ],
 
   "_coverage_comment": "coverageAnalysis is deliberately NOT set — the @stryker-mutator/vitest-runner IGNORES it and always uses perTest (verified in its docs + the installed runner). Each mutant runs only its covering tests; the libSQL native binding survives the runner's forced pool:'threads'.",

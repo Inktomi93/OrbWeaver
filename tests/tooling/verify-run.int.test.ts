@@ -1,7 +1,7 @@
 // The `pnpm verify` orchestrator's pure helpers (UNIFIED-VERIFICATION-DESIGN.md §3.1/§3.3): the per-tool
 // exit-code classifiers and the run-level max-severity aggregation. Pins the SAME 0/1/2/3 contract the
-// legacy `pnpm check` run.ts speaks (tests/tooling/check-run-exit-codes.int.test.ts) — now generalized to
-// the registry's named adapters. A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
+// retired `pnpm check` orchestrator spoke — now generalized to the registry's named adapters (this test
+// supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -178,11 +178,11 @@ test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface",
   expect(stage("lint:eslint").scopedArgv?.(sel)).toBe("skip-empty");
 });
 
-test("structure:full scopedArgv: routes to check:scope with the selection's flag (walk-scoped gates)", () => {
+test("structure:full scopedArgv: routes to scoped.ts with the selection's flag (walk-scoped gates)", () => {
   const sel = resolveSelection({ kind: "package", name: "ui" });
   expect(stage("structure:full").scopedArgv?.(sel)).toEqual([
-    "pnpm",
-    "check:scope",
+    "tsx",
+    "scripts/check/scoped.ts",
     "--package",
     "ui",
   ]);
@@ -290,12 +290,11 @@ test("verify-registry-parity: a verification-shaped script with no tier is a vio
 });
 
 test("verify-registry-parity: an allowlisted writer/inspector is NOT flagged (no over-bite)", () => {
-  // format (writer) + check:show (inspector) + check:scope (sub-tool) are on the NON_STAGE_ALLOWLIST.
+  // format (writer) + check:show (inspector) are on the NON_STAGE_ALLOWLIST.
   const findings = runParityGate({
     verify: "x",
     format: "biome format --write .",
     "check:show": "tsx scripts/check/show.ts",
-    "check:scope": "tsx scripts/check/scoped.ts",
     // A real registered stage name → arm 2 (dead-row) would fire for the OTHER registered scripts absent
     // here, so we omit `verify`'s dead-row trigger by… keeping only allowlisted + non-verify scripts. The
     // dead-row arm only runs when `verify` is present AND a registered script is missing — here every

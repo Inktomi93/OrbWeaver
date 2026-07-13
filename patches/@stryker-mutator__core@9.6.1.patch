@@ -1,0 +1,73 @@
+diff --git a/dist/src/sandbox/sandbox.js b/dist/src/sandbox/sandbox.js
+index be9781bc52835ea6702047641ec1130e33ae39f0..f198602e857a24f0f76c05adc0add09271de2a62 100644
+--- a/dist/src/sandbox/sandbox.js
++++ b/dist/src/sandbox/sandbox.js
+@@ -1,4 +1,5 @@
+ import path from 'path';
++import fs from 'fs';
+ import { npmRunPathEnv } from 'npm-run-path';
+ import { normalizeWhitespaces, isErrnoException, } from '@stryker-mutator/util';
+ import { tokens, commonTokens } from '@stryker-mutator/api/plugin';
+@@ -79,19 +80,8 @@ export class Sandbox {
+             const nodeModulesList = await fileUtils.findNodeModulesList(basePath, this.options.tempDirName);
+             if (nodeModulesList.length > 0) {
+                 for (const nodeModules of nodeModulesList) {
+-                    this.log.debug(`Create symlink from ${path.resolve(nodeModules)} to ${path.join(this.workingDirectory, nodeModules)}`);
+-                    await fileUtils
+-                        .symlinkJunction(path.resolve(nodeModules), path.join(this.workingDirectory, nodeModules))
+-                        .catch((error) => {
+-                        if (isErrnoException(error) && error.code === 'EEXIST') {
+-                            this.log.warn(normalizeWhitespaces(`Could not symlink "${nodeModules}" in sandbox directory,
+-              it is already created in the sandbox. Please remove the node_modules from your sandbox files.
+-              Alternatively, set \`symlinkNodeModules\` to \`false\` to disable this warning.`));
+-                        }
+-                        else {
+-                            this.log.warn(`Unexpected error while trying to symlink "${nodeModules}" in sandbox directory.`, error);
+-                        }
+-                    });
++                    this.log.debug(`Linking entries of ${path.resolve(nodeModules)} into ${path.join(this.workingDirectory, nodeModules)}`);
++                    await this.linkNodeModulesEntries(basePath, path.resolve(basePath, nodeModules), path.join(this.workingDirectory, nodeModules));
+                 }
+             }
+             else {
+@@ -99,6 +89,40 @@ export class Sandbox {
+             }
+         }
+     }
++    /**
++     * Creates a REAL directory for the sandbox's node_modules and symlinks each entry to the
++     * original — EXCEPT symlinked entries that resolve inside the project but outside any
++     * node_modules (i.e. workspace packages: pnpm/yarn/npm workspaces). Those are re-pointed at
++     * the sandbox's own copy, so the instrumented code and the tests load ONE copy of each
++     * workspace module (no module duplication / instanceof breakage / dead mutant coverage).
++     */
++    async linkNodeModulesEntries(basePath, realDir, sandboxDir) {
++        await fs.promises.mkdir(sandboxDir, { recursive: true });
++        const entries = await fs.promises.readdir(realDir, { withFileTypes: true });
++        await Promise.all(entries.map(async (entry) => {
++            const realEntry = path.join(realDir, entry.name);
++            const sandboxEntry = path.join(sandboxDir, entry.name);
++            if (entry.isSymbolicLink()) {
++                const realPath = await fs.promises.realpath(realEntry).catch(() => undefined);
++                if (realPath) {
++                    const rel = path.relative(basePath, realPath);
++                    if (!rel.startsWith('..') && !path.isAbsolute(rel) && !rel.split(path.sep).includes('node_modules')) {
++                        const sandboxTarget = path.join(this.workingDirectory, rel);
++                        const targetExists = await fs.promises.stat(sandboxTarget).then(() => true, () => false);
++                        if (targetExists) {
++                            await fileUtils.symlinkJunction(sandboxTarget, sandboxEntry).catch(() => { });
++                            return;
++                        }
++                    }
++                }
++            }
++            else if (entry.isDirectory() && entry.name.startsWith('@')) {
++                await this.linkNodeModulesEntries(basePath, realEntry, sandboxEntry);
++                return;
++            }
++            await fileUtils.symlinkJunction(realEntry, sandboxEntry).catch(() => { });
++        }));
++    }
+     /**
+      * Sandboxes a file (writes it to the sandbox). Either in-place, or an actual sandbox directory.
+      * @param name The name of the file

@@ -64,7 +64,7 @@ export type Selection = {
   readonly tsconfigs: readonly string[];
   /** Does the selection touch tests/ · scripts/ · reset.d.ts (the graph-only trees)? */
   readonly touchesGraphOnlyTrees: boolean;
-  /** The `pnpm check:scope …` argv that scopes the structure gates' WALK to this selection. */
+  /** The `tsx scripts/check/scoped.ts …` argv that scopes the structure gates' WALK to this selection. */
   readonly checkScopeArgv: readonly [string, ...string[]];
   /** For a git-derived selection: the ref vitest `--changed` / depcruise `--affected` compare against.
    *  undefined for an explicit-path selection (vitest --changed with no ref = staged+unstaged vs HEAD). */
@@ -142,8 +142,8 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[]): 
     ...deriveViews(paths),
     checkScopeArgv:
       paths.length > 0
-        ? ["pnpm", "check:scope", "--changed", ...paths]
-        : ["pnpm", "check:scope", "--changed"],
+        ? ["tsx", "scripts/check/scoped.ts", "--changed", ...paths]
+        : ["tsx", "scripts/check/scoped.ts", "--changed"],
     gitRef,
   };
 }
@@ -167,7 +167,7 @@ function resolvePackage(name: string): Selection {
     docsPaths: [],
     tsconfigs: [`packages/${dir}/tsconfig.json`],
     touchesGraphOnlyTrees: false,
-    checkScopeArgv: ["pnpm", "check:scope", "--package", dir],
+    checkScopeArgv: ["tsx", "scripts/check/scoped.ts", "--package", dir],
     gitRef: undefined,
   };
 }
@@ -185,7 +185,7 @@ function resolveScope(glob: string): Selection {
     docsPaths: prefix.startsWith("docs/architecture") ? [prefix] : [],
     tsconfigs: distinctTsconfigs([`${prefix}/x.ts`]),
     touchesGraphOnlyTrees: isGraphOnlyTree(`${prefix}/x.ts`),
-    checkScopeArgv: ["pnpm", "check:scope", "--scope", glob],
+    checkScopeArgv: ["tsx", "scripts/check/scoped.ts", "--scope", glob],
     gitRef: undefined,
   };
 }
