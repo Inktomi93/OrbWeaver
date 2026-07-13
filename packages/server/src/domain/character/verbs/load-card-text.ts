@@ -3,7 +3,8 @@
 // never exposed on the transport surface. Returns null when the card is gone or synthetic.
 
 import type { CharacterId } from "@orb/kit/ids";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterContext } from "../context";
+import type { CharacterService } from "../contract/service";
 import { cardOf, loadCharacterRowById } from "../persistence/queries";
 import { buildCardEmbedText } from "../substrate/embed-text";
 

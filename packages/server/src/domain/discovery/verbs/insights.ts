@@ -13,9 +13,10 @@ import {
 } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, notExists, sql } from "drizzle-orm";
+import type { DiscoveryContext } from "../context";
 import type { ThemeLevel } from "../contract/params";
 import type { ThemeDriftBucket, ThemeDriftTheme, UnusedCharacter } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 
 const THEME_DRIFT_TOP = 6;
 

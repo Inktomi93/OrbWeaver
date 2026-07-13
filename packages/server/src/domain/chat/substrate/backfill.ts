@@ -16,7 +16,7 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import type {
   BackfillPassCounts,
   MemoryBackfillCounts,

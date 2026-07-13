@@ -14,7 +14,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type {
   TurnPrep,

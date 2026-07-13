@@ -5,9 +5,10 @@
 // it fires the user-bus `charactersChanged` AFTER the durable write (like `restore`), so a second device's
 // History refetches. Throws `CharacterNotFoundError` when not owned/found.
 
+import type { CharacterContext } from "../context";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { SnapshotParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { appendSnapshot } from "../persistence/card";
 import { cardOf, loadOwnedCharacterRow } from "../persistence/queries";
 

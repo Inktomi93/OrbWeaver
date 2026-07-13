@@ -3,7 +3,8 @@
 // factories and assembles the `CredentialsService`. The context is built at the entry composition root and
 // passed in (credentials sideways-imports none of its injected deps — domain-no-cross-feature).
 
-import type { CredentialContext, CredentialsService } from "./contract/service";
+import type { CredentialContext } from "./context";
+import type { CredentialsService } from "./contract/service";
 import { createAdd } from "./verbs/add";
 import { createClearRevoked } from "./verbs/clear-revoked";
 import { createFetchModels } from "./verbs/fetch-models";

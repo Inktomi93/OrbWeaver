@@ -6,9 +6,10 @@
 
 import { batchMany, worldEntries } from "@orb/db";
 import { eq } from "drizzle-orm";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { ApplyEntryOrderParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { listBookEntries, loadOwnedBook } from "../../persistence/queries";
 
 export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEntryOrder"] {

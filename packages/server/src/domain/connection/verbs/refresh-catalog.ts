@@ -5,10 +5,11 @@
 // failure it falls back to the persisted snapshot if one exists (stale-but-serviceable), else throws
 // `CatalogUnavailableError` (flagged, not a silent empty — invariant: best-effort, never fake).
 
+import type { ConnectionContext } from "../context";
 import { CatalogUnavailableError } from "../contract/errors";
 import type { RefreshCatalogParams } from "../contract/params";
 import type { CatalogSnapshot } from "../contract/results";
-import type { ConnectionContext, ConnectionService } from "../contract/service";
+import type { ConnectionService } from "../contract/service";
 import { readCatalogSnapshot, writeCatalogSnapshot } from "../persistence/catalog-snapshot";
 import { seedOrModelCache } from "../substrate/or-model-cache";
 

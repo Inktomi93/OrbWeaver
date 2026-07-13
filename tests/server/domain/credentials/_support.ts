@@ -16,10 +16,8 @@ import { users } from "../../../../packages/db/src/schema/index.ts";
 import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";
 import { requireOwner } from "../../../../packages/server/src/domain/admin/index.ts";
-import type {
-  CredentialContext,
-  FetchModelsArgs,
-} from "../../../../packages/server/src/domain/credentials/contract/service.ts";
+import type { CredentialContext } from "../../../../packages/server/src/domain/credentials/context.ts";
+import type { FetchModelsArgs } from "../../../../packages/server/src/domain/credentials/contract/service.ts";
 import type { CredentialView } from "../../../../packages/server/src/domain/credentials/contract/views.ts";
 import type { CredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
 import { createCredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";

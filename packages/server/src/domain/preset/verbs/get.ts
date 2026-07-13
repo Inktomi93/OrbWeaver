@@ -1,6 +1,7 @@
+import type { PresetContext } from "../context";
 import { PresetNotFoundError } from "../contract/errors";
 import type { GetPresetParams } from "../contract/params";
-import type { PresetContext, PresetService } from "../contract/service";
+import type { PresetService } from "../contract/service";
 import type { PresetDetail } from "../contract/views";
 import { readablePreset } from "../persistence/queries";
 import { toPresetDetail } from "../substrate/views";

@@ -3,6 +3,7 @@
 // this front door (invariant #8).
 
 export { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
+export type { WorldInfoContext } from "./context";
 export { WorldInfoNotFoundError } from "./contract/errors";
 export type { ExportedWorldBook, ExportWorldBook, WorldInfoExportContext } from "./contract/export";
 export type {
@@ -19,7 +20,7 @@ export type {
   UpdateBookInput,
   UpdateEntryInput,
 } from "./contract/params";
-export type { WorldInfoContext, WorldInfoService } from "./contract/service";
+export type { WorldInfoService } from "./contract/service";
 export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./contract/views";
 export {
   createBulkImportLorebook,

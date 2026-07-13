@@ -4,9 +4,10 @@
 // speaking participant's active persona) is a Phase-5 chat/pool concern — this domain only stores the join.
 
 import { personaBooks } from "@orb/db";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { AttachToPersonaParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { ensurePersonaOwned } from "../../persistence/ownership";
 import { loadOwnedBook } from "../../persistence/queries";
 

@@ -5,9 +5,10 @@
 // overridden. Attachments are NOT copied — the duplicate is a fresh editable copy, unattached at every scope.
 
 import { batchMany, worldBooks, worldEntries } from "@orb/db";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { DuplicateBookParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { listBookEntries, loadOwnedBook } from "../../persistence/queries";
 
 export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplicateBook"] {

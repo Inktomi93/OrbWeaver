@@ -4,7 +4,8 @@
 // (persistence/asset-refs.ts — the one list of asset-bearing columns, coverage proven by a schema-
 // introspection test) so a new asset-bearing FK cannot silently become GC-eligible.
 
-import type { AssetsContext, AssetsService } from "./contract/service";
+import type { AssetsContext } from "./context";
+import type { AssetsService } from "./contract/service";
 import { createAddToGallery } from "./verbs/add-to-gallery";
 import { createAssetCasRefById } from "./verbs/asset-cas-ref-by-id";
 import { createBackfillAvatars } from "./verbs/backfill-avatars";

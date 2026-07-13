@@ -7,6 +7,7 @@
 // arm is added. `segment`/`digest` carry a precomputed `contentHash` (memory folds it; not recomputed
 // here). There is no principal/ownership check — the substrate FKs to its producer only.
 
+import type { EmbeddingsContext } from "../context";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors";
 import type {
   CardTextStoreParams,
@@ -17,7 +18,7 @@ import type {
   StoreParams,
 } from "../contract/params";
 import type { StoreResult } from "../contract/results";
-import type { EmbeddingsContext, EmbeddingsService } from "../contract/service";
+import type { EmbeddingsService } from "../contract/service";
 import {
   existingCharacterHash,
   existingDigestHash,

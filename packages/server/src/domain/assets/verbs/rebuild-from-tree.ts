@@ -10,7 +10,8 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsContext } from "../context";
+import type { AssetsService } from "../contract/service";
 import { loadOwnerAssetRows } from "../persistence/maintenance";
 import { storeBlob } from "../persistence/queries";
 

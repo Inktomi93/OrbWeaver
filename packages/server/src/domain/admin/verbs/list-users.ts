@@ -1,8 +1,9 @@
 // verb: listUsers — the admin user table. admin-gated (owner ∪ admin); defense-in-depth even though the
 // transport `adminMiddleware` already gated (the verb is safe independent of its caller).
 
+import type { AdminContext } from "../context";
 import type { ListUsersParams } from "../contract/params";
-import type { AdminContext, AdminService } from "../contract/service";
+import type { AdminService } from "../contract/service";
 import { requireAdmin } from "../guard";
 import { listUsers } from "../persistence/queries";
 

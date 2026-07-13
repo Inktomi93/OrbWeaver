@@ -3,8 +3,9 @@
 // runs the turn. The request carries NO chatId — buddy writes buddy_turns, never chat messages. The
 // kill switch (agencyEnabled) short-circuits before any turn.
 
+import type { BuddyContext } from "../context";
 import type { AskBuddyParams } from "../contract/params";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyService } from "../contract/service";
 import { appendTurn, growBond, loadBuddy, loadTurns } from "../persistence/queries";
 import { buildAgentInputs } from "../substrate/agent";
 import { pendingProposal } from "../substrate/gate";

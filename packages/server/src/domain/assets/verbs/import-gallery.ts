@@ -7,8 +7,8 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#kit/serde/gallery";
 import { parseGallery } from "#kit/serde/gallery";
+import type { AssetsContext } from "../context";
 import type { GalleryImportOutcome, GalleryPortableFile } from "../contract/results";
-import type { AssetsContext } from "../contract/service";
 import { importGalleryItem, ownedAssetForGallery } from "../persistence/queries";
 
 /** Restore ONE curation row: gate on asset ownership, re-link the handle, then idempotently write.

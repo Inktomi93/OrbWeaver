@@ -6,9 +6,10 @@ import { users } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
 import { MIN_PASSWORD_LENGTH } from "#infra/auth";
+import type { AdminContext } from "../context";
 import { ADMIN_OP_CODES } from "../contract/errors";
 import type { ResetPasswordParams } from "../contract/params";
-import type { AdminContext, AdminService } from "../contract/service";
+import type { AdminService } from "../contract/service";
 import { requireAdmin } from "../guard";
 import { loadUser } from "../persistence/queries";
 

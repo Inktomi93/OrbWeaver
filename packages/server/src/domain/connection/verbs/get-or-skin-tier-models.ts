@@ -9,8 +9,9 @@
 // always gets a coherent trio for every agent-sdk turn. Sync under the hood — wrapped in a resolved promise
 // for the async service surface.
 
+import type { ConnectionContext } from "../context";
 import type { OrSkinTierModels } from "../contract/results";
-import type { ConnectionContext, ConnectionService } from "../contract/service";
+import type { ConnectionService } from "../contract/service";
 import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
 import { getCachedOrModels } from "../substrate/or-model-cache";
 import { deriveOrSkin } from "../substrate/tier-models";

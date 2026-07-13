@@ -17,7 +17,7 @@ import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
 import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context";
 import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedUser } from "../_support";

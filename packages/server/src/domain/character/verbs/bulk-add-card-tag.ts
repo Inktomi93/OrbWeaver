@@ -5,8 +5,9 @@
 // attached (the port returns `false` for an idempotent no-op). A blank tag name is a no-op. No emit (a tag
 // is not card content).
 
+import type { CharacterContext } from "../context";
 import type { BulkAddCardTagParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { loadOwnedCharacterRow } from "../persistence/queries";
 
 export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["bulkAddCardTag"] {

@@ -13,7 +13,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { CompactParams } from "../contract/params";
 import type { CompactResult } from "../contract/results";

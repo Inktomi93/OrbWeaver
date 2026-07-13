@@ -4,8 +4,8 @@
 // seed-vector siblings (`similarCharacters`/`similarArt`) + their typed surface. Only the unified
 // `search()`/`SearchScope` dispatch (PD-38) remains deferred (see `contract/service.ts`).
 
+export type { SearchContext } from "./context";
 export { SEARCH_EMPTY_QUERY, SearchError } from "./contract/errors";
-
 export type {
   CorpusParams,
   DigestsParams,
@@ -19,7 +19,6 @@ export type {
   SimilarCharactersParams,
   SuggestParams,
 } from "./contract/params";
-
 export type {
   CharacterCardHit,
   CorpusHit,
@@ -33,7 +32,6 @@ export type {
   SegmentSearchHit,
   SimilarArtHit,
 } from "./contract/results";
-
-export type { SearchContext, SearchService, SearchServiceDeps } from "./contract/service";
+export type { SearchService, SearchServiceDeps } from "./contract/service";
 
 export { createSearchService } from "./service";

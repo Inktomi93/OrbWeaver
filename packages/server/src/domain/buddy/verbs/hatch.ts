@@ -5,8 +5,9 @@
 // the winner's row (both callers see the same soul, the one that landed first). Owner-scoped.
 
 import { isConstraintViolation } from "@orb/db";
+import type { BuddyContext } from "../context";
 import type { HatchBuddyParams } from "../contract/params";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyService } from "../contract/service";
 import { insertBuddy, loadBuddy, rowToView } from "../persistence/queries";
 import { roll } from "../substrate/roll";
 import { generateSoul } from "../substrate/soul";

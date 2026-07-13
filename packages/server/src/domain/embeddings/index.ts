@@ -3,15 +3,13 @@
 // `ImageEmbedResult`) live in `@orb/contracts/providers`; the `RoleClients` bundle in
 // `@orb/contracts/role-clients` — callers import those from contracts, not through this door.
 
+// The entry root wires these; transport/tests reference them directly.
+export type { EmbeddingsContext } from "./context";
 export { EmbedFailedError, SpaceMismatchError } from "./contract/errors";
-
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params";
 export { VECTOR_TABLES } from "./contract/params";
-
-// The entry root wires these; transport/tests reference them directly.
 export type {
-  EmbeddingsContext,
   EmbeddingsIndexer,
   EmbeddingsIndexerContext,
   EmbeddingsService,

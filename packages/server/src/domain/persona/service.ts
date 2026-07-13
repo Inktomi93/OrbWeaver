@@ -5,7 +5,8 @@
 //
 // See Audits-and-Debt.md PD-19.
 
-import type { PersonaContext, PersonaService } from "./contract/service";
+import type { PersonaContext } from "./context";
+import type { PersonaService } from "./contract/service";
 import { createConnect, createDisconnect, createListConnected } from "./verbs/connection";
 import { createCreate } from "./verbs/create";
 import { createCreateFromCharacter } from "./verbs/create-from-character";

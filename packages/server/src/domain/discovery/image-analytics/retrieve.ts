@@ -5,8 +5,9 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { DiscoveryContext } from "../context";
 import type { ArchetypeMember, ImageDuplicatePair, VisualArchetype } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 import { readOwnedAvatarVectors, readOwnedCaptionRows } from "../persistence/embed-store-reads";
 import { readOwnedCardFacets } from "../persistence/summary-reads";
 import { kmeans } from "../substrate/kmeans";

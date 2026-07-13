@@ -2,13 +2,14 @@
 // <root>/<owner>/<ab>/<cd>/<hash> (no cross-user dedup, ownership gated above this adapter). Writes are
 // crash-atomic: temp file under rootDir → fsync fd → rename → fsync dir, so a crash can't leave a corrupt blob.
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import { mkdir, open, readdir, readFile, rename, rm, stat, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
+import { sha256Hex } from "#kit/content-hash";
 
 export interface PutResult {
   hash: string;
@@ -40,7 +41,7 @@ const TMP_SUFFIX_BYTES = 16;
 const MS_PER_SECOND = 1000;
 
 function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
+  return sha256Hex(bytes);
 }
 
 function assertOwnerSegment(ownerId: string): void {

@@ -18,7 +18,7 @@ import { createActiveTurns } from "../../../../packages/server/src/domain/chat/a
 import type {
   ChatContext,
   ChatServiceDeps,
-} from "../../../../packages/server/src/domain/chat/contract/context";
+} from "../../../../packages/server/src/domain/chat/context";
 import type { TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createChatService } from "../../../../packages/server/src/domain/chat/service";
 import { freshDb } from "../../../support/db";

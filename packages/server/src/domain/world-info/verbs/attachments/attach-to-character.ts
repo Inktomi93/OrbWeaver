@@ -10,9 +10,10 @@
 
 import { batchMany, characterBooks } from "@orb/db";
 import { and, eq, ne } from "drizzle-orm";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { AttachToCharacterParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { ensureCharacterOwned } from "../../persistence/ownership";
 import { loadOwnedBook } from "../../persistence/queries";
 

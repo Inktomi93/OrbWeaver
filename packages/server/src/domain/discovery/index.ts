@@ -1,6 +1,7 @@
 // domain/discovery — front door: the only legal external import; re-exports the slice's public surface.
 // Still deferred (see contract/service.ts ledger): similarArt, characterDossier.similar/.portrait, analyze/swipes.
 
+export type { DiscoveryContext } from "./context";
 export { DiscoveryError } from "./contract/errors";
 export type {
   ArchetypesOptions,
@@ -61,11 +62,7 @@ export type {
   UnusedCharacter,
   VisualArchetype,
 } from "./contract/results";
-export type {
-  DiscoveryContext,
-  DiscoveryService,
-  DiscoveryServiceDeps,
-} from "./contract/service";
+export type { DiscoveryService, DiscoveryServiceDeps } from "./contract/service";
 export {
   computeCooccurrence,
   DEFAULT_HUB_FRACTION,

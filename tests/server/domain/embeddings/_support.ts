@@ -27,8 +27,8 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
+import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type {
-  EmbeddingsContext,
   EmbeddingsIndexerContext,
   EmbeddingsService,
 } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";

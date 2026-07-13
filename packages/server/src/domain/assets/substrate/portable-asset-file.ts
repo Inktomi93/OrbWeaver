@@ -3,11 +3,11 @@
 // the content-hash helper. `<id>` restores the blob under its ORIGINAL id so every FK/inline ref resolves
 // with no remap; `<hash>` is re-verified on import (poison defense); `.<ext>` is cosmetic, ignored on import.
 
-import { createHash } from "node:crypto";
 import { assetKindSchema } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { sha256Hex } from "#kit/content-hash";
 import type { PortableAssetIdentity } from "../contract/portability";
 
 const PART_SEPARATOR = "__";
@@ -30,7 +30,7 @@ const DEFAULT_EXT = "bin";
 
 /** sha-256 hex of the bytes — the CAS key; re-computed on import and compared to the filename's `<hash>`. */
 export function hashAssetBytes(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
+  return sha256Hex(bytes);
 }
 
 /** Build the self-describing bundle filename for one blob (dir-relative; no leading `assets/`). */

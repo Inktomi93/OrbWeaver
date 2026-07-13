@@ -45,7 +45,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-import type { AssetsContext } from "../../../../packages/server/src/domain/assets/contract/service.ts";
+import type { AssetsContext } from "../../../../packages/server/src/domain/assets/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

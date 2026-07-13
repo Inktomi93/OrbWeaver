@@ -5,9 +5,10 @@
 // leak), as does a non-owned character.
 
 import { cardContentHash } from "#kit/serde/card";
+import type { CharacterContext } from "../context";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { RestoreParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { appendSnapshot, writeCardInPlace } from "../persistence/card";
 import {
   canonicalTagsOf,

@@ -5,9 +5,10 @@
 // runners call directly — the compute* passes stay standalone-exportable).
 
 import type { UserId } from "@orb/kit/ids";
+import type { DiscoveryContext } from "./context";
 import type { ThemeLevel } from "./contract/params";
 import type { DuplicateCharacterPair, DuplicateChatPair, ThemeRow } from "./contract/results";
-import type { DiscoveryContext, DiscoveryService, ViewsDeps } from "./contract/service";
+import type { DiscoveryService, ViewsDeps } from "./contract/service";
 import { computeCooccurrence as runComputeCooccurrence } from "./cooccurrence/generate";
 import { characterKeywords, cooccurringKeywords, topKeywords } from "./cooccurrence/retrieve";
 import {

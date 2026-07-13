@@ -8,10 +8,11 @@
 // hit is stamped `tier: 0` + the caller's egocentric `scopedCharacterId`. That POV is REQUIRED — absent ⇒ a
 // typed `SearchError(SCOPE_REQUIRED)` (flag-don't-fake; we never mint an empty-string sentinel).
 
+import type { SearchContext } from "../context";
 import { SEARCH_EMPTY_QUERY, SEARCH_SCOPE_REQUIRED, SearchError } from "../contract/errors";
 import type { SegmentsParams } from "../contract/params";
 import type { SegmentSearchHit } from "../contract/results";
-import type { SearchContext, SearchService } from "../contract/service";
+import type { SearchService } from "../contract/service";
 import { nearestSegments } from "../persistence/digest-rows";
 import { SCOPED_POOL_K } from "../substrate/constants";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls";

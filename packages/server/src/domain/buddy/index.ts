@@ -4,6 +4,7 @@
 // Mood, Rarity, …) is NOT re-exported here — it lives in @orb/contracts/buddy, the one cross-boundary home.
 
 export { createBuddyBus } from "./bus";
+export type { BuddyContext } from "./context";
 export type { BuddyAgentEnv, BuddyWorkloadKind } from "./contract/agent-env";
 export type {
   AgentTurnOp,
@@ -25,7 +26,7 @@ export type {
   LiteWorkloadEvent,
 } from "./contract/observer-env";
 export type { BuddyProposal, BuddyTurnView } from "./contract/results";
-export type { BuddyContext, BuddyService, BuddyServiceDeps } from "./contract/service";
+export type { BuddyService, BuddyServiceDeps } from "./contract/service";
 export type { BuddyView } from "./contract/views";
 export { startBuddyObserver } from "./observer/start";
 export { createBuddyService } from "./service";

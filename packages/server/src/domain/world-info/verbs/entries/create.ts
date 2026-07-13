@@ -5,9 +5,10 @@
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import { resolveEntryScope } from "@orb/kit/world-info";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { CreateEntryParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { listChatIdsForBook, loadOwnedBook } from "../../persistence/queries";
 
 export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEntry"] {

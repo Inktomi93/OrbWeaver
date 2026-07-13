@@ -27,7 +27,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ForkChatParams } from "../contract/params";
 import type { ForkResult } from "../contract/results";

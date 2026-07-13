@@ -2,8 +2,9 @@
 // the observer reads it — FLAG[PD-64]). A no-op for an unhatched buddy (no row) — returns the
 // preview view with the requested flag. Owner-scoped.
 
+import type { BuddyContext } from "../context";
 import type { SetReactionsParams } from "../contract/params";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyService } from "../contract/service";
 import { loadBuddy, previewView, rowToView, setBuddyFlag } from "../persistence/queries";
 import { decayMood } from "../substrate/mood";
 

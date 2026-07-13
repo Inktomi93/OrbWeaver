@@ -5,10 +5,11 @@
 // card match and corpus' block match). Rerank rejections propagate — search owns no fallback.
 
 import type { CharacterId } from "@orb/kit/ids";
+import type { SearchContext } from "../context";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
 import type { DiscoverParams } from "../contract/params";
 import type { DiscoverCharacter, DiscoverSegment } from "../contract/results";
-import type { SearchContext, SearchService } from "../contract/service";
+import type { SearchService } from "../contract/service";
 import { nearestSegments, ownedChatIds } from "../persistence/digest-rows";
 import { resolveSegmentDisplay } from "../persistence/display";
 import {

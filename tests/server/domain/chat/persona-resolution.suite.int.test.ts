@@ -35,7 +35,7 @@ import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../packages/server/src/domain/chat/assembly/assemble";
 import { buildAssembleContext } from "../../../../packages/server/src/domain/chat/assembly/context";
 import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros";
-import type { ChatContext } from "../../../../packages/server/src/domain/chat/contract/context";
+import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
 import type { HistoryMacroNames } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createChatLifecycle } from "../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { setParticipantActivePersona } from "../../../../packages/server/src/domain/chat/verbs/roster";

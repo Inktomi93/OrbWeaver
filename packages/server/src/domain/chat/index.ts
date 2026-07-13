@@ -4,9 +4,8 @@
 
 export { createActiveTurns } from "./active-turns";
 export { createChatBus } from "./bus";
+export type { ChatContext, ChatServiceDeps } from "./context";
 export type {
-  ChatContext,
-  ChatServiceDeps,
   ChatToolExecFrame,
   ChatToolOps,
   ChatToolSet,

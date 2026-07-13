@@ -15,7 +15,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import { and, eq, exists, isNull, lt } from "drizzle-orm";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   ArchiveChatParams,

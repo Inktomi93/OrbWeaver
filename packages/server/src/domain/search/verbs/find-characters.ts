@@ -7,9 +7,10 @@
 // retrieval ranking lives in exactly one place. A character that vanished between the scan and the enrich
 // (deleted, or filtered by the owner re-assert) is simply dropped from the result.
 
+import type { SearchContext } from "../context";
 import type { FindCharactersParams } from "../contract/params";
 import type { CharacterCardHit } from "../contract/results";
-import type { SearchContext, SearchService } from "../contract/service";
+import type { SearchService } from "../contract/service";
 import { resolveCharacterDisplay } from "../persistence/display";
 
 export function createFindCharacters(

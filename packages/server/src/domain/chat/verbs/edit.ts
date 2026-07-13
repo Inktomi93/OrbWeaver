@@ -17,7 +17,7 @@ import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type {

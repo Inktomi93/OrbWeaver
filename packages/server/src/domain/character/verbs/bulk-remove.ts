@@ -7,8 +7,9 @@
 
 import type { AssetId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
+import type { CharacterContext } from "../context";
 import type { BulkRemoveParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { deleteOwnedCharacter } from "../persistence/card";
 import { loadOwnedCharacterRow } from "../persistence/queries";
 

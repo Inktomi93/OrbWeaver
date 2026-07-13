@@ -7,13 +7,10 @@ import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { BatchItem } from "drizzle-orm/batch";
+import type { DiscoveryContext } from "../context";
 import type { DistillCharactersOptions } from "../contract/params";
 import type { CharacterDistillation, DistillStats } from "../contract/results";
-import type {
-  DiscoveryContext,
-  DiscoveryService,
-  DistillCharactersDeps,
-} from "../contract/service";
+import type { DiscoveryService, DistillCharactersDeps } from "../contract/service";
 import { readCardDistillTargets } from "../persistence/card-reads";
 import { sliceJsonObject } from "../substrate/json-extract";
 

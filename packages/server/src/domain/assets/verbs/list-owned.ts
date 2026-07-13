@@ -3,8 +3,9 @@
 // `AssetListItem[]` (no page envelope): the client derives the next cursor from the last row's
 // `(uploadedAt, assetId)`, and a short page is end-of-list. Each row carries the stored `animated` fact (G2).
 
+import type { AssetsContext } from "../context";
 import type { ListOwnedParams } from "../contract/params";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsService } from "../contract/service";
 import type { AssetListItem } from "../contract/views";
 import { listOwnedAssetRows } from "../persistence/queries";
 

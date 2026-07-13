@@ -12,7 +12,8 @@ import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Cas } from "#infra/storage";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsContext } from "../context";
+import type { AssetsService } from "../contract/service";
 import { listAssetOwners, loadOwnerAssetRows } from "../persistence/maintenance";
 
 /** Per-owner dangling+corrupt tally over the index rows. `!exists` ⇒ dangling; present-but-`!verify` ⇒

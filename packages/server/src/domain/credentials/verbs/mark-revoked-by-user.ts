@@ -4,8 +4,9 @@
 // "manually revoked by user" (logged, not persisted).
 
 import { securityEvent } from "#foundation/observability";
+import type { CredentialContext } from "../context";
 import type { MarkRevokedByUserParams } from "../contract/params";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialsService } from "../contract/service";
 import { fetchOwnedCredential, setRevokedById } from "../persistence/queries";
 import { requireOwned } from "../substrate/credential-not-found";
 

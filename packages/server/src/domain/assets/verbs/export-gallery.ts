@@ -5,8 +5,8 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#kit/serde/gallery";
 import { buildGallery } from "#kit/serde/gallery";
+import type { AssetsContext } from "../context";
 import type { GalleryPortableFile } from "../contract/results";
-import type { AssetsContext } from "../contract/service";
 import { listGalleryItemsForExport } from "../persistence/queries";
 
 const GALLERY_FILENAME = "gallery.json";

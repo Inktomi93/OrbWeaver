@@ -5,7 +5,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { BuddyContext } from "../../../../../packages/server/src/domain/buddy/contract/service.ts";
+import type { BuddyContext } from "../../../../../packages/server/src/domain/buddy/context.ts";
 import { insertBuddy } from "../../../../../packages/server/src/domain/buddy/persistence/queries.ts";
 import { roll } from "../../../../../packages/server/src/domain/buddy/substrate/roll.ts";
 import { createResolveSpeakerIdentity } from "../../../../../packages/server/src/domain/buddy/verbs/resolve-speaker-identity.ts";

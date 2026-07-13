@@ -9,7 +9,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { ChatContext } from "../../contract/context";
+import type { ChatContext } from "../../context";
 import { resolveCfg } from "../constants";
 import {
   loadCanonThroughSeq,

@@ -12,7 +12,8 @@
 // in the WHERE, so a foreign / gone id is simply absent — never a leak, never a hash oracle for another owner.
 
 import type { AssetId, UserId } from "@orb/kit/ids";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsContext } from "../context";
+import type { AssetsService } from "../contract/service";
 import type { AssetBlobRef } from "../contract/views";
 import { selectOwnedAssetRefs } from "../persistence/queries";
 

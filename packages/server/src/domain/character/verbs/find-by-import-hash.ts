@@ -3,8 +3,9 @@
 // principal — the synthetic-find precedent). Owner-scoped in the query, so a different owner's same-hash card
 // is never returned. A read: no audit, no emit.
 
+import type { CharacterContext } from "../context";
 import type { FindByImportHashParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { findByOwnerImportHash } from "../persistence/queries";
 
 export function createFindByImportHash(

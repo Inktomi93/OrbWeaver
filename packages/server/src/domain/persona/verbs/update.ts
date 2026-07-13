@@ -6,9 +6,10 @@
 import { personas } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
 import { and, eq } from "drizzle-orm";
+import type { PersonaContext } from "../context";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { UpdatePersonaParams } from "../contract/params";
-import type { PersonaContext, PersonaService } from "../contract/service";
+import type { PersonaService } from "../contract/service";
 import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 import { normalizeWriteMetadata } from "../substrate/metadata";
 

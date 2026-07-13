@@ -1,8 +1,9 @@
 // verb: listForPersona — the books attached to an owned persona, newest first. `role` is null on this scope.
 // Gates persona ownership (`ensurePersonaOwned`). A read: no audit.
 
+import type { WorldInfoContext } from "../../context";
 import type { ListForPersonaParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { ensurePersonaOwned } from "../../persistence/ownership";
 import { listPersonaBooks } from "../../persistence/queries";
 

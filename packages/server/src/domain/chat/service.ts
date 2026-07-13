@@ -4,7 +4,7 @@
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, ChatId } from "@orb/kit/ids";
-import type { ChatContext, ChatServiceDeps } from "./contract/context";
+import type { ChatContext, ChatServiceDeps } from "./context";
 import type { ChatService } from "./contract/service";
 import { createTurnEngine } from "./engine/engine";
 import { generateDigests } from "./memory/build/digests";

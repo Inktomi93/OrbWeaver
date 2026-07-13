@@ -6,9 +6,10 @@
 // task's "not the avatar asset unless trivial to re-point" bar).
 
 import { personas } from "@orb/db";
+import type { PersonaContext } from "../context";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { DuplicatePersonaParams } from "../contract/params";
-import type { PersonaContext, PersonaService } from "../contract/service";
+import type { PersonaService } from "../contract/service";
 import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 
 const COPY_SUFFIX = " (copy)";

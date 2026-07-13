@@ -5,9 +5,10 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { DiscoveryContext } from "../context";
 import type { ArchetypesOptions } from "../contract/params";
 import type { Archetype, ArchetypeMember } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 import { readOwnedCharacterVectors } from "../persistence/embed-store-reads";
 import { readOwnedCardFacets } from "../persistence/summary-reads";
 import { collapseByHash } from "../substrate/collapse";

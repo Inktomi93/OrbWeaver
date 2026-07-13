@@ -2,6 +2,7 @@
 // UserIntent, guided-action) are never re-exported here — callers import them from @orb/contracts/preset.
 
 export { SYSTEM_DEFAULT_PRESET_ID } from "./constants";
+export type { PresetContext } from "./context";
 export type { PresetOpCode } from "./contract/errors";
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors";
 export type {
@@ -18,7 +19,7 @@ export type {
   PresetExportFile,
   PresetImportOutcome,
 } from "./contract/portability";
-export type { PresetContext, PresetService } from "./contract/service";
+export type { PresetService } from "./contract/service";
 export type { PresetDetail, PresetSummary } from "./contract/views";
 export { ensureSystemDefaultPreset } from "./seed";
 export { createPresetService } from "./service";

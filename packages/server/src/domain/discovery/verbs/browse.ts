@@ -6,9 +6,10 @@ import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import type { DiscoveryContext } from "../context";
 import type { BrowseFilter } from "../contract/params";
 import type { BrowseCharacter, CharacterFacets, FacetCount } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 
 const DEFAULT_BROWSE_LIMIT = 200;
 

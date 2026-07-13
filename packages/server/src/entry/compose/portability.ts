@@ -5,7 +5,6 @@
 // throwing for a malformed file (returns `{ok:false,error}`). Import order is NOT this array's order — the
 // core imports by `PORTABLE_IMPORT_ORDER` (contracts/portability).
 
-import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaBackupInput } from "@orb/contracts/persona";
 import type {
@@ -44,6 +43,7 @@ import type { TagContext } from "#domain/tag";
 import { createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook } from "#domain/world-info";
+import { sha256Hex } from "#kit/content-hash";
 import { parseChatJsonl } from "#kit/serde/chat";
 import type {
   ImportAssetPort,
@@ -79,11 +79,6 @@ export interface PortabilityDeps {
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
-
-/** sha-256 hex of bytes (the chat `importHash` dedup oracle). */
-function sha256Hex(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
 
 /** Build the per-owner `ImportContext`, shared by both the character card path and the chat path. */
 async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise<ImportService> {

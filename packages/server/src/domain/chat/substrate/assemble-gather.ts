@@ -18,7 +18,7 @@ import type { AssembleContext, ChatInjection } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { buildAssembleContext } from "../assembly/context";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import type { ForeignInputs } from "../contract/foreign";
 import type { MsgRow } from "../contract/memory";
 import type { GuidedSteer } from "../contract/params";

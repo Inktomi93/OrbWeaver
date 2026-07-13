@@ -56,7 +56,7 @@
       "!packages/ui/src/tokens/index.ts",
       "!packages/ui/src/styles/theme.css",
       "!**/__g_*",
-      "!**/__g_*/**"
+      "!**/__g_*"
     ]
   },
   "formatter": {
@@ -391,8 +391,7 @@
         "useRegexpTest": "error",
         "useRegexpExec": "error",
         "noExcessiveNestedCallbacks": "error",
-        "useDisposables": "error",
-        "useNamedCaptureGroup": "info"
+        "useDisposables": "error"
       }
     }
   },

@@ -3,6 +3,7 @@
 // Sequential by design (staged effects are order-dependent). Never throws for a per-call failure — every
 // outcome is a ToolCallRecord the model reads and self-corrects on; result is always a JSON document.
 
+import type { ToolUseContext } from "../context";
 import type { ToolCallInput, ToolExecutionContext } from "../contract/params";
 import type {
   RegisteredTool,
@@ -10,7 +11,6 @@ import type {
   RunOutcome,
   ToolCallRecord,
 } from "../contract/results";
-import type { ToolUseContext } from "../contract/service";
 import { checkToolCapability } from "../substrate/capability";
 
 interface CallOutcome {

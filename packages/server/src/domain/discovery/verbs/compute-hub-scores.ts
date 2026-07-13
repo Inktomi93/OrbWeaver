@@ -6,9 +6,10 @@
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { VectorTable } from "#domain/embeddings";
+import type { DiscoveryContext } from "../context";
 import type { ComputeHubScoresOptions } from "../contract/params";
 import type { HubStats } from "../contract/results";
-import type { ComputeHubScoresDeps, DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { ComputeHubScoresDeps, DiscoveryService } from "../contract/service";
 import {
   distinctCharacterHubOwners,
   distinctDigestHubOwners,

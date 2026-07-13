@@ -4,9 +4,10 @@
 // `assets.ownerId`; a foreign/unknown seed yields an empty result.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
+import type { SearchContext } from "../context";
 import type { SimilarArtParams } from "../contract/params";
 import type { SimilarArtHit } from "../contract/results";
-import type { SearchContext, SearchService } from "../contract/service";
+import type { SearchService } from "../contract/service";
 import { nearestAvatarCharacters, readSeedAvatarVector } from "../persistence/image-nearest";
 import { OWNER_OVERFETCH } from "../substrate/constants";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls";

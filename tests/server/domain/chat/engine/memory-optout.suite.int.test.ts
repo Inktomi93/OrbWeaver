@@ -15,7 +15,7 @@ import { chatDigests } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import type { MemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory";
 import type {
   TurnPrep,

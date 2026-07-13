@@ -6,10 +6,11 @@
 // placeholder avatars outrank relevant matches). This verb ranks on raw cosine distance alone, never
 // cslsAdjust; hub_score exists on that table only for a future image↔image similarity verb.
 
+import type { SearchContext } from "../context";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
 import type { ImagesParams } from "../contract/params";
 import type { ImageSearchHit } from "../contract/results";
-import type { SearchContext, SearchService } from "../contract/service";
+import type { SearchService } from "../contract/service";
 import { nearestImages } from "../persistence/image-nearest";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants";
 import { rerankPoolByScores } from "../substrate/csls";

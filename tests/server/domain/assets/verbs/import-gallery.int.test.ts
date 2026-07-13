@@ -17,7 +17,7 @@ import {
 import { buildGallery } from "@orb/server/kit/serde/gallery";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
-import type { AssetsContext } from "../../../../../packages/server/src/domain/assets/contract/service.ts";
+import type { AssetsContext } from "../../../../../packages/server/src/domain/assets/context.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";

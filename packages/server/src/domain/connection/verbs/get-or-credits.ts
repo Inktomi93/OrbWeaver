@@ -5,8 +5,9 @@
 // adds no reshaping — `AccountCredits` is the cross-boundary shape (@orb/contracts/providers).
 
 import type { AccountCredits } from "@orb/contracts/providers";
+import type { ConnectionContext } from "../context";
 import type { GetOrCreditsParams } from "../contract/params";
-import type { ConnectionContext, ConnectionService } from "../contract/service";
+import type { ConnectionService } from "../contract/service";
 
 export function createGetOrCredits(ctx: ConnectionContext): ConnectionService["getOrCredits"] {
   return async ({ principal, signal }: GetOrCreditsParams): Promise<AccountCredits> => {

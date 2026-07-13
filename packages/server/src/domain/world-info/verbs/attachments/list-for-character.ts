@@ -1,8 +1,9 @@
 // verb: listForCharacter — the books attached to an owned character, primary first then newest. Carries the
 // per-attachment role. Gates character ownership (`ensureCharacterOwned`). A read: no audit.
 
+import type { WorldInfoContext } from "../../context";
 import type { ListForCharacterParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { ensureCharacterOwned } from "../../persistence/ownership";
 import { listCharacterBooks } from "../../persistence/queries";
 
