@@ -16,14 +16,14 @@ const MESSAGE =
   "`userId` is forbidden under infra/auth/** (D40 identity-resolution invariant): infra VERIFIES headers " +
   "into a pre-row `ResolvedIdentity` (NO userId); the seam (`entry/auth/seam.ts`) resolves the id ONCE via " +
   "a domain step (`sessions.validate`/`provisionIdentity`) and constructs the immutable Principal. See " +
-  "Spine-Identity-and-Auth.md + Core-Path-Registry-D35-D43.md D40.";
+  "Spine-Identity-and-Auth.md + Core-Path-Registry.md D40.";
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as an Identifier subscription scoped to infra/auth/** via scanRoot. Per-occurrence
 // (each `userId` identifier is its own finding). Kept ALONGSIDE the legacy Check; itemized parity proves
 // the SITE set matches. scanRoot mirrors the legacy AUTH_DIR path filter exactly (the parity oracle).
 export const gate: GateDescriptor = {
   name: "infra-auth-no-userid",
-  docRow: "Core-Path-Registry-D35-D43.md D40 (identity-resolution invariant)",
+  docRow: "Core-Path-Registry.md D40 (identity-resolution invariant)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

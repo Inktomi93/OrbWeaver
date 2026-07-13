@@ -149,7 +149,7 @@ correct — a task touching it is off the rails.
 ## 3. D66 amendments — what this program consciously changes
 
 The current UI is the LANDED D62 output; these pain points are what D62's rulings produced. D66
-amends the following (recorded in `Core-Path-Registry-D66.md`; grep the id for the decision record):
+amends the following (recorded in `Core-Path-Registry.md`; grep the id for the decision record):
 
 | # | Old ruling (D62) | New ruling (D66) | Why |
 |---|---|---|---|

@@ -101,7 +101,7 @@ packages/ui/
 ## 3. Dependencies (verified against the live registry, 2026-07-02)
 
 | Dep | Version | Role | Doc-vs-current delta |
-| --- | --- | --- | --- |
+| - | - | - | - |
 | `@base-ui/react` | ^1.6.0 | THE headless primitive (D42) | ✅ as documented (1.6.x; the `@base-ui-components/react` name is the DEAD rc-era package — never install it). v1 broke RC-era APIs: **every wrap is written against the live per-component docs (base-ui.com), never memory.** |
 | `tailwind-variants` | ^3.2.2 | variants + slots + `cn` (subsumes cva/clsx/tw-merge — D54) | ⚠️ docs said "v1"; current major is **3.x**. API verified at build: `tv()`, `slots`, `VariantProps` all present; deltas recorded in the variants convention (§5) if any surface. |
 | `lucide-react` | ^1.22.0 | icons (gate `icons-lucide-only`) | ✅ (pinned below `.23` by `minimumReleaseAge` — bump when mature) |
@@ -182,7 +182,7 @@ factories are inventoried here because this package is their substrate and their
 ### 6.1 UI-side (this package)
 
 | Factory / primitive | Signature (shape) | Obligations it bakes | Test story |
-| --- | --- | --- | --- |
+| - | - | - | - |
 | `tv()` variant configs (per primitive) | `variants.ts` per §5 | tokens-only classes; union-typed variants; slots for multi-part | CT: variant renders; `tsc`: bad variant fails `test:types` |
 | `createVirtualList` seal → `<VirtualList>` | `{ count, getItemKey (REQUIRED, id-based), estimateSize, overscan?, lanes?, rangeExtractor?, renderItem }` | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
 | `<MessageList>` seal (chat) — DEFERRED to the chat-client chunk | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (BUILT 2026-07-09 — the `keepMounted` predicate, PD-119 DONE) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
@@ -213,7 +213,7 @@ factories are inventoried here because this package is their substrate and their
 > re-trued 2026-07-09) — the obligations hold by construction+review, not yet by gate.
 
 | Factory | Home | Why client-side | Signature + the baked obligations (canonical spec cite) |
-| --- | --- | --- | --- |
+| - | - | - | - |
 | `createSavedEntityForm` | `client/forms` | TanStack Form + Query + Zustand types | `({ formOptions, seedQuery, saveMutation, draftStore? }) → { useEditorForm, bound chrome }`. Bakes the SIX editor obligations (§13.4): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` **in a post-submit effect keyed on `isSubmitSuccessful`, never inside `onSubmit`** (footgun #2) · the `seededRef + persistent-isDirty` reseed guard (footgun #4 — `isDirty`, NOT `!isDefaultValue`, for the guard) · the Zustand-persist draft mirror · `dontUpdateMeta` on non-user writes (version-locked + guard-tested — the flag is typed-but-undocumented). DirtyPill drives off **`!isDefaultValue`** (lib deep-compare; the hand-rolled `fieldValuesEqual` is DELETED — D54). `revalidateLogic() + onDynamic(zodSchema)` is the validation default. ONE `createFormHook` instance repo-wide (gate `tanstack-form-only-in-shared`). |
 | `createAutosaveEntityForm` | `client/forms` | same | listener-debounced (`listeners.onChange + onChangeDebounceMs`, the documented autosave backbone) + `onFieldUnmount` flush; **`reset` REMOVED from its returned type** (calling it is the autosave infinite loop — gate `no-form-reset-in-autosave`). |
 | `useAppForm` (the one `createFormHook`) | `client/forms` | Form context | single instance + bound field set (controlled `value=`, never `defaultValue=`; `useSelector`, not the deprecated `useStore`; error rendering standardized on `{message}` objects). |
@@ -230,6 +230,7 @@ factories are inventoried here because this package is their substrate and their
 | `lib/time.ts` seam | `client/lib` | Intl + injected now | epoch-UTC wire → browser-local display, memoized `Intl.*`, injected `now` (snapshot-testable). |
 
 **Under-specified factories, now SPECCED (the "figuring out" half):**
+
 1. `createSavedEntityForm`'s **group-submit obligation** (the mission's sixth): sections that
    save independently use `form.FormGroup` + per-group `onDynamic` schemas (the multi-step-wizard
    pattern) — the factory exposes `SectionGroup` so a preset's "sampling"/"prompt" tabs or the
@@ -262,7 +263,7 @@ and the CT tests assert the CONTAINMENT properties, not just rendering:
 ## 8. The gate story for ui
 
 | Tier | Gate | Status |
-| --- | --- | --- |
+| - | - | - |
 | resolver | ui's `package.json` omits contracts/db/server/client + client's omits the satellites | scaffold (done at package birth) |
 | lint (biome) | `noUndeclaredDependencies` / `noUnresolvedImports` on ui | free (repo-wide already) |
 | dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`) · `client-no-raw-satellites` (pre-wired backstop for Phase 6) | scaffold |
@@ -355,14 +356,14 @@ client-foundation wave (the `archive/ENFORCEMENT.md` backlog table names them wi
 "waiting on" triggers). Status per §8 registry entry:
 
 | Gate (§8 registry) | Status | Where / when |
-| --- | --- | --- |
+| - | - | - |
 | ui/client package physics | ✅ LIVE | resolver + biome `noUndeclaredDependencies` + depcruise `ui-cake` (this scaffold) |
 | `virtualizer-only-in-seal` · echarts/codemirror/streamdown/cmdk/dnd-kit/diff/lucide seals | ✅ LIVE | depcruise `ui-satellite-seals` (this scaffold) |
 | `no-raw-value` family (`no-color-literals` incl. arbitrary hex, `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`) | ✅ LIVE, ui-covered | grit; widened to `packages/ui/src` + `tv()` arms (this scaffold — they previously scoped to client-only and could not see tailwind-variants call sites) |
 | named non-token color ban (`bg-black/50` → `--scrim`) | ✅ LIVE | new arm in `no-color-literals` (this scaffold) |
 | `no-layout-context-props` | ✅ LIVE | new grit (this scaffold) |
 | `design-token-parity` | ✅ SUPERSEDED-BY-CONSTRUCTION | the codegen + freshness test (§4) — drift is a failing test, not a parity check |
-| `touch-target-floor` | ◐ PARTIAL | the token floor is test-locked (tests/ui/tokens); the per-component "no control below the token" half rides review + the CT computed-height assertions until a grit for h-* under the floor is worth writing |
+| `touch-target-floor` | ◐ PARTIAL | the token floor is test-locked (tests/ui/tokens); the per-component "no control below the token" half rides review + the CT computed-height assertions until a grit for h-\* under the floor is worth writing |
 | `no-direct-useform` / `no-form-state-in-useeffect` / `no-chat-trpc-in-surface` / `no-inline-optimistic-in-surface` (the neo client four) | ✅ LIVE (dormant) | grit — wired since Phase 0; fire when client code lands |
 | `tanstack-form-only-in-shared` | ◐ PARTIAL | `no-direct-useform` covers the "no raw useForm" half; the single-`createFormHook` half lands with `client/forms` |
 | `no-media-queries-in-features` / `no-raw-container-widths` / `surface-in-a-container` | ✅ LIVE (re-trued 2026-07-09) | the first two as grit (`biome.json`), the third as a `scripts/check/gates/` gate — landed with the client-foundation wave as planned |
@@ -379,7 +380,7 @@ Rule for inclusion: **domain-agnostic** (a `Button`/`Badge`/`Card`, never a `Cha
 referenced by ≥1 committed design (or a neo staple). Domain components live in `client/features`.
 
 | Primitive | neo had | Base UI native | Status | Home / wave |
-| --- | --- | --- | --- | --- |
+| - | - | - | - | - |
 | button · field · input · select · switch · slider · number-field · tabs | ✓ | ✓ | ✅ built | W1 |
 | dialog · popover · tooltip · menu(=dropdown-menu) · toast · drawer(+sheet) · avatar | ✓ | ✓ | ✅ built | W1 |
 | layout (Stack/Row/Section/Container/Toolbar) · icons | ✓ (shared) | — | ✅ built | W1 |
@@ -394,7 +395,7 @@ referenced by ≥1 committed design (or a neo staple). Domain components live in
 | command (cmdk) · sortable (@dnd-kit) | ✓ | ✗ (seal) | ✅ built (un-parked) | carve-out |
 | macro-textarea (minisearch fuzzy match) | ✓ (hand-rolled, ported) | ✗ | ✅ built (carve-out item 18) | carve-out |
 | carve-out set (media-grid · status-chip · compare-blocks · avatar-stack · file-dropzone · highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate · list-row · setting-row · selection-bar · save-bar) | partial | mixed | ✅ built | carve-out |
-| weave-glyph (brand) | ✓ | — | ✅ landed (2026-07) — app-level per §13.9: `client/src/lib/weave-glyph.tsx` (`anim` prop, D62 re-home), consumed by the rail brand + EmptyState decorations |
+| weave-glyph (brand) | ✓ | — | ✅ landed (2026-07) — app-level per §13.9: `client/src/lib/weave-glyph.tsx` (`anim` prop, D62 re-home), consumed by the rail brand + EmptyState decorations | |
 
 **Deliberately NOT `@orb/ui` (they were neo `components/ui/` but are app-shell/feature concerns):**
 `resizable` (DROPPED — D54 clamp-overlay shell) · `sheet` (folded into `drawer` side variants) ·
@@ -449,6 +450,7 @@ the codebase (the React-Compiler autocomplete story was fiction — the Compiler
 pipeline).
 
 **R7 — The mandatory acceptance tests (the shapes that caught real bugs):**
+
 - a collection-prop primitive → a CT where the PARENT RE-RENDERS passing a freshly-derived (filtered/
   mapped) array — the real consumer shape (falsified the "pre-render-stable" claim).
 - a Field-composable control → a CT asserting label association + `aria-describedby` INSIDE `<Field>`

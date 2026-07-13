@@ -69,7 +69,7 @@
    interaction-physics rules) and **§4.3 = the ten UX rules + voice table** are NEW LAW — your
    build instincts defer to them; §4b axis 3 = the pointer-conditional touch floor (44px coarse /
    28-34-40 fine).
-3. `docs/architecture/core/Core-Path-Registry-D62.md` — the D62 decision record (one long entry;
+3. `docs/architecture/core/Core-Path-Registry.md` — the D62 decision record (one long entry;
    everything you're about to build traces to it).
 4. `docs/architecture/core/Core-BUILD-PLAN.md` Phase 6 — **the lane sequence L0–L7 you are
    executing.** Every proposed/ initiative is slotted there; do not re-derive sequencing.
@@ -241,4 +241,4 @@ rulings pre-answered the known ones).
   · `pnpm verify --file <path>` · `pnpm check:show`
 - `pnpm stack start|stop|status|logs` · `pnpm snap <route> --text` · `pnpm test:ct <file>`
 - Registries: `Core-Audits-and-Debt.md` (live PDs) · `Core-Enforcement-Active-Gates.md` (gates) ·
-  `Core-Path-Registry-D62.md` (the program you're executing) · `history/Core-Debt-Cleared-Ledger.md`
+  `Core-Path-Registry.md` (the program you're executing) · `history/Core-Debt-Cleared-Ledger.md`

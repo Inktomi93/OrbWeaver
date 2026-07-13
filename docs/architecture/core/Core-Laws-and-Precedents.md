@@ -149,18 +149,10 @@ Two independent full-doc reads converged: the test *layout* was locked (`core/Co
 
 A full-read audit of all 41 docs (6 agents, every doc end-to-end) surfaced cross-doc path conflicts where two docs named different homes for the same thing. **These are now DECIDED — this section is the single source of truth; every other doc is aligned to it.** If a doc ever disagrees with §7, §7 wins.
 
-**The D-registry was split by decision-id range (2026-07-02) into sibling docs.** Cite as `Core-Laws-and-Precedents.md §7 Dxx`; resolve the id via its range below. D-numbers are stable global ids — a cross-reference like "supersedes D45" is found by grepping the id regardless of which file holds it.
+Cite as `Core-Laws-and-Precedents.md §7 Dxx` or `Core-Path-Registry.md Dxx`. D-numbers are stable global ids — grep the id.
 
-- **D1–D34** → [`Core-Path-Registry-D1-D34.md`](Core-Path-Registry-D1-D34.md) — entry shape · kit/contracts homes · schema/ownership model
-- **D35–D43** → [`Core-Path-Registry-D35-D43.md`](Core-Path-Registry-D35-D43.md) — providers/db enums · identity-resolution invariant · client-foundation bet
-- **D44–D52** (+ PD-11) → [`Core-Path-Registry-D44-D52.md`](Core-Path-Registry-D44-D52.md) — theming/multimodal/scripting · ST dispositions · tool use · charts
-- **D53–D59** → [`Core-Path-Registry-D53-D59.md`](Core-Path-Registry-D53-D59.md) — reuse model · regex · memory · rpg · chat-crew
-- **D60–D61** → [`Core-Path-Registry-D60-D61.md`](Core-Path-Registry-D60-D61.md) — agent principals · marinara borrows
-- **D62** → [`Core-Path-Registry-D62.md`](Core-Path-Registry-D62.md) — the UI/UX revamp rulings (amended in part by D66)
-- **D63** → [`Core-Path-Registry-D63.md`](Core-Path-Registry-D63.md) — background image → appearance namespace (amends D49 §3)
-- **D64** → [`Core-Path-Registry-D64.md`](Core-Path-Registry-D64.md) — handoff/fork transfers room + history, drops prior host's character seats
-- **D66** → [`Core-Path-Registry-D66.md`](Core-Path-Registry-D66.md) — the UI-cohesion program: one active UI doc · Chats north star · four D62 amendments · doc consolidation · comment-diet convention
-- **D65** → [`Core-Path-Registry-D65.md`](Core-Path-Registry-D65.md) — OIDC group-derived roles (extends D17)
+- **D1–D66** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — THE registry, one file (merged 2026-07-13, D66); grep the D-number.
+- **D65** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — OIDC group-derived roles (extends D17)
 
 ## Enforcement registry
 

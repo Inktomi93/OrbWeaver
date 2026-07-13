@@ -16,14 +16,14 @@ const ENUM_KEY = "enum";
 const MESSAGE =
   "drizzle column enum config is an INLINE ARRAY LITERAL — a db enum must derive from an imported " +
   "contracts/kit tuple (or a local `as const satisfies` tuple), never a re-spelled array (D34: db never " +
-  "re-spells a union). See Core-Path-Registry-D1-D34.md D34.";
+  "re-spells a union). See Core-Path-Registry.md D34.";
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a PropertyAssignment subscription: an `enum:` key with an inline-array-literal
 // initializer, in the db schema dir. scanRoot mirrors the legacy SCHEMA_DIR filter. Per-occurrence (each
 // inline-array enum config).
 export const gate: GateDescriptor = {
   name: "db-enum-from-tuple",
-  docRow: "Core-Path-Registry-D1-D34.md D34",
+  docRow: "Core-Path-Registry.md D34",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

@@ -33,7 +33,7 @@ updated: 2026-07-09
   AP3+ seat wave is pending (PD-17) — though AP3's seat verb (`chat.seatAgent` + auth-matrix row) is
   already in-tree; `resolveAgentSpeaker` and the rest of the wave are not.
 - Phase detail + per-phase checkpoints: `Core-BUILD-PLAN.md`. Ledger latest: **D62**
-  (`Core-Laws-and-Precedents.md` + `Core-Path-Registry-D62.md` — the UI/UX revamp program).
+  (`Core-Laws-and-Precedents.md` + `Core-Path-Registry.md` — the UI/UX revamp program).
 
 ## NEXT ACTION
 

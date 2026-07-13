@@ -27,7 +27,7 @@ work and where features composed the wrong primitive. If you are an agent pickin
 These are already decided; do not re-open, do not "improve":
 
 | Law | Where it's written | What it means for this doc |
-|---|---|---|
+| - | - | - |
 | Four-region shell: `RAIL \| LIST \| CONTENT \| CONTEXT`; panels dock/overlay/collapse | `docs/architecture/core/UI-Architecture-and-Layout.md` §4.1 | Every surface lives in one of these regions or a modal. No new region kinds. |
 | Mobile = **BOTTOM tab bar** (ruling P3; §4.1's `MOBILE:` line AMENDED 2026-07-05 — the earlier top-bar note is superseded in the law text itself) | UI-Arch §4.1 `MOBILE:` block + D62 | Mobile lanes build the bottom bar (J12). |
 | **Themes are color palettes ONLY — no structural modes** (Loom/Pocket as layouts are CUT) | UI-Arch §4.1 design-seed callout | The mockup is a VISUAL grammar reference (spacing/chrome/metrics/copy voice), never a structural spec. |
@@ -72,7 +72,7 @@ mostly *wiring what exists to the shape already specified* — very little new i
 > conflict; this doc remains the D62 program record + the J10/J11/L7 remaining-work tracker.
 
 | Journey / block | State | Evidence / what remains |
-|---|---|---|
+| - | - | - |
 | J1 landing | **LANDED** (deferral CLOSED) | `chat-landing-surface.tsx` + `{kind:"landing"}` in `state/chat-handle.ts`; empty-library hero built. The first-run persona name-ask deferral is RESOLVED the other way (triage 2026-07-09): persona SHIPPED (rail-foot panel — `../history/FINAL-Persona-and-Immersive-Chat-Visuals.md` PART A) and `FINAL-Chats-Landing-Room-and-Context-UX.md` §5 rules the landing deliberately carries NO identity onboarding — do not add it without an owner ruling |
 | J2 new-chat picker | **LANDED** | `new-chat-picker-surface.tsx` (note: built as a SURFACE, not the specced `anchors/new-chat-picker.tsx` path); greeting lane landed 2026-07-07 (inline note below) |
 | J3 CONTENT anatomy | **LANDED** | `chat-header.tsx` + draft variant (inline notes below); prose cap + composer per punchlist §0b |
@@ -102,7 +102,7 @@ mostly *wiring what exists to the shape already specified* — very little new i
 
 ## 2. The journeys — current → target → steps
 
-Each journey: **[state now] → [target] → [steps] → [verify]**. Steps name exact files. Store
+Each journey: **\[state now] → \[target] → \[steps] → \[verify]**. Steps name exact files. Store
 actions cited from `packages/client/src/state/` (`setActiveSection` · `startNewChat(seed?)` ·
 `selectChat` · `commitDraft` · `openModal`/`closeModal` · `togglePanel` · `toggleFocus` are all
 built). Order within §2 = recommended build order; J1–J4 are the flow-critical spine.
@@ -115,14 +115,15 @@ user sees before clicking a row.
 
 **Target:** opening the app lands on the **landing surface** in CONTENT (Chats section active):
 a welcome block (Weave glyph · "Pick up a thread" · one-line product voice) above **Recent chats**
-(up to ~8 `ListRow`s from `chat.listChats`, newest-first — avatar, title, participants, relative
-time) and a **Start a chat** row of character quick-picks (first ~6 characters + "All characters →"
+(up to \~8 `ListRow`s from `chat.listChats`, newest-first — avatar, title, participants, relative
+time) and a **Start a chat** row of character quick-picks (first \~6 characters + "All characters →"
 routing to the Characters section). Selecting anything runs `selectChat`/`startNewChat` — the
 landing is pure read + write-intent, per §5.1. NT precedent:
 `reference/neo-tavern/src/client/features/chat/surfaces/home-landing-surface.tsx` (center pane is a
 discriminated `landing | chat`) and `.../components/welcome-assistant-hero.tsx`.
 
 **Steps:**
+
 1. Extend `packages/client/src/state/active-chat-store.ts`: the initial `ChatHandle` state becomes
    a third discriminant `{kind:"landing"}` (ruling P4 — the NT-proven shape; it keeps
    `ChatRoomSurface` unmounted at rest).
@@ -166,6 +167,7 @@ explicit "Blank chat" row at the bottom of the picker (assistant-style chats are
 can't be the default trapdoor).
 
 **Steps:**
+
 1. `DraftSeed` is HOMED in `packages/client/src/state/active-chat-store.ts` (use-send-message.ts
    only re-exports it) and its field is ALREADY plural — `characterIds?: readonly CharacterId[]`;
    `character-library-surface.tsx` already calls `startNewChat({ characterIds: [id] })`. Reuse
@@ -206,6 +208,7 @@ actions (UIP-305), swipe strip on tail. COMPOSER = pill container with wand · s
 continue affordance when tail is user's (`continueEligible` logic exists) · Send⇄Stop (UIP-306).
 
 **Steps:** punchlist UIP-202/304/305/306 are the specs; the one NEW piece is the header:
+
 1. New `packages/client/src/features/chat/components/chat-header.tsx`: reads nothing itself —
    props from the route (`chatDetail` is already in cache via `chat.getChat`; add a
    `ChatHeaderSurface` with its own `QueryBoundary` reading the same key, the shared-cache pattern
@@ -364,8 +367,8 @@ deviations in the chat CONTEXT Overrides tab. Settings holds only user/app prefe
 **Target:** the `settings` modal slot renders a **full-bleed overlay** (Discord user-settings
 pattern; NT precedent for the presentation:
 `reference/neo-tavern/src/client/features/app-shell/surfaces/top-nav-panel-surface.tsx`'s
-`variant="full"` arm): a left category nav (~220px — category rows grouped under two micro-caps
-labels) + one scrolling content column (~`--container-cq-lg` cap), a settings-search field above
+`variant="full"` arm): a left category nav (\~220px — category rows grouped under two micro-caps
+labels) + one scrolling content column (\~`--container-cq-lg` cap), a settings-search field above
 the nav, Esc/X closes. Categories:
 
 - **USER** — Account (identity, sign-out; §3 auth row) · Personas (manage/default; §3 personas
@@ -432,7 +435,7 @@ the **client home + shape** so no future lane invents geography. "Home" uses the
 (§0.2). Rows marked ◐ have partial Orbweaver support today.
 
 | Capability (NT precedent path under `reference/neo-tavern/src/client/features/`) | Orbweaver today | Home when built | Shape / notes |
-|---|---|---|---|
+| - | - | - | - |
 | Landing + welcome hero (`chat/surfaces/home-landing-surface.tsx`, `chat/components/welcome-assistant-hero.tsx`) | ✗ | CONTENT (chats) | J1. Committed Phase-6 item. |
 | New-chat character picker (`chat/anchors/new-chat-dialog.tsx`) | ✗ (dead-end draft) | Modal | J2. |
 | Chat options menu (`chat/components/chat-options-menu.tsx`) | ✗ | CONTENT header ⋯ | J6; registry-shaped items. |
@@ -484,7 +487,7 @@ sections ONLY via `rail-slots.ts` (the pairing test enforces the modal side).
 ### 4.1 Composition corrections (features using the wrong/lesser primitive — free wins)
 
 | Where | Now | Should be |
-|---|---|---|
+| - | - | - |
 | `packages/client/src/features/chat/surfaces/chat-list-surface.tsx` rows | `Card interactive` | `ListRow` (leading/title/subtitle/actions/selected are its native slots) |
 | `packages/client/src/features/settings/…appearance` rows | hand-rolled `Stack`s | `SettingRow` |
 | ⌘K modal body | placeholder | `Command*` family (J4) |
@@ -540,7 +543,7 @@ matching row here or in the punchlist.
 ## 5. Build lanes (dependency-ordered; each is one agent-sized brief)
 
 | Lane | Contents | Depends on |
-|---|---|---|
+| - | - | - |
 | **L0 tokens** | punchlist §1 (palette P2 · pointer-conditional density P1 · micro/type tokens · avatar size trio) | none — P1/P2 decided (design-enforcement §2); L0 is dispatchable NOW |
 | **L1 primitives** | §4.2 + §4.3 + punchlist UIP-401 dialog chrome | L0 |
 | **L2 shell chrome** | punchlist §2 (rail/topbar/panel headers) + J3 header slot wiring | L1 |

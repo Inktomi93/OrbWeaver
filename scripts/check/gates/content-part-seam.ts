@@ -32,7 +32,7 @@ const MESSAGE =
   "`ChatContentPart` is imported outside the D51 seam set (the engine producer `domain/chat/engine/" +
   "pipeline.ts` · the request DTO `domain/chat/contract/results.ts` · the infra/providers consumers · the " +
   "@orb/contracts/chat home) — content-parts are produced ONCE at the engine request seam and everything " +
-  "upstream stays `content: string`. See Core-Path-Registry-D44-D52.md D51.";
+  "upstream stays `content: string`. See Core-Path-Registry.md D51.";
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as an ImportSpecifier subscription: a `ChatContentPart` named import from
 // @orb/contracts/chat, in a prod-src file outside the D51 seam set. scanRoot mirrors the legacy
@@ -50,7 +50,7 @@ function isContentPartImport(spec: Node): boolean {
 
 export const gate: GateDescriptor = {
   name: "content-part-seam",
-  docRow: "Core-Path-Registry-D44-D52.md D51",
+  docRow: "Core-Path-Registry.md D51",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

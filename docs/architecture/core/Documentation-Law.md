@@ -106,7 +106,7 @@ Tag verdicts (exported/public API; enforce in review):
 
 ### Comment budgets (D66 — the diet convention; hold the line)
 
-The 2026-07-13 fleet diet cut the comment corpus ~60% (39%→~15% comment-to-code) under these budgets. They are now standing law — regrowing the old density is a review defect:
+The 2026-07-13 fleet diet cut the comment corpus \~60% (39%→\~15% comment-to-code) under these budgets. They are now standing law — regrowing the old density is a review defect:
 
 - **File header: ≤3 lines** — what the file is + its non-obvious invariant. A file whose purpose is obvious from its name and exports gets NONE. (Gate files in `scripts/check/gates/` get ≤5 — a gate's header IS its contract. Probe tools' usage-manual headers are the other sanctioned exception.)
 - **A WHY is ONE line.** If it can't be said in one line it's narration — the ledger or nothing. The rung-4 verbosity license (security belts, deliberate-surprise markers) survives, but it is a license for load-bearing warnings, not essays.
@@ -139,7 +139,7 @@ Since the 2026-07-13 comment diet, CODE does not cite docs (the one exception: `
 4. **Retirement paths:** SUBSUMED → `git rm` + repoint to the subsuming doc (never a tombstone) · CLOSED record / landed program → `git mv` to `history/` · BUILT → delete per the built-code rule, promoting cross-cutting WHY to `core/` first · NOT-YET → move OUT of the repo to the staging area (the D66 eviction pattern), never parked in-tree.
 5. **Never** invent a new directory tier, reintroduce doc citations into code comments, or move a file another live session has dirty.
 
-- **Structure.** One topic per file, under \~40 KB. Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
+- **Structure.** One topic per file, under \~40 KB (sanctioned exception: `Core-Path-Registry.md` — the whole decision registry is ONE topic and ONE read; splitting it re-creates the range-lookup tax). Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
 - **Frontmatter (required, deliberately minimal):**
   ```yaml
   ---

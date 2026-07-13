@@ -219,7 +219,7 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
 | Topic | Home |
 | - | - |
 | package cake · server tiers · 8-slot feature template · partitioning table · the 13 legibility gates | `Core-0-Architecture-and-Structure.md` |
-| the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry-D1-D34.md` · `Core-Path-Registry-D35-D43.md` · `Core-Path-Registry-D44-D52.md` · `Core-Path-Registry-D53-D59.md` · `Core-Path-Registry-D60-D61.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
+| the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
 | build phases · checkpoints · stack + version pins | `Core-BUILD-PLAN.md` (§0 for the stack) |
 | build cursor / status | `Core-STATUS.md` |
 | planning + checklists | `Core-Planning-and-Checklists.md` |

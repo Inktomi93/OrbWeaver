@@ -17,7 +17,7 @@ updated: 2026-07-03
 > landed in the same commit. **§7 below is the consolidated chat-side obligations handoff** for
 > whoever builds the Phase-5 chat tail.
 
-> **Scope:** every doc of every set under `proposed/` (79 files, ~15k lines), read in full and
+> **Scope:** every doc of every set under `proposed/` (79 files, \~15k lines), read in full and
 > audited against the ACTUAL codebase (`packages/**`, read-only snapshot — a burn agent is live)
 > and the house law (AGENTS-1/2/3, `Core-Laws-and-Precedents.md` D1–D61, the user doctrine).
 > **Method:** every load-bearing "exists" claim was symbol-verified against the tree (grep/read;
@@ -34,7 +34,7 @@ updated: 2026-07-03
 All findings applied 2026-07-02 (`0d0a7fe`); the middle column preserves the as-reviewed state.
 
 | Set | As reviewed (2026-07-01) | Post-fix verdict → safe to implement? |
-|---|---|---|
+| - | - | - |
 | `tool-use-design/` | CLEAN (2 NITs) | **CLEAN — YES** |
 | `rpg-design/` | 2 MAJOR · 5 MINOR · 4 NIT | **RESOLVED (RPG-1 via the 2026-07-02 Nate preset ruling; RPG-2..11 applied) — YES** |
 | `chat-crew-design/` | 3 MINOR · 3 NIT | **RESOLVED — YES** |
@@ -233,7 +233,7 @@ is well-argued — the GC-registry discovery (content-block refs are invisible t
 mark-sweep) is load-bearing and correct. The review-flag section is exemplary.
 
 - **MAJOR — IMG-1 (04 §2.1, 01 §3.3): the chat persist path contradicts D51.** Doc 04 §2.1:
-  `chat.generateImage` "persist[s] ONE message whose variant body = `picture.images[*].block`
+  `chat.generateImage` "persist\[s] ONE message whose variant body = `picture.images[*].block`
   (n media blocks, one message)". D51 (committed law, 2026-06-29): "a message body is stored as a
   `string` (D26 one content home — UNCHANGED; D44 render-blocks are *parsed from the string at
   render*, not stored)"; an owned image is an **embedded markdown ref** `![alt](asset:<assetId>)`.
@@ -366,7 +366,7 @@ match D58/D59/D61 exactly. The §2–§4 cautionary records earn their permanenc
 ## 3. Cross-set consistency table
 
 | Shared surface | Claimants | Verdict |
-|---|---|---|
+| - | - | - |
 | `ASSET_KINDS` roster | gallery §0 (consolidated) vs imagery(`generated`) · gallery(`gallery`) · databank(`document`) · expressions(`sprite`) · plugin(`plugin`) | **MATCH** — gallery §0 is the declared one home; every sibling shows only its own append and says so |
 | `generate_image` action args | imagery 01 §6 (schema home) · automation 03 §1.7 (imports it) · plugin 01 §2 (`GenerateImageActionArgs`) · tool-use (same-name tool, minus `quiet`) | **MATCH** — one schema, one home. imagery README flag 9 is STALE (IMG-2) |
 | Tool NAME charset | tool-use 01 §1 regex vs plugin 03 §5 | **RESOLVED (`0d0a7fe`)** — plugin names are `plugin_<slug'>_<name>` (`-`→`_` injective, combined ≤64, activation-fatal overflow); the colon form is recorded as the rejected shape |
@@ -462,7 +462,7 @@ Sorted by phase; each row names its consuming set(s) and the spec home.
 ### 7.1 Phase 5 (the live chat build / its immediate tail) — build WITH chat
 
 | # | Obligation | Kind | Spec home | Consumers |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | 1 | `ChatToolOps` injection seam (`resolveTools`/`toWireTools`/`executeToolCalls` on `ChatContext.tools`) + the recurse loop (PD-54) + `toolRecurseLimit` per-chat setting (seed 5, host-editable) + `appendToolExchange` + flush-per-depth persistence | ops + engine + setting | tool-use-design/03 | tool-use (T4), rpg (R4), buddy |
 | 2 | `CHAT_WARNING_CODES` += `tools_unsupported`, `structured_output_unsupported` — WITH their domain-gate emit sites (D48 as amended 2026-07-02) | contract tuple + emit sites | tool-use-design/02 §5 | tool-use, crew, rpg |
 | 3 | Turn-record `initiator` (`TurnInitiator` incl. `"automation"`/`"plugin"`) + `automationDepth` fields + the `chat.requestTurn` non-human-initiator seam + the `chat.getTurnOrigin` narrow read (D46 prereq #3, made readable) | engine fields + verb + op | automation-design/03 §4, 05 flag 1 | automation (A5/A6), plugin (P4) |
@@ -476,7 +476,7 @@ Sorted by phase; each row names its consuming set(s) and the spec home.
 ### 7.2 Phase 7+ (the feature waves) — small chat PRs landed with/before their consuming chunk
 
 | # | Obligation | Kind | Spec home | Consumers |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | 10 | `RpgGatherResult.presetOverride?: PresetId` consumption: when the injected gather op returns one, assembly resolves THAT preset for the turn (owned-or-system under the host, else degrade); byte-identical when absent. **NO chats-side preset binding — ruled** | gather-result consumption point | rpg-design/02 §1.1 #1, 05 §1; D58 amendment | rpg (R3/R4) |
 | 11 | `chat.postNarratorMessage(chatId, content, media?)` — NEW verb: synthetic-group-character-authored assistant message, STRING body (embedded `![…](asset:<id>)` refs per D51), normal canon-write + bus | verb | rpg-design/02 §1.1 #2 | rpg (recaps/scene-merge/illustrations, R6/R9/R10), pending-check posts (rpg-12 §3) |
 | 12 | `chat.getMembership(chatId, userId) → {role} \| null` — NEW narrow read op (the `can()` roster feed for sibling domains) | op | rpg-design/02 §1.1 #3 | rpg (R3); any future chatId-scoped leaf |
@@ -494,7 +494,7 @@ Sorted by phase; each row names its consuming set(s) and the spec home.
 ### 7.3 Phase 6 (client — chat's registries)
 
 | # | Obligation | Kind | Spec home | Consumers |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | 23 | `CHAT_SURFACE_SLOTS` (regions: thread-flanks ×2, above-composer, composer-leading, header-actions, thread-actions-menu) + `CHAT_CONTEXT_SLOTS` + `TOOL_RENDERERS` — the three chat-owned client registries wired at `main.tsx` | client registries | rpg-design/11 §1 | rpg (C1+), crew, tool-use (T7) |
 | 24 | `CHAT_SURFACE_SLOTS` += the **`message-footer`** region (receives `{chatId, messageId, variantId}`) — crew's ONE client-side chat touch | registry region | chat-crew-design/07 §1 | crew (U5) |
 | 25 | The generic `<details>` tool-invocation block (the `TOOL_RENDERERS` fallback) + the ToolCallRecord client contract (03 §4's MAY/MAY-NOT list) | component + contract | tool-use-design/03 §4, 05 T7 | tool-use, rpg chips |

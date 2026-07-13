@@ -28,10 +28,10 @@ const FETCH_SANCTIONED: readonly RegExp[] = [
 const FETCH_MESSAGE =
   "bare `fetch(` outside the sanctioned provider-egress zones — route untrusted/user-influenced egress " +
   "through `safeFetch` (the self-enforcing SSRF guard, infra/network). Sanctioned raw-fetch: infra/network " +
-  "· infra/providers (vLLM/custom-BYO). See Core-Path-Registry-D60-D61.md D61 (B5a).";
+  "· infra/providers (vLLM/custom-BYO). See Core-Path-Registry.md D61 (B5a).";
 const CORSPROXY_MESSAGE =
   "`corsproxy.io` is the NAMED-REJECTED third-party CORS proxy (D61 B5a) — never route egress through it. " +
-  "See Core-Path-Registry-D60-D61.md D61.";
+  "See Core-Path-Registry.md D61.";
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
@@ -68,7 +68,7 @@ function isBareFetchCall(node: Node): boolean {
 
 export const gate: GateDescriptor = {
   name: "no-raw-egress",
-  docRow: "Core-Path-Registry-D60-D61.md D61 (B5a)",
+  docRow: "Core-Path-Registry.md D61 (B5a)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: FETCH_MESSAGE,

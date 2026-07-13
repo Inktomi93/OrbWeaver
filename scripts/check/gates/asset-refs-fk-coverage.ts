@@ -1,26 +1,7 @@
-// Gate: asset-refs-fk-coverage (task #114 — closes the "forgot to register a new asset-bearing
-// column" hole `domain/assets/persistence/asset-refs.ts` warns about). `ASSET_REFS`/
-// `DERIVED_ASSET_COLUMNS` there is the ONE enumeration seam both asset GC (`collectGarbage`/
-// `reapIfOrphan`) AND portability blob-bundling walk — a schema FK→`assets.id` column that isn't
-// registered in EITHER list silently escapes both: GC can't see it (a live blob looks orphaned and
-// gets reaped) and export/import never bundles its blob. This is the STATIC (`pnpm check:structure`,
-// pre-commit) half of the coverage guarantee; `tests/server/domain/assets/persistence/
-// asset-refs.int.test.ts` is the equivalent RUNTIME check (drizzle table-config introspection,
-// `pnpm test` only) — this gate exists so the same invariant blocks a commit, not just a later run.
-//
-// SHAPE: walk every `packages/db/src/schema/**/*.ts` `sqliteTable("<sql>", { … })` call; for each
-// column property whose initializer chain carries a `.references(() => <assetsImport>.id, …)` — the
-// referenced identifier is resolved through its import specifier (module path ending `assets`/
-// `assets.ts`) so an ALIASED `assets` import (`import { assets as a } from "./assets"`) is still
-// caught, falling back to a literal `assets` identifier match when the import can't be resolved (an
-// isolated in-memory fixture with no sibling `assets.ts` module) — collect `{tableJs, tableSql,
-// columnJs, columnSql}`. A column is REGISTERED if `<tableJs>.<columnJs>` appears in `ASSET_REFS`
-// (the JS-identifier space the registry's `{ table, column }` object literals use) OR
-// `<tableSql>.<columnSql>` appears in `DERIVED_ASSET_COLUMNS` (the snake-case string-key space that
-// list deliberately uses — see asset-refs.ts's header on why DERIVED counts too: a regenerable
-// downstream row like `image_embeddings.asset_id` is a real FK to `assets.id` that must NEVER be
-// flagged unregistered, it's consciously classified DERIVED not RETAINING). STRICT — no allowlist,
-// no ratchet arm: the correct state is 100% coverage, always.
+// Gate: asset-refs-fk-coverage — every schema FK→`assets.id` column must be registered in
+// `ASSET_REFS` or `DERIVED_ASSET_COLUMNS` (domain/assets/persistence/asset-refs.ts), the one
+// enumeration seam both asset GC and portability blob-bundling walk. Unregistered = invisible to
+// both (GC can reap a live blob as orphaned; export/import won't bundle it). STRICT, no allowlist.
 import type {
   ArrayLiteralExpression,
   CallExpression,
@@ -56,9 +37,6 @@ const MESSAGE = (tableSql: string, columnSql: string): string =>
   "both (a live blob can be reaped as orphaned, and export/import won't bundle it). Classify it " +
   "RETAINING (ASSET_REFS) or DERIVED (DERIVED_ASSET_COLUMNS).";
 
-/** Is `id` a reference to the schema's `assets` table export — resolved via its import specifier
- *  (module path ending `assets`/`assets.ts`, so an aliased import still matches), falling back to a
- *  literal `assets` identifier match when the import can't be resolved (isolated fixture trees). */
 function isAssetsTableIdentifier(id: Identifier): boolean {
   const decl = id.getSymbol()?.getDeclarations()[0];
   if (decl !== undefined && decl.isKind(SyntaxKind.ImportSpecifier)) {
@@ -69,15 +47,12 @@ function isAssetsTableIdentifier(id: Identifier): boolean {
   return id.getText() === "assets";
 }
 
-/** Every `CallExpression` in a column initializer's chain, INCLUDING `init` itself when it is one —
- *  `getDescendantsOfKind` only returns descendants, and a chain's outermost call (typically
- *  `.references(...)`) IS the initializer node, not a descendant of it. */
+// Includes `init` itself if it's a CallExpression — getDescendantsOfKind only returns descendants.
 function callChain(init: Expression): CallExpression[] {
   const descendants = init.getDescendantsOfKind(SyntaxKind.CallExpression);
   return init.isKind(SyntaxKind.CallExpression) ? [init, ...descendants] : descendants;
 }
 
-/** Does this column property's initializer chain carry a `.references(() => assets.id, …)` call? */
 function referencesAssetsId(prop: PropertyAssignment): boolean {
   const init = prop.getInitializer();
   if (init === undefined) {
@@ -108,9 +83,6 @@ function referencesAssetsId(prop: PropertyAssignment): boolean {
   return false;
 }
 
-/** The SQL column name — the string literal first arg of the innermost drizzle column builder
- *  (`text("avatar_asset_id")…`) in this initializer's call chain. Every asset-FK column in this
- *  schema is `text(...)`, but `integer`/`real`/`blob` are matched too for robustness. */
 function findColumnSqlName(init: Expression): string {
   for (const call of callChain(init)) {
     const callee = call.getExpression();
@@ -124,7 +96,6 @@ function findColumnSqlName(init: Expression): string {
   return "";
 }
 
-/** Every asset-FK column declared on ONE `sqliteTable(tableSql, { … })` object literal. */
 function fkColumnsOfTable(
   tableJs: string,
   tableSql: string,
@@ -146,7 +117,6 @@ function fkColumnsOfTable(
   return out;
 }
 
-/** Every column in this schema file whose FK targets `assets.id`. */
 function fkColumnsToAssets(sf: SourceFile): FkColumn[] {
   const out: FkColumn[] = [];
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
@@ -170,8 +140,6 @@ function fkColumnsToAssets(sf: SourceFile): FkColumn[] {
   return out;
 }
 
-/** A `{ table: …, column: … }` element's two `PropertyAssignment`s, or `undefined` if either is
- *  missing / a non-property shape (spread, shorthand, computed). */
 function tableAndColumnProps(
   el: Expression,
 ): { tableProp: PropertyAssignment; columnProp: PropertyAssignment } | undefined {
@@ -191,8 +159,6 @@ function tableAndColumnProps(
   return { tableProp, columnProp };
 }
 
-/** One `ASSET_REFS` element (`{ table: X, column: X.Y }`) as its `X.Y` JS-identifier-space key, or
- *  `undefined` for a shape the gate can't statically resolve. */
 function retainingKeyOf(el: Expression): string | undefined {
   const props = tableAndColumnProps(el);
   if (props === undefined) {
@@ -209,15 +175,12 @@ function retainingKeyOf(el: Expression): string | undefined {
   return `${tableInit.getText()}.${columnInit.getName()}`;
 }
 
-/** The array literal initializer of `export const <exactName> = [...]` at the top level of `sf`, if
- *  present (a re-declared or differently-shaped export makes this a graceful `undefined`). */
 function namedArrayLiteral(sf: SourceFile, exactName: string): ArrayLiteralExpression | undefined {
   const decl = sf.getVariableDeclarations().find((d) => d.getName() === exactName);
   const init = decl?.getInitializer();
   return init?.isKind(SyntaxKind.ArrayLiteralExpression) ? init : undefined;
 }
 
-/** `ASSET_REFS` elements as `X.Y` JS-identifier-space keys (RETAINING references). */
 function collectRetaining(sf: SourceFile): Set<string> {
   const retaining = new Set<string>();
   for (const el of namedArrayLiteral(sf, "ASSET_REFS")?.getElements() ?? []) {
@@ -229,7 +192,6 @@ function collectRetaining(sf: SourceFile): Set<string> {
   return retaining;
 }
 
-/** `DERIVED_ASSET_COLUMNS` elements as snake-case `"table.column"` string keys. */
 function collectDerived(sf: SourceFile): Set<string> {
   const derived = new Set<string>();
   for (const el of namedArrayLiteral(sf, "DERIVED_ASSET_COLUMNS")?.getElements() ?? []) {
@@ -240,9 +202,6 @@ function collectDerived(sf: SourceFile): Set<string> {
   return derived;
 }
 
-/** Parses `asset-refs.ts`'s two registry arrays: `ASSET_REFS` (`{ table: X, column: X.Y }` object
- *  literals, keyed here in JS-identifier space `X.Y`) and `DERIVED_ASSET_COLUMNS` (snake-case
- *  `"table.column"` string literals, kept as-is). */
 function parseRegistry(sf: SourceFile): { retaining: Set<string>; derived: Set<string> } {
   return { retaining: collectRetaining(sf), derived: collectDerived(sf) };
 }
@@ -251,7 +210,6 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-/** Groups `project`'s source files into the registry file (if loaded) + every schema file. */
 function partitionProject(project: CheckContext["project"]): {
   registrySf: SourceFile | undefined;
   schemaFiles: SourceFile[];
@@ -269,13 +227,6 @@ function partitionProject(project: CheckContext["project"]): {
   return { registrySf, schemaFiles };
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project reconciliation via `run`) ───────────
-// asset-refs-fk-coverage reconciles every schema FK→`assets.id` column against the two registry arrays
-// in domain/assets/persistence/asset-refs.ts. Pure-AST (no fs — it reads the registry + schema through
-// the shared Project, symbol-resolving aliased `assets` imports via the checker), so NOT fsBacked. STRICT
-// — no allowlist, no ratchet arm — so it ports as a `run` reusing the exact scan (vacuous when the
-// registry file isn't loaded, exactly like the legacy). Distinct per-column messages → per-occurrence
-// overrides. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "asset-refs-fk-coverage",
   docRow: "domain/assets/persistence/asset-refs.ts (task #114)",
@@ -333,7 +284,6 @@ export const gate: GateDescriptor = {
       why: "the FK column is classified RETAINING in ASSET_REFS — a covered column, passes",
     },
     {
-      // classified DERIVED (the image_embeddings precedent) via its snake-case "table.column" key.
       files: {
         "packages/db/src/schema/x.ts":
           'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
@@ -345,7 +295,6 @@ export const gate: GateDescriptor = {
       why: "the FK column is classified DERIVED in DERIVED_ASSET_COLUMNS (the image_embeddings precedent) — passes",
     },
     {
-      // vacuous when the registry file isn't loaded (a schema-only fixture with nothing to check against).
       files: {
         "packages/db/src/schema/x.ts":
           'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
