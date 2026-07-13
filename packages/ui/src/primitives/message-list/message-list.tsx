@@ -1,7 +1,7 @@
 import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { useCallback, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { TOKENS } from "#tokens";
 
@@ -26,6 +26,11 @@ const UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER = 3;
 // for real content — sub-pixel layout rounding would constantly misclassify a bottomed-out reader
 // as "scrolled away."
 const DEFAULT_SCROLL_END_THRESHOLD_PX = 80;
+
+// Sub-pixel tolerance for "is this scroll position the one virtual-core just wrote". A scroll whose
+// position matches virtual-core's own last write (within this) is its internal drift/re-pin and must
+// NOT be read as user intent; anything further off was moved EXTERNALLY (user/scrollbar/AT/script).
+const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
 
 function gapPxFor(token: MessageListGapToken): number {
   return Number.parseFloat(TOKENS[`spacing.${token}`].value) * ROOT_FONT_SIZE_PX;
@@ -116,6 +121,18 @@ export interface MessageListProps<T> {
   /** How close to the true end (px) still counts as "pinned" for `followOnAppend`/`isAtEnd`. */
   readonly scrollEndThreshold?: number;
   /**
+   * Keep the tail pinned as content RESIZES while the reader is at the bottom — not just on append
+   * (`followOnAppend` only re-fires on a COUNT change, never on a row growing taller). Default `true`:
+   * the chat case, where a just-sent message + streaming ghost re-measure far past their `estimateSize`
+   * and would otherwise strand the reader ~130px above their own message (live-diagnosed 2026-07-13).
+   * A ResizeObserver re-pins pre-paint when following; following is turned OFF by any scroll-up gesture
+   * and back ON by a genuine (non-resize-transient) scroll to the tail — a reader reading history is
+   * never yanked. Pass `false` for a caller that owns its OWN pin-not-yank logic over this seal (e.g.
+   * `log-viewer`, whose uniform-height ring buffer manages the tail-follow itself) — then this seal adds
+   * no scroll behavior of its own beyond the mount anchor + `followOnAppend`.
+   */
+  readonly followTail?: boolean;
+  /**
    * Overrides which indices render for the current scroll range — the SAME `rangeExtractor` escape
    * hatch sealed on `virtual-list` (see its own doc), the low-level index-space form. When
    * `keepMounted` is ALSO set, this extractor is the BASE window and the pinned indices are unioned
@@ -194,9 +211,22 @@ export interface MessageListProps<T> {
  *   entirely — the list still tracks the tail, it just doesn't animate the jump.
  * - **`measureElement` + `data-index`** on every row reserves each row's box and re-measures it
  *   after paint, so variable-height messages (one line vs. many paragraphs) don't reflow the whole
- *   list — the same wiring as virtual-list. `anchorTo: "end"` also keeps the tail pinned as
- *   estimates are replaced by real measurements (virtual-core's own resize-adjustment, not
- *   `followOnAppend`), so the mount-time `scrollToEnd()` doesn't drift once rows settle.
+ *   list — the same wiring as virtual-list.
+ * - **Stick-to-bottom on RESIZE** (`followTail`, default on) — the missing half of `followOnAppend`.
+ *   virtual-core's own resize anchor-preservation does NOT reliably hold the tail when estimates are
+ *   far off: on send, the just-committed row + streaming ghost re-measure far past their `estimateSize`,
+ *   the first delta clears `scrollEndThreshold`, and virtual-core abandons the pin for the rest of the
+ *   cascade (live-diagnosed 2026-07-13 — it stranded the reader ~130px above their own message). So a
+ *   ResizeObserver on the inner content node re-pins to the end whenever content resizes and the reader
+ *   is following the tail — which also keeps the tail glued as a streaming ghost grows token-by-token
+ *   (a size change, not the count change `followOnAppend` needs). The follow intent moves ONLY on an
+ *   EXTERNAL scroll (follow iff at the tail); virtual-core's own drift writes `scrollTop` by MORE than
+ *   the threshold (measured 130px) and would look like a user scroll-up by geometry alone, so its
+ *   writes are marked via a `scrollToFn` and a scroll matching that mark is ignored — everything else
+ *   (wheel, touch, keyboard, scrollbar thumb, AT "scroll to", `scrollIntoView`, a raw `scrollTop`
+ *   write) is external and honored. So a pinned reader is never mis-disabled by drift, and a history
+ *   reader who scrolled away by ANY channel is never yanked. `followTail={false}` opts a caller with
+ *   its OWN pin logic (`log-viewer`) out entirely.
  * - Domain-agnostic: takes `items` + `renderItem` + `getItemKey` only. It has no idea what a
  *   "message" or a "chat" is — the chat-client chunk supplies ghost-row and ordinary-row rendering
  *   entirely through `renderItem`.
@@ -234,6 +264,7 @@ export function MessageList<T>({
   overscan = DEFAULT_OVERSCAN,
   gapToken,
   scrollEndThreshold = DEFAULT_SCROLL_END_THRESHOLD_PX,
+  followTail = true,
   rangeExtractor,
   keepMounted,
   useCachedMeasurements = false,
@@ -244,6 +275,16 @@ export function MessageList<T>({
 }: MessageListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+  // Stick-to-bottom-on-RESIZE state (see the ResizeObserver effect + `onScrollTracked` below).
+  // `stickToBottomRef` is the "follow the tail" intent — moved ONLY by an EXTERNAL scroll (follow iff
+  // at the tail), never by virtual-core's own drift. `viewportNodeRef` is the inner content node whose
+  // height IS the total content size, so a ResizeObserver on it fires exactly when content resizes.
+  const stickToBottomRef = useRef(true);
+  const viewportNodeRef = useRef<HTMLDivElement | null>(null);
+  // The scrollTop value virtual-core LAST wrote (through the `scrollToFn` below) — the marker that
+  // lets `onScrollTracked` tell virtual-core's own drift/re-pin from an EXTERNAL scroll. `null` until
+  // the first programmatic scroll (mount anchor).
+  const programmaticTopRef = useRef<number | null>(null);
 
   const itemAt = (index: number): T => {
     const item = items.at(index);
@@ -270,9 +311,36 @@ export function MessageList<T>({
     ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),
     // The chat-thread anchor pair (verified against virtual-core@3.17's pendingScrollAnchor path):
     // `followOnAppend` only fires when the viewport was already at the end AND the item count grew
-    // AND the last key actually changed — so it never fights a reader who scrolled up.
+    // AND the last key actually changed — so it never fights a reader who scrolled up. With
+    // `followTail`, force it INSTANT (`true`): the ResizeObserver re-pin is instant and would override
+    // a smooth animation anyway, and — load-bearing — a smooth scroll fires many intermediate
+    // positions that would NOT match `programmaticTopRef` (a readback of an instant write), tripping
+    // the external-scroll detector below. `log-viewer` (followTail off) keeps its smooth follow.
     anchorTo: "end",
-    followOnAppend: reducedMotion ? true : "smooth",
+    followOnAppend: reducedMotion || followTail ? true : "smooth",
+    // EXTERNAL-scroll marker (followTail only): every scroll virtual-core performs — its drift
+    // re-measure adjustments AND our own re-pin — flows through `scrollToFn` (verified: `resizeItem`'s
+    // `applyScrollAdjustment` → `_scrollToOffset` → `scrollToFn`). Replicate the default
+    // (`scrollWithAdjustments`) and record the resulting scrollTop, so `onScrollTracked` can treat a
+    // scroll that MATCHES this value as virtual-core's own (ignore) and anything else as external.
+    ...(followTail
+      ? {
+          scrollToFn: (
+            offset: number,
+            options: { adjustments?: number; behavior?: ScrollBehavior },
+          ) => {
+            const el = scrollRef.current;
+            if (el === null) {
+              return;
+            }
+            const top = offset + (options.adjustments ?? 0);
+            el.scrollTo(
+              options.behavior === undefined ? { top } : { top, behavior: options.behavior },
+            );
+            programmaticTopRef.current = el.scrollTop;
+          },
+        }
+      : {}),
     scrollEndThreshold,
     // `<Activity>`-hidden-pane measurement freeze (§4a/§5.1) — see the prop doc above for the
     // exact, source-verified semantics. Defaults false so a visible list always measures for real.
@@ -295,6 +363,77 @@ export function MessageList<T>({
   useLayoutEffect(() => {
     virtualizer.scrollToEnd({ behavior: "auto" });
   }, [virtualizer]);
+
+  // Stick-to-bottom on RESIZE — the missing half of `followOnAppend`, and the fix for the "sending a
+  // message leaves you scrolled ~130px away from your own message" P1 (live-diagnosed 2026-07-13).
+  //
+  // ROOT CAUSE: `followOnAppend` re-pins only when the item COUNT grows, never when an existing row's
+  // measured SIZE grows. On send, the ghost + the just-committed row both mount at `estimateSize` and
+  // re-measure much taller; virtual-core's own resize anchor-preservation (`resizeItem`) keeps the
+  // tail pinned ONLY while `getVirtualDistanceFromEnd() <= scrollEndThreshold` AT THE MOMENT of each
+  // re-measure, so the FIRST large estimate→actual delta overshoots the 80px threshold and every
+  // later delta in the cascade sees `wasAtEnd=false` and abandons the pin — the tail escapes below the
+  // fold and, with no further count change, `followOnAppend` never re-fires. (Confirmed: smooth AND
+  // auto follow drift identically, so it is the resize gate, not the scroll animation.)
+  //
+  // FIX: a ResizeObserver on the inner content node (its height IS the total content size) re-pins to
+  // the end whenever content resizes AND the reader is following the tail. `"auto"` (instant), not
+  // smooth: an instant snap to your own just-sent message matches the mount policy, and a mid-cascade
+  // smooth scroll is exactly what virtual-core strands. This also keeps the tail glued as a streaming
+  // ghost grows token-by-token (a size change, not the count change `followOnAppend` needs).
+  // `clientHeight > 0` skips an `<Activity>`-hidden pane (a collapsed pane must not re-pin off a
+  // size-0 frame — the same hidden-pane hazard `useCachedMeasurements` guards). Gated on `followTail`
+  // so a caller with its OWN pin logic (log-viewer) gets none of this — see the prop doc.
+  useLayoutEffect(() => {
+    const node = viewportNodeRef.current;
+    if (!followTail || node === null || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      const el = scrollRef.current;
+      if (stickToBottomRef.current && el !== null && el.clientHeight > 0) {
+        virtualizer.scrollToEnd({ behavior: "auto" });
+      }
+    });
+    observer.observe(node);
+    return (): void => observer.disconnect();
+  }, [virtualizer, followTail]);
+
+  // Tail-follow INTENT — the whole subtlety is that virtual-core WRITES `scrollTop` itself (its
+  // re-measure drift adjusts it by MORE than `scrollEndThreshold` — live-measured a 130px jump), so
+  // a naive geometry read after a scroll can't tell that self-drift from a real user scroll-up and
+  // would strand a pinned reader (the original P1). The discriminator: virtual-core's writes flow
+  // through our `scrollToFn` (above), which records the resulting `scrollTop` in `programmaticTopRef`.
+  // So on a `scroll` event, a position that MATCHES that recorded value is virtual-core's own drift/
+  // re-pin — ignore it, intent is unchanged. A position that DIFFERS was moved EXTERNALLY — by ANY
+  // channel (wheel, touch, keyboard, scrollbar thumb, AT "scroll to", `scrollIntoView`, a raw
+  // `scrollTop` write) — and only THEN is geometry trustworthy: follow iff the reader is at the tail.
+  // This covers the no-gesture channels a listener-only guard missed, without the self-drift trap.
+  const onScrollTracked = (): void => {
+    const el = scrollRef.current;
+    if (el === null) {
+      return;
+    }
+    const expected = programmaticTopRef.current;
+    if (expected !== null && Math.abs(el.scrollTop - expected) <= PROGRAMMATIC_SCROLL_EPSILON_PX) {
+      return; // virtual-core's own drift/re-pin — never re-reads as user intent.
+    }
+    stickToBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight <= scrollEndThreshold;
+  };
+
+  // The inner content node's ref: STABLE (virtualizer identity is stable), so React runs it only on
+  // real mount/unmount. An inline arrow would re-run `containerRef(null)`→`containerRef(node)` every
+  // render, thrashing virtual-core's container registration (it resets `lastSize` + re-applies the
+  // container height each time) — which mis-fires the ResizeObserver and can re-scroll a sliding
+  // ring-buffer list. Composes our viewport-node capture WITH virtual-core's own container ref.
+  const setViewportRef = useCallback(
+    (node: HTMLDivElement | null): void => {
+      viewportNodeRef.current = node;
+      virtualizer.containerRef(node);
+    },
+    [virtualizer],
+  );
 
   useImperativeHandle(
     ref,
@@ -341,14 +480,14 @@ export function MessageList<T>({
       // which mount/unmount as the reader scrolls.
       role="log"
       aria-live="polite"
+      // Tail-follow intent (see `onScrollTracked`): one scroll listener classifies each scroll as
+      // virtual-core's own (via `programmaticTopRef`) vs external, and only external scrolls move
+      // the follow intent. Omitted when `followTail` is off (a caller owning its own pin logic).
+      onScroll={followTail ? onScrollTracked : undefined}
       className={cn("overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
-      <div
-        ref={virtualizer.containerRef}
-        className="relative w-full"
-        data-slot="message-list-viewport"
-      >
+      <div ref={setViewportRef} className="relative w-full" data-slot="message-list-viewport">
         {virtualizer.getVirtualItems().map((virtualItem) => (
           // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
           // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.

@@ -10,6 +10,7 @@ import {
   KeepMountedStateList,
   PrependableList,
   RangeExtractorMessageList,
+  TailGrowthList,
   UnboundedMessageList,
 } from "./message-list.fixtures";
 
@@ -83,6 +84,86 @@ test("a reader scrolled away from the end is NOT yanked when a new item appends"
   // Still reading scrollback — the reader was never yanked to the new tail.
   await expect(component.getByText(`Message ${midIndex}`, { exact: true })).toBeVisible();
   await expect(component.getByText(`Message ${ITEM_COUNT}`, { exact: true })).toHaveCount(0);
+});
+
+// The "sending a message strands you ~130px away from your own message" regression (live-diagnosed
+// 2026-07-13). `followOnAppend` re-pins on COUNT growth only; a just-committed row + streaming ghost
+// re-measure far past their estimate (a SIZE change), and virtual-core's resize anchor abandons the
+// pin once one delta clears `scrollEndThreshold` — so the tail must be re-pinned on resize too.
+test("stick-to-bottom on RESIZE: the tail row growing taller keeps the viewport pinned to the end", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
+  );
+  await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("true");
+
+  // Grow the tail row 40 -> 400px — a size-only change far past the 80px threshold, no count change.
+  await component.getByTestId("grow-tail").click();
+
+  // The pin held: still at the true end (pre-fix this read false, stranding the reader ~360px up).
+  await expect
+    .poll(async () => {
+      await component.getByTestId("read-status").click();
+      return component.getByTestId("is-at-end").innerText();
+    })
+    .toBe("true");
+});
+
+test("the reader-scrolled-up guard survives a tail RESIZE: growth never yanks a history reader down", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
+  );
+  await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
+  // Scroll up with a real wheel gesture (this is what flips follow OFF — see `stickToBottomRef`).
+  await component.getByText("Message 199", { exact: true }).hover();
+  await page.mouse.wheel(0, -(200 * ROW_HEIGHT_PX) / 2);
+  await expect(component.getByText("Message 100", { exact: true })).toBeVisible();
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("false");
+
+  await component.getByTestId("grow-tail").click();
+
+  // Still reading history — a tail resize never re-pinned a reader who scrolled up.
+  await expect(component.getByText("Message 100", { exact: true })).toBeVisible();
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("false");
+});
+
+// The no-GESTURE scroll channels — scrollbar-thumb drag, AT "scroll to", `scrollIntoView`, any raw
+// `scrollTop` write — emit a bare `scroll` event with no wheel/touch/key. A listener-only guard misses
+// them and yanks the reader back on the next resize (live-diagnosed 2026-07-13). This drives EXACTLY
+// that channel: move scrollTop up + a bare `scroll` event, then a tail resize, and the reader must
+// stay put. (Pre-marker: this scrolled the reader back to the tail.)
+test("the reader-scrolled-up guard holds for a BARE scroll event (scrollbar/AT — no wheel/touch/key)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <TailGrowthList initialCount={200} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />,
+  );
+  await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("true");
+
+  // Move the scroll position up and fire ONLY a bare `scroll` event — no gesture of any kind.
+  const scroll = component.locator('[data-slot="message-list-scroll"]');
+  await scroll.evaluate((el) => {
+    el.scrollTop = Math.max(0, el.scrollTop - 800);
+    el.dispatchEvent(new Event("scroll"));
+  });
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("false");
+
+  // A new message ARRIVES (append grows the container → the seal's ResizeObserver fires even though
+  // the old tail is now unmounted). It must NOT re-pin the externally-scrolled-away reader.
+  await component.getByTestId("append-tall").click();
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("false");
 });
 
 test("the tripwire THROWS when the parent gives no bounded height", async ({ mount, page }) => {

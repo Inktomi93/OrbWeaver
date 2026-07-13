@@ -66,7 +66,7 @@ import { GhostMessageRow } from "../components/ghost-message-row";
 import { MessageRow } from "../components/message-row";
 import { useChatStyle } from "../hooks/use-chat-style";
 import { useMessageAppearance } from "../hooks/use-message-appearance";
-import { messageItemKey, useMessageItems } from "../hooks/use-message-items";
+import { messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items";
 import { resolveRowAttribution } from "../lib/attribution";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
@@ -201,6 +201,10 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
     characterNamesById,
   });
   const items = useMessageItems(messages, chatId);
+  // Motion guide §4.2 item 1 — the keys that GENUINELY arrived this render (appended, not scrolled
+  // back into the window, not a ghost→committed settle; see use-message-items.ts). Only these rows
+  // get an enter transition — a windowed row remounts on every scrollback, so "mounted" ≠ "new".
+  const newArrivalKeys = useNewArrivalKeys(items, chatId);
 
   const live = isLiveTurnPhase(phase);
   // The tail assistant message is the swipe-eligible row (hidden mid-stream — scout swipe-strip rule).
@@ -222,6 +226,7 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         avatarRing={messageAppearance.avatarRing}
         showInChatAvatars={messageAppearance.showInChatAvatars}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
+        enterMotion={newArrivalKeys.has(item.id)}
       />
     ) : (
       <MessageRow
@@ -245,6 +250,7 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         anchorPersonaId={chatDetail.anchorPersonaId}
         viewerUserId={viewerUserId}
         onChatForked={onChatForked}
+        enterMotion={newArrivalKeys.has(item.view.id)}
       />
     );
 
