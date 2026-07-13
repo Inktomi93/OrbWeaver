@@ -82,12 +82,12 @@ always-visible button is not.
 
 | Action | The ONE owner | Delete / demote from |
 |---|---|---|
-| Create (New chat / character / preset) | List header band, single `primary` button | landing-hero duplicate (`chat-landing-surface.tsx:126`), any content-area "+" |
-| Save / Discard | NOWHERE — autosave everywhere (§7); status text replaces buttons | `character-editor-surface.tsx` Discard/Save pair, `preset-editor-surface.tsx:215` Save preset, per-field Set |
+| Create (New chat / character / preset) | List header band, single `primary` button | landing-hero duplicate (`chat-landing-surface.tsx:101`; empty-library variant `:96`), any content-area "+" |
+| Save / Discard | NOWHERE — autosave everywhere (§7); status text replaces buttons | `character-editor-surface.tsx` Discard/Save pair, `preset-editor-surface.tsx:187` Save preset (in the SaveBar block), per-field Set |
 | Per-entity manage (Duplicate · Archive · Export · Delete) | List-row `⋯` (hover-revealed) | Content-header duplicates; one Context-header `⋯` mirror allowed only when the row isn't visible |
 | Message actions (edit · fork · hide · copy · delete) | Message row hover cluster: `edit` + `fork` inline, rest under `⋯` | the always-on 5-icon strip |
 | Member controls (mute · force-turn · kebab) | Context → Members rows, hover `⋯` | any duplication; topbar chip is entry-only |
-| Members entry | Topbar member-count chip → always OPENS Context on Members tab (never toggles) | the collapse branch in `chat-header.tsx:72-81` |
+| Members entry | Topbar member-count chip → always OPENS Context on Members tab (never toggles) | the collapse branch in `chat-header.tsx:44-47` (`toggleMembersPanel`) |
 | Field detail (Description, Scenario…) | Context → Field tab (drill-in) | per-row `Set` button → inline expand / drill-in |
 | Section actions (preset Context) | one `⋯` in the Section header | the bottom `Duplicate · Move below · Delete` button row |
 
@@ -106,7 +106,7 @@ Source of truth: `contracts/settings` `AppearanceSettings` + `features/settings/
   `avatarRing none/accent`.
 - **Surfaces:** `elevation flat/ramp/glow` (ramp lifts panels to `--color-surface-raised` and DROPS
   region hairlines — `.shell-grid[data-elevation="ramp"] .shell-panel-header { border-block-end: none }`
-  already exists at `shell.css:168`, so new chrome styled via `.shell-panel-header` inherits it for
+  already exists at `shell.css:85`, so new chrome styled via `.shell-panel-header` inherits it for
   free), `blurSurfaces` multi-select (glass), `blurStrength`, `surfaceTexture`, `enableThemeColorization`.
 - **Background image:** kind/fit/`backgroundDim`/`backgroundBlur`; with an image the no-fill chat
   styles back their chrome with `chromeBacking` scrims — keep all of it.
@@ -117,7 +117,7 @@ Source of truth: `contracts/settings` `AppearanceSettings` + `features/settings/
 - **Reading typography:** `--reading-*` root vars consumed only by `[data-slot="message-bubble"]` —
   never extend them to chrome.
 - **Sizing/motion:** `chatWidthPct` → `--width-shell-content` (consumed by `bubbleOuter`
-  `message-row-variants.ts:199` AND the composer `composer.tsx:226,249` — verified shared),
+  `message-row-variants.ts:74` AND the composer `composer.tsx:179,194` — verified shared),
   `fontScale`, `reducedMotion`, `density comfortable/compact` (compact retunes the spacing intent
   tokens — use spacing tokens, never px).
 - **Glass defaults (the Reading-Surface rule):** `blurSurfaces` defaults `[]` (off); the
@@ -183,7 +183,7 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
 - Rail brand: `WeaveGlyph` in a chrome-row-tall top cell, same bottom hairline, same baseline.
 - Confirm all four headers: `height: var(--dimension-chrome-row)`; `padding-inline: var(--spacing-block)`.
 - Elevation/glass compat: style the band ONLY via `.shell-panel-header` (the `ramp` border-drop rule
-  at `shell.css:168` then covers it); NO opaque background (glass panels need the translucent fill).
+  at `shell.css:85` then covers it); NO opaque background (glass panels need the translucent fill).
 - Topbar right side becomes one uniform ghost icon cluster (`size="icon"` `intent="ghost"`): search,
   focus, context-toggle; the `⌘K jump` chip stays the one bordered element with a 1px×20px
   `--color-border` divider between chip and toggles. The identity-row `⋯` (chat options) moves to the
@@ -199,7 +199,7 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
 - "CHATS" micro-caps title + count into the N1 band; the band's only action is
   `Button intent="primary" size="sm"` **New** with `Plus` (A2). The current ghost `+`
   (`[aria-label="Start a new chat"]` header instance) is replaced; the two `intent="primary"`
-  EmptyState News (`chat-list-surface.tsx:178,201`) are fine as-is (empty state = its own surface).
+  EmptyState News (`chat-list-surface.tsx:150,170`) are fine as-is (empty state = its own surface).
 - Search row directly under the band, full width, `--spacing-block` inset.
 - **Horizontal scrollbar — diagnose live, then fix.** **[CORRECTED]** the design review blamed a
   non-shrinking row child, but `list-row/variants.ts` already has root `min-w-0`, title `truncate`,
@@ -230,12 +230,11 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
   `font-mono` + muted), `·`-separated; timestamp preferably beside the speaker name in the name row.
   KEEP the existing `data-slot="message-metadata-*"` attributes on the equivalent elements (rule 0.7)
   and the render-nothing-when-empty behavior. PD-130 stays untouched.
-- **Content-sized bubbles — bubble family only:** `message-row-variants.ts:202` `bubbleInner` gains
-  `w-fit` (→ `w-fit max-w-prose rounded-card px-block py-row`). Verified consumers: bubble/echo/
-  whisper/ripple/tide (`:373,395,402,417,423`); flat/document/hush don't use it — untouched. Verify
+- **Content-sized bubbles — bubble family only:** `message-row-variants.ts:77-79` `bubbleInner` gains
+  `w-fit` (→ `w-fit max-w-prose rounded-card px-block py-row`). Verified consumers: exactly the five skins whose `inner: bubbleInner` (bubble/echo/whisper/ripple/tide — cite by SKIN NAME, the line numbers rot); flat/document/hush use `flatInner`/inline — untouched. Verify
   a short Whisper message still shows a sane 3:1 band and echo's feather padding contract holds.
-- **Reading column:** verified already shared — `bubbleOuter` (`:199`) and composer
-  (`composer.tsx:226,249`) both `mx-auto max-w-(--width-shell-content)`. No work; just don't break it.
+- **Reading column:** verified already shared — `bubbleOuter` (`:74-76`) and composer
+  (`composer.tsx:179,194`) both `mx-auto max-w-(--width-shell-content)`. No work; just don't break it.
 - **Done when:** in `bubble` at rest a turn = name · inline time · fit-content bubble; hover reveals
   `edit fork ⋯`; `expanded` pref shows the 3-cluster always; a two-word reply hugs its text; all 8
   skins render their signature geometry (§9 matrix); a resting viewport shows ZERO always-on action icons.
@@ -257,9 +256,7 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
 
 ### N5 · Chats ember sweep + landing
 - Sweep `features/chat/**` with ast-grep for `<Button $$$>` (rule 0.9): survivors = list-header New,
-  composer Send (`composer.tsx:322`), one primary per DIALOG. Demote: the landing hero pair
-  (`chat-landing-surface.tsx:121,126` — keep ONE as the empty-state hero primary, demote "Browse
-  characters" to `secondary`), `message-edit-textarea.tsx:155` save (inline editor → `secondary`),
+  composer Send (`composer.tsx:256`), one primary per DIALOG. The landing hero is ALREADY one primary (a mutually-exclusive ternary — `:96` empty-library / `:101` New chat) and the browse affordance (`All characters →`, `:128`) is already `ghost` — N5's landing work is confirming the ember count, not demoting anything, `message-edit-textarea.tsx:117` save (inline editor → `secondary`),
   any others found.
 - **Done when:** a full-viewport Chats screenshot shows ember on ≤1 button + the active nav/tab
   indicator + selection bar; §9 checklist passes end-to-end for the Chats section. **This is the
@@ -339,11 +336,15 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
      `built: false` and no surface exists — an unbuilt placeholder category. Fold into the Settings
      stop of the rollout alongside UIP-404. (Automation is likewise `built: false` but is
      feature-scope, not cohesion.)
+   - **Devtools FAB in snaps.** OPEN, verified: `dev-tools.tsx` is only `import.meta.env.DEV`-gated
+     — snap drives the dev server, so the TanStack palm tree renders in every screenshot (visible
+     in today's audit snaps). Fix: gate the FAB behind probe-mode (`orb:probe-mode`) or teach snap
+     a default `--mask` for it. Tiny task; fold into the N1 lane.
    - **RESOLVED, no work (recorded so nobody re-opens; Opus-verified 2026-07-13):** the
      presets/world-info rail sections are BUILT (the placement question is settled — D66 keeps
      Presets in the rail, Connections in Settings); J11's Personas + Connections panes are BUILT;
      J5's four chat-lifecycle tRPC procedures are ROUTED (`routers/chat.ts`); the focus-ring audit
-     is PP3; the devtools FAB snap-gating landed; DESIGN-REVIEW-2026-07-01's findings were all
+     is PP3; — DESIGN-REVIEW-2026-07-01's findings were all
      applied; every design-enforcement item is BUILT or DROPPED-by-ruling (no-CI model, D62); the
      full punchlist §0c table and ux-flow J-table re-verified with zero FALSE-DONE.
 
