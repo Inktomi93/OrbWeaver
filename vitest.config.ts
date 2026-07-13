@@ -164,6 +164,9 @@ export default defineConfig({
             only: true,
             include: ["tests/**/*.test-d.ts"],
             tsconfig: "tsconfig.json",
+            // TS7 native checker (byte-identical diagnostics to tsc6, ~5x faster) — the CLI type lanes moved
+            // off tsc6. ts-morph/typescript-eslint keep the TS6 API; this lane is CLI-only, so it's safe.
+            checker: "tsgo",
           },
         },
       },

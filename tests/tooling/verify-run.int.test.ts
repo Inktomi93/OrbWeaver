@@ -143,22 +143,53 @@ test("resolveSelection --file: derives the per-tool views (eslint surface, tsc o
 test("resolveSelection: a tests/ file flags the graph-only trees (types:graph runs at changed scope)", () => {
   const sel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify-run.int.test.ts"] });
   expect(sel.touchesGraphOnlyTrees).toBe(true);
-  // …and a packages/ src file does NOT.
+  // …and a packages/ src file NOT import-pulled into the DOM-less graph does NOT (attachment-url-context
+  // is a client-only feature hook — its whole closure stays in packages/client/src, never crossing into a
+  // tests/ or scripts/ root, so the graph program never sees it via import-pull).
   const pkg = resolveSelection({
     kind: "file",
-    paths: ["packages/ui/src/primitives/button/variants.ts"],
+    paths: ["packages/client/src/features/chat/hooks/attachment-url-context.tsx"],
   });
   expect(pkg.touchesGraphOnlyTrees).toBe(false);
 });
 
-test("types:graph scopedArgv: deferred (whole-only) unless the selection touches a graph-only tree", () => {
-  const pkgSel = resolveSelection({
+test("resolveSelection: an import-pulled src file DOES flag the graph (the TS2584 overlay, rule 5)", () => {
+  // button/variants.ts is transitively imported by the DOM-less root graph (confirmed via tsgo
+  // --listFilesOnly) — so it belongs to TWO programs (packages/ui WITH dom AND the graph DOM-less). Editing
+  // it must run types:graph, or the TS2584-class break (a graph consumer of a dom-typed export) escapes at
+  // verify --file. Its per-package owner stays ui (the graph is a separate stage, not a tsc -p owner).
+  const sel = resolveSelection({
     kind: "file",
     paths: ["packages/ui/src/primitives/button/variants.ts"],
+  });
+  expect(sel.touchesGraphOnlyTrees).toBe(true);
+  expect(sel.tsconfigs).toEqual(["packages/ui/tsconfig.json"]);
+});
+
+test("types:graph scopedArgv: deferred (whole-only) unless the selection touches the graph program", () => {
+  const pkgSel = resolveSelection({
+    kind: "file",
+    paths: ["packages/client/src/features/chat/hooks/attachment-url-context.tsx"],
   });
   expect(stage("types:graph").scopedArgv?.(pkgSel)).toBe("whole-only");
   const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/x.int.test.ts"] });
   expect(stage("types:graph").scopedArgv?.(testSel)).toEqual(["pnpm", "typecheck:graph"]);
+});
+
+test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSER package DEFERS it", () => {
+  // kit/server/db/contracts src ARE graph roots (tsconfig.json include: packages/*/src) → --package must
+  // run types:graph, or the DOM-less TS2584 class escapes a whole-package scope exactly as it did --file.
+  for (const nodePkg of ["kit", "server", "db", "contracts"]) {
+    const sel = resolveSelection({ kind: "package", name: nodePkg });
+    expect(sel.touchesGraphOnlyTrees).toBe(true);
+    expect(stage("types:graph").scopedArgv?.(sel)).toEqual(["pnpm", "typecheck:graph"]);
+  }
+  // ui/client src are graph-EXCLUDED (dom-typechecked by their own tsconfig) → graph honestly defers.
+  for (const browserPkg of ["ui", "client"]) {
+    const sel = resolveSelection({ kind: "package", name: browserPkg });
+    expect(sel.touchesGraphOnlyTrees).toBe(false);
+    expect(stage("types:graph").scopedArgv?.(sel)).toBe("whole-only");
+  }
 });
 
 test("types:testd + browser:* + tests:parity are whole-only (no scopedArgv) — deferred at a scoped tier", () => {

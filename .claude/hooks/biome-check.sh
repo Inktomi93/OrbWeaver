@@ -2,9 +2,15 @@
 # PostToolUse (Edit|Write|MultiEdit): fast per-file gate on the just-edited file.
 #   • Biome       — concise reporter, errors-only (warnings stay silent).
 #   • dep-cruiser — layer-cake / tier-order backstop, err-long so the rule's WHY prints.
-# Both are single-file and run in PARALLEL. tsc is deliberately NOT here: it can't be soundly
-# file-scoped (it sees a file's imports but never its consumers, so it reads green on a project
-# an edit just broke). The honest whole-graph typecheck stays in pre-push `pnpm check`.
+#   • tsgo        — TYPE errors in the file's OWNING tsconfig program (TS7 native, ~0.3–2.5s).
+# All three are single-file/single-program and run in PARALLEL. The tsgo leg is the TS7 (native Go)
+# compiler run project-scoped (`-p <owning tsconfig>`) — the compiler-sanctioned per-file mode (raw
+# `tsc <file>` is a hard TS5112 error since TS 6). It sees the file's IN-PROGRAM consumers (strictly
+# better than a single-file check) but NOT cross-PROGRAM consumers (a client file's use in the DOM-less
+# graph) — that whole-truth check stays in `pnpm check`. Named the program explicitly, so a
+# tests/**.tsx file is checked against its real owner (client/ui), never a wrong InferredProject.
+# A hook-PRIVATE tsBuildInfoFile keeps this off the real lanes' caches. FAIL-SOFT: any tsgo tooling
+# error is swallowed (a broken hook must never block an edit); only real type diagnostics surface.
 # Exit 2 surfaces findings to Claude; a clean file exits 0 silently.
 set -uo pipefail
 
@@ -16,8 +22,40 @@ cd "$root" || exit 0
 rel="${file#"$root/"}"                       # normalize the (usually absolute) path to repo-relative
 cfg=".dependency-cruiser.cjs"
 
-bout=$(mktemp); dout=$(mktemp)
-trap 'rm -f "$bout" "$dout"' EXIT
+# ── the owning-tsconfig resolver (mirror of scripts/verify/selection.ts `staticPrograms`, rules 1–4) ──
+# Prints the PRIMARY owning tsconfig for `rel`, or "" if the file is in no TS program (md/css/sh/config).
+# A NODE package's src is also a graph root, but the hook checks the one owning PACKAGE program (fast,
+# whole-program-honest); the DOM-less graph lens stays in `pnpm check`.
+owning_tsconfig() {
+  local p="$1"
+  case "$p" in
+    *.ts|*.tsx|*.mts|*.cts) ;;               # a TS source file — continue
+    *) echo ""; return ;;                     # everything else is in no TS program
+  esac
+  # 1. package source → its own package config.
+  if [[ "$p" =~ ^packages/([^/]+)/src/ ]]; then
+    echo "packages/${BASH_REMATCH[1]}/tsconfig.json"; return
+  fi
+  # 2. client's vite.config.ts (named in client's include).
+  if [[ "$p" == "packages/client/vite.config.ts" ]]; then
+    echo "packages/client/tsconfig.json"; return
+  fi
+  # 3. the browser reach-back trees (owned WITH dom by a NON-ancestor config — the editor blind spot).
+  if [[ "$p" =~ ^tests/client/.*\.tsx$ || "$p" == "tests/support/ct/ct-data-providers.tsx" ]]; then
+    echo "packages/client/tsconfig.json"; return
+  fi
+  if [[ "$p" =~ ^tests/ui/.*\.tsx$ || ( "$p" =~ ^tests/support/ct/.*\.tsx$ && "$p" != "tests/support/ct/ct-data-providers.tsx" ) || "$p" =~ ^playwright/.*\.(tsx|d\.ts)$ ]]; then
+    echo "packages/ui/tsconfig.json"; return
+  fi
+  # 4. the node graph roots (tests/·scripts/·reset.d.ts — .ts/.mts/.cts; a reach-back .tsx was claimed above).
+  if [[ "$p" =~ ^tests/ || "$p" =~ ^scripts/ || "$p" == "reset.d.ts" ]]; then
+    echo "tsconfig.json"; return
+  fi
+  echo ""
+}
+
+bout=$(mktemp); dout=$(mktemp); tout=$(mktemp)
+trap 'rm -f "$bout" "$dout" "$tout"' EXIT
 
 pnpm exec biome check --reporter=concise --diagnostic-level=error \
   --max-diagnostics=20 --no-errors-on-unmatched "$rel" >"$bout" 2>&1 &
@@ -30,20 +68,49 @@ if [[ "$rel" == packages/* && "$rel" =~ \.(ts|tsx|js|jsx|mts|cts)$ && -f "$cfg" 
   dpid=$!
 fi
 
+# tsgo TYPE leg — the file's owning program, TS7 native, hook-private buildinfo. Resolve the bin directly
+# (never `pnpm exec` — its ~0.3s startup blows the budget). Skip if the file is in no TS program or tsgo
+# isn't installed. Runs in parallel with biome/depcruise.
+tpid=""
+owner=$(owning_tsconfig "$rel")
+tsgo_bin="$root/node_modules/.bin/tsgo"
+if [[ -n "$owner" && -x "$tsgo_bin" && -f "$root/$owner" ]]; then
+  tbi="$root/node_modules/.cache/hook-tsgo/${owner//\//_}.tsbuildinfo"
+  mkdir -p "$(dirname "$tbi")"
+  "$tsgo_bin" --noEmit --pretty false --incremental --tsBuildInfoFile "$tbi" \
+    -p "$owner" >"$tout" 2>&1 &
+  tpid=$!
+fi
+
 wait "$bpid" || true
 [ -n "$dpid" ] && wait "$dpid" || true
+# Reap the tsgo child; its exit code is intentionally IGNORED — the diagnostic-line match below is the
+# sole gate (tsgo exits 1 for tooling errors too, so exit code is no type-vs-tooling signal).
+[ -n "$tpid" ] && wait "$tpid" || true
 
 # Strip each tool's timing/summary footer; what survives is the actionable findings.
 biome_f=$(grep -vE '^(Checked |Found |check )|Some errors were emitted|^[[:space:]]*$' "$bout" || true)
 dep_f=$(grep -vE 'dependency violations|^[[:space:]]*$' "$dout" 2>/dev/null || true)
 
-[ -z "$biome_f" ] && [ -z "$dep_f" ] && exit 0
+# tsgo: surface ONLY a genuine type diagnostic for the EDITED file. Exit code is deliberately NOT consulted
+# — tsgo exits 1 for tooling failures too (missing/malformed project, IO/write errors), so it can't tell
+# "type error" from "tool broke". The diagnostic-line regex + `$rel` filter IS the sole gate: any config /
+# IO / crash failure emits no `path(line,col): error TS` line for the edited file → tsgo_f is empty →
+# silent. By construction the hook can ONLY fire on a real type error in the file you just edited — never
+# tooling noise, never a sibling file's error, never on tsgo's own breakage.
+tsgo_f=$(grep -E '\.(ts|tsx|mts|cts)\([0-9]+,[0-9]+\): error TS' "$tout" 2>/dev/null | grep -F "$rel" || true)
+
+[ -z "$biome_f" ] && [ -z "$dep_f" ] && [ -z "$tsgo_f" ] && exit 0
 
 {
   [ -n "$biome_f" ] && printf '%s\n' "$biome_f"
   if [ -n "$dep_f" ]; then
     [ -n "$biome_f" ] && echo
     printf '%s\n' "$dep_f"
+  fi
+  if [ -n "$tsgo_f" ]; then
+    { [ -n "$biome_f" ] || [ -n "$dep_f" ]; } && echo
+    printf '%s\n' "$tsgo_f"
   fi
 } >&2
 exit 2
