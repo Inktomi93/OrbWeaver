@@ -445,10 +445,16 @@ function writeFixtures(): void {
 // mustFlag (a synthetic package.json with an unplaced test:* script) + its dedicated verify-run test.
 // enforcement-registry-parity: V5 cutover retired its `__g_` arm (arm-2 is now the loader's fail-closed
 // job); its contract-form doc-reconciliation bite is proven by gate-conformance + single-pass-parity §7.
+// tsconfig-routing-parity spawns `tsgo --showConfig` over the REAL tsconfig tree (the 7 programs) and
+// reconciles their root membership against selection.ts's routing algebra — a throwaway `__g_` file can't
+// alter a program's resolved include/files, so it can't be fixture-driven. Its bite is proven by its
+// conformance mustFlag (a synthetic reach-back-include tree) + a real-tree break-confirm (misroute one
+// file → RED → restore byte-identical).
 const UNFIXTURABLE_GATES = new Set([
   "warning-code-coverage",
   "verify-registry-parity",
   "enforcement-registry-parity",
+  "tsconfig-routing-parity",
 ]);
 
 let registry = new Set<string>();
