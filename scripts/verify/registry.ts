@@ -30,7 +30,9 @@ export type StageDef = {
   /** kebab, unique — "lint:biome", "types:graph", "tests:node", … */
   readonly name: string;
   readonly group: StageGroup;
-  /** Every tier that includes this stage. `changed ⊂ static ⊂ push ⊂ full` in COVERAGE INTENT. */
+  /** Every tier that includes this stage. The whole-tree ladder nests `static ⊂ push ⊂ full`; `changed`
+   *  is the SCOPED inner loop (`changed ⊆ push`) — it carries related-tests static omits, so it is NOT a
+   *  subset of static (static is the born-compliant test-free commit gate). */
   readonly tiers: readonly Tier[];
   /** The whole-scope invocation (the `pnpm <script>` form, spawned shell:false). */
   readonly argv: readonly [string, ...string[]];
