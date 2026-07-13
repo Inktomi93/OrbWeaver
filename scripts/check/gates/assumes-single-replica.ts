@@ -7,20 +7,13 @@
 // EXEMPT: `persistence/` (the persistence-no-in-memory-state grit forbids Map/Set there outright) + tests.
 // LIMIT (by convention + review, not this gate): custom ring/cache CLASSES (LineRing/TraceRing) carry the
 // file-level annotation too — they aren't `new Map/Set`, so they're out of this gate's structural reach.
-import type { SourceFile, VariableDeclaration } from "ts-morph";
+import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
-const SERVER_SRC = "/packages/server/src/";
 const PERSISTENCE = /\/persistence\//u;
 const STATE_CTORS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);
 const ANNOTATION = "ASSUMES(single-replica)";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
 // The ctor name of a module-scope MUTABLE-accumulator `new Map/Set/WeakMap/WeakSet(...)`, else "".
 // A sole array-literal arg = an immutable config seed → "" (not flagged).
 function flaggedCtor(decl: VariableDeclaration): string {
@@ -39,46 +32,13 @@ function flaggedCtor(decl: VariableDeclaration): string {
   return literalSeed ? "" : ctor;
 }
 
-function scan(sf: SourceFile, root: string, out: Violation[]): void {
-  for (const stmt of sf.getVariableStatements()) {
-    for (const decl of stmt.getDeclarations()) {
-      const ctor = flaggedCtor(decl);
-      if (ctor !== "") {
-        out.push({
-          file: relPath(root, sf.getFilePath()),
-          line: stmt.getStartLineNumber(),
-          message: `module-scope mutable \`new ${ctor}()\` is per-process in-memory state — annotate the file with ASSUMES(single-replica) + name a DB-backed replacement seam, or move it out of module scope (core/Tier-2-Foundation.md esoteric #5).`,
-        });
-      }
-    }
-  }
-}
-
-export const assumesSingleReplica: Check = {
-  name: "assumes-single-replica",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!path.includes(SERVER_SRC) || PERSISTENCE.test(path)) {
-        continue;
-      }
-      if (sf.getFullText().includes(ANNOTATION)) {
-        continue;
-      }
-      scan(sf, root, violations);
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a VariableDeclaration subscription: a MODULE-SCOPE mutable `new Map/Set/…`
 // accumulator in a server-src file that lacks the ASSUMES(single-replica) annotation. scanRoot mirrors
 // the legacy filter (server-src ∧ ¬persistence); the per-file annotation guard is a `getFullText`
 // include, checked per file in visit. Module-scope is enforced by requiring the declaration's
 // VariableStatement to be a direct SourceFile child (the legacy `getVariableStatements()` reach).
-// Per-occurrence. Kept ALONGSIDE the legacy Check.
+// Per-occurrence.
 const annotationMemo = new Map<string, boolean>();
 
 function isModuleScope(decl: VariableDeclaration): boolean {

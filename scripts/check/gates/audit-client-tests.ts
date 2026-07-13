@@ -5,11 +5,10 @@
 // too — it's a `.test.ts` suffix match) for structural anti-patterns grep can't see: whether a
 // CallExpression is chained, whether a test callback contains a descendant AwaitExpression, etc.
 //
-// DORMANT BY DECISION (Nate 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — NOT listed in
-// `ALL_CHECKS` (scripts/check/report.ts), so it never runs as part of `pnpm check:structure` today.
-// ACTIVATE by adding, verbatim:
-//   import { auditClientTests } from "./gates/audit-client-tests.ts";
-// and an `auditClientTests,` entry to the `ALL_CHECKS` array in scripts/check/report.ts.
+// DORMANT BY DECISION (Nate 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — the `gate` descriptor
+// below carries `status:"dormant"`, so the live pass (runPass filters to status:"active") never runs it as
+// part of `pnpm check:structure` today. ACTIVATE by flipping the descriptor's `status` to `"active"` and
+// adding its Layer-3 ACTIVE row (+ count bump) in Core-Enforcement-Active-Gates.md.
 //
 // NOT covered here (same as neo): Playwright Component Tests (`*.ct.tsx`) — they run their own lane
 // (`pnpm test:ct`) with Playwright idioms (`component.getByRole`, `await expect(loc)…`) rather than the
@@ -32,7 +31,7 @@
 import type { ArrowFunction, FunctionExpression, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { CheckContext, Violation } from "../harness.ts";
 
 const MAX_HELPER_DEPTH = 4;
 const ASSERTION_HELPER_RE = /^(?:expect|assert)[A-Z0-9]/u;
@@ -359,11 +358,6 @@ function scanAuditClientTests({ root, project }: CheckContext): Violation[] {
   }
   return violations;
 }
-
-export const auditClientTests: Check = {
-  name: "audit-client-tests",
-  run: (ctx): Violation[] => scanAuditClientTests(ctx),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-AST test-audit via `run`, DORMANT) ────────────────────
 // audit-client-tests scans every tests/**/*.test.ts(x) for structural anti-patterns (an assertion-less

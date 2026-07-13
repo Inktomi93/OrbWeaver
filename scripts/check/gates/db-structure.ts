@@ -16,7 +16,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { CheckContext, Violation } from "../harness.ts";
 
 const SCHEMA_REL = "packages/db/src/schema";
 const DOMAIN_REL = "packages/server/src/domain";
@@ -151,11 +151,6 @@ function scanDbStructure(ctx: CheckContext): Violation[] {
   }
   return violations;
 }
-
-export const dbStructure: Check = {
-  name: "db-structure",
-  run: (ctx): Violation[] => scanDbStructure(ctx),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST structure gate via `run`, fsBacked) ────────────────
 // db-structure reads the real fs (readdirSync of the schema dir) + the AST barrel (findBarrel via the

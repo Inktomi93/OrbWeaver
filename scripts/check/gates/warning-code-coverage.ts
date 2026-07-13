@@ -126,14 +126,12 @@ export function createWarningCodeCoverage(channels: readonly WarningChannel[]): 
   };
 }
 
-export const warningCodeCoverage: Check = createWarningCodeCoverage(CHANNELS);
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
 // The bus-coverage twin, over TWO warning channels: a pure whole-tree reconciliation (each tuple's
 // members vs its emit-scope literal corpus), ported as a `run` descriptor reusing the exact
 // channelViolations logic against the LIVE CHANNELS. No begin/finalize (each corpus is built inside
 // `run`). The per-channel vacuous guard (tuple home not loaded → []) is the synthetic-tree protection.
-// Findings byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// Findings byte-identical to the legacy Check.
 function reconcileWarningCoverage(project: Project): Violation[] {
   return CHANNELS.flatMap((c) => channelViolations(project, c));
 }

@@ -11,10 +11,8 @@
 // Deliberately NOT gated here: participant-role literals (`role === "host"`) — those are host-LOOKUP
 // (deriving `runAsUserId`/the funding source from the loaded roster, D18-sanctioned), not privilege
 // decisions; the privilege comparison lives inside `can()` (the owner-role-split gate's territory).
-import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const CHAT_SCOPE =
   /\/packages\/server\/src\/(?:domain\/chat\/|transport\/trpc\/(?:routers\/chat|chat-events-bus))/u;
@@ -35,56 +33,11 @@ function endsInOwnerId(text: string): boolean {
   return text === OWNER_ID || text.endsWith(`.${OWNER_ID}`);
 }
 
-/** Owner-equality binary expressions (`….ownerId ==/=== …` either side). */
-function ownerEqualityViolations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const bin of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
-    if (!EQUALITY_OPS.has(bin.getOperatorToken().getText())) {
-      continue;
-    }
-    const left = bin.getLeft().getText();
-    const right = bin.getRight().getText();
-    if (endsInOwnerId(left) || endsInOwnerId(right)) {
-      out.push({ file: rel, line: bin.getStartLineNumber(), message: COMPARE_MESSAGE });
-    }
-  }
-  return out;
-}
-
-/** `fetchOwned`/`OwnedTable` named imports inside domain/chat. */
-function ownedHelperImports(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const decl of sf.getImportDeclarations()) {
-    for (const named of decl.getNamedImports()) {
-      if (BANNED_IMPORTS.has(named.getName())) {
-        out.push({ file: rel, line: named.getStartLineNumber(), message: IMPORT_MESSAGE });
-      }
-    }
-  }
-  return out;
-}
-
-export const membershipEnforcer: Check = {
-  name: "membership-enforcer",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!CHAT_SCOPE.test(path)) {
-        continue;
-      }
-      const rel = relPath(root, path);
-      violations.push(...ownerEqualityViolations(sf, rel), ...ownedHelperImports(sf, rel));
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — multi-kind per-node) ─────────────────────────
 // Two arms, ONE gate: an owner-equality BinaryExpression (`….ownerId ==/=== …`), and a fetchOwned/
 // OwnedTable named IMPORT — both in the chat scope. The descriptor's reason is the comparison arm; an
 // import finding carries its own per-occurrence message (owner ruling 2 — distinct violation types).
-// scanRoot mirrors the legacy CHAT_SCOPE filter. Per-occurrence. Kept ALONGSIDE the legacy Check.
+// scanRoot mirrors the legacy CHAT_SCOPE filter. Per-occurrence.
 export const gate: GateDescriptor = {
   name: "membership-enforcer",
   docRow: "ledger D16/D18 (Spine-Identity-and-Auth.md)",

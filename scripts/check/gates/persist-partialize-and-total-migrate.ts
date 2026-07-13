@@ -18,7 +18,7 @@
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 
@@ -82,30 +82,11 @@ function factoryOptionViolations(sf: SourceFile, rel: string): Violation[] {
   return out;
 }
 
-export const persistPartializeAndTotalMigrate: Check = {
-  name: "persist-partialize-and-total-migrate",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = clientRel(sf.getFilePath());
-      if (rel === undefined) {
-        continue;
-      }
-      if (FACTORY_FILES.has(rel)) {
-        violations.push(...factoryOptionViolations(sf, rel));
-        continue;
-      }
-      violations.push(...rawPersistViolations(sf, rel));
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE dispatch gate via visitFile) ──────────────────────
 // Two arms, per-FILE dispatch: a factory file runs ARM B (its persist options must carry version +
 // partialize + migrate), every other client file runs ARM A (a bare `persist(` is RED). scanRoot mirrors
 // the legacy CLIENT_SRC filter. Distinct messages (raw-persist vs missing-key) → per-occurrence overrides.
-// Not fsBacked. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// Not fsBacked. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "persist-partialize-and-total-migrate",
   docRow: "UI-Gates-and-Lessons.md §11.5 (UI-Primitives-and-Reuse.md §13.1/§13.3)",

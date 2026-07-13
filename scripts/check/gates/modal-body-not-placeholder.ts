@@ -9,12 +9,10 @@
 // SHAPE (fixture-able, the `__g_*` pattern): for every `**/lib/modal-slots.tsx` it walks the `MODAL_SLOTS`
 // object's entries; an entry whose `render` body contains a `<SectionPlaceholder>` JSX tag but whose
 // entry object lacks `placeholder: true` is a violation.
-import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
+import type { ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
-const MODAL_SUFFIX = "/lib/modal-slots.tsx";
 const PLACEHOLDER_TAG = "SectionPlaceholder";
 
 /** `packages/...`-relative path for a violation location. */
@@ -47,53 +45,11 @@ function hasPlaceholderFlag(entry: ObjectLiteralExpression): boolean {
   return prop.getInitializer()?.getKind() === SyntaxKind.TrueKeyword;
 }
 
-function checkFile(sf: SourceFile, out: Violation[]): void {
-  const decl = sf.getVariableDeclaration("MODAL_SLOTS");
-  const init = decl?.getInitializer();
-  if (init === undefined || !Node.isObjectLiteralExpression(init)) {
-    return;
-  }
-  for (const prop of init.getProperties()) {
-    if (!Node.isPropertyAssignment(prop)) {
-      continue;
-    }
-    const entry = prop.getInitializer();
-    if (entry === undefined || !Node.isObjectLiteralExpression(entry)) {
-      continue;
-    }
-    const render = entry.getProperty("render");
-    if (render === undefined || !rendersPlaceholder(render) || hasPlaceholderFlag(entry)) {
-      continue;
-    }
-    out.push({
-      file: rel(sf.getFilePath()),
-      line: prop.getStartLineNumber(),
-      message:
-        `MODAL_SLOTS entry "${prop.getName()}" renders <SectionPlaceholder> but is missing ` +
-        "`placeholder: true` — an unbuilt modal must be an explicit, counted state, not a silent " +
-        "sparkle (design-enforcement.md §3.2). Add the flag, or route-compose a real body.",
-    });
-  }
-}
-
-export const modalBodyNotPlaceholder: Check = {
-  name: "modal-body-not-placeholder",
-  run: ({ project }): Violation[] => {
-    const out: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      if (sf.getFilePath().endsWith(MODAL_SUFFIX)) {
-        checkFile(sf, out);
-      }
-    }
-    return out;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a VariableDeclaration subscription: the `MODAL_SLOTS` object's entries whose
 // `render` returns a <SectionPlaceholder> without a `placeholder: true` flag. scanRoot mirrors the legacy
 // `**/lib/modal-slots.tsx` filter. The message names the offending entry (varies per entry), so each
-// finding carries a per-occurrence message override. Per-occurrence. Kept ALONGSIDE the legacy Check.
+// finding carries a per-occurrence message override. Per-occurrence.
 export const gate: GateDescriptor = {
   name: "modal-body-not-placeholder",
   docRow: "design-enforcement.md §3.2",

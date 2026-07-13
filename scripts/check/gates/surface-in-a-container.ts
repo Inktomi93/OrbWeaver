@@ -26,7 +26,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const FEATURES = "packages/client/src/features";
 // The shell tier is the top-level container PROVIDER (§4.1) — exempt from "sit inside a Container".
@@ -88,11 +88,6 @@ function scanSurfaceInAContainer(root: string): Violation[] {
   }
   return out;
 }
-
-export const surfaceInAContainer: Check = {
-  name: "surface-in-a-container",
-  run: (ctx: CheckContext): Violation[] => scanSurfaceInAContainer(ctx.root),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
 // surface-in-a-container reads the real fs (readdirSync of feature dirs + readFileSync of each surface +

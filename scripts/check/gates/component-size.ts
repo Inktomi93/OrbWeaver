@@ -8,7 +8,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const CLIENT_SRC = "packages/client/src";
 // Route shells orchestrate slots + suspense boundaries — a small allowance over the default.
@@ -66,16 +66,11 @@ function scanComponentSize(root: string): Violation[] {
   return out;
 }
 
-export const componentSize: Check = {
-  name: "component-size",
-  run: (ctx: CheckContext): Violation[] => scanComponentSize(ctx.root),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
 // component-size walks the real fs (readdirSync recursion + readFileSync line counts of client src) — a
 // `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance materializes examples
 // to a real temp dir. The finding lands at `cap+1` (the first over-cap line). Byte-identical to the
-// legacy Check. Kept ALONGSIDE the legacy Check.
+// legacy Check.
 export const gate: GateDescriptor = {
   name: "component-size",
   docRow: "Core-Laws-and-Precedents.md (UI-Architecture-and-Layout.md §2.1)",

@@ -17,10 +17,8 @@
 //      must name a DEVICE_LOCAL_REGISTRY entry carrying the one-line WHY-device-local rationale —
 //      an unregistered name is RED (a new persisted store is a deliberate, reviewed act), and a
 //      registry entry with NO call site is RED (stale row — delete it).
-import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 import { fileLoaded } from "../pass.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
@@ -126,73 +124,6 @@ function persistedNameOf(call: Node): string | undefined {
   }
   return nameFromDraftStore(first);
 }
-
-interface FactorySite {
-  readonly name: string;
-  readonly file: string;
-  readonly line: number;
-}
-
-/** Every persist-factory call site in one file (name + location). */
-function factorySitesOf(sf: SourceFile, rel: string): FactorySite[] {
-  const sites: FactorySite[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const name = persistedNameOf(call);
-    if (name !== undefined) {
-      sites.push({ name, file: rel, line: call.getStartLineNumber() });
-    }
-  }
-  return sites;
-}
-
-function rawStorageViolations(sf: SourceFile, rel: string): Violation[] {
-  const violations: Violation[] = [];
-  for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    if (STORAGE_IDENTIFIER_RE.test(id.getText())) {
-      violations.push({ file: rel, line: id.getStartLineNumber(), message: RAW_STORAGE_MESSAGE });
-    }
-  }
-  return violations;
-}
-
-export const persistenceBoundary: Check = {
-  name: "persistence-boundary",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    const sites: FactorySite[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = clientRel(sf.getFilePath());
-      if (rel === undefined) {
-        continue;
-      }
-      if (!RAW_STORAGE_ALLOWLIST.has(rel)) {
-        violations.push(...rawStorageViolations(sf, rel));
-      }
-      sites.push(...factorySitesOf(sf, rel));
-    }
-    for (const site of sites) {
-      if (site.name in DEVICE_LOCAL_REGISTRY) {
-        continue;
-      }
-      violations.push({
-        file: site.file,
-        line: site.line,
-        message: `${UNREGISTERED_MESSAGE_PREFIX}"${site.name}" — register it in scripts/check/gates/persistence-boundary.ts`,
-      });
-    }
-    const seen = new Set(sites.map((s) => s.name));
-    for (const registered of Object.keys(DEVICE_LOCAL_REGISTRY)) {
-      if (!seen.has(registered)) {
-        violations.push({
-          file: "scripts/check/gates/persistence-boundary.ts",
-          line: 1,
-          message: `${STALE_REGISTRY_MESSAGE_PREFIX}"${registered}" — scripts/check/gates/persistence-boundary.ts`,
-        });
-      }
-    }
-    return violations;
-  },
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — collect-then-judge ratchet) ────────────────────────
 // TWO arms. RAW-STORAGE (per-Identifier, file-allowlist-scoped) is incremental-safe. REGISTRY (collect

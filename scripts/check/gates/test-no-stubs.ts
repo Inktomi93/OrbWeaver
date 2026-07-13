@@ -4,7 +4,6 @@
 import type { CallExpression } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const TEST_CALL_NAMES = new Set(["test", "it", "test.skip", "it.skip"]);
 
@@ -19,43 +18,6 @@ function callHasAssertion(call: CallExpression): boolean {
     );
   });
 }
-
-function checkTestCall(call: CallExpression, filePath: string): Violation | null {
-  const exprText = call.getExpression().getText();
-  if (!TEST_CALL_NAMES.has(exprText) || callHasAssertion(call)) {
-    return null;
-  }
-  let testName = "unnamed test";
-  const arg0 = call.getArguments()[0];
-  if (arg0?.getKind() === SyntaxKind.StringLiteral) {
-    testName = arg0.getText();
-  }
-  return {
-    file: filePath,
-    line: call.getStartLineNumber(),
-    message: `stub test '${testName}' contains no assertions (expect/expectTypeOf). Tests must assert behavior, not just satisfy presence rules (Spine-Testing.md §5).`,
-  };
-}
-
-export const testNoStubs: Check = {
-  name: "test-no-stubs",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const filePath = sf.getFilePath();
-      if (!filePath.includes("/tests/")) {
-        continue;
-      }
-      for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-        const violation = checkTestCall(call, filePath);
-        if (violation) {
-          violations.push(violation);
-        }
-      }
-    }
-    return violations;
-  },
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
 // The legacy predicate as a CallExpression subscription: a test/it call with no expect/expectTypeOf

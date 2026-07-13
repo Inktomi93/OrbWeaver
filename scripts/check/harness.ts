@@ -1,8 +1,11 @@
-// The check harness — shared types + a ts-morph project loader + the runner.
-// Each gate is a `Check` returning `Violation[]`; `report.ts` registers them and runs.
+// The check harness — shared types + a ts-morph project loader. POST-LEGACY-ORACLE-BURNDOWN: the live
+// gate authority is the single-pass machine (loader → pass → render); the legacy `Check`/`runChecks`
+// oracle retired. What survives here is the shared `Check`/`Violation`/`CheckContext`/`GateResult` types +
+// `getProject`, still consumed by: the two injectable-baseline factories a residual self-test drives
+// (`createNoTestFabrication`, `createWarningCodeCoverage`), the retained `monotonicTests` Check (its
+// residual test), `gen-fabrication-baseline.ts` (getProject), and report.ts's JSON writer (GateResult).
 // Run via tsx (type-stripped); biome lints these too (scripts/ relaxes console/default-export/naming,
 // strictness otherwise applies — hence type-aliases, braces, explicit returns below).
-import process from "node:process";
 import { Project } from "ts-morph";
 
 export type Violation = {
@@ -46,42 +49,3 @@ export type GateResult = {
   readonly ok: boolean;
   readonly violations: readonly Violation[];
 };
-
-/** `runChecks`' return: the violation total (the CALLER owns the exit code — report.ts exits 1 on
- *  any violation, file.ts folds it into its own step ledger) PLUS every gate's own result, so a
- *  single run can serve both the stdout report and any structured (JSON) report without re-walking
- *  the project a second time. */
-export type RunChecksResult = {
-  readonly total: number;
-  readonly gates: readonly GateResult[];
-};
-
-/** Runs the given gates once, prints per-gate results + the summary footer, and returns both the
- *  violation total and each gate's own result (name/ok/violations) — the single source both the
- *  stdout report and a structured (JSON) report are built from. */
-export function runChecks(checks: readonly Check[]): RunChecksResult {
-  const root = process.cwd();
-  const ctx: CheckContext = { root, project: getProject(root) };
-  let total = 0;
-  const gates: GateResult[] = [];
-  for (const check of checks) {
-    const violations = check.run(ctx);
-    gates.push({ name: check.name, ok: violations.length === 0, violations });
-    if (violations.length === 0) {
-      process.stdout.write(`  ✓ ${check.name}\n`);
-      continue;
-    }
-    total += violations.length;
-    process.stdout.write(`  ✗ ${check.name} (${violations.length})\n`);
-    for (const v of violations) {
-      const loc = v.line > 0 ? `${v.file}:${v.line}` : v.file;
-      process.stdout.write(`      ${loc} — ${v.message}\n`);
-    }
-  }
-  if (total > 0) {
-    process.stdout.write(`\nstructure check: ${total} violation(s)\n`);
-    return { total, gates };
-  }
-  process.stdout.write("\nstructure check: clean\n");
-  return { total: 0, gates };
-}

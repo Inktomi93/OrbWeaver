@@ -28,15 +28,13 @@
 // `useShallow`-wrapped selector (either call shape); an INDIRECT selector passed by reference (a named
 // function declared elsewhere) — tracing that requires cross-scope resolution this AST-only gate
 // doesn't attempt (the same scope limit `state-files.ts`'s literal-only scan documents).
-import type { ArrowFunction, FunctionExpression, SourceFile } from "ts-morph";
+import type { ArrowFunction, FunctionExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 // The flat + nested client tier — this footgun can occur anywhere a store hook is called, not just
 // inside state/ (a props-seeded context store per UI-Lib-Zustand.md §A "initialize-with-props" could
 // live under features/**/hooks/ too).
-const CLIENT_SRC_DIR = "/packages/client/src/";
 const HOOK_STORE_RE = /^use[A-Z].*Store$/u;
 const ARRAY_REBUILD_METHODS = new Set([
   "map",
@@ -49,15 +47,6 @@ const ARRAY_REBUILD_METHODS = new Set([
   "toSpliced",
 ]);
 const OBJECT_DERIVE_METHODS = new Set(["keys", "values", "entries"]);
-
-function clientRel(path: string): string | undefined {
-  const idx = path.indexOf(CLIENT_SRC_DIR);
-  if (idx === -1) {
-    return;
-  }
-  return `packages/client/src/${path.slice(idx + CLIENT_SRC_DIR.length)}`;
-}
-
 // The leftmost identifier name of a CallExpression's callee — bare `foo(...)`, NOT `x.foo(...)` (a
 // PropertyAccessExpression callee, e.g. `useXStore.getState()`/`.subscribe()`, returns undefined —
 // those are snapshot/transient reads, not the `useSyncExternalStore` render path this gate guards).
@@ -184,59 +173,12 @@ function freshDerivationKind(raw: Node): string | undefined {
   return Node.isCallExpression(expr) ? calleeDerivationKind(expr) : undefined;
 }
 
-function scanFile(sf: SourceFile, rel: string, out: Violation[]): void {
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const arg = selectorArgOf(call);
-    if (arg === undefined) {
-      continue;
-    }
-    if (Node.isCallExpression(arg) && calleeIdentifierText(arg) === "useShallow") {
-      continue; // the sanctioned wrap — memoizes the derived output via a shallow compare.
-    }
-    if (!isInlineFunction(arg)) {
-      continue; // an indirect (by-reference) selector — out of this AST-only gate's reach.
-    }
-    const returned: Node[] = [];
-    collectReturnedExpressions(arg, returned);
-    for (const expr of returned) {
-      const kind = freshDerivationKind(expr);
-      if (kind === undefined) {
-        continue;
-      }
-      out.push({
-        file: rel,
-        line: expr.getStartLineNumber(),
-        message:
-          `zustand selector returns a fresh ${kind} — under v5's Object.is default (no implicit ` +
-          "shallow compare) this spins useSyncExternalStore forever. Wrap the selector in " +
-          "useShallow(...), narrow it to a single field, or return a frozen module constant " +
-          "(UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5).",
-      });
-      break; // one diagnostic per call site is enough signal.
-    }
-  }
-}
-
-export const zustandSelectorDerived: Check = {
-  name: "zustand-selector-derived",
-  run: ({ project }): Violation[] => {
-    const out: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = clientRel(sf.getFilePath());
-      if (rel !== undefined) {
-        scanFile(sf, rel, out);
-      }
-    }
-    return out;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as a CallExpression subscription: a store-hook call whose inline selector returns
 // a fresh object/array (directly, from a block return, or from a ?:/??/||/&& branch), an Object.keys/
 // values/entries, or an array-rebuilding method — unless useShallow-wrapped. scanRoot mirrors the legacy
 // clientRel filter. ONE finding per call site (the legacy `break`); the derivation kind rides the finding
-// as its token, so the grouped output shows what each site returned. Kept ALONGSIDE the legacy Check.
+// as its token, so the grouped output shows what each site returned.
 const ZUSTAND_MESSAGE =
   "zustand selector returns a fresh object/array (or an Object.keys/values/entries / array-rebuilding derivation) — under v5's Object.is default (no implicit shallow compare) this spins useSyncExternalStore forever. Wrap the selector in useShallow(...), narrow it to a single field, or return a frozen module constant (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5).";
 

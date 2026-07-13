@@ -5,7 +5,6 @@
 // "service.ts interface always present" half. Object shapes are interfaces (biome
 // useConsistentTypeDefinitions:interface) — this gate ensures the service interface actually exists.
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const SERVICE_RE = /\/packages\/server\/src\/domain\/[^/]+\/contract\/service\.ts$/u;
 
@@ -15,28 +14,6 @@ const SERVICE_MESSAGE =
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
-
-export const typesInContract: Check = {
-  name: "types-in-contract",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!SERVICE_RE.test(path)) {
-        continue;
-      }
-      const exportedInterfaces = sf.getInterfaces().filter((i) => i.isExported());
-      if (exportedInterfaces.length === 0) {
-        violations.push({
-          file: relPath(root, path),
-          line: 0,
-          message: SERVICE_MESSAGE,
-        });
-      }
-    }
-    return violations;
-  },
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — a FILE-LEVEL presence gate via visitFile) ────
 // The legacy predicate as a per-file hook (no node subscription — the finding is FILE-LEVEL, line 0, no

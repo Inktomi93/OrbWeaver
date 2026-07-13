@@ -1,7 +1,7 @@
 import type { FunctionDeclaration, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 function checkFactoryFunction(func: FunctionDeclaration, filePath: string): Violation | null {
   const name = func.getName() ?? "";
@@ -31,34 +31,11 @@ function checkFactoryFunction(func: FunctionDeclaration, filePath: string): Viol
   return null;
 }
 
-export const testFactoryContract: Check = {
-  name: "test-factory-contract",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const filePath = sf.getFilePath();
-      if (!filePath.includes("/tests/support/factories/")) {
-        continue;
-      }
-      for (const func of sf.getFunctions()) {
-        if (!func.isExported()) {
-          continue;
-        }
-        const violation = checkFactoryFunction(func, filePath);
-        if (violation) {
-          violations.push(violation);
-        }
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-node gate, checker-tier) ───────────────────────────────
 // The legacy predicate as a FunctionDeclaration subscription: an exported `make*` pure builder must not
 // accept a db param; a `seed*` persisted builder must. In tests/support/factories/. Uses the type checker
 // (p.getType()) — the Program is created lazily on first query. scanRoot mirrors the legacy filter.
-// Distinct messages → per-occurrence overrides. Not fsBacked. Kept ALONGSIDE the legacy Check.
+// Distinct messages → per-occurrence overrides. Not fsBacked.
 export const gate: GateDescriptor = {
   name: "test-factory-contract",
   docRow: "core/Spine-Testing.md §4",

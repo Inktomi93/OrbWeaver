@@ -11,13 +11,11 @@
 import type {
   ArrayLiteralExpression,
   CallExpression,
-  SourceFile,
   UnionTypeNode,
   VariableDeclaration,
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const MIN_MEMBERS = 3;
 const SEP = " ";
@@ -88,86 +86,6 @@ function tupleSig(decl: VariableDeclaration): string | undefined {
   const members = stringArrayMembers(expr);
   return members !== undefined && members.length >= MIN_MEMBERS ? sig(members) : undefined;
 }
-
-/** sig → tuple name for every `export const X = [...] as const` string tuple in the project. */
-function collectCanonicalTuples(files: readonly SourceFile[]): Map<string, string> {
-  const tuples = new Map<string, string>();
-  for (const sf of files) {
-    for (const decl of sf.getVariableDeclarations()) {
-      const s = tupleSig(decl);
-      if (s !== undefined) {
-        tuples.set(s, decl.getName());
-      }
-    }
-  }
-  return tuples;
-}
-
-function checkAliases(sf: SourceFile, rel: string, out: Violation[]): void {
-  for (const alias of sf.getTypeAliases()) {
-    const typeNode = alias.getTypeNode();
-    if (typeNode === undefined || !Node.isUnionTypeNode(typeNode)) {
-      continue;
-    }
-    const members = unionStringMembers(typeNode);
-    if (members === undefined || members.length < MIN_MEMBERS) {
-      continue;
-    }
-    out.push({
-      file: rel,
-      line: alias.getStartLineNumber(),
-      message: `inline string-literal union '${alias.getName()}' (${members.length} members) — declare the axis once as a tuple (export const X = [...] as const) and derive ((typeof X)[number]). Spine-TypeScript-and-Patterns.md §7.5`,
-    });
-  }
-}
-
-function checkRespells(
-  sf: SourceFile,
-  rel: string,
-  tuples: ReadonlyMap<string, string>,
-  out: Violation[],
-): void {
-  for (const union of sf.getDescendantsOfKind(SyntaxKind.UnionType)) {
-    if (union.getParent()?.getKind() === SyntaxKind.TypeAliasDeclaration) {
-      continue; // (A) owns aliases.
-    }
-    const members = unionStringMembers(union);
-    const name = members === undefined ? undefined : tuples.get(sig(members));
-    if (name !== undefined) {
-      out.push({
-        file: rel,
-        line: union.getStartLineNumber(),
-        message: `inline union re-spells the canonical tuple '${name}' — derive ((typeof ${name})[number]) instead of re-spelling its members. Spine-TypeScript-and-Patterns.md §7.5`,
-      });
-    }
-  }
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const members = zEnumArrayMembers(call);
-    const name = members === undefined ? undefined : tuples.get(sig(members));
-    if (name !== undefined) {
-      out.push({
-        file: rel,
-        line: call.getStartLineNumber(),
-        message: `z.enum([...]) re-spells the canonical tuple '${name}' — use z.enum(${name}). Spine-TypeScript-and-Patterns.md §7.5`,
-      });
-    }
-  }
-}
-
-export const noInlineUnionRedecl: Check = {
-  name: "no-inline-union-redecl",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    const files = project.getSourceFiles();
-    const tuples = collectCanonicalTuples(files);
-    for (const sf of files) {
-      const rel = relPath(root, sf.getFilePath());
-      checkAliases(sf, rel, violations);
-      checkRespells(sf, rel, tuples, violations);
-    }
-    return violations;
-  },
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — accumulate-then-judge, NO live registry) ───────────
 // Arm A (an inline string-union type-alias ≥3 members) is self-contained per alias → emitted at visit.

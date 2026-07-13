@@ -7,7 +7,7 @@ import { join } from "node:path";
 import type { SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, CheckContext, Violation } from "../harness.ts";
+import type { CheckContext, Violation } from "../harness.ts";
 
 const UI_SRC = "/packages/ui/src/";
 const PRIMITIVES = "packages/ui/src/primitives";
@@ -359,11 +359,6 @@ function scanUiPrimitiveStructure(ctx: CheckContext): Violation[] {
   ];
 }
 
-export const uiPrimitiveStructure: Check = {
-  name: "ui-primitive-structure",
-  run: (ctx): Violation[] => scanUiPrimitiveStructure(ctx),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST structure gate via `run`, fsBacked) ────────────────
 // ui-primitive-structure reads the real fs (readdirSync of primitives/, existsSync of the trio + CT) in 5
 // clauses AND the AST (variants naming / no-leak / color literals / inline provider / inline svg / overlay
@@ -371,7 +366,7 @@ export const uiPrimitiveStructure: Check = {
 // `fsBacked` so conformance materializes the primitive dir + CT fixtures into a real temp dir (the AST
 // clauses read the same temp-dir Project). Distinct per-clause messages → per-occurrence overrides. Ported
 // BYTE-IDENTICAL — the §2.4 comment-range upgrade is a SEPARATE intended change, NOT part of this port.
-// Kept ALONGSIDE the legacy Check.
+//
 export const gate: GateDescriptor = {
   name: "ui-primitive-structure",
   docRow: "core/UI-Primitives-and-Reuse.md §13.7",

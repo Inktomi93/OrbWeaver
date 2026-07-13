@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 // The PD registry was split 2026-07-02: the ACTIVE flags stay in Core-Audits-and-Debt.md; the CLEARED
 // (done) ledger moved to its own file. A PD id resolves if it has a row in EITHER — and must be unique
@@ -93,11 +93,6 @@ function reconcilePdCitations(root: string, project: Project): Violation[] {
   }
   return violations;
 }
-
-export const pdCitationIntegrity: Check = {
-  name: "pd-citation-integrity",
-  run: ({ root, project }): Violation[] => reconcilePdCitations(root, project),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST whole-project RECONCILIATION via `run`) ────────────
 // pd-citation-integrity reads the PD registry from the .md files (fs) and reconciles it against FLAG[PD-n]

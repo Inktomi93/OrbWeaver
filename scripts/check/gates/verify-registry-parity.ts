@@ -15,7 +15,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { REGISTRY } from "../../verify/registry.ts";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const PKG_REL = "package.json";
 // The verification-shaped script-name prefixes (§3.6). A script whose name matches must be in the registry.
@@ -100,13 +100,6 @@ function reconcile(root: string): Violation[] {
   }
   return violations;
 }
-
-// The legacy Check (report.ts's ALL_CHECKS) — kept ALONGSIDE the contract `gate` during the migration, so
-// the pre-cutover `pnpm check` runs this gate too. V5's cutover removes every legacy Check uniformly.
-export const verifyRegistryParity: Check = {
-  name: "verify-registry-parity",
-  run: ({ root }): Violation[] => reconcile(root),
-};
 
 export const gate: GateDescriptor = {
   name: "verify-registry-parity",

@@ -27,7 +27,7 @@
 import type { InterfaceDeclaration, Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const SERVICE_CONTRACT_RE =
   /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
@@ -124,17 +124,12 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
   return violations;
 }
 
-export const contractVerbPresence: Check = {
-  name: "contract-verb-presence",
-  run: ({ project }): Violation[] => reconcileContractVerbPresence(project),
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a whole-project RECONCILIATION via `run`) ────────────────────
 // contract-verb-presence reconciles each domain's *Service interface verbs against its test-tree
 // invocation corpus (grep-style over the loaded test files) — a whole-tree cross-file check, ported as a
 // `run` descriptor reusing the exact reconcile logic. The DEFERRED map suppresses tracked gaps (no stale
 // arm — a covered deferred verb just passes, so no synthetic-tree misfire). A tree with no service.ts is
-// vacuous. Byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// vacuous. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "contract-verb-presence",
   docRow: "core/Spine-Testing.md §5",

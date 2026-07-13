@@ -18,7 +18,7 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 const FACTORY_NAME = "createAutosaveEntityForm";
@@ -104,34 +104,13 @@ function factoryFileViolations(sf: SourceFile): Violation[] {
   return out;
 }
 
-export const noFormResetInAutosave: Check = {
-  name: "no-form-reset-in-autosave",
-  run: ({ project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = clientRel(sf.getFilePath());
-      if (rel === undefined) {
-        continue;
-      }
-      if (rel === FACTORY_FILE) {
-        violations.push(...factoryFileViolations(sf));
-        continue;
-      }
-      if (importsFactory(sf)) {
-        violations.push(...resetCallViolations(sf, rel));
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE gate via visitFile) ───────────────────────────────
 // Two arms, per-FILE dispatch: the factory file runs ARM B (the Omit<…, "reset"> strip must be present —
 // a file-level ABSENCE check — and no returned `reset` property), every OTHER client file that IMPORTS the
 // factory runs ARM A (a `.reset(` call on a form-shaped receiver). The absence check (ARM B's OMIT_MISSING)
 // is why this is visitFile not per-node — "no Omit anywhere in the file" can't be a node predicate.
 // scanRoot mirrors the legacy CLIENT_SRC filter. Distinct messages → per-occurrence overrides. Findings
-// byte-identical to the legacy Check. Kept ALONGSIDE the legacy Check.
+// byte-identical to the legacy Check.
 function overrideFinding(v: Violation, token: string): Finding {
   return { file: v.file, line: v.line, column: 0, message: v.message, token };
 }

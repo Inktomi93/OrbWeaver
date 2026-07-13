@@ -18,7 +18,7 @@
 import type { InterfaceDeclaration, Node, Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const SCHEMA_DIR = /\/packages\/db\/src\/schema\//u;
 const TABLE_FN = "sqliteTable";
@@ -293,11 +293,6 @@ function scanBannedShapes(root: string, project: Project): Violation[] {
   }
   return violations;
 }
-
-export const schemaBannedShapes: Check = {
-  name: "schema-banned-shapes",
-  run: ({ root, project }): Violation[] => scanBannedShapes(root, project),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a registry-driven multi-arm ban scan via `run`) ──────────────
 // schema-banned-shapes is a STATIC ban registry (BANNED_SHAPES) checked per file — column/table bans in

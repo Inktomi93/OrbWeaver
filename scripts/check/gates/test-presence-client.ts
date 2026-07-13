@@ -48,7 +48,7 @@ import { dirname, join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 const UI_SRC = "/packages/ui/src/";
@@ -180,11 +180,6 @@ function scanTestPresenceClient(root: string, project: Project): Violation[] {
   }
   return out;
 }
-
-export const testPresenceClient: Check = {
-  name: "test-presence-client",
-  run: ({ root, project }): Violation[] => scanTestPresenceClient(root, project),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST presence gate via `run`, fsBacked) ─────────────────
 // The client/ui twin of test-presence: reconciles client/ui logic-bearing source (AST callable-export

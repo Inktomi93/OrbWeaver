@@ -13,7 +13,7 @@ import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 const DOMAIN_DIR = "/packages/server/src/domain/";
 const SERVER_SRC = "/packages/server/src/";
@@ -159,11 +159,6 @@ function scanTestPresence(root: string, project: Project): Violation[] {
   }
   return violations;
 }
-
-export const testPresence: Check = {
-  name: "test-presence",
-  run: ({ root, project }): Violation[] => scanTestPresence(root, project),
-};
 
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST presence gate via `run`, fsBacked) ─────────────────
 // test-presence reconciles server/contracts source (AST — schema/callable detection) against its MIRROR

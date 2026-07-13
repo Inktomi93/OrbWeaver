@@ -11,10 +11,9 @@
 // Untrusted-content egress (hub browse, databank scrapers, server-side D44 external media) lives OUTSIDE
 // these zones, so a raw `fetch` there is RED — route it through `safeFetch`. PLUS a literal ban on
 // `corsproxy.io` (the NAMED-REJECTED third-party proxy fallback, D61) anywhere in server source.
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const SERVER_SRC = /\/packages\/server\/src\//u;
 const FETCH = "fetch";
@@ -38,63 +37,13 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-/** Bare `fetch(...)` call sites (callee is the identifier `fetch`, not `x.fetch`/`safeFetch`). */
-function rawFetchViolations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const callee = call.getExpression();
-    if (callee.isKind(SyntaxKind.Identifier) && callee.getText() === FETCH) {
-      out.push({ file: rel, line: call.getStartLineNumber(), message: FETCH_MESSAGE });
-    }
-  }
-  return out;
-}
-
-/** `corsproxy.io` inside any string/template literal (comments cite the ban legitimately, so excluded). */
-function corsproxyViolations(sf: SourceFile, rel: string): Violation[] {
-  const out: Violation[] = [];
-  for (const kind of [
-    SyntaxKind.StringLiteral,
-    SyntaxKind.NoSubstitutionTemplateLiteral,
-    SyntaxKind.TemplateHead,
-    SyntaxKind.TemplateMiddle,
-    SyntaxKind.TemplateTail,
-  ] as const) {
-    for (const lit of sf.getDescendantsOfKind(kind)) {
-      if (lit.getText().includes(CORSPROXY)) {
-        out.push({ file: rel, line: lit.getStartLineNumber(), message: CORSPROXY_MESSAGE });
-      }
-    }
-  }
-  return out;
-}
-
-export const noRawEgress: Check = {
-  name: "no-raw-egress",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (!SERVER_SRC.test(path)) {
-        continue;
-      }
-      const rel = relPath(root, path);
-      if (!FETCH_SANCTIONED.some((re) => re.test(path))) {
-        violations.push(...rawFetchViolations(sf, rel));
-      }
-      violations.push(...corsproxyViolations(sf, rel));
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // Two node populations, ONE gate: a bare `fetch(` CallExpression (the SSRF arm), and a `corsproxy.io`
 // string/template literal (the named-reject arm). The descriptor's reason is the fetch arm; a corsproxy
 // finding carries its own per-occurrence message (owner ruling 2 — the two arms are distinct violation
 // types). scanRoot mirrors the legacy SERVER_SRC filter; the fetch-sanctioned zones are checked in
 // `visit` per the legacy path filter (corsproxy is banned server-wide, so it isn't scanRoot-gated).
-// Per-occurrence: each bare fetch + each corsproxy literal. Kept ALONGSIDE the legacy Check.
+// Per-occurrence: each bare fetch + each corsproxy literal.
 const STRING_KINDS: readonly SyntaxKind[] = [
   SyntaxKind.StringLiteral,
   SyntaxKind.NoSubstitutionTemplateLiteral,

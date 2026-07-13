@@ -17,7 +17,7 @@
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
+import type { Violation } from "../harness.ts";
 
 // The flat state tier — direct children only (a path with a further "/" after this prefix is nested).
 const STATE_DIR = "/packages/client/src/state/";
@@ -158,26 +158,12 @@ function scanFile(sf: SourceFile, rel: string, out: Violation[]): void {
   }
 }
 
-export const stateFiles: Check = {
-  name: "state-files",
-  run: ({ project }): Violation[] => {
-    const out: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const rel = flatStateRel(sf.getFilePath());
-      if (rel !== undefined) {
-        scanFile(sf, rel, out);
-      }
-    }
-    return out;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE gate via visitFile) ───────────────────────────────
 // state-files aggregates PER FILE (count mints across the file, then judge >1; the exported-handle is a
 // per-file search), so it ports as a visitFile hook, not a per-node subscription — the whole-file scan is
 // the unit. scanRoot mirrors the legacy flatStateRel (direct children of state/, not index.ts). Three
 // arms → three messages: the field-cap (per mint) + the mint-count (>1, file-level) + the exported-handle
-// (file-level). Findings byte-identical to the legacy Check (same lines). Kept ALONGSIDE the legacy Check.
+// (file-level). Findings byte-identical to the legacy Check (same lines).
 const HANDLE_MESSAGE =
   "the minted store handle is exported — never expose raw set/getState across a module boundary; export intent-named actions + narrow read hooks instead (UI-Architecture-and-Layout.md §5).";
 

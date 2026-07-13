@@ -6,60 +6,18 @@
 // model. This makes the documented chokepoint PHYSICS: a domain outside sessions/admin importing the `users`
 // table symbol from `@orb/db` is RED. (The `@orb/db` schema files legitimately FK `users`; they are not
 // under `domain/`, so they are unaffected.)
-import type { ImportSpecifier, SourceFile } from "ts-morph";
+import type { ImportSpecifier } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Check, Violation } from "../harness.ts";
 
 const TABLE = "users";
 const DB_SPECIFIER = /^@orb\/db(?:\/|$)/u;
-const DOMAIN = /\/packages\/server\/src\/domain\//u;
-const EXEMPT = /\/packages\/server\/src\/domain\/(?:sessions|admin)\//u;
 const MESSAGE =
   "the 'users' table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read chokepoint — Spine-Identity-and-Auth.md). Every other domain takes userId from the resolved Principal (the injected context) — never query users directly.";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-/** Collect every `users`-table named import from `@orb/db` in one file. */
-function usersImportsIn(sf: SourceFile, root: string): Violation[] {
-  const out: Violation[] = [];
-  for (const decl of sf.getImportDeclarations()) {
-    if (!DB_SPECIFIER.test(decl.getModuleSpecifierValue())) {
-      continue;
-    }
-    for (const named of decl.getNamedImports()) {
-      if (named.getName() === TABLE) {
-        out.push({
-          file: relPath(root, sf.getFilePath()),
-          line: named.getStartLineNumber(),
-          message: MESSAGE,
-        });
-      }
-    }
-  }
-  return out;
-}
-
-export const noDirectUsersRead: Check = {
-  name: "no-direct-users-read",
-  run: ({ root, project }): Violation[] => {
-    const violations: Violation[] = [];
-    for (const sf of project.getSourceFiles()) {
-      const path = sf.getFilePath();
-      if (DOMAIN.test(path) && !EXEMPT.test(path)) {
-        violations.push(...usersImportsIn(sf, root));
-      }
-    }
-    return violations;
-  },
-};
-
 // ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // The legacy predicate as an ImportSpecifier subscription: a `users` named import from @orb/db, in a
 // domain file outside sessions/admin. scanRoot mirrors the legacy DOMAIN && !EXEMPT filter (the parity
-// oracle). Per-occurrence (each `users` named import is its own finding). Kept ALONGSIDE the legacy Check.
+// oracle). Per-occurrence (each `users` named import is its own finding).
 const MSG_DIR = /packages\/server\/src\/domain\//u;
 const MSG_EXEMPT = /packages\/server\/src\/domain\/(?:sessions|admin)\//u;
 
