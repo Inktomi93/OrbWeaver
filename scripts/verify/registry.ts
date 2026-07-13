@@ -230,7 +230,7 @@ export const REGISTRY: readonly StageDef[] = [
   {
     name: "tests:node",
     group: "tests",
-    tiers: ["push", "full"],
+    tiers: ["changed", "push", "full"],
     argv: ["pnpm", "test"],
     classify: asViolations,
     // At changed scope: vitest's own related-test graph over the unit+integration lanes (serial + contract
