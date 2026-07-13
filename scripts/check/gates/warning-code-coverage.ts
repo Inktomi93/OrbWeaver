@@ -51,7 +51,7 @@ const CHANNELS: readonly WarningChannel[] = [
 const missingMessage = (channel: WarningChannel, code: string): string =>
   `${channel.tuple} member "${code}" has NO emit site and no DEFERRED entry — a declared-never-emitted ` +
   "warning code is silently dead (D41 bans speculative codes). Wire the emit or add a cited DEFERRED " +
-  "entry (scripts/check/gates/warning-code-coverage.ts). See Core-Path-Registry-D35-D43.md D41.";
+  "entry (scripts/check/gates/warning-code-coverage.ts). See Core-Path-Registry.md D41.";
 const staleMessage = (channel: WarningChannel, code: string): string =>
   `${channel.tuple} DEFERRED member "${code}" now HAS an emit site — delete its stale allowlist entry ` +
   "(scripts/check/gates/warning-code-coverage.ts).";
@@ -138,11 +138,11 @@ function reconcileWarningCoverage(project: Project): Violation[] {
 
 export const gate: GateDescriptor = {
   name: "warning-code-coverage",
-  docRow: "Core-Path-Registry-D35-D43.md D41 (D45/D48/D51)",
+  docRow: "Core-Path-Registry.md D41 (D45/D48/D51)",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a warning-code tuple member has NO emit site and no DEFERRED entry — a declared-never-emitted warning code is silently dead (D41 bans speculative codes). Wire the emit or add a cited DEFERRED entry in scripts/check/gates/warning-code-coverage.ts. See Core-Path-Registry-D35-D43.md D41.",
+    "a warning-code tuple member has NO emit site and no DEFERRED entry — a declared-never-emitted warning code is silently dead (D41 bans speculative codes). Wire the emit or add a cited DEFERRED entry in scripts/check/gates/warning-code-coverage.ts. See Core-Path-Registry.md D41.",
   fix: "wire the `{ code: '…' }` emit site in the channel's scope, or add a cited DEFERRED entry in warning-code-coverage.ts.",
   run: (ctx) => {
     for (const v of reconcileWarningCoverage(ctx.project)) {

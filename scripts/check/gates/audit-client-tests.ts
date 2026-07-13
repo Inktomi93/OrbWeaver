@@ -1,33 +1,7 @@
-// Gate: audit-client-tests — DORMANT (see docs/architecture/core/Core-Enforcement-Deferred-Dropped.md
-// "audit-client-tests": activates when "client tests exist"). Ported from neo-tavern's
-// scripts/check/audit-client-tests.ts onto orb's `Check` interface + the central `tests/` tree — a
-// ts-morph AST audit of every `*.test.ts`/`*.test.tsx` under `tests/` (the mirror; covers `.int.test.ts`
-// too — it's a `.test.ts` suffix match) for structural anti-patterns grep can't see: whether a
-// CallExpression is chained, whether a test callback contains a descendant AwaitExpression, etc.
-//
-// DORMANT BY DECISION (Alex 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — the `gate` descriptor
-// below carries `status:"dormant"`, so the live pass (runPass filters to status:"active") never runs it as
-// part of `pnpm check:structure` today. ACTIVATE by flipping the descriptor's `status` to `"active"` and
-// adding its Layer-3 ACTIVE row (+ count bump) in Core-Enforcement-Active-Gates.md.
-//
-// NOT covered here (same as neo): Playwright Component Tests (`*.ct.tsx`) — they run their own lane
-// (`pnpm test:ct`) with Playwright idioms (`component.getByRole`, `await expect(loc)…`) rather than the
-// vitest/Testing-Library matcher shape this pass understands. A CT-idiom structural audit is a future add.
-//
-// Five patterns, each a `test-no-stubs`-class anti-gaming check (that gate proves a test has AN
-// assertion; this one proves the SURROUNDING shape isn't gaming presence/no-stubs some other way):
-//
-//   1. test()/it() callback has no descendant `expect(...).<matcher>()` chain (directly OR via an
-//      assertion helper like `expectNotFound(...)`/`assertOwned(...)` — resolved transitively, capped
-//      depth 4) — a pure `await x()` proves only "doesn't throw."
-//   2. an async test()/it() callback has no descendant AwaitExpression (missing-await or
-//      unnecessary-async).
-//   3. a bare `expect(x);` ExpressionStatement with no matcher chain.
-//   4. a describe() block with no nested test()/it() descendant.
-//   5. a beforeEach/afterEach/beforeAll/afterAll with an empty arrow body.
-//
-// Self-tested: tests/tooling/audit-client-tests.int.test.ts drives all five rules over an in-memory
-// ts-morph project (synthetic fixtures, never the real tree) proving fire AND no-false-positive.
+// Gate: audit-client-tests — DORMANT (activates when client tests exist). AST audit of every
+// tests/**/*.test.ts(x) for structural anti-patterns grep can't see: an assertion-less test callback
+// (directly or via a resolved assertion helper), a missing-await async test, a bare `expect(x);`, an
+// empty describe() with no nested test, an empty lifecycle hook. Excludes `*.ct.tsx` (own CT lane).
 import type { ArrowFunction, FunctionExpression, Node as TsMorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -37,10 +11,7 @@ const MAX_HELPER_DEPTH = 4;
 const ASSERTION_HELPER_RE = /^(?:expect|assert)[A-Z0-9]/u;
 const TEST_FILE_RE = /\.test\.tsx?$/u;
 
-// Vitest test modifiers that chain off `test`/`it` and still denote a test call. Deliberately
-// EXCLUDES `extend` (`test.extend({…})` defines a fixture, not a test) so a LOCAL variable named `it`
-// (the async-iterator pattern `const it = x[Symbol.asyncIterator](); it.next();`) is never mistaken
-// for a test.
+// Excludes `extend` (test.extend defines a fixture) so a local `it` (async-iterator pattern) isn't mistaken for a test.
 const TEST_MODIFIERS = new Set([
   "only",
   "skip",
@@ -71,9 +42,6 @@ function getCalleeName(call: TsMorphNode): string | undefined {
 
 type CallShape = { readonly root: string; readonly prop: string | undefined };
 
-// Walk a call's callee expression down to its leftmost identifier, tracking the last
-// property-access name seen along the way. `it("n", fn)` → {root:"it", prop:undefined};
-// `it.each(t)("n", fn)` → {root:"it", prop:"each"} (unwraps the chained `.each(...)` call too).
 function walkCallRoot(expr: TsMorphNode, prop: string | undefined): CallShape | undefined {
   if (Node.isIdentifier(expr)) {
     return { root: expr.getText(), prop };
@@ -94,7 +62,6 @@ function isTestCall(call: TsMorphNode): boolean {
   if (shape === undefined || (shape.root !== "test" && shape.root !== "it")) {
     return false;
   }
-  // Bare `test(...)`/`it(...)` OR a recognized modifier chain — never `it.return()`/`it.next()`.
   return shape.prop === undefined || TEST_MODIFIERS.has(shape.prop);
 }
 
@@ -117,9 +84,6 @@ function callbackFromCall(call: TsMorphNode): ArrowFunction | FunctionExpression
   );
 }
 
-// Does `cursor` walk (through call/property-access unwraps) down to the `expect` identifier —
-// either a bare `expect` reference or an `expect(...)` call? Recursion depth is bounded by the AST's
-// own depth (a real expression chain), never user input.
 function walksToExpectCall(cursor: TsMorphNode | undefined): boolean {
   if (cursor === undefined) {
     return false;
@@ -134,15 +98,13 @@ function walksToExpectCall(cursor: TsMorphNode | undefined): boolean {
   if (Node.isPropertyAccessExpression(cursor)) {
     const lhs = cursor.getExpression();
     if (Node.isIdentifier(lhs) && lhs.getText() === "expect") {
-      return true; // expect.element(...).toBeVisible() / expect.poll(...)
+      return true;
     }
     return walksToExpectCall(lhs);
   }
   return false;
 }
 
-// A "matcher-chained expect": a CallExpression whose leftmost target resolves to `expect` (bare or
-// called), followed by at least one more property-access + call (the matcher itself).
 function hasMatcherChainedExpect(node: TsMorphNode): boolean {
   let found = false;
   node.forEachDescendant((d, traversal) => {

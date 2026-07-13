@@ -33,7 +33,7 @@ const SOFT_MESSAGE = (pair: string): string =>
   `column \`${pair}\` is an id-shaped column with NO \`.references()\` FK — a soft ref is banned ` +
   "(boundaries are physics, FK-enforced: D24). Add the FK, or if it is legitimately non-relational add a " +
   "justified allowlist row (scripts/check/gates/no-untyped-soft-ref.ts) with a D-cite. See " +
-  "Core-Path-Registry-D1-D34.md D24.";
+  "Core-Path-Registry.md D24.";
 const STALE_MESSAGE = (pair: string): string =>
   `SOFT_REF_ALLOWLIST names "${pair}" but that column now has a \`.references()\` FK (or no longer ` +
   "exists) — delete the stale entry (scripts/check/gates/no-untyped-soft-ref.ts). See D24.";
@@ -99,11 +99,11 @@ const seenSoftPairs = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "no-untyped-soft-ref",
-  docRow: "Core-Path-Registry-D1-D34.md D24 (D37)",
+  docRow: "Core-Path-Registry.md D24 (D37)",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "an id-shaped column (JS key ends `Id`) carries NO `.references()` FK — a soft ref is banned (boundaries are physics, FK-enforced: D24). Add the FK, or if it is legitimately non-relational add a justified allowlist row in scripts/check/gates/no-untyped-soft-ref.ts with a D-cite. See Core-Path-Registry-D1-D34.md D24.",
+    "an id-shaped column (JS key ends `Id`) carries NO `.references()` FK — a soft ref is banned (boundaries are physics, FK-enforced: D24). Add the FK, or if it is legitimately non-relational add a justified allowlist row in scripts/check/gates/no-untyped-soft-ref.ts with a D-cite. See Core-Path-Registry.md D24.",
   fix: "add the `.references(() => target.id)` FK, or add a D-cited row to SOFT_REF_ALLOWLIST if the column is legitimately non-relational.",
   scanRoot: (p) => SCHEMA_DIR.test(`/${p}`),
   kinds: [SyntaxKind.CallExpression],

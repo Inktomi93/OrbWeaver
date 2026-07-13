@@ -1,12 +1,7 @@
-// Gate: assumes-single-replica (core/Tier-2-Foundation.md esoteric #5, Core-Laws-and-Precedents.md) — module-scope mutable
-// in-memory state (a per-process registry/cache/counter) is the orbweaver v1 single-replica stance, and
-// every such site must DECLARE it with an `ASSUMES(single-replica)` annotation (so the multi-replica
-// replacement seam is findable). This gate enforces the common, machine-detectable form: a module-scope
-// `new Map/Set/WeakMap/WeakSet()` that is a MUTABLE accumulator (NOT seeded purely from an array literal,
-// which is immutable config like `INSTRUMENTED_METHODS`) must live in a file carrying the annotation.
-// EXEMPT: `persistence/` (the persistence-no-in-memory-state grit forbids Map/Set there outright) + tests.
-// LIMIT (by convention + review, not this gate): custom ring/cache CLASSES (LineRing/TraceRing) carry the
-// file-level annotation too — they aren't `new Map/Set`, so they're out of this gate's structural reach.
+// Gate: assumes-single-replica — a module-scope mutable `new Map/Set/WeakMap/WeakSet()` accumulator
+// (per-process in-memory state) must live in a file carrying an `ASSUMES(single-replica)` annotation.
+// Array-literal-seeded (immutable config) is exempt, as is persistence/ (forbidden there outright).
+// LIMIT: custom ring/cache classes aren't `new Map/Set` so are out of this gate's structural reach.
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -14,8 +9,6 @@ import type { GateDescriptor } from "../contract.ts";
 const PERSISTENCE = /\/persistence\//u;
 const STATE_CTORS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);
 const ANNOTATION = "ASSUMES(single-replica)";
-// The ctor name of a module-scope MUTABLE-accumulator `new Map/Set/WeakMap/WeakSet(...)`, else "".
-// A sole array-literal arg = an immutable config seed → "" (not flagged).
 function flaggedCtor(decl: VariableDeclaration): string {
   const init = decl.getInitializer();
   if (init === undefined || !Node.isNewExpression(init)) {
@@ -32,13 +25,6 @@ function flaggedCtor(decl: VariableDeclaration): string {
   return literalSeed ? "" : ctor;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a VariableDeclaration subscription: a MODULE-SCOPE mutable `new Map/Set/…`
-// accumulator in a server-src file that lacks the ASSUMES(single-replica) annotation. scanRoot mirrors
-// the legacy filter (server-src ∧ ¬persistence); the per-file annotation guard is a `getFullText`
-// include, checked per file in visit. Module-scope is enforced by requiring the declaration's
-// VariableStatement to be a direct SourceFile child (the legacy `getVariableStatements()` reach).
-// Per-occurrence.
 const annotationMemo = new Map<string, boolean>();
 
 function isModuleScope(decl: VariableDeclaration): boolean {

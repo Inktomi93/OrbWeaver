@@ -59,7 +59,7 @@ export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
 };
 const STALE_MESSAGE = (table: string): string =>
   `OWNERID_ALLOWLIST names "${table}" but no schema table of that name carries an \`ownerId\` column — ` +
-  "delete the stale entry (scripts/check/gates/ownerid-registry.ts). See Core-Path-Registry-D1-D34.md D23.";
+  "delete the stale entry (scripts/check/gates/ownerid-registry.ts). See Core-Path-Registry.md D23.";
 
 /** If this node is a `sqliteTable("<name>", { … ownerId … })` call, its SQL table name — else undefined.
  *  The single-node form of `ownerIdTables`, for the single-pass visit (no per-file re-walk). */
@@ -101,11 +101,11 @@ const seenOwnerTables = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "ownerid-registry",
-  docRow: "Core-Path-Registry-D1-D34.md D23 (D30/D21/D49)",
+  docRow: "Core-Path-Registry.md D23 (D30/D21/D49)",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a table stamps an `ownerId` column but is NOT on the D23 ownership-stamp allowlist — an ownerId is legal ONLY on a TRUE PRODUCER, a parentless per-user aggregate, or a sanctioned scope-subject (chat_tags D30 / global_documents D49); every other table DERIVES its owner via ONE FK. Drop the stamp or add a justified allowlist row in scripts/check/gates/ownerid-registry.ts with a D-cite. See Core-Path-Registry-D1-D34.md D23.",
+    "a table stamps an `ownerId` column but is NOT on the D23 ownership-stamp allowlist — an ownerId is legal ONLY on a TRUE PRODUCER, a parentless per-user aggregate, or a sanctioned scope-subject (chat_tags D30 / global_documents D49); every other table DERIVES its owner via ONE FK. Drop the stamp or add a justified allowlist row in scripts/check/gates/ownerid-registry.ts with a D-cite. See Core-Path-Registry.md D23.",
   fix: "drop the redundant ownerId (derive the owner via ONE FK to an owned entity), or add a D-cited row to OWNERID_ALLOWLIST.",
   scanRoot: (p) => SCHEMA_DIR.test(`/${p}`),
   kinds: [SyntaxKind.CallExpression],
