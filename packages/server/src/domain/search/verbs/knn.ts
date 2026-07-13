@@ -3,10 +3,11 @@
 // SAME embed model, so a query never compares across embedding spaces. rerank is opt-in; a rejection
 // propagates rather than silently falling back.
 
+import type { SearchContext } from "../context";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
 import type { KnnParams } from "../contract/params";
 import type { SearchHit } from "../contract/results";
-import type { SearchContext, SearchService } from "../contract/service";
+import type { SearchService } from "../contract/service";
 import { nearestCharacters } from "../persistence/nearest";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants";
 import { compareCslsBy, cslsAdjust, rerankPoolByScores } from "../substrate/csls";

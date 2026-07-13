@@ -8,6 +8,7 @@
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
+import type { DiscoveryContext } from "../context";
 import type { ImageFacetKey } from "../contract/params";
 import type {
   FacetCount,
@@ -16,7 +17,7 @@ import type {
   PortraitAlignment,
   PortraitAlignmentReport,
 } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 import {
   readCaptionRowsByFacet,
   readOwnedCaptionRows,

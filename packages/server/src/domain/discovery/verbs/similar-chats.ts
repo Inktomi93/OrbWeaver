@@ -7,8 +7,9 @@ import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cosineToMany, mean } from "@orb/kit/vector-math";
+import type { DiscoveryContext } from "../context";
 import type { SimilarChat } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 import { readOwnedSegmentVectorsByChat } from "../persistence/embed-store-reads";
 
 const DEFAULT_LIMIT = 10;

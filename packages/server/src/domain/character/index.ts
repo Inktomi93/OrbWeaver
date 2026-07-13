@@ -1,6 +1,7 @@
 // domain/character — FRONT DOOR: the only legal external import; re-exports the public surface. Cross-
 // boundary wire types/schemas live in `@orb/contracts/character` and are NOT re-exported here.
 
+export type { CharacterContext } from "./context";
 export {
   AssetNotFoundError,
   CharacterNotFoundError,
@@ -36,7 +37,6 @@ export type {
 } from "./contract/results";
 export type {
   AttachCardTagOp,
-  CharacterContext,
   CharacterService,
   DetachCardTagOp,
   ReapAssetsOp,

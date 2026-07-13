@@ -6,9 +6,10 @@
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import type { CredentialContext } from "../context";
 import { CREDENTIALS_OP_CODES, CredentialsConflictError } from "../contract/errors";
 import type { AddCredentialParams } from "../contract/params";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialsService } from "../contract/service";
 import type { CredentialView } from "../contract/views";
 import { aadFor } from "../persistence/aad";
 import {

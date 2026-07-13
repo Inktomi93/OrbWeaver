@@ -7,9 +7,10 @@
 import { worldBooks } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
 import { and, eq } from "drizzle-orm";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { UpdateBookParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { loadOwnedBook, toBookView } from "../../persistence/queries";
 
 export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateBook"] {

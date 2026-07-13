@@ -9,8 +9,9 @@
 // reach domain/assets — the avatar store is injected, same as the card PNG).
 
 import type { BulkImportPersonaInput, PersonaMetadata } from "@orb/contracts/persona";
+import type { ImportContext } from "../context";
 import type { ImportPersonasResult } from "../contract/results";
-import type { ImportContext, ImportService } from "../contract/service";
+import type { ImportService } from "../contract/service";
 import type { ImportPersonaInput } from "../contract/views";
 import { requireProfile } from "../guard";
 

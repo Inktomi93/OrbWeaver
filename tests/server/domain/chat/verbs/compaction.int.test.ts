@@ -12,7 +12,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction";
 import { freshDb } from "../../../../support/db";

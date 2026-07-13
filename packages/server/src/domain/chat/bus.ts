@@ -10,7 +10,7 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "./contract/context";
+import type { ChatContext } from "./context";
 import { appendChatEvent } from "./persistence/events";
 
 /** Returns the durable per-chat `seq` so the composition root can fan the same cursor-stamped event onto the

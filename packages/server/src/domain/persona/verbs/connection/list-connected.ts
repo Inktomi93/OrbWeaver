@@ -2,8 +2,9 @@
 // character must belong to the caller (gate first). Reuses the avatar LEFT JOIN + `detailOf` so connected
 // personas render identically to a plain list. A read: no audit.
 
+import type { PersonaContext } from "../../context";
 import type { ListConnectedParams } from "../../contract/params";
-import type { PersonaContext, PersonaService } from "../../contract/service";
+import type { PersonaService } from "../../contract/service";
 import {
   detailOf,
   ensureCharacterOwned,

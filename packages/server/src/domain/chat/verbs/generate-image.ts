@@ -8,7 +8,7 @@
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { batchMany } from "@orb/db/kit";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import type { GenerateImageParams } from "../contract/params";
 import type { ChatService } from "../contract/service";
 import { requireParticipant } from "../guard";

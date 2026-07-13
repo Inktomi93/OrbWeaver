@@ -10,9 +10,10 @@ import type {
 } from "@orb/contracts/credentials";
 import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import type { CredentialContext } from "../context";
 import { CREDENTIALS_OP_CODES } from "../contract/errors";
 import type { ResolveCredentialParams } from "../contract/params";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialsService } from "../contract/service";
 import { aadFor } from "../persistence/aad";
 import { loadActiveCredential } from "../persistence/queries";
 import { decryptSealed } from "../substrate/decrypt";

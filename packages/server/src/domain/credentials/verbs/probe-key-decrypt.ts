@@ -1,5 +1,6 @@
 import { userCredentials } from "@orb/db";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialContext } from "../context";
+import type { CredentialsService } from "../contract/service";
 import { aadFor } from "../persistence/aad";
 import { decryptSealed } from "../substrate/decrypt";
 

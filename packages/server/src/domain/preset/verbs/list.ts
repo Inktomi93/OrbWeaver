@@ -1,5 +1,6 @@
+import type { PresetContext } from "../context";
 import type { ListPresetsParams } from "../contract/params";
-import type { PresetContext, PresetService } from "../contract/service";
+import type { PresetService } from "../contract/service";
 import type { PresetSummary } from "../contract/views";
 import { listReadable } from "../persistence/queries";
 import { toPresetSummary } from "../substrate/views";

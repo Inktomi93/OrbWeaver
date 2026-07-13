@@ -6,8 +6,9 @@
 // Compose-root-internal; never a user-facing surface. `undefined` when the row is gone.
 
 import type { AssetId } from "@orb/kit/ids";
+import type { AssetsContext } from "../context";
 import type { AssetCasRef } from "../contract/results";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsService } from "../contract/service";
 import { loadAssetCasRefById } from "../persistence/queries";
 
 export function createAssetCasRefById(ctx: AssetsContext): AssetsService["assetCasRefById"] {

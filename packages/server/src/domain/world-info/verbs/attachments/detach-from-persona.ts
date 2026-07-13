@@ -3,8 +3,9 @@
 
 import { personaBooks } from "@orb/db";
 import { and, eq } from "drizzle-orm";
+import type { WorldInfoContext } from "../../context";
 import type { DetachFromPersonaParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { ensurePersonaOwned } from "../../persistence/ownership";
 
 export function createDetachFromPersona(

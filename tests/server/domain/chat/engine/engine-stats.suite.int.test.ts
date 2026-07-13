@@ -20,7 +20,7 @@ import type { CharacterId, ChatId, ModelId, PersonaId, UserId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import type {
   TurnPrep,
   TurnStreamChunk,

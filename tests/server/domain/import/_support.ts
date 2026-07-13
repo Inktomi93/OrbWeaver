@@ -13,10 +13,8 @@ import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type {
-  ImportContext,
-  ImportProfileDeps,
-} from "../../../../packages/server/src/domain/import/contract/service.ts";
+import type { ImportContext } from "../../../../packages/server/src/domain/import/context.ts";
+import type { ImportProfileDeps } from "../../../../packages/server/src/domain/import/contract/service.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 // A format-VALID asset TypeID (26-char crockford-base32 suffix) — the create schema validates

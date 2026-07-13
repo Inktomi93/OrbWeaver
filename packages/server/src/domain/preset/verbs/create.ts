@@ -1,7 +1,8 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
+import type { PresetContext } from "../context";
 import type { CreatePresetParams } from "../contract/params";
-import type { PresetContext, PresetService } from "../contract/service";
+import type { PresetService } from "../contract/service";
 import type { PresetDetail } from "../contract/views";
 import { insertPreset } from "../persistence/queries";
 import { toPresetDetail } from "../substrate/views";

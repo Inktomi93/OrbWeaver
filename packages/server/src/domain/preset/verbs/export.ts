@@ -4,8 +4,8 @@
 
 import { buildPresetFile, parsePromptConfig } from "@orb/contracts/preset";
 import { slugifyHandle } from "@orb/kit/slug";
+import type { PresetContext } from "../context";
 import type { ExportPresets, PresetExportFile } from "../contract/portability";
-import type { PresetContext } from "../contract/service";
 import { listOwned } from "../persistence/queries";
 
 export function createExport(ctx: PresetContext): ExportPresets {

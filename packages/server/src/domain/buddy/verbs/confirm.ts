@@ -6,9 +6,10 @@
 // no sibling domain). Owner-scoped by `principal.userId`.
 
 import { DomainConflictError } from "@orb/kit/errors";
+import type { BuddyContext } from "../context";
 import type { ConfirmBuddyParams } from "../contract/params";
 import type { ConfirmBuddyResult, Proposal } from "../contract/results";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyService } from "../contract/service";
 import { appendTurn, loadBuddy, renameBuddy } from "../persistence/queries";
 import { claimProposal, dropProposal, withinMutationBudget } from "../substrate/gate";
 

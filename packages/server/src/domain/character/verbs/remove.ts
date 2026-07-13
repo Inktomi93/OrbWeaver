@@ -7,9 +7,10 @@
 // not owned/found.
 
 import { getLog } from "#foundation/observability";
+import type { CharacterContext } from "../context";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { RemoveCharacterParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { deleteOwnedCharacter } from "../persistence/card";
 import { loadOwnedCharacterRow } from "../persistence/queries";
 

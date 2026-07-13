@@ -1,8 +1,9 @@
 // verb: history — the persisted buddy-chat transcript, oldest-first, for hydration on load. Display caps
 // at the most recent ~50 turns (the bubble list is short; `ask` slices tighter for memory). Owner-scoped.
 
+import type { BuddyContext } from "../context";
 import type { BuddyHistoryParams } from "../contract/params";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyService } from "../contract/service";
 import { loadTurns, turnToView } from "../persistence/queries";
 
 const DISPLAY_LIMIT = 50;

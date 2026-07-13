@@ -192,8 +192,16 @@ function staticImporterHits(sf: SourceFile, spec: string): Hit[] {
     ...sf.getExportDeclarations(),
   ];
   for (const d of decls) {
-    const m = d.getModuleSpecifierValue();
-    if (m !== undefined && m.includes(spec)) {
+    // Two independent match strategies, OR'd: (1) the raw specifier text — catches package/#alias specs
+    // the caller quotes verbatim (`@orb/ui/badge`); (2) the RESOLVED target file's path — catches relative
+    // specs (`../assembly/shape`, `./context`) that share no substring with a file-path query at all. Without
+    // (2), querying by file path silently misses every relative importer (a false "0 importers" dead-code
+    // signal) — resolution handles relative/#alias/@orb subpath uniformly (same technique as resolvedGraph).
+    const raw = d.getModuleSpecifierValue();
+    const rawHit = raw?.includes(spec);
+    const resolved = d.getModuleSpecifierSourceFile()?.getFilePath();
+    const resolvedHit = resolved?.includes(spec);
+    if (rawHit || resolvedHit) {
       out.push(hitOf(d, "import"));
     }
   }

@@ -5,13 +5,14 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
+import type { CharacterContext } from "../context";
 import {
   CHARACTER_HANDLE_RESERVED,
   CharacterNotFoundError,
   CharacterOperationError,
 } from "../contract/errors";
 import type { UpdateCharacterParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { writeCardInPlace } from "../persistence/card";
 import {
   canonicalTagsOf,

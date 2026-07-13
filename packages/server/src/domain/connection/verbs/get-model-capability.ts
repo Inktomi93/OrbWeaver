@@ -5,8 +5,9 @@
 // promise for the async service surface.
 
 import type { ModelCapability } from "@orb/contracts/connection";
+import type { ConnectionContext } from "../context";
 import type { GetModelCapabilityParams } from "../contract/params";
-import type { ConnectionContext, ConnectionService } from "../contract/service";
+import type { ConnectionService } from "../contract/service";
 import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
 import { getCachedOrModels } from "../substrate/or-model-cache";

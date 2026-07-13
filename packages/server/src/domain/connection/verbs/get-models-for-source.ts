@@ -9,9 +9,10 @@ import type { ModelCatalogEntry, RoutingRoleKey } from "@orb/contracts/connectio
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import { env } from "#foundation/env";
+import type { ConnectionContext } from "../context";
 import type { GetModelsForSourceParams } from "../contract/params";
 import type { SourceModelEntry, SourceModelsResult } from "../contract/results";
-import type { ConnectionContext, ConnectionService } from "../contract/service";
+import type { ConnectionService } from "../contract/service";
 import { readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
 import { readCatalogSnapshot } from "../persistence/catalog-snapshot";
 import { curatedShortlistEntries } from "../substrate/curated-shortlist";

@@ -27,7 +27,7 @@ import type { Db } from "../../../../packages/db/src/client/index.ts";
 import { DomainNoCredentialError } from "../../../../packages/kit/src/errors/index.ts";
 import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";
-import type { ConnectionContext } from "../../../../packages/server/src/domain/connection/contract/service.ts";
+import type { ConnectionContext } from "../../../../packages/server/src/domain/connection/context.ts";
 import type { Clock } from "../../../support/clock.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";

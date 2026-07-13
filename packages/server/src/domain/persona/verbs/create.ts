@@ -6,9 +6,10 @@
 // for the detail view (the inserted row alone would lose the joined `assets.hash`).
 
 import { personas } from "@orb/db";
+import type { PersonaContext } from "../context";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { CreatePersonaParams } from "../contract/params";
-import type { PersonaContext, PersonaService } from "../contract/service";
+import type { PersonaService } from "../contract/service";
 import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 import { normalizeWriteMetadata } from "../substrate/metadata";
 

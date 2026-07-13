@@ -7,6 +7,7 @@ import type { Db } from "@orb/db";
 import { characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import type { DiscoveryContext } from "../context";
 import type {
   CatalogStats,
   CharacterComparison,
@@ -15,7 +16,7 @@ import type {
   TagCount,
   TagPair,
 } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 
 const TOP_TAGS_LIMIT = 40;
 const TAG_PAIRS_LIMIT = 30;

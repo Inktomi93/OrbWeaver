@@ -10,7 +10,7 @@
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
-import type { ChatContext } from "../../contract/context";
+import type { ChatContext } from "../../context";
 import { spanWitnessed } from "../build/substrate/witnessing";
 import { resolveCfg } from "../constants";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries";

@@ -6,8 +6,9 @@
 // supports drafts for pre-save /models validation.
 
 import type { EndpointInspection } from "@orb/contracts/providers";
+import type { CredentialContext } from "../context";
 import type { InspectEndpointParams } from "../contract/params";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialsService } from "../contract/service";
 import { aadFor } from "../persistence/aad";
 import { fetchOwnedCredential } from "../persistence/queries";
 import { requireOwned } from "../substrate/credential-not-found";

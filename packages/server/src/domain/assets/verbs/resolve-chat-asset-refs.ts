@@ -9,7 +9,8 @@
 // resolves; empty input ⇒ no query.
 
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsContext } from "../context";
+import type { AssetsService } from "../contract/service";
 import type { AssetBlobRef } from "../contract/views";
 
 export function createResolveChatAssetRefs(

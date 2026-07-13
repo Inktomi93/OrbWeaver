@@ -8,9 +8,10 @@
 import { users } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { and, eq, ne } from "drizzle-orm";
+import type { AdminContext } from "../context";
 import { ADMIN_OP_CODES } from "../contract/errors";
 import type { SetEnabledParams } from "../contract/params";
-import type { AdminContext, AdminService } from "../contract/service";
+import type { AdminService } from "../contract/service";
 import { requireAdmin } from "../guard";
 import { loadUser, userCols } from "../persistence/queries";
 

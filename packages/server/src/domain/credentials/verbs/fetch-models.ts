@@ -5,8 +5,9 @@
 // `parseCustomOpenAiEndpoint` seam guarantees no fetch against an `undefined` URL).
 
 import { getLog } from "#foundation/observability";
+import type { CredentialContext } from "../context";
 import type { FetchModelsParams } from "../contract/params";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialsService } from "../contract/service";
 import { aadFor } from "../persistence/aad";
 import { fetchOwnedCredential } from "../persistence/queries";
 import { decryptSealed } from "../substrate/decrypt";

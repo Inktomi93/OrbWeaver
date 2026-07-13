@@ -3,7 +3,8 @@
 // calls the verb factories and assembles the `ConnectionService`. `resolveChat` delegates to the same
 // `resolveRole` instance (the one home for resolution) — wired here at the root, never sibling-imported.
 
-import type { ConnectionContext, ConnectionService } from "./contract/service";
+import type { ConnectionContext } from "./context";
+import type { ConnectionService } from "./contract/service";
 import { createGetAgentSdkCatalog } from "./verbs/get-agent-sdk-catalog";
 import { createGetCatalog } from "./verbs/get-catalog";
 import { createGetGenerationCost } from "./verbs/get-generation-cost";

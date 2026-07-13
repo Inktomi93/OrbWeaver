@@ -5,9 +5,10 @@
 
 import { personas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
+import type { PersonaContext } from "../context";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { SetActivePersonaParams } from "../contract/params";
-import type { PersonaContext, PersonaService } from "../contract/service";
+import type { PersonaService } from "../contract/service";
 
 export function createSetActive(ctx: PersonaContext): PersonaService["setActivePersona"] {
   return async ({

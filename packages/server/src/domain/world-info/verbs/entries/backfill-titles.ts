@@ -7,9 +7,10 @@
 
 import { batchMany, worldEntries } from "@orb/db";
 import { eq } from "drizzle-orm";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { BackfillTitlesParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { listBookEntries, loadOwnedBook } from "../../persistence/queries";
 
 export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["backfillTitles"] {

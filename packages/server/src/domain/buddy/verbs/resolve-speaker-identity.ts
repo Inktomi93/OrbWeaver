@@ -6,7 +6,8 @@
 
 import type { AgentSpeakerIdentity } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyContext } from "../context";
+import type { BuddyService } from "../contract/service";
 import { loadBuddy } from "../persistence/queries";
 import { buildSoulPrompt } from "../substrate/agent";
 import { bondTierOf, formOf } from "../substrate/mood";

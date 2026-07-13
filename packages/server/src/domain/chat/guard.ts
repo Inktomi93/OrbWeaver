@@ -15,7 +15,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "./contract/context";
+import type { ChatContext } from "./context";
 import { loadMemberChat } from "./persistence/queries";
 import { assertAuthorOrHost, assertHost, assertParticipant } from "./substrate/auth";
 

@@ -46,7 +46,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
-import type { ChatContext } from "../../../../packages/server/src/domain/chat/contract/context";
+import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
 import type {
   TurnRequest,
   TurnStreamChunk,

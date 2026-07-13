@@ -25,7 +25,7 @@ import { isReservedAgentHandle } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
 import type {
   AcceptInviteParams,

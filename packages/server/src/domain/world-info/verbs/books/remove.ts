@@ -5,9 +5,10 @@
 
 import { worldBooks } from "@orb/db";
 import { and, eq } from "drizzle-orm";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { RemoveBookParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 
 export function createRemove(ctx: WorldInfoContext): WorldInfoService["removeBook"] {
   return async ({ principal, bookId }: RemoveBookParams) => {

@@ -6,7 +6,8 @@
 // (`importChats` / `importPersonas`) — the latter close over `ctx.profile` (the db handle + minters +
 // `personaByUserName` + the PD-78 ops, RULING A); they throw if `ctx.profile` is absent (a card-only wiring).
 
-import type { ImportContext, ImportService } from "./contract/service";
+import type { ImportContext } from "./context";
+import type { ImportService } from "./contract/service";
 import { createImportCharacter } from "./verbs/import-character";
 import { createImportChats } from "./verbs/import-chats";
 import { createImportPersonas } from "./verbs/import-personas";

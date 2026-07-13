@@ -5,13 +5,13 @@
 //
 // Pure: no DB, no fs, no logger. A parse failure returns null, never throws.
 
-import { createHash } from "node:crypto";
 import type { CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
 import { slugifyHandle } from "@orb/kit/slug";
+import { sha256Hex } from "#kit/content-hash";
 import {
   cardFromJson,
   extractLorebook,
@@ -117,7 +117,7 @@ export function parseCardJson(input: Uint8Array | string, fallbackName: string):
 
 /** Distinct from cardContentHash: a re-encoded identical card hashes the same content but a different file. */
 export function importFileHash(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
+  return sha256Hex(bytes);
 }
 
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */

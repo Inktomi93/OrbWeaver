@@ -4,7 +4,8 @@
 // wired here (the retrieval ranking has one home; `find-characters` never re-implements or sideways-imports
 // it). The memory/discover/image/lexical verbs join here as they land (see `contract/service.ts` ledger).
 
-import type { SearchContext, SearchService } from "./contract/service";
+import type { SearchContext } from "./context";
+import type { SearchService } from "./contract/service";
 import { createCorpus } from "./verbs/corpus";
 import { createDigests } from "./verbs/digests";
 import { createDiscover } from "./verbs/discover";

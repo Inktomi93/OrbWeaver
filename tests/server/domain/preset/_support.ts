@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { Handle, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PresetContext } from "../../../../packages/server/src/domain/preset/contract/service.ts";
+import type { PresetContext } from "../../../../packages/server/src/domain/preset/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";

@@ -10,7 +10,8 @@
 // role can't embed.
 
 import type { AssetId, UserId } from "@orb/kit/ids";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsContext } from "../context";
+import type { AssetsService } from "../contract/service";
 import { listImageAssetIdRows } from "../persistence/queries";
 
 export function createListImageAssetIds(ctx: AssetsContext): AssetsService["listImageAssetIds"] {

@@ -8,7 +8,8 @@
 //   `create`/`findByHandle` verbs (`createDefaultCharacterSeeder` lives in `seeder/`, re-exported from the
 //   front door). See seeder/ + contract/seeder.ts.
 
-import type { CharacterContext, CharacterService } from "./contract/service";
+import type { CharacterContext } from "./context";
+import type { CharacterService } from "./contract/service";
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag";
 import { createBulkArchive } from "./verbs/bulk-archive";
 import { createBulkRemove } from "./verbs/bulk-remove";

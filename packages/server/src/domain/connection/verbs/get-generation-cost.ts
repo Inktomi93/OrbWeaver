@@ -5,8 +5,9 @@
 // error verbatim); connection adds no reshaping.
 
 import type { GenerationCost } from "@orb/contracts/providers";
+import type { ConnectionContext } from "../context";
 import type { GetGenerationCostParams } from "../contract/params";
-import type { ConnectionContext, ConnectionService } from "../contract/service";
+import type { ConnectionService } from "../contract/service";
 
 export function createGetGenerationCost(
   ctx: ConnectionContext,

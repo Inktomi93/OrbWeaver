@@ -4,7 +4,8 @@
 // throw loud rather than degrade. A domain-root helper (NOT under verbs/) so both chat/persona verbs share it
 // without a verb-to-verb import (domain-no-cross-verb).
 
-import type { ImportContext, ImportProfileDeps } from "./contract/service";
+import type { ImportContext } from "./context";
+import type { ImportProfileDeps } from "./contract/service";
 
 export function requireProfile(ctx: ImportContext): ImportProfileDeps {
   if (ctx.profile === undefined) {

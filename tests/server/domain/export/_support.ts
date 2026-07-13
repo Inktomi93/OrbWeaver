@@ -32,7 +32,7 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ExportContext } from "../../../../packages/server/src/domain/export/contract/service.ts";
+import type { ExportContext } from "../../../../packages/server/src/domain/export/context.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

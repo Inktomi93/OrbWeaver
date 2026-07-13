@@ -9,7 +9,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import type { ChatContext } from "../../contract/context";
+import type { ChatContext } from "../../context";
 import { resolveCfg } from "../constants";
 import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries";
 import type { MemoryConfig, MemoryPassCounts } from "../types";

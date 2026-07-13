@@ -8,8 +8,9 @@
 // `ownerId` scopes every store + the batched UPDATE.
 
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetsContext } from "../context";
 import type { BackfillCard } from "../contract/maintenance";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsService } from "../contract/service";
 import { batchLinkAvatars } from "../persistence/maintenance";
 import { storeBlob } from "../persistence/queries";
 

@@ -7,7 +7,8 @@
 // (a book via `worldBooks.ownerId`, an entry via its book, an attachment target via its own owner column);
 // the chat scope is MEMBERSHIP-scoped (D18) through the injected guards (contract/service.ts header).
 
-import type { WorldInfoContext, WorldInfoService } from "./contract/service";
+import type { WorldInfoContext } from "./context";
+import type { WorldInfoService } from "./contract/service";
 import {
   createAttachGlobal,
   createAttachToCharacter,

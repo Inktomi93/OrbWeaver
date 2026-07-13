@@ -7,8 +7,9 @@
 
 import { errorMessage } from "@orb/kit/error-message";
 import { getLog, securityEvent } from "#foundation/observability";
+import type { CredentialContext } from "../context";
 import type { MaybeRevokeParams } from "../contract/params";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialsService } from "../contract/service";
 import { setRevokedById } from "../persistence/queries";
 
 const AUTH_FAILED = "auth_failed";

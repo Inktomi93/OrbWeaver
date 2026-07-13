@@ -1,12 +1,13 @@
 // FRONT DOOR: the only legal external import; re-exports the public surface. `StoredAsset`/`AssetKind` live
 // in `@orb/contracts/assets` instead; maintenance/DR verb param types are domain-internal (contract/maintenance.ts).
 
+export type { AssetsContext } from "./context";
 export type {
   AssetMetadata,
   GalleryImportOutcome,
   GalleryPortableFile,
 } from "./contract/results";
-export type { AssetsContext, AssetsService } from "./contract/service";
+export type { AssetsService } from "./contract/service";
 export { createAssetsService } from "./service";
 // The assets/gallery portability halves — entry root composes these into their PortableEntity descriptors.
 // Not on AssetsService — a bundle descriptor, not the core path.

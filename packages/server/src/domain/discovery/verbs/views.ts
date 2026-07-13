@@ -7,9 +7,10 @@
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
+import type { DiscoveryContext } from "../context";
 import type { ThemeLevel } from "../contract/params";
 import type { HomeView, ThemeDetail } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService, ViewsDeps } from "../contract/service";
+import type { DiscoveryService, ViewsDeps } from "../contract/service";
 import {
   readCorpusCoverage,
   readThemeClusterMembers,

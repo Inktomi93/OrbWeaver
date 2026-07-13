@@ -6,10 +6,11 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
+import type { ImportContext } from "../context";
 import { ImportCardError } from "../contract/errors";
 import type { ImportCharacterInput } from "../contract/params";
 import type { ImportCharacterResult } from "../contract/results";
-import type { ImportContext, ImportService } from "../contract/service";
+import type { ImportService } from "../contract/service";
 import { cardToCreateInput, importFileHash, parseCardJson, parseCardPng } from "../substrate/card";
 
 const PNG_MIME = "image/png";

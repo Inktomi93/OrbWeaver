@@ -7,8 +7,9 @@ import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 import { isAnimated } from "@orb/kit/image-sniff";
+import type { AssetsContext } from "../context";
 import type { ResolveVariantParams } from "../contract/params";
-import type { AssetsContext, AssetsService } from "../contract/service";
+import type { AssetsService } from "../contract/service";
 import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/variant-policy";
 
 const WEBP = "webp";

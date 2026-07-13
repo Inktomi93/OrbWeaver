@@ -2,7 +2,8 @@
 // only calls the verb factories and assembles the `AdminService` (the grouped `sessions`/`vllm` factories
 // each return their slice). The `AdminContext` is built at the entry composition root and passed in.
 
-import type { AdminContext, AdminService } from "./contract/service";
+import type { AdminContext } from "./context";
+import type { AdminService } from "./contract/service";
 import { createCreateUser } from "./verbs/create-user";
 import { createEmbed } from "./verbs/embed";
 import { createListUsers } from "./verbs/list-users";

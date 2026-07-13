@@ -4,9 +4,10 @@
 
 import type { PersonaBackupInput } from "@orb/contracts/persona";
 import { buildPersonaBackup } from "#kit/serde/persona";
+import type { PersonaContext } from "../context";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { ExportPersonaParams } from "../contract/params";
-import type { PersonaContext, PersonaService } from "../contract/service";
+import type { PersonaService } from "../contract/service";
 import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 
 export function createExport(ctx: PersonaContext): PersonaService["export"] {

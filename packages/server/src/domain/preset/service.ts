@@ -3,7 +3,8 @@
 // clock/id seam) is built at the entry composition root and passed in — preset injects no cross-feature
 // op and no guard (it gates by `ownerId === userId`).
 
-import type { PresetContext, PresetService } from "./contract/service";
+import type { PresetContext } from "./context";
+import type { PresetService } from "./contract/service";
 import { createCreate } from "./verbs/create";
 import { createGet } from "./verbs/get";
 import { createList } from "./verbs/list";

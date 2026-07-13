@@ -21,7 +21,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import type {

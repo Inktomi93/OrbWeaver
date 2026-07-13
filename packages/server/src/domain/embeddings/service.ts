@@ -5,7 +5,8 @@
 // bound `store` verb + the indexer's caption generator as EXPLICIT deps here (domain-no-cross-verb /
 // domain-substrate-mediates-subsystems — the composition point is this file, never a verb-to-verb import).
 
-import type { EmbeddingsContext, EmbeddingsService } from "./contract/service";
+import type { EmbeddingsContext } from "./context";
+import type { EmbeddingsService } from "./contract/service";
 import { generateAvatarCaption } from "./indexer/caption";
 import { createClearTable } from "./verbs/clear-table";
 import { createEmbedAssets } from "./verbs/embed-assets";

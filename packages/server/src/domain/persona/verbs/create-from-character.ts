@@ -5,9 +5,10 @@
 
 import { characters, personas } from "@orb/db";
 import { eq } from "drizzle-orm";
+import type { PersonaContext } from "../context";
 import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors";
 import type { CreateFromCharacterParams } from "../contract/params";
-import type { PersonaContext, PersonaService } from "../contract/service";
+import type { PersonaService } from "../contract/service";
 import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 import { swapPersonaMacros } from "../substrate/macro-swap";
 

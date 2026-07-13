@@ -2,11 +2,8 @@
 // CredentialHealth, ProviderMetadata, CredentialProvider, CredentialSource) live in @orb/contracts/credentials;
 // callers import them from there directly, not through this front door.
 
+export type { CredentialContext } from "./context";
 export { CredentialsConflictError, CredentialsNotFoundError } from "./contract/errors";
-export type {
-  CredentialContext,
-  CredentialsService,
-  CredentialsServiceDeps,
-} from "./contract/service";
+export type { CredentialsService, CredentialsServiceDeps } from "./contract/service";
 export type { CredentialView } from "./contract/views";
 export { createCredentialsService } from "./service";

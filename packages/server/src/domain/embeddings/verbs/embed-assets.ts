@@ -7,9 +7,10 @@
 // into `store`. Cooperative abort between assets; an embed failure propagates.
 
 import type { AssetId } from "@orb/kit/ids";
+import type { EmbeddingsContext } from "../context";
 import type { EmbedPassParams } from "../contract/params";
 import type { BulkEmbedResult } from "../contract/results";
-import type { EmbeddingsContext, EmbeddingsService } from "../contract/service";
+import type { EmbeddingsService } from "../contract/service";
 import { existingImageHash } from "../persistence/queries";
 import { contentHash } from "../substrate/hash";
 

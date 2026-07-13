@@ -2,6 +2,7 @@
 // is sort-discriminated: each sort has its own keyset, so a cursor minted under a different sort is
 // rejected rather than silently mis-applied (would return misordered/duplicated rows).
 
+import type { CharacterContext } from "../context";
 import { CharacterOperationError } from "../contract/errors";
 import type {
   CharacterListCursor,
@@ -9,7 +10,7 @@ import type {
   ListCharactersParams,
 } from "../contract/params";
 import type { ListCharactersResult } from "../contract/results";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { canonicalTagsFor, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries";
 
 const DEFAULT_LIMIT = 50;

@@ -3,8 +3,9 @@
 // emit (the embedded card text is unchanged). Foreign/missing ids simply don't match the WHERE. Audits once
 // with the count actually flipped.
 
+import type { CharacterContext } from "../context";
 import type { BulkArchiveParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { setArchivedBulk } from "../persistence/card";
 
 export function createBulkArchive(ctx: CharacterContext): CharacterService["bulkArchive"] {

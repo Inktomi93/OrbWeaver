@@ -6,9 +6,10 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { DiscoveryContext } from "../context";
 import type { SimilarityGraphOptions } from "../contract/params";
 import type { SimilarityGraph, SimilarityGraphEdge } from "../contract/results";
-import type { DiscoveryContext, DiscoveryService } from "../contract/service";
+import type { DiscoveryService } from "../contract/service";
 import { readOwnedCharacterVectors } from "../persistence/embed-store-reads";
 import { readOwnedCardFacets } from "../persistence/summary-reads";
 import { pairsAboveThreshold } from "../substrate/pair-cosine";

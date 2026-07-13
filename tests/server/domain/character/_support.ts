@@ -20,9 +20,9 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type {
   AttachCardTagOp,
-  CharacterContext,
   DetachCardTagOp,
 } from "../../../../packages/server/src/domain/character/contract/service.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";

@@ -15,9 +15,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ParsedChat, ParsedChatMessage, ParsedVariant } from "#kit/serde/chat";
 import { buildChatJsonl, buildChatTxt, classifyChat } from "#kit/serde/chat";
+import type { ExportContext } from "../context";
 import type { ExportChatParams } from "../contract/params";
 import type { ExportedText } from "../contract/results";
-import type { ExportContext, ExportService } from "../contract/service";
+import type { ExportService } from "../contract/service";
 import { slug } from "../substrate/download-slug";
 
 type ChatRow = typeof chats.$inferSelect;

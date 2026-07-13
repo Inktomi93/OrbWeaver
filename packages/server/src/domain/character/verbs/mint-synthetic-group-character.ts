@@ -6,6 +6,7 @@
 // filtered from the embed pass).
 
 import { cardContentHash } from "#kit/serde/card";
+import type { CharacterContext } from "../context";
 import {
   CHARACTER_HANDLE_CONFLICT,
   CHARACTER_HANDLE_RESERVED,
@@ -13,7 +14,7 @@ import {
 } from "../contract/errors";
 import type { MintGroupCharParams } from "../contract/params";
 import type { CharacterRef } from "../contract/results";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
 import { findByOwnerHandle } from "../persistence/queries";
 import { cardTokenSize } from "../substrate/card-tokens";

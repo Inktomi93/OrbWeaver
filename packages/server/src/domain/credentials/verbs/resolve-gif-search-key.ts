@@ -4,8 +4,9 @@
 // its own AAD provider slot; a row lifted from another slot fails GCM auth and reads as absent.
 
 import type { UserId } from "@orb/kit/ids";
+import type { CredentialContext } from "../context";
 import type { ResolveGifSearchKeyParams } from "../contract/params";
-import type { CredentialContext, CredentialsService } from "../contract/service";
+import type { CredentialsService } from "../contract/service";
 import { aadFor } from "../persistence/aad";
 import { loadActiveCredential } from "../persistence/queries";
 import { decryptSealed } from "../substrate/decrypt";

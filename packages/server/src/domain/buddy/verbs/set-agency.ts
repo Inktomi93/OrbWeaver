@@ -3,8 +3,9 @@
 // the propose/confirm gate). A no-op for an unhatched buddy — returns the preview view with the requested flag.
 // Owner-scoped.
 
+import type { BuddyContext } from "../context";
 import type { SetAgencyParams } from "../contract/params";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyService } from "../contract/service";
 import { loadBuddy, previewView, rowToView, setBuddyFlag } from "../persistence/queries";
 import { decayMood } from "../substrate/mood";
 

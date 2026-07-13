@@ -20,7 +20,8 @@ import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
-import type { ChatContext, DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
+import type { ChatContext } from "../context";
+import type { DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   MemoryConfig,

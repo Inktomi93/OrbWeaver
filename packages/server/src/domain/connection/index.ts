@@ -10,6 +10,7 @@
 // directly, NOT through this door (§7.4 — one home, contracts is the cross-boundary node). The curated
 // `CHAT_MODELS` catalog + `getChatModel` are connection-internal (the `catalog/` subsystem) — never exported.
 
+export type { ConnectionContext } from "./context";
 export {
   AgentSdkCatalogUnavailableError,
   CatalogUnavailableError,
@@ -27,10 +28,6 @@ export type {
   TestClaudeAuthParams,
 } from "./contract/params";
 export type { AgentSdkCatalogSnapshot, CatalogSnapshot } from "./contract/results";
-export type {
-  ConnectionContext,
-  ConnectionService,
-  ConnectionServiceDeps,
-} from "./contract/service";
+export type { ConnectionService, ConnectionServiceDeps } from "./contract/service";
 export type { ModelCapabilityView, ModelCatalogView } from "./contract/views";
 export { createConnectionService } from "./service";

@@ -8,9 +8,10 @@
 // isn't owned/found.
 
 import { cardContentHash } from "#kit/serde/card";
+import type { CharacterContext } from "../context";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { DuplicateCharacterParams } from "../contract/params";
-import type { CharacterContext, CharacterService } from "../contract/service";
+import type { CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
 import {
   canonicalTagsOf,

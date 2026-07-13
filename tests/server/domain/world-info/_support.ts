@@ -20,7 +20,7 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { WorldInfoContext } from "../../../../packages/server/src/domain/world-info/contract/service.ts";
+import type { WorldInfoContext } from "../../../../packages/server/src/domain/world-info/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";

@@ -2,8 +2,9 @@
 // the creature before hatching); hatched → the full stored view with lazy read-time mood decay (a buddy
 // quiet >15min reads as `content`, no poll write). Owner-scoped by `principal.userId` (never reads `users`).
 
+import type { BuddyContext } from "../context";
 import type { GetBuddyParams } from "../contract/params";
-import type { BuddyContext, BuddyService } from "../contract/service";
+import type { BuddyService } from "../contract/service";
 import { loadBuddy, previewView, rowToView } from "../persistence/queries";
 import { decayMood } from "../substrate/mood";
 

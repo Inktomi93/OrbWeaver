@@ -3,9 +3,10 @@
 // (force bypasses it); cooperative abort between items, every completed item durable + idempotent; an embed
 // failure propagates so the rerun resumes.
 
+import type { EmbeddingsContext } from "../context";
 import type { EmbedPassParams } from "../contract/params";
 import type { BulkEmbedResult } from "../contract/results";
-import type { EmbeddingsContext, EmbeddingsService } from "../contract/service";
+import type { EmbeddingsService } from "../contract/service";
 
 export function createEmbedCorpus(
   ctx: EmbeddingsContext,

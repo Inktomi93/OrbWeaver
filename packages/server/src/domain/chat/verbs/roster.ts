@@ -31,7 +31,7 @@ import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
-import type { ChatContext } from "../contract/context";
+import type { ChatContext } from "../context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   AcceptHostHandoffParams,

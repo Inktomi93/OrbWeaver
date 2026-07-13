@@ -4,9 +4,10 @@
 
 import { globalBooks } from "@orb/db";
 import { eq } from "drizzle-orm";
+import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { DetachGlobalParams } from "../../contract/params";
-import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
+import type { WorldInfoService } from "../../contract/service";
 import { loadOwnedBook } from "../../persistence/queries";
 
 export function createDetachGlobal(ctx: WorldInfoContext): WorldInfoService["detachGlobal"] {

@@ -3,8 +3,9 @@
 // false → a leak-free not-found.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { AdminContext } from "../context";
 import type { EmbedCharacterCardParams } from "../contract/params";
-import type { AdminContext, AdminService } from "../contract/service";
+import type { AdminService } from "../contract/service";
 import { requireAdmin } from "../guard";
 
 export function createEmbed(ctx: AdminContext): Pick<AdminService, "embedCharacterCard"> {
