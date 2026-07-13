@@ -187,8 +187,8 @@ export const REGISTRY: readonly StageDef[] = [
     tiers: STATIC,
     argv: ["pnpm", "check:structure"],
     classify: ownScheme,
-    // At a scoped tier the WALK is scoped via check:scope (incremental-safe gates over the changed set,
-    // whole-project gates deferred-with-notice by scoped.ts itself). check:scope needs its ONE selector.
+    // At a scoped tier the WALK is scoped via scripts/check/scoped.ts (incremental-safe gates over the
+    // changed set, whole-project gates deferred-with-notice by scoped.ts itself). It needs its ONE selector.
     scopedArgv: (sel) => sel.checkScopeArgv,
   },
 

@@ -1,7 +1,7 @@
-// `pnpm verify` — the ONE verification entry (UNIFIED-VERIFICATION-DESIGN.md §3). A direct generalization
-// of scripts/check/run.ts (same proven bones: sequential spawn, stream + tee, JSON artifact, max-severity
-// exit) over the self-describing stage REGISTRY. Four tiers, one scope convention, one exit contract, one
-// summary/artifact.
+// `pnpm verify` — the ONE verification entry (UNIFIED-VERIFICATION-DESIGN.md §3). Built on the proven bones
+// of the retired `pnpm check` orchestrator (sequential spawn, stream + tee, JSON artifact, max-severity
+// exit), generalized over the self-describing stage REGISTRY. Four tiers, one scope convention, one exit
+// contract, one summary/artifact.
 //
 //   pnpm verify              → --static  (today's `pnpm check`, byte-compatible)
 //   pnpm verify --changed    → the inner loop (scoped, related tests)

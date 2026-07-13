@@ -37,10 +37,8 @@ const NON_STAGE_ALLOWLIST = new Set([
   "depcruise:graph", // mermaid ARTIFACT generator
   "depcruise:focus", // mermaid ARTIFACT generator
   "depcruise:reaches", // mermaid ARTIFACT generator
-  "depcruise:affected", // the git-affected SCOPING variant — a sub-tool the changed tier uses, not a tier
+  "depcruise:affected", // the git-affected SCOPING variant (depcruise --affected) — a standalone dev tool, not a tier
   "cpd:report", // html ARTIFACT twin of the cpd gate
-  "check:file", // a thin alias to `verify --file` (a scoped HOST, not a stage)
-  "check:scope", // the scoped structure runner `structure:full`'s scopedArgv INVOKES (a sub-tool)
   "check:show", // the report INSPECTOR (a read-only viewer, not a gate)
 ]);
 
