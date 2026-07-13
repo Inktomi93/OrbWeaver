@@ -120,6 +120,11 @@ Source of truth: `contracts/settings` `AppearanceSettings` + `features/settings/
   `message-row-variants.ts:199` AND the composer `composer.tsx:226,249` — verified shared),
   `fontScale`, `reducedMotion`, `density comfortable/compact` (compact retunes the spacing intent
   tokens — use spacing tokens, never px).
+- **Glass defaults (the Reading-Surface rule):** `blurSurfaces` defaults `[]` (off); the
+  quick-enable seed is panels+composer+modals (`DEFAULT_BLUR_SURFACES`) — **`messages` is NEVER
+  default-on** (prose never frosts by default). `blurStrength` 4–28, default 14; `backgroundDim`
+  default 0.45. Reading-typography defaults mirror `tokens.json` (untouched sliders = zero visual
+  change) — don't re-derive them.
 
 **Blanket rule:** restyles land in the shared base (`bubbleInner`/`bubbleOuter`,
 `MessageMetadataRow`, `.shell-panel-header`) so 8 skins × 3 elevations × glass × bg-image inherit.
@@ -330,11 +335,17 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
    - **J10 — Corpus chat-search preview.** OPEN, verified: `features/corpus/` does not exist.
      This is FEATURE work (the Corpus section), not cohesion polish — park until the Corpus
      feature is scheduled; the section placeholder stays honest meanwhile.
-   - **RESOLVED, no work (recorded so nobody re-opens):** the presets/world-info rail sections are
-     BUILT (the placement question is settled — D66 keeps Presets in the rail, Connections in
-     Settings); J11's Personas/Chat-behavior/Connections panes are BUILT; the focus-ring audit is
-     PP3; the devtools FAB snap-gating landed; DESIGN-REVIEW-2026-07-01's findings were all
-     applied; every design-enforcement item is BUILT or DROPPED-by-ruling (no-CI model, D62).
+   - **Chat-behavior settings pane.** OPEN, verified: `settings-nav.ts:241` marks the category
+     `built: false` and no surface exists — an unbuilt placeholder category. Fold into the Settings
+     stop of the rollout alongside UIP-404. (Automation is likewise `built: false` but is
+     feature-scope, not cohesion.)
+   - **RESOLVED, no work (recorded so nobody re-opens; Opus-verified 2026-07-13):** the
+     presets/world-info rail sections are BUILT (the placement question is settled — D66 keeps
+     Presets in the rail, Connections in Settings); J11's Personas + Connections panes are BUILT;
+     J5's four chat-lifecycle tRPC procedures are ROUTED (`routers/chat.ts`); the focus-ring audit
+     is PP3; the devtools FAB snap-gating landed; DESIGN-REVIEW-2026-07-01's findings were all
+     applied; every design-enforcement item is BUILT or DROPPED-by-ruling (no-CI model, D62); the
+     full punchlist §0c table and ux-flow J-table re-verified with zero FALSE-DONE.
 
 ---
 
