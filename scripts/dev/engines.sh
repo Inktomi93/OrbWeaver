@@ -39,6 +39,20 @@ VLLM_EMBED_PORT="${VLLM_EMBED_PORT:-8701}"
 VLLM_RERANK_PORT="${VLLM_RERANK_PORT:-8702}"
 VLLM_GEN_PORT="${VLLM_GEN_PORT:-8703}"
 
+# VLLM_DISABLED=true is the explicit "light boot" opt-out — skip the local model engines, same as a
+# GPU-less host (derive roles fall back to jina local-light, which is lazy-loaded on first use). Honored
+# HERE, not just in the server: stack.sh sets the SERVER flag, but dev.sh owns the engines OUTSIDE the
+# watch loop, so without this guard `VLLM_DISABLED=true pnpm stack start` on a GPU box still spun the
+# three engines (~30GB VRAM + power) for nothing. Accepts the same truthy spellings stack.sh normalizes
+# (a standalone `pnpm engines` may see a raw ambient value).
+case "${VLLM_DISABLED:-}" in
+  1 | on | yes | true)
+    echo "engines: VLLM_DISABLED — skipping the local model engines (light boot)."
+    echo "engines: derive roles (embed/rerank/imageEmbed) use jina (local-light); summarize uses your hosted option."
+    exit 0
+    ;;
+esac
+
 gpu_present() { command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; }
 if ! gpu_present; then
   echo "engines: no NVIDIA GPU on this host — nothing to run."
