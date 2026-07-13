@@ -3,6 +3,7 @@
 // retired `pnpm check` orchestrator spoke — now generalized to the registry's named adapters (this test
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -287,6 +288,29 @@ test("parse: valid tier flags resolve to the right tier (default = static, scope
   expect(asTier(["--tier", "push"])).toBe("push");
   expect(asTier(["--package", "db"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
   expect(asTier(["--changed", "git"])).toBe("changed");
+});
+
+// ── null-spawn end-to-end (§3.3): a STAGE whose child fails to spawn (nonexistent bin ⇒ ENOENT ⇒ status
+// null) must surface as tool-error (2) at the RUN's aggregated exit, never a silent 0. The classifiers are
+// unit-pinned above; this drives the real spawn→classify→aggregate path with a genuine failed spawn. ──
+
+test("a stage whose child fails to spawn (ENOENT) aggregates to tool-error (2), not a silent 0", () => {
+  // A REAL failed spawn: a nonexistent binary. Node's spawnSync returns status:null (signal:null, error
+  // ENOENT) — the exact shape a signal-kill also produces, which the classifiers map to 2.
+  const result = spawnSync("orb-nonexistent-binary-xyz-123", ["--noop"], {
+    shell: false,
+    encoding: "utf8",
+  });
+  expect(result.status).toBeNull();
+
+  // Feed the real child status through a real stage's real classify (asViolations here) exactly as
+  // run.ts's runOneStage does, then through the real run-level aggregation.
+  const failedStageExit = stage("lint:biome").classify(result.status);
+  expect(failedStageExit).toBe(2); // null spawn ⇒ TOOL-ERROR, not a violation and not clean
+
+  // A run where every OTHER stage was clean still exits 2 — the failed spawn dominates, no silent 0.
+  const runExit = aggregateExit([0, 0, failedStageExit, 0]);
+  expect(runExit).toBe(2);
 });
 
 test("every stage carries a classify + non-empty tiers", () => {
