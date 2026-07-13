@@ -81,7 +81,11 @@ test("aggregateExit: violations (1) when the worst is a violation, no tool error
 
 // ── tier composition (§3.2) — the registry is the ONE spelling of "run everything" ──
 
-test("the static tier is EXACTLY the legacy `pnpm check` 8 stages, in order (byte-compatible behavior)", () => {
+test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pnpm check` battery)", () => {
+  // The legacy `pnpm check` was 8 stages; the type-membership floor (UNIFIED-VERIFICATION-DESIGN.md §3)
+  // adds two more type stages IN the types group: `types:tests-dom` (the DOM-coupled non-`.tsx` test home)
+  // and `types:tests-membership` (the reconciliation guard that makes a silently-un-type-checked test file
+  // structurally impossible). Both are whole-tree invariants → static/push/full.
   const staticNames = stagesForTier("static").map((s) => s.name);
   expect(staticNames).toEqual([
     "lint:biome",
@@ -89,6 +93,8 @@ test("the static tier is EXACTLY the legacy `pnpm check` 8 stages, in order (byt
     "types:packages",
     "types:graph",
     "types:testd",
+    "types:tests-dom",
+    "types:tests-membership",
     "structure:full",
     "imports:depcruise",
     "docs:format",
@@ -197,9 +203,13 @@ test("types:graph per --package: a NODE package RUNS it (in the graph), a BROWSE
   }
 });
 
-test("types:testd + browser:* + tests:parity are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
+test("types:testd + types:tests-* + browser:* + tests:parity are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
   for (const name of [
     "types:testd",
+    // The type-membership floor stages: tests-dom is one tiny program, tests-membership is a whole-tree
+    // reconciliation — both are whole-tree invariants with no honest scoped form (§3.4).
+    "types:tests-dom",
+    "types:tests-membership",
     "browser:ct",
     "browser:e2e-smoke",
     "browser:e2e",

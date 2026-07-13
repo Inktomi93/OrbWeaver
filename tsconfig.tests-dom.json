@@ -1,0 +1,36 @@
+{
+  // The DOM-libbed home for DOM-COUPLED NON-`.tsx` tests (UNIFIED-VERIFICATION-DESIGN.md §3 — the
+  // type-membership floor). The three long-standing type programs partition tests by DIRECTORY + suffix:
+  // the DOM-less root graph (`tsconfig.json`) owns node `tests/**`, and the browser packages' tsconfigs
+  // reach back into `tests/{client,ui}/**/*.tsx` WITH dom. That leaves a HOLE: a `.ts` (not `.tsx`) test
+  // that is DOM-COUPLED — it can't be renamed `.tsx` (the vitest int lane is `.ts`-only, renaming loses
+  // execution), and its subject drags a DOM barrel into the node graph (phantom lib.dom errors), so the
+  // graph `exclude`s it — and being a `.ts`, no `*.tsx` reach-back claims it either. It would be checked
+  // by NO static stage. This config is that missing home: a dom+dom.iterable+es2025 program (the browser
+  // lib set, copied from packages/client/tsconfig.json) that OWNS the DOM-coupled `.ts` escapees.
+  //
+  // The `tests-type-membership` verify stage (scripts/verify/tests-type-membership.ts) is the permanent
+  // guard: it reconciles EVERY type-relevant file under tests/** + playwright/** against the import-closure
+  // of every type program (this one included), and REDs if any file lands in zero programs. A new
+  // DOM-coupled `.ts` test → add it to the `include` here (the stage names it + this file as the fix).
+  //
+  // NODE-context: like the root graph, these tests run under vitest/node and may import node:* harness
+  // code, so `@types/node` is on (the browser packages' own tsconfigs stay `types: []` — this is a TEST
+  // program, not package source, so it does not weaken kit-purity: that is per-package + the dep-cruiser
+  // gate, never this config). DOM lib coexists with node here BECAUSE these are browser-subject tests that
+  // never touch the server's looser node BodyInit/BlobPart (the 2026-06-28 dom-vs-node incident was SERVER
+  // src under dom; test code isn't server src).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2025", "dom", "dom.iterable"],
+    "jsx": "react-jsx",
+    "types": ["node"],
+    // The escapees import their subjects (and sibling harnesses) with explicit `.ts` extensions (tsx-run
+    // + the `#imports` map); permit that to typecheck them (safe under the base's `noEmit`).
+    "allowImportingTsExtensions": true
+  },
+  // The DOM-coupled `.ts` tests the root graph EXCLUDES and no `*.tsx` reach-back claims. Enumerated
+  // EXPLICITLY (not a glob) so a new escapee is a deliberate add — the membership stage names each one as
+  // it appears. Keep in sync with tsconfig.json's matching `exclude` entry (the graph must NOT also own it).
+  "include": ["reset.d.ts", "tests/client/features/preset/lib/preset-editor-bridge.int.test.ts"]
+}
