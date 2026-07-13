@@ -37,6 +37,9 @@ interface PresetStructureTabsProps {
   readonly tab: "prompt" | "templates" | "postProcess" | "compaction";
   /** Reveal the CONTEXT section inspector (the route-built choreography, §3.4) — Prompt tab only. */
   readonly onRevealSection?: (() => void) | undefined;
+  /** Dismiss the CENTER section drill-in (the route-built §3.4 choreography: `clearPresetSection` +
+   *  close the mobile CONTEXT sheet) — Prompt tab only, the `SectionBodyEditor` back button. */
+  readonly onDismissSection?: (() => void) | undefined;
   /** The chat-role model's capability (the Message-handling floor line) — Prompt tab only, may be unset. */
   readonly capability?: ModelCapability | undefined;
 }
@@ -46,10 +49,18 @@ export function PresetStructureTabs({
   form,
   tab,
   onRevealSection,
+  onDismissSection,
   capability,
 }: PresetStructureTabsProps): ReactElement {
   if (tab === "prompt") {
-    return <PromptTab form={form} onRevealSection={onRevealSection} capability={capability} />;
+    return (
+      <PromptTab
+        form={form}
+        onRevealSection={onRevealSection}
+        onDismissSection={onDismissSection}
+        capability={capability}
+      />
+    );
   }
   if (tab === "templates") {
     return <TemplatesTab form={form} />;
@@ -63,10 +74,12 @@ export function PresetStructureTabs({
 function PromptTab({
   form,
   onRevealSection,
+  onDismissSection,
   capability,
 }: {
   readonly form: AppForm;
   readonly onRevealSection?: (() => void) | undefined;
+  readonly onDismissSection?: (() => void) | undefined;
   readonly capability?: ModelCapability | undefined;
 }): ReactElement {
   // Mode is LOCAL VIEW state — it never touches the form (BUILD-SPEC §3.2).
@@ -107,7 +120,7 @@ function PromptTab({
                 form={form}
                 section={selected}
                 index={index}
-                onBack={clearPresetSection}
+                onBack={onDismissSection ?? clearPresetSection}
               />
             );
           }

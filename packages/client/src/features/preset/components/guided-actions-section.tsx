@@ -34,6 +34,9 @@ type AssemblyForm = AppFormInstance<PromptConfig>;
 /** The steer token every template must carry — where the user's composer text lands. */
 const INPUT_TOKEN = "{{input}}";
 
+/** The `impersonate`-only macro whose value is the perspective word (`GUIDED_IMPERSONATE_PERSONS`). */
+const PERSON_TOKEN = "{{person}}";
+
 /** Human titles + one-line "fires on" copy per guided-action kind (registry-as-data over the tuple). */
 const GUIDED_ACTION_COPY: Record<
   GuidedActionKind,
@@ -145,9 +148,14 @@ function GuidedActionCard({
           {copy.title}
         </Text>
         {kind === "impersonate" ? (
-          <Badge intent="info" size="sm">
-            {`${GUIDED_IMPERSONATE_PERSONS.length}-person`}
-          </Badge>
+          <Row gap="field" align="center">
+            <Badge intent="info" size="sm">
+              {PERSON_TOKEN}
+            </Badge>
+            <Text size="micro" tone="muted">
+              {GUIDED_IMPERSONATE_PERSONS.join(" · ")}
+            </Text>
+          </Row>
         ) : null}
       </Row>
       <Text size="micro" tone="muted">

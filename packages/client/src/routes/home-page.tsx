@@ -1,4 +1,4 @@
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -53,12 +53,14 @@ import {
 import { ImportOnboardingCard, SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   chatStream,
+  clearPresetSection,
   commitDraft,
   goToLanding,
   isCommitted,
   isLanding,
   openModal,
   selectChat,
+  selectPreset,
   setActiveSection,
   setContextTab,
   setMobileSheet,
@@ -141,6 +143,21 @@ export function HomePage(): ReactElement {
     } else {
       setPanelMode("context", "docked");
     }
+  };
+  // Dismiss (§3.4): clear the section selection AND, on mobile, close the CONTEXT sheet — else the sheet
+  // stays open over a stale "Select a section" EmptyState after a back/delete. `setMobileSheet(null)` is a
+  // no-op on desktop (the resolve ignores `mobileSheet`), so the docked desktop context is untouched.
+  const dismissSectionInspector = (): void => {
+    clearPresetSection();
+    if (isMobile) {
+      setMobileSheet(null);
+    }
+  };
+  // Opening a preset from the LIST closes any open mobile LIST sheet (the `selectChatFromList` precedent) —
+  // else the sheet stays over the editor after a row/New/Duplicate/Import selection. No-op on desktop.
+  const selectPresetFromList = (id: PresetId): void => {
+    selectPreset(id);
+    setMobileSheet(null);
   };
   // The character-editor redesign reveal choreography (mirrors `revealSectionInspector`) — a facet-row
   // click (which already wrote the facet selection) opens the CONTEXT "field" tab, then DOCKS it on desktop
@@ -338,7 +355,7 @@ export function HomePage(): ReactElement {
           presets: {
             list: (
               <PresetLibraryAnchor>
-                <PresetLibrarySurface />
+                <PresetLibrarySurface onSelectPreset={selectPresetFromList} />
               </PresetLibraryAnchor>
             ),
             content:
@@ -348,6 +365,7 @@ export function HomePage(): ReactElement {
                 <PresetEditorSurface
                   presetId={selectedPresetId}
                   onRevealSection={revealSectionInspector}
+                  onDismissSection={dismissSectionInspector}
                 />
               ),
             // CONTEXT (The Assembly §3.1): the registry-driven Section / Usage tab pair. Section = the
@@ -358,7 +376,7 @@ export function HomePage(): ReactElement {
                 <ContextTabsPanel
                   section="presets"
                   bodies={{
-                    section: <PresetSectionInspector />,
+                    section: <PresetSectionInspector onDismiss={dismissSectionInspector} />,
                     usage: <PresetUsageContext presetId={selectedPresetId} />,
                   }}
                 />

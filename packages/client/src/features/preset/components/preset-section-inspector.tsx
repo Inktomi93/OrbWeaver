@@ -17,9 +17,10 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Copy, GitFork, Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { clearPresetSection, useSelectedPresetId, useSelectedPresetSectionId } from "#state";
+import { useSelectedPresetId, useSelectedPresetSectionId } from "#state";
 import { hasRoleField } from "../lib/assembly-model";
 import { useAssemblyForm } from "../lib/preset-editor-bridge";
 import { MESSAGE_ROLE_ITEMS } from "../lib/preset-nav";
@@ -33,8 +34,14 @@ import {
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
+export interface PresetSectionInspectorProps {
+  /** Dismiss the inspector (the route-built §3.4 choreography: `clearPresetSection` + close the mobile
+   *  CONTEXT sheet). Threaded into the Delete path so a mobile delete never strands a stale sheet. */
+  readonly onDismiss: () => void;
+}
+
 /** The CONTEXT Section tab — resolves the selected section off the bridged form or shows the EmptyState. */
-export function PresetSectionInspector(): ReactElement {
+export function PresetSectionInspector({ onDismiss }: PresetSectionInspectorProps): ReactElement {
   const handle = useAssemblyForm();
   const selectedPresetId = useSelectedPresetId();
   const selectedSectionId = useSelectedPresetSectionId();
@@ -50,7 +57,9 @@ export function PresetSectionInspector(): ReactElement {
         if (section === undefined) {
           return <SelectPrompt />;
         }
-        return <InspectorBody form={handle.form} section={section} index={index} />;
+        return (
+          <InspectorBody form={handle.form} section={section} index={index} onDismiss={onDismiss} />
+        );
       }}
     </handle.form.Subscribe>
   );
@@ -69,6 +78,7 @@ interface InspectorBodyProps {
   readonly form: AssemblyForm;
   readonly section: PromptSection;
   readonly index: number;
+  readonly onDismiss: () => void;
 }
 
 /** The header glyph label + one-liner for a section (marker copy, or a neutral literal framing). */
@@ -80,7 +90,7 @@ function headerCopy(section: PromptSection): { label: string; oneLiner: string }
   return { label: "Literal text", oneLiner: "Your own text, sent exactly as written." };
 }
 
-function InspectorBody({ form, section, index }: InspectorBodyProps): ReactElement {
+function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps): ReactElement {
   const { label, oneLiner } = headerCopy(section);
   return (
     <Stack gap="section" className="min-h-0 overflow-y-auto">
@@ -124,13 +134,32 @@ function InspectorBody({ form, section, index }: InspectorBodyProps): ReactEleme
       <SectionTriggersControl form={form} section={section} index={index} />
       <SectionLocksControl form={form} section={section} index={index} />
 
-      <InspectorFooter form={form} section={section} index={index} />
+      <InspectorFooter form={form} section={section} index={index} onDismiss={onDismiss} />
     </Stack>
   );
 }
 
-/** Duplicate · Move-to-zone (splice across the pivot) · Delete (+ clear the selection → EmptyState). */
-function InspectorFooter({ form, section, index }: InspectorBodyProps): ReactElement {
+/** Duplicate · Move-to-zone (splice across the pivot) · Delete (recoverable — undo toast re-inserts). */
+function InspectorFooter({ form, section, index, onDismiss }: InspectorBodyProps): ReactElement {
+  const toast = useToastManager();
+  // Recoverable delete (§3.5): capture the removed section + its index, drop it, dismiss the inspector
+  // (clears the selection → EmptyState, closes the mobile CONTEXT sheet), then offer an Undo that
+  // re-inserts the exact object at its original index (`form.insertFieldValue`).
+  const onDelete = (): void => {
+    const removed = section;
+    const removedIndex = index;
+    void form.removeFieldValue("sections", removedIndex);
+    onDismiss();
+    toast.add({
+      title: "Section removed",
+      actionProps: {
+        children: "Undo",
+        onClick: (): void => {
+          void form.insertFieldValue("sections", removedIndex, removed);
+        },
+      },
+    });
+  };
   return (
     <Row gap="field" align="center" justify="between" className="flex-wrap">
       <Button intent="ghost" size="sm" onClick={(): void => duplicate(form, section, index)}>
@@ -138,7 +167,7 @@ function InspectorFooter({ form, section, index }: InspectorBodyProps): ReactEle
         Duplicate
       </Button>
       <MoveToZoneButton form={form} section={section} index={index} />
-      <Button intent="destructive" size="sm" onClick={(): void => remove(form, index)}>
+      <Button intent="destructive" size="sm" onClick={onDelete}>
         <Icon icon={Trash2} size="sm" />
         Delete
       </Button>
@@ -152,14 +181,14 @@ function duplicate(form: AssemblyForm, section: PromptSection, index: number): v
   void form.insertFieldValue("sections", index + 1, clone);
 }
 
-/** Delete the section + clear the CONTEXT selection (the bridge guard then shows the EmptyState). */
-function remove(form: AssemblyForm, index: number): void {
-  void form.removeFieldValue("sections", index);
-  clearPresetSection();
+interface MoveToZoneButtonProps {
+  readonly form: AssemblyForm;
+  readonly section: PromptSection;
+  readonly index: number;
 }
 
 /** Move-to-zone — splice the section across the pivot to the OTHER zone; the label flips by current zone. */
-function MoveToZoneButton({ form, section, index }: InspectorBodyProps): ReactElement | null {
+function MoveToZoneButton({ form, section, index }: MoveToZoneButtonProps): ReactElement | null {
   return (
     <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
       {(sections): ReactElement | null => {

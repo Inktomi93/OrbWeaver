@@ -16,7 +16,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-library-surface.tsx precedent).
 import { Anchor, Hash, Icon, Lock, Pencil, Sparkles, Zap } from "@orb/ui/icons";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -140,6 +140,10 @@ export function SectionRow({
     selected ? "border-primary bg-accent" : "border-border",
     section.enabled ? "" : "opacity-60",
   ].join(" ");
+  // The left-edge ZONE accent (§3.3): a full-height token-colored bar — setup = steel-blue (`--color-info`,
+  // hue 232), post = warm-amber (`--color-warning`, hue 75). Compose-only (a Stack + a bg token, the
+  // `w-px self-stretch` divider idiom).
+  const zoneAccent = zone === "post" ? "bg-warning" : "bg-info";
 
   return (
     <Row
@@ -150,6 +154,8 @@ export function SectionRow({
       data-zone={zone}
       className={rowClass}
     >
+      <Stack aria-hidden={true} className={`w-1 self-stretch rounded-full ${zoneAccent}`} />
+
       <Badge intent={zone === "post" ? "warning" : "info"} size="sm">
         {sectionGlyph(section)}
       </Badge>
