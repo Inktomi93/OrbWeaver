@@ -151,16 +151,16 @@ A full-read audit of all 41 docs (6 agents, every doc end-to-end) surfaced cross
 
 **The D-registry was split by decision-id range (2026-07-02) into sibling docs.** Cite as `Core-Laws-and-Precedents.md §7 Dxx`; resolve the id via its range below. D-numbers are stable global ids — a cross-reference like "supersedes D45" is found by grepping the id regardless of which file holds it.
 
-- **D1–D34** → [`Core-Path-Registry-D1-D34.md`](Core-Path-Registry-D1-D34.md) — entry shape, kit/contracts homes, schema/ownership model
-- **D35–D43** → [`Core-Path-Registry-D35-D43.md`](Core-Path-Registry-D35-D43.md) — providers/regex/db-enum, identity-resolution (D40), neo-client audit (D43)
-- **D44–D52** (+ PD-11) → [`Core-Path-Registry-D44-D52.md`](Core-Path-Registry-D44-D52.md) — theming/multimodal/scripting/tool-use/ST-parity/charts specs
-- **D53–D59** → [`Core-Path-Registry-D53-D59.md`](Core-Path-Registry-D53-D59.md) — client-foundation, regex, memory, RPG, chat-crew (D54 precedes D53 in source)
-- **D60–D61** → [`Core-Path-Registry-D60-D61.md`](Core-Path-Registry-D60-D61.md) — agent-principal (D60), marinara-borrow disposition (D61)
-- **D62** → [`Core-Path-Registry-D62.md`](Core-Path-Registry-D62.md) — the UI/UX revamp program (region law §4.2/§4.3, rulings P1–P6, design gates, the D62 lanes)
-- **D63** → [`Core-Path-Registry-D63.md`](Core-Path-Registry-D63.md) — the app background IMAGE re-homes from `ThemeOverride` to the `appearance` user-settings namespace (amends D49 §3; the surface COLOR stays a theme token)
-- **D64** → [`Core-Path-Registry-D64.md`](Core-Path-Registry-D64.md) — a host-handoff / non-owner fork TRANSFERS the room + history but DROPS the prior owner's character seats, keeping the humans (F4/PD-21 resolution; supersedes the fail-closed `cast_not_owned` refuse)
-- **D66** → [`Core-Path-Registry-D66.md`](Core-Path-Registry-D66.md) — the UI-cohesion program: ONE active UI work doc (`../proposed/ui-cohesion-north-star.md`), Chats as the north-star rail entry, four amendments to D62 (A1 list header band returns · A2 list New is primary · A3 message actions hide-at-rest · A4 autosave everywhere), the doc consolidation (proposed/ = one doc; design sets staged out-of-repo; ui-package-design + motion guide promoted to core; FINAL-* competition docs retired), and the comment-diet convention
-- **D65** → [`Core-Path-Registry-D65.md`](Core-Path-Registry-D65.md) — OIDC group-derived roles: admin is grantable by the owner *through the IdP* (`OIDC_ADMIN_GROUPS`) alongside `admin.setRole`, `OIDC_ALLOWED_GROUPS` is a fail-closed login gate, roles re-derive each login when group governance is active, and the owner row is never group-derived/gated/downgraded (EXTENDS D17; + `ResolvedIdentity.email` as a nullable attribute)
+- **D1–D34** → [`Core-Path-Registry-D1-D34.md`](Core-Path-Registry-D1-D34.md) — entry shape · kit/contracts homes · schema/ownership model
+- **D35–D43** → [`Core-Path-Registry-D35-D43.md`](Core-Path-Registry-D35-D43.md) — providers/db enums · identity-resolution invariant · client-foundation bet
+- **D44–D52** (+ PD-11) → [`Core-Path-Registry-D44-D52.md`](Core-Path-Registry-D44-D52.md) — theming/multimodal/scripting · ST dispositions · tool use · charts
+- **D53–D59** → [`Core-Path-Registry-D53-D59.md`](Core-Path-Registry-D53-D59.md) — reuse model · regex · memory · rpg · chat-crew
+- **D60–D61** → [`Core-Path-Registry-D60-D61.md`](Core-Path-Registry-D60-D61.md) — agent principals · marinara borrows
+- **D62** → [`Core-Path-Registry-D62.md`](Core-Path-Registry-D62.md) — the UI/UX revamp rulings (amended in part by D66)
+- **D63** → [`Core-Path-Registry-D63.md`](Core-Path-Registry-D63.md) — background image → appearance namespace (amends D49 §3)
+- **D64** → [`Core-Path-Registry-D64.md`](Core-Path-Registry-D64.md) — handoff/fork transfers room + history, drops prior host's character seats
+- **D66** → [`Core-Path-Registry-D66.md`](Core-Path-Registry-D66.md) — the UI-cohesion program: one active UI doc · Chats north star · four D62 amendments · doc consolidation · comment-diet convention
+- **D65** → [`Core-Path-Registry-D65.md`](Core-Path-Registry-D65.md) — OIDC group-derived roles (extends D17)
 
 ## Enforcement registry
 

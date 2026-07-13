@@ -237,6 +237,7 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
 | doc/comment law + markdown mechanics | `Documentation-Law.md` (this dir) · `Core-Docs-Formatting-Law.md` |
 | mission | `../../Mission.md` |
 | the domain re-audit protocol + running log | `../Parity-Audit-Protocol.md` |
+| structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (scripts/codemods/ast.ts — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `scripts/codemods/codemod-kit.ts`. Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
 | the ONE active program doc | `../proposed/README.md` (D66 rule: one at a time; currently `ui-cohesion-north-star.md`) — unbuilt design sets are staged OUT of the repo, see that README |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |
 
