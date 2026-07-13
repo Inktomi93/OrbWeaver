@@ -1,12 +1,7 @@
-// foundation/observability/debug/routes — the /api/_debug surface (the dissolved `debug` DOMAIN folds in
-// here; it was never a business feature — it is observability's read side). The two-tier auth gate
-// (admin-cookie short-circuit → DEBUG_TOKEN fallback), the route registrar, and the structural-injection
-// ports (`AssetInspector`, `AdminAuthChecker`) whose impls `entry/` supplies (their sources are UP-stack).
-// The DB probes need NO port — they read @orb/db DOWN (ledger drops neo's DbInspector port).
-//
-// /api/_debug/info reports `openrouter.configured` + the default model ids (read DOWN from
-// `@orb/contracts/connection` — the connection DAG landed `DEFAULT_*_MODEL_ID` there, PD-10/D38; the edge
-// is strictly downward, contracts is below foundation, never a foundation→infra import).
+// The /api/_debug surface: observability's read side. The two-tier auth gate (admin-cookie
+// short-circuit → DEBUG_TOKEN fallback), the route registrar, and the structural-injection ports
+// (`AssetInspector`, `AdminAuthChecker`) whose impls entry/ supplies. The DB probes need no port — they
+// read @orb/db directly.
 
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
@@ -113,21 +108,15 @@ function collectErrors(limit: number): Record<string, unknown>[] {
   return errors;
 }
 
-/**
- * Asset-store health port — structural-injection so foundation accepts `domain/assets`'s `fsck` without
- * importing it (assets is UP-stack). `object` return so no domain type crosses the boundary. `entry/`
- * wires `assetsService.fsck` as the impl.
- */
+/** Asset-store health port — structural-injection so foundation accepts assets' `fsck` without importing
+ *  it. `object` return so no domain type crosses the boundary. */
 export interface AssetInspector {
   fsck: () => Promise<object>;
 }
 
-/**
- * Admin-auth gate — structural-injection so foundation accepts the entry auth resolver without importing it
- * (auth is UP-stack). Consulted BEFORE the token check: an admin browser session is through, no token. The
- * token path is the headless fallback. `isAdmin` MUST never throw (a transport/db error resolves to `false`
- * so a misbehaving seam can't open the gate). `entry/` adapts the resolver into this.
- */
+/** Admin-auth gate — structural-injection so foundation accepts the entry auth resolver without importing
+ *  it. Consulted before the token check. `isAdmin` must never throw (a transport/db error resolves to
+ *  `false` so a misbehaving seam can't open the gate). */
 export interface AdminAuthChecker {
   isAdmin: (headers: Headers) => Promise<boolean>;
 }
@@ -147,9 +136,8 @@ export interface DebugRoutesOptions {
   auth?: DebugAuthOptions | string;
 }
 
-/** Factory — the middleware closes over the gate config. Order: admin-cookie short-circuit, then the token
- *  check. `expectedToken === undefined` returns 404 ONLY when no admin checker is wired (the cookie path can
- *  still authorize). The query-param token form is intentionally absent (it leaked into proxy access logs). */
+/** Factory — the middleware closes over the gate config. Order: admin-cookie short-circuit, then the
+ *  token check. The query-param token form is intentionally absent (it leaked into proxy access logs). */
 export function createDebugAuthMiddleware(
   opts: DebugAuthOptions | string | undefined,
 ): MiddlewareHandler {
@@ -175,8 +163,7 @@ export function createDebugAuthMiddleware(
   };
 }
 
-/** Prod middleware — closes over env.DEBUG_TOKEN at module load (token-only; the cookie path is wired by
- *  `registerDebugRoutes` where the auth resolver is available). */
+/** Prod middleware — closes over env.DEBUG_TOKEN at module load. */
 export const debugAuthMiddleware: MiddlewareHandler = createDebugAuthMiddleware(env.DEBUG_TOKEN);
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
@@ -192,8 +179,6 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       uptimeSec: Math.round(process.uptime()),
       memory: process.memoryUsage(),
       providers: {
-        // OpenRouter readiness = key present; the live catalog is a separate fetch. agent-sdk auth is the
-        // host `claude login` — not cheaply probed here.
         openrouter: { configured: env.OPENROUTER_API_KEY !== undefined },
         defaultModels: { chat: DEFAULT_CHAT_MODEL_ID, openrouter: DEFAULT_OR_CHAT_MODEL_ID },
       },
@@ -221,7 +206,6 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     if (userId === undefined) {
       return c.json({ requests: recentRequests(limit) });
     }
-    // Filter the whole ring THEN cap — so the result is up to `limit` of THIS user's requests.
     const filtered = recentRequests(Number.MAX_SAFE_INTEGER).filter((r) => r.userId === userId);
     return c.json({ requests: filtered.slice(0, limit) });
   });
@@ -244,7 +228,6 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       : c.json(traceRecord);
   });
 
-  // DB introspection (only when a db handle is supplied). Gated by the same /api/_debug/* middleware above.
   if (db !== undefined) {
     app.get("/api/_debug/db/stats", async (c) =>
       c.json({ tables: await tableCounts(db), auditFailures: getAuditFailureSnapshot() }),

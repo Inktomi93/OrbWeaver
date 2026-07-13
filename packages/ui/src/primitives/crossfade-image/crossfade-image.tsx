@@ -8,15 +8,11 @@ export interface CrossfadeImageProps {
   /** The image to display. `null` renders no image but still reserves the aspect box. */
   readonly src: string | null;
   readonly alt: string;
-  /** CSS `aspect-ratio` (e.g. `"16 / 9"` or `1`) — reserves the layout box EVEN when `src` is null. */
+  /** CSS `aspect-ratio` — reserves the layout box even when `src` is null. */
   readonly aspectRatio: string | number;
-  /** `object-fit` inside the aspect box. `cover` (default) fills + crops; `contain` letterboxes so the
-   *  whole image is visible (the gallery lightbox). */
+  /** `object-fit` inside the aspect box. `cover` (default) fills + crops; `contain` letterboxes. */
   readonly fit?: "cover" | "contain";
-  /**
-   * Crossfade duration override, in ms. Unset uses the `--motion-base` token (the same opacity-fade
-   * duration as the dialog/toast overlays); this is a caller escape hatch, not a styling default.
-   */
+  /** Crossfade duration override, in ms. Unset uses the `--motion-base` token. */
   readonly durationMs?: number;
   readonly className?: string;
 }
@@ -43,18 +39,9 @@ function initialLayers(src: string | null): Layers {
 }
 
 /**
- * CrossfadeImage — a two-layer CSS opacity crossfade on `src` change: the incoming image fades in
- * over the outgoing one, which is then dropped. Collapses to an instant swap under
- * `prefers-reduced-motion` via the globals.css unlayered floor (transition-duration → 0.01ms) — no
- * JS media-query branching needed. The aspect box is reserved via `aspectRatio` even when `src` is
- * `null` (no layout shift while an image is pending).
- *
- * A remote `src` can 404 or otherwise fail to decode: the top layer's `onError` swaps it for a
- * styled broken-image fallback (an `ImageOff` glyph on the same muted box) instead of the browser's
- * native broken-image icon, and drops the stale previous layer immediately — there is nothing left
- * to crossfade TO.
- *
- * Usage: `<CrossfadeImage src={char.portraitUrl} alt={char.name} aspectRatio="3 / 4" />`.
+ * Two-layer CSS opacity crossfade on `src` change. Collapses to an instant swap under
+ * `prefers-reduced-motion` via the globals.css unlayered floor — no JS media-query branching needed.
+ * A failing `src` swaps to a styled broken-image fallback instead of the browser's native glyph.
  */
 export function CrossfadeImage({
   src,
@@ -64,13 +51,10 @@ export function CrossfadeImage({
   durationMs,
   className,
 }: CrossfadeImageProps): ReactElement {
-  // Mirrors `src` so a prop change can be detected and reacted to DURING render (the React-endorsed
-  // "adjusting state when a prop changes" pattern) instead of a setState-in-effect cascade.
+  // Mirrors `src` so a prop change is detected and reacted to DURING render, not a setState-in-effect cascade.
   const [propSrc, setPropSrc] = useState(src);
   const [layers, setLayers] = useState<Layers>(() => initialLayers(src));
-  // The top layer's `key` once its `<img>` has fired `onError` — rendered as the broken-image
-  // fallback instead of a native broken-`<img>`. A fresh `src` gets a fresh `key` (the generation
-  // counter), so this never needs clearing on success; it just stops matching.
+  // A fresh `src` gets a fresh generation key, so this never needs clearing on success.
   const [brokenKey, setBrokenKey] = useState<number | null>(null);
 
   if (src !== propSrc) {
@@ -78,7 +62,6 @@ export function CrossfadeImage({
     const generation = layers.generation + 1;
     setLayers({
       generation,
-      // `src === null`: just clear both layers — no fade-out is specified for removal.
       previousSrc: src === null ? null : (layers.top?.src ?? null),
       top: src === null ? null : { key: generation, src, revealed: false },
     });

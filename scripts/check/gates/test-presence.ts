@@ -160,11 +160,8 @@ function scanTestPresence(root: string, project: Project): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST presence gate via `run`, fsBacked) ─────────────────
-// test-presence reconciles server/contracts source (AST — schema/callable detection) against its MIRROR
-// tests (existsSync of tests/<mirror>). A `run` descriptor over ctx.root + ctx.project reusing the exact
-// scan, `fsBacked` so conformance materializes the source + (for mustPass) the mirror test into a real
-// temp dir. Distinct per-arm messages → per-occurrence overrides. Byte-identical to the legacy Check.
+// test-presence reconciles server/contracts source (AST — schema/callable detection) against its
+// mirror tests (existsSync of tests/<mirror>).
 export const gate: GateDescriptor = {
   name: "test-presence",
   docRow: "core/Spine-Testing.md §5",

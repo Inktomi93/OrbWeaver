@@ -1,25 +1,19 @@
-// domain/chat/substrate/stats-delta — the StatsDelta BUILDERS ("stats-delta
-// builders STAY chat; applyStatsDelta injected"). RELOCATED engine/ → substrate/ when the canon-mutator
-// verbs became consumers (start-chat/edit/delete/fork push too — the
-// `domain-substrate-mediates-subsystems` gate homes verb-shared pure helpers HERE, not in a named
-// subsystem). The builders are chat's; the APPLY is the injected
-// `ctx.applyStatsDelta` (the upsert into the four rollup tables — `domain/stats`), pushed into the SAME
-// `db.batch` as the canon write so the rollups stay fresh with no rebuild.
+// domain/chat/substrate/stats-delta — the StatsDelta builders (chat's; the apply is the injected
+// `ctx.applyStatsDelta`, pushed into the same `db.batch` as the canon write so rollups stay fresh with
+// no rebuild).
 //
-// THE DRIFT GATE: a builder computes the CHANGE its write makes — an APPEND (a new
-// message) emits the new contribution. The SAME `@orb/kit/stats-tally` primitives (`wordCount`/`utcDay`/
-// `modelKey`) run here AND in `reconcileStats`, so the live delta can never drift from a rebuild.
+// The drift gate: a builder computes the CHANGE its write makes. The same `@orb/kit/stats-tally`
+// primitives run here AND in `reconcileStats`, so the live delta can never drift from a rebuild.
 //
-// OWNER = `runAsUserId` (the host whose box funds + owns the turn — stats are per-owner; D17/§5). The
-// economics (tokens/cost/cache) are the host's spend. `triggeredBy` is the BUDGET axis (engine/budget.ts),
-// NOT the stats owner — they differ in a hosted by-proxy turn.
+// Owner = `runAsUserId` (the host, who funds + owns the turn). `triggeredBy` is the budget axis, not the
+// stats owner — they differ in a hosted by-proxy turn.
 
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { modelKey, utcDay, wordCount } from "@orb/kit/stats-tally";
 
-/** The committed economics a turn-delta builder reads (the pipeline's reduced `final` chunk + timings). All
- *  nullable — an unreported field contributes nothing (a sparse patch; never a fabricated zero). */
+/** The committed economics a turn-delta builder reads. All nullable — an unreported field contributes
+ *  nothing (a sparse patch; never a fabricated zero). */
 interface TurnEconomicsInput {
   readonly content: string;
   readonly reasoning?: string | null | undefined;
@@ -31,14 +25,11 @@ interface TurnEconomicsInput {
   readonly cacheWriteTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
   readonly genTimeMs?: number | null | undefined;
-  /** The generation's context window (D26 variant `contextWindow`) → `owner_stats.maxContextTokens` (a MAX
-   *  extremum, owner grain only). The engine persists it on every variant, so the live turn delta MUST carry
-   *  it or the column stays NULL until a reconcile (F6). */
+  /** The generation's context window → `owner_stats.maxContextTokens` (a MAX extremum, owner grain only). */
   readonly contextWindow?: number | null | undefined;
 }
 
-/** Set `target[key]` only when `value` is a real number (omit absent economics — the sparse-patch contract;
- *  the apply coalesces an omitted field to 0 / skips the extremum). */
+/** Set `target[key]` only when `value` is a real number (omit absent economics). */
 function setNum(
   target: Record<string, number>,
   key: string,
@@ -54,26 +45,15 @@ function has(v: number | null | undefined): v is number {
   return typeof v === "number";
 }
 
-/** The DECOUPLED model_stats slice (null model ⇒ `{}` — apply skips the model row). Built with object-literal
- *  KEYS so the high-entropy `model*` field names never appear as STRING literals (biome `noSecrets`). */
+/** The decoupled model_stats slice (null model ⇒ `{}` — apply skips the model row). */
 function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<string, number> {
   if (model === null) {
     return {};
   }
   return {
     modelGenerations: 1,
-    // A gen-time SAMPLE is counted ONLY when a gen time is present — symmetric with the delete mirror
-    // (`canonModelSlice`'s `gen !== null ? sign : 0`, F8). The engine add-path supplies no `genTimeMs`, so
-    // an unconditional `1` here inflated `modelGenSamples` (add +1 / delete −0) and diluted the gen-time
-    // average vs a rebuild (which counts 0 — no persisted gen bounds). Gating it holds the drift gate.
+    // A gen-time sample is counted only when a gen time is present, symmetric with the delete mirror.
     modelGenSamples: has(e.genTimeMs) ? 1 : 0,
-    // The MODEL bucket's reasoning count — the live twin of the rebuild's `foldModelGen` reasoning arm
-    // (`hasReasoning(r) → reasoningGenerations++`). `reasoningGenerations` (below) feeds the owner + char
-    // grains; `model_stats.reasoningGenerations` is fed by THIS `modelReasoningGenerations` field
-    // (apply-delta), so omitting it drifted the model row vs a reconcile on a reasoning-bearing turn. Gated
-    // on the SAME trimmed predicate the rebuild + sibling builders use. `modelReasoningMs` is NOT carried:
-    // the engine persists no `reasoning_duration` on the live path, so the rebuild folds 0 there too (the
-    // owner/char-grain `reasoningMs` is likewise omitted live for this reason — no fabricated zero).
     ...(typeof e.reasoning === "string" && e.reasoning.trim().length > 0
       ? { modelReasoningGenerations: 1 }
       : {}),
@@ -87,10 +67,9 @@ function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<stri
 }
 
 /**
- * Build the per-canon-write delta for a freshly-committed ASSISTANT turn (one new message — the new
- * contribution). `characterId` null ⇒ `character_stats` is skipped (the narrator/group rows always carry a
- * real id — Part III §10 — so this is null only for a non-character assistant write). The model slice is
- * DECOUPLED from the scalar tokens (a later swipe on a different model emits its own model-only delta).
+ * Build the per-canon-write delta for a freshly-committed assistant turn (one new message). `characterId`
+ * null ⇒ `character_stats` is skipped. The model slice is decoupled from the scalar tokens (a later swipe
+ * on a different model emits its own model-only delta).
  */
 export function assistantTurnDelta(params: {
   readonly ownerId: UserId;
@@ -107,12 +86,9 @@ export function assistantTurnDelta(params: {
   setNum(optional, "cacheWriteTokens", e.cacheWriteTokens);
   setNum(optional, "costUsd", e.costUsd);
   setNum(optional, "genTimeMs", e.genTimeMs);
-  // DAILY slice (decoupled from scalar tokens — daily credits the message stream).
   setNum(optional, "dailyTokensIn", e.tokensIn);
   setNum(optional, "dailyTokensOut", e.tokensOut);
-  // TRIM the reasoning predicate — the rebuild + every sibling builder count a reasoningGeneration only on
-  // `trim().length > 0` (a whitespace-only thinking block is not a generation). A bare `.length > 0` here
-  // over-counted vs a reconcile on such a string (F7).
+  // A reasoningGeneration counts only on trim().length > 0 (a whitespace-only thinking block is not one).
   const hasReasoning = typeof e.reasoning === "string" && e.reasoning.trim().length > 0;
   return {
     ownerId: params.ownerId,
@@ -125,8 +101,6 @@ export function assistantTurnDelta(params: {
     contentBytes: e.content.length,
     genSamples: typeof e.genTimeMs === "number" ? 1 : 0,
     ...(hasReasoning ? { reasoningGenerations: 1 } : {}),
-    // The context window → `maxContextTokens` (MAX extremum, owner grain). Carried on the live turn delta so
-    // the column tracks the true max on the write path, not only after a reconcile (F6).
     ...(has(e.contextWindow) ? { maxContextTokens: e.contextWindow } : {}),
     lastAt: params.now,
     now: params.now,
@@ -136,10 +110,8 @@ export function assistantTurnDelta(params: {
 }
 
 /**
- * Build the per-canon-write delta for a committed USER message (the send verb's contribution — co-located
- * here so the user + assistant builders share the one tally home). `characterId` MUST be null under the
- * drift gate: the rebuild's per-character grain folds ASSISTANT slots only (`foldMessageChar`), so a user
- * turn contributes to owner+day grains alone.
+ * Build the per-canon-write delta for a committed user message. `characterId` must be null: the rebuild's
+ * per-character grain folds assistant slots only, so a user turn contributes to owner+day grains alone.
  */
 export function userMessageDelta(params: {
   readonly ownerId: UserId;
@@ -161,13 +133,12 @@ export function userMessageDelta(params: {
   };
 }
 
-// ═══ Canon-mutator builders (the cross-feature composition: start-chat / edit / delete / fork ═══
-// push their rollup delta into the SAME canon batch). Each mirrors `reconcileStats`'s folds over the D26
-// canon (rebuild-from-canon.ts foldMessage/foldSwipe) with a SIGN so a delete emits the exact negative of
-// the rebuild's contribution — the drift-gate contract (stats inv #3).
+// Canon-mutator builders: start-chat/edit/delete/fork push their rollup delta into the same canon batch.
+// Each mirrors the rebuild's folds with a SIGN so a delete emits the exact negative of the rebuild's
+// contribution.
 
-/** One canon row (slot ⋈ its SELECTED variant) as the delta input — the same fields the rebuild's message
- *  stream reads. File-local shape (types-in-contract): callers pass structurally-matching literals. */
+/** One canon row (slot ⋈ its selected variant) as the delta input — the same fields the rebuild's message
+ *  stream reads. */
 interface CanonRowInput {
   readonly characterId: CharacterId | null;
   readonly role: string;
@@ -189,7 +160,7 @@ interface CanonRowInput {
   readonly variantCount: number;
 }
 
-/** One NON-selected variant (a swipe) as the delta input — the rebuild's swipe stream fields. */
+/** One non-selected variant (a swipe) as the delta input — the rebuild's swipe stream fields. */
 interface SwipeRowInput {
   readonly characterId: CharacterId | null;
   readonly msgCreatedAt: number;
@@ -221,12 +192,10 @@ function hasReasoningText(reasoning: string | null): boolean {
 }
 
 /**
- * The full contribution of ONE canon message (its SELECTED variant) as a signed delta — the live mirror of
- * the rebuild's `foldMessage` (owner + day + per-char [assistant-only] + model [assistant-only] grains in
- * one payload; the apply fans it to the four tables). `sign:-1` = the delete-messages arm (the exact
- * negative of the row's rebuild contribution; `lastAt` re-floats to `now` — an extremum can't be
- * subtracted, the next reconcile settles it). `maxContextTokens` is carried only on `+1` (a MAX candidate
- * can't be retracted).
+ * The full contribution of one canon message (its selected variant) as a signed delta — the live mirror
+ * of the rebuild's `foldMessage`. `sign:-1` is the delete-messages arm; `lastAt` re-floats to `now` (an
+ * extremum can't be subtracted, the next reconcile settles it). `maxContextTokens` is carried only on
+ * `+1` (a MAX candidate can't be retracted).
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat signed field-mapping of the rebuild's fold — every ternary is one column, no nesting; splitting it would scatter the drift-gate mirror.
 export function canonMessageDelta(params: {
@@ -261,7 +230,7 @@ export function canonMessageDelta(params: {
     assistantTurns: isAssistant ? sign : 0,
     systemTurns: row.role === "system" ? sign : 0,
     userWords: isUser ? words : 0,
-    // Non-user (assistant + system) words land in assistantWords (the rebuild's binary is_user split).
+    // Non-user (assistant + system) words land in assistantWords.
     assistantWords: isUser ? 0 : words,
     contentBytes: (row.content?.length ?? 0) * sign,
     tokensIn,
@@ -294,8 +263,7 @@ export function canonMessageDelta(params: {
   };
 }
 
-/** The model slice of {@link canonMessageDelta} (cost/cache included — the rebuild's message-stream model
- *  fold). Empty when the row credits no model bucket. */
+/** The model slice of {@link canonMessageDelta}. Empty when the row credits no model bucket. */
 function canonModelSlice(
   creditsModel: boolean,
   v: {
@@ -328,9 +296,9 @@ function canonModelSlice(
 }
 
 /**
- * The contribution of ONE non-selected variant (a swipe) as a signed delta — the live mirror of the
- * rebuild's `foldSwipe`/`foldSwipeChar`: swipes credit the re-roll counters + scalar tokens but NOT the
- * daily token slice, and their model bucket carries no cost/cache (the rebuild's `foldModelGen`-only arm).
+ * The contribution of one non-selected variant (a swipe) as a signed delta — the live mirror of the
+ * rebuild's `foldSwipe`/`foldSwipeChar`: swipes credit the re-roll counters + scalar tokens but not the
+ * daily token slice, and their model bucket carries no cost/cache.
  */
 export function swipeVariantDelta(params: {
   readonly ownerId: UserId;
@@ -377,19 +345,12 @@ export function swipeVariantDelta(params: {
 }
 
 /**
- * The chat-CREATED contribution (`start-chat` / `fork`): +1 chats (per-char [the primary] + per-owner),
- * +1 daily chatsCreated, the fork lineage counter, and the firstAt/lastAt extrema candidates. GROUP edge
- * (PD-21, decided): a multi-character room bumps only the PRIMARY character's per-char `chats` here — the
- * rebuild counts every participant character's chats, so a reconcile settles the extra per-char rows; the
- * owner/day grains are exact either way (one delta cannot bump per-char chats for N characters without
- * over-bumping the owner's — the same field drives both grains). Owner-attribution itself is exact: v1
- * enforces single-owner-per-chat (roster characters are host-owned — see rebuild-from-canon.ts header).
+ * The chat-created contribution (`start-chat`/`fork`): +1 chats (per-char primary + per-owner), +1 daily
+ * chatsCreated, the fork lineage counter, and the firstAt/lastAt extrema candidates. A multi-character room
+ * bumps only the primary character's per-char `chats`; a reconcile settles the extra per-char rows.
  *
- * @remarks `newCharacter` (PD-96) is `true` when this creation is the PRIMARY character's FIRST chat
- *  (the `characterSeatedInAnotherChat` existence probe): bumps `owner_stats.characters` by 1. A fork is
- *  never a first chat (the parent seats the same cast) — it passes `false`. Additional first-chat
- *  founding characters ride one {@link newCharacterDelta} each (the contract's `newCharacter` is a
- *  boolean, so N first-timers need N deltas).
+ * @remarks `newCharacter` is `true` when this creation is the primary character's first chat. A fork is
+ *  never a first chat. Additional first-chat founding characters ride one {@link newCharacterDelta} each.
  */
 export function chatCreatedDelta(params: {
   readonly ownerId: UserId;
@@ -415,12 +376,10 @@ export function chatCreatedDelta(params: {
 }
 
 /**
- * The first-chat contribution of ONE additional founding character beyond the primary (PD-96): a pure
+ * The first-chat contribution of one additional founding character beyond the primary: a pure
  * `owner_stats.characters` +1 rider on the creation batch. `characterId` is deliberately null — the
  * rebuild mints a `character_stats` row only for characters with canon messages, so a per-char zero row
- * here would be manufactured drift; the owner grain is the only live-counted surface (`newCharacter` —
- * stats esoteric #10). The rebuild's `owner_stats.characters` counts ALL owned characters, so a
- * chat-less character stays live-uncounted until a reconcile (the documented, accepted caveat).
+ * here would be manufactured drift.
  */
 export function newCharacterDelta(params: {
   readonly ownerId: UserId;
@@ -438,9 +397,8 @@ export function newCharacterDelta(params: {
 }
 
 /**
- * The NET contribution of an in-place content edit (`editMessage` — D26: the selected variant's content
- * changes, nothing else): `words(new) − words(old)` on the role bucket + the byte diff, bucketed on the
- * slot's ORIGINAL day (the rebuild folds by `createdAt`, not the edit time).
+ * The net contribution of an in-place content edit: `words(new) − words(old)` on the role bucket + the
+ * byte diff, bucketed on the slot's original day (the rebuild folds by `createdAt`, not the edit time).
  */
 export function editMessageDelta(params: {
   readonly ownerId: UserId;

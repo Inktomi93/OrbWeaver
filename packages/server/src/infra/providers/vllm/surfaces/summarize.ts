@@ -1,11 +1,6 @@
-// infra/providers/vllm/surfaces/summarize — the vLLM summarize role surface: a request SHAPER over the
-// gen chat-completion core, NOT a separate engine.
-//
-// The gen engine is a general VL chat model; summarize is just one role's request shape on it:
-// (systemPrompt, userPrompt[, images]) → one completion per item. The wire logic lives in
-// engine/chat-completion (down) — this module only maps the batch contract onto it and owns the batch
-// concurrency policy (bounded workers feeding vLLM's continuous batcher). It imports NO sibling surface
-// (the shared core is engine-level), keeping `vllm-surface-isolation` intact.
+// vLLM summarize role surface: a request SHAPER over the gen chat-completion core, not a separate engine.
+// Maps the batch contract onto engine/chat-completion and owns the batch concurrency policy (bounded
+// workers feeding vLLM's continuous batcher).
 
 import type { SummarizeRequest, SummarizeResult, SummarizeResultItem } from "../../contract";
 import type { VllmChatCompletionResult, VllmEngineClient } from "../engine";
@@ -15,8 +10,6 @@ import { runVllmChatCompletion } from "../engine";
 // default gen model is Instruct/no-thinking, but a future Thinking checkpoint would emit it).
 const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/g;
 
-/** Deps the summarize surface closes over. `concurrency` is injected (a settings-tier knob — see the
- *  subsystem FLAG; it is NOT a `VLLM_*` env key today). */
 export interface VllmSummarizeDeps {
   readonly client: VllmEngineClient;
   readonly concurrency: number;
@@ -65,8 +58,7 @@ export function createVllmSummarize(
     const workerCount = Math.min(deps.concurrency, req.inputs.length);
     await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
-    // Every slot is filled (the worker pool covers [0, inputs.length)); the cast drops the build-time
-    // `undefined` the fixed-size array carried.
+    // Every slot is filled by the worker pool; the cast drops the build-time `undefined`.
     return { items: items as SummarizeResultItem[], model: req.model };
   };
 }

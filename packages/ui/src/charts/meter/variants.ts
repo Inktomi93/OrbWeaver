@@ -1,12 +1,6 @@
-// @orb/ui/meter variants — 1-D magnitude skins (D52/D58; rpg-design/11 §2). The danger state is a
-// TOKEN SWAP (primary → destructive intent), never a color calculation.
+// 1-D magnitude skins. The danger state is a token swap (primary -> destructive intent), never a color calculation.
 import { tv } from "#lib";
 
-/**
- * The Base UI Meter.Root wrapper skin — the role="meter" container that holds the optional
- * label/value readout row above the geometry. `kind` sets the container flow (bars stretch full
- * width; the arc gauge is content-sized).
- */
 export const meterVariants = tv({
   slots: {
     root: "flex flex-col gap-field",
@@ -23,7 +17,6 @@ export const meterVariants = tv({
   },
 });
 
-/** Linear meter skin — div track + fill (rpg-design/11 §2 `progress_bar`). */
 export const linearMeterVariants = tv({
   slots: {
     root: "relative h-field w-full overflow-hidden rounded-full bg-muted",
@@ -35,7 +28,6 @@ export const linearMeterVariants = tv({
   },
 });
 
-/** Arc (gauge) meter skin — SVG stroke ramp; colors ride currentColor via text-* tokens. */
 export const arcMeterVariants = tv({
   slots: {
     root: "block size-control-lg",
@@ -47,7 +39,6 @@ export const arcMeterVariants = tv({
   },
 });
 
-/** Bipolar meter skin — center-origin −/+ fill over a shared track (rpg-design/11 §2 `relationship_meter`). */
 export const bipolarMeterVariants = tv({
   slots: {
     root: "relative h-field w-full overflow-hidden rounded-full bg-muted",
@@ -60,10 +51,6 @@ export const bipolarMeterVariants = tv({
   },
 });
 
-/**
- * `<SegmentedClock>` skin — intent accent via currentColor + text-primary; empty segments drop to
- * text-muted; size on the control-height token scale (rpg-design/11 §2).
- */
 export const segmentedClockVariants = tv({
   slots: {
     root: "text-primary",
@@ -78,9 +65,7 @@ export const segmentedClockVariants = tv({
       lg: { root: "size-control-lg" },
     },
     filled: { false: { segment: "text-muted" } },
-    // GM-eyes redaction (A4): dims the whole glyph — never the sole signal, paired with the lock
-    // glyph that takes the center-emphasis slot (segmented-clock.tsx) so colorblind viewers still
-    // get a non-color "this clock is hidden from players" tell.
+    // Dims the whole glyph — never the sole signal, paired with the lock glyph in the center-emphasis slot.
     hidden: { true: { root: "opacity-50" } },
   },
   defaultVariants: { size: "md" },

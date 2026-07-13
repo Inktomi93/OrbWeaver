@@ -1,20 +1,6 @@
-// The DESCRIPTOR-DRIVEN params panel (W10 Panel 2 · capability-turn-shaping/04 §W10 + the deferred
-// connection-capability-panel.md). It RENDERS FROM `ModelCapabilityView` — iterating `capability.sampling`
-// (a knob shows ONLY where the descriptor lists it, slider bounds from each knob's `Range`), the reasoning
-// control (off-toggle + the model's ACTUAL `effortLevels` / a `budgetRange` slider / an adaptive note),
-// and `verbosity` (only when present). NO hardcoded knob stack, NO model-name string-match.
-//
-// THE GATE (owner-ruled — connection-capability-panel.md Proposal 1): this component derives EVERY knob it
-// renders from the capability descriptor via capability-panel-model.ts, whose only knob-vocabulary import
-// is `@orb/contracts`. A static knob list from outside `@orb/contracts`, or a `model.includes(...)` branch,
-// is a design failure. The params panel here imports NO knob list — it iterates `samplingKnobsFor` /
-// `reasoningControlFor` / `verbosityLevelsFor` off the passed `ModelCapability`.
-//
-// OPTIONAL-KNOB BINDING: a `PromptConfig.params.<knob>` is OPTIONAL (absent ⇒ "use the model default").
-// A slider needs a concrete number, so each numeric knob renders as an OVERRIDE SWITCH (is this knob set?)
-// gating a slider — off ⇒ the param is `undefined` (round-trips to unset, the ST neutralized-sentinel
-// discipline); on ⇒ the slider value persists. This keeps the direct-bind honest (an untouched knob never
-// mints a value) without a flat-form shadow. `enabling` seeds the slider to the Range MIDPOINT.
+// Descriptor-driven params panel — renders FROM `ModelCapabilityView` (sampling knobs, reasoning control,
+// verbosity), never a hardcoded knob stack or model-name match. Every knob comes from capability-panel-model.ts.
+// An optional numeric knob renders as an override switch gating a slider — off ⇒ `undefined` (unset).
 
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import type { PromptConfig, Quality } from "@orb/contracts/preset";
@@ -37,25 +23,17 @@ import {
   verbosityLevelsFor,
 } from "../lib/capability-panel-model";
 
-/** The preset editor's form instance — its value shape is the nested `PromptConfig` (direct-bind). Threaded
- *  from the editor surface; the panel binds nested paths (`params.temperature`, `params.effort`, …). */
 type AppForm = AppFormInstance<PromptConfig>;
 
 interface ParamsPanelProps {
   readonly form: AppForm;
-  /** The resolved capability for the preset's target model — the panel iterates it. `undefined` when no
-   *  chat connection is configured: Quality still renders (it derives nothing from the descriptor), the
-   *  descriptor-driven axes show the "connect a chat model" note. */
+  /** `undefined` when no chat connection is configured — Quality still renders, other axes show a connect note. */
   readonly capability: ModelCapability | undefined;
-  /** Which axis this panel instance renders (the editor tabs mount one panel per params tab). */
   readonly axis: "quality" | "sampling" | "reasoning" | "output";
 }
 
 /** The descriptor-driven params panel — renders the requested `axis` off the capability. */
 export function ParamsPanel({ form, capability, axis }: ParamsPanelProps): ReactElement {
-  // Quality is the PRIMARY control (~95% of presets) and derives NOTHING from the descriptor — the gate
-  // lives HERE (not in the surface) so it renders even with no chat model connected (first-run); the other
-  // axes render FROM the descriptor, so with no connection they show the connect-a-model note below.
   if (axis === "quality") {
     return <QualityDial form={form} />;
   }
@@ -78,8 +56,6 @@ export function ParamsPanel({ form, capability, axis }: ParamsPanelProps): React
   return <OutputSection form={form} capability={capability} />;
 }
 
-// ── The QUALITY dial (the PRIMARY control — ~95% of presets) ────────────────────────────────────────
-
 function QualityDial({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Section heading="Quality">
@@ -89,8 +65,6 @@ function QualityDial({ form }: { readonly form: AppForm }): ReactElement {
       </Text>
       <form.AppField name="params.quality">
         {(field): ReactElement => {
-          // The `@orb/ui` RadioGroup owns the radiogroup/radio ARIA + keyboard (a feature must not hand-roll
-          // interactive roles — the no-interactive-role-in-features gate). Empty string ⇒ no override.
           const current = (field.state.value as Quality | undefined) ?? "";
           return (
             <RadioGroup
@@ -115,8 +89,6 @@ function QualityDial({ form }: { readonly form: AppForm }): ReactElement {
   );
 }
 
-// ── The SAMPLING section (iterated from `capability.sampling`) ──────────────────────────────────────
-
 function SamplingSection({
   form,
   capability,
@@ -125,8 +97,6 @@ function SamplingSection({
   readonly capability: ModelCapability;
 }): ReactElement {
   const knobs = samplingKnobsFor(capability);
-  // A model with `sampling: {}` (agent-sdk Claude) yields NO knobs → the panel shows no sampling section
-  // (no disabled-slider theater — the GATE's "a knob shows ONLY where the descriptor lists it").
   if (knobs.length === 0 && !supportsSeed(capability)) {
     return (
       <Section heading="Sampling">
@@ -158,9 +128,7 @@ function SamplingSection({
   );
 }
 
-/** One optional numeric sampling knob — an override switch gating a bounded slider. Off ⇒ the param is
- *  `undefined` (unset); on ⇒ the slider value (seeded to the Range midpoint when first enabled). The
- *  knob's `field` is a typed `params.*` literal, so `form.AppField name` type-checks. */
+/** One optional numeric sampling knob — an override switch gating a bounded slider. */
 function OptionalKnobRow({
   form,
   knob,
@@ -212,11 +180,8 @@ function rangeMidpoint(range: Range, step: number): number {
   if (step >= 1) {
     return Math.round(mid);
   }
-  // Snap to the step grid so the seeded value is a clean slider position.
   return Math.round(mid / step) * step;
 }
-
-// ── The REASONING section (keyed by `reasoning.mode`) ───────────────────────────────────────────────
 
 function ReasoningSection({
   form,
@@ -235,8 +200,6 @@ function ReasoningSection({
   }
   return (
     <Section heading="Reasoning">
-      {/* The OFF-toggle — `params.effort === 'none'` is the off value (the user-intent EFFORT_LEVELS carries
-          `'none'`; the model-side does not). Distinct axis from the effort/budget dial below. */}
       <form.AppField name="params.effort">
         {(field): ReactElement => {
           const effort = field.state.value as EffortLevel | "none" | undefined;
@@ -276,8 +239,7 @@ function ReasoningSection({
   );
 }
 
-/** The effort dropdown — the model's ACTUAL levels only (never the full enum). Renders nothing when the
- *  descriptor lists no levels (the off-toggle above still stands). */
+/** Renders nothing when the descriptor lists no levels. */
 function EffortDropdown({
   levels,
   value,
@@ -298,8 +260,6 @@ function EffortDropdown({
   );
 }
 
-// A thin Select wrapper (the panel is not a bound-field factory — it composes the raw Select against the
-// AppField value). The Select is imported lazily here to keep the sampling path free of it.
 function EffortSelect({
   items,
   value,
@@ -368,8 +328,6 @@ function BudgetSlider({
   );
 }
 
-// ── The OUTPUT section (verbosity + max-output; verbosity only when present) ────────────────────────
-
 function OutputSection({
   form,
   capability,
@@ -420,9 +378,6 @@ function OutputSection({
   );
 }
 
-// A minimal single-select wrapper over `@orb/ui/select` for the panel's descriptor-derived pickers (the
-// bound `SelectField` factory can't express the "empty = unset" option cleanly for an optional enum). The
-// panel composes the raw Select primitive — still compose-only.
 function PanelSelect({
   items,
   value,
@@ -434,8 +389,7 @@ function PanelSelect({
   readonly value: string;
   readonly onChange: (next: string) => void;
   readonly placeholder: string;
-  /** The control's accessible name — the wrapping `<Field>` label isn't associated to the radix Select
-   *  trigger, so the trigger carries it directly (`jsx-a11y/control-has-associated-label`). */
+  /** The trigger's accessible name — the wrapping `<Field>` label isn't associated to the radix trigger. */
   readonly ariaLabel: string;
 }): ReactElement {
   return (

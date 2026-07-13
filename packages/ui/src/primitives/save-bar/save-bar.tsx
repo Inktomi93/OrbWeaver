@@ -12,14 +12,7 @@ export interface SaveBarProps
   className?: string;
 }
 
-/**
- * SaveBar — sticky editor footer/header chrome (ui-package-design §6.1, work-order #22): title +
- * kind label on the left, `children` docked right (dirty indicator, discard, save — the CALLER
- * supplies these). This is layout chrome ONLY — no form/dirty state, no save handling; that
- * wiring lives in the client form factories (ui-package-design §6.2), never here.
- *
- * Usage: `<SaveBar title={name} kind="Character" sticky="footer"><DirtyPill/><Button>Save</Button></SaveBar>`.
- */
+/** Sticky editor footer/header chrome: title + kind label left, `children` docked right. Layout chrome only. */
 export function SaveBar({
   title,
   kind,

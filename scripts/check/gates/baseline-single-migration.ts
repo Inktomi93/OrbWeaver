@@ -1,25 +1,14 @@
-// Gate: baseline-single-migration (Core-Laws-and-Precedents.md — pre-launch schema changes SQUASH into
-// the regenerated 0000_baseline, they never accrete as incremental 0001+ migrations). Nothing else in
-// the gate suite catches this: drizzle-kit happily writes 0001_*.sql, tsc/biome don't care, and an
-// agent that "just adds a migration" the normal way ships debt that only a human diff review would
-// catch — which the 2026-07-09 session miss proved doesn't reliably happen. The law: until launch, the
-// ENTIRE schema is one regenerated baseline (`pnpm --filter @orb/db db:generate` after wiping
-// migrations/ and regenerating from scratch) — never `db:generate` on top of an existing baseline.
-//
-// Checks packages/db/src/migrations contains EXACTLY the 0000_baseline artifacts (one *.sql file named
-// `0000_baseline.sql`, no other *.sql files) and meta/_journal.json has exactly one entry (idx 0, tag
-// "0000_baseline").
-//
-// LAUNCH-DAY ESCAPE: flip LAUNCHED to true to retire this gate deliberately (post-launch, incremental
-// migrations become the correct pattern — squashing a shipped baseline against live data is unsafe).
-// This is not a bug workaround; it's the gate's own designed sunset switch.
+// Gate: baseline-single-migration — pre-launch schema changes SQUASH into a regenerated
+// 0000_baseline, never accrete as incremental 0001+ migrations. Checks migrations/ contains ONLY
+// 0000_baseline.sql and meta/_journal.json has exactly one entry (idx 0, tag "0000_baseline").
+// LAUNCH-DAY ESCAPE: flip LAUNCHED to true to retire this deliberately (incremental migrations
+// become correct post-launch — this is the gate's own designed sunset switch, not a workaround).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
-// Widened to `boolean` (not the `false` literal) so flipping this to `true` on launch day doesn't
-// require silencing a "condition always falsy" lint — the annotation is the deliberate escape hatch.
+// Widened to `boolean` so flipping to `true` doesn't trip an "always-falsy condition" lint.
 const LAUNCHED: boolean = false;
 
 const MIGRATIONS_REL = "packages/db/src/migrations";
@@ -78,7 +67,6 @@ function checkJournal(migrationsDir: string): Violation[] {
   return [{ file: journalRel, line: 0, message: JOURNAL_SHAPE_MESSAGE }];
 }
 
-/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
 function scanBaselineSingleMigration(root: string): Violation[] {
   if (LAUNCHED) {
     return [];
@@ -90,12 +78,6 @@ function scanBaselineSingleMigration(root: string): Violation[] {
   return [...checkSqlFiles(migrationsDir), ...checkJournal(migrationsDir)];
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
-// baseline-single-migration reads the real fs (readdirSync of migrations/ *.sql + readFileSync of
-// meta/_journal.json) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
-// materializes examples to a real temp dir (its .sql/.json fixture files are written to disk though not
-// added to the ts-morph Project — exactly what a pure-fs gate needs). Byte-identical to the legacy Check.
-//
 export const gate: GateDescriptor = {
   name: "baseline-single-migration",
   docRow: "Core-Laws-and-Precedents.md (db-baseline-squash)",
@@ -123,7 +105,6 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        // a stray *.sql present but NO 0000_baseline.sql → the MISSING_BASELINE arm.
         "packages/db/src/migrations/0001_stray.sql": "-- stray\n",
         "packages/db/src/migrations/meta/_journal.json":
           '{ "entries": [{ "idx": 0, "tag": "0001_stray" }] }\n',
@@ -134,7 +115,6 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
-        // a valid single baseline .sql but a SECOND journal entry → the JOURNAL_SHAPE arm.
         "packages/db/src/migrations/meta/_journal.json":
           '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }, { "idx": 1, "tag": "0001_extra" }] }\n',
       },

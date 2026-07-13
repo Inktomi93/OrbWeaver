@@ -2,16 +2,10 @@ import { z } from "zod";
 import { getLog } from "#foundation/observability";
 import { safeFetch } from "./egress";
 
-// `/models` probe against a USER-supplied OpenAI-compatible endpoint. Best-effort: any failure
-// (unreachable, non-2xx, non-OpenAI shape) returns [] so the UI falls back to manual model entry — not
-// every server implements /models. NEVER throws, and never surfaces the user's endpoint/key in a throw;
-// failures log only a redacted error string. A fetch vs a user URL is an infra I/O adapter, NOT a DB
-// query (persistence-no-io) — `domain/credentials/verbs/fetch-models` calls this through an injected op.
-//
-// SSRF: `baseUrl` is user-supplied (`credentials.fetchModels`/`inspectEndpoint`), so this MUST NOT fetch it
-// raw. The global egress firewall address-gates the connect, and this routes through `safeFetch` for the
-// response-side belts too (size cap · per-hop redirect re-validation) — defense-in-depth, not dispatcher-
-// only (a stale/uninstalled dispatcher must not be the sole barrier at a user-URL boundary).
+// `/models` probe against a USER-supplied OpenAI-compatible endpoint. Best-effort: any failure returns []
+// (never throws, never surfaces endpoint/key in a throw). SSRF: `baseUrl` is user-supplied, so this MUST
+// route through `safeFetch` (global egress firewall address-gates the connect + response-side belts) —
+// defense-in-depth, not dispatcher-only.
 
 const modelsResponseSchema = z.object({
   data: z.array(z.object({ id: z.string() }).loose()).optional(),

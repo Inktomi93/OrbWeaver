@@ -1,28 +1,16 @@
-// domain/chat/assembly/assemble — the BUILD section walk. Render a reorderable `PromptConfig` against the immutable `AssembleContext` into the STATIC
-// (cache-stable) + DYNAMIC (per-turn) system-prompt halves + the after-history injection bucket. Pure: no
-// DB, no infra — context.ts loads the data and passes it in (`AssembleContext`), keeping this unit-testable
-// and reusable by a client preview.
+// domain/chat/assembly/assemble — the BUILD section walk. Render a reorderable `PromptConfig` against the
+// immutable `AssembleContext` into the static (cache-stable) + dynamic (per-turn) system-prompt halves +
+// the after-history injection bucket. Pure: no DB, no infra — context.ts loads the data and passes it in.
 //
-// THE ORDER: per section `macro → frame`, macros BEFORE framing (the WI per-entry
-// `regex(WORLD_INFO)` ran upstream in context.ts's WI→injection conversion, NOT here). Render ONCE — every
-// section renders through `renderMacros` exactly once (the two overridable slots memoize their preset render
-// in `computeOriginals` so a `{{original}}`-wrapping card doesn't double-fire side-effect macros).
+// `chat_history` is the pivot: sections before it build the system block; sections after it are delivered
+// as `in_chat` injections after the conversation. `{{user}}` resolves differently by section origin:
+// card-derived sections use the pinned ("anchor") persona; user-authored sections use the active persona.
 //
-// `chat_history` is the PIVOT: sections before it build the system block; sections after it are delivered as
-// `in_chat` injections AFTER the conversation (the runner/SHAPE splices history at the pivot).
+// The system-block chat injections arrive already macro-resolved + role-framed from context.ts; this walk
+// emits them verbatim. `in_chat` injections are the SHAPE splice's job.
 //
-// {{user}} resolves DIFFERENTLY by section origin (the dual-persona rule):
-//   • CARD-derived sections (char_*, post_history, scenario) → the PINNED ("anchor") persona, so a mid-chat
-//     persona switch never retroactively rewrites the card's {{user}} references.
-//   • USER-authored sections (literal blocks, the persona marker, host room overrides) → the ACTIVE persona.
-//
-// THE SYSTEM-BLOCK CHAT INJECTIONS (before_prompt/in_static/in_prompt on `ctx.chatInjections`) arrive
-// ALREADY macro-resolved + role-framed (context.ts's ONE injection list — render once); this walk emits them
-// verbatim. `in_chat` injections are the SHAPE splice's job (not handled here).
-//
-// FLAG[assemble-post-process]: neo applied `applyAssemblePostProcess` to the joined halves. That helper's
-// home is `@orb/server/kit/post-process` — NOT yet built (it lands with RECEIVE).
-// This chunk returns the raw `\n\n`-joined halves; the post-process pass is wired when that kit lands.
+// FLAG[assemble-post-process]: the post-process pass (`applyAssemblePostProcess`) is not yet built — it
+// lands with RECEIVE. This chunk returns the raw `\n\n`-joined halves until then.
 
 import type {
   AssembleCharacter,
@@ -38,10 +26,8 @@ import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import { renderMacros } from "./macros";
 
-// ── Volatile-macro detection (the static-half cache-buster scan) ──────────────────────────────────────
-// A macro whose value changes per render busts the cached static prefix. Derived from the kit registry's
-// `volatile: true` flag (set at registration) so a new volatile handler extends this set automatically.
-// `/a^/` is unsatisfiable (top-level so it isn't re-compiled per call).
+// A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
+// (top-level so it isn't re-compiled per call).
 const NO_VOLATILE_RE = /a^/u;
 let volatileMacroReCache: RegExp | undefined;
 function volatileMacroRe(): RegExp {
@@ -53,8 +39,7 @@ function volatileMacroRe(): RegExp {
   return volatileMacroReCache;
 }
 
-/** The volatile macro names present in `text` (source-template scan — macros are resolved before they'd
- *  reach the static half, so a post-render scan is impossible). */
+/** The volatile macro names present in `text` (source-template scan — resolved macros never reach here). */
 function findVolatileMacros(text: string | null | undefined): string[] {
   if (text === null || text === undefined || text.length === 0) {
     return [];
@@ -74,21 +59,19 @@ type TemplatedMarkerSection = Extract<
   { marker: keyof typeof DEFAULT_MARKER_TEMPLATES }
 >;
 
-/** The template for a templated marker — caller override wins, else the shipped default framing. Empty
- *  string is a valid override ("render nothing"). */
+/** The template for a templated marker — caller override wins, else the shipped default framing. */
 function templateFor(section: TemplatedMarkerSection): string {
   return section.template ?? DEFAULT_MARKER_TEMPLATES[section.marker];
 }
 
-/** Memoized preset render of each overridable section's PRESET `template`, keyed by section id — so the
- *  preset renders ONCE per assembly (a `{{original}}`-wrapping card re-uses the memo). */
+/** Memoized preset render of each overridable section's preset `template`, keyed by section id. */
 interface Originals {
   renderedById: Map<string, string>;
 }
 const EMPTY_ORIGINALS: Originals = { renderedById: new Map() };
 
-/** The shared per-assembly render bundle threaded through the section/marker arms (keeps each render fn
- *  under the 4-param cap). `pivotIndex` is the `chat_history` position (the after-history boundary). */
+/** The shared per-assembly render bundle threaded through the section/marker arms. `pivotIndex` is the
+ *  `chat_history` position. */
 interface BuildEnv {
   readonly ctx: AssembleContext;
   readonly trace: AssembleTrace;
@@ -96,14 +79,12 @@ interface BuildEnv {
   readonly pivotIndex: number;
 }
 
-/** A room/card override "counts" only with NON-whitespace content — blank means "inherit," not "override
- *  with emptiness." */
+/** A room/card override "counts" only with non-whitespace content — blank means "inherit." */
 function overrideSet(v: string | null | undefined): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
-// ── Merged co-speaker cards (cardScope: "merged" — Part III §7) ────────────────────────────────────────
-// The merge-eligible per-member card fields, declared as a tuple (§7.5 — no inline string-literal union).
+// The merge-eligible per-member card fields, declared as a tuple.
 const MEMBER_FIELDS = [
   "description",
   "personality",
@@ -118,9 +99,8 @@ type MemberField = (typeof MEMBER_FIELDS)[number];
  *  blowup when many present members each carry a long field. */
 const MERGED_FALLBACK_CAP = 4000;
 
-/** Render ONE member's card field with `{{char}}` bound to THAT member and `{{user}}` to the room anchor
- *  (pinned persona). The member sub-context drops the room tier so a member-field `{{scenario}}` binds to the
- *  member's own value. `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh. */
+/** Render ONE member's card field with `{{char}}` bound to that member and `{{user}}` to the room anchor.
+ *  `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh. */
 function renderMemberField(
   field: MemberField,
   member: AssembleCharacter,
@@ -154,11 +134,9 @@ function dedupeNonEmpty(parts: readonly string[]): string[] {
   return out;
 }
 
-/** The room-override SCOPE FALLBACK (Part III §9): the value a room override inherits / `{{original}}`
- *  recovers, + whether it merged the present cast. Solo/scoped collapses to `activeValue` (byte-identical).
- *  Consumed ONLY by the two `{{original}}`-templated overridable markers (main_prompt / post_history) — NOT
- *  the scenario marker: a co-speaker's scenario has ONE home (the char_description co-block), so folding the
- *  merged value into the scenario marker double-emitted it (F6). */
+/** The room-override scope fallback: the value a room override inherits / `{{original}}` recovers, + whether
+ *  it merged the present cast. Solo/scoped collapses to `activeValue`. Consumed only by the two
+ *  `{{original}}`-templated overridable markers, never the scenario marker (that would double-emit it). */
 function resolveScopeFallback(
   field: MemberField,
   ctx: AssembleContext,
@@ -174,8 +152,8 @@ function resolveScopeFallback(
   return { value, merged: true };
 }
 
-/** The merged co-speakers' card block (ST APPEND), appended after the active character's description.
- *  Empty (scoped / solo / no co-speakers) → "" (byte-identical to the single-card render). */
+/** The merged co-speakers' card block, appended after the active character's description. Empty when
+ *  scoped/solo/no co-speakers. */
 function renderCoSpeakers(ctx: AssembleContext): string {
   const co = ctx.coSpeakers;
   if (co === undefined || co.length === 0) {
@@ -207,7 +185,6 @@ function renderCoSpeakers(ctx: AssembleContext): string {
     .join("\n\n");
 }
 
-// ── The two overridable markers (room > card > preset) ─────────────────────────────
 const MERGED_CACHE_BUSTER = "merged-present-cast";
 
 function recordMergedCacheBuster(trace: AssembleTrace): void {
@@ -229,7 +206,7 @@ function recordOverrideSource(
 }
 
 /** The label for a room-overrideable slot ("room override" / "merged (present cast)" / "from <name>" /
- *  absent). One params object so it stays under the 4-param cap. */
+ *  absent). */
 function resolveOverrideSource(args: {
   room: string | null | undefined;
   forbidRoomOverride: boolean | undefined;
@@ -276,8 +253,6 @@ function renderOverridable(
   return { text: fallback.value, merged: fallback.merged };
 }
 
-// ── Per-marker render arms (split out so `renderMarker` stays under the complexity gate) ────────────────
-
 function renderOverridableMarker(
   section: TemplatedMarkerSection,
   marker: "main_prompt" | "post_history",
@@ -305,11 +280,8 @@ function renderOverridableMarker(
 function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): string {
   const { ctx, trace } = env;
   const room = ctx.roomOverrides?.scenario;
-  // The ACTIVE speaker's effective scenario ONLY (room > card, via the `{{scenario}}` macro). Co-speakers'
-  // scenarios are emitted ONCE by the char_description co-block (`renderCoSpeakers` — the ST-APPEND home);
-  // merging them here TOO double-emitted every co-speaker scenario (F6). `resolveScopeFallback` is the
-  // room-override `{{original}}` recovery value (used by the two overridable markers), which the scenario
-  // marker's plain `{{scenario}}` replacement never consumes — so it must not run here.
+  // Active speaker's effective scenario only — co-speakers' scenarios are emitted once by the
+  // char_description co-block; merging them here too would double-emit.
   const value = renderMacros(templateFor(section), ctx, ctx.pinnedPersona);
   if (value.trim().length === 0) {
     return "";
@@ -419,14 +391,12 @@ function renderSection(section: PromptSection, env: BuildEnv): string {
     : renderMarker(section, env);
 }
 
-// ── Static cache-buster source scan ────────────────────────────────────────────────────────────────────
 function coSpeakerFieldSources(field: MemberField, ctx: AssembleContext): string[] {
   const co = ctx.coSpeakers;
   return co === undefined ? [] : co.map((m) => m[field] ?? "");
 }
 
-/** The source strings (pre-render) feeding a STATIC marker — split out so `collectStaticSources` stays
- *  under the complexity gate. */
+/** The source strings (pre-render) feeding a static marker. */
 function markerStaticSources(section: MarkerSection, ctx: AssembleContext): string[] {
   switch (section.marker) {
     case "chat_history":
@@ -482,8 +452,8 @@ function collectStaticSources(section: PromptSection, ctx: AssembleContext): str
   return section.type === "literal" ? [section.content] : markerStaticSources(section, ctx);
 }
 
-/** Pre-render the PRESET content of every enabled overridable section, memoized by id — so the preset
- *  template renders EXACTLY ONCE (the `{{original}}` source) regardless of section order. */
+/** Pre-render the preset content of every enabled overridable section, memoized by id — renders exactly
+ *  once regardless of section order. */
 function computeOriginals(config: PromptConfig, ctx: AssembleContext): Originals {
   const overridable = config.sections.filter(
     (s): s is TemplatedMarkerSection =>
@@ -501,7 +471,6 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext): Originals
   return { renderedById };
 }
 
-// ── Section routing (static vs dynamic vs after-history) ────────────────────────────────────────────────
 function generationTypeBucket(t: GenerationType): GenerationType {
   return t === "regenerate" ? "swipe" : t;
 }
@@ -532,8 +501,8 @@ function isSectionDynamic(section: PromptSection): boolean {
   );
 }
 
-/** A relative non-system section is delivered at the TOP of history (before the conversation). The splice
- *  clamps this large depth to history length. */
+/** A relative non-system section is delivered at the top of history. The splice clamps this large depth
+ *  to history length. */
 const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
 /** A section's `in_chat` delivery depth, or null for system-block placement. Precedence: explicit
@@ -650,7 +619,7 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
 }
 
 /** Append the non-empty trimmed content of `list` to `target` (with a matching `label` per section),
- *  counting each into the trace. One params object keeps it under the 4-param cap. */
+ *  counting each into the trace. */
 function appendInjections(args: {
   list: readonly ChatInjection[];
   target: string[];
@@ -668,9 +637,8 @@ function appendInjections(args: {
   }
 }
 
-/** Route the system-block chat injections — content arrives ALREADY macro-resolved + role-framed from
- *  context.ts (the ONE injection list). `before_prompt` PREPEND to static, `in_static` APPEND, `in_prompt`
- *  → dynamic. `in_chat` is the SHAPE splice's job (not handled here). */
+/** Route the system-block chat injections — content arrives already macro-resolved + role-framed.
+ *  `before_prompt` prepends to static, `in_static` appends, `in_prompt` goes dynamic. */
 function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: WalkAccum): void {
   const all = ctx.chatInjections;
   if (all === undefined || all.length === 0) {
@@ -706,9 +674,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
 
 /**
  * Render `config` against `ctx` into the system-prompt halves + the after-history injection bucket. Each
- * enabled section is delivered into the system block (static/dynamic via `isSectionDynamic`) or as an
- * `in_chat` injection (after the `chat_history` pivot, or with an explicit `inject`/non-system role).
- * Disabled sections and empty renders skip. Pure (SHAPE consumes the immutable result).
+ * enabled section is delivered into the system block or as an `in_chat` injection. Pure.
  */
 export function assemblePrompt(config: PromptConfig, ctx: AssembleContext): AssembledPrompt {
   const trace = freshTrace(ctx);

@@ -1,19 +1,6 @@
-// infra/providers/backends/agent-sdk/session/store — the SDK `SessionStore` (the canon-derived resume
-// CACHE) + the per-chat `SessionCache`. The session is BACKEND-INTERNAL: the domain turn is
-// stateless-first and never sees it (participants-agents-identity.md §0/§6). The cache exists only to keep
-// the Max-sub path cheap — resuming the prior turn's session keeps the prompt cache alive.
-//
-// KEYED BY sessionId, NOT projectKey (deliberate): the SDK derives `SessionKey.projectKey` from its
-// sanitized spawn cwd, while this backend seeds frames BEFORE any spawn — replicating the sanitizer would
-// couple us to a wrapper internal. Session ids are uuids (globally unique by construction: the SDK mints
-// random ones, we mint hash-derived ones), so the sessionId alone addresses a session unambiguously and
-// our seeded rows + the SDK's mirror writes land on the SAME records regardless of cwd. A future durable
-// store MUST keep this property.
-//
-// DURABILITY: the default store is IN-MEMORY (`InMemorySessionStore`) — correct within-process resume.
-// Cross-restart is ALSO covered on the live path: the request's `seed` (the PD-7 canon feed) rebuilds the
-// session deterministically on a cold cache, so a durable injected store is an optimization (skip the
-// reseed write), not a correctness requirement.
+// The SDK SessionStore (canon-derived resume cache) + the per-chat SessionCache. Backend-internal only —
+// the domain turn is stateless-first and never sees a session id. Keyed by sessionId, not projectKey: this
+// backend seeds frames before any spawn, so replicating the SDK's cwd-derived projectKey would couple us to a wrapper internal.
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { SeedTurn } from "./frames";
@@ -26,67 +13,44 @@ import {
   toSeedTurns,
 } from "./frames";
 
-// The main transcript has no `SessionKey.subpath`; store "" for it so the composite key dedups. Empty
-// string is internal-only — never handed back to the SDK as a subpath (where "" is invalid).
+// "" is internal-only for the main transcript's subpath — never handed back to the SDK, where "" is invalid.
 const MAIN_TRANSCRIPT_SUBPATH = "";
-// Composite-key separator: NUL — it can't appear in a sessionId/subpath, so the parts can never collide.
+// NUL separator: can't appear in a sessionId/subpath, so composite keys never collide.
 const KEY_SEP = "\0";
-// LRU cap on retained session LINEAGES (a lineage = every composite (sessionId, subpath) key sharing one
-// sessionId — the main transcript plus any subagent subpaths — which evict together). NOT a toggle: eviction
-// is SAFE BY CONSTRUCTION. Evicting a lineage only drops the in-RAM resume shortcut; the next turn that
-// needs it recomputes the SAME deterministic session id from canon (`seedSessionId`) and rebuilds
-// byte-identical frames (the reseed / seedFresh path), so a cold entry costs one deterministic reseed, never
-// a lost conversation. 256 lineages ≈ 256 recently-active chats held hot at once — far past any realistic
-// concurrent-chat count for one process, so eviction only ever reclaims genuinely stale lineages.
+// LRU cap on retained session lineages. Eviction is safe by construction: a cold entry re-derives its
+// deterministic session id from canon and rebuilds byte-identical frames on the next turn — never a lost conversation.
 const MAX_SESSION_LINEAGES = 256;
-// Salt ceiling for `ensureSeededSession`'s diverged-id walk (a reverted edit can land back on a canon
-// state whose unsalted session already grew SDK-appended turns). Past the ceiling the turn runs fresh —
-// correct, just cache-cold — rather than looping.
+// Salt ceiling for ensureSeededSession's diverged-id walk; past this the turn runs fresh rather than looping.
 const MAX_SEED_SALT = 4;
 
-/** sessionId + subpath — projectKey is deliberately ignored (see the file header). */
+/** sessionId + subpath — projectKey is deliberately ignored (see file header). */
 function composite(key: SessionKey): string {
   return `${key.sessionId}${KEY_SEP}${key.subpath ?? MAIN_TRANSCRIPT_SUBPATH}`;
 }
 
 /**
- * The orb-internal store extension the in-place reseed needs: atomically REPLACE a session's frames
- * (the SDK {@link SessionStore} interface is append-only). `SessionCache` feature-detects it and falls
- * back to a fresh deterministic session when the injected store can't replace. A durable store SHOULD
- * implement it (delete WHERE sessionId + insert, one transaction — the neo `reseedSdkSession` shape):
- * replacing IN PLACE keeps the sessionId, and the sessionId keeps the conversation's cache lineage —
- * neo MEASURED that minting a new id re-writes the WHOLE conversation prompt cache (~1850 tokens on
- * their fixture) while an in-place replace re-writes only the changed suffix (~0 on a tail edit).
+ * Orb-internal store extension: atomically REPLACE a session's frames (the SDK {@link SessionStore} is
+ * append-only). Replacing in place keeps the sessionId and its prompt-cache lineage — an in-place replace
+ * re-bills only the changed suffix, where minting a new id re-writes the whole conversation's cache.
  */
 export interface ReplaceableSessionStore extends SessionStore {
   readonly replace: (key: SessionKey, entries: SessionStoreEntry[]) => Promise<void>;
 }
 
-/** Feature-detect the replace seam on an injected store. */
 function canReplace(store: SessionStore): store is ReplaceableSessionStore {
   return typeof (store as Partial<ReplaceableSessionStore>).replace === "function";
 }
 
 /**
- * The `ensureSeededSession` outcome: the session to resume (`null` = SDK-fresh) + which branch decided it
- * (the observability provenance the runner logs for the `provider.turn` / `provider.session` line — the
- * store itself stays logger-free; the seam is this return, not a logger import). The `disposition` union is
- * inline (a backend-internal string union has no `contract/` home — the session is backend-internal, D8 —
- * and the `no-inline-types` gate forbids an exported `type` alias here); consumers name it via
- * `SeededSessionDecision["disposition"]`. Members:
- *   • `resumed`   — the recorded session's stored transcript still matched the seed (the hot path).
- *   • `forked`    — a BRANCH divergence (swipe/edit: the new seed shares a non-trivial common prefix with the
- *                   recorded transcript, then diverges). The recorded lineage is left INTACT and the branch is
- *                   seeded under its OWN deterministic lineage, so swiping back to the original tail later
- *                   re-derives + re-adopts that lineage as a plain `resumed`/`readopted` — no reseed rewrite.
- *   • `reseeded`  — a NON-branch divergence (window-slide / no shared prefix — the old tail won't be returned
- *                   to) on a replace-capable store → in-place frame replacement under the same id (cheapest
- *                   store rewrite when lineage preservation buys nothing).
+ * `ensureSeededSession` outcome: the session to resume (`null` = SDK-fresh) + which branch decided it.
+ *   • `resumed`   — the recorded session's stored transcript still matched the seed.
+ *   • `forked`    — a branch divergence (swipe/edit sharing a prefix); recorded lineage stays intact,
+ *                   the branch seeds under its own deterministic lineage.
+ *   • `reseeded`  — a non-branch divergence (window-slide) on a replace-capable store → in-place replace.
  *   • `seeded`    — cold cache → a fresh deterministic seed-derived session was appended.
- *   • `readopted` — a previously-seeded deterministic session for this exact state was re-adopted (the
- *                   swipe-back landing that makes `forked` pay off).
- *   • `fresh`     — no cache hit was usable (salt ceiling / replace-incapable divergence) → SDK-fresh.
- *   • `cleared`   — an empty seed dropped the mapping (a cleared chat can never resume).
+ *   • `readopted` — a previously-seeded deterministic session for this exact state was re-adopted.
+ *   • `fresh`     — no cache hit usable (salt ceiling / replace-incapable divergence) → SDK-fresh.
+ *   • `cleared`   — an empty seed dropped the mapping.
  */
 export interface SeededSessionDecision {
   readonly sessionId: string | null;
@@ -101,40 +65,26 @@ export interface SeededSessionDecision {
 }
 
 /**
- * Process-local in-memory {@link SessionStore}. Mirrors the SDK's resume substrate (the subprocess still
- * writes its own local copy); we hold a secondary copy keyed by `(sessionId, subpath)`. `uuid`-bearing
- * frames dedup (the SDK replays uuids on retry / resume-import); uuid-less frames always append.
- *
- * BOUNDED: retains at most {@link MAX_SESSION_LINEAGES} session lineages, LRU by lineage. A lineage groups
- * every composite key of one `sessionId` (main transcript + subagent subpaths) so a swap-out drops the
- * WHOLE session, never a partial transcript. Recency is per-lineage and refreshed on any touch (get / append
- * / replace). Eviction is safe by construction (see {@link MAX_SESSION_LINEAGES}) — a cold lineage is
- * re-derived deterministically from canon on the next turn, so this is a memory bound, not a correctness
- * knob. The cache's `chatId → sessionId` map is NOT notified on eviction: `ensureSeededSession` already
- * tolerates a recorded id whose frames are gone (an empty `load` diverges from the seed → the reseed /
- * seedFresh path rebuilds it), so no store→cache callback is needed.
+ * Process-local in-memory {@link SessionStore}, keyed by (sessionId, subpath). uuid-bearing frames dedup
+ * (the SDK replays uuids on retry/resume-import); uuid-less frames always append. Bounded to
+ * {@link MAX_SESSION_LINEAGES} lineages, LRU by lineage (a lineage groups every composite key of one
+ * sessionId, so eviction drops a whole session atomically, never a partial transcript).
  */
 export class InMemorySessionStore implements ReplaceableSessionStore {
   private readonly entries = new Map<string, SessionStoreEntry[]>();
-  // LRU recency ORDER over lineages (sessionId): Map iteration is insertion-ordered, so the FIRST key is the
-  // least-recently-touched. A touch deletes+re-inserts the sessionId to move it to the most-recent end. The
-  // value is the set of composite keys under that lineage, so eviction can drop every one atomically.
+  // LRU recency order over lineages: Map iteration is insertion-ordered, so the first key is least-recently-touched.
   private readonly lineages = new Map<string, Set<string>>();
 
-  /** Move a lineage to the most-recently-used end and register the touched composite key under it, evicting
-   *  the least-recently-used lineage(s) once the cap is exceeded. */
   private touch(key: SessionKey): void {
     const { sessionId } = key;
     const members = this.lineages.get(sessionId);
     if (members !== undefined) {
-      // Re-insert to move to the MRU end (Map preserves insertion order).
       this.lineages.delete(sessionId);
       members.add(composite(key));
       this.lineages.set(sessionId, members);
     } else {
       this.lineages.set(sessionId, new Set([composite(key)]));
     }
-    // A single touch can add at most one lineage, but loop defensively so a lowered cap still converges.
     while (this.lineages.size > MAX_SESSION_LINEAGES) {
       const oldest = this.lineages.keys().next().value;
       if (oldest === undefined) {
@@ -172,8 +122,6 @@ export class InMemorySessionStore implements ReplaceableSessionStore {
 
   load(key: SessionKey): Promise<SessionStoreEntry[] | null> {
     const rows = this.entries.get(composite(key));
-    // `null` (not `[]`) for "never written" — the SDK starts a fresh session on null. A hit refreshes the
-    // lineage's recency; a miss does NOT resurrect an evicted lineage into the LRU order.
     if (rows === undefined) {
       return Promise.resolve(null);
     }
@@ -181,8 +129,7 @@ export class InMemorySessionStore implements ReplaceableSessionStore {
     return Promise.resolve([...rows]);
   }
 
-  /** Atomic frame replacement — the in-place reseed seam (NO uuid dedup: the rebuilt frames share
-   *  index-derived uuids with the rows being replaced; dedup would silently keep the stale text). */
+  // No uuid dedup: rebuilt frames share index-derived uuids with the rows being replaced; dedup would keep stale text.
   replace(key: SessionKey, entries: SessionStoreEntry[]): Promise<void> {
     this.entries.set(composite(key), [...entries]);
     this.touch(key);
@@ -190,16 +137,13 @@ export class InMemorySessionStore implements ReplaceableSessionStore {
   }
 }
 
-// `load`/`append` below go through the SessionStore with a placeholder projectKey — the store ignores it
-// (see the file header); the SDK's own calls arrive with its sanitized-cwd key and land on the same rows.
+// The store ignores projectKey (see file header); the SDK's own calls arrive with its sanitized-cwd key and land on the same rows.
 const INTERNAL_PROJECT_KEY = "orbweaver";
 
 /**
- * The per-chat resume cache: the SDK {@link SessionStore} plus the `chatId → sessionId` map the backend
- * keys resume by. `record`/`resolveResumeId` are the runner's raw seam; `ensureSeededSession` is the
- * PD-7 canon feed — given the freshly-rendered seed transcript it resumes the recorded session when the
- * stored transcript still matches, and otherwise seeds a FRESH deterministic session from the seed
- * (edit/swipe/window-slide divergence, cold cache, process restart).
+ * Per-chat resume cache: the SDK {@link SessionStore} plus the `chatId → sessionId` map. `record`/
+ * `resolveResumeId` are the runner's raw seam; `ensureSeededSession` resumes the recorded session when its
+ * stored transcript still matches the freshly-rendered seed, else seeds a fresh deterministic session.
  */
 export class SessionCache {
   readonly store: SessionStore;
@@ -209,49 +153,23 @@ export class SessionCache {
     this.store = store;
   }
 
-  /** The sessionId to resume for a chat, or `undefined` (cache miss → the runner starts fresh). */
   resolveResumeId(chatId: string): string | undefined {
     return this.byChat.get(chatId);
   }
 
-  /** Point a chat at the session the SDK reported (called on the first `session_id` of a turn). */
   record(chatId: string, sessionId: string): void {
     this.byChat.set(chatId, sessionId);
   }
 
   /**
-   * Resolve the session to resume for a chat given the model-visible transcript BEFORE this turn.
-   * Outcomes:
-   *   • the recorded session's stored transcript still matches the seed → resume it (the hot path;
-   *     the prompt cache survives untouched).
-   *   • a BRANCH divergence (swipe/edit — shares a non-trivial prefix with the recorded transcript) → FORK:
-   *     leave the recorded lineage intact and seed the branch under its OWN deterministic id. A later
-   *     swipe-back re-derives that original id from canon and re-adopts it as a plain resume — the lineages
-   *     do not clobber each other, so alternating between swipes never re-pays a reseed.
-   *   • a NON-branch divergence (window-slide / no shared prefix) with a recorded session on a
-   *     replace-capable store → reseed IN PLACE under the SAME sessionId (atomic frame replacement). Keeping
-   *     the id keeps the conversation's cache lineage — neo MEASURED that minting a new id re-writes the
-   *     WHOLE conversation cache while an in-place replace re-bills only the changed suffix. Safe to
-   *     overwrite here precisely because there is no shared tail a swipe-back would want to return to.
-   *   • cold cache (no recorded session) or a replace-incapable store → seed a deterministic
-   *     seed-derived session id (byte-identical rebuilds keep the content-keyed cache warm across
-   *     restarts — probe-verified).
-   *   • empty seed (fresh chat / cleared canon) → `null` (fresh SDK session); the chat mapping is
-   *     dropped so a cleared chat can never resume its old transcript.
-   *
-   * NOTE — why NOT the SDK's `forkSession`/`Options.forkSession`: both mint a RANDOM new session id. Our
-   * swipe-back discovery is content-addressed — it recomputes a branch's id with `seedSessionId` from canon
-   * alone — so a random fork id would be UNFINDABLE on the return swipe (we'd have no way to recompute it),
-   * defeating the invariant the fork exists to satisfy. The deterministic-lineage fork
-   * here IS a fork (a lineage-preserving copy under a fresh id) done content-addressably; it needs no SDK
-   * call, and its byte-identical rebuilds keep the Anthropic content cache warm regardless.
+   * Resolve the session to resume given the model-visible transcript before this turn. Why not the SDK's
+   * `forkSession`: it mints a random id, but swipe-back discovery is content-addressed (recomputes a
+   * branch's id with `seedSessionId` from canon alone) — a random fork id would be unfindable on return.
    */
   async ensureSeededSession(
     chatId: string,
     seed: readonly SeedTurn[],
   ): Promise<SeededSessionDecision> {
-    // Stub-prefix a greeting (assistant-first) seed — the SAME normalization the seeded frames carry,
-    // so the comparator sees consistent shapes on both sides.
     const turns = toSeedTurns(seed);
     if (turns.length === 0) {
       this.byChat.delete(chatId);
@@ -263,39 +181,20 @@ export class SessionCache {
       if (sessionMatchesSeed(rows, turns)) {
         return { sessionId: recorded, disposition: "resumed" };
       }
-      // Diverged from the RECORDED lineage. Before deciding fork-vs-reseed against it, probe the
-      // DETERMINISTIC candidate id for THIS seed: an A→B→A swipe-back re-derives lineage A's own id from
-      // canon, and if that lineage already exists (a prior turn seeded it, and the live subprocess then
-      // GREW it with its appended user+assistant frames) we must RE-ADOPT it, not fork a fresh copy.
-      // s9 2026-07-10 (SDK 0.3.206): A→B→A re-FORKED (dispositions [seeded, forked, forked]) because the
-      // fork decision ran against the recorded lineage (B) first and `seedFresh`'s exact-match walk then
-      // MISSED grown lineage A (the SDK-appended tail made it a superset, not an exact match). The probe
-      // below matches on a grown-superset PREFIX, so the readopt lands. Only when no candidate matches does
-      // the recorded-lineage branch/fork logic run.
+      // Diverged from the recorded lineage — probe the deterministic candidate for THIS seed first: an
+      // A→B→A swipe-back re-derives lineage A's own id, and if the live subprocess grew it since, a plain
+      // exact-match walk would miss it, so this probe matches on a grown-superset prefix instead.
       const readopted = await this.readoptDeterministicCandidate(chatId, turns);
       if (readopted !== null) {
         return readopted;
       }
-      // Diverged. A BRANCH (swipe/edit — shares a non-trivial prefix with the recorded transcript) is
-      // FORKED: the recorded lineage is left intact and the branch is seeded under its OWN deterministic
-      // lineage, so a later swipe-back re-derives + re-adopts the original tail as a plain resume rather
-      // than paying another reseed. `seedFresh` seeds the branch's deterministic id family and records it;
-      // a NEW branch reads as `forked`, an already-seeded branch (a swipe-back to a state we forked before)
-      // as `readopted`. FORK is preferred over in-place reseed even on a replace-capable store because the
-      // in-place path would OVERWRITE the recorded lineage — destroying the very tail a swipe-back returns to.
-      // resumeSessionAt NOT used for the truncation (edit-of-last-turn / swipe) case: our seed frames DO
-      // carry SDK-addressable uuids (`deterministicId(sessionId:frame:index)`), so `Options.resumeSessionAt`
-      // COULD resume the recorded lineage sliced at the shared-prefix message instead of seeding a branch.
-      // It is deliberately left out — the deterministic fork already makes swipe-back a plain readopt with
-      // byte-identical (content-cache-warm) frames, so resumeSessionAt would add a decision→runner
-      // truncation-uuid thread for no measured win, and it cannot be validated without a live sub probe.
-      // Revisit only if a probe shows the branch-seed write is a real cost the slice would avoid.
+      // Branch divergence (shares a prefix): fork under a new deterministic lineage, leaving the recorded
+      // one intact so a later swipe-back re-derives + re-adopts it as a plain resume.
       if (isBranchDivergence(rows, turns)) {
         return await this.seedFresh(chatId, turns, "forked");
       }
-      // A NON-branch divergence (window-slide / no shared prefix — the recorded tail won't be returned to):
-      // reseed IN PLACE under the recorded id when the store can replace atomically. Preserving the lineage
-      // buys nothing here, so the cheapest store rewrite (same id, changed suffix) wins.
+      // Non-branch divergence (no shared prefix, e.g. window-slide): reseed in place — preserving the
+      // lineage buys nothing here, so the cheapest rewrite (same id, changed suffix) wins.
       if (canReplace(this.store)) {
         await this.store.replace(
           { projectKey: INTERNAL_PROJECT_KEY, sessionId: recorded },
@@ -308,14 +207,10 @@ export class SessionCache {
   }
 
   /**
-   * Probe the DETERMINISTIC candidate id(s) for this seed and RE-ADOPT a matching stored lineage — the
-   * swipe-back landing (A→B→A). Walks the SAME salt sequence `seedSessionId`/`seedFresh` use, so it finds
-   * whichever salted lineage a prior seed/fork landed on. A candidate matches when the stored transcript
-   * CONTAINS the seed as a leading prefix — exact OR grown-superset ({@link sessionContainsSeedPrefix}) —
-   * because after that lineage's turn ran, the live subprocess appended its own user+assistant frames, so
-   * the pre-turn seed is now a strict prefix of the stored lineage (probe s9). Re-adopts the FIRST match
-   * (records it as current, no reseed/rewrite — its frames already carry the seed's prose); returns `null`
-   * when no candidate lineage matches, so the caller falls through to its branch/fork decision.
+   * Probe deterministic candidate id(s) for this seed and re-adopt a matching stored lineage (the
+   * swipe-back landing). A candidate matches when the stored transcript contains the seed as a leading
+   * prefix (exact or grown-superset) — the live subprocess appends its own frames after a turn runs, so
+   * the pre-turn seed becomes a strict prefix of the stored lineage.
    */
   private async readoptDeterministicCandidate(
     chatId: string,
@@ -323,10 +218,8 @@ export class SessionCache {
   ): Promise<SeededSessionDecision | null> {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, turns, salt);
-      // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — a salted candidate is consulted only after the lower salt proved absent/mismatched, mirroring seedFresh's walk.
+      // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — a salted candidate is consulted only after the lower salt proved absent/mismatched.
       const rows = await this.loadSession(sessionId);
-      // Empty slot → nothing seeded here; a lower-salt eviction could still leave a match at a higher salt
-      // (safe-by-construction: a miss only costs a reseed), so keep walking the ceiling rather than bail.
       if (rows.length > 0 && sessionContainsSeedPrefix(rows, turns)) {
         this.byChat.set(chatId, sessionId);
         return { sessionId, disposition: "readopted" };
@@ -335,12 +228,7 @@ export class SessionCache {
     return null;
   }
 
-  /** Seek (or seed) the DETERMINISTIC lineage for this seed state — the content-addressed index that lets a
-   *  swipe-back re-derive an earlier branch's id from canon alone. Salt-bumps past ids whose stored
-   *  transcript DIVERGED (a replace-incapable store can accumulate them); returns `fresh` past the ceiling
-   *  (SDK-fresh session). A freshly-appended lineage reports `seededAs` (`"seeded"` on the cold-cache path,
-   *  `"forked"` when a branch divergence routed here); an EXISTING matching lineage always reports
-   *  `readopted` — that swipe-back landing is the whole point of forking. */
+  /** Seek (or seed) the deterministic lineage for this seed state; returns `fresh` past the salt ceiling. */
   private async seedFresh(
     chatId: string,
     turns: readonly SeedTurn[],
@@ -359,8 +247,6 @@ export class SessionCache {
         return { sessionId, disposition: seededAs };
       }
       if (sessionMatchesSeed(rows, turns)) {
-        // A previously-seeded session for this exact state (a reverted edit / a swipe-back to a forked
-        // branch) — re-adopt it. No rewrite: the lineage's frames already byte-match this seed.
         this.byChat.set(chatId, sessionId);
         return { sessionId, disposition: "readopted" };
       }

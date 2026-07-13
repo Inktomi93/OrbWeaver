@@ -1,12 +1,7 @@
-// import-onboarding-store — the DEVICE-LOCAL dismiss latch for the first-run "bring your SillyTavern
-// stuff over" home card (settings/surfaces/import-onboarding-surface.tsx). The server's
-// `userSettings.onboarding` namespace holds only fired-once WIZARD latches (personaWizardSeen /
-// defaultCharactersSeeded); adding an import latch there is a CONTRACT change (server scope, out of this
-// slice). This card's dismiss is a purely presentational, device-local preference, so it lives in a
-// persisted gated store (createPersistedStore) exactly like the shell layout — a reload keeps it
-// dismissed; a fresh device shows it again (the sanctioned client-persisted fallback per the portability
-// spec). Freshness (only-fresh-accounts-see-it) is a RENDER derivation at the card (zero chats yet), not
-// stored here — this store only carries the explicit "don't show me this" choice.
+// The device-local dismiss latch for the first-run "bring your SillyTavern stuff over" home card. A
+// purely presentational, device-local preference, so it lives in a persisted gated store — a reload
+// keeps it dismissed; a fresh device shows it again. Freshness (only-fresh-accounts-see-it) is a render
+// derivation at the card, not stored here.
 
 import { isPlainObject } from "@orb/kit/guards";
 import { createPersistedStore } from "./create-persisted-store";

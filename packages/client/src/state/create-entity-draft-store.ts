@@ -1,24 +1,6 @@
-// `createEntityDraftStore` (UI-Gates §7 row 4 + §11.3; UI-Lib-Zustand.md D-1..D-4): the gated
-// Zustand draft factory — an editor's crash-survival mirror, keyed by entity id. The factory bakes
-// every persist footgun so no call site can hold it wrong:
-//   • frozen `EMPTY` default — the stable "no draft" ref (a fresh `{}` per render infinite-loops
-//     `useSyncExternalStore` under v5's `Object.is`; the CONSTANT identity is the fix, freeze is the
-//     belt) — UI-Lib-Zustand.md C-1.
-//   • `partialize` → ONLY `{ drafts }` persists — a transient sibling field can never resurrect
-//     stale from localStorage (the partly-IRREVERSIBLE footgun, §11.5) — D-2.
-//   • `version` + a TOTAL, crash-proof `migrate` — any unknown/corrupt persisted shape degrades to
-//     `{ drafts: {} }`, never a throw that bricks the editor — D-3.
-//   • a module-level STORAGE key registry — two stores persisting to one key silently clobber each
-//     other; a duplicate name THROWS at store creation (§11.5's STORAGE_KEYS uniqueness).
-// Shape: a VANILLA `createStore` per factory call, read through the top-level `useStore` hook —
-// the docs-blessed DI pattern for dynamically-created stores (UI-Lib-Zustand.md §A "initialize-
-// with-props"); no hook is minted inside the factory. Storage is injectable (tests pin an
-// in-memory Map; production defaults to localStorage). Devtools: `devtools(persist(...))` —
-// devtools OUTERMOST (UI-Lib-Zustand.md "devtools last" typing note), gated by the shared
-// STORE_DEVTOOLS_ENABLED (DEV + extension present — warning-clean in the node lane), every
-// internal write action-labeled. This factory is the persist-shaped, per-entity sibling of
-// `createGatedStore` (hook-shaped singletons) and `createPersistedStore` (hook-shaped singletons
-// that persist) — the THREE ways client state is minted (`state/index.ts`).
+// Gated Zustand draft factory — an editor's crash-survival mirror, keyed by entity id. A vanilla
+// createStore per factory call, read through useStore (DI pattern for dynamically-created stores);
+// a duplicate storage `name` THROWS at creation.
 
 import { isPlainObject } from "@orb/kit/guards";
 import type { StateStorage } from "zustand/middleware";
@@ -27,13 +9,12 @@ import { useStore } from "zustand/react";
 import { createStore } from "zustand/vanilla";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store";
 
-/** The stable no-draft reference — see the header. One frozen constant serves every store. */
+// Stable no-draft ref: a fresh {} per render would infinite-loop useSyncExternalStore under Object.is.
 const EMPTY: Readonly<Record<string, never>> = Object.freeze({});
 
 const STORAGE_KEY_PREFIX = "orb-draft:";
 const DEFAULT_VERSION = 1;
 
-// The §11.5 STORAGE_KEYS uniqueness registry — module-scope, asserted at factory call time.
 const registeredNames = new Set<string>();
 
 interface DraftsState<TInput> {
@@ -62,8 +43,7 @@ export interface EntityDraftStore<TInput> {
   readonly hasDraft: (id: string) => boolean;
 }
 
-/** TOTAL migrate: any unrecognized/older persisted shape falls back to a fresh empty map — drafts
- *  are crash-survival cache, not canon; losing them beats bricking the editor (D-3). */
+/** Any unrecognized/older persisted shape falls back to a fresh empty map — drafts are cache, not canon. */
 function migrateDrafts<TInput>(persisted: unknown): DraftsState<TInput> {
   if (isPlainObject(persisted) && isPlainObject(persisted["drafts"])) {
     return persisted as unknown as DraftsState<TInput>;
@@ -89,15 +69,12 @@ export function createEntityDraftStore<TInput>(
       persist((): DraftsState<TInput> => ({ drafts: {} }), {
         name: `${STORAGE_KEY_PREFIX}${config.name}`,
         version: config.version ?? DEFAULT_VERSION,
-        // ONLY the draft map persists (see header). The default shallow `merge` is then safe by
-        // construction: `drafts` is the single persisted top-level key (UI-Lib-Zustand.md D-4).
         partialize: (s): DraftsState<TInput> => ({ drafts: s.drafts }),
         migrate: migrateDrafts<TInput>,
         ...(config.storage === undefined
           ? {}
           : { storage: createJSONStorage(() => config.storage as StateStorage) }),
       }),
-      // The devtools connection label reuses the (registry-unique) storage key.
       { name: `${STORAGE_KEY_PREFIX}${config.name}`, enabled: STORE_DEVTOOLS_ENABLED },
     ),
   );

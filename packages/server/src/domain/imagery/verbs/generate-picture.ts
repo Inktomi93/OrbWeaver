@@ -1,15 +1,7 @@
-// verb: generatePicture — the orchestrator (imagery-design/02 §1, MINIMAL free-mode arm). Order (P5 subset,
-// steps 1 / 3-free / 6 / 8-12; the reuse/negative/avatar/extract steps are Phase 7):
-//   1. assert `prompt` present (free mode is the only P5 mode; a mode without a prompt would need Phase-7
-//      extraction → ImageryNotConfiguredError).
-//   6. resolve the generateImage role (no role/credential → ImageryNotConfiguredError).
-//   8. ONE `generateImage(req)` call with `n` (the provider fans out; never a per-image loop).
-//   9. materialize per returned image (base64 decode | provider-URL download via the SSRF-safe `fetchImage`
-//      port — the URL is provider-response-controlled, never fetched raw); sniff mime from bytes.
-//  10. store-THEN-provenance per image (a mid-loop crash leaves a benign orphan blob, never a dangling row).
-//  11. build one D44 media block per image.
-//  12. record economics + return.
-// Zero decodable images → GenerationFailedError.
+// The generatePicture orchestrator (free-mode subset): assert prompt present → resolve the generateImage
+// role → one `generateImage(req)` call with `n` (the provider fans out, never a per-image loop) →
+// materialize per image (base64 decode or SSRF-safe URL download) → store-then-provenance per image → build
+// one media block per image → record economics. Zero decodable images throws `GenerationFailedError`.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
@@ -40,11 +32,8 @@ interface DecodedImage {
 }
 
 /** Decode one returned image to bytes: inline base64 → decode; provider URL → download via the injected
- *  SSRF-safe `fetchImage` port. The URL is NOT first-party — it is whatever the chosen (OpenRouter-
- *  marketplace) model provider put in `message.images[].imageUrl.url`, so a malicious/compromised image
- *  provider could aim it at a loopback / link-local / RFC1918 target; the port routes it through
- *  `safeFetch` (SSRF firewall + byte cap) and returns `null` on any block/failure. Null also when the
- *  image carries neither shape or the download fails (dropped; a zero-image result throws downstream). */
+ *  SSRF-safe `fetchImage` port (the URL is provider-response-controlled, never fetched raw). `null` when
+ *  the image carries neither shape or the download fails. */
 async function materialize(ctx: ImageryContext, img: GeneratedImage): Promise<DecodedImage | null> {
   if (img.base64 !== undefined && img.base64.length > 0) {
     return { bytes: new Uint8Array(Buffer.from(img.base64, "base64")), mediaType: img.mediaType };
@@ -56,8 +45,7 @@ async function materialize(ctx: ImageryContext, img: GeneratedImage): Promise<De
   return null;
 }
 
-/** The D44 media block for one stored image (imagery-design/02 step 11 — verified against
- *  `@orb/contracts/chat` `messageContentBlockSchema`). */
+/** The media block for one stored image. */
 function buildBlock(assetId: AssetId, prompt: string): MessageContentBlock {
   return {
     kind: "media",
@@ -78,17 +66,15 @@ interface PersistArgs {
   readonly img: DecodedImage;
 }
 
-/** Store the bytes (kind `"generated"`) THEN write the provenance row (order matters — imagery-design/02
- *  step 10) and return the render-ready image. */
+/** Store the bytes (kind `"generated"`) then write the provenance row (order matters) and return the
+ *  render-ready image. */
 async function persistImage(
   ctx: ImageryContext,
   args: PersistArgs,
 ): Promise<GeneratedPictureImage> {
-  // Derive the claimed mime from the bytes via the SHARED `@orb/kit/image-sniff` table — the exact one
-  // assets' `enforceMagic` re-checks against, so a recognized signature is guaranteed to pass that gate (the
-  // forked local copy DIVERGED — e.g. GIF prefix vs strict GIF87a/89a — and could slip a mismatch into a paid
-  // store; PD-123). On the unrecognized sentinel the caller policy falls back to the provider mediaType then
-  // PNG (per the kit header — the caller owns the fallback, not kit).
+  // Derive the claimed mime from the bytes via the shared `@orb/kit/image-sniff` table — the same one
+  // assets' `enforceMagic` re-checks against. On the unrecognized sentinel, fall back to the provider
+  // mediaType then PNG.
   const sniffed = sniffMime(args.img.bytes);
   const mime = sniffed === OCTET_STREAM ? (args.img.mediaType ?? DEFAULT_IMAGE_MIME) : sniffed;
   const stored = await ctx.storeAsset(args.caller, args.img.bytes, "generated", mime);
@@ -107,8 +93,8 @@ async function persistImage(
   return { assetId: stored.assetId, generationId, block: buildBlock(stored.assetId, args.prompt) };
 }
 
-/** The generation's economics delta (imagery-design/02 §8) — attributed to `caller` as owner, one model
- *  bucket, `count` generations. */
+/** The generation's economics delta — attributed to `caller` as owner, one model bucket, `count`
+ *  generations. */
 function buildDelta(args: {
   readonly caller: Principal;
   readonly model: string;

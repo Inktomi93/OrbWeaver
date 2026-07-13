@@ -1,21 +1,14 @@
 import { createHmac } from "node:crypto";
 
-// domain/sessions/tokens — the named token-crypto + timing subsystem (D38: RELOCATED here from
-// `infra/crypto/token-hash.ts` — token crypto is this domain's, so the orchestrator removed the
-// `infra/crypto` copy + its barrel export). Pure crypto + constants; NO db.
-//
-// The pepper (`SESSION_SECRET`) is INJECTED, not read here: `entry/` constructs the hasher with
-// `createTokenHasher(env.SESSION_SECRET)` (the value flows DOWN from `foundation/env`) and threads the
-// bound `hashToken` through `SessionsContext`. This mirrors the project's `SecretBox`/key DI idiom — and
-// it is what makes the "missing-secret throws" branch reachable in a test (a frozen-env read could
-// never exercise the disabled branch). The token's HASH is stored, never the token: an HMAC-peppered
-// digest means a DB leak ALONE cannot forge a session (the stored hash is useless without the pepper).
+// domain/sessions/tokens — token-crypto + timing subsystem. Pure crypto + constants, no db. The pepper
+// (SESSION_SECRET) is injected, not read here, so entry/ threads the bound hashToken through SessionsContext.
+// The token's hash is stored, never the token: an HMAC-peppered digest means a DB leak alone can't forge a
+// session.
 
 const HMAC_ALGORITHM = "sha256";
 
-// 30-day sliding window. The slide WRITE is throttled (only past SLIDE_THROTTLE_MS) so an authenticated
-// request burst doesn't write on every call; the revoked/expired/enabled CHECKS still run EVERY request
-// (that is what makes logout/disable take effect on the very next request, not at TTL).
+// 30-day sliding window. The slide write is throttled so a request burst doesn't write every call; the
+// revoked/expired/enabled checks still run every request (logout/disable take effect next request, not TTL).
 const MS_PER_MINUTE = 60_000;
 const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
@@ -24,13 +17,8 @@ const SLIDE_THROTTLE_MINUTES = 5;
 export const SESSION_TTL_MS = SESSION_TTL_DAYS * HOURS_PER_DAY * MINUTES_PER_HOUR * MS_PER_MINUTE;
 export const SLIDE_THROTTLE_MS = SLIDE_THROTTLE_MINUTES * MS_PER_MINUTE;
 
-/**
- * Build the bound, peppered token hasher. Returns a `hashToken(token) → hex` closure over the pepper;
- * it THROWS (loud misconfiguration beats silent forgery) if the pepper is unset/empty — the earlier
- * `?? ""` floor would HMAC the empty string for a future non-cookie caller. Sessions exist only in
- * `oidc`/`local` modes, both of which env-refine `SESSION_SECRET` as required, so the throw is unreachable
- * in a correct deploy — it guards future call sites (the token is never stored, only its peppered hash).
- */
+/** Build the bound, peppered token hasher; throws if the pepper is unset/empty (loud misconfiguration beats
+ *  silent forgery). */
 export function createTokenHasher(pepper: string | null | undefined): (token: string) => string {
   const key = pepper !== null && pepper !== undefined && pepper.length > 0 ? pepper : null;
   return (token: string): string => {

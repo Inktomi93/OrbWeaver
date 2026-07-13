@@ -1,31 +1,8 @@
-// domain/stats/write/rebuild-from-canon — the full RECONCILE: a memory-bounded streaming rebuild of the
-// four rollup tables (db/schema/stats.ts) for one owner (or every owner) from canon. The write-path
-// SIBLING of apply-delta.ts: since rollups are maintained LIVE on the write path, this is the BACKFILL /
-// POST-IMPORT settle / admin DRIFT-REPAIR path (the `reconcile-stats` workload), NOT a user-facing
-// recompute. It is the source of truth the drift test (invariant #3) asserts the live deltas match
-// byte-for-byte. NOT a service verb — exported standalone via the front door, injected into the workload
-// runner. Determinism: the clock is INJECTED (`now`), never `Date.now()` (no-raw-clock).
-//
-// Design (esoteric #4/#11): keyset-paged streams over messages + their swipe variants (bounded peak
-// memory); per-character/per-model/per-day accumulator Maps; ATOMIC per-owner replace-write (ONE db.batch
-// of [delete ×4, ...chunked inserts]) so a read never sees a half-rebuilt owner; inserts chunked under the
-// libSQL bound-variable cap (@orb/db/kit). Word counts use `@orb/kit/stats-tally.wordCount` (ST's `\b\w+\b`)
-// and days use `utcDay` — the SAME primitives the chat delta builders import, so the live delta can't drift
-// from this rebuild (that shared-home guarantee is structural, the drift test is the backstop).
-//
-// ORBWEAVER (D26/D28/D18): content + economics live on `message_variants` (D26 — the slot is pure), so a
-// message's primary contribution is its SELECTED variant and its swipes are the NON-selected variants.
-// Per-character grain keys on `messages.characterId` directly (D28). Owner-scoping is membership-derived
-// (D18 — no chats.ownerId): the owner's chats are those with a character participant the owner owns.
-//
-// OWNER-ATTRIBUTION (PD-21 CONFIRMED against chat's D18 membership model, 2026-07-01): owner =
-// characters.ownerId for assistant economics; the owner's chats by character-participant membership for
-// user turns / chat counts (D23: character_stats has no ownerId precisely because owner derives via
-// characterId→characters.ownerId). This is EXACT under v1's enforced single-owner-per-chat invariant:
-// every roster character is HOST-owned — `startChat`/`addCharacterToChat` gate each characterId through
-// the host's owner-scoped card read (foreign == missing), so characters.ownerId ≡ the D19 host the live
-// StatsDelta builders attribute to. The multi-owner attribution question re-opens ONLY with the v2
-// first-class-agent / member-owned-character roster work (PD-17) — re-decide it there, not here.
+// Full RECONCILE: a memory-bounded streaming rebuild of the four rollup tables for one owner (or every
+// owner) from canon — the backfill/post-import/drift-repair path (rollups are maintained live elsewhere).
+// Keyset-paged streams over messages + swipe variants (bounded peak memory); per-character/model/day
+// accumulator Maps; atomic per-owner replace-write (one db.batch) so a read never sees a half-rebuilt owner.
+// Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
 
 import type { BatchStmt, Db } from "@orb/db";
 import {
@@ -51,12 +28,11 @@ const DAY_MS = 86_400_000;
 const MIGRATION_GAP_DAYS = 30; // a message >30d after its chat's creation = migrated (createdAt clobbered)
 const MIGRATION_GAP_MS = MIGRATION_GAP_DAYS * DAY_MS;
 const UNKNOWN_PROVIDER = "(unknown)";
-// Per-table column counts for the bound-variable chunker (must track the insert shapes below).
+// Per-table column counts for the bound-variable chunker — must track the insert shapes below.
 const CHAR_COLS = 24;
 const DAILY_COLS = 16;
 const MODEL_COLS = 15;
 
-// ── Accumulators (file-local pipeline shapes — not exported, not contract types; §7.4). ──
 interface CharAccum {
   userTurns: number;
   assistantTurns: number;
@@ -218,7 +194,6 @@ function get<V>(map: Map<string, V>, key: string, mk: () => V): V {
   return v;
 }
 
-// The generation-bearing fields both streams expose (the selected variant + each swipe variant).
 interface GenRow {
   ti: number | null;
   tout: number | null;
@@ -272,7 +247,7 @@ interface ReconcileOpts {
 }
 
 /** Full rebuild of the stats rollups from canon. `ownerId` scopes to one user; omit to rebuild every owner
- *  that owns a character. Aborts cooperatively between owners via `signal`. See the owner-attribution note (header). */
+ *  that owns a character. Aborts cooperatively between owners via `signal`. */
 export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<ReconcileStatsResult> {
   const owners = opts.ownerId
     ? [opts.ownerId]
@@ -301,18 +276,12 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   };
 }
 
-// The owner's chats (membership — D18): chats with a character participant the owner owns. The single
-// owner-scoping subquery reused by every per-owner scan below.
+// The owner's chats (membership): chats with a character participant the owner owns. Reused by every
+// per-owner scan below.
 //
-// AGENT ROWS (D60): an agent-authored assistant row (characterId NULL) in one of these chats folds to the
-// HOST owner + skips character_stats (foldMessage guards `cid !== null`) — byte-equal with the live
-// `assistantTurnDelta({characterId:null})` twin. That is EXACT for the common case (a mixed room with a
-// host-owned character). FLAG[PD-17]: a character-LESS agent-only room (host + agent, zero characters) is NOT
-// in this scope — its agent turns would never reconcile → drift. Such a room is UN-CONSTRUCTABLE in v1 (the
-// only agent-seat path, `chat.seatAgent`, is AP3 and seats INTO an existing room, and a room is born with a
-// character), so this is deferred, not built (no phantom edge). Criterion to widen: a character-less agent
-// room becomes reachable — then also scope by host membership (`cp.role='host'`) and attribute agent rows to
-// the host participant (doc 02 §4). Building it now is speculative reconcile surface for an unreachable state.
+// An agent-authored assistant row (characterId NULL) folds to the host owner + skips character_stats.
+// FLAG[PD-17]: a character-less agent-only room is un-constructable in v1, so that case is deferred, not
+// built.
 function ownerChatIds(ownerId: string): SQL {
   return sql`
     SELECT DISTINCT cp.chat_id FROM chat_participants cp
@@ -392,7 +361,7 @@ function foldRoleCounts(owner: OwnerAccum, day: DayAccum, r: MessageRow): void {
   }
 }
 
-/** Per-character grain (assistant only — D26 slot attribution; system/user carry no characterId). */
+/** Per-character grain (assistant only; system/user carry no characterId). */
 function foldMessageChar(charMap: Map<string, CharAccum>, r: MessageRow): void {
   const c = get(charMap, r.cid as string, freshChar);
   c.assistantTurns++;
@@ -594,10 +563,8 @@ interface ChatMeta {
 }
 
 /** The chat-level aggregates: per-character chat counts + first/last, daily chatsCreated, owner library
- *  totals. All membership-scoped to the owner's chats / owned characters (D18/D23).
- *  Forks count INDEPENDENTLY — a fork is a separate playthrough and ST counts each `.jsonl` on its own, so
- *  reconcile maximizes ST-parity by NOT content-hash-deduping the copied canon (a deliberate choice, not a
- *  gap to "fix"). */
+ *  totals. Forks count independently — a fork is a separate playthrough, so a fork's copied canon is not
+ *  content-hash-deduped. */
 async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
   const chatAgg = await db.all<{ cid: string } & CharChatMeta>(sql`
     SELECT cp.character_id AS cid, COUNT(DISTINCT cp.chat_id) AS chats,

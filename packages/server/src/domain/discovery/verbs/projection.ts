@@ -1,15 +1,8 @@
-// domain/discovery/verbs/projection — the "corpus galaxy" (owner-scoped read; live compute). A 2D PCA
-// projection of every card embedding in the owner's PRIMARY space, so the whole library plots as one semantic
-// map (cards that read alike land near each other; colored client-side by distilled genre). Live compute
-// (~hundreds of 1024-dim vectors → sub-ms power iteration; no precompute table). Was neo-tavern
-// `corpus/verbs/projection.ts`.
+// domain/discovery/verbs/projection — the "corpus galaxy": a 2D PCA projection of every card embedding in
+// the owner's primary space (owner-scoped, live compute), colored client-side by distilled genre.
 //
-// LOAD-BEARING: a PCA basis only makes sense WITHIN one embedding space (projecting a mix of embedder bases is
-// meaningless). Orb has no "active model" on the discovery context, so the projection runs over the owner's
-// MOST-POPULOUS (owner, model) group — the primary space; cards in a stray secondary space (a mid-migration
-// artefact) are omitted from THIS map (they can't share the basis). Owner-scoped via the card-vector read's
-// `characters.ownerId` derivation (audit #1: no caller owner). NO content-collapse — every card is a plotted
-// point (identical cards simply overlap).
+// A PCA basis only makes sense within one embedding space, so this runs over the owner's most-populous
+// (owner, model) group; cards in a stray secondary space are omitted (they can't share the basis).
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -21,17 +14,14 @@ import { pca2d } from "../substrate/pca";
 
 type CardVector = Awaited<ReturnType<typeof readOwnedCharacterVectors>>[number];
 
-/** Bind the corpus-projection read over the DI bundle (the verb-naming factory the service composes). */
 export function createProjection(
   ctx: DiscoveryContext,
 ): Pick<DiscoveryService, "corpusProjection"> {
   return { corpusProjection: (userId) => corpusProjection(ctx.db, userId) };
 }
 
-// PCA needs at least a few points to mean anything (a 2-point cloud is a line).
 const MIN_PROJECTION_POINTS = 3;
 
-// The owner's most-populous (model) group — the primary embedding space to project over.
 function primarySpace(vectors: readonly CardVector[]): CardVector[] {
   const groups = new Map<string, CardVector[]>();
   for (const row of vectors) {
@@ -51,11 +41,7 @@ function primarySpace(vectors: readonly CardVector[]): CardVector[] {
   return best;
 }
 
-/**
- * The owner's corpus galaxy — every card in their primary space projected to 2D (PCA), labelled with the card
- * name + distilled genre. Standalone `(db, ownerId)` so the service factory + tests call it directly. Fewer
- * than {@link MIN_PROJECTION_POINTS} cards ⇒ `[]` (nothing to plot).
- */
+/** Fewer than MIN_PROJECTION_POINTS cards → [] (nothing to plot). */
 export async function corpusProjection(db: Db, ownerId: UserId): Promise<CorpusPoint[]> {
   const vectors = await readOwnedCharacterVectors(db, ownerId);
   const space = primarySpace(vectors);

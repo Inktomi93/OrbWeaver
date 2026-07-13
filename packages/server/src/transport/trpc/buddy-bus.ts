@@ -1,10 +1,7 @@
-// transport/trpc/buddy-bus — the process-global instance of the buddy reaction bus (PD-45). The `domain/
-// buddy` code owns the MECHANISM (`createBuddyBus` — the replay-buffer-backed emitter); the transport owns
-// the ONE live instance, mirroring notifications-bus ("domain owns the durable/mechanism half, transport
-// owns the per-user live bus"). The observer's env (assembled at `entry/compose`) is handed `publishBuddyEvent`
-// as its `emit`; the `buddy.stream` subscription tails `subscribeBuddy` + ramps from `snapshotBuddy`.
+// The process-global instance of the buddy reaction bus. domain/buddy owns the mechanism (createBuddyBus
+// — the replay-buffer-backed emitter); transport owns the one live instance.
 //
-// ASSUMES(single-replica): module-scope, per-process (the mechanism's documented seam).
+// ASSUMES(single-replica): module-scope, per-process.
 
 import { createBuddyBus } from "#domain/buddy";
 

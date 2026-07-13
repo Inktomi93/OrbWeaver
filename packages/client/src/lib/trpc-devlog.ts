@@ -1,15 +1,6 @@
-// The `[trpc]` console channel's ONE-LINE formatter (UI-Arch §2.1 lib/: display util) — replaces
-// loggerLink's verbose `>> << Object` default. Wired by data/trpc.ts into the query/mutation link
-// branch ONLY (subscriptions bypass the logger there — per-delta spam would bury the console).
-// Line shapes (wall-clock prefixed via logClock so probe/console-capture transcripts carry timing):
-//   [trpc] → query character.get {"characterId":"c-…"}
-//   [trpc] ← query character.get 14ms · 1 row
-//   [trpc] ✗ query chat.send 5142ms · DomainNoCredentialError: …
-// Inputs are key-scrubbed BEFORE they reach the console (neo V9-5: the dev logger printed
-// credentials.add's plaintext `key`) — bare `key` matches EXACTLY so shapes like `queryKey` stay
-// visible; the rest match as substrings (accessToken, clientSecret, …). NOT dev-only by design:
-// the loggerLink `enabled` fn fires this in prod for ERRORS, so this module (+ log-clock) ships;
-// the strip-verified dev-only modules are dev-tools.tsx / long-task-tracer.ts.
+// The `[trpc]` console channel's one-line formatter, replacing loggerLink's verbose default.
+// Inputs are key-scrubbed before they ever reach the console. NOT dev-only: loggerLink fires this in
+// prod for errors too, so this module (+ log-clock) ships.
 
 import { logClock } from "./log-clock";
 
@@ -34,24 +25,17 @@ export type TrpcOpLogEntry =
       readonly result: unknown;
     };
 
-// %c console styles (colorMode 'css' — the loggerLink option data/trpc.ts sets; these are DevTools
-// console styling strings, not UI theme values — the token gates cover feature/ui TSX).
 const PREFIX_STYLE = "color:#888;font-weight:bold";
 const PATH_STYLE = "color:#06c";
 const ERROR_STYLE = "color:#c00;font-weight:bold";
 const MUTED_STYLE = "color:#888";
 
-// Secret-ish input keys, scrubbed before the input ever reaches the console. Mirrors the server
-// logger's redact list (authorization/cookie/token/apiKey/password) plus bare `key` (the
-// credentials.add field, EXACT match) and `secret`.
+// Mirrors the server logger's redact list (authorization/cookie/token/apiKey/password) plus bare
+// `key` (EXACT match, so shapes like `queryKey` stay visible) and `secret`.
 const SENSITIVE_KEY_RE = /^key$|authorization|cookie|password|secret|token|api[-_]?key/iu;
-// Log inputs are small and redaction runs only when the link actually logs — a shallow depth cap
-// keeps the scrub cheap and cycle-safe.
 const REDACT_DEPTH_MAX = 4;
-// One line means COMPACT: inputs truncate at 120 chars (117 + the ellipsis run).
 const INPUT_MAX_CHARS = 120;
 const INPUT_TRUNCATE_AT = 117;
-// Result summaries: at most 4 object keys / 60 scalar chars.
 const SUMMARY_KEYS_MAX = 4;
 const SUMMARY_SCALAR_MAX = 60;
 

@@ -1,20 +1,6 @@
-// lib/ front door — the cross-cutting display/util seams (UI-Arch §2.1). One home each: time (the
-// ONE Intl site), notify (the ONE toast seam), message-render (the ONE display pipeline),
-// download-json (the ONE export-click helper), view-transition (the ONE hand-rolled VT wrapper),
-// test-ids (the typed registry), dev-flag (the ONE dev/prod discriminant), log-clock + trpc-devlog
-// (the [trpc] console channel — ships, its ERROR lines fire in prod), bus-devlog (the [bus] console
-// channel — the SSE bus's peer to [trpc]; IS_DEV-gated, prod-inert), render-profiler (the [perf]
-// commit half — prod-inert), probe-mode (the harness-determinism flag — ships, runtime-gated,
-// features read it to freeze wall-clock-relative text under snap), error-boundary + client-error-report
-// (PD-58: the app-level catch + its pure report-payload builder — both ship in prod; the tRPC wire call
-// itself is wired at main.tsx, which is the one place already holding the client), list-seeded-
-// backgrounds (D49 §3 — the bundled theme background-image catalog; both app-shell's render layer AND
-// the settings theme-editor picker read it, so neither imports the other), message-role-labels (the
-// ONE `MessageRole` display-label map — features can't import each other, so this sits below them),
-// injection-copy (the ONE assistant@depth-0-prefill warning string, shared by every
-// `isAssistantPrefill` editor). `cn` re-exports from the ui seal so features import ONE lib module.
-// DELIBERATELY NOT EXPORTED (dev-only modules never ride a shared barrel — the barrel-leak failure
-// mode): ./dev-tools (main.tsx lazy-mounts it) · ./long-task-tracer (main.tsx dynamic-imports it).
+// lib/ front door — the cross-cutting display/util seams. Deliberately NOT exported here (dev-only
+// modules never ride a shared barrel): ./dev-tools (main.tsx lazy-mounts it), ./long-task-tracer
+// (main.tsx dynamic-imports it).
 
 export { cn } from "@orb/ui/lib";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog";

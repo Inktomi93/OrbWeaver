@@ -1,17 +1,8 @@
-// The durable per-user INBOX reads/writes (PD-23; the multi-human invites lane) — the bell's data layer
-// over the `notifications` router. All shapes are tRPC-INFERRED (`inferInput`/`inferOutput`) so a wire
-// reshape breaks HERE at compile time, never a re-spelled literal (§5.5). The inferred aliases stay
-// FILE-LOCAL (`no-inline-types`: a feature exports interfaces, never loose `export type` aliases —
-// consumers re-derive from the same proxy).
-//
-// FRESHNESS: the inbox is NOT covered by the chat bus or the user bus — its driver is the router's OWN
-// durable-first subscription (`notifications.notifications`, wired in `use-inbox-stream.ts`), so the two
-// write verbs below carry an explicit `invalidates` (the mutation-vs-bus rule, data/invalidation.ts: keep
-// `invalidates` exactly for the keys no DELIVERED bus event covers — the notifications stream is not one
-// of the two mapped buses, and its onData handler only refetches on NEW arrivals, not on own writes).
-//
-// The bell reads ONE bounded first page (the server default limit 50, dismissed excluded, newest-first) —
-// an unread badge + an actionable list, not an infinite archive (deeper history is a non-goal here).
+// The durable per-user inbox reads/writes — the bell's data layer over the `notifications` router. All
+// shapes are tRPC-inferred so a wire reshape breaks here at compile time. The inbox is NOT covered by
+// the chat bus or the user bus — its driver is the router's own durable-first subscription
+// (use-inbox-stream.ts), so the write verbs below carry an explicit `invalidates`. The bell reads one
+// bounded first page (server default limit 50), not an infinite archive.
 
 import { useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
@@ -41,12 +32,10 @@ export const useMarkNotificationRead = createEntityMutation<
   unknown
 >({
   options: (trpc) => trpc.notifications.markRead.mutationOptions(),
-  // Covered by no bus map (see the header) — the inbox read is this mutation's own key to reconcile.
   invalidates: (trpc) => [trpc.notifications.list.pathFilter()],
 });
 
-/** Bulk "opening the bell reads everything" — ONE mutation + ONE reconcile, not a per-row loop
- *  (the audit P3 fix: the popover used to fire `markRead` once per unread row on every open). */
+/** Bulk "opening the bell reads everything" — ONE mutation + ONE reconcile, not a per-row loop. */
 export const useMarkAllNotificationsRead = createEntityMutation<
   inferInput<Trpc["notifications"]["markAllRead"]>,
   unknown

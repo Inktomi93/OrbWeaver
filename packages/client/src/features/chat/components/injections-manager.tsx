@@ -1,19 +1,8 @@
-// The manual-injections manager (task #28 — the CONTEXT panel's Injections tab). Ad-hoc positional
-// context a user adds to a chat (`chat_injections` rows): position (before_prompt · in_static ·
-// in_prompt · in_chat) + depth (in_chat only) + role + content. NOT `createCollectionSurface` — a chat
-// holds a handful of these, so it's a plain mapped list of per-row autosave forms (§13.0 — centralize
-// only what repeats 3+ and changes together; this is a genuine small list).
-//
-// SOURCE-AGNOSTIC (dual-mode, J2/J3): the presentational `InjectionsList` is PURE — it takes `rows`
-// (each `{key, value}`) + the CRUD callbacks (`onAdd`/`onSave`/`onDelete`), owning neither the read nor
-// the writes. A COMMITTED chat's reader (`InjectionsManager`) reads `chat.listChatInjections` (rows keyed
-// by the server id) + wires the `setChatInjection`/`deleteChatInjection` verbs; a DRAFT's reader (the draft
-// panel) supplies `draftConfig.injections` (rows keyed by a stable client-side key) + wires
-// `setDraftInjections`. Same
-// list, same look — only the source + CRUD seam differ. There is NO enabled/disabled toggle — orbweaver's
-// contract has no soft-disable; "off" = delete the row (a deliberate divergence from neo).
-//
-// HOST GATE: a non-host reader passes `isHost=false` — read-only list (disabled fields, no Add, no delete).
+// The manual-injections manager: ad-hoc positional context a user adds to a chat. Not
+// createCollectionSurface — a chat holds a handful of these, so it's a plain mapped list of per-row
+// autosave forms. Source-agnostic: the presentational InjectionsList takes rows + CRUD callbacks,
+// owning neither read nor write; a committed chat wires chat.listChatInjections + the verbs, a draft
+// wires draftConfig.injections + setDraftInjections. No enabled/disabled toggle — "off" = delete the row.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
@@ -35,13 +24,8 @@ import {
   useInjectionRowForm,
 } from "../hooks/use-injection-row-form";
 
-/** An injection's editable fields — the source-agnostic subset both a persisted `ChatInjection` and a
- *  draft `ChatInjectionInput` project into (`id`/`order` are server-owned). */
 type InjectionFields = Pick<ChatInjection, "position" | "role" | "depth" | "content">;
 
-// ── Labelled Select options, built from the wire one-home tuples. Position labels via an exhaustive
-// switch (snake_case union members can't be camelCase object keys; the switch is also §5.5-friendly —
-// a new position is a tsc error at the missing case). Roles are a plain camelCase-keyed Record.
 function positionLabel(position: ChatInjection["position"]): string {
   switch (position) {
     case "before_prompt":
@@ -59,7 +43,6 @@ const POSITION_ITEMS: SelectItems<string> = CHAT_INJECTION_POSITIONS.map((value)
   label: positionLabel(value),
 }));
 
-/** The seed for a freshly-added injection (host "Add"). */
 const NEW_INJECTION: InjectionFields = {
   position: "in_chat",
   depth: 0,
@@ -67,8 +50,6 @@ const NEW_INJECTION: InjectionFields = {
   content: "",
 };
 
-/** One row in the source-agnostic list — a stable key (committed → the server id; draft → a stable
- *  client-side key) + the editable fields. */
 interface InjectionListRow {
   readonly key: string;
   readonly value: InjectionFields;
@@ -76,14 +57,12 @@ interface InjectionListRow {
 
 export interface InjectionsListProps {
   readonly rows: readonly InjectionListRow[];
-  /** Host → add/edit/delete; non-host → read-only list. */
   readonly isHost: boolean;
   readonly onAdd: () => void;
   readonly onSave: (key: string, values: InjectionFormValues) => Promise<unknown>;
   readonly onDelete: (key: string) => void;
 }
 
-/** The Injections tab body (PURE) — the list of rows + (host) an Add button. */
 export function InjectionsList({
   rows,
   isHost,
@@ -131,14 +110,12 @@ interface InjectionRowProps {
   readonly onDelete: (key: string) => void;
 }
 
-/** One editable injection — its own autosave form; the depth field shows only for `in_chat`. */
 function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): ReactElement {
   const save = (values: InjectionFormValues): Promise<unknown> => onSave(row.key, values);
 
   const { form, mountKey } = useInjectionRowForm({
     entityId: row.key,
     serverValues: toInjectionForm(row.value),
-    // Non-host: no persist fn ⇒ read-only form (spread, not `undefined` — exactOptionalPropertyTypes).
     ...(isHost ? { save } : {}),
   });
 
@@ -203,13 +180,9 @@ function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): Rea
 
 export interface InjectionsManagerProps {
   readonly chatId: ChatId;
-  /** Host → add/edit/delete; member → read-only list. */
   readonly isHost: boolean;
 }
 
-/** The COMMITTED reader (the surface's Injections tab): reads `chat.listChatInjections` (rows keyed by the
- *  server id) + wires the CRUD verbs, then renders the pure `InjectionsList`. A draft renders `InjectionsList`
- *  directly with its own `draftConfig.injections` source + `setDraftInjections` seam. */
 export function InjectionsManager({ chatId, isHost }: InjectionsManagerProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();

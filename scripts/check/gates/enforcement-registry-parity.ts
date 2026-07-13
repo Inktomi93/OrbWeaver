@@ -32,14 +32,11 @@ function activeTableGateNames(doc: string): Set<string> {
   return new Set([...region.matchAll(TABLE_ROW_RE)].map((m) => m.groups?.["name"] ?? ""));
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§7 — reconcile the DISCOVERED DESCRIPTOR SET) ────────────────────────
-// The loader IS the registry, so this gate compares the doc to the CONTRACT: every gate file exports a
+// The loader IS the registry, so this gate compares the doc to the contract: every gate file exports a
 // `gate` descriptor with a name + a status; the doc's ACTIVE table == the set of `status:"active"`
 // descriptors, the DORMANT table == the `status:"dormant"` descriptors, and the "(N registered gates)"
-// count == the ACTIVE-descriptor count. The loader's fail-closed assertDescriptor makes an unwired/invalid
-// gate file a load-time RED, so a silent unregistered gate can't exist. This gate self-hosts: it reads each
-// `scripts/check/gates/*.ts` descriptor's name+status straight from the source AST (its own Project —
-// fsBacked), never importing report.ts.
+// count == the active-descriptor count. It reads each `scripts/check/gates/*.ts` descriptor's
+// name+status straight from the source AST, never importing report.ts.
 const STATUS_ACTIVE = "active";
 const STATUS_DORMANT = "dormant";
 

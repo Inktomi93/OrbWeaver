@@ -2,18 +2,10 @@
 // re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + LucideIcon fine
 // (the rail-slots.ts precedent).
 
-// SETTINGS_CATEGORIES — the ONE home for the settings overlay's left-nav geography (ux-flow-revamp J11 ·
-// UI-Arch §4.2 region map: the `settings` modal's USER/APP groups). A registry-as-data map so the shell
-// renders the nav from it (never bespoke JSX per row) and adding/renaming a category is a data edit. The
-// SHAPE vocabulary (tuples, interfaces, `settingsAnchorId`) lives in settings-nav-model.ts (the §2.1
-// component-size split — this file holds the DATA). Every category carries its own DISTINCT teaching
-// copy (the same honesty discipline as the section placeholders, J10) so a deferred pane reads as "this
-// specific thing isn't built yet", never a generic sparkle.
-//
-// SCOPE (J11 — the governing split): settings holds ONLY user/app PREFERENCES. Generation config is NOT
-// here — it is the Presets rail section (a later lane); do not add a generation/preset category.
-// Real panes today: Appearance · Personas · Tags · System · Admin (owner ∪ admin only — `adminOnly`);
-// every other category is an honest "not built yet" pane that lands with its own feature lane.
+// SETTINGS_CATEGORIES — the one home for the settings overlay's left-nav geography. A registry-as-data
+// map so the shell renders the nav from it and adding/renaming a category is a data edit. Every category
+// carries its own distinct teaching copy so a deferred pane reads as "this specific thing isn't built
+// yet". Settings holds only user/app preferences — generation config lives in the Presets rail section.
 
 import {
   CircleUser,
@@ -25,22 +17,13 @@ import {
   SunMoon,
   Zap,
 } from "@orb/ui/icons";
-// The Backup & Restore category's nav DATA lives in backup-nav.ts (kept this registry under the §2.1
-// size cap — the connections-nav.ts precedent). `BACKUP_SUBCATEGORY_IDS` is imported by the backup
-// surface FROM backup-nav.
 import { BACKUP_CATEGORY } from "./backup-nav";
-// The Connections category's nav DATA lives in connections-nav.ts (kept this registry under the §2.1
-// size cap). `CONNECTIONS_SUBCATEGORY_IDS` is imported by the connections surface FROM connections-nav.
 import { CONNECTIONS_CATEGORY } from "./connections-nav";
-// `SETTINGS_GROUPS` rides the type import — this file only ever uses it in `typeof` type positions.
 import type { SETTINGS_GROUPS, SettingsCategory } from "./settings-nav-model";
 import { SETTINGS_CATEGORY_IDS } from "./settings-nav-model";
-// The Workloads category's nav DATA lives in workloads-nav.ts (same size-cap split — the workloads surfaces
-// import `WORKLOADS_SUBCATEGORY_IDS` from there directly, as the backup/connections surfaces do for theirs).
 import { WORKLOADS_CATEGORY } from "./workloads-nav";
 
-/** Appearance pane subcategory ids — the ONE home shared by the registry AND the surface's `<Section>`
- *  anchor stamps, so a typo/rename is a `tsc` error, never a stale anchor (registry-as-data). */
+/** Appearance pane subcategory ids — shared by the registry and the surface's `<Section>` anchor stamps. */
 export const APPEARANCE_SUBCATEGORY_IDS = {
   messageStyle: "message-style",
   avatars: "avatars",
@@ -53,14 +36,11 @@ export const APPEARANCE_SUBCATEGORY_IDS = {
   effects: "effects",
 } as const;
 
-/** Persona pane subcategory ids (same one-home discipline as the appearance map). */
 export const PERSONA_SUBCATEGORY_IDS = { personas: "personas" } as const;
 
-/** Tags pane subcategory ids (Task #65 — the tag-management screen; same one-home discipline). */
 export const TAGS_SUBCATEGORY_IDS = { tags: "tags" } as const;
 
-/** System pane subcategory ids (Task #37) — the ONE home shared by the registry AND the surface's
- *  `<Section>` anchor stamps (a typo/rename is a `tsc` error, never a stale anchor). */
+/** System pane subcategory ids — shared by the registry and the surface's `<Section>` anchor stamps. */
 export const SYSTEM_SUBCATEGORY_IDS = {
   mediaTrust: "media-trust",
   compute: "compute",
@@ -69,7 +49,6 @@ export const SYSTEM_SUBCATEGORY_IDS = {
   operations: "operations",
 } as const;
 
-/** Admin pane subcategory ids (the user-administration + ops pane; same one-home discipline). */
 export const ADMIN_SUBCATEGORY_IDS = {
   users: "users",
   engines: "engines",
@@ -77,7 +56,6 @@ export const ADMIN_SUBCATEGORY_IDS = {
 
 export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number], SettingsCategory> =
   {
-    // ── USER group ──
     account: {
       group: "user",
       label: "Account",
@@ -267,7 +245,6 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       description: "How chats send, continue, and handle greetings.",
       built: false,
     },
-    // ── APP group ──
     connections: CONNECTIONS_CATEGORY,
     automation: {
       group: "app",
@@ -418,7 +395,7 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
     },
   };
 
-/** The category ids for one group, in the registry's declared order (the nav renders per-group). */
+/** The category ids for one group, in the registry's declared order. */
 export function categoryIdsForGroup(
   group: (typeof SETTINGS_GROUPS)[number],
 ): readonly (typeof SETTINGS_CATEGORY_IDS)[number][] {

@@ -1,25 +1,6 @@
-// PersonaPanelSurface (FINAL-Persona §A.6 · rail-foot panel redesign) — the rail-foot account + persona
-// panel. A prop-free @container CONSUMER the ROUTE injects into the app-shell rail-foot slot (mirrors the
-// modal-slots seam — no feature→feature import). The rail avatar shows your CURRENT persona (#2); clicking
-// opens a generous inline Popover (Discord account-panel energy; NOT a modal, §A.7b):
-//   • ACCOUNT strip — opens the real `account` modal (features/auth `<AccountSurface>`, route-composed
-//     over MODAL_SLOTS.account at home-page.tsx) via `openModal("account")` — the identity card + the
-//     ONE mode-aware sign-out (POST /api/auth/logout lives there, `auth-bootstrap.ts`; this panel no
-//     longer ships a second copy of that security-sensitive call). The cross-feature reach is a `#state`
-//     write, never a `#features/auth` import (the sanctioned seam — the modal-slots pattern).
-//   • PERSONA header — "playing as <current>" + ＋ New persona.
-//   • the persona LIST — each row sets Current on body-click, with inline avatar/name edit + set-Default /
-//     delete / a details disclosure (persona-panel-row.tsx).
-//   • "This chat" (§A.6, folded in here — the ONE home for the per-chat picker; NO separate
-//     features/chat picker) — present only when a chat is active (`PersonaThisChatSection` reads
-//     `state/active-chat-store`); sets the Chat persona (#3), shows/re-pins the Anchor (#4), and the
-//     reattribute escape hatch.
-// The old "Persona settings" footer (notify toggle + restore-from-backup) MOVED to Settings → USER →
-// Personas (features/settings/surfaces/persona-settings-surface.tsx) — those are peripheral prefs, not
-// panel content. ONE scroll region: the popup itself caps to the Popover positioner's
-// `--available-height` (Base UI-computed) instead of a nested `max-h-96` peephole around the list, so an
-// expanded row's details use the full available panel height.
-// All SERVER state via trpc (persona.* / settings / chat / worldInfo), zero Zustand.
+// The rail-foot account + persona panel. A prop-free @container consumer the route injects into the
+// app-shell rail-foot slot. Cross-feature reach to auth is a #state write (openModal), never a
+// #features/auth import. All server state via trpc, zero Zustand.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { PersonaId } from "@orb/kit/ids";
@@ -80,10 +61,7 @@ function PanelBody(): ReactElement {
   const [expandedId, setExpandedId] = useState<PersonaId | null>(null);
   const currentId = settings.config.seeds.currentPersonaId;
   const defaultId = settings.config.seeds.defaultPersonaId;
-  // EFFECTIVE current (owner ruling: with >=1 persona, one MUST resolve — "no persona" is legitimate only
-  // pre-first-run, `personas.length === 0`). Mirrors `useViewer.currentPersona` EXACTLY (the two are kept
-  // semantically identical): current-pointer -> default-pointer -> first owned -> null. The stored pointer
-  // is re-pointed server-side on delete (persona/verbs/remove.ts); this is the DISPLAY safety net.
+  // Mirrors useViewer.currentPersona: current-pointer -> default-pointer -> first owned -> null.
   const current =
     personas.find((persona) => persona.id === currentId) ??
     personas.find((persona) => persona.id === defaultId) ??
@@ -111,9 +89,7 @@ function PanelBody(): ReactElement {
   return (
     <Popover>
       <PanelTrigger current={current} />
-      {/* max-h-(--available-height): the Popover positioner's own computed budget (Base UI CSS var,
-          cascades to this Popup as its DOM descendant) — caps the WHOLE panel to the viewport instead of
-          a nested peephole around just the list, so an expanded row's details get the full height. */}
+      {/* max-h-(--available-height) caps the whole panel to the viewport, not just a nested list peephole. */}
       <PopoverPopup
         align="end"
         className="max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto"
@@ -130,8 +106,6 @@ function PanelBody(): ReactElement {
               }}
             />
             <Separator />
-            {/* A micro-caps label under the divider — "Playing as" above is your ACTIVE persona; this
-                marks the list below as the rest of your available roster, not a repeat of it. */}
             <Text size="micro" tone="muted" transform="caps">
               Your personas
             </Text>
@@ -211,9 +185,7 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
   );
 }
 
-/** The account strip — opens the real `account` modal (features/auth `<AccountSurface>`: identity + role/
- *  mode badges + the ONE mode-aware sign-out). A `#state` write (`openModal`), never a `#features/auth`
- *  import — the sanctioned cross-feature seam (this panel holds no auth logic of its own). */
+/** Opens the account modal via `#state` write (never a `#features/auth` import). */
 function AccountStrip(): ReactElement {
   return (
     <Button

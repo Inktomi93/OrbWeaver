@@ -294,14 +294,9 @@ function scanBannedShapes(root: string, project: Project): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a registry-driven multi-arm ban scan via `run`) ──────────────
-// schema-banned-shapes is a STATIC ban registry (BANNED_SHAPES) checked per file — column/table bans in
-// schema files, interface-field / schema-field bans on contracts, an import ban anywhere. It is NOT a
-// ratchet (the registry is a fixed forbidden list, no stale arm) but has per-shape, per-arm scoping that
-// doesn't reduce to one scanRoot, so it ports as a `run` descriptor reusing the exact per-file arm logic.
-// Each finding names its banned shape (varies) → a per-occurrence message override. A synthetic tree with
-// none of the banned shapes is naturally clean. Findings byte-identical to the legacy Check. Kept
-// ALONGSIDE the legacy Check.
+// A static ban registry (BANNED_SHAPES) checked per file — column/table bans in schema files,
+// interface-field / schema-field bans on contracts, an import ban anywhere. Not a ratchet (the registry
+// is a fixed forbidden list, no stale arm). Each finding names its banned shape.
 export const gate: GateDescriptor = {
   name: "schema-banned-shapes",
   docRow: "Core-Path-Registry ledger (D12/D18/D25/D26/D27/D28/D33/D36/D58/D60)",

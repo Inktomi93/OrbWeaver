@@ -1,12 +1,9 @@
-// The single-pass dispatcher (TSMORPH-SINGLE-PASS-AUDIT.md §1.4): ONE forEachDescendant walk over the
-// scoped fileset, dispatching each node only to the gates subscribed to its kind, then the whole-project
-// `run` passes + `finalize` arms. Read-side foundation running ALONGSIDE the legacy per-gate runner — the
-// legacy path keeps exit authority until parity is proven (§8.2).
+// The single-pass dispatcher: ONE forEachDescendant walk over the scoped fileset, dispatching each node
+// only to the gates subscribed to its kind, then the whole-project `run` passes + `finalize` arms.
 //
-// Every visit/run/finalize call is wrapped per-gate (§9.4): a throw becomes a ToolError attributed to the
-// gate+phase and does NOT abort the sibling gates — one broken gate can't blind the run. Findings are
-// tagged with their gate and canonical-sorted here so the output is deterministic (kind-sweep order in the
-// legacy runner vs document order here both collapse to the same sorted set — the byte-identical bar).
+// Every visit/run/finalize call is wrapped per-gate: a throw becomes a ToolError attributed to the
+// gate+phase and does NOT abort the sibling gates. Findings are canonical-sorted here so output is
+// deterministic.
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../ts-workspace.ts";
 import type { Finding, GateDescriptor, GateRunCtx, Scope } from "./contract.ts";
@@ -28,16 +25,15 @@ export type PassResult = {
   readonly toolErrors: readonly ToolError[];
 };
 
-/** repo-relative posix path for a SourceFile (mirrors the gates' own `clientRel` idiom, generalized). */
+/** repo-relative posix path for a SourceFile. */
 export function repoRel(root: string, absPath: string): string {
   const withRoot = absPath.startsWith(root) ? absPath.slice(root.length) : absPath;
   return withRoot.startsWith("/") ? withRoot.slice(1) : withRoot;
 }
 
-/** Is a repo-relative path actually LOADED in this run's project? A ratchet stale-arm (a whole-project
- *  "this allowlisted file went clean" claim) must only judge a file that is present — a synthetic
- *  conformance/parity tree omits the real allowlisted files, so an unloaded entry must not falsely flag
- *  stale. On the real full-tree run every allowlisted file IS loaded, so the ratchet is preserved. */
+/** Is a repo-relative path actually loaded in this run's project? A ratchet stale-arm must only judge a
+ *  file that is present — a synthetic conformance tree omits real allowlisted files, so an unloaded
+ *  entry must not falsely flag stale. */
 export function fileLoaded(
   ctx: Pick<GateRunCtx, "root" | "project">,
   repoRelPath: string,
@@ -45,16 +41,14 @@ export function fileLoaded(
   return ctx.project.getSourceFile(`${ctx.root}/${repoRelPath}`) !== undefined;
 }
 
-/** The one sanctioned way to locate a node-anchored finding (§9.1) — line+column FROM the node,
- *  never a regex newline-guess. `getStart()` skips leading trivia so the caret lands on the token. */
+/** Line+column from the node, never a regex newline-guess. `getStart()` skips leading trivia so the
+ *  caret lands on the token. */
 function locate(node: Node): { readonly line: number; readonly column: number } {
   return node.getSourceFile().getLineAndColumnAtPos(node.getStart());
 }
 
 /** Locate a TOKEN inside a node: `offset` is its 0-based index into `node.getText()`, so the caret
- *  lands on the offending lexeme (a class token inside a className string), not the enclosing string.
- *  `getStart()` is the node's absolute start; +offset is the token's absolute position. Per-occurrence
- *  granularity (owner ruling 1) needs this — one string literal can carry N banned tokens. */
+ *  lands on the offending lexeme, not the enclosing string. */
 function locateToken(
   node: Node,
   offset: number,
@@ -69,9 +63,7 @@ function compareStrings(a: string, b: string): number {
   return a > b ? 1 : 0;
 }
 
-/** Canonical order: sort by (file, line, column, token, message). Findings emit in document order; the
- *  sort makes the set stable so the reporter and any parity diff are deterministic (§8.2). `token`/
- *  `message` are the per-occurrence tiebreakers (a single line can carry N banned tokens). */
+/** Canonical order: sort by (file, line, column, token, message) so output is deterministic. */
 export function canonicalSort(findings: readonly Finding[]): Finding[] {
   return [...findings].sort((a, b) => {
     if (a.file !== b.file) {
@@ -182,11 +174,8 @@ function runVisit(run: GateRun, node: Node, sf: SourceFile): void {
   run.gate.visit?.(node, sf, run.ctx);
 }
 
-/**
- * The §1.4 pass over a given descriptor set and fileset. Each node is touched once; only subscribed
- * gates see it. Whole-project `run` gates get their declared pass over the SAME project. Per-gate
- * try/catch turns a throw into a ToolError without aborting siblings.
- */
+/** The pass over a given descriptor set and fileset. Each node is touched once; only subscribed gates
+ *  see it. Whole-project `run` gates get their declared pass over the SAME project. */
 export function runPass(
   gates: readonly GateDescriptor[],
   ctxBase: Omit<GateRunCtx, "report">,

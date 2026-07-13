@@ -11,12 +11,6 @@ export interface ButtonProps extends BaseButtonProps, VariantProps<typeof button
   loading?: boolean;
 }
 
-/**
- * The one button — Base UI Button sealed behind the token skin (D42 §2 — Base UI seal;
- * ui-package-design §5 — tv variant unions, a bad `intent`/`size` is a tsc error).
- *
- * Usage: `<Button intent="destructive" size="sm" onClick={onDelete}>Delete</Button>`
- */
 export function Button({
   className,
   intent,
@@ -29,15 +23,12 @@ export function Button({
   return (
     <BaseButton
       data-slot="button"
-      // The gradient-border accent ring (effects catalog E, globals.css) keys off this attr so it
-      // paints on the primary CTA only — the intent lives in a tv class, not a data-attr, so we stamp
-      // a stable hook here rather than fighting the class selector.
+      // The gradient-border accent ring keys off this attr, painting on the primary CTA only.
       data-cta={intent === "primary" ? "" : undefined}
       aria-busy={loading ? true : undefined}
       className={cn(buttonVariants({ intent, size }), className)}
       disabled={disabled || loading}
-      // Loading is a transient busy state, not a real disablement — stay in the tab sequence for
-      // AT (Base UI docs flag this exact case). A caller-supplied value always wins.
+      // Loading is a transient busy state, not a real disablement — stay in the tab sequence for AT.
       focusableWhenDisabled={focusableWhenDisabled ?? loading}
       {...rest}
     />

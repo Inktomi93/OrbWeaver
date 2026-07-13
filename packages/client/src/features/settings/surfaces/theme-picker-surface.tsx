@@ -1,10 +1,7 @@
-// theme-picker-surface — the REAL theme library + picker (D44 §12.1 · themes-design §4). Replaces the
-// interim read-only picker now that persistence is built. Lists owned ∪ seed themes (`listThemes`), shows
-// the active one (`theme.selectedThemeId`; `null` = the Hearth default), and drives the full lifecycle:
-// SELECT (writes selectedThemeId — the Layer-1 live flip), NEW (create → open editor), CUSTOMIZE a seed
-// (duplicate → open editor), EDIT/DELETE owned rows, and RESET-to-Hearth (Tier-3 anti-brick). The route
-// composes it over the `theme` modal slot. Selecting is the ONLY thing that applies globally; editing a
-// theme is scoped to the editor's own preview until saved (Tier-3).
+// theme-picker-surface — the theme library + picker. Lists owned ∪ seed themes, shows the active one
+// (null = the Hearth default), and drives the full lifecycle: select, new (create → open editor),
+// customize a seed (duplicate → open editor), edit/delete owned rows, and reset-to-Hearth. Selecting is
+// the only thing that applies globally; editing a theme is scoped to the editor's own preview until saved.
 
 import type { Theme } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
@@ -63,8 +60,7 @@ function ThemeManager(): ReactElement {
   const duplicateTheme = useDuplicateTheme({ trpc, invalidation });
   const removeTheme = useRemoveTheme({ trpc, invalidation });
 
-  // The in-edit theme is held by VALUE (not id) so a fresh create/duplicate opens instantly without
-  // waiting for the listThemes refetch.
+  // Held by value (not id) so a fresh create/duplicate opens instantly without waiting for the listThemes refetch.
   const [editing, setEditing] = useState<Theme | null>(null);
 
   const onNew = async (): Promise<void> => {
@@ -72,7 +68,7 @@ function ThemeManager(): ReactElement {
       const created = await createTheme.mutateAsync(themeInputFromForm(DEFAULT_THEME_FORM));
       setEditing(created);
     } catch {
-      // `createEntityMutation`'s errorToast already surfaced the failure — stay on the list.
+      // errorToast already surfaced the failure — stay on the list.
     }
   };
   const onCustomize = async (seedId: ThemeId): Promise<void> => {
@@ -80,7 +76,7 @@ function ThemeManager(): ReactElement {
       const duplicated = await duplicateTheme.mutateAsync({ id: seedId });
       setEditing(duplicated);
     } catch {
-      // `createEntityMutation`'s errorToast already surfaced the failure — stay on the list.
+      // errorToast already surfaced the failure — stay on the list.
     }
   };
   const selectById = (id: string | null): void =>
@@ -146,11 +142,7 @@ function ThemeManager(): ReactElement {
   );
 }
 
-/** A theme's swatch — its real background + accent, painted through `<ThemeScope>` (the gate-enforced
- *  path for a ThemeOverride to reach the DOM; `theme-override-only-via-scope`, never a raw inline style).
- *  ThemeScope emits `--color-background`/`--color-primary` from the override, so the token classes read
- *  them; an unset field inherits the global token. Decorative — empty dot content, no accessible-name leak
- *  (the character-card accent-dot precedent). */
+/** A theme's swatch — its real background + accent, painted through `<ThemeScope>` (never a raw inline style). Decorative, no accessible-name leak. */
 function ThemeSwatch({ theme }: { readonly theme: Theme }): ReactElement {
   return (
     <ThemeScope

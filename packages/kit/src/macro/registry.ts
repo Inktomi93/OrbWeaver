@@ -9,33 +9,21 @@ import type {
 } from "./types";
 import { applyVarOp } from "./variables";
 
-// Base-10 radix for the var-counter / dice integer parses.
 const DECIMAL_RADIX = 10;
-// Bare `{{random}}` rolls 0..100 inclusive → floor(rand * 101).
-const RANDOM_DEFAULT_CEIL = 101;
-// Numeric-range `{{random::X::Y}}` mode is keyed on EXACTLY two args.
+const RANDOM_DEFAULT_CEIL = 101; // bare {{random}} rolls 0..100 inclusive
 const RANGE_ARG_COUNT = 2;
-// Caps both dice `count` and `sides` so a hostile card can't block the loop with `{{roll::1e6d6}}`.
-const ROLL_MAX = 10_000;
-// A quoted RHS must hold at least the two surrounding quote chars to be unquotable.
+const ROLL_MAX = 10_000; // caps dice count/sides so a hostile card can't block the loop
 const MIN_QUOTED_LEN = 2;
 
-// Bare-identifier predicate token (env/built-in lookup) — letters, digits, `_`, `.`, `-`.
 const BARE_IDENT = /^[\w.-]+$/;
-// `{{#if LHS == "X"}}` / `!=` comparator split (non-greedy LHS, op, RHS).
 const COMPARATOR = /^(.+?)\s*(==|!=)\s*(.+)$/;
-// `{{roll::NdM}}` dice spec (N optional → defaults to 1).
 const DICE_SPEC = /^(\d*)d(\d+)$/;
-// `{{roll::N}}` plain-integer spec.
 const PLAIN_INT = /^\d+$/;
 
-// {{time}}/{{date}} clock source. Honors a per-request IANA `ctx.timezone` (the browser's zone,
-// threaded from the chat-send path); an absent or invalid zone falls back to the server-local
-// clock (Luxon's default zone, which respects the container's `TZ`). The browser supplies the
-// live zone once the send UI passes it.
+// Honors a per-request IANA `ctx.timezone` (the browser's); an absent/invalid zone falls back to
+// server-local (Luxon's default zone, respects container `TZ`).
 function nowInZone(ctx: MacroContext): DateTime {
-  // `ctx.nowMs` (epoch-ms UTC) pins the clock when supplied; otherwise the live wall clock. This is
-  // the single source of "now" for {{time}}/{{date}}, so pinning it makes the whole clock deterministic.
+  // `ctx.nowMs` pins the clock when supplied — the single source of "now" (deterministic freeze).
   const base = ctx.nowMs !== undefined ? DateTime.fromMillis(ctx.nowMs) : DateTime.now();
   if (ctx.timezone !== undefined && ctx.timezone !== "") {
     const zoned = base.setZone(ctx.timezone);
@@ -82,15 +70,14 @@ export class SimpleMacroRegistry implements MacroRegistry {
   }
 }
 
-// Strip surrounding quotes from a comparator RHS / `banned` arg. Imported cards use
-// straight (") and typographic (curly) quote pairs interchangeably; accept both.
+// Imported cards use straight (") and typographic (curly) quote pairs interchangeably; accept both.
 function unquote(value: string): string {
   const v = value.trim();
   const pairs: [string, string][] = [
     ['"', '"'],
     ["'", "'"],
-    ["“", "”"], // “ ”
-    ["‘", "’"], // ‘ ’
+    ["“", "”"],
+    ["‘", "’"],
   ];
   for (const [open, close] of pairs) {
     if (v.startsWith(open) && v.endsWith(close) && v.length >= MIN_QUOTED_LEN) {
@@ -100,8 +87,7 @@ function unquote(value: string): string {
   return v;
 }
 
-// Lookup any macro-context value by name — used by `{{#if char == "x"}}` and the `random::A::B::C`
-// dereference. Falls back to env so user-defined vars work the same as built-ins.
+// Falls back to env so user-defined vars work the same as built-ins.
 function readContextValue(name: string, ctx: MacroContext): unknown {
   switch (name) {
     case "char":
@@ -137,10 +123,8 @@ function readContextValue(name: string, ctx: MacroContext): unknown {
   }
 }
 
-// Resolve an `if` predicate token to a string value. A bare identifier (no `{{`) looks up in the
-// macro context — env first, then built-in fields (char/user/…). Anything containing `{{` is a
-// sub-macro and gets evaluated; the resolved string is the literal value to truth-check or
-// compare. The asymmetry mirrors the legacy `if`-handler convention from imported cards.
+// A bare identifier (no `{{`) looks up in the macro context; anything containing `{{` is a
+// sub-macro and gets evaluated first.
 function resolvePredicateValue(rawToken: string, ctx: MacroContext): string {
   const trimmed = rawToken.trim();
   if (trimmed.includes("{{")) {
@@ -153,12 +137,8 @@ function resolvePredicateValue(rawToken: string, ctx: MacroContext): string {
   return unquote(trimmed);
 }
 
-// Split a block's children at the first top-level {{else}} marker. Returns [thenBranch, elseBranch].
-// elseBranch is [] when no else is present. Nested `if`s are unaffected (we only split top-level).
-// Case-insensitive compare — the parser preserves source casing and the registry lookup is
-// case-insensitive everywhere else, so `{{Else}}`/`{{ELSE}}` must split too (a case-sensitive
-// compare here silently rendered BOTH branches: the marker itself resolved to "" via the
-// registry, hiding the failure — review V10-6).
+// Split a block's children at the first top-level {{else}} marker (case-insensitive — a
+// case-sensitive compare silently rendered BOTH branches since the marker itself resolves to "").
 function splitOnElse(children: MacroAST): [MacroAST, MacroAST] {
   for (let i = 0; i < children.length; i += 1) {
     const node = children[i];
@@ -169,17 +149,10 @@ function splitOnElse(children: MacroAST): [MacroAST, MacroAST] {
   return [children, []];
 }
 
-// ── Conditional handler ────────────────────────────────────────────────────────────────────────
-// Three predicate shapes (legacy card-format compat):
-//   {{#if NAME}}…{{/if}}                     — truthy check (name's value is non-empty)
-//   {{#if NAME == "X"}}…{{/if}}              — equality comparator (straight or curly quotes)
-//   {{#if NAME != "X"}}…{{/if}}              — inequality comparator
-// An optional `{{else}}` splits the children into then/else branches.
+// Three predicate shapes: {{#if NAME}}, {{#if NAME == "X"}}, {{#if NAME != "X"}}; optional {{else}}.
 const ifHandler: MacroHandler = (args, ctx, children) => {
-  // Reassemble the raw predicate: the parser's legacy whitespace splitter turns the documented
-  // spaced form `{{#if NAME == "X"}}` into ["NAME", "==", "\"X\""]. Reading only args[0] silently
-  // degraded the comparator to a truthy check on NAME (V10-1). The no-space form arrives as a
-  // single arg, so joining is a no-op there.
+  // Reassemble the raw predicate: the parser's whitespace splitter turns `{{#if NAME == "X"}}`
+  // into ["NAME", "==", "\"X\""]; reading only args[0] would degrade to a truthy check on NAME.
   const rawArg = args.join(" ").trim();
   if (!rawArg) {
     return "";
@@ -208,21 +181,14 @@ const ifHandler: MacroHandler = (args, ctx, children) => {
   return ctx.evaluateAST(pass ? thenBranch : elseBranch);
 };
 
-// Utilities — multiple legacy overloads supported:
-//   {{random}}            → 0..100
-//   {{random::X::Y}}      → integer between X and Y inclusive (X,Y numeric)
-//   {{random::A::B::C}}   → randomly pick ONE of the option strings (any non-numeric arg → option-pick)
-// Numeric vs option mode is decided by whether the args parse as integers AND there are exactly 2.
+// {{random}} → 0..100; {{random::X::Y}} → integer in [X,Y]; {{random::A::B::C}} → pick one option.
 const randomHandler: MacroHandler = (args, ctx) => {
-  // Resolve the PRNG once through the injectable seam (ctx.random) — defaults to ambient Math.random.
   const random = ctx.random ?? Math.random;
   if (args.length === 0) {
     return String(Math.floor(random() * RANDOM_DEFAULT_CEIL));
   }
   if (args.length === RANGE_ARG_COUNT) {
-    // Numeric range mode: BOTH args must be integers. `parseInt` was too lenient — it silently
-    // truncated "1.5" → 1, so {{random::1.5::3.5}} returned an integer in [1,3] rather than what
-    // the author intended. Use Number() + isInteger and fall through to option-pick otherwise.
+    // Both args must be integers — `parseInt` silently truncates "1.5" → 1, so use Number()+isInteger.
     const min = Number(args[0] ?? "");
     const max = Number(args[1] ?? "");
     if (Number.isInteger(min) && Number.isInteger(max)) {
@@ -231,16 +197,12 @@ const randomHandler: MacroHandler = (args, ctx) => {
       return String(Math.floor(random() * (hi - lo + 1)) + lo);
     }
   }
-  // Option-pick mode (1 arg or ≥3 args, or 2 args where either isn't an integer).
   const idx = Math.floor(random() * args.length);
   return args[idx] ?? "";
 };
 
-// Dice: {{roll::NdM}} (sum of N M-sided dice) or {{roll::N}} (1..N). Empty/invalid → "".
-// ROLL_MAX caps both `count` and `sides` so a hostile/garbage card can't block the event loop with
-// {{roll::1000000d6}}. The output budget doesn't help here — the loop body never calls `append`.
+// {{roll::NdM}} (sum of N M-sided dice) or {{roll::N}} (1..N). Empty/invalid → "".
 const rollHandler: MacroHandler = (args, ctx) => {
-  // Resolve the PRNG once through the injectable seam (ctx.random) — defaults to ambient Math.random.
   const random = ctx.random ?? Math.random;
   const spec = args[0]?.trim().toLowerCase();
   if (!spec) {
@@ -269,13 +231,11 @@ const rollHandler: MacroHandler = (args, ctx) => {
   return "";
 };
 
-// {{pick::A::B::C}} — deterministic option-pick under the injected PRNG (distinct from {{random}}, which
-// also does numeric ranges). Empty arg list → "".
+// {{pick::A::B::C}} — option-pick under the injected PRNG (distinct from {{random}}, no numeric-range mode).
 const pickHandler: MacroHandler = (args, ctx) => {
   if (args.length === 0) {
     return "";
   }
-  // Resolve the PRNG once through the injectable seam (ctx.random) — defaults to Math.random.
   const random = ctx.random ?? Math.random;
   const index = Math.floor(random() * args.length);
   return args[index] ?? "";
@@ -290,10 +250,7 @@ const dateTimeFormat: MacroHandler = (args, ctx) => {
   return nowInZone(ctx).toFormat(fmt);
 };
 
-// ── Variable store handlers ──────────────────────────────────────────────────────────────────
-// Storage is ctx.env. Mutation handlers write IN-PLACE; the same object reference is preserved
-// across render calls in one assembly pass, so a `setvar` early in the prompt is visible to a
-// `getvar` later in the same turn.
+// Storage is ctx.env. Mutation handlers write IN-PLACE — visible to a later `getvar` in the same turn.
 const readVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
   if (!key) {
@@ -302,8 +259,7 @@ const readVar: MacroHandler = (args, ctx) => {
   return String(ctx.env[key] ?? "");
 };
 
-// {{setvar::name::value}} — side-effect: write `value` to ctx.env[name], render "". Routes through
-// `applyVarOp` (the shared mutation home) + records the op on `ctx.opLog` for the D46 per-variant delta.
+// {{setvar::name::value}} — write `value` to ctx.env[name], render "". Records the op on ctx.opLog.
 const setVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
   if (!key) {
@@ -374,22 +330,17 @@ const deleteVar: MacroHandler = (args, ctx) => {
   return "";
 };
 
-// The cast (member NAMES, primary first); absent cast ⇒ the cast-of-one [char], so {{group}} ==
-// {{char}} for solo (byte-identical — the one-element join IS the single name). Gate on cast SIZE
-// (length), never a group-vs-solo identity boolean.
+// Absent cast ⇒ the cast-of-one [char], so {{group}} == {{char}} for solo.
 function castOf(ctx: MacroContext): readonly string[] {
   return ctx.cast && ctx.cast.length > 0 ? ctx.cast : [ctx.char];
 }
 
-// The ACTIVE (non-muted) cast — distinct from {{group}} (full cast, incl. muted, who still
-// contribute lore). Absent (solo / hand-built ctx) → falls back to the full cast.
+// The ACTIVE (non-muted) cast — distinct from {{group}} (full cast, incl. muted).
 function castNotMutedOf(ctx: MacroContext): readonly string[] {
   return ctx.castNotMuted && ctx.castNotMuted.length > 0 ? ctx.castNotMuted : castOf(ctx);
 }
 
-// Character-field factory. Each handler runs `ctx.evaluateString` on the raw field so `{{user}}` /
-// `{{char}}` / nested macros embedded by the card author resolve properly (loops until the string
-// stops changing). Empty when the field is absent.
+// Runs `ctx.evaluateString` on the raw field so nested macros embedded by the card author resolve.
 function charField(read: (ctx: MacroContext) => string | undefined): MacroHandler {
   return (_args: string[], ctx: MacroContext): string => {
     const raw = read(ctx);
@@ -400,16 +351,11 @@ function charField(read: (ctx: MacroContext) => string | undefined): MacroHandle
   };
 }
 
-// The NONDETERMINISTIC volatile macros — {{random}}/{{pick}}/{{roll}} (PRNG-driven) and the clock family
-// {{time}}/{{date}}/{{weekday}}/{{isodate}}/{{isotime}}/{{datetimeformat}} (wall-clock-driven). These are the
-// macros whose value can NOT be recovered from stored content (the clock/PRNG at commit is gone), so they
-// FREEZE at COMMIT (Chat-Macro-Resolution.md §0: resolve ONCE at send / first-turn, bake the value into
-// canon). Shared by `createDefaultRegistry` (live render) AND `createVolatileOnlyRegistry` (the freeze pass)
-// so the two can never drift on WHICH names freeze. NOTE: the var-mutation macros ({{setvar}}/{{incvar}}/…)
-// and the conversation-context macros ({{input}}/{{lastMessage}}/…) are ALSO flagged `volatile` on the
-// default registry, but they are NOT nondeterministic (stateful / context-derived) and are deliberately
-// EXCLUDED here — freezing them into a stored row would execute a side-effect against an ephemeral env or
-// bake stale conversation context; they stay raw and inert in canon (the names-only read passes them through).
+// The NONDETERMINISTIC macros ({{random}}/{{pick}}/{{roll}} + the clock family) whose value can't be
+// recovered from stored content, so they FREEZE at commit. Shared by `createDefaultRegistry` (live
+// render) and `createVolatileOnlyRegistry` (the freeze pass) so the two can't drift on which names freeze.
+// NOTE: var-mutation + conversation-context macros are ALSO `volatile` but deliberately excluded here —
+// freezing them would execute a side-effect against an ephemeral env or bake stale context.
 function registerVolatileMacros(registry: SimpleMacroRegistry): void {
   const vol = { volatile: true } as const;
   registry.register("random", randomHandler, vol);
@@ -428,12 +374,8 @@ function registerVolatileMacros(registry: SimpleMacroRegistry): void {
 export function createDefaultRegistry(): MacroRegistry {
   const registry = new SimpleMacroRegistry();
   const vol = { volatile: true } as const;
-  // Conversation-context macros: volatile (each turn's "last message"/"input" differs) AND
-  // `requires: "chat"` (no active chat ⇒ nothing to pull).
   const volChat = { volatile: true, requires: "chat" } as const;
 
-  // ── Basic RP Context ───────────────────────────────────────────────────────────────────────
-  // `requires: "char"` macros need character/persona context; `chatid` + `model` need the chat row.
   registry.register("char", (_args, ctx) => ctx.char, { requires: "char" });
   registry.register("user", (_args, ctx) => ctx.user, { requires: "char" });
   registry.register("charname", (_args, ctx) => ctx.char, { requires: "char" });
@@ -443,15 +385,12 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("model", (_args, ctx) => ctx.model ?? "", { requires: "chat" });
   registry.register("chatid", (_args, ctx) => ctx.chatId ?? "", { requires: "chat" });
 
-  // ── Group-chat cast macros (ST vocab) ────────────────────────────────────────────────────────
-  // NON-volatile: the cast is fixed per turn (same stability class as {{char}}).
   registry.register("group", (_a, ctx) => castOf(ctx).join(", "), { requires: "char" });
-  // charIfNotGroup: ST emits the full member list (== {{group}}) — both are "the cast".
   registry.register("charifnotgroup", (_a, ctx) => castOf(ctx).join(", "), { requires: "char" });
   registry.register("groupnotmuted", (_a, ctx) => castNotMutedOf(ctx).join(", "), {
     requires: "char",
   });
-  // notChar: the cast minus the current speaker ({{char}}); humans NOT included. Empty for solo.
+  // The cast minus the current speaker; humans not included. Empty for solo.
   registry.register(
     "notchar",
     (_a, ctx) =>
@@ -461,8 +400,6 @@ export function createDefaultRegistry(): MacroRegistry {
     { requires: "char" },
   );
 
-  // ── Character field shortcuts (legacy card-format compat) ─────────────────────────────────
-  // Both bare and `char`-prefixed forms supported. `mesExamples` and `example` are aliases.
   registry.register(
     "description",
     charField((ctx) => ctx.description),
@@ -532,7 +469,6 @@ export function createDefaultRegistry(): MacroRegistry {
     { requires: "char" },
   );
 
-  // ── Server-injected content (read by templated markers) ─────────────────────────────────────
   registry.register(
     "compact_summary",
     charField((ctx) => ctx.compactSummary),
@@ -543,8 +479,7 @@ export function createDefaultRegistry(): MacroRegistry {
     charField((ctx) => ctx.memory),
     { requires: "chat" },
   );
-  // The {{databank}} slot — RESERVED parallel to {{memory}} (D49 #5; databank-design/07 §3). Renders
-  // empty until domain/databank.gatherRetrieval stages `ctx.databank` (DB2 proper); born now so preset
+  // Renders empty until domain/databank.gatherRetrieval stages `ctx.databank`; born now so preset
   // section templates can place it.
   registry.register(
     "databank",
@@ -559,11 +494,8 @@ export function createDefaultRegistry(): MacroRegistry {
     },
   );
 
-  // ── Variables ──────────────────────────────────────────────────────────────────────────────
   registry.register("getvar", readVar);
-  // `get` retained as a back-compat alias for in-tree prompts written before the rename.
-  registry.register("get", readVar);
-  // Var-mutation macros are `volatile`: their RHS / counter state changes per turn.
+  registry.register("get", readVar); // back-compat alias for in-tree prompts written before the rename
   registry.register("setvar", setVar, vol);
   registry.register("addvar", addVar, vol);
   registry.register("incvar", incVar, vol);
@@ -571,28 +503,19 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("hasvar", hasVar);
   registry.register("deletevar", deleteVar);
 
-  // ── Utilities + Clock + dice (the NONDETERMINISTIC volatile set — {{random}}/{{pick}}/{{time}}/
-  //    {{date}}/…/{{roll}}) — registered via the SHARED helper so the freeze-at-commit path
-  //    (`createVolatileOnlyRegistry`) resolves EXACTLY the same names the default registry does. ──
+  // Registered via the shared helper so `createVolatileOnlyRegistry` resolves the exact same names.
   registerVolatileMacros(registry);
 
-  // ── Conditional ────────────────────────────────────────────────────────────────────────────
-  // `delayArgResolution: true` lets us read RAW args (pre-evaluation) so we can tell a bare
-  // identifier `flag` apart from a sub-macro-resolved value like `{{hasvar::flag}} → "true"`.
+  // `delayArgResolution: true` lets us read RAW args so we can tell a bare identifier apart from a
+  // sub-macro-resolved value like `{{hasvar::flag}} → "true"`.
   registry.register("if", ifHandler, { delayArgResolution: true });
-  // {{else}} is structural — the `if` handler splits its children on this marker. Standalone use
-  // outside an `if` block emits "" (the marker isn't an error, just a no-op there).
-  registry.register("else", () => "");
+  registry.register("else", () => ""); // structural marker; standalone use is a no-op
 
-  // ── Formatting ─────────────────────────────────────────────────────────────────────────────
   registry.register("newline", () => "\n");
   registry.register("space", () => " ");
-  // {{noop}} renders empty — idiom for "I need a placeholder that vanishes".
   registry.register("noop", () => "");
-  // {{banned "text"}} — legacy upstreams STRIP the contents from output. Mirror that: render empty.
-  registry.register("banned", () => "");
+  registry.register("banned", () => ""); // legacy upstreams strip the contents; mirror that
 
-  // {{#trim}}…{{/trim}} — evaluate the block body, then strip leading/trailing whitespace.
   registry.register("trim", (_args, ctx, children) =>
     children ? ctx.evaluateAST(children).trim() : "",
   );
@@ -602,10 +525,8 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("trimend", (_args, ctx, children) =>
     children ? ctx.evaluateAST(children).trimEnd() : "",
   );
-  // {{#uppercase}}…{{/uppercase}} / {{#lowercase}}…{{/lowercase}} — case-folding blocks.
-  // Locale-INDEPENDENT fold (Unicode default case mapping): server and client MUST fold identically
-  // for orbweaver's "render once, identical server+client" mandate — `toLocale*` would diverge on
-  // host locale (Turkish dotless-i, German ß). Determinism > marginal locale-correctness.
+  // Locale-INDEPENDENT fold (Unicode default case mapping) — server and client must fold identically;
+  // `toLocale*` would diverge on host locale (Turkish dotless-i, German ß).
   registry.register("uppercase", (_args, ctx, children) =>
     children ? ctx.evaluateAST(children).toUpperCase() : "",
   );
@@ -613,7 +534,6 @@ export function createDefaultRegistry(): MacroRegistry {
     children ? ctx.evaluateAST(children).toLowerCase() : "",
   );
 
-  // ── Conversation context (set by the chat send/assembly path; "" elsewhere) ──────────────────
   registry.register("input", (_args, ctx) => ctx.input ?? "", volChat);
   registry.register("lastMessage", (_args, ctx) => ctx.lastMessage ?? "", volChat);
   registry.register("lastUserMessage", (_args, ctx) => ctx.lastUserMessage ?? "", volChat);
@@ -622,16 +542,11 @@ export function createDefaultRegistry(): MacroRegistry {
   return registry;
 }
 
-// The RESTRICTED registry for STORED-HISTORY resolution (Chat-Macro-Resolution.md §0/§2). A stored
-// history row is RAW and its VOLATILE macros ({{time}}/{{date}}/{{roll}}/{{random}}/{{pick}}/var
-// mutations) are NOT re-derivable from the row — their commit-time value is gone. The full default
-// registry re-resolves them against the LIVE wall clock + ambient PRNG on every assemble, so one
-// `{{time}}`/`{{roll}}` in any kept message churned that row's bytes every turn: the Anthropic R1
-// prefix cache missed from that row forward for the life of the chat, and a swipe re-fold of an
-// identical context was not byte-identical (D46). This registry resolves ONLY the STABLE identity
-// macros the row's stamps supply ({{char}}/{{user}}/{{persona}} + their name aliases + {{scenario}});
-// every unregistered (volatile) macro is re-emitted VERBATIM by the evaluator's literal passthrough,
-// which is byte-stable across renders. Doc-faithful (§2 scopes history to names) AND cache-stable.
+// The RESTRICTED registry for STORED-HISTORY resolution. A stored history row is RAW and its VOLATILE
+// macros ({{time}}/{{roll}}/{{random}}/…) are NOT re-derivable — re-resolving against the LIVE clock/PRNG
+// on every assemble would churn that row's bytes every turn, missing the prefix cache from that row
+// forward. This registry resolves ONLY the stable identity macros; every unregistered (volatile) macro
+// is re-emitted VERBATIM by the evaluator's literal passthrough — byte-stable across renders.
 export function createNamesOnlyRegistry(): MacroRegistry {
   const registry = new SimpleMacroRegistry();
   registry.register("char", (_args, ctx) => ctx.char, { requires: "char" });
@@ -643,17 +558,11 @@ export function createNamesOnlyRegistry(): MacroRegistry {
   return registry;
 }
 
-// The RESTRICTED registry for the COMMIT-TIME FREEZE pass (Chat-Macro-Resolution.md §0 — the inverse of
-// `createNamesOnlyRegistry`). When content COMMITS to the conversation (a user message at SEND; a greeting at
-// the first-turn lock-in), its NONDETERMINISTIC macros ({{roll}}/{{random}}/{{pick}}/{{time}}/{{date}}/…) must
-// resolve ONCE against the turn's pinned clock/PRNG and bake the value into the stored canon row — otherwise a
-// re-render against a live clock/PRNG would produce a DIFFERENT roll/time every turn. This registry resolves
-// ONLY those nondeterministic handlers; every OTHER macro — the IDENTITY set ({{char}}/{{user}}/{{persona}} +
-// name aliases), var mutations, conversation-context, conditionals, char-fields — has no handler here and is
-// re-emitted VERBATIM by the evaluator's literal passthrough (byte-stable), so it stays RAW in canon and is
-// resolved per-view at READ (the names-only pass). The two registries are exact complements on the freeze axis:
-// names-only bakes IDENTITY and passes volatiles through; volatile-only bakes VOLATILES and passes identity
-// through. Built ONCE (a fixed restricted set, never extended) — the freeze pass fires per committed row.
+// The RESTRICTED registry for the COMMIT-TIME FREEZE pass — the inverse of `createNamesOnlyRegistry`.
+// When content commits (a user message at send; a greeting at first-turn lock-in), its nondeterministic
+// macros must resolve ONCE against the turn's pinned clock/PRNG and bake into the stored canon row.
+// Every other macro has no handler here and is re-emitted VERBATIM (byte-stable), staying RAW in canon
+// for the names-only pass to resolve per-view at READ. The two registries are exact freeze-axis complements.
 export function createVolatileOnlyRegistry(): MacroRegistry {
   const registry = new SimpleMacroRegistry();
   registerVolatileMacros(registry);

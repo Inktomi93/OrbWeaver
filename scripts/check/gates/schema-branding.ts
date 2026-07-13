@@ -137,13 +137,10 @@ function reconcileSchemaBranding(root: string, project: Project): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
 // schema-branding is a whole-tree reconciliation: collect every schema id/FK column, build the
 // branded-id-per-table map, then judge (a pk `id` with no .$type<> brand; a FK to a BRANDED target's id
-// that is itself unbranded — the brand must flow across the FK). The cross-file brand lookup makes it a
-// `run` reconciliation, not a per-node predicate. No live allowlist → no fileLoaded sentinel; the escape
-// hatch is a `// plain-id:` comment (per column). Findings byte-identical to the legacy Check. Kept
-// ALONGSIDE the legacy Check.
+// that is itself unbranded — the brand must flow across the FK). The escape hatch is a `// plain-id:`
+// comment (per column).
 export const gate: GateDescriptor = {
   name: "schema-branding",
   docRow: "TypeID discipline (no-raw-id grit companion; @orb/kit/ids)",

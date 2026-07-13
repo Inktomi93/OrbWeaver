@@ -1,16 +1,6 @@
-// The FIRST-RUN persona gate (owner-directed FUE, 2026-07-10 — the ST first-run parity: a fresh account
-// must name its {{user}} persona before chatting; the landing hero's deferred "first-run persona ask"
-// now lands HERE as a forced modal instead of a hero slot). An ANCHOR (it owns its Dialog — the
-// surface-purity rule) the route mounts as an AppShell sibling on `/`:
-//   • trigger — the viewer owns ZERO personas (`persona.list` empty). Static + self-healing: creating
-//     the persona ends it forever; a returning user never sees it. Pending/error reads render nothing
-//     (the gate must never block the app on a flaky read — worst case it shows next load).
-//   • forced — no close affordance, `onOpenChange` ignored (Esc/outside-click can't dismiss); the ONE
-//     action is Create (§4.3 rule 1: the enabled next step IS the teaching).
-//   • on create — mint the persona, then seed BOTH global pointers (current #2 + default #1) via the
-//     `seeds` section patch, so the rail-foot avatar + `{{user}}` resolution immediately reflect it.
-// Two plain controlled fields (name required, description optional) — the login-form trivial-input
-// carve-out; the full editor lives in the rail-foot panel (persona-editor.tsx), not here.
+// The first-run persona gate: a fresh account must name its {{user}} persona before chatting. Mounted
+// as an AppShell sibling on `/`. Trigger: viewer owns zero personas. Forced — no close affordance; the
+// only action is Create. On create, seeds both global pointers (current + default).
 
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
@@ -38,8 +28,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [pending, setPending] = useState(false);
-  // Local terminal flag — closes the gate the instant the create resolves, without waiting for the
-  // bus-driven `persona.list` refetch echo.
+  // Closes the gate the instant create resolves, without waiting for the bus-driven refetch echo.
   const [done, setDone] = useState(false);
 
   if (done || personasQuery.data === undefined || personas.length > 0) {
@@ -65,12 +54,11 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   };
 
   return (
-    // Forced-open: the store-less controlled Dialog (the ModalHost `open` precedent); `onOpenChange` is
-    // deliberately inert — the only way out is creating the persona.
+    // Forced-open: onOpenChange is deliberately inert, the only way out is creating the persona.
     <Dialog
       open={true}
       onOpenChange={(): void => {
-        // Ignored by design (the forced first-run gate — see the file header).
+        // Ignored by design.
       }}
     >
       <DialogPopup data-testid={testId("firstRunPersonaDialog")}>
@@ -89,9 +77,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
               data-testid={testId("firstRunPersonaName")}
             />
           </Field>
-          {/* An always-visible `description`, NOT a `hint` tooltip: the Field primitive hard-labels
-              every hint trigger "More info", so a form with 2+ hints ships duplicate accessible names
-              (P3). One field, an always-visible note reads better anyway. */}
+          {/* An always-visible description, not a hint tooltip: 2+ hints would duplicate accessible names. */}
           <Field label="Description" description="Optional — how characters should picture you.">
             <Textarea
               value={description}

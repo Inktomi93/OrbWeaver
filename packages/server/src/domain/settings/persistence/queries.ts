@@ -1,9 +1,5 @@
-// domain/settings/persistence/queries — ALL db access for settings (queries only; no business logic). The
-// two config tables (`user_settings`, `settings`) are owned here; the table DEFINITIONS live in @orb/db.
-// This domain NEVER reads/joins `users` (the `no-direct-users-read` chokepoint — UserSettings scopes by the
-// `userId` PK the verb takes from the injected Principal). Timestamps arrive as PARAMS (the verb's injected
-// clock — determinism; no ambient wall-clock reads). The `settings.value` column is `JsonValue` but is
-// Json-validated at the read seam so the view's contract is honest rather than a cast.
+// domain/settings/persistence/queries — all db access for settings (queries only, no business logic). This
+// domain never reads/joins users. Timestamps arrive as params (injected clock, no ambient wall-clock reads).
 
 import type { UserSettings } from "@orb/contracts/settings";
 import {
@@ -20,8 +16,8 @@ import { eq } from "drizzle-orm";
 import { APP_SETTINGS_KEY } from "../contract/keys";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views";
 
-/** Read this user's typed/defaulted UserSettings. A never-touched account returns the parsed defaults
- *  synthesized from `{}` with NO write (`updatedAt: 0`) — materializing the row is `ensureUserSettings`. */
+/** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
+ *  write (updatedAt: 0) — materializing the row is ensureUserSettings. */
 export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSettingsView> {
   const rows = await db
     .select()
@@ -40,15 +36,14 @@ export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSet
   return {
     userId: ownerId,
     schemaVersion: row.schemaVersion,
-    // Thread the row's STORED version (the COLUMN) into the parse — the blob does NOT carry `schemaVersion`,
-    // and without it every blob probes as v1 and ALL lifts re-run on every read (the corruption guard).
+    // The blob carries no schemaVersion itself; without threading the column, every blob probes as v1.
     config: parseUserSettings(row.config, row.schemaVersion),
     updatedAt: row.updatedAt,
   };
 }
 
-/** First-touch seed (idempotent; `onConflictDoNothing` on the `userId` PK). A pure read MUST NOT insert —
- *  write paths call this before the UPDATE so the UPDATE can't silently no-op a never-touched user. */
+/** First-touch seed (idempotent). Write paths call this before the UPDATE so it can't silently no-op a
+ *  never-touched user. */
 export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): Promise<void> {
   await db
     .insert(userSettings)
@@ -61,9 +56,7 @@ export async function ensureUserSettings(db: Db, ownerId: UserId, at: number): P
     .onConflictDoNothing();
 }
 
-/** Seed-then-UPDATE the user's config blob. `schemaVersion` is service-owned (pinned to the current code
- *  constant) — the client supplies a `config` validated against the current schema, so the stored row
- *  claims the matching version (and that column is what reads thread back as `storedVersion`). */
+/** Seed-then-UPDATE the user's config blob; schemaVersion is service-owned (pinned to the current constant). */
 export async function writeUserConfig(
   db: Db,
   ownerId: UserId,
@@ -80,8 +73,7 @@ export async function writeUserConfig(
 function toView(row: { key: string; value: JsonValue; updatedAt: number }): GlobalSettingView {
   return {
     key: row.key,
-    // Json-validate at the seam so the view is honest `JsonValue` (a corrupt row degrades to null, never
-    // throws — the read surface must not 500 on a malformed escape-hatch blob).
+    // A corrupt row degrades to null rather than throwing — the read surface must not 500.
     value: jsonValueSchema.catch(null).parse(row.value),
     updatedAt: row.updatedAt,
   };
@@ -112,8 +104,7 @@ export async function upsertGlobalSetting(
   return toView(row);
 }
 
-/** Read the raw stored AppSettings override blob (or `undefined` if never written). The caller parses it
- *  via `parseAppSettings` (the in-blob `schemaVersion` probe is authoritative — no version column here). */
+/** Read the raw stored AppSettings override blob (or undefined if never written); the caller parses it. */
 export async function readAppOverrideRaw(db: Db): Promise<JsonValue | undefined> {
   const rows = await db
     .select({ value: settings.value })
@@ -123,8 +114,7 @@ export async function readAppOverrideRaw(db: Db): Promise<JsonValue | undefined>
   return rows[0]?.value;
 }
 
-/** Upsert the AppSettings override row. The caller stamps `schemaVersion` INTO the blob before writing
- *  (the `settings` table has no version column; the probe reads it before the schema strips it). */
+/** Upsert the AppSettings override row; the caller stamps schemaVersion into the blob before writing. */
 export async function writeAppOverride(db: Db, value: JsonValue, at: number): Promise<void> {
   await db
     .insert(settings)

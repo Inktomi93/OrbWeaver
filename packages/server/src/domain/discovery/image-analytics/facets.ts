@@ -1,17 +1,9 @@
 // domain/discovery/image-analytics/facets — cross-modal alignment + caption-facet analytics (owner-scoped
-// reads). `portraitAlignment` (how well the art represents the writing — a PAIRED in-RAM cosine of the
-// card-text vector and the avatar visual vector in the unified space), `imageFacets` (what the collection
-// LOOKS like — caption_meta facet distributions), `charactersByImageFacet` (drill a facet to its avatars). Was
-// neo-tavern `corpus/image-analytics/facets.ts`.
+// reads): portraitAlignment (paired in-RAM cosine of card-text vs avatar vector), imageFacets (caption_meta
+// facet distributions), charactersByImageFacet (drill a facet to its avatars).
 //
-// PAIRED COSINE, IN-RAM (the design that must survive): alignment loads BOTH vectors and computes
-// `@orb/kit/vector-math.cosineSim` — NEVER `vector_distance_cos` SQL (search-only). The caption-facet reads
-// (`json_extract`/`json_each` over `caption_meta`) stay SQL (in `persistence/`, the sanctioned vector-table
-// reader) — discovery only READS the stored `caption_meta`; caption production is the embeddings indexer's.
-//
-// §7.5 DISPATCH (gold standard): the {@link ImageFacetKey} union is the ONE home (`contract/params`); the
-// `SCALAR_FACET_PATHS` Record + `isListFacet` guard here derive from it, so a new facet without an allowlisted
-// json path fails `tsc` — the path is allowlisted, NEVER caller-derived.
+// Alignment computes cosineSim in-RAM — never vector_distance_cos SQL (that's search-only). SCALAR_FACET_PATHS
+// derives from ImageFacetKey so a new facet without an allowlisted json path fails tsc.
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -31,12 +23,10 @@ import {
   readOwnedPortraitPairs,
 } from "../persistence/embed-store-reads";
 
-// The caption-facet json paths — LIST facets (json_each membership) vs SCALAR facets (json_extract equality).
 const LIST_FACET_PATHS = { tag: "$.tags", exposedPart: "$.exposedParts" } as const;
 type ListFacetKey = keyof typeof LIST_FACET_PATHS;
 const isListFacet = (f: ImageFacetKey): f is ListFacetKey => f === "tag" || f === "exposedPart";
 
-// A new ImageFacetKey without an allowlisted path fails `tsc` here (§7.5 — the exhaustive mapped Record).
 const SCALAR_FACET_PATHS: Record<Exclude<ImageFacetKey, ListFacetKey>, string> = {
   artStyle: "$.artStyle",
   rating: "$.rating",
@@ -54,7 +44,6 @@ const SCALAR_FACET_PATHS: Record<Exclude<ImageFacetKey, ListFacetKey>, string> =
 
 const TOP_TAGS_LIMIT = 40;
 
-/** Bind the cross-modal + caption-facet reads over the DI bundle (the subsystem's service seam). */
 export function createImageAnalyticsFacets(
   ctx: DiscoveryContext,
 ): Pick<DiscoveryService, "portraitAlignment" | "imageFacets" | "charactersByImageFacet"> {
@@ -69,10 +58,7 @@ export function createImageAnalyticsFacets(
 const metaStr = (m: Record<string, unknown> | null, key: string): string | null =>
   m !== null && typeof m[key] === "string" ? (m[key] as string) : null;
 
-/**
- * Per-character portrait↔card alignment — the cross-modal PAIRED cosine (avatar vs card text, unified space),
- * ascending (worst-matched art first — the curation signal). Standalone `(db, ownerId)`.
- */
+/** Ascending — worst-matched art first (the curation signal). */
 export async function portraitAlignment(db: Db, ownerId: UserId): Promise<PortraitAlignmentReport> {
   const [pairs, captions] = await Promise.all([
     readOwnedPortraitPairs(db, ownerId),
@@ -117,10 +103,6 @@ function bumpArr(m: Map<string, number>, v: unknown): void {
 const toFacetCounts = (m: Map<string, number>): FacetCount[] =>
   [...m.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
 
-/**
- * The caption-facet distributions over the owner's captioned current-avatars — what the collection LOOKS like.
- * ONE scan + JS tally (the corpus is small). Standalone `(db, ownerId)`.
- */
 export async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets> {
   const rows = await readOwnedCaptionRows(db, ownerId);
   const t = {
@@ -171,10 +153,6 @@ export async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets>
   };
 }
 
-/**
- * Drill from a caption facet (or tag) to the characters whose avatar carries it. `facet` is allowlisted (§7.5
- * — the json path is NEVER caller-derived). Standalone `(db, ownerId, facet, value)`.
- */
 export async function charactersByImageFacet(
   db: Db,
   ownerId: UserId,

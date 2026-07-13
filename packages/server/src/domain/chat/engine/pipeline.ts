@@ -1,25 +1,14 @@
-// domain/chat/engine/pipeline — the per-turn EXECUTION pipeline ("the domain calls a role, never
-// a backend" + the turn lifecycle's assemble→shape→run→reduce→fit middle). PURE orchestration of INJECTED
-// ops: it does NOT touch the db, credentials, or any backend — it BUILDS a `TurnRequest` from the DONE
-// assembly producer's output + the DONE SHAPE, calls the injected `runChatTurn` ROLE, reduces the stream, and
-// applies the §8 history-budget fit. Returns a result the engine lifecycle persists (this file persists
-// nothing).
+// The per-turn execution pipeline: pure orchestration of injected ops (no db/credentials/backend touch). It
+// builds a TurnRequest from the assembly producer's output + SHAPE, calls the injected runChatTurn role,
+// reduces the stream, and applies the history-budget fit. Returns a result the engine lifecycle persists.
 //
-// THE ORDER (read top to bottom in `runTurnPipeline`):
-//   1. BUILD   — `assemblePrompt(config, ctx)` → the static/dynamic system halves + the after-history splices.
-//   2. SHAPE   — `shape(ctx→ShapeInput, speaker)` → the egocentric/spliced/squashed/name-stamped wire history
-//                + the §8 `cacheBreakpointFromEnd` (single-speaker core: per-speaker / merged / no fold).
-//   3. FIT     — `fitHistoryToWindow` (the §8 history-budget TAIL — the final SHAPE step; offset-from-end
-//                survives its front-drop, so the breakpoint needs no retag).
-//   4. REQUEST — assemble the `TurnRequest` (connection + prompt + fitted history + intent + kind + the
-//                breakpoint offset). The runner translates THIS into its sealed request (we never see it).
-//   5. REDUCE  — iterate `runChatTurn(req)`: fan text/reasoning deltas to `onDelta`, fold the terminal
-//                `final` chunk's economics, then the D48 tool-recurse loop (PD-54 — `runRecurseLoop`, step 5):
-//                recurse on `finishReason:"tool"` up to `toolRecurseLimit`, aggregating prose/usage across depths.
+// Order (read top to bottom in runTurnPipeline): BUILD (assemblePrompt) → SHAPE (wire history + cache
+// breakpoint) → FIT (history-budget tail) → REQUEST (assemble the TurnRequest) → REDUCE (iterate
+// runChatTurn, fan deltas, fold economics, then the tool-recurse loop on finishReason:"tool" up to
+// toolRecurseLimit).
 //
-// SINGLE-SPEAKER CORE: output is pinned `per-speaker` / `merged` (no narrator, no scoped egocentric fold) —
-// the arbitration/auto-mode chunk extends this to resolve `output`/`cardScope`/`scopedTargetId` per the
-// resolved cast. The seam is the `shape({...})` literal below.
+// Single-speaker core: output is pinned per-speaker/merged (no narrator, no scoped egocentric fold); the
+// arbitration/auto-mode chunk extends this via the `shape` argument.
 
 import type {
   AssembleContext,
@@ -66,118 +55,83 @@ import {
   shapeTurn,
 } from "../substrate/assembly-access";
 
-/** A SHAPE canon row (the `shape()` input shape — file-local, matched structurally; the wire role axis is
- *  `user|assistant`, system rows never reach the delivered history). */
+/** A SHAPE canon row (system rows never reach the delivered history). */
 interface ShapeCanonRow {
   readonly role: "user" | "assistant";
   readonly content: string;
   readonly authorName?: string | null;
   readonly characterId?: CharacterId | null;
-  /** Every real canon row here always has a real backing `MessageView.id` — set by `toShapeCanon`. */
   readonly messageId: MessageId;
 }
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
- *  + the turn axes. File-local (the `types-in-contract` gate); the engine passes a structural literal. */
+ *  + the turn axes. */
 interface RunTurnPipelineArgs {
-  /** The injected chat ROLE (`ctx.runChatTurn`) — the ONE turn dispatch. */
   readonly runChatTurn: RunChatTurnOp;
-  /** The injected node:vm ReDoS watchdog (`ctx.applyRegexReplace`, D53) — the RECEIVE AI_OUTPUT/REASONING regex
-   *  passes run their `text.replace` under it (the engine binds it from ctx; tests inject directly). */
   readonly applyRegexReplace: ApplyRegexReplaceOp;
-  /** Resolve a parsed message-image ref → a model-fetchable URL, or null to drop it (the engine binds
-   *  `ctx.resolveImageUrl` with the turn's owner). Used at the REQUEST seam to produce image content-parts. */
+  /** Resolves a parsed message-image ref → a model-fetchable URL, or null to drop it. */
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
-  /** The IMMUTABLE assemble ctx (RESOLVE+GATHER product — never mutated here; SHAPE is pure of it). */
+  /** The immutable assemble ctx (never mutated here). */
   readonly assembleContext: AssembleContext;
-  /** The loaded canon history (D26 slot⋈variant), oldest→newest — `loadCanonHistory`'s rows. */
   readonly canon: readonly MessageView[];
   readonly connection: ResolvedConnection;
   readonly intent: UserIntent;
   readonly kind: TurnKind;
-  /** The D17 owner-consent verdict the engine derived (`resolveOwnerConsented`, post-belt) — threaded onto the
-   *  built `TurnRequest` so the infra firewall re-verifies it. `true` = owner-initiated / owner-consented. */
+  /** The owner-consent verdict the engine derived, threaded onto the built TurnRequest so the infra
+   *  firewall re-verifies it. */
   readonly ownerConsented: boolean;
   readonly chatId: ChatId;
-  /** A synthetic trailing user turn (regen/continue); null for a plain send (the canon tail is the user row). */
+  /** A synthetic trailing user turn (regen/continue); null for a plain send. */
   readonly appendUserTurn?: string | null | undefined;
-  /** The multi-speaker group nudge; null for the single-speaker core. */
   readonly groupNudge?: string | null | undefined;
-  /** The per-speaker two-axis SHAPE, set by the group round driver. ABSENT ⇒ the
-   *  single-speaker core's pinned default (per-speaker/merged/no fold, `{{char}}`=the ctx primary). */
+  /** The per-speaker two-axis SHAPE, set by the group round driver. Absent falls back to the
+   *  single-speaker core's pinned default (per-speaker/merged/no fold). */
   readonly shape?: TurnSpeakerShape | undefined;
-  /** Fan one streamed delta out (the engine wires this to the chat bus / SSE log). Fire-and-forget by the
-   *  reducer (the per-delta emit is NOT on the durable-await path — that is the lifecycle events). */
+  /** Fans one streamed delta out. Fire-and-forget — not on the durable-await path. */
   readonly onDelta: (delta: ChatDeltaEvent) => void;
   readonly signal?: AbortSignal | undefined;
-  // ── The D48 recurse-loop axis (tool-use-design/03 §2; all engine-threaded from prep/ctx) ──────────
-  /** The injected tool ops (`ctx.tools`); null = tool-use unwired (the byte-identical no-op). */
+  /** Null means tool-use unwired (the byte-identical no-op). */
   readonly tools: ChatToolOps | null;
-  /** The GATHER-contributed attachment names (03 §2.3); empty = no tools ride (plain chats, today). */
+  /** Empty means no tools ride. */
   readonly attachedToolNames: readonly string[];
-  /** The chat-level recurse-depth cap (03 §2.1; the verb reads the metadata knob, seed 5). */
   readonly toolRecurseLimit: number;
-  /** The Principal-blind identity frame `executeToolCalls` receives (the entry adapter resolves the
-   *  host Principal from `runAsUserId` — the turn-identity gate keeps principals out of this tier). */
+  /** The principal-blind identity frame `executeToolCalls` receives. */
   readonly toolExecFrame: ChatToolExecFrame;
-  /** The per-chat macro name PRODUCER (Chat-Macro-Resolution.md §1) `toShapeCanon` resolves each history
-   *  row's OWN `{{char}}`/`{{user}}`/`{{persona}}` stamps against. The engine builds this AFTER
-   *  `loadCanonHistory` (the history's distinct ids aren't known in turn PREP — `persistence/macro-names.ts`'s
-   *  `loadChatMacroNameProducer` run over `args.canon`'s ids, converted via `@orb/contracts/chat`'s
-   *  `buildCharacterNameMap`/`buildPersonaNameMap`). This file stays db-free (PURE orchestration of injected
-   *  ops/data — see the header): the engine loads it, this file only consumes the built maps. Absent ⇒ empty
-   *  maps (every row falls through to its speaker-default/active-persona floor — the pre-producer behavior). */
+  /** The per-chat macro name producer `toShapeCanon` resolves each history row's own macro stamps
+   *  against; absent means empty maps (every row falls through to its speaker-default floor). */
   readonly historyMacroNames?: HistoryMacroNames | undefined;
 }
 
-/** The `historyMacroNames` default when a caller supplies none (a hand-built/preview pipeline call) — every
- *  row's `{{char}}`/`{{user}}`/`{{persona}}` falls through to `renderHistoryMacros`'s own speaker-default/
- *  active-persona floor, byte-identical to a chat with no resolvable producer entries. */
+/** The historyMacroNames default when a caller supplies none — every row falls through to its own
+ *  speaker-default/active-persona floor. */
 const EMPTY_HISTORY_MACRO_NAMES: HistoryMacroNames = {
   characterNamesById: new Map<CharacterId, RowCharacterName>(),
   personaNamesById: new Map<PersonaId, RowPersonaName>(),
 };
 
-/** The pipeline product the engine persists — the reduced generation + the request (for `promptSnapshot`) +
- *  the §8 offset. File-local; the engine reads the inferred return. */
+/** The pipeline product the engine persists — the reduced generation + the request + the fit offset. */
 interface TurnPipelineResult {
   readonly request: TurnRequest;
   readonly content: string;
   readonly reasoning: string | null;
-  /** The terminal `final` chunk's economics (null if the runner emitted none). */
   readonly economics: TurnEconomics | null;
   readonly cacheBreakpointFromEnd: number | null;
-  /** How many oldest turns the fit-pass dropped (trace). */
   readonly droppedCount: number;
-  /** True when ≥1 image part was dropped because the model lacks `input.vision` (D45) — the engine emits a
-   *  `warning` bus event (`image_dropped`) once per turn when set. */
+  /** True when ≥1 image part was dropped because the model lacks vision. */
   readonly imageDropped: boolean;
-  /** The turn's cumulative tool exchange across every recursion depth (emission/execution order — D48;
-   *  empty on a tool-less turn; the engine persists it on the variant). */
+  /** The turn's cumulative tool exchange across every recursion depth. */
   readonly toolRecords: readonly ToolCallRecord[];
-  /** True when tools were ATTACHED but `capability.tools` is absent — dropped, the turn ran tool-less
-   *  (the engine emits the `tools_unsupported` warning once; D48/D51's domain-side gate). */
+  /** True when tools were attached but the model's capability lacks tools support (ran tool-less). */
   readonly toolsUnsupported: boolean;
-  /** The WI entries that FIRED this turn (budget-survived) — `ctx.wiTrace.entryIds` (assembly/context.ts,
-   *  D50 pt-2). The engine emits `worldInfoActivated {chatId, entryIds}` once per turn when non-empty. */
+  /** The WI entries that fired this turn (budget-survived). */
   readonly worldInfoEntryIds: readonly WorldEntryId[];
-  /** The §8 history-budget fit-pass boundary: the id of the earliest message actually included in the
-   *  assembled history this turn, or null (nothing dropped / the fit-pass never ran). Persisted on the
-   *  variant so a client can render a "last-in-context" divider. */
+  /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
 }
 
-/** Map the loaded canon (D26 `MessageView`) → the SHAPE wire rows: drop hidden + system rows (system content
- *  rides the assembled system block, never the messages[] wire); resolve each row's `{{char}}`/`{{user}}`/
- *  `{{persona}}` macros via `renderHistoryMacros` against ITS OWN stamps + the per-chat `macroNames` producer
- *  (Chat-Macro-Resolution.md §1/§2 — the shared atom, so this resolves identically to client DISPLAY). The
- *  wire `authorName` (a SHAPE concern — `namesBehavior:"completion"`'s prefixed name) still derives from
- *  `ctx.cast`/`castCharacterIds` for an assistant row (the roster's CURRENT card name), independent of the
- *  macro producer (which may resolve a since-left/renamed character's stamped id to its OWN historical name). */
-/** THE wire `authorName` for a user/narrator row (SHAPE's name-stamp axis): the row's OWN stamped
- *  `personaId` resolved through the per-chat producer — NOT the current active persona (F4). A null stamp
- *  (legacy/narrator) or an unresolvable id yields `null`, so `applyNamesBehavior` falls back to
- *  `speakers.user` (the active persona), matching the macro producer's own null-stamp floor. */
+/** The wire authorName for a user/narrator row: the row's own stamped personaId resolved through the
+ *  per-chat producer, not the current active persona. A null stamp or unresolvable id yields null, so
+ *  `applyNamesBehavior` falls back to the active persona. */
 function userRowAuthorName(
   personaId: PersonaId | null,
   macroNames: HistoryMacroNames,
@@ -185,6 +139,8 @@ function userRowAuthorName(
   return personaId !== null ? (macroNames.personaNamesById.get(personaId)?.name ?? null) : null;
 }
 
+/** Maps the loaded canon to SHAPE wire rows: drops hidden + system rows, resolves each row's macros
+ *  against its own stamps + the per-chat macroNames producer (matching client display resolution). */
 function toShapeCanon(
   canon: readonly MessageView[],
   ctx: AssembleContext,
@@ -209,9 +165,6 @@ function toShapeCanon(
       const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
       rows.push({
         role: "assistant",
-        // Resolve-on-READ (D26/D51 — storage stays raw): `{{char}}` binds to THIS row's own speaker via the
-        // producer (falling back to `authorName`, the ctx-cast name, then the ctx default) — matching the
-        // client DISPLAY per-row retarget.
         content: renderHistoryMacros(m.content, stamps, ctx, {
           producer: macroNames,
           speakerCharName: authorName ?? undefined,
@@ -221,15 +174,8 @@ function toShapeCanon(
         messageId: m.id,
       });
     } else {
-      // User/narrator rows carry no authoring character → `{{char}}` falls through to the ctx default.
-      // `{{user}}`/`{{persona}}` resolve to THIS row's own stamped `personaId` via the producer, falling back
-      // to the ACTIVE persona only when the stamp is null (a legacy/narrator row) — never the pinned anchor
-      // nor a global override of a stamped row (PD-100: the stamp is attribution AND the macro subject now).
-      //
-      // The wire `authorName` (SHAPE's name-stamp axis) MUST derive from the SAME per-row `personaId` — not
-      // the CURRENT active persona (F4): a row authored under a since-switched persona keeps its own name, so
-      // `namesBehavior:"default"` disambiguation fires and multi-human rooms attribute each human's lines to
-      // THEIR persona (not the triggering human's) — see `userRowAuthorName`.
+      // User/narrator rows: {{user}}/{{persona}} resolve to this row's own stamped personaId, falling back
+      // to the active persona only when the stamp is null.
       rows.push({
         role: "user",
         content: renderHistoryMacros(m.content, stamps, ctx, { producer: macroNames }),
@@ -241,8 +187,8 @@ function toShapeCanon(
   return rows;
 }
 
-/** The §8 history-budget reserve: the model window (capability) capped by the user's soft max, reserving the
- *  intent's output budget + the assembled system tokens. */
+/** The history-budget reserve: the model window capped by the user's soft max, reserving the intent's
+ *  output budget + the assembled system tokens. */
 function fitBudget(
   args: RunTurnPipelineArgs,
   systemTokens: number,
@@ -262,9 +208,8 @@ function fitBudget(
   };
 }
 
-/** Drain the role's stream: text/reasoning deltas → accumulate + fan out; the terminal `final` → economics.
- *  ONE drain per model call; the D48 recurse loop (`runRecurseLoop`) calls this once per depth. The runner's `final.content`/`reasoning` (when given)
- *  are the authoritative text; the accumulated deltas are the fallback. */
+/** Drains the role's stream: text/reasoning deltas accumulate + fan out; the terminal final chunk yields
+ *  economics. The runner's final.content/reasoning (when given) are authoritative; accumulated deltas fall back. */
 async function reduceStream(
   stream: AsyncIterable<{ kind: string }>,
   args: RunTurnPipelineArgs,
@@ -292,22 +237,9 @@ async function reduceStream(
   return { content, reasoning: finalReasoning, economics };
 }
 
-/** RECEIVE post-processing applied to the reduced `{content, reasoning}` BEFORE the
- *  engine persists it (canon-mutating-at-write — §7). The order is fixed:
- *    0. `<think>` demux — split inline reasoning out of content ONLY when the native reasoning channel is empty
- *       AND `reasoningParse.autoParse` is on (native-first; never double-counts a real reasoning trace — D47#3).
- *    1. AI_OUTPUT regex on content (host-tier scripts; the replace TEMPLATE gets the author-side macro ctx —
- *       macros NEVER run on the model OUTPUT itself, only on the template; shared-dissolution §9).
- *    2. post-process on content (singleLine/dropIncomplete/trim) — AFTER the AI_OUTPUT regex (§3 rule 8).
- *    3. REASONING regex on the reasoning channel.
- *  Each host-side regex `text.replace` runs under the injected node:vm watchdog (`args.applyRegexReplace`, D53). */
-/** F1: strip a per-speaker canon row down to ONLY its own speaker's content — remove a leaked leading
- *  self-label (`Kai:` / `<speaker>Kai`) and truncate any drift into a FOREIGN cast member's line
- *  (`"I attack.\nAria: I cast a shield."` → `"I attack."`). Applied ONLY when the turn's output axis is
- *  `per-speaker` (the single-speaker default AND every group per-speaker round); a `merged`/`narrator`
- *  turn returns unchanged (its foreign labels are the intended transcript). The own speaker is the
- *  round's resolved speaker (`shape.speakerName`, or the ctx primary for solo); the other names are the
- *  rest of the loaded cast — solo has none, so it degenerates to the idempotent leading-strip. */
+/** Strips a per-speaker canon row down to only its own speaker's content: removes a leaked leading
+ *  self-label and truncates any drift into a foreign cast member's line. Applied only on the per-speaker
+ *  output path; merged/narrator output is left alone (its labels are the intended transcript). */
 function cleanPerSpeakerContent(content: string, args: RunTurnPipelineArgs): string {
   if ((args.shape?.output ?? "per-speaker") !== "per-speaker") {
     return content;
@@ -318,6 +250,9 @@ function cleanPerSpeakerContent(content: string, args: RunTurnPipelineArgs): str
   return cleanPerSpeakerReply(content, speakerName, otherNames);
 }
 
+/** Applies fixed-order receive post-processing before the engine persists \{content, reasoning\}: <think>
+ *  demux, then AI_OUTPUT regex, post-process, per-speaker clean, then REASONING regex. Each host-side regex
+ *  runs under the injected ReDoS watchdog. */
 function applyReceiveTransforms(
   reduced: { content: string; reasoning: string | null },
   args: RunTurnPipelineArgs,
@@ -327,7 +262,7 @@ function applyReceiveTransforms(
   let content = reduced.content;
   let reasoning = reduced.reasoning;
 
-  // 0. <think> inline-reasoning fallback — gated on empty-native-reasoning + autoParse (native-first dedup).
+  // <think> inline-reasoning fallback, gated on empty-native-reasoning + autoParse.
   const rp = cfg.reasoningParse;
   if (rp?.autoParse === true && (reasoning === null || reasoning.length === 0)) {
     const parsed = parseReasoningTags(content, { prefix: rp.prefix, suffix: rp.suffix });
@@ -337,7 +272,6 @@ function applyReceiveTransforms(
     }
   }
 
-  // 1 + 3. host-tier AI_OUTPUT/REASONING regex (build the author-side replace-template macro ctx ONCE).
   const scripts = ctx.hostTierRegexScripts ?? [];
   const macroCtx =
     scripts.length > 0
@@ -345,8 +279,6 @@ function applyReceiveTransforms(
           assembleCtx: ctx,
           model: args.connection.model,
           chatId: args.chatId,
-          // F9: the macro engine's depth-cap / 1MB-output trip is fail-open (the output stays bounded) but
-          // must be OBSERVABLE — route it to the operator log (was never supplied on the live path).
           onWarn: (msg, warnErr) =>
             getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
         })
@@ -358,9 +290,6 @@ function applyReceiveTransforms(
       placement: "AI_OUTPUT",
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
-      // F9: the D53 watchdog's deliberate throw (ReDoS timeout / bad host regex) is fail-open (the next
-      // script runs on the text as-is) but must be OBSERVABLE — the kit executor's `onScriptFailure?.()`
-      // no-op would otherwise silently eat the guard's tally.
       onScriptFailure: (scriptErr, script) =>
         getLog().warn(
           { err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex },
@@ -369,15 +298,7 @@ function applyReceiveTransforms(
     });
   }
 
-  // 2. post-process AFTER the AI_OUTPUT regex (always — independent of host scripts).
   content = applyReceivePostProcess(content, cfg.postProcess);
-
-  // 2b. per-speaker canon clean (F1) — on the PER-SPEAKER output path only: strip a leaked leading
-  //     self-label and truncate any drift into a FOREIGN cast member's line so the committed row is
-  //     EXACTLY this speaker's content (the model routinely continues as multiple characters in a merged
-  //     multi-character prompt). Merged/narrator output is intentionally left alone (its `<speaker>`
-  //     markers + inline labels are the delivered multi-character transcript). Solo (no other cast) → a
-  //     no-op truncate + the idempotent leading-self-label strip.
   content = cleanPerSpeakerContent(content, args);
 
   if (macroCtx !== null && reasoning !== null) {
@@ -387,7 +308,6 @@ function applyReceiveTransforms(
       placement: "REASONING",
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
-      // F9: observability for the REASONING-channel host regex (mirror of the AI_OUTPUT sink above).
       onScriptFailure: (scriptErr, script) =>
         getLog().warn(
           { err: scriptErr, placement: "REASONING", findRegex: script.findRegex },
@@ -399,14 +319,11 @@ function applyReceiveTransforms(
   return { content, reasoning };
 }
 
-/**
- * Execute ONE single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration
- * of injected ops; persists nothing (the engine lifecycle commits the returned result). The assemble ctx is
- * consumed READ-ONLY (immutability).
- */
+/** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
+ *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  // Per-speaker CARD-SECTION shape: pick THIS speaker's card + co-speakers off the immutable
-  // ctx (D60 — an agent's card is its soul). ABSENT shape ⇒ the single-speaker core, byte-identical (D16).
+  // Per-speaker card-section shape: picks this speaker's card + co-speakers off the immutable ctx;
+  // absent falls back to the single-speaker core, byte-identical.
   const ctx =
     args.shape !== undefined
       ? shapeContextForSpeaker(args.assembleContext, {
@@ -415,11 +332,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
         })
       : args.assembleContext;
 
-  // 1. BUILD — the system-prompt halves + the after-history (`in_chat`) section splices.
+  // BUILD — the system-prompt halves + the after-history (in_chat) section splices.
   const assembled = buildPrompt(ctx.promptConfig, ctx);
 
-  // 2. SHAPE — the wire history + the §8 breakpoint. The `in_chat` injections are the WI/user `in_chat`
-  //    entries (already on the ctx) ∪ the BUILD after-history sections.
+  // SHAPE — the wire history + the cache breakpoint.
   const inChatInjections: ChatInjection[] = [
     ...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"),
     ...assembled.afterHistory,
@@ -427,8 +343,6 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const speakers = {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — `activePersona` is `AssemblePersona | null | undefined` (cross-package zod inference), so `?.name ?? "User"` is required.
     user: ctx.activePersona?.name ?? "User",
-    // The arbitration/round-driver chunk's two-axis seam: the per-speaker label is the
-    // resolved speaker's name (per-speaker) / joined-cast name (narrator); ABSENT ⇒ the ctx primary.
     assistant: args.shape?.speakerName ?? ctx.character.name,
   };
   const shaped = shapeTurn({
@@ -437,37 +351,29 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
       : [],
     appendUserTurn: args.appendUserTurn ?? null,
     injections: inChatInjections,
-    // The two-axis (output × cardScope × scopedTarget); ABSENT ⇒ the single-speaker core's pinned default
-    // (per-speaker / merged / no egocentric fold). Solo stays byte-identical (D16).
     output: args.shape?.output ?? "per-speaker",
     cardScope: args.shape?.cardScope ?? "merged",
     scopedTargetId: args.shape?.scopedTargetId ?? null,
     namesBehavior: ctx.promptConfig.namesBehavior ?? "default",
     speakers,
     groupNudge: args.groupNudge ?? null,
-    // D66 (W5/W6): the resolved turn-shaping facts. `assistantPrefill` gates the CONTINUATION_NUDGE + the
-    // splice assistant@0 floor (SHAPE reads the capability flag, D45/D48 pattern). `roleHandling` is the PRESET
-    // user-intent knob (`params.advanced.roleHandling`, W6 REVERSED — it moved OFF the connection); SHAPE clamps
-    // it against the model `roleHandlingFloor` (`max(floor, knob)`, part 01 §6). The floor stays capability-derived.
+    // roleHandling is the preset's user-intent knob; SHAPE clamps it against the model's roleHandlingFloor.
     assistantPrefill: args.connection.capability.turns?.assistantPrefill === true,
     roleHandling: ctx.promptConfig.params.advanced?.roleHandling,
     roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
   });
 
-  // 3. FIT — the §8 history-budget tail (offset-from-end survives the front-drop).
+  // FIT — the history-budget tail.
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
   const fitted = fitHistory(shaped.history, fitBudget(args, systemTokens));
 
-  // 4. REQUEST — the chat-domain turn request the role translates. This is the ONE seam where the shaped
-  //    STRING body becomes content-parts (D45): tokenize embedded image refs → resolve to URLs (asset→CAS,
-  //    external→gated) → image parts, gated by `input.vision` (a non-vision model drops them + we flag the
-  //    turn). The SHAPE row's `name` (the `completion` names-behavior; names.ts) threads to the wire `name`.
+  // REQUEST — the one seam where the shaped string body becomes content-parts: tokenize embedded image
+  // refs, resolve to URLs, gated by input.vision (a non-vision model drops them + we flag the turn).
   const visionOk = args.connection.capability.input?.vision === true;
   const built = await Promise.all(
     fitted.history.map(async (h) => {
       const { parts, dropped } = await toContentParts(h.content, visionOk, args.resolveImageUrl);
       const row: TurnMessage =
-        // Omit the `name` key entirely unless set, so the common path stays a clean role+content row.
         h.name === undefined
           ? { role: h.role, content: parts }
           : { role: h.role, content: parts, name: h.name };
@@ -483,18 +389,15 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     history,
     intent: args.intent,
     kind: args.kind,
-    // D17: carry the engine's already-enforced consent verdict onto the request the infra firewall re-verifies.
     ownerConsented: args.ownerConsented,
     cacheBreakpointFromEnd: shaped.cacheBreakpointFromEnd ?? null,
     signal: args.signal,
   };
 
-  // 5. REDUCE + the D48 recurse loop (tool-use-design/03 §2).
+  // REDUCE + the tool-recurse loop.
   const attach = attachTools(args, baseRequest);
   const loop = await runRecurseLoop({ args, request: attach.request, set: attach.set });
-  // 6. RECEIVE — <think>-demux → AI_OUTPUT regex → post-process → REASONING regex (canon-mutating
-  //    at write — the engine persists THIS post-regex {content, reasoning}), applied ONCE over the
-  //    depth-cumulative text (prose flows across recursion depths into the ONE variant — 03 §2).
+  // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms(
     { content: loop.content, reasoning: loop.reasoning },
     args,
@@ -514,10 +417,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   };
 }
 
-// The D48 attach gate (03 §1 + 02 §2): tools ride only when names were GATHER-contributed AND the ops
-// are wired AND `capability.tools` declares support — attached-but-unsupported DROPS them (the turn runs
-// tool-less) and flags `tools_unsupported` (the engine emits the domain warning; D51's rule). A tool-less
-// request carries NO tools field: byte-identical to pre-D48, wired or null (the 05 §T4 pin).
+// Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
+// support — attached-but-unsupported drops them (runs tool-less) and flags tools_unsupported. A tool-less
+// request carries no tools field.
 function attachTools(
   args: RunTurnPipelineArgs,
   baseRequest: TurnRequest,
@@ -535,7 +437,6 @@ function attachTools(
     request: {
       ...baseRequest,
       tools: args.tools.toWireTools(set),
-      // The LOOP's default when tools ride (02 §2) — a caller default, never a translator constant.
       toolChoice: { mode: "auto" },
     },
     set,
@@ -543,15 +444,11 @@ function attachTools(
   };
 }
 
-// ── The D48 recurse loop (03 §2 — normative rules each pinned by the loop goldens) ────────────────
-// `finishReason:"tool"` is the ONLY pivot (never text-sniffing); the exchange is materialized from the
-// RECORDS (arguments/result verbatim — provenance = replay); streaming is continuous across depths on
-// the one variant; usage aggregates into one economics row; at the limit, pending calls are RECORDED
-// NOT EXECUTED (result:null — side effects the model can't narrate are worse than none). MICRO-CALL
-// (03's header delegates): records accumulate in-loop and persist ONCE at commit — our D26 flow mints
-// the variant row at commit, so there is no row to flush per-depth against; a crash mid-loop loses the
-// records WITH the generation (nothing half-persisted). Revisit criterion: handlers with real external
-// side effects wanting crash provenance.
+// The recurse loop: finishReason:"tool" is the only pivot, never text-sniffing. The exchange is
+// materialized from the records (arguments/result verbatim); streaming is continuous across depths on the
+// one variant; usage aggregates into one economics row; at the limit, pending calls are recorded not
+// executed (result:null — side effects the model can't narrate are worse than none). Records accumulate
+// in-loop and persist once at commit, so a crash mid-loop loses the records with the generation.
 async function runRecurseLoop(input: {
   readonly args: RunTurnPipelineArgs;
   readonly request: TurnRequest;
@@ -570,7 +467,7 @@ async function runRecurseLoop(input: {
   const records: ToolCallRecord[] = [];
   let depth = 0;
   for (;;) {
-    // SEQUENTIAL BY DESIGN: each recursion depends on the previous depth's executed results.
+    // Sequential by design: each recursion depends on the previous depth's executed results.
     // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential (03 §2).
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
     content += reduced.content;
@@ -595,9 +492,8 @@ async function runRecurseLoop(input: {
   return { content, reasoning, economics, records };
 }
 
-/** The recurse pivot (03 §2): recurse ONLY when tools rode this request AND the normalized finish
- *  reason says "tool" AND the reducer assembled ≥1 call — `null` means "the turn is done". Never
- *  text-sniffing; a provider that says stop is done. */
+/** Recurses only when tools rode this request AND the finish reason says "tool" AND the reducer assembled
+ *  ≥1 call; null means the turn is done. */
 function pivotCalls(
   set: ChatToolSet | null,
   tools: ChatToolOps | null,
@@ -610,8 +506,7 @@ function pivotCalls(
   return calls !== undefined && calls.length > 0 ? calls : null;
 }
 
-/** A limit-hit pending call → the recorded-but-unexecuted record (03 §2.2: `result:null`,
- *  `isError:false` — full provenance, "requested, not run"; the host can regenerate). */
+/** A limit-hit pending call → the recorded-but-unexecuted record: full provenance, "requested, not run". */
 function asUnexecutedRecord(call: ToolCallInput): ToolCallRecord {
   return {
     toolCallId: call.toolCallId,
@@ -623,9 +518,9 @@ function asUnexecutedRecord(call: ToolCallInput): ToolCallRecord {
   };
 }
 
-/** Materialize one depth's exchange into wire rows FROM THE RECORDS (03 §2 — the model reads exactly
- *  what was persisted, so a swipe-replay reassembles the identical wire history): ONE assistant row
- *  carrying that depth's prose (if any) + its tool-call parts, then ONE `tool` row per record. */
+/** Materializes one depth's exchange into wire rows from the records, so a swipe-replay reassembles the
+ *  identical wire history: one assistant row with that depth's prose + tool-call parts, then one tool row
+ *  per record. */
 function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[]): TurnMessage[] {
   const assistantParts: ChatContentPart[] = [
     ...(depthText.length > 0 ? [{ type: "text", text: depthText } as const] : []),
@@ -645,8 +540,6 @@ function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[
       {
         type: "tool-result",
         toolCallId: record.toolCallId,
-        // An executed record's result is ALWAYS a JSON document (the ONE stringify site); null cannot
-        // occur here (unexecuted records end the turn, they never re-enter the wire).
         content: record.result ?? "",
         ...(record.isError ? { isError: true } : {}),
       },
@@ -655,10 +548,8 @@ function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[
   return [{ role: "assistant", content: assistantParts }, ...results];
 }
 
-/** Fold one depth's economics into the turn aggregate (ONE economics row per user-visible turn —
- *  03 §2): counts/costs SUM (absent stays absent — never a fabricated zero), `ttftMs` is the FIRST
- *  depth's, the terminal reasons/model/window are the LAST depth's, `toolCalls` never aggregates
- *  (per-depth wire data — the records are the durable form). */
+/** Folds one depth's economics into the turn aggregate: counts/costs sum (absent stays absent), ttftMs is
+ *  the first depth's, terminal reasons/model/window are the last depth's. */
 function aggregateEconomics(
   acc: TurnEconomics | null,
   next: TurnEconomics | null,
@@ -688,29 +579,20 @@ function aggregateEconomics(
   };
 }
 
-/** Tokenize a shaped STRING body → provider content-parts (D45). Text spans pass through (empty text skipped);
- *  image spans resolve to `{type:"image",url}` — dropped (with `dropped=true`) when the model lacks vision or
- *  the ref resolves to null (gone asset / `forbidExternalMedia`).
- *
- *  F7b: an IMAGE-ONLY row whose every part drops must NOT collapse to an empty text part — the runner's
- *  empty-row wire filter deletes an empty-text row, so an image-only trailing user message would vanish and
- *  the delivered history would end on the prior assistant row (Anthropic-with-thinking then 400s). When a
- *  drop empties the row we substitute the dropped images' alt text (or `[image omitted]`) as a NON-empty text
- *  part so the row — and the trailing-user invariant — survives the seam. A genuinely empty body (no image
- *  spans) keeps the empty text part (the byte-identical text path; never an empty content array on the wire). */
-/** F7b placeholder text for a row emptied by an all-images-dropped seam: the joined alt text when present,
- *  else a neutral `[image omitted]` marker — never `""` (an empty text row is deleted by the wire filter). */
+/** An image-only row whose every part drops must not collapse to an empty text part — the runner's
+ *  empty-row wire filter would delete it, ending the delivered history on the prior assistant row (then
+ *  400s on some providers). Substitute the dropped images' alt text (or a neutral marker) instead. */
 function droppedImagePlaceholder(droppedAlts: string[]): string {
   return droppedAlts.length > 0 ? `[image: ${droppedAlts.join(", ")}]` : "[image omitted]";
 }
 
+/** Tokenizes a shaped string body into provider content-parts; image spans resolve to a URL or drop when
+ *  the model lacks vision or the ref resolves to null. */
 async function toContentParts(
   body: string,
   visionOk: boolean,
   resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>,
 ): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
-  // Resolve every span concurrently (image refs in one row are independent) — a `{ droppedAlt }` sentinel
-  // marks a stripped image (carrying its alt text for the F7b placeholder), `null` an empty text span to skip.
   const resolved = await Promise.all(
     tokenizeContent(body).map(
       async (span): Promise<ChatContentPart | { droppedAlt: string } | null> => {
@@ -742,8 +624,7 @@ async function toContentParts(
     parts.push(r);
   }
   if (parts.length === 0) {
-    // F7b: only substitute a placeholder when a DROP emptied the row (image-only content that couldn't
-    // render as parts) — a genuinely empty body keeps its empty text part.
+    // Only substitute a placeholder when a drop emptied the row; a genuinely empty body keeps its empty text part.
     parts.push({ type: "text", text: dropped ? droppedImagePlaceholder(droppedAlts) : "" });
   }
   return { parts, dropped };

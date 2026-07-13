@@ -1,15 +1,6 @@
-// @orb/contracts/persona — the persona wire schemas (create / update / metadata).
-//
-// Cross-boundary: the tRPC router validates against these AND the client form runs the same schemas, so
-// client and server can never disagree about what's valid. The PURE half — the placement tuple
-// (`PERSONA_DESCRIPTION_POSITIONS`) + `resolvePersonaDescriptionPlacement` — lives in `@orb/kit/persona`;
-// this node imports the tuple DOWN and wraps it in `z.enum`, the kit↔contracts tuple rule
-// (shared-dissolution §5).
-//
-// DAG ROOT (ledger D32): persona no longer imports `@orb/contracts/world-info`. The `{depth, role}` inject
-// shape comes from `@orb/kit/injection` and the role axis from `@orb/kit/message-role` — the SHARED
-// neutral primitives every injector uses — NOT from world-info (that would re-create the dissolved
-// persona→world-info edge).
+// @orb/contracts/persona — the persona wire schemas (create/update/metadata). Persona no longer
+// imports `@orb/contracts/world-info`: the `{depth, role}` inject shape comes from `@orb/kit/injection`
+// (the shared neutral primitive every injector uses), never a world-info-local re-spell.
 
 import type { AssetId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -21,12 +12,9 @@ const NAME_MIN_LENGTH = 1;
 const NAME_MAX_LENGTH = 200;
 const DESCRIPTION_MAX_LENGTH = 100_000;
 
-// Persona metadata blob (READ shape): load-bearing placement fields + a loose tail (extras a future
-// feature may stash ride through untouched, mirroring `worldEntries.metadata`). `descriptionPosition`
-// drives the in-prompt-vs-at-depth-vs-none decision; `inject` carries the at-depth `{depth, role}`.
-// `sourceCharacterId` + `swapMacros` are the orbweaver non-lossy `createFromCharacter` provenance:
-// the swap decision is recoverable, so a persona minted from a card can re-derive its description if
-// the card is edited.
+// `descriptionPosition` drives the in-prompt-vs-at-depth-vs-none decision. `sourceCharacterId` +
+// `swapMacros` are the non-lossy `createFromCharacter` provenance: a persona minted from a card can
+// re-derive its description if the card is edited.
 export const personaMetadataSchema = z
   .object({
     descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).optional(),
@@ -38,10 +26,8 @@ export const personaMetadataSchema = z
   .loose();
 export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;
 
-/** Write-side metadata guard (mirrors world-info's `entryMetadataWriteSchema`): the blob stays a lenient
- *  open record (the TS type stays `Record<string, unknown>` so callers building arbitrary blobs keep
- *  compiling), but known fields are validated when present so a typo'd `descriptionPosition` / `inject` is
- *  rejected at WRITE instead of silently no-op'ing at READ. Read stays lenient (the resolver normalizes). */
+/** Write-side metadata guard: the blob stays a lenient open record, but known fields are validated when
+ *  present so a typo'd `descriptionPosition`/`inject` is rejected at WRITE instead of silently no-op'ing. */
 export const personaMetadataWriteSchema = z
   .record(z.string(), z.unknown())
   .superRefine((val, ctx): void => {
@@ -51,10 +37,6 @@ export const personaMetadataWriteSchema = z
         ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
       }
     }
-    // D66-B (W5, ruling A): the assistant@depth-0 prefill WRITE-reject is REMOVED — authored prefill is
-    // persistable, and safety moved to the SHAPE delivery gate (a `assistantPrefill:false` model
-    // normalizes the trailing assistant at delivery, `assembly/injections.ts` + `assembly/shape.ts`).
-    // The guard now does shape validation only.
   });
 export type PersonaMetadataWrite = z.infer<typeof personaMetadataWriteSchema>;
 
@@ -73,21 +55,13 @@ export type CreatePersonaInput = z.infer<typeof createPersonaSchema>;
 export const updatePersonaSchema = createPersonaSchema.partial();
 export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 
-// Backup/restore (FINAL-Persona §A.6b gap #3) — the export/import round-trip shape. Derived from
-// `createPersonaSchema` (one home, no re-spell): everything BUT `avatarAssetId` (a binary asset reference
-// can't travel in a JSON backup — re-attaching an avatar after restore is a separate, explicit action).
-// `export` produces this shape; `import` consumes the SAME shape, so a round-trip is byte-identical.
+// The export/import round-trip shape: `createPersonaSchema` minus `avatarAssetId` (a binary asset
+// reference can't travel in a JSON backup).
 export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true });
 export type PersonaBackupInput = z.infer<typeof personaBackupSchema>;
 
-// ── Bulk import (Option B) — the persona-OWNED bulk-import op input/result. `import` maps its ST parse
-//    (`ParsedPersona`, import-owned) onto `BulkImportPersonaInput` and calls `persona`'s
-//    `createBulkImportPersonas`; the op dedups by name, batch-inserts, and returns `idByName` so import can
-//    attribute chat `user_name`s (populate `personaByUserName`). Shared by import + persona → contracts (D34). ──
-
-/** One resolved persona to bulk-import. `metadata` is the persona blob ({@link PersonaMetadata}); `isDefault`
- *  marks the profile's `power_user.default_persona`. `avatarAssetId` is set by the driver after storing the
- *  `User Avatars/<file>` bytes (import can't reach assets — the store is injected). */
+/** One resolved persona to bulk-import. `isDefault` marks the profile's `power_user.default_persona`.
+ *  `avatarAssetId` is set by the driver after storing the `User Avatars/<file>` bytes. */
 export interface BulkImportPersonaInput {
   readonly name: string;
   readonly description: string;

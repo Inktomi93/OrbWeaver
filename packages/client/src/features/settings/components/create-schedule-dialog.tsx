@@ -1,19 +1,12 @@
-// The Schedule dialogs (Settings → Workloads → Schedules) — CREATE and in-place EDIT over one shared form
-// body. A COMPONENT so the Dialog root is legal (client-structure rule 7; the run-workload-dialog precedent).
-// The body is the §13.4 factory (`useCreateScheduleForm` — the create + edit forms share ONE value shape, so
-// one factory backs both), button-gated: submit fires `form.handleSubmit()` whose `save` fires
-// `workloads.createSchedule` (create) or `workloads.updateSchedule` (edit) and closes on success; a failure
-// keeps the dialog open (errorToast + the sticky inline error). Base UI unmounts the closed popup, so every
-// open mounts a FRESH form — a reopened create never carries the previous pick, and each edit seeds from its
-// own row (`serverValues` + the row-id `entityId` remount key).
+// The Schedule dialogs (Settings → Workloads → Schedules) — create and in-place edit over one shared
+// form body (useCreateScheduleForm — the two forms share one value shape). Submit fires
+// createSchedule/updateSchedule and closes on success; a failure keeps the dialog open. Base UI unmounts
+// the closed popup, so every open mounts a fresh form.
 //
-// The kind picker is DRIVEN OFF THE CONTRACT: a non-owner sees the singular-capable built kinds
-// (`RUNNABLE_WORKLOAD_KINDS`); the box owner sees a GROUPED picker adding the "Maintenance (all deployments)"
-// group (the built bulk-only kinds — a system-wide recurring sweep) + a Bulk toggle on the bulk-schedulable
-// sweep kinds. Schedules carry NO mint target (createSchedule/updateSchedule take none), so a bulk CREATE-kind
-// (import-st) is NOT bulk-schedulable — its toggle never renders. `resolveScheduleMode` maps kind + toggle to
-// the wire `mode`; the server re-gates bulk on `requireOwner` (the floor). The param controls reuse the run
-// dialog's shape map, so a scheduled run enqueues exactly what a manual run would.
+// The kind picker is driven off the contract: a non-owner sees the runnable built kinds; the owner sees a
+// grouped picker adding maintenance kinds + a Bulk toggle on bulk-schedulable sweep kinds. Schedules carry
+// no mint target, so a bulk create-kind is not bulk-schedulable. The param controls reuse the run
+// dialog's shape map.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { Button } from "@orb/ui/button";
@@ -48,7 +41,7 @@ type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
 export interface CreateScheduleDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  /** Only the box owner gets the Maintenance group + the Bulk toggle (`createSchedule` bulk = `requireOwner`). */
+  /** Only the box owner gets the Maintenance group + the Bulk toggle. */
   readonly viewerIsOwner: boolean;
 }
 
@@ -56,11 +49,10 @@ export interface EditScheduleDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly viewerIsOwner: boolean;
-  /** The schedule being retuned — seeds the form (kind/cadence/mode/params) + supplies the update id. */
+  /** The schedule being retuned — seeds the form + supplies the update id. */
   readonly schedule: ScheduleItem;
 }
 
-/** The CREATE dialog shell — a fresh form per open (Base UI unmounts closed popups). */
 export function CreateScheduleDialog({
   open,
   onOpenChange,
@@ -85,7 +77,6 @@ export function CreateScheduleDialog({
   );
 }
 
-/** The EDIT dialog shell — seeds from the row; the row id keys the remount so switching rows re-seeds. */
 export function EditScheduleDialog({
   open,
   onOpenChange,
@@ -135,7 +126,6 @@ function ScheduleFormBody({
 
   const save = async (values: CreateScheduleFormValues): Promise<CreateScheduleFormValues> => {
     if (!isStartableWorkloadKind(values.kind)) {
-      // Unreachable through the picker (its items derive from the same startable lists) — refuse quietly.
       return values;
     }
     const kind: WorkloadKind = values.kind;
@@ -174,8 +164,6 @@ function ScheduleFormBody({
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
           {(kind): ReactElement | null => {
-            // A maintenance (built bulk-only) kind recurs across every deployment BY FORCE — a note, not a
-            // toggle. A bulk-schedulable sweep kind gets the owner's Bulk toggle; everything else neither.
             if (isMaintenanceWorkloadKind(kind)) {
               return (
                 <Text size="label" tone="muted">

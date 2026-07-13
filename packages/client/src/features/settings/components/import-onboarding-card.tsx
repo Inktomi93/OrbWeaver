@@ -1,14 +1,11 @@
-// import-onboarding-card — the first-run "bring your SillyTavern stuff over" home card (R5 placement: a
-// dismissible card the route composes onto the Chats LANDING; the permanent entry is the Backup & Restore
-// settings pane). A LEAF component (not a surfaces/ containment-consumer): it establishes no layout box of
-// its own and must NOT steal focus on mount (it appears beside the landing hero), so it deliberately lives
-// in components/. FRESHNESS is a pure render derivation — the card shows only for a fresh account (zero
-// chats yet) that hasn't dismissed it; its "Upload" opens the import flow (Settings → Backup & Restore via
-// openSettingsTo) and dismisses, and the X dismisses. Dismiss is device-local (import-onboarding-store) —
-// there is no server onboarding latch for it (adding one is a contract change, out of this slice).
+// import-onboarding-card — the first-run "bring your SillyTavern stuff over" home card, a dismissible
+// card the route composes onto the Chats landing (the permanent entry is the Backup & Restore settings
+// pane). Freshness is a pure render derivation — the card shows only for a fresh account that hasn't
+// dismissed it; Upload opens the import flow and dismisses, the X just dismisses. Dismiss is
+// device-local, no server onboarding latch.
 //
-// It reads the SAME `chat.listChats` query the landing suspends on (a non-suspense read here — the card
-// must never block the landing), so the cache dedupes: N readers, one fetch.
+// Reads the same chat.listChats query the landing suspends on (non-suspense here — never blocks the
+// landing), so the cache dedupes: N readers, one fetch.
 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -22,16 +19,12 @@ import { useTRPC } from "#data";
 import { testId } from "#lib";
 import { dismissImportOnboarding, openSettingsTo, useImportOnboardingDismissed } from "#state";
 
-// The settings category the Upload action deep-links to (the opaque string openSettingsTo carries; the
-// settings shell validates it against its own registry — the SETTINGS_CATEGORIES `backup` entry).
 const BACKUP_CATEGORY = "backup";
 
 /** The dismissible first-run import card — renders `null` unless the account is fresh + undismissed. */
 export function ImportOnboardingCard(): ReactElement | null {
   const trpc = useTRPC();
   const dismissed = useImportOnboardingDismissed();
-  // Non-suspense: while it resolves (or for a returning user with chats) the card is simply absent — it
-  // never flashes-then-yanks and never blocks the landing behind it.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
   const fresh = chatsQuery.data !== undefined && chatsQuery.data.length === 0;
   if (dismissed || !fresh) {
@@ -44,18 +37,12 @@ export function ImportOnboardingCard(): ReactElement | null {
   };
 
   return (
-    // Center + column-cap to line up with the landing hero's reading column (the route mounts this above
-    // the ChatLandingSurface, which uses the same max width). Pads top/sides; the hero pads below.
     <Stack align="center" padding="section" className="w-full pb-0">
       <Card
         padding="section"
         className="@container w-full max-w-(--width-shell-content)"
         data-testid={testId("importOnboardingCard")}
       >
-        {/* Container-query collapse: the card can be full-width (desktop) or ~viewport-narrow (375px). Below
-            the @md container width the text+button Row stacks to a column so the heading wraps as normal
-            lines and the buttons sit below it — never staircased words with buttons floating mid-paragraph
-            (the field/variants @max-md precedent). Desktop (@min-md) keeps the flat between-justified Row. */}
         <Row
           align="center"
           gap="section"

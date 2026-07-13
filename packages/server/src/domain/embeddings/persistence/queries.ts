@@ -1,15 +1,7 @@
-// domain/embeddings/persistence/queries — ALL db access for the store + hub-score write paths (queries only;
-// no business logic, no I/O — the CAS/embed handles are injected upstream, so `persistence-no-io` holds).
-//
-// THE LOAD-BEARING WRITE RULES encoded here:
-//   • A vector upsert NEVER writes `hub_score` — it is absent from every `.values(...)` and every
-//     `onConflictDoUpdate.set(...)` here, so a re-embed leaves the advisory-stale CSLS score untouched (the
-//     neo reset-in-3-places bug is structurally impossible; §invariant 2).
-//   • `hub_score` is written ONLY by {@link writeHubScoreRows} (§invariant 3) — the `discovery` seam.
-//   • `existing*Hash` reads the stored `content_hash` for the upsert key so the verb can short-circuit a
-//     no-op BEFORE the expensive embed (the staleness gate).
-//   • The upsert `target` is the table's idempotent UNIQUE: `(characterId, model)` /
-//     `(assetId, model, lens)` — a re-embed of the same key+space updates in place (never doubles a row).
+// All db access for the store + hub-score write paths. A vector upsert never writes `hub_score` — it's
+// absent from every `.values(...)` and `onConflictDoUpdate.set(...)` here; `hub_score` is written only by
+// {@link writeHubScoreRows}. `existing*Hash` reads the stored `content_hash` so the verb can short-circuit a
+// no-op before the expensive embed.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
@@ -36,8 +28,6 @@ import { and, eq } from "drizzle-orm";
 import type { HubScoreUpdate, VectorTable } from "../contract/params";
 
 const LIMIT_ONE = 1;
-
-// ── staleness-gate reads (the stored content_hash for the upsert key) ─────────
 
 /** The stored `content_hash` for `(characterId, model)`, or `undefined` when no row exists yet. */
 export async function existingCharacterHash(
@@ -76,9 +66,7 @@ export async function existingImageHash(
   return rows[0]?.hash;
 }
 
-// ── vector upserts (hash-gated; NEVER touch hub_score) ────────────────────────
-
-/** The persistence-internal arg bundle for {@link upsertCharacterEmbedding} (file-local — types-in-contract). */
+/** The persistence-internal arg bundle for {@link upsertCharacterEmbedding} (file-local). */
 interface UpsertCharacterInput {
   readonly id: CharacterEmbeddingId;
   readonly characterId: CharacterId;
@@ -257,11 +245,9 @@ interface UpsertDigestInput {
   readonly now: number;
 }
 
-/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx)`. On conflict updates the
- *  vector + text + the §2b facets + hash + dim only — `hub_score`, the key columns, and `created_at` are left
- *  as-is (§invariant 2; the scope key is part of the staleness identity — §4). Returns the persisted row's id
- *  — on conflict the KEPT id differs from the freshly-minted `input.id`, so the caller writes the
- *  `chat_digest_speakers` join against THIS id, never the mint. */
+/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx)`. Returns the persisted row's
+ *  id — on conflict the kept id differs from the freshly-minted `input.id`, so the caller writes the
+ *  `chat_digest_speakers` join against this id, never the mint. */
 export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<ChatDigestId> {
   const rows = await db
     .insert(chatDigests)
@@ -303,10 +289,8 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
   return rows[0]?.id ?? input.id;
 }
 
-/** Replace a digest's `chat_digest_speakers` join (domains/memory.md §4): delete the existing rows for the
- *  digest, then insert the new speaker set. Runs only on the WRITTEN path (a `noop` upsert leaves the join
- *  intact — the speaker ids fold into `content_hash`, so an unchanged hash means unchanged speakers). Idempotent;
- *  an empty `characterIds` clears the join (a no-speaker block). */
+/** Replace a digest's `chat_digest_speakers` join: delete the existing rows, then insert the new speaker
+ *  set. Runs only on the written path — a noop upsert leaves the join intact. */
 export async function replaceDigestSpeakers(
   db: Db,
   digestId: ChatDigestId,
@@ -323,15 +307,13 @@ export async function replaceDigestSpeakers(
     .onConflictDoNothing();
 }
 
-// ── the hub-score write seam (the ONLY hub_score writer; §invariant 3) ────────
-
 function assertNever(value: never): never {
   throw new Error(`writeHubScoreRows: unhandled vector table ${String(value)}`);
 }
 
 /** Batch-UPDATE `hub_score` keyed `(id, model)` on the given table, in one `db.batch` round-trip. Returns
- *  the count of rows actually touched (an id/model matching no row contributes 0). Dispatch is
- *  `assertNever`-exhaustive over {@link VectorTable} — a new table fails `tsc` until its arm is added. */
+ *  the count of rows actually touched. Exhaustive over {@link VectorTable} — a new table fails tsc until
+ *  its arm is added. */
 export async function writeHubScoreRows(
   db: Db,
   table: VectorTable,

@@ -1,29 +1,16 @@
-// domain/chat/verbs/chat-lifecycle — the chat-ROW lifecycle + variables + persisted injections. The
-// low-payload, non-canon mutations: the
-// chat-row flags (title/star/archive/delete), the two-plane variables (D46 — this verb owns the config-plane
-// chat-row/stored writes), and the `chat_injections` CRUD. Most emit the `chatUpdated` catch-all (the bus has
-// no per-field member — FLAG below); `delete` emits `chatDeleted`.
+// domain/chat/verbs/chat-lifecycle — the chat-row lifecycle + variables + persisted injections. The
+// low-payload, non-canon mutations: chat-row flags (title/star/archive/delete), the two-plane variables,
+// and the `chat_injections` CRUD. Most emit the `chatUpdated` catch-all; `delete` emits `chatDeleted`.
 //
-// AUTHORITY (substrate/auth/matrix): title/star/archive/delete + injection WRITE/DELETE → `host`
-// (shared room-row config / a room-wide prompt-injection is a one-shot jailbreak surface); variables (shared
-// gameplay state) + injection LIST → `member`; `reapTemporaryChats` is per-user maintenance (non-chat-scoped).
+// Authority: title/star/archive/delete + injection write/delete → host; variables + injection list →
+// member; `reapTemporaryChats` is per-user maintenance (non-chat-scoped).
 //
-// FLAG[no-row-event]: every chat-ROW change rides the `chatUpdated` catch-all ("low-payload chat-row changes:
-// star/archive/title/variables/injections/compact" — the contract's own comment) — there is no dedicated
-// `titleUpdated`/`starred`/`injectionChanged` member, so a client refetches the chat detail. A dedicated event
-// would need a new `ChatBusEvent` member (chunk 1's allowlist — out of scope).
-// `reapTemporaryChats` (PD-65 cleared): sweeps the CALLER's expired temporary chats — `chats.temporary`
-// rows (ST "Temporary Chat": born at `startChat`, hidden from `listMemberChats`) older than the reap TTL,
-// scoped to chats the caller HOSTS (D18: no ownerId — the host participant is the room's authority; a mere
-// member must not delete a shared room). Bulk DELETE rides the same FK CASCADE as `delete`; deliberately NO
-// bus event (neo parity — expired ephemera nobody is watching; a durable `chat_events` emit would also FK
-// against the just-dropped chat row).
-// D46 config plane: `getVariables` returns the EFFECTIVE config-plane view — the chat's stored ChoiceBlock picks
-// MERGED over the active preset's declared defaults (the same `resolveChoiceVariables` the assembly seed runs,
-// but with `withRandomPick: false` so the read is STABLE — a random draw would make the picker flicker per poll).
-// The preset's declared variables arrive via the injected `resolvePromptVariables` op (host-scoped). The RUNTIME
-// plane (folded `setvar` deltas) is materialized separately on `chats.runtime_variables`; `getStoredVariables`
-// stays the RAW picks (the picker's "user chose this" vs "preset default" split).
+// Every chat-row change rides the `chatUpdated` catch-all — there is no dedicated
+// `titleUpdated`/`starred`/`injectionChanged` member, so a client refetches the chat detail.
+// `reapTemporaryChats` sweeps the caller's expired temporary chats, scoped to chats the caller hosts.
+// Bulk delete rides the same FK cascade as `delete`; deliberately no bus event.
+// `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
+// preset's declared defaults, with `withRandomPick: false` so the read is stable.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -53,15 +40,15 @@ import { loadChatInjections, loadStoredVariables } from "../persistence/queries"
 import { loadRoster } from "../persistence/roster";
 import { resolveChoiceVariables } from "../substrate/variables";
 
-/** The emit op the lifecycle verbs close over (inlined — the `types-in-contract` note). */
+/** The emit op the lifecycle verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
 
-/** The collaborators not on `ChatContext` (the second factory arg — the roster.ts precedent). */
+/** The collaborators not on `ChatContext`. */
 interface ChatLifecycleDeps {
   readonly emit: EmitChatEvent;
 }
 
-/** The lifecycle slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
+/** The lifecycle slice of `ChatService` this grouped file owns. */
 type ChatLifecycleVerbs = Pick<
   ChatService,
   | "updateTitle"
@@ -91,7 +78,6 @@ function toInjectionView(row: typeof chatInjections.$inferSelect): ChatInjection
   };
 }
 
-// ── chat-row flags (host-only — title / star / archive) ──────────────────────────────────────────────────────
 /** Host-only single-column chat-row write + the `chatUpdated` catch-all (the shared title/star/archive body). */
 async function hostRowUpdate(
   ctx: ChatContext,
@@ -108,9 +94,8 @@ async function hostRowUpdate(
     .set({ ...args.patch, updatedAt: ctx.now() })
     .where(eq(chats.id, args.chatId));
   await emit({ type: "chatUpdated", chatId: args.chatId });
-  // The chat-LIST row (title/star/archive) moved → fan `chatsChanged` to EVERY present human member's device
-  // (the per-chat `chatUpdated` above only reaches subscribers of the OPEN chat). `detail` ⇒ the changed
-  // chat's `getChat` refetches too (the row itself changed).
+  // Fan `chatsChanged` to every present human member's device (the per-chat event above only reaches
+  // subscribers of the open chat).
   await ctx.emitChatChanged(args.chatId, { detail: true });
 }
 
@@ -135,12 +120,9 @@ function createArchive(ctx: ChatContext, emit: EmitChatEvent): ChatService["arch
   };
 }
 
-/** `setChatAnchorPersona` — host-only manual re-pin of the Anchor (#4, FINAL-Persona §A.0/§A.6b gap #2).
- *  `personaId: null` clears the pin. A non-null target must be owned by a PRESENT HUMAN participant of
- *  THIS room (a roster derivation, never `if(isGroup)` — D16): the Anchor may point at any present human's
- *  persona (the host picks it in a multi-human group), but never a foreign id that was never in the room —
- *  checked via `ctx.verifyPersonaOwned` against each present human's `userId` (mirrors `reattributePersona`'s
- *  ownership belt, `edit.ts`). */
+/** `setChatAnchorPersona` — host-only manual re-pin of the anchor. `personaId: null` clears the pin. A
+ *  non-null target must be owned by a present human participant of this room — checked via
+ *  `ctx.verifyPersonaOwned` against each present human's `userId`. */
 function createSetChatAnchorPersona(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -172,15 +154,13 @@ function createSetChatAnchorPersona(
   };
 }
 
-// ── delete (host-only — cascades messages/roster/invites/injections/events) ──────────────────────────────────
-/** `delete` — host-only. Drop the chat row; every child CASCADEs (FK). Emits `chatDeleted` + writes the
- *  best-effort audit row AFTER the delete lands (existence-before-audit order — a refused delete writes no phantom row;
- *  `audit_logs.entity_id` is the D24-sanctioned soft ref, so the row outlives the dropped chat). */
+/** `delete` — host-only. Drop the chat row; every child cascades (FK). Emits `chatDeleted` + writes the
+ *  best-effort audit row after the delete lands. */
 function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delete"] {
   return async ({ principal, chatId }: DeleteChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    // Enumerate present human members BEFORE the FK cascade drops the roster — each (incl. the host) must have
-    // the deleted chat drop from their live list. Post-delete the roster is gone, so they ride `extraUserIds`.
+    // Enumerate present human members before the FK cascade drops the roster — each must have the
+    // deleted chat drop from their live list, so they ride `extraUserIds`.
     const roster = await loadRoster(ctx.db, chatId);
     const members = [
       ...new Set(
@@ -202,13 +182,11 @@ function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delet
   };
 }
 
-// ── reapTemporaryChats (non-chat-scoped — per-user maintenance; see the file header) ─────────────────
-// How long a temporary chat lives before it is reap-eligible — 24h (neo parity: "hidden from the recent
-// list and swept once a day old"). A domain constant, not a schema column (the lock.ts LOCK_TTL_MS posture).
+// How long a temporary chat lives before it is reap-eligible — 24h.
 const TEMPORARY_CHAT_REAP_TTL_MS = 86_400_000;
 
-/** `reapTemporaryChats` — bulk-DELETE the caller's expired temporary chats (temporary + past the TTL +
- *  caller is the PRESENT host). Children CASCADE (FK); no bus event (file header). Returns the count. */
+/** `reapTemporaryChats` — bulk-delete the caller's expired temporary chats (temporary + past the TTL +
+ *  caller is the present host). Children cascade (FK); no bus event. Returns the count. */
 function createReapTemporaryChats(ctx: ChatContext): ChatService["reapTemporaryChats"] {
   return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
     const cutoff = ctx.now() - TEMPORARY_CHAT_REAP_TTL_MS;
@@ -238,10 +216,8 @@ function createReapTemporaryChats(ctx: ChatContext): ChatService["reapTemporaryC
   };
 }
 
-// ── variables (the D46 two-plane config writes — member) ─────────────────────────────────────────────────────
-/** `getVariables` — member. The EFFECTIVE config-plane view: the stored ChoiceBlock picks MERGED over the active
- *  preset's declared defaults (`resolveChoiceVariables`, `withRandomPick: false` — a STABLE read, no per-poll
- *  random draw). Mirrors the assembly env seed's config resolution so the picker shows what the next turn sees. */
+/** `getVariables` — member. The effective config-plane view: the stored ChoiceBlock picks merged over the
+ *  active preset's declared defaults, `withRandomPick: false` for a stable read. */
 function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
   return async ({ principal, chatId }: GetVariablesParams): Promise<VariablesResult> => {
     await requireParticipant(ctx, principal, chatId);
@@ -249,7 +225,7 @@ function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
       loadStoredVariables(ctx.db, chatId),
       ctx.resolvePromptVariables(chatId),
     ]);
-    // withRandomPick:false ⇒ prng is never invoked; a no-op stub keeps the eval path off ambient entropy (D46).
+    // withRandomPick:false ⇒ prng is never invoked; a no-op stub keeps the eval path off ambient entropy.
     return resolveChoiceVariables(specs, stored ?? {}, () => 0, { withRandomPick: false });
   };
 }
@@ -289,9 +265,8 @@ function createClearVariables(
   };
 }
 
-// ── injections (positional `chat_injections` CRUD — write/delete host, list member) ──────────────────────────
-/** `setChatInjection` — host-only. `id` set ⇒ UPDATE the existing row (scoped to chatId — a foreign/unknown id
- *  is a leak-free NOT_FOUND); absent ⇒ INSERT a fresh row. Emits `chatUpdated`; returns the resolved view. */
+/** `setChatInjection` — host-only. `id` set ⇒ update the existing row (scoped to chatId — a foreign/unknown
+ *  id is a leak-free NOT_FOUND); absent ⇒ insert a fresh row. Emits `chatUpdated`; returns the resolved view. */
 function createSetChatInjection(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -370,10 +345,7 @@ function createDeleteChatInjection(
   };
 }
 
-/**
- * The chat-lifecycle verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). The root
- * spreads it into the full service. `deps` carries the chat bus `emit` (chat's own collaborator — see bus.ts).
- */
+/** The chat-lifecycle verb bundle. `deps` carries the chat bus `emit`. */
 export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): ChatLifecycleVerbs {
   const { emit } = deps;
   return {

@@ -2,12 +2,9 @@ import type { ReactElement, ReactNode } from "react";
 import { emptyStateVariants } from "./variants";
 
 export interface EmptyStateProps {
-  /**
-   * Brand-glyph slot (D62) — the client fills it with the Weave glyph for the teaching moment. Renders
-   * UNSTYLED (keeps its own color) and, when supplied, takes the head slot INSTEAD of `icon`.
-   */
+  /** Brand-glyph slot, renders unstyled and, when supplied, takes the head slot instead of `icon`. */
   decoration?: ReactNode;
-  /** Optional muted glyph slot — an `@orb/ui/icons` `<Icon>`. Superseded by `decoration` when both set. */
+  /** Optional muted glyph slot. Superseded by `decoration` when both set. */
   icon?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
@@ -16,17 +13,7 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-/**
- * EmptyState — the teaching empty-state pattern (icon → title → description → action, centered on
- * the section rhythm). Domain-agnostic: the copy is the caller's; the intent is the DESIGN.md
- * "Weave" teaching moment (ui-package-design §6.1).
- *
- * Usage:
- * ```tsx
- * <EmptyState decoration={<WeaveGlyph size={48} />} title="No characters yet"
- *   description="Weave your first one to begin." action={<Button>New character</Button>} />
- * ```
- */
+/** Teaching empty-state pattern: icon -\> title -\> description -\> action, centered. Copy is the caller's. */
 export function EmptyState({
   decoration,
   icon,
@@ -36,7 +23,6 @@ export function EmptyState({
   className,
 }: EmptyStateProps): ReactElement {
   const slots = emptyStateVariants();
-  // The head slot: `decoration` (brand glyph, unstyled) WINS over `icon` (muted chrome) when both set.
   let head: ReactElement | null = null;
   if (decoration !== undefined) {
     head = (

@@ -1,11 +1,6 @@
-// The Variable editor Dialog (BUILD-SPEC §8) — binds `variables[i].*` (the `choiceBlockSchema`) on the
-// direct-bind form: name · question · the option list (label/value pairs) · defaultValue · multiSelect ·
-// separator · randomPick. Every field is `form.AppField name={`variables[${index}].…`}`, so an edit
-// round-trips through the editor's Save (the merge flip carries `edited.variables`).
-//
-// The option list is a nested repeatable — `form.pushFieldValue`/`removeFieldValue("variables[i].options")`
-// add/remove rows, each row's label + value bound in place. The dialog is controlled by the tab (open when
-// an index is targeted); closing just drops the local target — the form values already live on the form.
+// The Variable editor Dialog — binds `variables[i].*` on the direct-bind form: name · question · the
+// option list (label/value pairs) · defaultValue · multiSelect · separator · randomPick. The dialog is
+// controlled by the tab (open when an index is targeted); closing just drops the local target.
 
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";

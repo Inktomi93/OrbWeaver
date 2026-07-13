@@ -1,14 +1,7 @@
-// The auth BOOTSTRAP seam (FINAL-Auth-Modes §7 P0) — the client's only pre-tRPC server reads. The two
-// public Hono endpoints (`/api/auth/config`, `/api/auth/me`) are deliberately NOT tRPC: `sessions.me` is
-// an authed procedure that 401s logged-out, so the client cannot discover its mode or auth state through
-// tRPC — plain fetch here, react-query caching in `hooks/use-auth-meta.ts`, and the route `beforeLoad`
-// guards call the fetchers directly (no router-context DI needed for two tiny public GETs). The response
-// shapes are STRUCTURAL mirrors of `entry/http/auth-meta.ts` — the endpoints live outside the tRPC
-// `AppRouter`, so there is no proxy type to derive from; only `AuthMode`/`UserRole` come from contracts
-// (the one-home unions).
-//
-// Query keys are module consts (identifiers at the `queryKey:` site — the sanctioned non-proxy mint, the
-// `no-array-literal-querykey` gate's documented seam for a non-tRPC read).
+// The auth bootstrap seam — the client's only pre-tRPC server reads. The two public Hono endpoints are
+// deliberately not tRPC: sessions.me is an authed procedure that 401s logged-out, so the client can't
+// discover its mode/auth state through tRPC. Response shapes are structural mirrors of
+// entry/http/auth-meta.ts (no proxy type to derive from, since the endpoints live outside AppRouter).
 
 import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";

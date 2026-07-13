@@ -14,11 +14,7 @@ export interface HighlightedTextRange {
 
 export interface HighlightedTextProps extends Omit<ComponentProps<"div">, "children"> {
   readonly text: string;
-  /**
-   * `[start, end)` char-offset ranges to render as `<mark>`. Overlapping or adjacent ranges are
-   * merged into one highlighted run before splitting — the simplest correct behavior for offsets
-   * that touch or cross; there is no nested-highlight concept.
-   */
+  /** `[start, end)` char-offset ranges to render as `<mark>`. Overlapping/adjacent ranges are merged before splitting. */
   readonly ranges: readonly HighlightedTextRange[];
 }
 
@@ -73,20 +69,9 @@ function splitRuns(text: string, ranges: readonly HighlightedTextRange[]): TextR
 }
 
 /**
- * HighlightedText — long plain text rendered with `[start, end)` char-offset ranges as real
- * `<mark>` elements (screen readers announce them; a `<span style="background">` would not).
- * Overlapping/adjacent ranges are merged into a single run before splitting (ui-primitive
- * carve-out work-order item 11) — the simplest correct behavior; there is no nested-highlight
- * concept. The first highlight scrolls into view via `scrollIntoView({ block: "nearest" })` — an
- * instant jump, not an animated scroll, so there's nothing to gate behind prefers-reduced-motion.
- * This fires on MOUNT and again whenever `ranges` genuinely changes VALUE (the "find next match"
- * case — a caller advancing a search cursor passes a new `ranges` array pointing further into the
- * text), keyed off a content signature rather than the array's identity so a parent re-render that
- * passes an equal-but-freshly-allocated `ranges` array does not re-fire and yank a reader who has
- * since scrolled elsewhere. Plain DOM/CSS; no windowing in v1 — a caller windowing a huge document
- * composes `@orb/ui/virtual-list` itself (no direct TanStack Virtual import here).
- *
- * Usage: `<HighlightedText text={doc} ranges={[{ start: 120, end: 148 }]} />`.
+ * Long plain text rendered with char-offset ranges as real `<mark>` elements (screen readers
+ * announce them; a styled `<span>` would not). The first highlight scrolls into view instantly on
+ * mount and whenever `ranges` genuinely changes value.
  */
 export function HighlightedText({
   className,
@@ -98,8 +83,7 @@ export function HighlightedText({
   const runs = splitRuns(text, ranges);
   const firstHighlightIndex = runs.findIndex((run) => run.highlighted);
 
-  // Content, not identity: a fresh `ranges` array with the SAME start/end pairs (the common
-  // `ranges={[{ start, end }]}` inline-literal shape) must not re-trigger the scroll.
+  // Content, not identity: a fresh `ranges` array with the same start/end pairs must not re-trigger the scroll.
   const rangesSignature = ranges.map((range) => `${range.start}-${range.end}`).join(",");
   const previousRangesSignatureRef = useRef<string | null>(null);
 

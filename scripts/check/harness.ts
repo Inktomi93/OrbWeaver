@@ -1,11 +1,7 @@
-// The check harness — shared types + a ts-morph project loader. POST-LEGACY-ORACLE-BURNDOWN: the live
-// gate authority is the single-pass machine (loader → pass → render); the legacy `Check`/`runChecks`
-// oracle retired. What survives here is the shared `Check`/`Violation`/`CheckContext`/`GateResult` types +
-// `getProject`, still consumed by: the two injectable-baseline factories a residual self-test drives
-// (`createNoTestFabrication`, `createWarningCodeCoverage`), the retained `monotonicTests` Check (its
-// residual test), `gen-fabrication-baseline.ts` (getProject), and report.ts's JSON writer (GateResult).
-// Run via tsx (type-stripped); biome lints these too (scripts/ relaxes console/default-export/naming,
-// strictness otherwise applies — hence type-aliases, braces, explicit returns below).
+// Shared types + a ts-morph project loader. The live gate authority is the single-pass machine
+// (loader → pass → render); what survives here is the shared `Check`/`Violation`/`CheckContext`/
+// `GateResult` types + `getProject`, still consumed by the injectable-baseline factories, the retained
+// `monotonicTests` Check, gen-fabrication-baseline.ts, and report.ts's JSON writer.
 import { Project } from "ts-morph";
 
 export type Violation = {

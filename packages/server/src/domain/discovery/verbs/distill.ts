@@ -1,21 +1,7 @@
-// domain/discovery/verbs/distill — the PD-40 write-half producer. A guided-decode `summarize` pass turns each
-// character's FLAT card (D28) into filterable `character_summaries` facets (genre/tone from fixed grammars +
-// subGenres/setting/elevatorPitch/overview) AND stages its distilled labels as `source:'auto', status:'pending'`
-// tag-domain suggestions — the Accept/Reject review queue the editor surfaces.
-//
-// ── THE SWAPPABLE ROLE (owner direction) ───────────────────────────────────────────────────────────────
-// This runs on orb's `summarize` role — the SAME swappable seam the memory digest summarizer consumes
-// (chat/memory/build/digests.ts `ctx.summarize`). Which model/agent serves it is resolved ONCE at the entry
-// root (`connection.resolveRole('summarize')` → the bound `RoleClients.summarize` thunk); this pass receives
-// that thunk as an INJECTED dep (`deps.summarize`) and never sees a credential or picks a model — so swapping
-// the summarizer (a vLLM box vs a hosted OpenRouter model) reconfigures the tagger for free. STRUCTURED OUTPUT
-// rides the role's `jsonSchema` knob (cross-backend: vLLM guided-decode + OpenRouter `response_format` both
-// enforce {@link CHARACTER_DISTILL_SCHEMA}); a non-conforming reply still parses via the tolerant slice.
-//
-// IDEMPOTENT: upsert by `characterId` (the `character_summaries` natural PK — a card edit + re-run refreshes,
-// D28); tag staging is `attachCardTagByName` (`onConflictDoNothing` → a re-run never re-attaches, and NEVER
-// downgrades a tag the user already accepted back to pending). SYNTHETIC group characters are excluded at the
-// read (card-reads.ts). DETERMINISM: the clock + the summarize/tag ops are injected; no ambient Date.now.
+// domain/discovery/verbs/distill — the write-half producer. A guided-decode `summarize` pass turns each
+// character's card into filterable `character_summaries` facets and stages the distilled labels as
+// `source:'auto', status:'pending'` tag suggestions (the Accept/Reject review queue). Idempotent: upsert
+// by `characterId`; tag staging never downgrades an already-accepted tag back to pending.
 
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
@@ -48,8 +34,6 @@ export function createDistill(ctx: DiscoveryContext): DiscoveryService["distillC
     );
 }
 
-// Fixed vocabularies — `enum`-constrained via {@link CHARACTER_DISTILL_SCHEMA} so genre/tone stay consistent
-// enough to filter on. Discovery-local grammar data (the db columns are plain TEXT — schema/discovery.ts).
 /** @internal — the genre grammar enum (barrel re-export is internal to discovery/). */
 export const GENRES = [
   "fantasy",
@@ -81,9 +65,6 @@ export const TONES = [
   "sensual",
 ] as const;
 
-// The role's `jsonSchema` knob (cross-backend structured output). `enum` pins genre/tone to the grammars
-// above; arrays are bounded; strings are capped by `maxTokens`. camelCase keys — the schema constrains
-// whatever keys we declare.
 /** @internal — JSON-schema grammar driver for the distill pass. */
 export const CHARACTER_DISTILL_SCHEMA = {
   type: "object",
@@ -112,14 +93,10 @@ Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <
 - elevatorPitch: ONE sentence, broad strokes — who this character is and the hook.
 - overview: 2-3 sentences — the character's premise, dynamic, and what RP with them is like. Concrete, no fluff.`;
 
-// Bound the prompt — cards run large; the labelled opening + persona carry the classification signal.
 const MAX_CARD_CHARS = 6000;
-// Output cap for one distillation (the JSON object is small; guards a runaway generation).
 const DISTILL_MAX_TOKENS = 512;
-// Low temperature — distillation is a classification, not creative writing (stable facets across re-runs).
 const DISTILL_TEMPERATURE = 0.2;
-// Max upsert statements per `db.batch` — each binds ~2× the column count; 500 stays under the libSQL
-// bound-variable cap. A full library is usually one batch; the chunking only matters above that.
+// Stays under the libSQL bound-variable cap (each upsert binds ~2x the column count).
 const DISTILL_BATCH_CHUNK = 500;
 
 /** One distilled label queued for staging — the row's own owner (D23) + the character it tags. */
@@ -152,8 +129,7 @@ export async function distillCharacters(
   }
 
   signal?.throwIfAborted();
-  // Characters are INDEPENDENT — one batched summarize call fills the role's parallel-slot pipeline instead
-  // of a one-at-a-time loop. `ready[i]` pairs 1:1 with `result.items[i]` (nothing was filtered downstream).
+  // One batched call fills the role's parallel-slot pipeline; `ready[i]` pairs 1:1 with `result.items[i]`.
   const result = await deps.summarize(
     ready.map((t) => ({
       systemPrompt: DISTILL_SYSTEM,
@@ -172,8 +148,7 @@ export async function distillCharacters(
   });
   signal?.throwIfAborted();
   await commitSummaries(db, writes.stmts);
-  // Stage the distilled labels AFTER the summaries commit (a summary is the durable artifact; a failed tag
-  // attach must not roll back the facets). `attachCardTagByName` is idempotent + no-downgrade.
+  // Stage AFTER summaries commit — a failed tag attach must not roll back the facets.
   const tagsStaged = await stageSuggestions(deps, writes.stagedLabels, signal);
 
   return {

@@ -1,12 +1,7 @@
-// The fail-closed auto-loader (TSMORPH-SINGLE-PASS-AUDIT.md §1.3): a gate module that exports
-// `gate: GateDescriptor` is DISCOVERED from the gates dir — the loader IS the registry. This runs
-// ALONGSIDE the legacy `ALL_CHECKS`/DORMANT lists during the parity migration; those hand-kept lists
-// stay authoritative until every gate is ported (a later phase). Right now the loader discovers only the
-// gates that have adopted the contract (currently the one worked-example gate).
-//
-// FAIL-CLOSED: a discovered module whose export isn't a valid descriptor is a HARD error at load —
-// "valid" INCLUDES the self-proof (≥1 mustFlag + ≥1 mustPass, §1.6), so an un-proven gate cannot register.
-// Deterministic order: sorted repo-relative path, so run/report/parity diffs are stable across machines.
+// Fail-closed auto-loader: a gate module that exports `gate: GateDescriptor` is discovered from the
+// gates dir — the loader IS the registry. A discovered module whose export isn't a valid descriptor is a
+// hard error at load; "valid" includes the self-proof (≥1 mustFlag + ≥1 mustPass), so an un-proven gate
+// cannot register. Deterministic order: sorted repo-relative path.
 import { globSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import type { GateDescriptor } from "./contract.ts";
@@ -83,12 +78,12 @@ export async function loadGates(root: string): Promise<readonly GateDescriptor[]
   const gates: GateDescriptor[] = [];
   const seen = new Set<string>();
   for (const rel of files) {
-    // Sequential-deterministic by design (§8.4): a load/parse failure must attribute to its file, in
-    // sorted order — never a Promise.all race that loses which module threw.
+    // Sequential-deterministic: a load/parse failure must attribute to its file, in sorted order — never
+    // a Promise.all race that loses which module threw.
     // biome-ignore lint/performance/noAwaitInLoops: deterministic per-file attribution is the requirement.
     const mod = (await import(pathToFileURL(`${root}/${rel}`).href)) as { gate?: unknown };
     if (mod.gate === undefined) {
-      continue; // not yet ported to the contract — the legacy runner still owns it (migration phase)
+      continue; // not yet ported to the contract
     }
     assertDescriptor(mod.gate, rel);
     if (seen.has(mod.gate.name)) {

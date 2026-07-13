@@ -1,16 +1,7 @@
-// PersonaThisChatSection (FINAL-Persona §A.6 "This chat" — the per-chat picker's ONE home, folded into
-// the rail-foot persona panel per the owner's consolidated-panel design; there is NO separate
-// features/chat picker). Renders ONLY when a chat is active (`state/active-chat-store`, `#state` — a
-// draft has no server chat row yet, so it's absent, not a dead skeleton). Three controls:
-//   • "Playing as" — sets the CALLER's Chat persona (#3) via `persona.setActivePersona` (targetUserId
-//     omitted — self; the verb defaults it).
-//   • Anchor row — read-only "card sees you as: X"; a re-pin control gated behind `viewerIsHost`
-//     (`chat.setChatAnchorPersona`, host-only server + client-hidden otherwise).
-//   • Reattribute — restamps the caller's own USER slots to the current Chat persona
-//     (`chat.reattributePersona`). SCOPED to the most-recently-loaded window (`REATTRIBUTE_WINDOW`
-//     messages) — there is no server "restamp everything" bulk resolver, and paging a whole chat's
-//     history from a rail popover is out of scope here. The control's tooltip states the scope so this
-//     reads as a deliberate limit, not a silently-broken "restamp all" promise.
+// The per-chat picker's ONE home, folded into the rail-foot persona panel. Renders only when a chat is
+// active. Three controls: "Playing as" (sets the caller's chat persona), Anchor row (read-only,
+// re-pin gated behind viewerIsHost), Reattribute (restamps the caller's own user slots to the current
+// chat persona, scoped to REATTRIBUTE_WINDOW messages — no server bulk resolver exists).
 
 import type { MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -35,8 +26,7 @@ import {
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
-/** The most-recent-turns window `reattribute` restamps (server `MAX_LIMIT`, `domain/chat/verbs/read.ts`)
- *  — see the file header's scoping note. */
+/** The most-recent-turns window `reattribute` restamps. */
 const REATTRIBUTE_WINDOW = 100;
 
 function personaLabel(personas: readonly PersonaListItem[], id: string | null): string {
@@ -71,9 +61,7 @@ export function PersonaThisChatSection(): ReactElement | null {
     if (targetPersonaId === null) {
       return;
     }
-    // Own-authored USER slots in the most-recent window — see REATTRIBUTE_WINDOW's header note. The
-    // `fetchQuery` read carries no mutation errorToast of its own, so catch its rejection here (the
-    // reattribute mutation below keeps its MutationCache errorToast).
+    // The fetchQuery read carries no mutation errorToast of its own, so catch its rejection here.
     try {
       const page = await queryClient.fetchQuery(
         trpc.chat.listMessages.queryOptions({ chatId, limit: REATTRIBUTE_WINDOW }),

@@ -21,16 +21,9 @@ export interface StreamTextProps {
 }
 
 /**
- * The plain-text streaming display: the TTFT shimmer before any content, then `useSmoothText`'s
- * paced reveal once characters start arriving (ui-package-design §6.3.1). Domain-free — for a
- * markdown-rendered stream, use `useSmoothText` directly and feed its output into `@orb/ui/markdown`
- * instead (the pipeline is "tokens → useSmoothText → Streamdown"; this component is the
- * plain-text-only convenience wrapper, e.g. a reasoning/preview line).
- *
- * The shimmer shows exactly while streaming AND nothing has been REVEALED yet — not merely while
- * `text` is empty. A still-growing target whose first word has no trailing whitespace yet is held
- * back by the pacer's word-snap (never flash a fragment), so the shimmer correctly persists a beat
- * longer than "the first byte arrived."
+ * Plain-text streaming display: a TTFT shimmer before any content, then `useSmoothText`'s paced
+ * reveal once characters start arriving. Domain-free — for a markdown-rendered stream, use
+ * `useSmoothText` directly and feed its output into `@orb/ui/markdown` instead.
  */
 export function StreamText({
   text,

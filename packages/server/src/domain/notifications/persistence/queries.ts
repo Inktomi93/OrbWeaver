@@ -1,17 +1,7 @@
-// domain/notifications/persistence/queries — ALL `notifications`-table access (queries only; the verbs hold
-// the business logic). Three properties are PHYSICS here:
-//   • DURABLE-FIRST seq — the INSERT computes `seq` in ONE statement via a `MAX(seq)+1` scalar subquery
-//     scoped to the recipient (SQLite evaluates it against the pre-insert table state). The monotonic
-//     cursor is db-driven, never minted in JS (determinism); `unique(recipientUserId, seq)` is the backstop.
-//   • RECIPIENT-SCOPE — every read/update WHERE-clause pins `recipientUserId`, so a row that isn't the
-//     caller's matches NOTHING (the verb maps the empty match → not-found). A user cannot read/touch
-//     another's inbox. This file NEVER imports/joins `users`
-//     (no-direct-users-read): the recipient id arrives as a param from the resolved Principal / the event.
-//   • IDEMPOTENT state flips — markRead/dismiss set the timestamp via `COALESCE(col, :now)`, so a re-flip
-//     keeps the original instant (markRead/dismiss idempotence).
-//
-// The row shape is the file-local `NotificationRow` (NOT exported — no feature type leaks from persistence,
-// no-inline-types); the verbs project it to the `InboxView` contract shape.
+// All `notifications`-table access (queries only). `seq` is db-driven via a `MAX(seq)+1` scalar subquery,
+// never minted in JS. Every read/update WHERE-clause pins `recipientUserId`, so a foreign row matches
+// nothing. markRead/dismiss set the timestamp via `COALESCE(col, :now)` so a re-flip keeps the original
+// instant.
 
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
@@ -52,8 +42,7 @@ const ROW_COLS = {
   createdAt: notifications.createdAt,
 } as const;
 
-// Build the durable-first INSERT…RETURNING (unexecuted); `seq` per the file-header PHYSICS above.
-// File-local — the two executors below own the run.
+// Build the durable-first INSERT…RETURNING (unexecuted). File-local — the two executors below own the run.
 function buildInsertNotification(
   db: Db,
   row: NotificationInsert,
@@ -71,23 +60,18 @@ function buildInsertNotification(
     .returning(ROW_COLS);
 }
 
-/** Durable-first INSERT (db-driven monotonic `seq` — see file header); RETURNS the stored row. */
+/** Durable-first INSERT (db-driven monotonic `seq`); returns the stored row. */
 export async function insertNotification(
   db: Db,
   row: NotificationInsert,
 ): Promise<NotificationRow> {
-  // The builder's honest RETURNING type is `NotificationRow[]` (payload branded `$type<NotificationEvent>`).
   const inserted = await buildInsertNotification(db, row);
-  // The INSERT always yields exactly one row.
   return inserted[0] as NotificationRow;
 }
 
-/**
- * The PD-24 TX-ATOMIC INSERT: run the producer's membership-transition statements + the notification
- * INSERT in ONE `db.batch` (libSQL batch = one implicit transaction), so a crash can never leave the
- * transition committed with no durable notification (or vice versa). The INSERT rides LAST; its RETURNING
- * rows are read from the batch result (the db read seam). The after-commit fan-out is the caller's.
- */
+/** Tx-atomic insert: run the producer's membership-transition statements + the notification INSERT in one
+ *  `db.batch`, so a crash can never leave the transition committed with no durable notification. The
+ *  after-commit fan-out is the caller's. */
 export async function insertNotificationWith(
   db: Db,
   row: NotificationInsert,
@@ -99,10 +83,8 @@ export async function insertNotificationWith(
   return inserted[0] as NotificationRow;
 }
 
-/**
- * The caller's active inbox page — recipient-scoped, dismissed excluded, newest-first by `seq`, paged with
- * `seq < cursor` when a cursor is given. Fetches `limit` rows.
- */
+/** The caller's active inbox page — recipient-scoped, dismissed excluded, newest-first by `seq`, paged with
+ *  `seq < cursor` when a cursor is given. */
 export async function selectInbox(
   db: Db,
   recipientUserId: NotificationEvent["recipientUserId"],
@@ -122,11 +104,8 @@ export async function selectInbox(
     .limit(limit);
 }
 
-/**
- * Idempotent recipient-scoped read-flip: set `readAt` only if currently null (`COALESCE`), pinned to the
- * caller. RETURNS the row (so a second call still returns it, unchanged) or `undefined` when no row of the
- * caller's matches the id (→ the verb throws not-found; a user can't probe another's inbox).
- */
+/** Idempotent recipient-scoped read-flip: set `readAt` only if currently null, pinned to the caller. Returns
+ *  the row, or `undefined` when no row of the caller's matches the id. */
 export async function markReadScoped(
   db: Db,
   recipientUserId: NotificationEvent["recipientUserId"],
@@ -143,13 +122,8 @@ export async function markReadScoped(
   return updated[0];
 }
 
-/**
- * Bulk recipient-scoped read-flip: set `readAt` on every one of the caller's unread rows in ONE UPDATE
- * (the bell's "open = mark everything read" gesture — no per-row loop). Same `COALESCE` idempotence as
- * {@link markReadScoped} (an already-read row is left with its original instant); dismissed rows are
- * included (dismissing doesn't imply read, and a re-open of a dismissed-then-undismissed row should still
- * read as read). Returns the number of rows the UPDATE actually touched (rows that were unread).
- */
+/** Bulk recipient-scoped read-flip: set `readAt` on every one of the caller's unread rows in one UPDATE.
+ *  Dismissed rows are included (dismissing doesn't imply read). Returns the count of rows touched. */
 export async function markAllReadScoped(
   db: Db,
   recipientUserId: NotificationEvent["recipientUserId"],

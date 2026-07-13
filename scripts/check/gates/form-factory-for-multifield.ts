@@ -174,12 +174,8 @@ function fileViolations(sf: SourceFile, rel: string): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE component-count gate via visitFile) ───────────────
-// The legacy predicate as a per-file hook: a feature .tsx whose enclosing component hand-rolls ≥3
-// controlled form inputs while importing NEITHER editor factory (the per-component count is a per-file
-// aggregation — the whole-file scan is the unit). scanRoot mirrors the legacy FEATURES_SRC + `.tsx`
-// filter. The finding names the component + count → per-occurrence override. Not fsBacked. Byte-identical
-// to the legacy Check.
+// A feature .tsx whose enclosing component hand-rolls ≥3 controlled form inputs while importing neither
+// editor factory. The finding names the component + count.
 export const gate: GateDescriptor = {
   name: "form-factory-for-multifield",
   docRow: "D54 §13.4 (UI-Primitives-and-Reuse.md §13.4)",

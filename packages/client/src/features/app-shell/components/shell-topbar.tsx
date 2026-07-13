@@ -2,12 +2,9 @@
 // re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + LucideIcon fine
 // (the table.tsx / status-chip.tsx precedent).
 
-// ShellTopbar — the always-present strip above CONTENT (UI-Arch §4.1: HEADER bar). Shell-owned,
-// section-agnostic chrome: the panel show/hide toggles (the REOPEN affordance for a collapsed panel —
-// always visible, never off-screen), the active section title (or a per-section `header` node the route
-// supplies — UIP-202: the active chat identity), the ⌘K jump chip, and the focus toggle. Group order
-// (UIP-203): [list-toggle | title/identity] … [⌘K chip | focus | context-toggle]. Every icon button +
-// the chip carries a Tooltip (labels also live as aria-labels — §4a WCAG baseline).
+// ShellTopbar — the always-present strip above CONTENT. Shell-owned, section-agnostic chrome: panel
+// show/hide toggles, the active section title (or a per-section header node the route supplies), the ⌘K
+// jump chip, and the focus toggle. Every icon button + the chip carries a Tooltip.
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -28,15 +25,13 @@ import type { PanelMode } from "#state";
 
 export interface ShellTopbarProps {
   readonly title: string;
-  /** Per-section header node the route may supply (defaults to just the title — UIP-202). */
+  /** Per-section header node the route may supply (defaults to just the title). */
   readonly header?: ReactNode;
-  /** Route-composed TRAIL chrome (the notifications bell) — rendered first in the trail group, before
-   *  the ⌘K chip. Section-agnostic, always-present chrome; the shell forwards a ReactNode slot and
-   *  never imports a feature (the `railFoot` seam, §4.1). */
+  /** Route-composed trail chrome (the notifications bell), rendered before the ⌘K chip. */
   readonly trail?: ReactNode;
   readonly listMode: PanelMode;
   readonly contextMode: PanelMode;
-  /** Both panels collapsed = immersive-ST (UI-Arch §4.1) — drives the focus-toggle affordance. */
+  /** Both panels collapsed — drives the focus-toggle affordance. */
   readonly immersive: boolean;
   readonly onToggleList: () => void;
   readonly onToggleContext: () => void;
@@ -104,11 +99,6 @@ export function ShellTopbar({
           expanded={!listCollapsed}
           onClick={onToggleList}
         />
-        {/* The section title is the FALLBACK when the route supplies no identity `header` (UIP-202). But a
-            DOCKED/overlay list already labels the section with its OWN header row ("CHATS"), so repeating
-            the word here is the double-title (#12). The plain title therefore shows ONLY when the list is
-            COLLAPSED — the one state where the topbar is the sole place the section is named. A chat
-            identity `header` always wins regardless of list mode. */}
         {header ??
           (listCollapsed ? (
             <Text size="title" weight="semibold">
@@ -118,11 +108,7 @@ export function ShellTopbar({
       </div>
 
       <div className="shell-topbar-trail">
-        {/* Route-composed trail chrome (the notifications bell) — before the ⌘K chip so the shell's own
-            controls keep their fixed tail order. */}
         {trail}
-        {/* ⌘K jump chip (UIP-203) — a bordered pill (P5 `secondary`, muted until hover) with a kbd-styled
-            shortcut + a "jump" label; opens the command modal. */}
         <Tooltip>
           <TooltipTrigger
             render={

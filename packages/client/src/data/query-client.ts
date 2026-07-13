@@ -1,14 +1,7 @@
-// The pinned `QueryClient` (UI-Arch §6.1 — born-compliant defaults from the full-docs mine,
-// UI-Lib-TanStack-Query.md §C). The SSE bus drives freshness; these knobs make that model correct:
-//   • `staleTime: Infinity` — NEVER `'static'`: 'static' silently ignores `invalidateQueries()` and
-//     would neuter the entire bus→cache seam (gate `no-static-staletime-on-bus-keys`).
-//   • `refetchOnReconnect: true` — the SSE-gap catch-up. While offline the stream is dead and bus
-//     events are missed; reconnect refetch is what closes the gap. Turning this OFF is the bug.
-//   • `refetchOnWindowFocus: false` — the bus owns liveness; focus refetch is redundant churn.
-//   • mutations `retry: 0` — never auto-retry a write (idempotency risk).
-// Global error surfacing lives HERE (v5 removed per-query onError): QueryCache/MutationCache
-// `onError` read `meta.errorToast` and route through the `notify` seam. Per-mutation inline errors
-// stay on the mutation's own sticky slot (`createEntityMutation`) — the two channels coexist.
+// The pinned QueryClient. The SSE bus drives freshness; these knobs make that model correct: staleTime
+// Infinity (never 'static', which would silently ignore invalidateQueries), refetchOnReconnect true
+// (the SSE-gap catch-up), refetchOnWindowFocus false (the bus owns liveness), mutations retry 0.
+// Global error surfacing lives here: QueryCache/MutationCache onError read meta.errorToast.
 
 import type { Query } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";

@@ -1,26 +1,6 @@
-// infra/storage/cas — the per-user content-addressed blob store (CAS). A SEALED I/O executor: pure
-// filesystem adapter keyed by the sha-256 of the bytes, importing only @orb/kit (the `isAssetHash`
-// path-traversal guard) + node:* — NEVER @orb/db, NEVER a domain (core/Tier-3-Infra.md sealed-executor
-// invariant; `infra-no-db` / `infra-below-domain` gates). The `domain/assets` index (the `assets` table
-// + the `storeBlob` coherence primitive) orchestrates this handle; the bytes live here, the row lives
-// there, and the domain keeps the pair coherent.
-//
-// D21 — assets are PER-USER (single-owned), so the CAS is PER-USER KEYED: `<root>/<owner>/<ab>/<cd>/<hash>`
-// (a 2-level shard fan-out under the owner segment). There is NO cross-user byte dedup and NO cross-user
-// existence oracle — the same bytes uploaded by two owners are two distinct blobs under two owner subtrees;
-// within-user dedup is preserved. Ownership is gated ABOVE this adapter (the domain's `fetchOwned` + the
-// owner-gated `/blob` route); the path embedding the owner is the physical half of that gate.
-//
-// Footguns handled (the reason CAS libraries exist):
-//   • sha-256, so a card blob's hash == characters.importHash (the whole-file hash the import path stores).
-//   • sharded `<owner>/ab/cd/<hash>` (never one flat dir of thousands).
-//   • durable crash-atomic write WITHOUT a third-party lib: write a temp file UNDER rootDir (`.tmp/`, same
-//     filesystem — a cross-device rename silently degrades to a non-atomic copy) → fsync the file fd →
-//     rename into place → fsync the containing directory. Never the final path directly, so a crashed
-//     write can't leave a corrupt blob at its hash.
-//   • write-once dedup: identical bytes hash identically → the second put skips the write but bumps the
-//     blob's mtime (to the INJECTED `now`, never an ambient clock — same determinism seam the rest of the
-//     server uses) so GC's mtime-based grace window also protects deduped re-imports.
+// Per-user content-addressed blob store (CAS): a sealed filesystem adapter keyed by sha-256, sharded as
+// <root>/<owner>/<ab>/<cd>/<hash> (no cross-user dedup, ownership gated above this adapter). Writes are
+// crash-atomic: temp file under rootDir → fsync fd → rename → fsync dir, so a crash can't leave a corrupt blob.
 
 import { createHash, randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
@@ -30,52 +10,30 @@ import { dirname, join } from "node:path";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 
-/** The return shape of {@link Cas.putBytes}; consumed by `domain/assets`'s `storeBlob`. The
- *  infra layer knows nothing of the `assets` row, so this carries NO `assetId` (the domain mints that). */
 export interface PutResult {
-  /** The sha-256 hex of the stored bytes (the CAS key). */
   hash: string;
-  /** The byte length of the stored content. */
   size: number;
-  /** `false` if the blob already existed (within-user dedup) — the write was skipped, the mtime bumped. */
+  /** false if the blob already existed (within-user dedup) — the write was skipped, the mtime bumped. */
   created: boolean;
 }
 
-/** The per-user content-addressed blob store. `entry/` wires `createCas(env.ASSETS_DIR)` once
- *  and injects this handle into `domain/assets` + `domain/export`. Every op is scoped to an `ownerId`
- *  (D21): a blob written under one owner is invisible to another. */
 export interface Cas {
-  /** Store bytes under `(ownerId, sha-256)`. Idempotent within an owner: identical bytes dedup to one
-   *  blob (and bump its mtime to `now`, epoch-ms). `now` is injected (no ambient clock). */
   putBytes: (ownerId: UserId, bytes: Uint8Array, now: number) => Promise<PutResult>;
-  /** The sharded on-disk path for `(ownerId, hash)`. Throws on a non-hash or unsafe owner segment
-   *  (the path-traversal guard). */
   blobPath: (ownerId: UserId, hash: string) => string;
-  /** Whether `(ownerId, hash)` exists. */
   exists: (ownerId: UserId, hash: string) => Promise<boolean>;
-  /** The blob's last-modified time (epoch-ms), or `undefined` when it doesn't exist. The read counterpart
-   *  of `putBytes`'s mtime bump: `collectGarbage`'s grace window compares this to the injected `now` to skip
-   *  a just-put-but-not-yet-linked blob (the put→link gap). Absent blob ⇒ `undefined` (nothing to protect). */
+  /** Read counterpart of putBytes's mtime bump — collectGarbage's grace window compares this to skip a just-put-but-not-yet-linked blob. */
   mtimeMs: (ownerId: UserId, hash: string) => Promise<number | undefined>;
-  /** Read the bytes of `(ownerId, hash)`. Rejects (ENOENT) if absent. */
   read: (ownerId: UserId, hash: string) => Promise<Uint8Array>;
-  /** Re-hash the bytes on disk and compare to the name — catches silent corruption. `false` if missing;
-   *  a non-ENOENT I/O error propagates (corrupt ≠ absent). */
   verify: (ownerId: UserId, hash: string) => Promise<boolean>;
-  /** Delete a blob. Idempotent (a missing blob is not an error). */
   remove: (ownerId: UserId, hash: string) => Promise<void>;
-  /** Walk one owner's subtree, yielding every stored hash (per-owner GC / fsck / rebuild). */
   listHashes: (ownerId: UserId) => AsyncIterable<string>;
-  /** The owner segments present in the tree (whole-CAS sweeps compose this with {@link listHashes}). */
   listOwners: () => AsyncIterable<string>;
 }
 
-// A shard segment is exactly two lowercase hex chars; the two segments are the hash's first 2 + next 2.
 const SHARD_SEGMENT = /^[0-9a-f]{2}$/;
 const SHARD_A_END = 2;
 const SHARD_B_END = 4;
-// An owner path segment: a conservative allowlist (TypeID / handle forms) that cannot contain `/`, `\`, or
-// a `.` (so `..` traversal is impossible). A rejected id is a loud throw, never a silent escape.
+// Cannot contain /, \, or . — so ".." traversal is impossible. A rejected id is a loud throw, never a silent escape.
 const OWNER_SEGMENT = /^[A-Za-z0-9_-]+$/;
 const TMP_DIRNAME = ".tmp";
 const TMP_SUFFIX_BYTES = 16;
@@ -91,7 +49,7 @@ function assertOwnerSegment(ownerId: string): void {
   }
 }
 
-// readdir(withFileTypes) with a tolerant catch — a not-yet-created tree is empty, not an error.
+// A not-yet-created tree is empty, not an error.
 async function safeReaddir(dir: string): Promise<Dirent[]> {
   try {
     return await readdir(dir, { withFileTypes: true });
@@ -100,12 +58,10 @@ async function safeReaddir(dir: string): Promise<Dirent[]> {
   }
 }
 
-// A shard directory is a 2-hex-char dir (the `ab` / `cd` levels).
 function isShardDir(entry: Dirent): boolean {
   return entry.isDirectory() && SHARD_SEGMENT.test(entry.name);
 }
 
-// Yield every stored hash filename directly under one leaf shard dir.
 async function* listLeafHashes(dir: string): AsyncGenerator<string> {
   for (const f of await safeReaddir(dir)) {
     if (f.isFile() && isAssetHash(f.name)) {
@@ -114,8 +70,6 @@ async function* listLeafHashes(dir: string): AsyncGenerator<string> {
   }
 }
 
-// Walk one owner's 2-level shard subtree, yielding every stored hash (small helpers keep the nesting —
-// and the cognitive complexity — bounded).
 async function* walkOwnerHashes(ownerBase: string): AsyncGenerator<string> {
   for (const s1 of await safeReaddir(ownerBase)) {
     if (!isShardDir(s1)) {
@@ -130,8 +84,6 @@ async function* walkOwnerHashes(ownerBase: string): AsyncGenerator<string> {
   }
 }
 
-// Yield the owner segments present at the tree root (the `.tmp` staging dir + stray entries fail the
-// allowlist and are skipped).
 async function* walkOwners(rootDir: string): AsyncGenerator<string> {
   for (const entry of await safeReaddir(rootDir)) {
     if (entry.isDirectory() && OWNER_SEGMENT.test(entry.name)) {
@@ -140,11 +92,7 @@ async function* walkOwners(rootDir: string): AsyncGenerator<string> {
   }
 }
 
-/**
- * Fsync a directory so a rename INTO it is durable across power loss. Best-effort: on Windows the open()
- * may EISDIR/EPERM — swallow, because the file fsync already happened (the platform's strongest available
- * guarantee there). POSIX (Linux/macOS) honors the call.
- */
+// Best-effort: on Windows open() may EISDIR/EPERM — swallow, since the file fsync already happened.
 async function fsyncDir(dir: string): Promise<void> {
   let handle: FileHandle | undefined;
   try {
@@ -154,7 +102,7 @@ async function fsyncDir(dir: string): Promise<void> {
     // best-effort
   } finally {
     await handle?.close().catch(() => {
-      // best-effort: a close failure after the fsync attempt is not recoverable here.
+      // best-effort
     });
   }
 }
@@ -196,7 +144,7 @@ export function createCas(rootDir: string): Cas {
     try {
       result = (await stat(blobPath(ownerId, hash))).mtimeMs;
     } catch {
-      // Absent (or unreadable) blob — nothing to protect; the grace window treats it as `undefined`.
+      // absent/unreadable blob — nothing to protect
     }
     return result;
   }
@@ -206,8 +154,7 @@ export function createCas(rootDir: string): Cas {
   }
 
   async function writeAtomic(dest: string, bytes: Uint8Array): Promise<void> {
-    // Both the shard dir and the temp dir live under rootDir, so the temp→dest rename stays on one
-    // filesystem (atomic). Create both before writing.
+    // Both dirs live under rootDir, so the temp→dest rename stays on one filesystem (atomic).
     await mkdir(dirname(dest), { recursive: true });
     await mkdir(tmpDir, { recursive: true });
     const tmpPath = join(tmpDir, `${randomBytes(TMP_SUFFIX_BYTES).toString("hex")}.tmp`);
@@ -215,13 +162,12 @@ export function createCas(rootDir: string): Cas {
     try {
       handle = await open(tmpPath, "w");
       await handle.writeFile(bytes);
-      await handle.sync(); // CANON is durable: fsync the file fd before the rename publishes it.
+      await handle.sync();
     } finally {
       await handle?.close();
     }
     await rename(tmpPath, dest);
-    // `rename` makes the blob appear atomically, but the parent dir entry isn't durable until the dir is
-    // fsynced — a power loss between rename and the next sync could lose it. Fsync the dir explicitly.
+    // rename() makes the blob appear atomically, but the parent dir entry isn't durable until fsynced too.
     await fsyncDir(dirname(dest));
   }
 
@@ -236,10 +182,8 @@ export function createCas(rootDir: string): Cas {
       const size = bytes.byteLength;
       const dest = blobPath(ownerId, hash);
       if (await exists(ownerId, hash)) {
-        // Dedup hit — bump the blob's mtime to the injected `now` so GC's grace window protects THIS put
-        // too (a delete-then-reimport of the same card dedups onto an existing blob; without the bump it
-        // looks stale to `collectGarbage` and can be swept between the put and the row link). ENOENT means
-        // a concurrent GC just removed it — fall through and write fresh.
+        // Dedup hit — bump mtime so GC's grace window protects this put too. ENOENT means a concurrent GC
+        // just removed it — fall through and write fresh.
         try {
           const seconds = now / MS_PER_SECOND;
           await utimes(dest, seconds, seconds);
@@ -248,7 +192,6 @@ export function createCas(rootDir: string): Cas {
           if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
             throw err;
           }
-          // blob vanished between exists() and utimes() — write it below
         }
       }
       await writeAtomic(dest, bytes);
@@ -259,8 +202,7 @@ export function createCas(rootDir: string): Cas {
       try {
         return sha256(await read(ownerId, hash)) === hash;
       } catch (err) {
-        // Only "blob is missing" is honestly false here; permission / I/O / corruption errors are NOT a
-        // "checksum mismatch" and must surface so a caller can tell "silently corrupt" from "not there."
+        // Only "missing" is honestly false — permission/I/O/corruption errors must surface.
         if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
           return false;
         }
@@ -273,7 +215,6 @@ export function createCas(rootDir: string): Cas {
     },
 
     listHashes(ownerId): AsyncGenerator<string> {
-      // `ownerDir` validates the segment eagerly (throws on an unsafe owner before any walk begins).
       return walkOwnerHashes(ownerDir(ownerId));
     },
 

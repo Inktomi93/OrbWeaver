@@ -1,10 +1,6 @@
-// domain/sessions — DI BUNDLE: the ctx verbs close over (db + the injected clock + the bound token hasher
-// + the session timing). The bundle TYPE is the explicit `SessionsContext` interface in
-// `contract/service.ts` (no `ReturnType<>` — `no-context-returntype`); this file is the BUILDER. As a
-// composition surface it is the ONE place (with service.ts/index.ts) allowed to reach the `tokens/` named
-// subsystem (`domain-substrate-mediates-subsystems`) — it binds the peppered hasher + lifts the timing
-// constants into the context so verbs read `ctx.hashToken`/`ctx.ttlMs`/`ctx.slideThrottleMs` and import
-// NOTHING from `tokens/`. No shared read primitive lives here — each verb routes through `persistence/`.
+// domain/sessions/context — DI bundle builder (db + injected clock + bound token hasher + session timing).
+// A composition surface, one of the few places allowed to reach the tokens/ named subsystem — it binds
+// the peppered hasher so verbs read ctx.hashToken/ctx.ttlMs/ctx.slideThrottleMs and import nothing from tokens/.
 
 import type { Db } from "@orb/db";
 import { createPasswordHasher } from "#infra/auth";
@@ -20,9 +16,7 @@ export function createSessionsContext(
     db,
     now,
     hashToken: createTokenHasher(sessionSecret),
-    // The password VERIFY half (PD-83) — bound from the SAME pepper as the token hasher (infra/auth's
-    // sealed adapter, imported DOWN; the hash MINT half stays admin's injected op). Unset pepper ⇒ a
-    // disabled hasher that throws at call time (AUTH_MODE=local env-requires SESSION_SECRET).
+    // Bound from the same pepper as the token hasher. Unset pepper -> a disabled hasher that throws at call time.
     verifyPassword: createPasswordHasher(sessionSecret).verify,
     ttlMs: SESSION_TTL_MS,
     slideThrottleMs: SLIDE_THROTTLE_MS,

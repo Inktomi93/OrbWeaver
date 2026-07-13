@@ -1,13 +1,6 @@
-// domain/chat/contract/params — every verb's `*Params`, declared ONCE (§7.4 — one type home). Pure types
-// (no `z.object`): the cross-boundary WIRE input schemas live in `@orb/contracts/chat` (the tRPC router +
-// the client form validate the SAME schema) and are referenced TYPE-ONLY here, so the verb signatures + the
-// front door reference one name without this file taking on a contract-test obligation (the schemas are
-// tested in `tests/contracts/chat/`).
-//
-// Every verb carries the resolved `principal` (spine §7.1) — chat is MEMBERSHIP-scoped (D18): the verb
-// resolves `requireParticipant`/`requireHost(principal, chatId)`; there is NO `ownerId`. The TURN path
-// additionally resolves the D19 identity triple (`triggeredBy`/`runAsUserId`) INTERNALLY from the principal +
-// the loaded host — the caller never passes them (no `callerUserId` term).
+// Every verb's *Params, declared once. Pure types (no z.object): the cross-boundary wire input schemas live
+// in @orb/contracts/chat and are referenced type-only here. Every verb carries the resolved principal — chat
+// is membership-scoped, resolving requireParticipant/requireHost(principal, chatId); there is no ownerId.
 
 import type {
   ChatInjectionInput,
@@ -35,29 +28,23 @@ import type {
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared bases
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Common to every chat verb: the acting principal (membership/authority is resolved off `principal.userId`). */
+/** Common to every chat verb: the acting principal. */
 export interface ChatActorParams {
   readonly principal: Principal;
 }
 
-/** The common chatId-scoped base — `requireParticipant`/`requireHost` resolves against `(principal, chatId)`. */
+/** The common chatId-scoped base — requireParticipant/requireHost resolves against (principal, chatId). */
 export interface ChatScopedParams extends ChatActorParams {
   readonly chatId: ChatId;
 }
 
-/** A message-scoped base (canon edits / variant operations). */
+/** A message-scoped base (canon edits/variant operations). */
 export interface MessageScopedParams extends ChatScopedParams {
   readonly messageId: MessageId;
 }
 
-/** A one-turn typed steer (guided steering). `placement` defaults to the `{{guided_instruction}}`
- *  system-marker; set the `inject` arm only for an action that must read as an in-character turn (the steer
- *  reaches the model ONLY via its placement — never folded into history/WI). Untrusted `input` is
- *  macro-neutralized downstream. */
+/** A one-turn typed steer. `placement` defaults to the system marker; the `inject` arm is for an action
+ *  that must read as an in-character turn. Untrusted `input` is macro-neutralized downstream. */
 export type GuidedPlacement =
   | { readonly kind: "system" }
   | { readonly kind: "inject"; readonly role: MessageRole };
@@ -66,33 +53,20 @@ export interface GuidedSteer {
   readonly action: GuidedActionKind;
   readonly input?: string | undefined;
   readonly placement?: GuidedPlacement | undefined;
-  /** The `{{person}}` word for `impersonate`'s 1st/2nd/3rd-person templates (`@orb/kit/guided`'s
-   *  `opts.person`) — meaningless for every other action (their templates carry no `{{person}}` token,
-   *  so a caller-supplied value there is a harmless no-op). Absent ⇒ the kit resolver's own "first"
-   *  floor. */
+  /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; meaningless for other actions. */
   readonly person?: GuidedImpersonatePerson | undefined;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// reads / lifecycle
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `startChat` — lazy chat+roster creation, greeting/verbatim seeding, first-turn delegate (D28 live-identity
- *  roster). `characterIds` is the founding cast; `anchorPersonaId` is the chat-open `{{user}}` POV; `opening`
- *  overrides the resolved default opening policy. */
+/** `startChat` — lazy chat+roster creation, greeting/verbatim seeding, first-turn delegate. */
 export interface StartChatParams extends ChatActorParams {
   readonly characterIds: readonly CharacterId[];
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly title?: string | null | undefined;
   readonly opening?: OpeningPolicy | undefined;
-  /** THE DRAFT CARRY (J2/J3 — a new chat is fully editable pre-send; the first send hands its state to
-   *  this ONE creation entry). All optional + sparse: absent ⇒ byte-identical to today's plain new chat.
-   *  Per-founding-character raw opening text (the draft's swiped/edited greeting — `[0]`=primary,
-   *  `[1..]`=alternates, or hand-typed). Absent character / empty-after-trim ⇒ the card's `greetings[0]`
-   *  (or no seeded row). Read by the verbatim `first-message`/`greet-all` paths only. */
+  /** Per-founding-character raw opening text (the draft's swiped/edited greeting). Absent/empty falls
+   *  back to the card's greetings[0]. */
   readonly seedGreetings?: Readonly<Record<CharacterId, string>> | undefined;
-  /** Pre-send per-character roster tuning applied to the founding rows at creation — deviating fields
-   *  only (an absent character / field keeps the column default, byte-identical). */
+  /** Pre-send per-character roster tuning applied to the founding rows at creation. */
   readonly rosterOverrides?:
     | Readonly<
         Record<
@@ -101,19 +75,12 @@ export interface StartChatParams extends ChatActorParams {
         >
       >
     | undefined;
-  /** Pre-send group config (narrator/policy/auto) persisted into the creation `metadata.group`. */
   readonly groupConfig?: GroupConfigInput | undefined;
-  /** Pre-send room overrides (the four-field allowlist) persisted into the creation `metadata.roomOverrides`. */
   readonly roomOverrides?: RoomOverrides | undefined;
-  /** Pre-send authored injections seeded as founding injection rows in the same creation batch. */
   readonly injections?: readonly ChatInjectionInput[] | undefined;
-  /** ST "Temporary Chat" (PD-65): born ephemeral — hidden from `listChats`, swept by
-   *  `reapTemporaryChats` once expired. Absent ⇒ a normal persistent chat. */
+  /** Born ephemeral: hidden from listChats, swept by reapTemporaryChats once expired. */
   readonly temporary?: boolean | undefined;
-  /** The one-turn guided steer for a `generate` opening (the composer wand's degenerate "Guide the
-   *  opening" — a draft chat has no committed turn yet, so the steer rides the founding turn instead of
-   *  a follow-up verb). Only `runGeneratedOpening` reads it (`policy !== "generate"` ⇒ ignored — the
-   *  verbatim seed paths have no generation to steer). */
+  /** The one-turn guided steer for a generate opening; only runGeneratedOpening reads it. */
   readonly guided?: GuidedSteer | undefined;
 }
 
@@ -121,97 +88,78 @@ export interface ListChatsParams extends ChatActorParams {
   readonly includeArchived?: boolean | undefined;
 }
 
-/** `listForks` — the membership-scoped fork CHILDREN of a chat (the `parentChatId` index). */
+/** `listForks` — the membership-scoped fork children of a chat. */
 export interface ListForksParams extends ChatScopedParams {}
 
-/** `getChatLineage` — walk the fork ancestry, membership-gated per ancestor (D27/inv §16). */
+/** `getChatLineage` — walks the fork ancestry, membership-gated per ancestor. */
 export interface GetChatLineageParams extends ChatScopedParams {}
 
 export interface GetChatParams extends ChatScopedParams {}
 
-/** `previewAssembly` — the BUILD product for a hypothetical turn (host/admin trace). `speakerCharacterId`
- *  scopes the preview to a per-speaker turn; `guided` mirrors a real turn's steered assembly. The preview runs
- *  the "normal" `injection_trigger` gate (F1: the live gate is now per-turn `TurnKind`→`GenerationType` in
- *  `verbs/turn.ts`); a `generationType` axis on the preview (to trace non-`normal` trigger-gating) would thread
- *  through `verbs/read.ts buildPreviewContext` → `gatherAssembleContext.generationType` — not yet wired. */
+/** `previewAssembly` — the BUILD product for a hypothetical turn (host/admin trace). */
 export interface PreviewAssemblyParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `getActivePresetConfig` — the resolved `PromptConfig` the chat assembles against. */
+/** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */
 export interface GetActivePresetConfigParams extends ChatScopedParams {}
 
-/** `previewSection` — one section's render preview (the COMPOSER/editor surface). */
+/** `previewSection` — one section's render preview (the composer/editor surface). */
 export interface PreviewSectionParams extends ChatScopedParams {
   readonly sectionId: string;
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
-/** `peekPrompt` — the assembled prompt for the NEXT real turn (no generation). */
+/** `peekPrompt` — the assembled prompt for the next real turn (no generation). */
 export interface PeekPromptParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
-/** `listMessages` — paged canon read (D26: each row joined to its selected variant). */
+/** `listMessages` — paged canon read. */
 export interface ListMessagesParams extends ChatScopedParams {
-  /** Page backwards from this seq (exclusive); absent ⇒ from the tail. */
   readonly beforeSeq?: number | undefined;
   readonly limit?: number | undefined;
 }
 
 export interface ListParticipantsParams extends ChatScopedParams {}
 
-/** `listMessageVariants` — the full sibling-variant set for one slot (D26), no content: just enough
- *  (`{variantId, idx}[]`) to resolve an idx the caller hasn't rendered yet to its variant id. The swipe
- *  strip's step-target resolver (`MessageView` carries only the SELECTED variant — this read fills the
- *  gap, was MISSING-API before the chat-surface lane's swipe follow-up). */
+/** `listMessageVariants` — the full sibling-variant set for one slot (no content). */
 export interface ListMessageVariantsParams extends MessageScopedParams {}
 
-/** `replayStreamEvents` — resume the SSE token log from a cursor (late-subscriber ramp-up). */
+/** `replayStreamEvents` — resume the SSE token log from a cursor. */
 export interface ReplayStreamEventsParams extends ChatScopedParams {
-  /** Replay strictly after this `seq`; absent ⇒ from the start of the retained window. */
   readonly afterSeq?: number | undefined;
 }
 
 export interface StreamEventBoundsParams extends ChatScopedParams {}
 
-/** `replayChatEvents` — resume the durable chat-bus log from a cursor (the `chat.streamMessages` SSE
- *  reconnect replay; chat_events is append-only, so a replay is never truncated). */
+/** `replayChatEvents` — resume the durable chat-bus log from a cursor. */
 export interface ReplayChatEventsParams extends ChatScopedParams {
-  /** Replay strictly after this `seq`; absent ⇒ the whole log (callers pass the resume cursor). */
   readonly afterSeq?: number | undefined;
 }
 
-/** `chatEventBounds` — the durable chat-bus log's cursor bounds (+ the SSE per-yield membership gate). */
+/** `chatEventBounds` — the durable chat-bus log's cursor bounds. */
 export interface ChatEventBoundsParams extends ChatScopedParams {}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// turn-running
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `send` — persist a user message (SEND-regex applied) then run the AI turn. `personaId` voices the user
- *  line; `intent` carries per-turn sampling overrides; `guided` is an optional one-turn steer. */
+/** `send` — persist a user message then run the AI turn. */
 export interface SendParams extends ChatScopedParams {
   readonly content: string;
   readonly personaId?: PersonaId | null | undefined;
   readonly blocks?: readonly MessageContentBlock[] | undefined;
-  /** #67 — the inline images the user attached to THIS send. Each must be `fetchOwned` by the actor (the
-   *  send-verb TRUST BOUNDARY rejects a foreign/gone id); on accept, the verb inserts a `message_assets`
-   *  retaining row per id (GC-visibility) AND appends one `![](asset:<id>)` ref to the body (D51 render). */
+  /** The inline images the user attached to this send; each must be owned by the actor. */
   readonly attachmentAssetIds?: readonly AssetId[] | undefined;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `swipe` — append a fresh variant to an assistant slot (a reroll; D26 — slot attribution unchanged). */
+/** `swipe` — appends a fresh variant to an assistant slot (a reroll; slot attribution unchanged). */
 export interface SwipeParams extends MessageScopedParams {
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `impersonate` — generate a USER-side message as the active persona (the steer reaches the model only via
- *  placement). */
+/** `impersonate` — generates a user-side message as the active persona. */
 export interface ImpersonateParams extends ChatScopedParams {
   readonly personaId?: PersonaId | null | undefined;
   readonly intent?: UserIntent | undefined;
@@ -225,64 +173,56 @@ export interface GenerateParams extends ChatScopedParams {
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `continueTurn` — extend the tail assistant message in place (continue snapshot per-variant, D26). */
+/** `continueTurn` — extends the tail assistant message in place. */
 export interface ContinueTurnParams extends MessageScopedParams {
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `undoContinue` — revert the last continuation on a variant (restores `preContinue*`). */
+/** `undoContinue` — reverts the last continuation on a variant. */
 export interface UndoContinueParams extends MessageScopedParams {}
 
-/** `revertContinue` — re-apply the last reverted continuation (the redo twin of `undoContinue`). */
+/** `revertContinue` — re-applies the last reverted continuation. */
 export interface RevertContinueParams extends MessageScopedParams {}
 
-/** `forceCharacterTurn` — force a specific roster character to speak next (host-only). */
+/** `forceCharacterTurn` — forces a specific roster character to speak next (host-only). */
 export interface ForceCharacterTurnParams extends ChatScopedParams {
   readonly characterId: CharacterId;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `compact` — the manual compaction lever (the lock-free `runCompaction` core is injected into the engine).
- *  Produces the portable checkpoint (D25). */
+/** `compact` — the manual compaction lever; produces the portable checkpoint. */
 export interface CompactParams extends ChatScopedParams {
   readonly instructions?: string | undefined;
 }
 
-/** `abort` — cancel an in-flight turn (lock-free; owner-of-the-turn only — rollback-theft defense). */
+/** `abort` — cancel an in-flight turn (lock-free; owner-of-the-turn only). */
 export interface AbortParams extends ChatScopedParams {}
 
-/** `generateImage` — generate n image(s) via the injected `imagery.generatePicture` op, then persist ONE
- *  message (authored by the caller) whose body STRING carries n `asset:` refs (imagery-design/04 §2). P5
- *  drives `mode:"free"` with a required `prompt` (mirrors the `generatePictureRequestSchema` wire). */
+/** `generateImage` — generates n image(s), then persists one message whose body carries n asset: refs. */
 export interface GenerateImageParams extends ChatScopedParams {
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// canon edits
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `selectVariant` — flip `messages.selectedVariantId` to a sibling swipe (pointer move, zero copy — D26). */
+/** `selectVariant` — flips messages.selectedVariantId to a sibling swipe (pointer move, zero copy). */
 export interface SelectVariantParams extends MessageScopedParams {
   readonly variantId: MessageVariantId;
 }
 
-/** `editMessage` — edit the SELECTED variant's content in place (self-label purify, then the `runOnEdit`
- *  host-tier regex re-applies before persist — canon-mutating at write). */
+/** `editMessage` — edits the selected variant's content in place. */
 export interface EditMessageParams extends MessageScopedParams {
   readonly content: string;
 }
 
-/** `setMessageHidden` — toggle `excludedFromPrompt` (held out of assembly; the row survives). */
+/** `setMessageHidden` — toggles excludedFromPrompt (held out of assembly; the row survives). */
 export interface SetMessageHiddenParams extends MessageScopedParams {
   readonly hidden: boolean;
 }
 
-/** `deleteMessages` — delete a set of slots (author-or-host; cascades their variants). */
+/** `deleteMessages` — deletes a set of slots (author-or-host; cascades their variants). */
 export interface DeleteMessagesParams extends ChatScopedParams {
   readonly messageIds: readonly MessageId[];
 }
@@ -293,27 +233,21 @@ export interface EditReasoningParams extends MessageScopedParams {
 
 export interface ClearReasoningParams extends MessageScopedParams {}
 
-/** `moveMessage` — reorder a slot to a new seq position (re-stamps the canon order). */
+/** `moveMessage` — reorders a slot to a new seq position. */
 export interface MoveMessageParams extends MessageScopedParams {
   readonly toSeq: number;
 }
 
-/** `duplicateMessage` — copy a slot + its selected variant to a new tail slot. */
+/** `duplicateMessage` — copies a slot + its selected variant to a new tail slot. */
 export interface DuplicateMessageParams extends MessageScopedParams {}
 
-/** `forkChat` — deep COPY the chat (+ messages/variants) into a new membership-scoped chat (D27); the only
- *  link is `chats.parentChatId`. `throughSeq` truncates the copy at a point in history (absent ⇒ whole chat). */
+/** `forkChat` — deep-copies the chat into a new membership-scoped chat, linked only by parentChatId. */
 export interface ForkChatParams extends ChatScopedParams {
   readonly throughSeq?: number | undefined;
   readonly title?: string | null | undefined;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// injections
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `setChatInjection` — upsert a persisted positional injection (the `ChatInjection` wire shape). `id` set ⇒
- *  update; absent ⇒ create. */
+/** `setChatInjection` — upserts a persisted positional injection. `id` set means update; absent means create. */
 export interface SetChatInjectionParams extends ChatScopedParams {
   readonly id?: ChatInjectionId | undefined;
   readonly position: "before_prompt" | "in_static" | "in_prompt" | "in_chat";
@@ -329,31 +263,23 @@ export interface DeleteChatInjectionParams extends ChatScopedParams {
   readonly injectionId: ChatInjectionId;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// variables
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `getVariables` — the EFFECTIVE ChoiceBlock variables computed for the next turn. */
+/** `getVariables` — the effective ChoiceBlock variables computed for the next turn. */
 export interface GetVariablesParams extends ChatScopedParams {}
 
-/** `getStoredVariables` — the persisted `chats.variableValues` flush (persisted canon). */
+/** `getStoredVariables` — the persisted chats.variableValues flush. */
 export interface GetStoredVariablesParams extends ChatScopedParams {}
 
-/** `setVariables` — flush a `{{var}}`→value map to `chats.variableValues`. */
+/** `setVariables` — flushes a \{\{var\}\}→value map to chats.variableValues. */
 export interface SetVariablesParams extends ChatScopedParams {
   readonly values: Record<string, string>;
 }
 
 export interface ClearVariablesParams extends ChatScopedParams {}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// chat-row
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `delete` — delete the chat (host-only; cascades messages/roster/invites/etc.). */
+/** `delete` — deletes the chat (host-only; cascades messages/roster/invites/etc.). */
 export interface DeleteChatParams extends ChatScopedParams {}
 
-/** `reapTemporaryChats` — sweep the caller's expired temporary chats (a maintenance lever, principal-scoped). */
+/** `reapTemporaryChats` — sweeps the caller's expired temporary chats. */
 export interface ReapTemporaryChatsParams extends ChatActorParams {}
 
 export interface UpdateTitleParams extends ChatScopedParams {
@@ -368,57 +294,43 @@ export interface ArchiveChatParams extends ChatScopedParams {
   readonly archived: boolean;
 }
 
-/** `setChatAnchorPersona` — the manual/host re-pin for the Anchor persona (#4, FINAL-Persona §A.0/§A.6):
- *  host-only, mid-chat change of `chats.anchorPersonaId` (the frozen CARD `{{user}}` POV). `null` clears
- *  the anchor (card sections then fall back through the `pinnedPersona ?? activePersona` default,
- *  `context.ts:385-386`). */
+/** `setChatAnchorPersona` — host-only, mid-chat change of chats.anchorPersonaId (the frozen card \{\{user\}\}
+ *  POV). Null clears the anchor. */
 export interface SetChatAnchorPersonaParams extends ChatScopedParams {
   readonly personaId: PersonaId | null;
 }
 
-/** `reattributeMessages` — re-stamp the `characterId` attribution of a set of slots (host-only; a swipe never
- *  re-voices, but a deliberate re-attribution does — self-heal hash-diff). */
+/** `reattributeMessages` — re-stamps the characterId attribution of a set of slots (host-only). */
 export interface ReattributeMessagesParams extends ChatScopedParams {
   readonly messageIds: readonly MessageId[];
   readonly characterId: CharacterId;
 }
 
-/** `reattributePersona` — re-stamp the authoring `personaId` (the `{{user}}`/attribution-badge axis; PD-100)
- *  of a set of USER-role slots. Author-or-host PER targeted row (a member re-stamps THEIR OWN user lines; the
- *  host may re-stamp any), and the target persona must be owned by each row's AUTHOR. The deliberate lever to
- *  fix history attribution after a live persona switch (neo `usePersonaReattribute` / ST `#persona_sync_name`;
- *  Chat-Macro-Resolution.md §5). Bulk = the caller passes all their user-row ids; per-message = one id. */
+/** `reattributePersona` — re-stamps the authoring personaId of a set of user-role slots. Author-or-host per
+ *  targeted row; the target persona must be owned by each row's author. */
 export interface ReattributePersonaParams extends ChatScopedParams {
   readonly messageIds: readonly MessageId[];
   readonly personaId: PersonaId;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// group / roster
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `setGroupConfig` — host-only write of the `chatMetadata.group` sub-blob (parsed → fully-defaulted). */
+/** `setGroupConfig` — host-only write of the chatMetadata.group sub-blob. */
 export interface SetGroupConfigParams extends ChatScopedParams {
   readonly config: GroupConfigInput;
 }
 
-/** `addCharacterToChat` — add a character to the roster (host-only; the ONE participant-insert chokepoint for
- *  characters — D16). */
+/** `addCharacterToChat` — adds a character to the roster (host-only). */
 export interface AddCharacterToChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
 }
 
-/** `seatAgent` — seat an agent principal in the roster (host-gated; the ONE agent-seat chokepoint — D60,
- *  doc 04 §3). The host consents to the seat; the OWNER (whose agent/buddy this is) must be a present member
- *  (owner==host collapses to one call). The principal is lazily minted via `provisionAgentPrincipal`. */
+/** `seatAgent` — seats an agent principal in the roster (host-gated). The owner (whose agent this is)
+ *  must be a present member. The principal is lazily minted via provisionAgentPrincipal. */
 export interface SeatAgentParams extends ChatScopedParams {
-  /** Whose agent to seat (v1: whose buddy) — must be a present human member of the room. */
   readonly ownerUserId: UserId;
-  /** The agent flavor driving the seat (`AGENT_SOURCE_KINDS`; v1 = `'buddy'`). */
   readonly sourceKind: AgentSourceKind;
 }
 
-/** `setRoomOverrides` — host-only write of the four-field `chatMetadata.roomOverrides` allowlist (Part III §9). */
+/** `setRoomOverrides` — host-only write of the four-field chatMetadata.roomOverrides allowlist. */
 export interface SetRoomOverridesParams extends ChatScopedParams {
   readonly overrides: RoomOverrides;
 }
@@ -427,89 +339,68 @@ export interface GetGroupConfigForChatParams extends ChatScopedParams {}
 
 export interface GetRoomOverridesForChatParams extends ChatScopedParams {}
 
-/** `setParticipantDisabled` — mute/unmute a roster participant (host-only; cards/WI still contribute). */
+/** `setParticipantDisabled` — mutes/unmutes a roster participant (host-only). */
 export interface SetParticipantDisabledParams extends ChatScopedParams {
   readonly characterId: CharacterId;
   readonly disabled: boolean;
 }
 
-/** `setParticipantTalkativeness` — set a participant's 0–1 arbitration sampling weight (host-only). */
+/** `setParticipantTalkativeness` — sets a participant's 0-1 arbitration sampling weight (host-only). */
 export interface SetParticipantTalkativenessParams extends ChatScopedParams {
   readonly characterId: CharacterId;
   readonly talkativeness: number;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// invites (the ONE participant-insert chokepoint; token mirrors sessions — Part III §2)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `createInvite` — host-only. Mint a share-link OR targeted-by-handle invite. The `token` is CSPRNG-minted
- *  + stored HASHED server-side (NEVER raw — mirror the `sessions` discipline); the raw token is returned
- *  ONCE in the result (for the `/join/:token` link), never persisted raw, never in an `InviteView`. */
+/** `createInvite` — host-only. Mints a share-link or targeted-by-handle invite. The token is CSPRNG-minted
+ *  and stored hashed; the raw token is returned once, never persisted raw. */
 export interface CreateInviteParams extends ChatScopedParams {
   readonly input: CreateInviteInput;
 }
 
-/** `previewInvite` — the preview-then-confirm read (Part III §2): carries the RAW token; returns the MINIMAL
- *  preview (room name / host handle / member count / mode label — NO roster identities, NO history). The
- *  caller is an authed user considering the join (no chatId — the token identifies the room). */
+/** `previewInvite` — the preview-then-confirm read: carries the raw token, returns the minimal preview
+ *  (no roster identities, no history). */
 export interface PreviewInviteParams extends ChatActorParams {
   readonly input: PreviewInviteInput;
 }
 
-/** `redeemInvite` — THE participant-insert chokepoint (atomic conditional redeem → insert with `role`
- *  server-forced `member` + `joinSeq` stamped; the re-add upsert lives here too — Part III §1/§2). Carries the
- *  RAW token; no chatId (the token identifies the room). This is the ONLY public join path for a human (a
- *  standalone `join` verb does NOT exist — see the handoff note). */
+/** `redeemInvite` — the participant-insert chokepoint (atomic conditional redeem → insert with
+ *  server-forced role + stamped joinSeq). The only public join path for a human. */
 export interface RedeemInviteParams extends ChatActorParams {
   readonly input: RedeemInviteInput;
 }
 
-/** `revokeInvite` — host-only. Invalidate an outstanding invite (status → `revoked`). */
+/** `revokeInvite` — host-only. Invalidates an outstanding invite. */
 export interface RevokeInviteParams extends ChatScopedParams {
   readonly inviteId: ChatInviteId;
 }
 
-/** `listInvites` — host-only (FIX #4). The host-management outstanding-invites read: every invite for the
- *  chat as `InviteView`s (tokens — raw OR hashed — are never re-derivable from the view). */
+/** `listInvites` — host-only. Every invite for the chat as InviteViews. */
 export interface ListInvitesParams extends ChatScopedParams {}
 
-/** `declineInvite` — first-class decline of a TARGETED invite the caller was notified about (status →
- *  `declined`). Keyed by `inviteId` (carried in the notification), not the raw token. */
+/** `declineInvite` — declines a targeted invite the caller was notified about. Keyed by inviteId, not the
+ *  raw token. */
 export interface DeclineInviteParams extends ChatActorParams {
   readonly inviteId: ChatInviteId;
 }
 
-/** `acceptInvite` — the in-app accept of a TARGETED invite the caller was notified about: the token-free twin
- *  of `redeemInvite`. Keyed by `inviteId` (carried in the notification), SELF-AUTHORIZING — the invite must be
- *  bound to the caller (`invitedUserId === principal.userId`); a share-link / foreign / invalid / spent invite
- *  is a leak-free NOT_FOUND. Reuses the redeem chokepoint's atomic seat + idempotent already-member recovery. */
+/** `acceptInvite` — the in-app accept of a targeted invite; self-authorizing (the invite must be bound to
+ *  the caller). Reuses redeemInvite's atomic seat + idempotent already-member recovery. */
 export interface AcceptInviteParams extends ChatActorParams {
   readonly inviteId: ChatInviteId;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// membership lifecycle (host-gated where authority — Part III §1/§2)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** `kick` — host-only. Remove a member (set `leftSeq` + SSE teardown within the kick tx + `notifications.emit`
- *  to the removed user). Targets the member's `userId`. */
+/** `kick` — host-only. Removes a member (sets leftSeq + SSE teardown + notifies the removed user). */
 export interface KickParticipantParams extends ChatScopedParams {
   readonly userId: UserId;
 }
 
-/** `selfLeave` — a member leaves their own membership (set `leftSeq`; authored rows are retained, the persona
- *  drops from the cast). A SOLE-host self-leave archives the room (never refused — Part III §2). */
+/** `selfLeave` — a member leaves their own membership. A sole-host self-leave archives the room. */
 export interface SelfLeaveParams extends ChatScopedParams {}
 
-/** `nominateHostHandoff` — host-only, step 1 of the two-party handoff (Part III §2): nominate a member as the
- *  new host → `notifications.emit` to the nominee. The role swap happens only on the nominee's accept. (The
- *  two-party handoff is modelled as TWO verbs — nominate + accept — see the handoff note.) */
+/** `nominateHostHandoff` — host-only, step 1 of the two-party handoff: nominates a member as the new host. */
 export interface NominateHostHandoffParams extends ChatScopedParams {
-  /** The nominee (an existing member who will become host on accept). */
   readonly userId: UserId;
 }
 
-/** `acceptHostHandoff` — step 2: the nominee accepts (after the un-spoofable "what your credentials will
- *  power" confirmation) → atomic role swap. The caller IS the nominee (self-action). */
+/** `acceptHostHandoff` — step 2: the nominee accepts, triggering the atomic role swap. */
 export interface AcceptHostHandoffParams extends ChatScopedParams {}

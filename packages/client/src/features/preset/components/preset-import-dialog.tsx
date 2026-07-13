@@ -1,11 +1,7 @@
-// The LIST-hub "Import a SillyTavern preset" flow (BUILD-SPEC §4.5) — a SMALL FEATURE-OWNED import, NOT the
-// central portability system (that lane owns /api/import/bundle + settings import — untouched here). Pick a
-// `.json` with the @orb/ui `FileDropzone` primitive, parse CLIENT-SIDE with `importStChatCompletionPreset`
-// (@orb/contracts/preset — isomorphic; runs in the browser), then either surface a parse error or show the
-// post-import summary of `dropped` ST fields with no orb home. Confirming creates the preset via the
-// `preset.create` tRPC mutation ({name, kind:"generation", config}) — the same verb the "+ New" affordance
-// uses. This dialog OWNS its overlay (a component, not the surface — surface-purity); the surface passes
-// `onCreated` so it can open the freshly-imported preset.
+// The LIST-hub "Import a SillyTavern preset" flow — a small feature-owned import, not the central
+// portability system. Pick a `.json` with `FileDropzone`, parse client-side with
+// `importStChatCompletionPreset`, then surface a parse error or show the post-import summary of dropped
+// ST fields. Confirming creates the preset via `preset.create`, the same verb "+ New" uses.
 
 import type { StDroppedField, StImportResult } from "@orb/contracts/preset";
 import { importStChatCompletionPreset } from "@orb/contracts/preset";

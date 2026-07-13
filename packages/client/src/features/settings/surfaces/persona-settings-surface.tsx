@@ -1,18 +1,6 @@
-// The PERSONA settings pane (Settings → USER → Personas — rail-foot panel redesign). The panel's old
-// "Persona settings" footer (the notify toggle + restore-from-backup) moved HERE — these are peripheral
-// per-user prefs, not panel content; the persona EDITOR stays in the rail-foot panel
-// (persona-panel-row.tsx / persona-editor.tsx). Deliberately NOT a re-import of persona's mutation hooks
-// (`features/settings` importing `features/persona` internals would be the banned feature→feature import,
-// client-structure law) — this pane talks to `trpc.persona.import`/`trpc.settings.*` directly, the same
-// "cross-feature reads ride trpc.*" seam every other settings pane uses.
-//
-// INVALIDATION (PD user-bus lane — busDriven): `updateUserSettingsSection` emits `settingsChanged`
-// (covers getUserSettings) and `persona.import` emits `personasChanged` (covers the whole persona.path,
-// including `persona.list`) — both always-on subscriptions (home-page.tsx), so the echo reconciles the
-// acting device (a self-invalidate would double-refetch).
-//   verb                        user-bus event    client filters
-//   updateUserSettingsSection   settingsChanged   getUserSettings.path
-//   persona.import              personasChanged   persona.path (covers persona.list)
+// The Persona settings pane: the notify toggle + restore-from-backup (peripheral per-user prefs; the
+// persona editor stays in the rail-foot panel). Talks to trpc.persona.import/trpc.settings.* directly,
+// never importing features/persona internals (the banned feature→feature import).
 
 import { personaBackupSchema } from "@orb/contracts/persona";
 import { Button } from "@orb/ui/button";
@@ -45,13 +33,13 @@ interface PersonaPrefsPatchVars {
 }
 const useSetPersonaPrefs = createEntityMutation<PersonaPrefsPatchVars, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.
+  busDriven: true,
   errorToast: "Couldn't save your persona settings.",
 });
 
 const useImportPersona = createEntityMutation<inferInput<Trpc["persona"]["import"]>, unknown>({
   options: (trpc) => trpc.persona.import.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (persona.list).
+  busDriven: true,
   errorToast: "Couldn't restore the persona.",
 });
 

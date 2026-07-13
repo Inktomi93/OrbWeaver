@@ -123,7 +123,7 @@ export interface BookAttachmentView extends BookView {
 
 // Entry-level variants are emitted by domain/world-info/verbs/entries/{create,update,remove} (PD-89 done).
 
-/** One resolved lore entry to bulk-import. `keys` is null-collapsed by the writer (empty => NULL);
+/** One resolved lore entry to bulk-import. `keys` is null-collapsed by the writer (empty =\> NULL);
  *  `metadata` is validated through `entryMetadataSchema` at the write seam, never trusted raw. */
 export interface BulkImportLoreEntryInput {
   readonly title: string;

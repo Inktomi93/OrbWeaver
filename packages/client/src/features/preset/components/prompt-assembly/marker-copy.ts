@@ -1,14 +1,7 @@
-// Plain-language per-marker copy for The Assembly (BUILD-SPEC §2.1) — REGISTRY-AS-DATA, node-safe. A
-// `Record<MarkerType, …>` keyed EXHAUSTIVELY off the imported `MarkerType` enum: adding a marker to the
-// contract (`preset/index.ts` MARKER_TYPES) and forgetting its copy is a `tsc` error HERE, not a blank
-// row in production. This is a net-new FILE, not net-new machinery — pure lookup data.
-//
-// The three strings map to the three surfaces the copy feeds (§3.3 / §3.5):
-//   - `label`    — the human name on the rack row + inspector header (vs the raw snake_case marker).
-//   - `oneLiner` — the one-line "what this is / where it comes from" under the inspector header.
-//   - `subtitle` — the terser rack-row subtitle (source hint), shown beside the row name.
-// For the two empty-default templated markers (`main_prompt` / `post_history`) the `oneLiner` doubles
-// as the empty-default explainer the inspector shows instead of a bare ghost.
+// Plain-language per-marker copy for the Assembly — a `Record<MarkerType, …>` keyed exhaustively off the
+// `MarkerType` enum, so adding a marker and forgetting its copy is a tsc error here, not a blank row in
+// production. `label` names the rack row/inspector header; `oneLiner` explains the marker; `subtitle` is
+// the terser rack-row source hint.
 
 import type { MarkerType } from "@orb/contracts/preset";
 
@@ -18,8 +11,6 @@ export interface MarkerCopy {
   readonly subtitle: string;
 }
 
-// Bracketed string-literal keys match the snake_case `MarkerType` members verbatim (the same idiom
-// `DEFAULT_MARKER_TEMPLATES` uses to sidestep `useNamingConvention` on the slot names).
 /** The plain-language copy for every marker slot. Exhaustive over `MarkerType` by construction. */
 export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   ["main_prompt"]: {

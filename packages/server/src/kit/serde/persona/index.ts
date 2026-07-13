@@ -1,31 +1,16 @@
-// @orb/server/kit/serde/persona — the ONE orb-native persona-backup serde core: the portable persona-backup
-// grammar with BOTH directions in one home, so build + parse can never drift (the card / chat serde precedent
-// — PD-44 / W0a). PURE: zero I/O, zero db, zero id-resolution — it maps a canonical `PersonaBackup` (a
-// concrete, NAME-level value shape) to / from the `@orb/contracts/persona` `personaBackupSchema` wire object.
-// The RELATIONAL work stays OUT of here, in the persona domain:
-//   • export narrows the stored row to `PersonaDetail` (`detailOf`, the read seam) and hands the resolved
-//     fields to `buildPersonaBackup` (which drops `avatarAssetId` — a binary asset reference can't travel in
-//     a JSON backup; re-attaching an avatar after restore is a separate, explicit action).
-//   • import calls `parsePersonaBackup` to normalize the untrusted backup blob (apply `create`'s field
-//     defaults + narrow the metadata blob through `personaMetadataSchema`), then inserts a fresh owned row.
-// So the serde only ever sees names / strings + the typed metadata blob — never a db handle or an id map.
+// The one orb-native persona-backup serde core: both directions in one home, so build + parse can never
+// drift. Pure: zero I/O, zero db, zero id-resolution — it maps a canonical `PersonaBackup` to/from the
+// contracts/persona personaBackupSchema wire object. This is the orb-native backup only; the ST
+// settings.json persona path is a separate adapter and does not route through here.
 //
-// This is the orb-NATIVE backup only. The ST `settings.json` persona path (the profile bulk-import) is a
-// SEPARATE adapter into the persona canonical shape (`ParsedPersona` → `BulkImportPersonaInput`) and does NOT
-// route through here — the two formats stay independent.
-//
-// Round-trip drift guard: `buildPersonaBackup(parsePersonaBackup(buildPersonaBackup(p)))` deep-equals
-// `buildPersonaBackup(p)` — pinned in the mirror test (the SERIALIZED wire form is the stable fixed point).
+// Round-trip drift guard: buildPersonaBackup(parsePersonaBackup(buildPersonaBackup(p))) deep-equals
+// buildPersonaBackup(p).
 
 import type { PersonaBackupInput, PersonaMetadata } from "@orb/contracts/persona";
 import { personaBackupSchema, personaMetadataSchema } from "@orb/contracts/persona";
 
-// ── the canonical shape (NAME-level, concrete — the serde owns its wire shape, server/kit type-home-exempt) ──
-
-/** The canonical persona-backup value: the portable fields with CONCRETE (non-optional) types — the
- *  build INPUT and the parse OUTPUT, so a round-trip is a fixed point. Deliberately excludes `avatarAssetId`
- *  (a binary asset reference can't ride a JSON backup). `metadata` is the typed placement/provenance blob
- *  (`personaMetadataSchema`), null when unset. */
+/** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Excludes
+ *  avatarAssetId (a binary asset reference can't ride a JSON backup). */
 export interface PersonaBackup {
   readonly name: string;
   readonly title: string | null;
@@ -34,13 +19,8 @@ export interface PersonaBackup {
   readonly metadata: PersonaMetadata | null;
 }
 
-/**
- * Serialize a canonical `PersonaBackup` to the portable `personaBackupSchema` wire object (the inverse of
- * `parsePersonaBackup`). Emits ALL portable fields present (`title`/`starred`/`metadata` concrete, never
- * omitted) so the backup is self-describing and re-imports byte-identically. `avatarAssetId` is structurally
- * absent (not on `PersonaBackup`, omitted from the schema). The result is `personaBackupSchema.parse`d so a
- * malformed projection fails loud at the boundary, not silently on the wire. PURE.
- */
+/** Serialize a canonical `PersonaBackup` to the portable wire object (the inverse of `parsePersonaBackup`).
+ *  Emits all portable fields present so the backup is self-describing and re-imports byte-identically. */
 export function buildPersonaBackup(backup: PersonaBackup): PersonaBackupInput {
   return personaBackupSchema.parse({
     name: backup.name,
@@ -51,13 +31,9 @@ export function buildPersonaBackup(backup: PersonaBackup): PersonaBackupInput {
   });
 }
 
-/**
- * Parse an untrusted `personaBackupSchema` wire object into the canonical `PersonaBackup` (the inverse of
- * `buildPersonaBackup`). Validates the shape, applies `create`'s field defaults (`title` null, `starred`
- * false, `metadata` null), and narrows the metadata blob through `personaMetadataSchema` — the same coercion
- * `create`/`update` run at their write seam, now the ONE home for the backup format. Throws on an invalid
- * backup (our own strict format, unlike the tolerant ST card adapter). PURE.
- */
+/** Parse an untrusted wire object into the canonical `PersonaBackup` (the inverse of `buildPersonaBackup`).
+ *  Validates the shape, applies create's field defaults, and narrows the metadata blob. Throws on an
+ *  invalid backup (our own strict format, unlike the tolerant ST card adapter). */
 export function parsePersonaBackup(input: PersonaBackupInput): PersonaBackup {
   const parsed = personaBackupSchema.parse(input);
   const meta = parsed.metadata;

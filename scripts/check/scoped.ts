@@ -1,17 +1,12 @@
-// The SCOPED single-pass runner: `tsx scripts/check/scoped.ts` drives the ts-morph single-pass machine (loader →
-// pass → render) over a SUBSET of the tree — a folder glob, a package, or the git-changed set — so a dev
-// gets the incremental-safe structural verdicts for exactly the files they touched, without the ~1s
-// full-tree gate load being spent judging files they didn't. This DRIVES the single-pass path for real
-// (TSMORPH-SINGLE-PASS-AUDIT.md §4); it is NOT the live pre-push gate (harness.ts keeps exit authority
-// until the owner's cutover step) — it is the invocable proof that the scope axis works end-to-end.
+// The SCOPED single-pass runner: `tsx scripts/check/scoped.ts` drives the single-pass machine over a
+// SUBSET of the tree — a folder glob, a package, or the git-changed set — so a dev gets incremental-safe
+// verdicts for exactly the files they touched, without paying the full-tree gate load.
 //
-// THE FENCE (§4.4, the correctness heart): a `scopeSafety: "whole-project"` gate reconciles across the
-// WHOLE tree (registry/coverage/parity/uniqueness) — running it over a subset would either misfire or
-// give a partial, misleading verdict. So a scoped run RUNS ONLY the `incremental-safe` gates over the
-// scoped fileset and DEFERS every whole-project gate wholesale — and PRINTS the deferred count + names,
-// so a scoped "clean" can NEVER be misread as a full "all clear". The incremental-safe gates that carry a
-// stale-registry `finalize` arm self-fence it on `scope.kind !== "project"` (they saw `visit` for the
-// scoped files, but their whole-tree stale claim is only sound on the full run).
+// THE FENCE: a `scopeSafety: "whole-project"` gate reconciles across the whole tree (registry/coverage/
+// parity/uniqueness) — running it over a subset would misfire or give a partial verdict. So a scoped run
+// runs ONLY the `incremental-safe` gates and DEFERS every whole-project gate wholesale, printing the
+// deferred count + names so a scoped "clean" can never be misread as a full all-clear. Incremental-safe
+// gates with a stale-registry `finalize` arm self-fence it on `scope.kind !== "project"`.
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -24,8 +19,7 @@ import { renderPass } from "./render.ts";
 
 const TRAILING_SLASH_RE = /\/+$/u;
 
-// The 0/1/2/3 exit scheme (TSMORPH-SINGLE-PASS-AUDIT.md §9.4): 2 = a gate threw (the checker is broken),
-// 3 = bad CLI args (the run never happened). Named so a magic 2/3 can't drift back in.
+// Exit scheme: 2 = a gate threw (the checker is broken), 3 = bad CLI args (the run never happened).
 const EXIT_TOOL_ERROR = 2;
 const EXIT_MISUSE = 3;
 
@@ -42,7 +36,7 @@ function packageDir(name: string): string {
   return name.startsWith("@orb/") ? name.slice("@orb/".length) : name;
 }
 
-/** The git-changed set: `git diff --name-only HEAD` (staged + unstaged vs HEAD), repo-relative posix. */
+/** The git-changed set: staged + unstaged vs HEAD, repo-relative posix. */
 function gitChangedPaths(root: string): readonly string[] {
   const res = spawnSync("git", ["diff", "--name-only", "HEAD"], {
     cwd: root,
@@ -57,8 +51,7 @@ function gitChangedPaths(root: string): readonly string[] {
     .filter((l) => l.length > 0);
 }
 
-/** A minimal `**` glob → predicate. `packages/ui/**` matches any path under `packages/ui/`; a bare
- *  prefix with no `**` matches that prefix. This is a folder-scope selector, not a full glob engine. */
+/** A minimal `**` glob → predicate. This is a folder-scope selector, not a full glob engine. */
 function folderMatcher(glob: string): (rel: string) => boolean {
   const norm = glob.replace(TRAILING_SLASH_RE, "");
   if (norm.endsWith("/**")) {
@@ -107,7 +100,7 @@ type Args = {
 };
 
 const USAGE =
-  // biome-ignore lint/security/noSecrets: a CLI usage string (the long dashed flag run trips the entropy heuristic), not a secret.
+  // biome-ignore lint/security/noSecrets: CLI usage string, not a secret.
   "usage: tsx scripts/check/scoped.ts (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
 
 /** Reject a selector combination that isn't exactly one non-empty selector — the first failing rule's
@@ -164,8 +157,8 @@ function partitionGates(gates: readonly GateDescriptor[]): {
   return { incremental, deferred };
 }
 
-/** The deferred-gate notice — the CRUCIAL UX: a scoped clean is NOT a full all-clear. Names every
- *  whole-project gate that was skipped so the dev knows exactly what still needs the full run. */
+/** The deferred-gate notice: a scoped clean is NOT a full all-clear. Names every whole-project gate
+ *  that was skipped so the dev knows exactly what still needs the full run. */
 function renderDeferredNotice(deferred: readonly GateDescriptor[]): string {
   if (deferred.length === 0) {
     return "";
@@ -188,11 +181,9 @@ export type ScopedResult = {
   readonly files: number;
 };
 
-/** The pure scoping core (exported for the proof tests): partition the gates by scope-safety, filter the
- *  project's source files to those the selection accepts, and run ONLY the incremental-safe gates over
- *  that fileset under the non-`project` scope (so their stale `finalize` arms self-fence). The
- *  whole-project gates are returned as `deferred`, never run. `base` is the run context (a real full
- *  workspace on the CLI path; an in-memory one in the tests). */
+/** The pure scoping core: partition the gates by scope-safety, filter the project's source files to
+ *  those the selection accepts, and run ONLY the incremental-safe gates over that fileset. The
+ *  whole-project gates are returned as `deferred`, never run. */
 export function runScopedPass(
   gates: readonly GateDescriptor[],
   base: Omit<GateRunCtx, "report">,
@@ -219,7 +210,7 @@ async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   if ("error" in parsed) {
     process.stderr.write(`${parsed.error}\n${USAGE}\n`);
-    process.exit(EXIT_MISUSE); // bad CLI args; the run never happened (§9.4: 2 = tool error, 3 = misuse)
+    process.exit(EXIT_MISUSE); // bad CLI args; the run never happened
   }
   const root = process.cwd();
   const selection = selectionFor(parsed, root);
@@ -239,8 +230,7 @@ async function main(): Promise<void> {
   }
 }
 
-// Direct-run guard (the report.ts/run.ts idiom): `tsx scripts/check/scoped.ts` runs main(); an import (the tests)
-// gets only the exported `runScoped` core — importing this module must NOT execute a run.
+// Direct-run guard: an import (the tests) gets only the exported `runScoped` core.
 const entry = process.argv[1];
 if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
   await main();

@@ -1,14 +1,7 @@
-// The ACCOUNT modal body (UI-Arch §4.2 avatar-chip row — "quick identity card"; the reserved
-// `MODAL_SLOTS.account` placeholder this surface replaces, route-composed at home-page.tsx). Identity +
-// role + auth-mode at a glance, and the mode-aware sign-out:
-//   single-user      → no session concept (nothing to sign out of)
-//   forward-header   → sign-out happens at the proxy/IdP, not here
-//   local / oidc     → POST /api/auth/logout, then a HARD redirect to /login — a full document load is
-//                      the sanctioned post-logout reset (drops every in-memory cache/store so a shared
-//                      browser can't leak the prior user's data; the persona-panel logout precedent).
-// Reads ride the public bootstrap endpoints (mode + me), so this renders correctly even while tRPC reads
-// are still resolving. Mounted inside the ModalHost Dialog (focus-trapped); the surface still manages its
-// own mount focus per the surface-a11y-focus contract (the settings-shell precedent).
+// The account modal body: identity + role + auth-mode at a glance, and the mode-aware sign-out.
+// single-user has no session to sign out of; forward-header signs out at the proxy/IdP; local/oidc
+// POST /api/auth/logout then hard-redirect to /login (a full document load drops every in-memory
+// cache/store so a shared browser can't leak the prior user's data).
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";

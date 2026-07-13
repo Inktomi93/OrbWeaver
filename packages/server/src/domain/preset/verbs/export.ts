@@ -1,12 +1,6 @@
-// verb: export (W-preset; export-import-portability.md §1) — the orb-NATIVE preset backup export: read ALL of
-// the owner's OWN presets (the un-owned system default is excluded — it re-seeds on the target box) and emit
-// one portable `orb.preset` JSON file per preset via the ONE preset codec (`@orb/contracts/preset`
-// `buildPresetFile`). The stored blob is run through `parsePromptConfig` first (the lenient read-seam
-// projection — lifts an older shape forward), exactly like every other preset read, so the export carries a
-// current-version config. The RELATIONAL half (the owner-scoped read) lives HERE; the codec stays the serde.
-//
-// `import.ts` is the round-trip twin (the codec's `parsePresetFile` half). The filename slugs the preset name
-// (`@orb/kit/slug`); the delivery-core registry descriptor prefixes the bundle `dir`.
+// verb: export — the orb-native preset backup export: read all of the owner's own presets (the un-owned
+// system default is excluded — it re-seeds on the target box) and emit one portable orb.preset JSON file
+// per preset via buildPresetFile. import.ts is the round-trip twin (parsePresetFile).
 
 import { buildPresetFile, parsePromptConfig } from "@orb/contracts/preset";
 import { slugifyHandle } from "@orb/kit/slug";

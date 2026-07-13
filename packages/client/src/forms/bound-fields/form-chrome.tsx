@@ -1,13 +1,7 @@
-// The bound FORM components (the save chrome): SubmitButton (canSubmit/isSubmitting), DirtyPill,
-// and the form-level error banner (`errorMap.onSubmit` — where a form-level/server validator's
-// `{ form }` message lands). State reads go through `form.Subscribe` (the render-prop selector —
-// the composition example's own pattern): react-form re-exports only the DEPRECATED `useStore`
-// hook (the no-deprecated gate rejects it), and importing `useSelector` straight from
-// `@tanstack/react-store` would be a phantom dep — Subscribe is the sanctioned, selector-scoped
-// read. The DirtyPill reads `!isDefaultValue` — the DOCUMENTED non-persistent dirty signal (the
-// library does the structural compare; auto-clears on revert AND after `reset(saved)`) — NOT raw
-// `isDirty`, which is persistent-by-design and never clears (UI-Lib-TanStack-Form.md §C-1/E-1; the
-// hand-rolled `fieldValuesEqual` deep-compare this replaces was DELETED per E-6).
+// The bound FORM components (the save chrome): SubmitButton, DirtyPill, and the form-level error banner.
+// State reads go through form.Subscribe — react-form re-exports only the deprecated useStore hook, and
+// importing useSelector straight from @tanstack/react-store would be a phantom dep. DirtyPill reads
+// `!isDefaultValue`, not raw `isDirty` (which never clears).
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";

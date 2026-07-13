@@ -8,10 +8,9 @@ import type { SessionsContext, SessionsService } from "../contract/service";
 import { insertSession } from "../persistence/sessions";
 import { selectKindById } from "../persistence/users";
 
-// Mint a revocable BFF session: a 32-byte opaque token (the route sets it as the cookie) whose PEPPERED
-// HASH alone is persisted (the raw token never touches the db). Every mint IS a login in
-// every mode (local route + OIDC callback funnel here), so it audits AUTH_LOGIN; admin-initiated revokes
-// audit at the admin layer.
+// Mint a revocable BFF session: a 32-byte opaque token whose peppered hash alone is persisted. Every
+// mint is a login (local route + OIDC callback funnel here), so it audits AUTH_LOGIN; admin-initiated
+// revokes audit at the admin layer.
 
 const RANDOM_TOKEN_BYTES = 32;
 const AUTH_LOGIN = "AUTH_LOGIN";
@@ -19,10 +18,8 @@ const SESSION_ENTITY = "session";
 
 export function createCreate(ctx: SessionsContext): Pick<SessionsService, "create"> {
   async function create(params: CreateSessionParams): Promise<CreateSessionResult> {
-    // Defense-in-depth belt (agent-principal-design/01 §3.2, FLAG[PD-17]): an agent principal is structurally
-    // sessionless. Every legitimate caller already resolves a human userId (ensureUser/provisionIdentity/
-    // authenticate refuse agents), and `validate` re-blocks the JOIN — this refuses the mint outright so a
-    // future caller bug can never hand an agent a live cookie. "There is no legitimate caller."
+    // FLAG[PD-17]: an agent principal is structurally sessionless — refuse the mint outright so a future
+    // caller bug can never hand an agent a live cookie.
     if ((await selectKindById(ctx.db, params.userId)) === "agent") {
       throw new DomainForbiddenError(
         "agent principals are sessionless — no BFF session may be minted",

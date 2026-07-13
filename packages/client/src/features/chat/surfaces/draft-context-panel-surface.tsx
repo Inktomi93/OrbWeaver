@@ -1,18 +1,7 @@
-// The DRAFT CONTEXT panel (J2/J3) — the shell's right-region body for an active DRAFT chat, the twin of
-// `ChatContextPanel` for a chat that has no server row yet. A draft is fully editable pre-send, so its
-// config tabs write to the `draft-config` store (keyed by `draftKey`) instead of the server verbs; the
-// first send carries the whole config into `chat.startChat` (use-send-message.ts). Same editors, same
-// look as the committed panel — only the SOURCE (draftConfig + the founding cards) + SAVE seam (setDraft*)
-// differ (the source-agnostic editor discipline, decision #3), never a separate "draft mode" UI.
-//
-// HOST: a draft is authored by (and only visible to) its creator, so the viewer is ALWAYS host — every
-// tab is live. The Overrides tab needs no server read (draftConfig); the Roster tab reads the FOUNDING
-// cards (`character.get`) for the member names — the same reads the greeting preview already warmed
-// (shared Query cache) — inside its own QueryBoundary.
-//
-// TABS: Overrides · Injections (always) · Members · Group (GROUP drafts only — ≥2 founding characters,
-// mirroring the committed gates; a draft has no humans, so Members is Cast-only). The Preview tab is
-// deliberately ABSENT — there is no server assembly to preview before the chat exists.
+// The draft context panel — the twin of ChatContextPanel for a chat with no server row yet. A draft is
+// fully editable pre-send, so its config tabs write to the draft-config store instead of server verbs;
+// the first send carries the whole config into chat.startChat. A draft's author is always host, so
+// every tab is live. No Preview tab — there's no server assembly to preview before the chat exists.
 
 import type { ChatInjectionInput, RoomOverrides } from "@orb/contracts/chat";
 import {
@@ -53,25 +42,20 @@ import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
 
 const EMPTY_ROOM_OVERRIDES: RoomOverrides = {};
 const NO_INJECTIONS: readonly ChatInjectionInput[] = [];
-/** The seed for a freshly-added draft injection (mirrors the committed `NEW_INJECTION`). */
 const NEW_DRAFT_INJECTION: ChatInjectionInput = {
   position: "in_chat",
   depth: 0,
   role: "system",
   content: "",
 };
-/** A group draft (mute/talkativeness are meaningless for a solo cast — the committed roster-of-1 gate). */
 const GROUP_FLOOR = 2;
 
 export interface DraftContextPanelProps {
-  /** The active draft's key — the draft-config store partition every tab reads/writes. */
   readonly draftKey: string;
-  /** The founding SEED cast (from `draftSeed`). Pre-send add-member widens the effective cast internally
-   *  (seed ∪ `config.addedCharacterIds`) — home-page threads only the seed, mirroring `resolveDraftCommit`. */
+  /** The founding seed cast; pre-send add-member widens the effective cast internally. */
   readonly characterIds: readonly CharacterId[];
 }
 
-/** The draft CONTEXT panel — the pre-send config tabs, writing to the draft-config store. */
 export function DraftContextPanel({
   draftKey,
   characterIds,
@@ -80,27 +64,18 @@ export function DraftContextPanel({
   useFocusOnMount(surfaceRef);
 
   const draftConfig = useDraftConfig(draftKey);
-  // The EFFECTIVE founding cast = the seed ∪ any pre-send add-member picks (the SAME fold the commit does,
-  // draft-commit.ts). Deduped so a re-add never double-seats. Drives the Roster/Group tabs + their gate,
-  // and the add-member picker's exclude set — so an added member disappears from the picker + appears in
-  // Roster the instant it's added, and a 2nd add flips a solo draft into a group (Roster/Group tabs appear).
+  // Deduped seed union pre-send add-member picks; drives the Members/Group tabs + gate.
   const cast = [...new Set([...characterIds, ...(draftConfig.addedCharacterIds ?? [])])];
-  // A draft is always hosted by its author. The Members tab shows only for a GROUP draft (mirrors the
-  // committed Cast ≥2 disclosure gate). A hidden/stale `contextTab` request falls back per the §7 ONE
-  // rule (Members if it renders, else Overrides).
   const showMembers = cast.length >= GROUP_FLOOR;
   const contextTab = useContextTab();
   const visibleTabs = new Set<string>(["overrides", "injections"]);
   if (showMembers) {
-    // Group config is group-only (the same gate as Members' Cast — generation behavior is meaningless solo).
     visibleTabs.add("members");
     visibleTabs.add("group");
   }
   const defaultTab = showMembers ? "members" : "overrides";
   const activeTab = contextTab !== null && visibleTabs.has(contextTab) ? contextTab : defaultTab;
 
-  // The draft persist seam for Overrides (the committed twin passes the `setRoomOverrides` verb): a
-  // synchronous store write, wrapped as the Promise the autosave form's `save` contract expects.
   const saveOverrides = (overrides: RoomOverrides): Promise<unknown> => {
     setDraftRoomOverrides(draftKey, overrides);
     return Promise.resolve();
@@ -108,9 +83,6 @@ export function DraftContextPanel({
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full outline-none">
-      {/* Pre-send add-member (the audit's D3): a "Cast" header row with the same "+" picker the committed
-          cast bar carries, ABOVE the tabs so it's reachable even on a solo draft (add-member is how a solo
-          draft grows into a group). Writes `addDraftCharacter`; `cast` excludes the current members. */}
       <Row align="center" justify="between" className="px-block py-row">
         <Text size="label" tone="muted" weight="medium">
           Cast
@@ -164,8 +136,6 @@ export function DraftContextPanel({
           <TabsPanel value="group">
             <GroupConfigForm
               entityId={`${GROUP_CONFIG_ENTITY_PREFIX}draft:${draftKey}`}
-              // The draft stores a lenient `GroupConfigInput`; parse it (defaults-filled) to the full
-              // `GroupConfig` the form edits. Absent ⇒ the default room behavior.
               config={groupConfigSchema.parse(draftConfig.groupConfig ?? DEFAULT_GROUP_CONFIG)}
               save={(next): Promise<void> => {
                 setDraftGroupConfig(draftKey, next);
@@ -188,14 +158,9 @@ interface DraftInjectionsTabProps {
   readonly injections: DraftConfig["injections"];
 }
 
-/** The draft Injections tab body — the local `draftConfig.injections` array projected into the pure
- *  `InjectionsList`, writing back via `setDraftInjections` (add = append, save = replace-in-place, delete =
- *  filter-out). No server round-trip; the first send carries the whole array into `chat.startChat`.
- *
- *  ROW IDENTITY: a draft injection has no server id, so each row is keyed by a STABLE client-side key held
- *  in a WeakMap over the injection OBJECT (the store preserves the untouched items' object identity across
- *  add/save/delete). Keying by array INDEX instead would, on a delete, shift a survivor onto the deleted
- *  row's autosave form instance (the row's `entityId` = its key) and hand it a stale un-flushed draft. */
+// A draft injection has no server id, so each row is keyed by a stable client-side key held in a
+// WeakMap over the injection object. Keying by array index would, on a delete, shift a survivor onto
+// the deleted row's autosave form instance and hand it a stale un-flushed draft.
 function DraftInjectionsTab({ draftKey, injections }: DraftInjectionsTabProps): ReactElement {
   const current = injections ?? NO_INJECTIONS;
   const keysRef = useRef(new WeakMap<ChatInjectionInput, string>());
@@ -210,16 +175,13 @@ function DraftInjectionsTab({ draftKey, injections }: DraftInjectionsTabProps): 
     keysRef.current.set(injection, key);
     return key;
   };
-  // keyFor lazily stamps the WeakMap during render — safe under double-render: existing objects return
-  // their assigned key (idempotent), and a new object at worst takes a higher-but-still-unique seq.
-  // eslint-disable-next-line react-hooks/refs -- intentional WeakMap-over-object-identity keying (see the ROW IDENTITY note).
+  // eslint-disable-next-line react-hooks/refs -- intentional WeakMap-over-object-identity keying.
   const rows = current.map((value) => ({ key: keyFor(value), value }));
 
   return (
     <InjectionsList
       rows={rows}
       isHost={true}
-      // A FRESH object per add (spread) so two added rows never share one WeakMap key.
       onAdd={(): void => setDraftInjections(draftKey, [...current, { ...NEW_DRAFT_INJECTION }])}
       onSave={(key, values: InjectionFormValues): Promise<unknown> => {
         const next = current.map((inj) => (keyFor(inj) === key ? fromInjectionForm(values) : inj));
@@ -242,10 +204,6 @@ interface DraftMembersTabProps {
   readonly rosterOverrides: DraftConfig["rosterOverrides"];
 }
 
-/** The draft Members tab body — the founding cast projected into Cast rows (names/avatars from the
- *  founding cards, mute/talkativeness from `draftConfig.rosterOverrides`), writing to
- *  `setDraftRosterOverride`. People is empty (a draft has exactly its author) and there is no
- *  force-turn (a draft has no turn to force) — the callback omissions, per the source-agnostic panel. */
 function DraftMembersTab({
   draftKey,
   characterIds,

@@ -1,18 +1,8 @@
-// The TYPE-MEMBERSHIP reconciliation stage (UNIFIED-VERIFICATION-DESIGN.md §3 — the type-coverage floor).
-// The problem it makes structurally impossible: a file under tests/** or playwright/** that is in NO type
-// program — checked by NOTHING. Coverage historically rode on DIRECTORY + suffix globs across three
-// disjoint programs (the DOM-less root graph, the two browser package tsconfigs' `*.tsx` reach-backs), and
-// a DOM-coupled `.ts` test (or a new test dir outside the globs) escaped every one with nothing to catch
-// it (the preset-editor-bridge.int.test.ts hole).
-//
-// THE INVARIANT: every type-relevant SOURCE file under tests/** + playwright/** (`*.ts`/`*.tsx`/`*.mts`/
-// `*.cts`, incl. `.d.ts`) must appear in ≥1 type program's IMPORT CLOSURE. This stage runs
-// `tsgo --listFilesOnly` (module resolution only — NO typecheck, so it stays cheap) for each program, unions
-// their closures, and asserts the enumerated test files are a SUBSET. Any file in zero programs FAILS the
-// stage (exit 1) with the escapee list + the fix hint.
-//
-// It speaks the repo's own 0/1/2/3 exit scheme (§3.3): 0 clean · 1 violations (escapees) · 2 tool error (a
-// tsgo listing broke — the run is not a verdict) · 3 misuse. Classified `ownScheme` in the registry.
+// The type-membership reconciliation stage (UNIFIED-VERIFICATION-DESIGN.md §3): every type-relevant
+// SOURCE file under tests/** + playwright/** must appear in ≥1 type program's import closure — else it is
+// checked by NOTHING. Runs `tsgo --listFilesOnly` (module resolution only, no typecheck) for each program,
+// unions the closures, and asserts the enumerated test files are a subset. Speaks the repo's own 0/1/2/3
+// exit scheme: 0 clean · 1 violations (escapees) · 2 tool error (a tsgo listing broke).
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";

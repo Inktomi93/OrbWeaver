@@ -1,15 +1,6 @@
-// The device-local Recent-models MRU store (Settings → Connections → Model roles — the picker's "Recent"
-// group; CONNECTIONS-BUILD-SPEC §3). DEVICE-LOCAL by design: "what I recently picked on THIS machine" is a
-// convenience affordance, never synced routing truth (§12.1 — the actual selection persists server-side via
-// the routing autosave form). It must survive a reload, so it goes through `createPersistedStore` (the ONE
-// device-local persistence door) — NOT a bare localStorage read/write (persistence-boundary gate).
-//
-// Shape: one blob keyed by source (`{ bySource: { openrouter: [id,…], … } }`) — a single persisted store
-// holding every source's MRU, capped + de-duped per source. `pushRecentModel` unshifts (most-recent-first),
-// drops the duplicate, and caps; the picker reads its source's list via `useRecentModels`.
-//
-// State-law recap (gate `state:files`): one store per file, the handle never escapes — callers use the
-// intent-named action + the narrow read hook below, never the raw store.
+// The device-local Recent-models MRU store — the model picker's "Recent" group. Device-local by design:
+// a convenience affordance, never synced routing truth. One blob keyed by source, capped + de-duped;
+// pushRecentModel unshifts (most-recent-first).
 
 import { isPlainObject } from "@orb/kit/guards";
 import { createPersistedStore } from "./create-persisted-store";

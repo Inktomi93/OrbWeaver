@@ -173,12 +173,9 @@ function freshDerivationKind(raw: Node): string | undefined {
   return Node.isCallExpression(expr) ? calleeDerivationKind(expr) : undefined;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// The legacy predicate as a CallExpression subscription: a store-hook call whose inline selector returns
-// a fresh object/array (directly, from a block return, or from a ?:/??/||/&& branch), an Object.keys/
-// values/entries, or an array-rebuilding method — unless useShallow-wrapped. scanRoot mirrors the legacy
-// clientRel filter. ONE finding per call site (the legacy `break`); the derivation kind rides the finding
-// as its token, so the grouped output shows what each site returned.
+// A store-hook call whose inline selector returns a fresh object/array (directly, from a block return, or
+// from a ?:/??/||/&& branch), an Object.keys/values/entries, or an array-rebuilding method — unless
+// useShallow-wrapped. ONE finding per call site; the derivation kind rides as its token.
 const ZUSTAND_MESSAGE =
   "zustand selector returns a fresh object/array (or an Object.keys/values/entries / array-rebuilding derivation) — under v5's Object.is default (no implicit shallow compare) this spins useSyncExternalStore forever. Wrap the selector in useShallow(...), narrow it to a single field, or return a frozen module constant (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5).";
 

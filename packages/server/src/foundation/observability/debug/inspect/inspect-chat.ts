@@ -1,8 +1,6 @@
-// foundation/observability/debug/inspect/inspect-chat — a deep dump of one chat's stored state: the chat
-// row, the roster (D16 chat_participants), every message slot WITH its selected variant's content (D26),
-// the agent-sdk session-cache frame count (D8/D25 — keyed by chatId, NOT a chats.sessionId), and recent
-// bus events. The "did it actually land in the DB?" check the log/trace rings can't answer. Reads @orb/db
-// DOWN. No characterVersions (D28 — the card is the flat `characters` row).
+// A deep dump of one chat's stored state: the chat row, the roster, every message slot with its selected
+// variant's content, the agent-sdk session-cache frame count, and recent bus events. The "did it actually
+// land in the DB?" check the log/trace rings can't answer.
 
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
@@ -31,8 +29,8 @@ const RECENT_EVENT_LIMIT = 50;
 /** One roster member (the kind shape + the resolved character name when it's a character). */
 export interface InspectedParticipant {
   id: string;
-  kind: ParticipantKind; // the canonical roster-kind union (PD-8 — no stringly-typed dump)
-  role: ParticipantRole; // the canonical host|member union (PD-8)
+  kind: ParticipantKind;
+  role: ParticipantRole;
   userId: UserId | null;
   characterId: CharacterId | null;
   characterName: string | null;
@@ -92,7 +90,6 @@ export async function inspectChatState(db: Db, chatId: ChatId): Promise<ChatInsp
     characterName: characterName ?? null,
   }));
 
-  // The slot joined to its SELECTED variant (D26 — content lives on the variant the pointer names).
   const messageRows = await db
     .select({ m: messages, v: messageVariants })
     .from(messages)

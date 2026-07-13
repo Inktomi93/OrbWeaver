@@ -36,13 +36,10 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — multi-arm, per-arm SCOPE) ────────────────────
 // Three arms, THREE scopes, THREE messages — ONE gate. The type arm (MemberCardView decl outside
 // contracts), the clamp arm (clampMemberCard/resolveCardVisibility decl outside the clamp home), and the
-// resurrection arm (getRosterCardView identifier in server src). Because the arms have DIFFERENT path
-// scopes that overlap differently, there is NO single scanRoot — each arm re-checks the file path inside
-// visit (exactly as the legacy run). Each finding carries its arm's own message. Per-occurrence. Kept
-// ALONGSIDE the legacy Check.
+// resurrection arm (getRosterCardView identifier in server src). Each arm re-checks the file path inside
+// visit — the scopes overlap differently, so there is no single scanRoot.
 function reportAt(ctx: GateRunCtx, node: Node, message: string, token: string): void {
   const sf = node.getSourceFile();
   const finding: Finding = {

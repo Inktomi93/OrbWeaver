@@ -1,11 +1,8 @@
-// AssemblyRack — the request, top to bottom (BUILD-SPEC §3.3). ONE `<SortableList handle>` over ALL
-// sections, the `chat_history` pivot INCLUDED as a real sortable item. `handle` mode = grip-only drag, so
-// the row's own name-button/switch stay clickable and keyboard reorder ships free (sortable.tsx). A
-// completed drag diffs the new key order against the current order and calls `form.moveFieldValues
-// ("sections", from, to)` — the real TanStack array move. Zones RE-DERIVE every render from the first
-// `chat_history` index (derive-zones), so dragging the pivot re-zones the rows + strip live; nothing is
-// stamped on the sections. A preset with NO pivot shows a callout row (add chat history); duplicate pivots
-// render as inert warning bands.
+// AssemblyRack — the request, top to bottom. One `<SortableList handle>` over all sections, the
+// `chat_history` pivot included as a real sortable item. A completed drag diffs the new key order against
+// the current one and calls `form.moveFieldValues`. Zones re-derive every render from the pivot index, so
+// dragging the pivot re-zones live. A preset with no pivot shows a callout row; duplicate pivots render
+// as inert warning bands.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
@@ -24,14 +21,9 @@ import { SectionRow } from "./section-row";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
-// diffMove lives in ./reorder-move (a tested pure lib — the naive first-divergence diff is wrong for
-// any drag longer than one slot).
-
 export interface AssemblyRackProps {
   readonly form: AssemblyForm;
-  /** The CONTEXT-selected section id (highlights its row). */
   readonly selectedSectionId: string | null;
-  /** Select a section → reveal the inspector (the route-built choreography, §3.4). */
   readonly onSelectSection: (sectionId: string) => void;
   /** Append a `chat_history` marker (the missing-pivot callout action). */
   readonly onAddChatHistory: () => void;
@@ -43,8 +35,6 @@ export function AssemblyRack({
   onSelectSection,
   onAddChatHistory,
 }: AssemblyRackProps): ReactElement {
-  // `form.Subscribe` over the live sections array (the blessed live-read, character-advanced-tab
-  // precedent) — a reorder / enable-toggle re-renders the rack; zones RE-DERIVE from the fresh order.
   return (
     <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
       {(sections): ReactElement => {

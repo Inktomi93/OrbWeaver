@@ -7,9 +7,7 @@ import { Check, Icon } from "#primitives/icons";
 import { TOKENS } from "#tokens";
 import { mediaGridVariants } from "./variants";
 
-// Same gap-token discipline as the virtual-list seal (§7 GAP_TOKENS) — duplicated rather than
-// imported: the two seals are independent primitives, and 10 lines of shared trivia isn't worth
-// coupling them (DRY-is-not-gospel).
+// Duplicated from virtual-list's own gap-token conversion rather than shared (independent primitives).
 const GAP_TOKENS = ["field", "row", "block", "section", "gutter"] as const;
 type MediaGridGapToken = (typeof GAP_TOKENS)[number];
 const ROOT_FONT_SIZE_PX = 16;
@@ -21,7 +19,7 @@ function gapPxFor(token: MediaGridGapToken | undefined): number {
   return Number.parseFloat(TOKENS[`spacing.${token}`].value) * ROOT_FONT_SIZE_PX;
 }
 
-// Same D43 §11.3 tripwire as VirtualList — an unbounded scroll parent makes virtualization a no-op.
+// Same tripwire as VirtualList — an unbounded scroll parent makes virtualization a no-op.
 const UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER = 3;
 
 const DEFAULT_MIN_CELL_WIDTH_PX = 96;
@@ -38,20 +36,14 @@ function computeCellEstimatePx(containerWidthPx: number, columns: number, gapPx:
   return Math.max(1, (containerWidthPx - gapPx * (columns - 1)) / columns);
 }
 
-// Spotlight (effects catalog F) — a pointer-follow radial reveal on grid cells (globals.css paints it
-// through the cell's border). The ONLY effect needing JS: one delegated `pointermove` on the scroll
-// root writes `--x`/`--y` (px, cell-relative) onto whichever cell is under the pointer — a raw
-// style.setProperty, never React state, so a mousemove is a CSS-var write with ZERO re-render.
-// HARD GUARDS: fine-pointer only + honor prefers-reduced-motion (drop the follow entirely) — both
-// checked once via matchMedia so a touch / reduced-motion user never even installs the listener (the
-// CSS @media gate is the paint-side twin, so a stale attribute can never leak a static frame).
+// Pointer-follow spotlight reveal (globals.css paints it via --x/--y). A delegated pointermove on
+// the scroll root writes the vars directly (style.setProperty, no React state, zero re-render).
 function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
   const matchMedia = globalThis.matchMedia?.bind(globalThis);
   if (root === null || matchMedia === undefined) {
     return;
   }
-  // Fine-pointer only (never touch) + honor reduced-motion (one-home read) — a failing guard means the
-  // listener is never installed, so a touch/reduced-motion user has zero runtime cost and no stray var.
+  // Fine-pointer only + honor reduced-motion, so a touch/reduced-motion user never installs the listener.
   if (!matchMedia("(pointer: fine)").matches || prefersReducedMotionNow()) {
     return;
   }
@@ -77,10 +69,8 @@ export type MediaGridKey = string | number;
 export interface MediaGridItem {
   readonly id: MediaGridKey;
   /**
-   * The full-resolution/original asset. ALWAYS the rendered `src` when `animated` — resizing an
-   * animated GIF/WebP freeze-frames it, so there is no thumbnail path for those (gallery-design.md
-   * §1.2: "animated renders the original, not a `?w=` variant"). Also the fallback `src` for a
-   * static item with no `thumbUrl`.
+   * The full-resolution/original asset. Always the rendered `src` when `animated` — resizing an
+   * animated GIF/WebP freeze-frames it. Also the fallback `src` for a static item with no `thumbUrl`.
    */
   readonly url?: string;
   /** An optimized/smaller variant preferred over `url` — used ONLY for non-animated items. */
@@ -141,10 +131,7 @@ interface MediaGridCellProps<T extends MediaGridItem> {
   readonly registerRef: (index: number, el: HTMLDivElement | null) => void;
 }
 
-/**
- * One grid cell — split out from `MediaGrid`'s row map purely to keep that closure's cognitive
- * complexity in bounds; it carries no state of its own beyond the src-dispatch (`pickSrc`).
- */
+/** One grid cell — split out from `MediaGrid`'s row map to keep that closure's complexity in bounds. */
 function MediaGridCell<T extends MediaGridItem>({
   item,
   flatIndex,
@@ -204,33 +191,11 @@ function MediaGridCell<T extends MediaGridItem>({
 }
 
 /**
- * The virtualized 2D media grid `@tanstack/react-virtual` seal (ui-package-design §6.1 / work-order
- * #6) — the sibling to `@orb/ui/virtual-list` for the shape that seal is explicitly NOT (a
- * responsive N-column grid, not a 1D row list). Same sealing discipline: `directDomUpdates: true` +
- * `containerRef` (the React-Compiler-safe fix) + `useFlushSync: false` + `measureElement` +
- * `data-index` wiring + the D43 §11.3 unbounded-height tripwire. Only the ROW axis is virtualized
- * (TanStack's `lanes` option is a masonry primitive — round-robins items across lanes of
- * independent height — not a fit for a uniform square grid where every row holds exactly N cells;
- * a plain row virtualizer with CSS `grid-template-columns` is the documented approach for that
- * shape and is what this seal does). Column count is measured from the scroll container's width via
- * `ResizeObserver` (`minCellWidth` is a floor, not a fixed size) — cells stay exactly square via
- * `aspect-square`, reserving their box before any image loads (no layout shift).
- *
- * Keyboard: roving tabindex over the flat item sequence — ArrowLeft/Right ±1, ArrowUp/Down
- * ±`columns`, Home/End to the first/last item; moving focus off-screen scrolls the target row into
- * view first, then focuses once it mounts. Each cell is `role="gridcell"` with `aria-label={alt}`
- * inside a `role="row"`/`role="grid"` shell (`aria-rowcount`/`aria-colcount`/`aria-rowindex`/
- * `aria-colindex` so AT gets correct position context even though most rows are never in the DOM).
- *
- * Usage:
- * ```tsx
- * <MediaGrid
- *   items={assets}
- *   ariaLabel="Gallery"
- *   onActivate={(a) => openLightbox(a.id)}
- *   className="h-full"
- * />
- * ```
+ * The virtualized 2D media grid: a responsive N-column grid, sibling to `virtual-list`'s 1D row
+ * shape. Only the ROW axis is virtualized — a plain row virtualizer with CSS grid-template-columns,
+ * since TanStack's `lanes` masonry option doesn't fit a uniform square grid. Column count is
+ * measured from the scroll container's width via ResizeObserver (`minCellWidth` is a floor).
+ * Keyboard: roving tabindex — ArrowLeft/Right ±1, ArrowUp/Down ±`columns`, Home/End to first/last.
  */
 export function MediaGrid<T extends MediaGridItem>({
   items,
@@ -257,9 +222,8 @@ export function MediaGrid<T extends MediaGridItem>({
   const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
-    // Rows are pure layout groupings of the flat `items` array, not persistent entities — unlike
-    // VirtualList's id-keyed rows, index keys are correct here (append-scroll galleries never
-    // reorder/prepend the grouping, only grow it).
+    // Rows are pure layout groupings, not persistent entities — index keys are correct here (unlike
+    // VirtualList's id-keyed rows) since galleries only append, never reorder/prepend.
     getItemKey: (index) => index,
     estimateSize: () => cellEstimateRef.current,
     overscan,
@@ -269,11 +233,8 @@ export function MediaGrid<T extends MediaGridItem>({
     useFlushSync: false,
   });
 
-  // Column count is measured, not guessed — `minCellWidth` is a floor the ResizeObserver divides
-  // the real container width by. Only the COLUMN COUNT needs manual measurement; the resulting row
-  // HEIGHT (derived from `aspect-square`) is picked up by the virtualizer's own `measureElement`
-  // ResizeObserver on each mounted row once the reflow happens (below), so no explicit
-  // `rowVirtualizer.measure()` call is needed here.
+  // Only column count needs manual measurement; row height (aspect-square) is picked up by the
+  // virtualizer's own measureElement ResizeObserver once mounted.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el === null) {
@@ -296,13 +257,10 @@ export function MediaGrid<T extends MediaGridItem>({
     return (): void => observer.disconnect();
   }, [minCellWidth, gapPx]);
 
-  // Spotlight pointer-follow (effects catalog F) — one delegated listener on the scroll root; the
-  // guards live in attachSpotlight (fine-pointer + reduced-motion), so this is a no-op teardown when
-  // they fail. Cells mount/unmount under virtualization, so delegating on the stable root beats a
-  // per-cell listener. Runs once (the root ref is stable for the grid's lifetime).
+  // Delegated on the stable root since cells mount/unmount under virtualization.
   useLayoutEffect(() => attachSpotlight(scrollRef.current), []);
 
-  // The unbounded-window tripwire (D43 §11.3) — thrown, not warned. Identical to VirtualList's.
+  // Unbounded-window tripwire: thrown, not warned. Identical to VirtualList's.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el === null) {
@@ -422,8 +380,7 @@ export function MediaGrid<T extends MediaGridItem>({
               data-index={virtualRow.index}
               data-slot="media-grid-row"
               key={virtualRow.key}
-              // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
-              // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.
+              // position:absolute without main-axis position — directDomUpdates writes `top` directly.
               ref={rowVirtualizer.measureElement}
               role="row"
               style={{

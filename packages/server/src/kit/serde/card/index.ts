@@ -1,19 +1,9 @@
-// @orb/server/kit/serde/card — the ONE home for the character-card serde core: the tolerant IN-adapter
-// (`cardFromJson`), the strict OUT-emitter (`buildCardV3` + the `character_book` entry mapper
-// `exportBookEntry`), and the card content hash (`cardContentHash`). Co-located so the round-trip is a
-// one-file invariant (shared-dissolution §1; PD-33 + PD-44). Server-only PURE: no DB, no logger, no fs — it maps an
-// already-JSON-parsed card object INTO / OUT of the canonical `@orb/contracts/character` shape and hashes a
-// canonical card's semantic fields. The byte surgery (PNG tEXt extraction) is `@orb/kit/png-card-chunk`;
-// the JSON.parse + the null-on-failure contract is the import parser's job (`domain/import/substrate/card`);
-// the PNG packaging + the DB reads are export's job (`domain/export`). Reaches UP to nothing
-// (server-kit-reaches-up-to-nothing) — it composes only DOWN: `@orb/kit/*` + `@orb/contracts/*` + node:*.
-//
-// PD-33: `cardContentHash` is the SINGLE home of the card semantic-fields hash — `domain/character` imports
-// it from here (no private copy). The IN/OUT halves hash-mirror: a re-import of an app-emitted card and the
-// original hash identically (the dedup property the determinism tests pin).
-// PD-44: `buildCardV3` / `exportBookEntry` (+ their `ExportCardFields` / `ExportWorldEntry` input shapes)
-// are the OUT half — promoted out of `domain/export/substrate/card-serde.ts` (the deleted stopgap) so there
-// is exactly one card emitter next to the one IN adapter.
+// The one home for the character-card serde core: the tolerant in-adapter (cardFromJson), the strict
+// out-emitter (buildCardV3 + the character_book entry mapper exportBookEntry), and the card content hash
+// (cardContentHash). Co-located so the round-trip is a one-file invariant. Server-only pure: no DB, no
+// logger, no fs — it maps an already-JSON-parsed card object into/out of the canonical contracts/character
+// shape and hashes a canonical card's semantic fields. `cardContentHash` is the single home of the hash;
+// the IN/OUT halves hash-mirror so a re-import of an app-emitted card hashes identically to the original.
 
 import { createHash } from "node:crypto";
 import type { CardDepthPrompt, CharacterCard, CharacterCardV3 } from "@orb/contracts/character";
@@ -215,13 +205,10 @@ function residualData(data: RawCard): Record<string, unknown> | null {
 const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
 
 /**
- * Normalize an already-JSON-parsed card object (any spec: V1 / Pygmalion / V2 / V3) into the canonical
- * `CharacterCard` (`@orb/contracts/character`). The tolerant IN half of the serde — `parseCardPng` /
- * `parseCardJson` (import) wrap it with chunk/byte decoding. `avatarAssetId` + `refinery` are not on the
- * card wire (the avatar is stored separately at import; refinery is pipeline-derived), so both are null;
- * tags + the embedded lorebook are external junctions in orbweaver (not card columns) and are NOT carried
- * here (the world-info / tag junction writes are the full importCharacter path —
- * `history/export-import-portability.md` §5, PD-77).
+ * Normalize an already-JSON-parsed card object (any spec: V1/Pygmalion/V2/V3) into the canonical
+ * `CharacterCard`. The tolerant in half of the serde — `parseCardPng`/`parseCardJson` wrap it with
+ * chunk/byte decoding. `avatarAssetId`/`refinery` are not on the card wire, so both are null; tags and
+ * the embedded lorebook are external junctions and are not carried here.
  */
 export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard {
   const cardJson = normalizeCardJson((raw ?? {}) as RawCard);
@@ -259,7 +246,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
   };
 }
 
-// ── cardContentHash (PD-33 — the ONE home; character imports it from here, no private copy) ────────────
+// cardContentHash — the one home; character imports it from here, no private copy.
 
 /** Deterministic JSON: object keys sorted recursively (arrays keep order), so two logically-identical
  *  cards serialize identically regardless of key insertion order — the property the determinism +
@@ -304,7 +291,7 @@ export function cardContentHash(card: CharacterCard): string {
     .digest("hex");
 }
 
-// ── the OUT half (PD-44 — `buildCardV3` + `exportBookEntry`; was domain/export/substrate/card-serde) ────
+// The OUT half — buildCardV3 + exportBookEntry.
 
 /** The live-card columns the card emitter projects to the V3 wire (the OUT-emitter input). `greetings[0]`
  *  is the first message; the rest are alternate greetings. `tags` are the ACCEPTED `character_tags` names
@@ -387,12 +374,8 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
   // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 }
 
-// ── the lorebook IN half (PD-77) — the byte-identical inverse of `exportBookEntry`, co-located here ────
-// so the WI-entry round-trip is a one-file invariant (the OPEN call in `export-import-portability.md` §5 —
-// co-locate the IN half next to the OUT half rather than split a world-entry module).
-// `cardFromJson` deliberately DROPS the embedded lorebook (a junction, not a card column); this half reads
-// it OFF the raw card (same pattern as the built import `extractCardTags`) so the import lorebook writer can
-// land `world_books`/`world_entries`/`character_books`. PURE — no DB, no domain types.
+// The lorebook IN half — the byte-identical inverse of exportBookEntry, co-located here. Pure — no DB, no
+// domain types.
 
 /** The `world_entries` column projection derived from ONE ST `character_book` entry (everything but the
  *  `metadata` blob, which {@link loreEntryMetadata} builds). `keys` is filtered to strings (ST keys are

@@ -1,25 +1,14 @@
-// The ONE interface every single-pass gate module exports (TSMORPH-SINGLE-PASS-AUDIT.md §1.1 + §9).
-// A gate NEVER walks anything itself — it DECLARES the SyntaxKinds it wants + a per-node predicate, and
-// the runner (pass.ts) feeds it via one shared walk. This is the read-side foundation; it runs ALONGSIDE
-// the legacy `Check` (harness.ts) during the parity migration — nothing here changes the legacy verdict.
-//
-// The richer `Finding` (§9.1) adds node-derived line+column (via getLineAndColumnAtPos, 1-indexed) and an
-// actionable `fix` string on top of the legacy `{file,line,message}` — the location comes from the AST
-// node, never a regex newline-guess.
+// The ONE interface every single-pass gate module exports. A gate never walks anything itself — it
+// declares the SyntaxKinds it wants + a per-node predicate, and the runner (pass.ts) feeds it via one
+// shared walk.
 import type { Node, Project, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 
-export type Severity = "error" | "warn"; // v1: every gate is "error" (today's semantics); "warn" is the
-// advisory tier the field reserves so a future non-failing gate needs no schema change (§9.4).
+export type Severity = "error" | "warn"; // "warn" is the advisory tier reserved for a future non-failing gate.
 
-/** A single-pass finding — EXHAUSTIVE + PER-OCCURRENCE (owner ruling 1): one finding per distinct
- *  violation INSTANCE (for a class-string gate, per offending TOKEN — `className="rounded-lg shadow-md"`
- *  is TWO findings, not one). It carries only the coordinate + the offending token; the human-readable
- *  reason (what's wrong + WHY + HOW to fix) lives ONCE on the gate descriptor (`message`/`fix`) and the
- *  reporter prints it once per group — a Finding never repeats prose (owner ruling 2).
- *
- *  `message` is retained as an OPTIONAL override for the rare finding whose text genuinely varies per
- *  occurrence (a stale-registry arm naming the dead entry); the reporter falls back to the descriptor's
- *  `message` when a finding omits its own. Superset of the legacy `Violation`. */
+/** A single-pass finding — one per distinct violation instance (a class-string gate emits one per
+ *  offending token, not one per className). The reason lives once on the gate descriptor
+ *  (`message`/`fix`); a Finding never repeats prose. `message`/`fix` here are per-occurrence overrides
+ *  for the rare finding whose text varies (e.g. a stale-registry arm naming the dead entry). */
 export interface Finding {
   readonly file: string; // repo-relative, posix — the jump-link path
   readonly line: number; // 1-based, FROM THE NODE. 0 only for genuinely file-level findings.
@@ -34,18 +23,18 @@ export type ScopeSafety =
   | "incremental-safe" // per-file verdicts: running on just the changed files is correct for those files
   | "whole-project"; // cross-file: registry/parity/uniqueness/coverage — needs the full tree
 
-export type GateStatus = "active" | "dormant"; // dormancy is DECLARED IN the module (§1.3)
+export type GateStatus = "active" | "dormant";
 
-/** What fileset a run covers (§4.1). v1 uses only `project`; the field is threaded so a gate's
- *  finalize can self-guard its stale/ratchet arm on `scope.kind === "project"` (§4.4). */
+/** What fileset a run covers. v1 uses only `project`; the field lets a gate's finalize self-guard its
+ *  stale/ratchet arm on `scope.kind === "project"`. */
 export type Scope =
   | { readonly kind: "project" }
   | { readonly kind: "package"; readonly name: string }
   | { readonly kind: "folder"; readonly glob: string }
   | { readonly kind: "changed"; readonly paths: readonly string[] };
 
-/** A self-proof example (§1.1). Single virtual file (per-node gates) OR a multi-file map (whole-project
- *  gates whose bite depends on another file). Documentation-with-teeth — a handful of lines, not a dump. */
+/** A self-proof example: single virtual file (per-node gates) or a multi-file map (whole-project gates
+ *  whose bite depends on another file). */
 export type GateExample = {
   /** `"code string"` → one virtual file at `at` (or a scanRoot default); a path→source map → a mini-project. */
   readonly files: string | Readonly<Record<string, string>>;
@@ -68,13 +57,9 @@ export interface GateRunCtx {
   readonly files: readonly SourceFile[]; // the scoped fileset the walk will visit
   /** Lazy — first access creates the Program/binder (pay once, shared by every gate that asks). */
   readonly checker: () => TypeChecker;
-  /** The finding sink (§9.1). All forms emit ONE finding per call — exhaustive/per-occurrence.
-   *  Overload 1: node-anchored (line/column FROM the node) — the whole node IS the occurrence.
-   *  Overload 2: token-anchored — a lexeme WITHIN a node (a class token inside a className string);
-   *    `offset` is the token's 0-based index into `node.getText()`, so the column lands on the token
-   *    itself, not the enclosing string. The offending token is recorded on the finding.
-   *  Overload 3: file-level / explicit (caller supplies the whole Finding, line/column 0 for a
-   *    file-level hit, or a stale-registry arm naming the dead entry). */
+  /** The finding sink. Overload 1: node-anchored (line/column from the node). Overload 2: token-anchored
+   *  — `offset` is the token's 0-based index into `node.getText()`, so the column lands on the token
+   *  itself. Overload 3: file-level / explicit (caller supplies the whole Finding). */
   readonly report: {
     (node: Node, atToken?: { readonly token: string; readonly offset: number }): void;
     (finding: Finding): void;
@@ -87,12 +72,11 @@ export interface GateDescriptor {
   readonly status: GateStatus;
   readonly scopeSafety: ScopeSafety;
 
-  // ---- the REASON, written ONCE (owner ruling 2) -----------------------------
-  /** The rule this gate enforces: WHAT is wrong + WHY we enforce it (pointer-bearing, per
-   *  diagnostic-legibility). The reporter prints this ONCE as the group header, then lists every
-   *  occurrence beneath it — a Finding never repeats this prose. */
+  // ---- the REASON, written ONCE -----------------------------
+  /** The rule this gate enforces: what is wrong + why. The reporter prints this once as the group
+   *  header, then lists every occurrence beneath it — a Finding never repeats this prose. */
   readonly message: string;
-  /** HOW to correct it / WHERE the themed vocabulary lives (§9.2). Printed once under the group header. */
+  /** How to correct it. Printed once under the group header. */
   readonly fix?: string;
   /** Which files this gate reads AT ALL — replaces file.ts's hand-kept GATE_SCOPES table. */
   readonly scanRoot?: (repoRelPath: string) => boolean;
@@ -110,10 +94,8 @@ export interface GateDescriptor {
   // ---- whole-project / fs-level pass ------------------------------------------
   /** A `whole-project` gate's own pass over the SAME shared Project (never a new Project). */
   readonly run?: (ctx: GateRunCtx) => void;
-  /** TRUE when this gate's hooks read the real filesystem (readdirSync/existsSync/readFileSync) rather
-   *  than only the ts-morph Project — so the conformance runner MATERIALIZES its examples into a real
-   *  auto-cleaned temp dir (loaded as a real-fs Project rooted there) instead of an in-memory Project
-   *  (which has no disk for those fs calls to see). TSMORPH-SINGLE-PASS-AUDIT.md §1.6. */
+  /** True when this gate's hooks read the real filesystem rather than only the ts-morph Project, so the
+   *  conformance runner materializes its examples into a real temp dir instead of an in-memory Project. */
   readonly fsBacked?: boolean;
 
   // ---- lifecycle around the single walk ---------------------------------------
@@ -121,8 +103,8 @@ export interface GateDescriptor {
   readonly finalize?: (ctx: GateRunCtx) => void; // judge accumulated state (ratchet stale arms live here)
 
   // ---- SELF-PROOF (required — the loader refuses an un-proven gate) ------------
-  /** ≥1 example the gate MUST flag — the standing "it bites" divergence proof. */
+  /** ≥1 example the gate must flag. */
   readonly mustFlag: readonly GateExample[];
-  /** ≥1 example the gate must NOT flag — the false-positive guard. */
+  /** ≥1 example the gate must not flag. */
   readonly mustPass: readonly GateExample[];
 }

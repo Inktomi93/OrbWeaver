@@ -1,7 +1,6 @@
-// domain/sessions — verb output shapes (the contract type home, §7.4). These are the three return shapes
-// the `entry/auth/seam` assembles the one `Principal` from (resolve-once, core/Spine-Identity-and-Auth.md):
-// `validate` (cookie path) → `ValidatedSession`, `provisionIdentity` (SSO/header path) → `ProvisionResult`,
-// `ensureUser` (fallback) → a bare `UserId`. None is a `Principal` itself — the seam adds `via` + mints it.
+// Verb output shapes. These are the three return shapes the entry auth seam assembles the one `Principal`
+// from: `validate` → `ValidatedSession`, `provisionIdentity` → `ProvisionResult`, `ensureUser` → a bare
+// `UserId`. None is a `Principal` itself — the seam adds `via` and mints it.
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
@@ -14,11 +13,9 @@ export interface CreateSessionResult {
   expiresAt: number;
 }
 
-/** `validate` output (ledger D40 — Route A): the cookie-resolved caller's principal-fields incl. `userId`.
- *  `role` is RE-READ from the `users` row each request (a role-change propagates next request). `enabled`
- *  is carried for shape-parity with `ProvisionResult` so the seam builds the `Principal` uniformly from
- *  either return; it is ALWAYS `true` on a non-null result, because `validate` GATES disabled rows to
- *  `null` (disable takes effect on the next request). */
+/** `validate` output: the cookie-resolved caller's principal-fields incl. `userId`. `role` is re-read from
+ *  the `users` row each request. `enabled` is always `true` on a non-null result, because `validate` gates
+ *  disabled rows to `null`. */
 export interface ValidatedSession {
   userId: UserId;
   role: UserRole;
@@ -27,35 +24,29 @@ export interface ValidatedSession {
   enabled: boolean;
 }
 
-/** The SSO login access + role decision (`substrate/role-policy.deriveIdentityAccess`) — homed here (the
- *  domain type home, §7.4) because both the substrate policy and the `provisionIdentity` verb consume it.
- *  `deny` = the `OIDC_ALLOWED_GROUPS` login gate refused the identity (in none of the allowed groups, and
- *  not owner/admin); `allow` carries the derived global role. */
+/** The SSO login access + role decision. `deny` = the allowed-groups login gate refused the identity;
+ *  `allow` carries the derived global role. */
 export type IdentityAccess =
   | { readonly outcome: "allow"; readonly role: UserRole }
   | { readonly outcome: "deny" };
 
-/** `provisionIdentity` output — a discriminated union: `provisioned` (the upserted row's id + live login
- *  state; the seam gates on `enabled` and carries `role` into the `Principal`) or `denied` (the
- *  `OIDC_ALLOWED_GROUPS` login gate refused the identity — NO row is created/updated; the seam → null →
- *  401, the OIDC route → 401). A `denied` result is distinct from `enabled:false` (a disabled account,
- *  which the OIDC route surfaces as 403). */
+/** `provisionIdentity` output — a discriminated union: `provisioned` (the upserted row's live login state)
+ *  or `denied` (the login gate refused the identity — no row is created/updated). Distinct from
+ *  `enabled:false` (a disabled account, surfaced as 403). */
 export type ProvisionResult =
   | { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole }
   | { readonly outcome: "denied" };
 
-/** `loadUserById` output (PD-73): a bare row id's live principal-fields — the entry root's frozen-host →
- *  `Principal` bridge (D19: the host funds the turn and may be offline, so the role-sensitive ops re-read
- *  the REAL `users.role` instead of fabricating one). NOT a login path: no `enabled` gate rides this read
- *  (the host isn't authenticating; their turn-funding policy is the D17 verbs' concern). */
+/** `loadUserById` output: a bare row id's live principal-fields — the frozen-host → `Principal` bridge. Not
+ *  a login path: no `enabled` gate rides this read. */
 export interface UserPrincipalFields {
   role: UserRole;
   handle: Handle;
   externalId: ExternalId | null;
 }
 
-/** `provisionAgentPrincipal` output (D60; agent-principal-design/01 §4): the agent's `users` id + whether
- *  THIS call minted it (`false` = the idempotent re-call, or the race loser, found the existing row). */
+/** `provisionAgentPrincipal` output: the agent's `users` id + whether this call minted it (`false` = the
+ *  idempotent re-call, or the race loser, found the existing row). */
 export interface ProvisionAgentResult {
   agentUserId: UserId;
   created: boolean;

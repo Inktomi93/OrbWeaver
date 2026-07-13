@@ -1,22 +1,15 @@
-/* LINT NOTE (biome `noDescendingSpecificity` is scoped OFF for this file in biome.json#overrides): the
- * glass/shadow/prefers-contrast rules below intentionally straddle @media (prefers-contrast / reduced-
- * transparency / max-width) boundaries and layer role-scoped over generic message-bubble rules — the
- * flagged "descending" pairs are either cross-@media (the rule can't see the context switch) or
- * higher-specificity-role over lower-specificity-generic by design. The cascade outcome is locked by the
- * app-shell.ct.tsx cascade tests; reordering for the lint would break the readable effect grouping. */
+/* biome `noDescendingSpecificity` is scoped off for this file: the glass/shadow/prefers-contrast rules
+ * below intentionally straddle @media boundaries and layer role-scoped over generic rules by design. */
 
-/* @orb/client — the app's single stylesheet. Pulls in @orb/ui's one CSS entry (Tailwind v4 + the
- * generated @theme + the unlayered floors — UI-Arch §3) and adds the two globals @orb/ui's stylesheet
- * defers to the consuming shell (Base UI stacking context + iOS backdrop coverage). */
+/* @orb/client's single stylesheet. Pulls in @orb/ui's CSS entry and adds the two globals it defers to
+ * the consuming shell (Base UI stacking context + iOS backdrop coverage). */
 @import "@orb/ui/styles/globals.css";
 
-/* Tailwind v4 content sources (paths relative to THIS file). @orb/ui lives outside the client's Vite
- * root, so its components' utility classes aren't auto-detected — declare its src explicitly, or every
- * composed primitive renders unstyled. `../` is the client's own tree. */
+/* @orb/ui lives outside the client's Vite root, so its utility classes aren't auto-detected without
+ * declaring its src explicitly. */
 @source "../";
 @source "../../../ui/src";
 
-/* The shell owns these (per @orb/ui/styles/globals.css). */
 :root {
   background-color: var(--color-background);
 }
@@ -28,14 +21,8 @@ body {
   background-color: var(--color-background);
 }
 
-/* THE SHELL IS THE WINDOW (task #14 — the no-window-scroll invariant). The 100dvh `.shell-grid` owns ALL
- * scrolling; the DOCUMENT itself must never scroll — a modal taller than the viewport scrolls INSIDE its
- * own Dialog viewport (overflow-y:auto, primitive-tier), never the page, and a stray focus-scroll can't
- * shift the shell (the UIP-205 rationale, promoted to the document root). `overflow: clip` removes html +
- * body as scroll containers entirely (stricter than `hidden`: no wheel/drag/programmatic-focus scroll),
- * so this holds with or without Base UI's own per-modal body scroll-lock. Enforced by the registry-driven
- * CT in app-shell.ct.tsx (every MODAL_SLOTS entry asserts the page can't scroll while the modal region
- * can) — the registry-pairing keystone spirit. */
+/* The 100dvh .shell-grid owns all scrolling; the document itself must never scroll. `overflow: clip`
+ * removes html/body as scroll containers entirely (stricter than `hidden`). */
 html,
 body {
   overflow: clip;
@@ -46,9 +33,7 @@ body {
   isolation: isolate;
 }
 
-/* WeaveGlyph silk-shimmer breathe (D62 — lib/weave-glyph.tsx `anim`) — a slow opacity pulse for the
- * empty-state "Weave your first thread" hero moment. REDUCED-MOTION: the unlayered floor in @orb/ui
- * globals.css freezes this to a static glyph, so no per-rule override is needed. Token/literal-free. */
+/* WeaveGlyph shimmer for the empty-state hero. Reduced-motion is frozen by @orb/ui's unlayered floor. */
 @keyframes orb-weave-shimmer {
   0%,
   100% {
@@ -62,20 +47,9 @@ body {
   animation: orb-weave-shimmer 3s ease-in-out infinite;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════════════════════
- * WS3 D44 §12.1 EFFECTS — glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects).
- * Root-stamped `data-blur-*`/`data-shadow` attrs (useAppearanceRootEffects, app-shell) live on <html>
- * so they reach PORTALLED content (Dialog/AlertDialog render to document.body). The pointer-coarse
- * mobile reduction is the one axis-3 exception and lives in shell.css (the only legal @media site).
- *
- * THE GLASS RECIPE (4 ingredients, NOT naive blur): backdrop-filter blur+saturate + a translucent
- * color-mix fill (a PER-SURFACE base tone, so the glass still reads as "that surface", not grey) +
- * the existing --color-border hairline (already painted by each surface's own border utility) + this
- * presence gate. READING-SURFACE RULE (Marinara DESIGN.md §4, stolen): `messages` gets the DENSE
- * (more-opaque) fill (--blur-fill-dense) since it sits behind scrolling prose; pure chrome (panels/
- * composer/modals) gets the lighter --blur-fill-chrome. `messages` is available but NEVER
- * default-checked (see BLUR_SURFACES / DEFAULT_BLUR_SURFACES, @orb/contracts/settings).
- * ══════════════════════════════════════════════════════════════════════════════════════════════ */
+/* Glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects). data-blur/data-shadow
+ * attrs live on html so they reach portalled content. "messages" gets the denser fill since it sits
+ * behind scrolling prose; chrome (panels/composer/modals) gets the lighter fill. */
 @supports (backdrop-filter: blur(1px)) {
   html[data-blur-panels] .shell-panel {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
@@ -93,10 +67,8 @@ body {
       transparent
     );
   }
-  /* WS3 — the reading/document CONTENT backing (shell.css gives it a solid `--color-card` over a bg
-   * image for every non-Chats section) upgrades to glass in lock-step with the side panels, so a frosted
-   * chrome look carries through the reader surface instead of leaving it an opaque slab beside glass
-   * panels. Card tone (the reading-surface token) at the lighter chrome fill (it's chrome, not prose). */
+  /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
+   * frosted look carries through instead of leaving it an opaque slab beside glass panels. */
   html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"])
     .shell-main {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
@@ -111,9 +83,7 @@ body {
       transparent
     );
   }
-  /* Per-role bubble base so the glass tints AS that bubble, not a generic grey (dense fill — reading
-   * surface). `[data-role]` is stamped on the row (message-row.tsx); `[data-slot="message-bubble"]`
-   * is its content child — combined selector, no new attribute needed. */
+  /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
   html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
     backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
     background-color: color-mix(
@@ -140,12 +110,7 @@ body {
   }
 }
 
-/* Fallback (no backdrop-filter support) — never a broken half-transparent surface: the effect simply
- * doesn't apply (the @supports block above never activates), so every surface stays its normal solid
- * token color. No override needed here — this comment documents the (absence of a) rule. */
-
-/* prefers-reduced-transparency: reduce → solid (footgun-proofing the researched recipe's own guard;
- * WCAG 1.4.x adjacent). Wins over the @supports block by source order (equal specificity). */
+/* prefers-reduced-transparency: reduce → solid. Wins over the @supports block by source order. */
 @media (prefers-reduced-transparency: reduce) {
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
@@ -157,8 +122,7 @@ body {
   }
 }
 
-/* prefers-contrast: high → stronger border + more opacity (never LESS legible under a stated
- * accessibility preference — the recipe leans MORE solid, not less, when contrast is requested). */
+/* prefers-contrast: high → stronger border + more opacity, never less legible. */
 @media (prefers-contrast: high) {
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
@@ -170,28 +134,20 @@ body {
   html[data-blur-messages] [data-slot="message-bubble"] {
     border-width: 2px;
   }
-  /* Grain (surfaceTexture) is a legibility-neutral dusting at rest, but a noise overlay works AGAINST a
-   * stated high-contrast preference — drop it entirely here, the same "never less legible" law the glass
-   * recipe above obeys. Opt-in + off by default, so this only fires for a user who set both. */
+  /* A noise overlay works against a stated high-contrast preference — drop it entirely here. */
   html[data-texture="grain"] .shell-grid::after,
   html[data-texture="grain"] [data-slot="card-root"]::after {
     display: none;
   }
 }
 
-/* appearance.shadowEffects — the subtle prose readability halo (message text ONLY, never chrome).
- * `text-shadow` inherits, so one declaration on the bubble container reaches every text node inside
- * (paragraphs/spans/em) without touching @orb/ui/markdown internals. */
+/* Subtle prose readability halo, message text only. text-shadow inherits, so one declaration reaches
+ * every text node inside the bubble. */
 html[data-shadow] [data-slot="message-bubble"] {
   text-shadow: var(--shadow-prose);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════════════════════
- * Phase 4b §B.5.3 — granular READING-TYPOGRAPHY (line-height/letter-spacing/paragraph-spacing/name+
- * body scale + the justify toggle). THE READING-SURFACE RULE: this governs spacing/sizing only — never
- * blur/glow (those stay chrome-only, see the glass recipe above). Root vars (useAppearanceRootEffects)
- * so a fresh user's numbers match tokens.json exactly (zero visual change until the sliders move).
- * ══════════════════════════════════════════════════════════════════════════════════════════════ */
+/* Reading typography — line-height/letter-spacing/paragraph-spacing/scale. Spacing/sizing only. */
 [data-slot="message-bubble"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale));
   line-height: var(--reading-line-height);
@@ -207,22 +163,11 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
   font-size: calc(var(--text-label) * var(--reading-name-scale));
 }
 
-/* Phase 4b §B.5.5 — accent-tint-the-UI (appearance.enableThemeColorization): opt-in, retints the
- * border/hairline chrome tokens from the accent color (D62's rationed "accent ≤10% of viewport" stays
- * the floor; this widens it deliberately, on request). Every bordered surface (composer/panels/dialogs/
- * cards) already reads `var(--color-border)`/`var(--color-sidebar-border)`, so retinting the CUSTOM
- * PROPERTY here reaches all of them from one declaration — never a per-surface override. Mixed against
- * `--color-foreground` (never self-referencing `--color-border`, which would be an invalid computed-
- * value cycle) so the result stays a low-alpha near-neutral hairline, just accent-shifted.
- *
- * TWO rules, same formula: the root `<ThemeScope>` (app-shell.tsx) wraps `.shell-grid` and ALREADY
- * declares `--color-border` inline (its own derived-contrast formula, D44 §12.4 Layer 1) —
- * inheritance always loses to an element's own declared value, so an `html`-only override would be
- * invisibly shadowed for every `.shell-grid` descendant (panels/composer/cards) the instant a theme is
- * active. The `.shell-grid`-scoped rule wins there (a ThemeScope DESCENDANT's own declaration beats
- * inheriting from its ancestor); the plain `html`-scoped rule is still needed for Dialog/AlertDialog,
- * which portal to `document.body` — OUTSIDE both `.shell-grid` and ThemeScope — same reasoning
- * `useAppearanceRootEffects`'s other root attrs document. */
+/* appearance.enableThemeColorization: retints border/hairline chrome tokens from the accent color.
+ * Mixed against --color-foreground, never self-referencing --color-border (an invalid computed-value
+ * cycle). Two rules needed: ThemeScope (app-shell.tsx) declares --color-border inline on .shell-grid,
+ * which would shadow an html-only override for every descendant; the plain html rule still covers
+ * Dialog/AlertDialog, which portal to document.body outside .shell-grid/ThemeScope. */
 html[data-theme-colorization] {
   --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
   --color-sidebar-border: color-mix(
@@ -240,14 +185,9 @@ html[data-theme-colorization] .shell-grid {
   );
 }
 
-/* appearance.surfaceTexture=grain — an OPT-IN film-grain overlay that breaks up flat-color banding on
- * the shell chrome + cards. Root-stamped `[data-texture=grain]` (useAppearanceRootEffects), off by
- * default (`none` removes the attr → zero visual change). A pointer-events-none `::after` painting an
- * inline SVG feTurbulence noise tile (data-URI, no network), `mix-blend-mode: soft-light` so it dusts
- * the surface without washing color, low opacity (~0.04). THE READING-SURFACE RULE: the overlay lands
- * on the shell grid + cards ONLY, NEVER `[data-slot="message-bubble"]` (grain over scrolling prose
- * hurts legibility). STATIC — a fixed tile, no animation (no jitter). `isolation:isolate` on
- * `.shell-grid` (shell.css) contains the blend so it composites against the surface, not the page. */
+/* appearance.surfaceTexture=grain — opt-in film-grain overlay on shell chrome + cards only, never
+ * message-bubble (grain over scrolling prose hurts legibility). Static inline SVG noise tile, no
+ * network, low opacity. */
 html[data-texture="grain"] .shell-grid::after,
 html[data-texture="grain"] [data-slot="card-root"]::after {
   content: "";
@@ -259,16 +199,13 @@ html[data-texture="grain"] [data-slot="card-root"]::after {
   mix-blend-mode: soft-light;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-/* The card slot needs a positioning context for its `::after` (the shell grid already has
- * `position:relative`). Scoped to the grain axis so a card without texture keeps its normal flow. */
+/* The card slot needs a positioning context for its ::after. */
 html[data-texture="grain"] [data-slot="card-root"] {
   position: relative;
 }
 
-/* Phase 4b §B.5b polish — chat-list EDGE-FADE: the thread scroll container dissolves softly under the
- * header/composer via `mask-image` (content genuinely fades to transparent, unlike an overlay gradient
- * which would paint OVER it) instead of hard-clipping. Token-driven stop (`--fade-edge-stop`,
- * tokens.json `fade.edge-stop`) — always on (pairs with any chatStyle, glass or not). */
+/* Chat-list edge-fade: dissolves softly under the header/composer via mask-image rather than
+ * hard-clipping. */
 [data-slot="message-list-scroll"] {
   -webkit-mask-image: linear-gradient(
     to bottom,
@@ -286,10 +223,8 @@ html[data-texture="grain"] [data-slot="card-root"] {
   );
 }
 
-/* Phase 4b §B.5b polish — the hairline avatar border: keeps an avatar from dissolving into a blurred/
- * photo background. AUTO-ON when a background image is active (`[data-has-bg-image]`, already stamped
- * on `.shell-grid` by app-shell.tsx) — data-driven, never a separate toggle. Theme-tinted (the accent),
- * ~1.25px for retina crispness (tokens.json `border-width.hairline`). */
+/* Hairline avatar border: keeps an avatar from dissolving into a blurred/photo background.
+ * Auto-on when a background image is active — data-driven, never a separate toggle. */
 .shell-grid[data-has-bg-image] [data-slot="avatar-root"] {
   border-width: var(--border-width-hairline);
   border-style: solid;

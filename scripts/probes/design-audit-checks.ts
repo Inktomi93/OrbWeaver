@@ -1,16 +1,9 @@
-// Pure, DOM-free classification logic for design-audit.ts — every function here takes a plain data
-// shape mirroring what getComputedStyle/getBoundingClientRect would yield (colors as {r,g,b}, sizes as
-// numbers, booleans for DOM facts already resolved) and returns a Finding or null. NO subjective
-// judgment: every threshold below is a fixed, cited number, not a vibe. This split exists so the
-// decision logic is unit-testable WITHOUT a browser (the vitest node lanes have no DOM — Spine-Testing.md
-// §7) — design-audit.ts's in-page walker (a raw-string page.evaluate, per _kit/browser.ts's docblock)
-// gathers the raw facts; ALL severity/threshold decisions live here, in one tested place.
+// Pure, DOM-free classification logic for design-audit.ts — takes plain data shapes mirroring
+// getComputedStyle/getBoundingClientRect output and returns a Finding or null. Every threshold
+// is a fixed, cited number. This split keeps the decision logic unit-testable without a
+// browser; design-audit.ts's in-page walker gathers the raw facts, this module classifies them.
 //
-// WCAG contrast formula + large-text thresholds ported from the reference "impeccable" antipattern
-// detector (relativeLuminance/contrastRatio, WCAG_LARGE_TEXT_PX = 18pt, WCAG_LARGE_BOLD_TEXT_PX = 14pt) —
-// standard WCAG 2.x math, not reinvented. Everything else (image distortion, tap targets, ARIA name
-// precedence, z-index/nested-card/gradient-text/animated-img-hover) has no upstream analog and is
-// designed fresh against the thresholds specified for this probe.
+// WCAG contrast formula + large-text thresholds are standard WCAG 2.x math, not reinvented.
 
 export type Severity = "P0" | "P1" | "P2" | "P3";
 
@@ -37,7 +30,7 @@ export function isAtOrAboveSeverity(sev: Severity, floor: Severity): boolean {
 
 export type Rgb = { readonly r: number; readonly g: number; readonly b: number };
 
-// sRGB→linear gamma correction (WCAG 2.x relative-luminance formula, ported from the reference detector).
+// sRGB→linear gamma correction (WCAG 2.x relative-luminance formula).
 const RGB_MAX_CHANNEL = 255;
 const SRGB_GAMMA_THRESHOLD = 0.039_28;
 const SRGB_LINEAR_DIVISOR = 12.92;
@@ -72,8 +65,7 @@ export function contrastRatio(a: Rgb, b: Rgb): number {
   return (Math.max(la, lb) + CONTRAST_OFFSET) / (Math.min(la, lb) + CONTRAST_OFFSET);
 }
 
-// CSS px per pt (96dpi/72pt) — WCAG's "18pt"/"14pt bold" large-text carve-out, expressed in the unit
-// getComputedStyle actually reports.
+// CSS px per pt (96dpi/72pt) — WCAG's "18pt"/"14pt bold" large-text carve-out.
 const CSS_PIXELS_PER_INCH = 96;
 const POINTS_PER_INCH = 72;
 const PT_TO_PX = CSS_PIXELS_PER_INCH / POINTS_PER_INCH;
@@ -89,14 +81,12 @@ export function isLargeText(fontSizePx: number, fontWeight: number): boolean {
   );
 }
 
-// Exported: snap.ts's --contrast reuses these floors directly rather than re-hardcoding them.
 export const NORMAL_MIN_RATIO = 4.5;
 export const LARGE_MIN_RATIO = 3;
 
-/** The resolved backdrop behind a text node — `flat` (a solid ancestor bg), `gradient` (color stops
- *  parsed straight out of the CSS gradient string — worst-stop ratio is used, an approximation, not
- *  pixel sampling), or `image-indeterminate` (a real `url(...)` background-image; no cheap DOM-only way
- *  to know its pixel color under the text, so it's flagged rather than silently passed). */
+/** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
+ *  ratio, not pixel sampling), or `image-indeterminate` (no cheap DOM-only way to sample a
+ *  real background-image, so it's flagged rather than silently passed). */
 export type Backdrop =
   | { readonly kind: "flat"; readonly color: Rgb }
   | { readonly kind: "gradient"; readonly stops: readonly Rgb[] }
@@ -110,10 +100,9 @@ export type ContrastInput = {
   readonly fontWeight: number;
 };
 
-/** Checks #1 (contrast) and #2 (text-over-art legibility) — one function, because they're the same
- *  math over a different backdrop shape. `image-indeterminate` and a failing `gradient` both report as
- *  rule "text-over-art" (OUR #1 defect class — text bled unreadable over a picture), weighted P0/P1; a
- *  failing flat background reports as plain "contrast" at P1. */
+/** Contrast + text-over-art legibility — same math over a different backdrop shape.
+ *  `image-indeterminate`/failing `gradient` report as "text-over-art" (P0/P1); a failing flat
+ *  background reports as "contrast" at P1. */
 export function checkContrast(input: ContrastInput): Finding | null {
   const large = isLargeText(input.fontSizePx, input.fontWeight);
   const minRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
@@ -172,9 +161,8 @@ export type ImageDistortionInput = {
   readonly naturalHeight: number;
   readonly renderedWidth: number;
   readonly renderedHeight: number;
-  /** Computed `object-fit` ("fill" is the CSS default and the only mode that STRETCHES to the box —
-   *  "cover"/"contain" deliberately crop/letterbox while preserving the source aspect, so a box/natural
-   *  aspect mismatch under those modes is by design, not a squish bug). */
+  /** Computed `object-fit` — "cover"/"contain" deliberately crop/letterbox and are excluded;
+   *  only "fill" stretches to the box. */
   readonly objectFit: string;
 };
 
@@ -206,12 +194,9 @@ export function checkImageDistortion(input: ImageDistortionInput): Finding | nul
 }
 
 // ── Tap targets ──────────────────────────────────────────────────────────────
-// The relevant floor is pointer-conditional — WCAG has two target-size criteria and which one bites
-// depends on what's driving the page. A coarse/touch pointer owes the AAA 2.5.5 44px target; a fine
-// pointer (mouse) only owes the AA 2.5.8 24px minimum. This mirrors the app's own token split (D62 P1 /
-// theme.css's `@media (pointer: fine)` override, where control heights drop to 32/34/40px on desktop).
-// Judging a fine-pointer render against the 44px touch number is a category error: it flags deliberate
-// desktop density as a defect. So `checkTapTarget` takes the pointer type the page was measured under.
+// The relevant floor is pointer-conditional (D62): coarse/touch owes the AAA 2.5.5 44px target,
+// fine pointer only owes the AA 2.5.8 24px minimum — `checkTapTarget` takes the pointer type
+// the page was measured under so desktop density isn't flagged against the touch floor.
 
 const TAP_COARSE_WARN_PX = 44; // WCAG 2.5.5 (AAA) — recommended touch target on a coarse pointer
 const TAP_COARSE_FAIL_PX = 32; // below this even a coarse pointer can't reliably hit — hard floor
@@ -242,8 +227,6 @@ export function checkTapTarget(input: TapTargetInput, pointerCoarse: boolean): F
       message: `interactive element's short side is ${Math.round(shortSide)}px — below the ${floor}; grow the hit area to ≥${TAP_COARSE_WARN_PX}×${TAP_COARSE_WARN_PX}px`,
     };
   }
-  // Fine pointer (mouse): only the AA 24px floor applies — the 32/34/40px desktop control scale passes
-  // by design, so nothing above 24px is flagged; a genuinely tiny control still fails hard.
   if (shortSide >= TAP_FINE_MIN_PX) {
     return null;
   }
@@ -268,9 +251,8 @@ export type AccessibleNameInput = {
   readonly altText: string | null;
 };
 
-/** Precedence mirrors the browser's accessible-name computation (aria-labelledby / aria-label / visible
- *  text / title / alt) — we don't need the exact order here since ANY of them satisfies "has a name";
- *  order only matters when computing what the name IS, which the probe doesn't need. */
+/** Any of aria-labelledby/aria-label/visible text/title/alt satisfies "has a name"; the probe
+ *  doesn't need the browser's exact precedence order since it never computes what the name IS. */
 export function checkAccessibleName(input: AccessibleNameInput): Finding | null {
   const hasName =
     input.hasVisibleText ||
@@ -394,8 +376,6 @@ export function checkAnimatedImgHover(input: AnimatedImgHoverInput): Finding | n
 }
 
 // ── Aggregation ──────────────────────────────────────────────────────────────
-// Raw facts the in-page walker gathers (design-audit.ts) — plain data, zero DOM types, so this whole
-// module (and `collectFindings` below) stays importable/testable without a browser.
 
 export type RawSamples = {
   readonly texts: readonly ContrastInput[];
@@ -408,12 +388,11 @@ export type RawSamples = {
   readonly nestedCards: readonly NestedCardInput[];
   readonly gradientTexts: readonly GradientTextInput[];
   readonly animatedImgHovers: readonly AnimatedImgHoverInput[];
-  /** Whether the page was measured under `(pointer: coarse)` — selects the tap-target floor (44px vs 24px). */
+  /** Whether the page was measured under `(pointer: coarse)` — selects the tap-target floor. */
   readonly pointerCoarse: boolean;
 };
 
-/** Runs one check over one sample array, pushing every non-null Finding — factored out purely to keep
- *  `collectFindings` a flat dispatch table instead of ten hand-rolled loops (cognitive-complexity gate). */
+/** Runs one check over one sample array, pushing every non-null Finding. */
 function pushFindings<T>(
   findings: Finding[],
   items: readonly T[],
@@ -427,8 +406,7 @@ function pushFindings<T>(
   }
 }
 
-/** Runs every check over a raw-sample bundle — the one place that fans a page's facts out to findings.
- *  Still pure (no I/O): a test can hand-build a `RawSamples` and assert on the returned list. */
+/** Runs every check over a raw-sample bundle — the one place that fans a page's facts out to findings. */
 export function collectFindings(samples: RawSamples): Finding[] {
   const findings: Finding[] = [];
   pushFindings(findings, samples.texts, checkContrast);

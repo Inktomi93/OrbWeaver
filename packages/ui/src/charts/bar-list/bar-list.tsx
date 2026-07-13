@@ -1,7 +1,4 @@
-// <BarList> — horizontal ranked bars (ui-package-design §9 corpus-viz v1; the classic "top N"
-// chart: top sources by chunk count, top search hits by score, etc). Array ORDER is the rank —
-// this component does not sort (dumb-data-in, per the list-row/bar-list precedent: ranking is the
-// caller's business logic, not ui's).
+// Horizontal ranked bars — array order is the rank; this component does not sort.
 import type { ReactElement } from "react";
 import { EmptyState } from "#primitives/empty-state";
 import type { OrbEChartsInstance } from "../chart";
@@ -32,16 +29,6 @@ function defaultValueFormatter(value: number): string {
   return String(value);
 }
 
-/**
- * @example
- * ```tsx
- * <BarList
- *   label="Top sources"
- *   items={[{ id: "a", label: "Handbook", value: 42 }]}
- *   valueFormatter={(n) => `${n} chunks`}
- * />
- * ```
- */
 export function BarList({
   items,
   label,
@@ -51,7 +38,6 @@ export function BarList({
   onChartReady,
 }: BarListProps): ReactElement {
   const slots = barListVariants();
-  // Resolve chart-chrome tokens to concrete canvas colors live, re-reading on theme switch (§11.3).
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
 

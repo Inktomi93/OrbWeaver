@@ -10,23 +10,21 @@ import type { ProvisionAgentResult } from "../contract/results";
 import type { SessionsContext, SessionsService } from "../contract/service";
 import { agentMintStatements, selectIdByHandle, selectMintOwner } from "../persistence/users";
 
-// The agent-principal MINT (D60; agent-principal-design/01 §4). Sessions owns it — it is the identity-owning
-// domain (next to provisionIdentity), and the ONLY site that writes a `kind:'agent'` row (inv 3). LAZY by
-// design: the seat verb (`chat.seatAgent`, AP3) calls this via an injected op; `buddy.hatch` does NOT mint.
+// The agent-principal mint. Sessions owns it — it is the identity-owning domain, and the only site that
+// writes a kind:'agent' row. Lazy by design: the seat verb calls this via an injected op; buddy.hatch does
+// not mint.
 // FLAG[PD-17]: no production caller until AP3 — at AP1 it is on the service surface + tested directly.
 
 const AGENT_PRINCIPAL_MINTED = "AGENT_PRINCIPAL_MINTED";
 const USER_ENTITY = "user";
 
-/** The deterministic reserved-namespace handle — the idempotency key AND the `users_handle_unique` race
- *  arbiter. One agent per `(ownerUserId, sourceKind)` (agent-principal-design/01 §4). */
+/** The deterministic reserved-namespace handle — the idempotency key AND the users_handle_unique race arbiter. */
 function agentHandle(sourceKind: AgentSourceKind, ownerUserId: UserId): Handle {
   return castId<Handle>(`__agent__${sourceKind}__${ownerUserId}`);
 }
 
-/** Run the mint batch (agent `users` row + satellite, atomic). The `users_handle_unique` violation is the
- *  race arbiter: a concurrent minter that LOST re-reads the winner (its whole batch rolled back — no orphan
- *  row) and returns `created:false`. Any other error re-throws. */
+/** users_handle_unique violation is the race arbiter: a concurrent minter that lost re-reads the winner
+ *  (its whole batch rolled back) and returns created:false. */
 async function mintOrAdopt(
   ctx: SessionsContext,
   row: {
@@ -68,7 +66,7 @@ export function createProvisionAgent(
     }
 
     const handle = agentHandle(params.sourceKind, params.ownerUserId);
-    // Idempotent short-circuit: the (owner, sourceKind) agent already exists → return it, no mint, no audit.
+    // Idempotent short-circuit: the agent already exists → return it, no mint, no audit.
     const existing = await selectIdByHandle(ctx.db, handle);
     if (existing !== undefined) {
       return { agentUserId: existing, created: false };
@@ -82,7 +80,7 @@ export function createProvisionAgent(
       sourceKind: params.sourceKind,
       now,
     });
-    // Audit ONLY a real mint (a principal coming into existence is security-relevant) — never the adopt path.
+    // Audit only a real mint — never the adopt path.
     if (result.created) {
       await logAudit(
         ctx.db,

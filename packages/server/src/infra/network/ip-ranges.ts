@@ -1,11 +1,6 @@
-// Shared IP / CIDR matching for the network egress belt (and, later, the ingress belt + the auth origin
-// gate). One home for the private-range knowledge. Pure (no env, no I/O, no node:*) so it unit-tests
-// directly; the env-configured extra ranges (TRUSTED_PRIVATE_RANGES, EGRESS_ALLOWLIST, IP_ALLOWLIST) are
-// merged by callers, never read here.
-//
-// Covers IPv4 + IPv6, including the IPv4-mapped IPv6 form (`::ffff:127.0.0.1`) proxies emit — reduced to
-// its IPv4 value so a mapped loopback matches `127.0.0.0/8`. (Kit candidate — kept as infra/network
-// substrate per core/Tier-3-Infra.md until a client consumer appears.)
+// Shared IP/CIDR matching for the egress/ingress/auth-origin belts. Pure (no env/I/O) so it unit-tests
+// directly. Covers IPv4 + IPv6 incl. IPv4-mapped IPv6 (`::ffff:127.0.0.1`), reduced to its IPv4 value so
+// a mapped loopback matches `127.0.0.0/8`.
 
 // biome-ignore-all lint/suspicious/noBitwiseOperators: IP/CIDR math is fundamentally bitwise — parsing an
 // address packs octets/hextets via shift+OR, and prefix masking is shift+AND on the integer address.
@@ -185,9 +180,8 @@ export function isInRanges(ip: string, ranges: readonly string[]): boolean {
   return false;
 }
 
-// The built-in "trusted private" set: loopback, RFC1918, Tailscale/CGNAT (100.64.0.0/10), link-local,
-// plus IPv6 loopback / ULA / link-local. Docker's default bridges live in 172.16.0.0/12 (RFC1918) so
-// they're already covered. Callers EXTEND this via env (TRUSTED_PRIVATE_RANGES), never mutate it.
+// Built-in "trusted private" set: loopback, RFC1918, Tailscale/CGNAT, link-local, IPv6 equivalents.
+// Callers EXTEND this via env (TRUSTED_PRIVATE_RANGES), never mutate it.
 export const DEFAULT_TRUSTED_RANGES: readonly string[] = [
   "0.0.0.0/8", // RFC1122 "this host" — dest 0.0.0.0 routes to loopback on Linux (SSRF bypass otherwise)
   "127.0.0.0/8", // IPv4 loopback
@@ -196,8 +190,7 @@ export const DEFAULT_TRUSTED_RANGES: readonly string[] = [
   "192.168.0.0/16", // RFC1918
   "100.64.0.0/10", // CGNAT — Tailscale
   "169.254.0.0/16", // IPv4 link-local
-  // IPv6 unspecified (::) + deprecated IPv4-compatible (::a.b.c.d) block. `::` routes to ::1 on Linux;
-  // the compat form embeds an arbitrary IPv4 (::169.254.169.254) some stacks translate — never legit egress.
+  // IPv6 unspecified/IPv4-compatible block — `::` routes to ::1 on Linux; never legit egress.
   "::/96",
   "::1/128", // IPv6 loopback
   "fc00::/7", // IPv6 unique-local (ULA)

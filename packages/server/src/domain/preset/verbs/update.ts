@@ -9,13 +9,9 @@ import type { PresetDetail } from "../contract/views";
 import { insertPreset, readablePreset, updatePresetRow } from "../persistence/queries";
 import { toPresetDetail } from "../substrate/views";
 
-// verb: update — patch an OWNED preset, OR copy-on-write the system default. The
-// COW is a DESIGNED UX, not an error path: when the target is SYSTEM_DEFAULT_PRESET_ID a NEW owned fork is
-// minted from the submission (falling back to the system default's own fields for omitted ones) and its
-// NEW id is returned — the client's onSuccess detects the id change and navigates to the fork. Without this
-// branch, a user editing the system default would lose their changes silently. Owned updates scope on
-// `ownerId = userId` (a foreign/missing row → PresetNotFoundError); the system default's `ownerId IS NULL`
-// never matches that scope, so the COW branch is the ONLY way it is touched through the verb API.
+// verb: update — patch an OWNED preset, or copy-on-write the system default. When the target is
+// SYSTEM_DEFAULT_PRESET_ID a new owned fork is minted from the submission and its new id returned — the
+// client detects the id change and navigates to the fork, so editing the shared default never loses changes.
 
 const PRESET_UPDATE = "preset.update";
 const PRESET_FORK = "preset.fork";
@@ -58,8 +54,6 @@ async function cowFork(
   const row = {
     id: forkId,
     ownerId: params.userId,
-    // The `(edited)` suffix (neo parity) distinguishes the fork from the pristine system default in the
-    // picker — applied only when the caller didn't name it explicitly.
     name: params.name ?? `${base.name} (edited)`,
     kind: params.kind ?? base.kind,
     config,
@@ -72,8 +66,6 @@ async function cowFork(
     { userId: params.userId, presetId: forkId },
     "preset: copy-on-write fork of system default",
   );
-  // A DISTINCT fork action (not preset.create) carrying the provenance — the fork is a create-shaped
-  // write but forensically it's "the user edited the shared default", which `forkedFrom` records.
   await ctx.audit(
     {
       actorUserId: params.userId,
@@ -98,9 +90,6 @@ export function createUpdate(ctx: PresetContext): Pick<PresetService, "update"> 
     if (row === undefined) {
       throw new PresetNotFoundError(params.id);
     }
-    // `edits` = the scalar fields the caller actually changed (name/kind — omitted keys contribute
-    // nothing, exactOptionalPropertyTypes-clean); `configUpdated` flags the heavy config replace
-    // separately (the config blob itself is too large + noisy to log).
     const edits = {
       ...(params.name === undefined ? {} : { name: params.name }),
       ...(params.kind === undefined ? {} : { kind: params.kind }),

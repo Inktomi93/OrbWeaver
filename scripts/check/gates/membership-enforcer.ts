@@ -33,11 +33,8 @@ function endsInOwnerId(text: string): boolean {
   return text === OWNER_ID || text.endsWith(`.${OWNER_ID}`);
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — multi-kind per-node) ─────────────────────────
 // Two arms, ONE gate: an owner-equality BinaryExpression (`….ownerId ==/=== …`), and a fetchOwned/
-// OwnedTable named IMPORT — both in the chat scope. The descriptor's reason is the comparison arm; an
-// import finding carries its own per-occurrence message (owner ruling 2 — distinct violation types).
-// scanRoot mirrors the legacy CHAT_SCOPE filter. Per-occurrence.
+// OwnedTable named import — both in the chat scope. An import finding carries its own message.
 export const gate: GateDescriptor = {
   name: "membership-enforcer",
   docRow: "ledger D16/D18 (Spine-Identity-and-Auth.md)",

@@ -1,26 +1,8 @@
-// The swipe strip (task #17 built the minimal generate-only shape; task #19 completes it). Flanking
-// chevrons + the `n / m` variant counter, shown by the surface on the LAST assistant message only
-// (message-row.tsx's `showSwipes` gate — hidden mid-stream/edit; read-only from here, not this lane's
-// file). Both mutations run through `createEntityMutation` — the ONE mutation factory (§13.2), never an
-// inline useMutation; the resulting `variantSelected`/`messageCommitted` bus events invalidate
-// listMessages so the counter + shown content update with no manual cache patch (`selectVariant` is
-// bus-driven — this file never writes the query cache directly).
-//
-// RIGHT chevron: `current === total` (at the tip) fires `swipe` (append a fresh generation, unchanged
-// from #17). `current < total` (the user stepped BACK earlier and is now moving forward through
-// already-generated siblings) instead fires `selectVariant` — a pointer move, no new generation — same
-// as the left chevron. LEFT chevron: `selectVariant` to the EARLIER sibling (#19 — was disabled in #17
-// pending the verb; `chat.selectVariant` is now wired on the transport).
-//
-// Both directions resolve their TARGET variant id through `useVariantHistory` (hooks/use-variant-
-// history.ts) — `MessageView` carries only the SELECTED variant per slot (D26), so the hook fetches the
-// real sibling list (`chat.listMessageVariants`, gated on `variantCount > 1`) and resolves ANY idx from it,
-// including one this mount has never rendered (a cold page load mid-way through a multi-variant slot). A
-// chevron stays disabled only while the real answer is unknown (still loading) or genuinely out of range —
-// never a dead click to an unresolvable id.
-//
-// Keyboard: Arrow-Left/Right drive the same two handlers via `useSwipeKeyboardNav` (hooks/use-swipe-
-// keyboard-nav.ts) — see that hook's header for the composer-focus gating note.
+// The swipe strip: flanking chevrons + the n / m variant counter, shown on the last assistant message
+// only. Right chevron: at the tip fires swipe (a fresh generation); stepped back, it fires
+// selectVariant (a pointer move, no new generation), same as the left chevron. Both resolve their
+// target variant id through useVariantHistory, since MessageView carries only the selected variant per
+// slot.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
@@ -46,13 +28,6 @@ interface SelectVariantVars {
   readonly variantId: MessageVariantId;
 }
 
-// Module-scope factories → the returned hooks have a stable identity (the §13.1 pattern). BUS-DRIVEN
-// (TData `unknown`, not consumed here): both act on the OPEN chat, and their server verbs emit a canon
-// event on it — `swipe` runs a turn (turnCompleted → chatReads), `selectVariant` emits variantSelected
-// (→ chatReads) — which the active subscription delivers and the invalidation seam turns into the exact
-// same refetch. So both are `busDriven`: re-invalidating the bus's own keys just double-refetched them
-// (the mutation-vs-bus rule — data/invalidation.ts). NOTE: no optimistic `onMutate` here — the bus IS the
-// update path (never a manual cache patch); the removed lines were a redundant "settle-time backstop".
 const useSwipeMutation = createEntityMutation<SwipeVars, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
   busDriven: true,
@@ -69,7 +44,6 @@ export interface SwipeStripProps {
   readonly message: MessageView;
 }
 
-/** The `n / m` swipe counter + prev/next variant navigation for the tail assistant message. */
 export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -83,7 +57,6 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
   const busy = swipe.isPending || selectVariant.isPending;
 
   const prevVariantId = current > 1 ? history.get(idx - 1) : undefined;
-  // Not at the tip: the next idx is an EXISTING sibling — a step, never a fresh generation.
   const nextVariantId = current < total ? history.get(idx + 1) : undefined;
   const canStepBack = prevVariantId !== undefined;
   const canStepForward = nextVariantId !== undefined;

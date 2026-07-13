@@ -1,13 +1,6 @@
-// domain/embeddings/indexer/handlers — the event-driven re-embed handlers. The async/bulk path: a save in a
-// DIFFERENT feature (`character` / `assets`) emits a domain event; the indexer re-reads CANON by the event's
-// branded id (never trusting event-carried data — @orb/contracts/events) and dispatches to the ONE write
-// path (`store`). (`memory` does NOT go through here — it calls `store` directly post-turn for its
-// digest/segment lenses; the indexer is only for writes triggered by a save in a different feature.)
-//
-// Each handler skips silently when the source is gone (deleted between the emit and the handler) — a missing
-// card/asset is not an error, just nothing to embed. The `(model, dim)` space tag comes from the injected
-// bundle: the model from `roleClients.embedModel` / `imageEmbedModel` (role-clients: stored on the row's
-// model column), the dim from the declared active space (`ctx.embedDim` / `ctx.imageEmbedDim`).
+// The event-driven re-embed handlers: a save in a different feature emits a domain event; the indexer
+// re-reads canon by the event's branded id (never trusting event-carried data) and dispatches to the one
+// write path (`store`). Each handler skips silently when the source is gone.
 
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import { getLog } from "#foundation/observability";
@@ -20,12 +13,9 @@ export async function onCharacterUpdated(
   ctx: EmbeddingsIndexerContext,
   event: CharacterUpdatedEvent,
 ): Promise<void> {
-  // `character.updated` fires on EVERY card write — including identity-flag edits (star/archive/theme,
-  // card-merge.ts) that change no embeddable content. The emit site (`character/verbs/update.ts`) already knows
-  // which it is, so it stamps `contentChanged`; a flag-only edit skips ENTIRELY here — zero canon read, zero
-  // store, zero model touch. This is the owner ruling ("starring shouldn't trigger embedding", first-time
-  // included): backfill of a never-embedded card belongs to content events + import + the PD-53 sweep, never to
-  // a star toggle. (The store's own content-hash gate remains the second belt for a same-content re-fire.)
+  // `character.updated` fires on every card write, including identity-flag edits (star/archive/theme) that
+  // change no embeddable content. The emit site stamps `contentChanged`; a flag-only edit skips entirely
+  // here — zero canon read, zero store, zero model touch.
   if (!event.contentChanged) {
     getLog().debug(
       { characterId: event.characterId },
@@ -45,8 +35,8 @@ export async function onCharacterUpdated(
     model: ctx.roleClients.embedModel,
     dim: ctx.embedDim,
   });
-  // A content edit whose projected embed text is nonetheless unchanged (or a duplicate delivery) short-circuits
-  // in the store to `noop`; surface it at debug so an absent embed is explainable.
+  // A content edit whose projected embed text is nonetheless unchanged short-circuits to `noop`; surface it
+  // at debug so an absent embed is explainable.
   if (result.outcome === "noop") {
     getLog().debug(
       { characterId: event.characterId },
@@ -55,11 +45,8 @@ export async function onCharacterUpdated(
   }
 }
 
-/** `asset.created` → embed BOTH avatar lenses: `image-raw` (pure visual signal) then `image-captioned` (image
- *  bytes + the inline-generated caption, joint VL). Both share the bytes' content_hash, so a re-index dedups.
- *  Delivery is in-process fire-and-forget for v1 (RESOLVED PD-27; the PD-53 catch-up sweeps are the
- *  reliability backstop); this handler stays delivery-mechanism-agnostic — it is idempotent (hash-gated
- *  store), so a duplicate delivery is a cheap noop. */
+/** `asset.created` → embed both avatar lenses: `image-raw` then `image-captioned`. Both share the bytes'
+ *  content_hash, so a re-index dedups. Idempotent — a duplicate delivery is a cheap noop. */
 export async function onAssetCreated(
   ctx: EmbeddingsIndexerContext,
   event: AssetCreatedEvent,

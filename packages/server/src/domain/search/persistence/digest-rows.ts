@@ -1,12 +1,7 @@
-// domain/search/persistence/digest-rows — the raw chat-memory vector scans (row shapes + fetch
-// helpers). The digest/segment analogues of `nearest.ts`: the SAME `vector_distance_cos` + `vector32(?)` F32-blob pattern,
-// the SAME scope-belt-in-the-WHERE discipline (never a post-filter). Queries ONLY; no business logic. The
-// `vector_distance_cos` SQL appears here and in `nearest.ts` ONLY (invariant #1).
-//
-// Row shapes are file-local + inferred (no exported persistence type — `no-inline-types`); the verbs consume
-// them by inference and build the `BlockKey`s. Owner-scope DERIVES (D20): the digest scan INNER-JOINs
-// `characters` on `scopedCharacterId` so the owner belt resolves via the producer card — never `chats`
-// (D18), never `users`.
+// domain/search/persistence/digest-rows — raw chat-memory vector scans. Digest/segment analogues of
+// nearest.ts: same vector_distance_cos + vector32(?) F32-blob pattern, same scope-belt-in-the-WHERE
+// discipline. Queries only. Owner-scope derives via the digest scan inner-joining characters on
+// scopedCharacterId — never chats, never users.
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
@@ -16,8 +11,6 @@ import { and, eq, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest";
 import { digestScopeCond, segmentScopeCond } from "./scope";
 
-/** One digest-lens neighbour: the full block key columns + raw cosine distance + advisory hub + the
- *  rerankable digest `text` + the collapse `contentHash` + the lexical `keywords`. */
 interface NearestDigest {
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
@@ -40,8 +33,6 @@ interface NearestDigestsParams {
   readonly limit: number;
 }
 
-/** The closest digest blocks (ascending raw distance) in `model`'s space, scoped per the belts. CSLS
- *  hub-adjust + minScore + optional rerank happen in the verb over these rows. */
 export async function nearestDigests(
   db: ReadOnlyDb,
   params: NearestDigestsParams,
@@ -75,11 +66,8 @@ export async function nearestDigests(
   return rows.map((r) => ({ ...r, keywords: r.keywords ?? [] }));
 }
 
-/** The owner's MATERIALIZED chat set — the distinct chats that hold a digest owned by `ownerId` in `model`'s
- *  space (owner DERIVES via the producer card: `chat_digests.scopedCharacterId` FKs `characters.id`, whose
- *  `ownerId` is the owner — D20; NO `chats.ownerId` (D18), NO `chat_participants`). `discover`'s verbatim
- *  segment scan (the segment lens carries no owner column) is bounded to this set. `groupBy` yields the
- *  distinct set (`ReadOnlyDb` has no `selectDistinct`). */
+/** The owner's materialized chat set, bounding discover's verbatim segment scan (which has no owner column).
+ *  groupBy yields the distinct set (ReadOnlyDb has no selectDistinct). */
 export async function ownedChatIds(
   db: ReadOnlyDb,
   ownerId: UserId,
@@ -94,8 +82,6 @@ export async function ownedChatIds(
   return rows.map((r) => r.chatId);
 }
 
-/** One segment-lens neighbour: the chat + block + raw cosine distance + advisory hub + the verbatim `text`
- *  + the collapse `contentHash`. The verbatim lens carries no tier/scopedCharacterId column. */
 interface NearestSegment {
   readonly chatId: ChatId;
   readonly blockIdx: number;
@@ -113,7 +99,6 @@ interface NearestSegmentsParams {
   readonly limit: number;
 }
 
-/** The closest verbatim segment blocks (ascending raw distance) in `model`'s space, scoped to `chatIds`. */
 export async function nearestSegments(
   db: ReadOnlyDb,
   params: NearestSegmentsParams,

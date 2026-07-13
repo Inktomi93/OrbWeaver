@@ -1,12 +1,6 @@
-// verb: importChats (PD-77) — attach a list of loose ST chat `.jsonl` files to an EXISTING owned character
-// (chosen explicitly — ST chat headers don't reliably carry the character name, so there's no safe auto-
-// match). Option B: `import` performs NO db access — it translates each parsed ST chat → the canonical
-// `BulkImportChatInput` (`substrate/chat-input.ts`) and delegates the WRITE to the injected chat-owned
-// `bulkImportChats` op, then enqueues ONE `memory-backfill` when any `real_conversation` chat was written
-// (the PD-78 gate: no canon-write path leaves the downstream index un-run).
-//
-// The ownership gate is the chat op's precondition — a missing / non-owned character throws the shared
-// `DomainNotFoundError` (`@orb/kit/errors`) from inside the op; `import` re-declares it in the verb contract.
+// verb: importChats FLAG[PD-77] — attaches loose ST chat `.jsonl` files to an EXISTING owned character
+// (chosen explicitly; ST chat headers don't reliably carry the character name). Translates each parsed
+// chat to `BulkImportChatInput` and delegates the write to the injected `bulkImportChats` op.
 
 import type { ImportChatsResult } from "../contract/results";
 import type { ImportContext, ImportService } from "../contract/service";
@@ -31,9 +25,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       chats,
     });
 
-    // PD-78: ONE memory-backfill per run, ONLY when a real_conversation chat was written (the gate invariant
-    // — a chat canon-write always enqueues the downstream index sweep). Reuses `character.updated` semantics
-    // via the workload; no `import.completed` event.
+    // FLAG[PD-78]: a chat canon-write always enqueues the downstream index sweep.
     if (counts.realConversationWritten) {
       await profile.enqueueBackfill({ ownerId });
     }

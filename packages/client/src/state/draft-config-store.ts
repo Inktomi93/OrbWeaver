@@ -1,19 +1,8 @@
-// The DRAFT-CONFIG store (J2/J3 — a new chat is fully editable BEFORE it exists on the server). A draft
-// chat (`ChatHandle` kind `"draft"`, keyed by its `draftKey`) has no server row, so its pre-send edits —
-// the swiped/typed greeting, roster mute/talkativeness, group config, room overrides, authored injections —
-// have nowhere to persist yet. They live HERE, keyed by `draftKey`, and the FIRST send hands the whole
-// config to `chat.startChat`'s carry-params (use-send-message.ts), which persists them atomically at
-// creation (server `StartChatParams` — seedGreetings/rosterOverrides/groupConfig/roomOverrides/injections).
-//
-// This is the orbweaver way, NOT neo's model-b: there is NO `isOptimistic` boolean and NO seeded query
-// caches (chat-handle.ts rejects that). The draft is a distinct `ChatHandle` variant carrying its own
-// state; the editing surfaces route their save/seed seam to this store when the handle is a draft, and to
-// the committed verbs otherwise (the ONE branch per concern — the room-overrides/roster/group editors).
-//
-// `createGatedStore` (not `createEntityDraftStore`): draft config is transient device-local pre-commit
-// state, NOT the crash-survival localStorage mirror the persist factory is for (the `message-edit-draft`
-// precedent). Sparse by construction — an absent key/field ⇒ the server's plain-new-chat default, so an
-// untouched draft commits byte-identical. Cleared on commit (or discard) via `clearDraftConfig`.
+// A new chat is fully editable before it exists on the server. A draft chat has no server row, so its
+// pre-send edits (greeting, roster tuning, group config, room overrides, injections) live here, keyed by
+// draftKey, until the first send hands the whole config to chat.startChat's carry-params. Uses
+// createGatedStore (not createEntityDraftStore): transient device-local pre-commit state, not a
+// crash-survival localStorage mirror. Sparse by construction — absent key/field means server default.
 
 import type { ChatInjectionInput, GroupConfigInput, RoomOverrides } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";

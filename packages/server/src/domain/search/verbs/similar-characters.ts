@@ -1,13 +1,7 @@
-// domain/search/verbs/similar-characters — "more like this character" (PD-35): seed-vector top-k over the
-// CARD space. Reads the seed character's STORED card embedding (NOT a re-embed of the card text — that would
-// cross the query/document instruction spaces and re-embed on every view) → scans the SAME space excluding
-// the seed → CSLS hub-adjust → enriches like `findCharacters` (returns `CharacterCardHit`s). This
-// deliberately realizes the docs' `findCharacters`-shorthand as a seed-vector verb (search-deferred §4.4).
-//
-// THE SEED READ IS OWNER-BELTED (`characters.ownerId`, D20) — a foreign/unknown/unembedded seed resolves to
-// `null` ⇒ an EMPTY result, never another tenant's neighbourhood (the neo V2-2 cross-tenant-seed lesson;
-// carried here as defense in depth even though the tRPC seam already owner-scopes). No rerank: there is no
-// query text to cross-encode against (the seed is a stored vector, not a phrase).
+// domain/search/verbs/similar-characters — "more like this character": seed-vector top-k over the CARD
+// space, using the seed's STORED card embedding (not a re-embed of the card text). Seed read is
+// owner-belted; a foreign/unknown/unembedded seed resolves to an empty result, never another tenant's
+// neighbourhood. No rerank — the seed is a stored vector, not a query phrase to cross-encode against.
 
 import type { SimilarCharactersParams } from "../contract/params";
 import type { CharacterCardHit } from "../contract/results";

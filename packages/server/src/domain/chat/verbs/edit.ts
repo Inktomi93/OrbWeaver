@@ -1,24 +1,14 @@
-// domain/chat/verbs/edit — the canon-EDIT verbs (the non-generation slot/variant mutations; D26). A message
-// is a SLOT (`messages`) ⋈ its selected
-// `message_variant`: an edit mutates the VARIANT content/reasoning (`editMessage`/`editReasoning`/
-// `clearReasoning`) OR the SLOT's selection/attribution/hidden/seq (`selectVariant`/`setMessageHidden`/
-// `reattributeMessages`/`moveMessage`/`deleteMessages`) — NEVER doubling content (D26 inv §15). Each verb:
-// gate (`ctx.can` via the guard) → the D26-correct mutation → emit the room-public bus event → return the
-// fresh `MessageView` (or void for the bulk mutators).
+// The canon-edit verbs (non-generation slot/variant mutations). A message is a slot (messages) joined to
+// its selected variant: an edit mutates the variant content/reasoning, or the slot's selection/attribution/
+// hidden/seq — never doubling content. Each verb: gate → the correct mutation → emit the room-public bus
+// event → return the fresh MessageView (or void for the bulk mutators).
 //
-// AUTHORITY (substrate/auth/matrix): edit/delete a slot → `author-or-host`; reorder
-// (`moveMessage`) + re-attribute → `host`. The bulk `deleteMessages` gates each target's author independently
-// (the host clears any; a member clears only their own).
+// Authority: edit/delete a slot is author-or-host; reorder + re-attribute is host-only. The bulk
+// deleteMessages gates each target's author independently (the host clears any; a member clears only their own).
 //
-// EMIT SEAM: the chat bus is chat's own in-process collaborator (NOT on `ChatContext` — see bus.ts), so the
-// bundle takes it as the SECOND factory arg, typed inline (`types-in-contract` forbids an exported emit type
-// outside contract/). `setMessageHidden` emits the dedicated `messageHidden` member (PD-86); FLAG
-// [reattribute-carrier]: `reattributeMessages` deliberately emits one `messageEdited` per slot (each with
-// its fresh view) — an attribution re-stamp IS a slot edit, so the existing carrier is the precise one (no
-// `messageReattributed` member).
-// FLAG[dup-snapshot]: `duplicateMessage` copies the selected variant's content + economics from the
-// `MessageView`; `params`/`promptSnapshot` (D26 — not on the view) are NOT carried onto the copy (a duplicate
-// is a fresh slot, the per-turn provenance need not follow).
+// reattributeMessages/reattributePersona deliberately emit one messageEdited per slot (an attribution
+// re-stamp is a slot edit). duplicateMessage copies the selected variant's content + economics; params/
+// promptSnapshot are not carried onto the copy (a duplicate is a fresh slot).
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -76,18 +66,17 @@ import { resolveHostTierRegexScripts } from "../substrate/regex-tier";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
-/** The emit op the edit verbs close over (inlined — the file header `types-in-contract` note). */
+/** The emit op the edit verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
 
-/** The collaborators not on `ChatContext` (the second factory arg — the roster.ts/turn.ts precedent).
- *  `resolveForeignInputs` (the SAME seam the turn path uses — contract/foreign.ts) backs the PD-110
- *  runOnEdit re-apply ONLY: `editMessage` needs the host-global + chat-preset regex sources. */
+/** The collaborators not on `ChatContext`. `resolveForeignInputs` backs the runOnEdit re-apply only:
+ *  editMessage needs the host-global + chat-preset regex sources. */
 interface EditDeps {
   readonly emit: EmitChatEvent;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
 }
 
-/** The canon-edit slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
+/** The canon-edit slice of `ChatService` this grouped file owns. */
 type EditVerbs = Pick<
   ChatService,
   | "selectVariant"
@@ -102,8 +91,8 @@ type EditVerbs = Pick<
   | "reattributePersona"
 >;
 
-/** Load a slot ⋈ its selected variant AND verify it belongs to `chatId` — a missing slot OR a foreign-chat
- *  slot collapses to one leak-free `ChatNotFoundError` (so a member can't probe another room's message ids). */
+/** Loads a slot joined to its selected variant and verifies it belongs to `chatId` — a missing or
+ *  foreign-chat slot collapses to one leak-free NOT_FOUND. */
 async function loadSlotInChat(
   ctx: ChatContext,
   chatId: ChatId,
@@ -116,8 +105,7 @@ async function loadSlotInChat(
   return view;
 }
 
-/** Re-read a slot's `MessageView` after a write (the authoritative content/idx/variantCount the mutation
- *  produced). A racing delete (`undefined`) surfaces as a leak-free `ChatNotFoundError`. */
+/** Re-reads a slot's MessageView after a write. A racing delete surfaces as a leak-free NOT_FOUND. */
 async function reloadSlot(
   ctx: ChatContext,
   chatId: ChatId,
@@ -130,11 +118,8 @@ async function reloadSlot(
   return view;
 }
 
-/** The D26 canon-purity strip at persist: a per-speaker assistant edit drops a leaked leading
- *  `<speaker>`/`Name:` self-label so stored canon stays the spoken text only (the trusted `Name:` label is
- *  out-of-band). Applied ONLY to a character-voiced slot; a user/system row (no `characterId`) keeps its
- *  content verbatim. The card reads under the caller-resolved room HOST (D28/D16); a hostless room / null
- *  card degrades to `""` (the strip becomes a tag-only no-op — never an error, never a wrong-name strip). */
+/** Strips a leaked leading self-label from a character-voiced slot edit; a user/system row keeps its
+ *  content verbatim. A hostless room / null card degrades to a tag-only no-op, never an error. */
 async function purifyEditedContent(
   ctx: ChatContext,
   args: {
@@ -153,8 +138,8 @@ async function purifyEditedContent(
   return stripSelfSpeakerLabel(args.content, card?.name ?? "");
 }
 
-/** The RECEIVE-tier placement an edited slot's role re-runs (ST semantics — PD-110): an assistant edit
- *  re-applies AI_OUTPUT, a user edit USER_INPUT. A system slot has no edit-tier leg (null ⇒ no re-apply). */
+/** The receive-tier placement an edited slot's role re-runs: an assistant edit re-applies AI_OUTPUT, a user
+ *  edit USER_INPUT. A system slot has no edit-tier leg. */
 function editPlacementFor(role: MessageView["role"]): RegexPlacement | null {
   if (role === "assistant") {
     return "AI_OUTPUT";
@@ -163,18 +148,10 @@ function editPlacementFor(role: MessageView["role"]): RegexPlacement | null {
 }
 
 /**
- * PD-110 (runOnEdit): re-run the host-tier RECEIVE regex, filtered to `runOnEdit === true`, on an edited
- * slot's content BEFORE persist. The script set is the SAME D53 union a turn resolves — host-global ∪
- * chat-preset ∪ present cast (`resolveHostTierRegexScripts`), sourced through the turn seams: the FOREIGN
- * half via `deps.resolveForeignInputs` under the room HOST (D19 — host-tier means the HOST's scripts) and
- * the cast cards via roster + `ctx.getCard` (the assemble-gather cast source). Two-phase so the no-script
- * common case stays cheap: only when a `runOnEdit` script exists is the full assemble ctx gathered
- * (`gatherAssembleContext` — the HONEST replace-template macro env: real character/cast/canon/variables,
- * never an empty lying ctx). Edit-path macro notes: `{{model}}` = the slot's recorded generation model
- * (`""` for a never-generated user slot — an edit resolves no connection); `{{user}}` = the EDITOR's active
- * persona; no PRNG is threaded (stable resolution, the preview posture — an edit must not draw `randomPick`).
- * Execution rides `ctx.applyRegexReplace` (the D53 node:vm ReDoS watchdog); a throwing/over-complex script
- * is skipped by the engine's per-script catch and the content survives unchanged.
+ * Re-runs the host-tier receive regex, filtered to runOnEdit === true, on an edited slot's content before
+ * persist. The script set is the same union a turn resolves (host-global ∪ chat-preset ∪ present cast).
+ * Two-phase so the no-script common case stays cheap: only when a runOnEdit script exists is the full
+ * assemble ctx gathered. No PRNG is threaded (stable resolution — an edit must not draw randomPick).
  */
 async function applyRunOnEditRegex(
   ctx: ChatContext,
@@ -231,10 +208,8 @@ async function applyRunOnEditRegex(
   });
 }
 
-/** The stats OWNER for a canon mutation — the room HOST (D19: the host's box funds/owns the canon; the
- *  rebuild attributes by the host-owned characters' chats — PD-21 confirmed: the two agree under the
- *  enforced host-owned-roster invariant). A
- *  hostless room (archived orphan) degrades to the acting caller so the delta is never dropped. */
+/** The stats owner for a canon mutation — the room host. A hostless room (archived orphan) degrades to the
+ *  acting caller so the delta is never dropped. */
 async function resolveStatsOwner(
   ctx: ChatContext,
   chatId: ChatId,
@@ -244,13 +219,11 @@ async function resolveStatsOwner(
   return roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? fallback;
 }
 
-/** One raw `message_variants` row (a slot's stored variant — the selected one OR a swipe). */
+/** One raw message_variants row (a slot's stored variant — the selected one or a swipe). */
 type VariantRow = Awaited<ReturnType<typeof loadVariantsByMessageIds>>[number];
 
-/** Map a slot ⋈ one of its variants → the `canonMessageDelta` message-stream row (the rebuild's `foldMessage`
- *  fields). Attribution (`characterId`/`role`/`createdAt`) is SLOT-level; the economics + gen bounds + `idx`
- *  are the VARIANT's own — a swipe carries its own tokens/cost, and `variantCount`+`idx` decide the settled
- *  `variantMessages`/`activeIdxSum` contribution. */
+/** Maps a slot + one of its variants to the canonMessageDelta message-stream row. Attribution is
+ *  slot-level; economics + gen bounds + idx are the variant's own. */
 function canonRowOf(
   slot: MessageView,
   variant: VariantRow,
@@ -278,8 +251,8 @@ function canonRowOf(
   };
 }
 
-/** Map a slot ⋈ one of its variants → the `swipeVariantDelta` swipe-stream row (the rebuild's `foldSwipe`
- *  fields — no cost/cache/context: a swipe credits the re-roll counters + scalar tokens only). */
+/** Maps a slot + one of its variants to the swipeVariantDelta swipe-stream row (no cost/cache/context — a
+ *  swipe credits the re-roll counters + scalar tokens only). */
 function swipeRowOf(
   slot: MessageView,
   variant: VariantRow,
@@ -299,10 +272,8 @@ function swipeRowOf(
   };
 }
 
-// ── selectVariant (D26 — flip the slot's selected-variant pointer to a SIBLING swipe; zero copy) ─────────────
-/** `selectVariant` — author-or-host. Flip `messages.selectedVariantId` to a sibling swipe (a pointer move,
- *  never a content copy — D26). The variant MUST belong to the slot (the ownership belt) else a leak-free
- *  NOT_FOUND. Emits `variantSelected`. */
+/** `selectVariant` — author-or-host. Flips messages.selectedVariantId to a sibling swipe (a pointer move,
+ *  never a content copy). The variant must belong to the slot else a leak-free NOT_FOUND. Emits variantSelected. */
 function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService["selectVariant"] {
   return async ({ principal, chatId, messageId, variantId }: SelectVariantParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
@@ -311,9 +282,8 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
     if (owner !== messageId) {
       throw new ChatNotFoundError(chatId);
     }
-    // D46 THE swipe-clobber fix (ST #3263): re-fold `chats.runtime_variables` for the NEW pointer in the SAME
-    // batch as the flip. The newly-selected variant's delta replaces this slot's contribution; every other slot
-    // keeps its committed selection — so a swipe to a variant that never set X rewinds X (derive-don't-stamp).
+    // Re-folds chats.runtime_variables for the new pointer in the same batch as the flip: the newly-selected
+    // variant's delta replaces this slot's contribution, so a swipe to a variant that never set X rewinds X.
     const [currentDeltas, newDelta] = await Promise.all([
       loadVariableDeltas(ctx.db, chatId),
       loadVariantDelta(ctx.db, variantId),
@@ -325,12 +295,8 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
       selectActiveVariantStatement(ctx.db, messageId, variantId),
       runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(postEntries)),
     ];
-    // The canon-mutator stats push (drift gate — stats inv #3): a selection flip CHANGES what
-    // `reconcileStats` folds — the newly-selected variant becomes the message stream, the old-selected
-    // becomes a swipe. Push the SAME 4-part signed swap the engine's append-variant arm proves
-    // (engine.ts): −old-as-message, +old-as-swipe, −new-as-swipe, +new-as-message — so the live rollups
-    // match a rebuild (cost/cache/context are message-stream-only, so the swap is what keeps them honest).
-    // The full variant set loads pre-batch (both economics + idx); a no-op re-select nets exactly zero.
+    // A selection flip changes what reconcileStats folds: push the same 4-part signed swap the engine's
+    // append-variant arm proves (-old-as-message, +old-as-swipe, -new-as-swipe, +new-as-message).
     const now = ctx.now();
     const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
     const variants = await loadVariantsByMessageIds(ctx.db, [messageId]);
@@ -365,18 +331,13 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
   };
 }
 
-// ── editMessage (D26 — mutate the SELECTED variant's content; the slot is unchanged) ─────────────────────────
-/** `editMessage` — author-or-host. Overwrite the SELECTED variant's content in place (D26 — never doubles
- *  content) + stamp `editedAt`. Persist order: the per-speaker canon-purity strip, THEN the PD-110
- *  `runOnEdit` RECEIVE-tier regex re-apply ({@link applyRunOnEditRegex} — assistant slot ⇒ AI_OUTPUT, user
- *  slot ⇒ USER_INPUT), then the write — canon-mutating at write, so the stored row IS the post-regex text.
- *  Emits `messageEdited`. */
+/** `editMessage` — author-or-host. Overwrites the selected variant's content in place + stamps editedAt.
+ *  Persist order: canon-purity strip, then the runOnEdit receive-tier regex re-apply, then the write.
+ *  Emits messageEdited. */
 function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editMessage"] {
   return async ({ principal, chatId, messageId, content }: EditMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
-    // ONE roster read feeds the purify card lookup, the runOnEdit cast/host resolution, AND the stats
-    // owner (D19 — the host; a hostless archived orphan degrades to the caller so the delta never drops).
     const roster = await loadRoster(ctx.db, chatId);
     const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
     const purified = await purifyEditedContent(ctx, { hostUserId, slot, content });
@@ -396,8 +357,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       content: clean,
       editedAt: now,
     });
-    // The canon-mutator stats push: the NET word/byte change rides the SAME batch as the edit
-    // (bucketed on the slot's ORIGINAL day — the rebuild folds by createdAt). Owner = the room host (D19).
+    // The net word/byte change rides the same batch as the edit, bucketed on the slot's original day.
     ctx.applyStatsDelta(
       statements,
       ctx.db,
@@ -418,9 +378,8 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
   };
 }
 
-// ── setMessageHidden (D26 — toggle the SLOT's excludedFromPrompt; the row survives) ──────────────────────────
-/** `setMessageHidden` — author-or-host. Hold the slot out of assembly (or restore it) — a pure slot-flag
- *  write, no content change. Emits the dedicated `messageHidden` event (the fresh view carries the flag). */
+/** `setMessageHidden` — author-or-host. Holds the slot out of assembly (or restores it) — a pure slot-flag
+ *  write, no content change. Emits messageHidden. */
 function createSetMessageHidden(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -435,8 +394,7 @@ function createSetMessageHidden(
   };
 }
 
-// ── editReasoning / clearReasoning (D26 — the variant's reasoning sibling column) ────────────────────────────
-/** Write the SELECTED variant's reasoning (text or null) + stamp `editedAt`. Shared by edit/clear. */
+/** Writes the selected variant's reasoning (text or null) + stamps editedAt. Shared by edit/clear. */
 async function writeReasoning(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -463,7 +421,7 @@ async function writeReasoning(
   return view;
 }
 
-/** `editReasoning` — author-or-host. Overwrite the selected variant's reasoning text. Emits `reasoningEdited`. */
+/** `editReasoning` — author-or-host. Overwrites the selected variant's reasoning text. Emits reasoningEdited. */
 function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["editReasoning"] {
   return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
@@ -478,7 +436,7 @@ function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService
   };
 }
 
-/** `clearReasoning` — author-or-host. Null the selected variant's reasoning. Emits `reasoningCleared`. */
+/** `clearReasoning` — author-or-host. Nulls the selected variant's reasoning. Emits reasoningCleared. */
 function createClearReasoning(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -496,9 +454,8 @@ function createClearReasoning(
   };
 }
 
-// ── deleteMessages (bulk; author-or-host per slot — the host clears any, a member only their own) ────────────
-/** `deleteMessages` — gate EACH target's author independently (member floor + per-slot author-or-host), then
- *  delete the set (the variants CASCADE — D26). Emits `messagesDeleted`. An empty set is an idempotent no-op. */
+/** `deleteMessages` — gates each target's author independently, then deletes the set (variants cascade).
+ *  Emits messagesDeleted. An empty set is an idempotent no-op. */
 function createDeleteMessages(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -519,9 +476,8 @@ function createDeleteMessages(
         chatId,
       );
     }
-    // The canon-mutator stats push (the neo delete precedent): each removed slot's SELECTED-
-    // variant contribution + each of its NON-selected swipes are subtracted (sign −1 — the exact negative
-    // of the rebuild's fold) in the SAME batch as the delete. Rows are read BEFORE the delete lands.
+    // Each removed slot's selected-variant contribution + its non-selected swipes are subtracted in the
+    // same batch as the delete. Rows are read before the delete lands.
     const now = ctx.now();
     const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
     const statRows = await loadCanonStatRows(ctx.db, chatId, messageIds);
@@ -533,16 +489,14 @@ function createDeleteMessages(
     for (const row of swipeRows) {
       ctx.applyStatsDelta(statements, ctx.db, swipeVariantDelta({ ownerId, row, sign: -1, now }));
     }
-    // D46: re-fold `chats.runtime_variables` over the chain MINUS the deleted slots (their deltas no longer
-    // apply), in the SAME batch as the delete.
+    // Re-folds chats.runtime_variables over the chain minus the deleted slots, in the same batch as the delete.
     const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter(
       (e) => !messageIds.includes(e.messageId),
     );
     statements.push(runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(remainingDeltas)));
     await ctx.db.batch(batchMany(statements));
     await emit({ type: "messagesDeleted", chatId, messageIds: [...messageIds] });
-    // Best-effort audit AFTER the destructive write lands (existence-before-audit order: no phantom row for a refused
-    // delete; a failed audit never breaks the primary channel — foundation logAudit contract).
+    // Best-effort audit after the destructive write lands: no phantom row for a refused delete.
     await ctx.audit(
       {
         actorUserId: principal.userId,
@@ -556,10 +510,8 @@ function createDeleteMessages(
   };
 }
 
-// ── moveMessage (host — re-stamp canon ORDER; the minimal-disruption range re-sequence) ──────────────────────
-/** The re-sequence plan: PARK the affected block above the canon head (a uniform shift, collision-free), then
- *  stamp each block member its final seq (a value from the block's own vacated seq slots — gaps + the rest of
- *  the canon untouched). `null` ⇒ no movement (already in position). */
+/** The re-sequence plan: parks the affected block above the canon head, then stamps each block member its
+ *  final seq (reusing its own vacated seq slots). Null means no movement (already in position). */
 interface ResequencePlan {
   readonly parkLo: number;
   readonly parkHi: number;
@@ -567,9 +519,8 @@ interface ResequencePlan {
   readonly assignments: readonly { readonly id: MessageId; readonly seq: number }[];
 }
 
-/** Compute the {@link ResequencePlan} for moving `movingId` so its seq becomes (clamped) `toSeq`. Only the
- *  contiguous block of slots BETWEEN the old and new position is permuted; their existing seq VALUES are
- *  reused (so `messages.seq` stays gap-stable and `maxSeq` is unchanged outside the block). */
+/** Computes the {@link ResequencePlan} for moving movingId so its seq becomes (clamped) toSeq. Only the
+ *  contiguous block between the old and new position is permuted; existing seq values are reused. */
 function planResequence(
   ordered: readonly { readonly id: MessageId; readonly seq: number }[],
   movingId: MessageId,
@@ -580,9 +531,7 @@ function planResequence(
     return null;
   }
   const remaining = ordered.filter((m) => m.id !== movingId);
-  // Insert position among the OTHER slots so the moved slot LANDS at `toSeq`. The direction off-by-one: moving
-  // DOWN (toSeq > current) lands AFTER the slot currently at `toSeq` (count `<= toSeq`); moving UP lands BEFORE
-  // it (count `< toSeq`). Clamped to the valid span.
+  // Moving down lands after the slot currently at toSeq; moving up lands before it. Clamped to the valid span.
   const movingDown = toSeq > moving.seq;
   let insertPos = remaining.filter((m) => (movingDown ? m.seq <= toSeq : m.seq < toSeq)).length;
   insertPos = Math.max(0, Math.min(insertPos, remaining.length));
@@ -605,20 +554,13 @@ function planResequence(
     const seq = slotSeqs[i];
     return m !== undefined && seq !== undefined ? [{ id: m.id, seq }] : [];
   });
-  // parkHi is the BLOCK's own last seq (`slotSeqs.at(-1)`), NOT the chat `maxSeq`: only the affected block is
-  // lifted + re-stamped, so every row after the block keeps its seq (the invariant above). `by = maxSeq + 1`
-  // still parks the block strictly above every existing seq (collision-free) before the per-row final stamp.
+  // parkHi is the block's own last seq, not the chat maxSeq, since only the affected block is lifted +
+  // re-stamped; by = maxSeq + 1 still parks the block strictly above every existing seq.
   return { parkLo: slotSeqs[0] ?? 0, parkHi: slotSeqs.at(-1) ?? 0, by: maxSeq + 1, assignments };
 }
 
-/** `moveMessage` — host-only. Reorder a slot to a new seq position (re-stamps canon order via a parked,
- *  collision-free re-sequence). Emits `messagesReordered`. A no-op move (already in position) emits nothing.
- *  FLAG[move-vs-horizon]: the membership join/leave horizons (`chat_participants.joinSeq`/`leftSeq`) reference
- *  `messages.seq` (Part III §1) — a reorder permutes seq within the affected block, which the doc does NOT
- *  reconcile against the horizon. This re-sequence reuses the block's OWN seq values (no global renumber), so
- *  the disturbance is minimal, but the precise reorder↔horizon contract is unspecified → doc owns it.
- *  D46: a reorder permutes the SEQ order that `chats.runtime_variables` folds over (seq-ordered later-op-wins),
- *  so the cache is re-folded over the NEW order in the SAME batch (mirror `selectVariant`/`deleteMessages`). */
+/** `moveMessage` — host-only. Reorders a slot to a new seq position via a parked, collision-free
+ *  re-sequence. Emits messagesReordered. A no-op move emits nothing. */
 function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["moveMessage"] {
   return async ({ principal, chatId, messageId, toSeq }: MoveMessageParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
@@ -628,9 +570,8 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
     if (plan === null) {
       return;
     }
-    // D46 re-fold: map each message to its POST-move seq (a block member → its assignment; every other row
-    // keeps its seq — only the block moves), then re-fold the selected-variant deltas through that permutation
-    // so `chats.runtime_variables` reflects the new order (a reorder can flip a later-op-wins variable).
+    // Maps each message to its post-move seq, then re-folds the selected-variant deltas through that
+    // permutation so chats.runtime_variables reflects the new order.
     const newSeqById = new Map<MessageId, number>(ordered.map((m) => [m.id, m.seq]));
     for (const a of plan.assignments) {
       newSeqById.set(a.id, a.seq);
@@ -655,10 +596,8 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
   };
 }
 
-// ── duplicateMessage (D26 — copy a slot + its selected variant to a new tail slot) ───────────────────────────
-/** `duplicateMessage` — author-or-host. Copy the slot's attribution + its SELECTED variant's content/economics
- *  to a fresh tail slot (D26 3-step commit). Emits `messageCommitted`. FLAG[dup-snapshot]: `params`/
- *  `promptSnapshot` are not carried (not on the `MessageView`). */
+/** `duplicateMessage` — author-or-host. Copies the slot's attribution + its selected variant's content/
+ *  economics to a fresh tail slot. Emits messageCommitted. */
 function createDuplicateMessage(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -695,13 +634,8 @@ function createDuplicateMessage(
         terminalReason: slot.terminalReason,
       },
     };
-    // The canon-mutator stats push (drift gate — stats inv #3): the dup is a fresh single-variant tail slot
-    // whose economics are COPIED from the source's selected variant, so a rebuild folds the copy (+1 turn,
-    // words, bytes, and the copied tokens/cost). Mirror it live — `canonMessageDelta(sign:+1)` over the row
-    // AS PERSISTED (idx 0, variantCount 1 ⇒ unsettled — no variantMessages/activeIdxSum; the insert copies no
-    // gen bounds / metadata ⇒ null gen-time + reasoningMs, matching what the reconcile reads). Owner = the
-    // host (D19). The dup therefore double-counts the copied economics vs the source — but LIVE == REBUILD,
-    // which is the contract (the alternative, dropping the economics copy, is a persistence change, not this).
+    // The dup is a fresh single-variant tail slot whose economics are copied from the source's selected
+    // variant, so a rebuild folds the copy too; mirrored live to keep live == rebuild.
     const statements = insertCanonMessageStatements(ctx.db, params);
     const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
     ctx.applyStatsDelta(
@@ -736,17 +670,13 @@ function createDuplicateMessage(
     await ctx.db.batch(batchMany(statements));
     const view = buildCommittedMessageView(params);
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
-    // PD user-bus lane: the duplicated slot is a new tail message → chat-list recency moved → fan `chatsChanged`
-    // (list-only) to every present human member (cross-device + multi-human).
     void ctx.emitChatChanged(chatId);
     return view;
   };
 }
 
-// ── reattributeMessages (host — re-stamp the characterId attribution of a set of slots) ──────────────────────
-/** `reattributeMessages` — host-only. Re-voice a set of slots to a `characterId` (D26 slot-level attribution;
- *  the self-heal hash-diff). Emits one `messageEdited` per slot (each carries its fresh view; FLAG
- *  [reattribute-carrier] — a deliberate carrier choice, see the file header). An empty set is a no-op. */
+/** `reattributeMessages` — host-only. Re-voices a set of slots to a characterId. Emits one messageEdited
+ *  per slot. An empty set is a no-op. */
 function createReattributeMessages(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -770,7 +700,6 @@ function createReattributeMessages(
     await ctx.db.batch(
       batchMany([reattributeMessagesStatement(ctx.db, chatId, messageIds, characterId)]),
     );
-    // Re-read each re-voiced slot's fresh view, then fan the per-slot `messageEdited` (one carrier per slot).
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
     await Promise.all(
       views.flatMap((view) =>
@@ -782,17 +711,10 @@ function createReattributeMessages(
   };
 }
 
-// ── reattributePersona (author-or-host PER row — re-stamp the personaId of a set of USER slots) ───────────────
-/** `reattributePersona` — author-or-host PER targeted row (a member re-stamps THEIR OWN user lines; the host
- *  any — the `deleteMessages` per-slot gate shape, NOT a single top-level gate). Re-stamps `messages.personaId`
- *  (the `{{user}}`/authoring-persona axis; Chat-Macro-Resolution §5) for a set of USER-role slots. Four belts,
- *  ALL validated BEFORE any write (validate-all-before-write — mirror `reattributeMessages`): every slot must
- *  (a) belong to `chatId` [else leak-free `ChatNotFoundError`], (b) be a USER row with a non-null author
- *  [`not_user_message` — an assistant/system row has no authoring persona], (c) clear the per-slot
- *  author-or-host gate, and (d) target a persona OWNED by that row's AUTHOR [`not_persona_owner` — you
- *  attribute a line only to a persona its author owns, never the host's; a persona has ONE owner, so a mixed-
- *  author set can never all pass]. Emits one `messageEdited` per re-stamped slot (the [reattribute-carrier]
- *  choice — a persona re-stamp IS a slot edit; see the file header). An empty set is a no-op. */
+/** `reattributePersona` — author-or-host per targeted row. Re-stamps messages.personaId for a set of
+ *  user-role slots. Four belts, all validated before any write: (a) belongs to chatId, (b) is a user row
+ *  with a non-null author, (c) clears the per-slot author-or-host gate, and (d) targets a persona owned by
+ *  that row's author. Emits one messageEdited per re-stamped slot. An empty set is a no-op. */
 function createReattributePersona(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -808,7 +730,7 @@ function createReattributePersona(
     }
     const membership = await requireParticipant(ctx, principal, chatId);
     const slots = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
-    // Belts (a)-(c), synchronous per slot — collect each row's author for the ownership belt (d) below.
+    // Belts (a)-(c), synchronous per slot; collect each row's author for the ownership belt (d) below.
     const authorIds: UserId[] = [];
     for (const slot of slots) {
       if (slot === undefined || slot.chatId !== chatId) {
@@ -827,8 +749,7 @@ function createReattributePersona(
       );
       authorIds.push(slot.authorUserId);
     }
-    // Belt (d): the target persona must be owned by EACH targeted row's author (checked once per DISTINCT
-    // author — a persona has one owner, so a mixed-author set fails here). Parallel; no write yet.
+    // Belt (d): the target persona must be owned by each targeted row's author, checked once per distinct author.
     const distinctAuthors = [...new Set(authorIds)];
     const ownership = await Promise.all(
       distinctAuthors.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })),
@@ -842,7 +763,6 @@ function createReattributePersona(
     await ctx.db.batch(
       batchMany([reattributePersonaStatement(ctx.db, chatId, messageIds, personaId)]),
     );
-    // Re-read each re-stamped slot's fresh view, then fan the per-slot `messageEdited` (one carrier per slot).
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
     await Promise.all(
       views.flatMap((view) =>
@@ -854,11 +774,7 @@ function createReattributePersona(
   };
 }
 
-/**
- * The canon-edit verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). Folds the
- * per-verb factories into one object keyed by their `ChatService` method names; the composition root spreads
- * it into the full service. `deps` carries the chat bus `emit` (chat's own collaborator — see bus.ts).
- */
+/** The canon-edit verb bundle the composition root spreads into the full service. */
 export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
   const { emit } = deps;
   return {

@@ -1,9 +1,6 @@
-// The labelled Select/option tables for the appearance settings surface (D44 §12.1) — split out of
-// `appearance-settings-surface.tsx` (UI-Arch §2.1 component-size gate, cap 450 lines) since this is
-// pure data, not JSX. Each `value` is pinned to the `AppearanceSettings` field union (`satisfies`), so
-// a typo'd value is a tsc error, not a silently-unselectable option. chatStyle/density values come from
-// the #theme canonical tuples (one home); avatarSize/avatarShape/avatarAspect/avatarRing are the
-// schema's inline enums (single-consumer, `no-inline-union-redecl` — see the schema's own header note).
+// The labelled Select/option tables for the appearance settings surface — pure data, not JSX. Each
+// `value` is pinned to the AppearanceSettings field union via `satisfies`, so a typo'd value is a tsc
+// error, not a silently-unselectable option.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import {
@@ -19,7 +16,6 @@ const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
   bubble: "Bubble",
   flat: "Flat",
   document: "Document",
-  // §B.2 — the 5 immersive modes (FINAL-Persona-and-Immersive-Chat-Visuals.md).
   echo: "Echo (bled portrait)",
   whisper: "Whisper (avatar banner)",
   hush: "Hush (flat + speaker stripe)",
@@ -52,8 +48,6 @@ export const AVATAR_SHAPE_ITEMS: SelectItems<string> = [
   { value: "rounded", label: "Rounded" },
 ] satisfies readonly { value: AppearanceSettings["avatarShape"]; label: string }[];
 
-// §B.3 avatar versatility — the presence lever the Phase-4 immersive VN/Ripple mode needs, plus a
-// reuse-ready accent ring (Moonlit's `is_fav`/`selected` glow).
 export const AVATAR_ASPECT_ITEMS: SelectItems<string> = [
   { value: "square", label: "Square" },
   { value: "portrait", label: "Portrait (2:3)" },
@@ -70,8 +64,7 @@ export const ELEVATION_ITEMS: SelectItems<string> = [
   { value: "glow", label: "Lifted (glow)" },
 ] satisfies readonly { value: AppearanceSettings["elevation"]; label: string }[];
 
-// surfaceTexture — the opt-in film-grain overlay (kills flat-color banding). Chrome/cards only, never
-// the reading surface (THE READING-SURFACE RULE).
+// surfaceTexture — the opt-in film-grain overlay. Chrome/cards only, never the reading surface.
 export const SURFACE_TEXTURE_ITEMS: SelectItems<string> = [
   { value: "none", label: "None" },
   { value: "grain", label: "Film grain" },
@@ -82,9 +75,7 @@ export const MESSAGE_ACTIONS_ITEMS: SelectItems<string> = [
   { value: "expanded", label: "Always visible" },
 ] satisfies readonly { value: AppearanceSettings["messageActions"]; label: string }[];
 
-// WS3 — the blurSurfaces multi-select. `messages` carries the Reading-Surface-rule warning in its own
-// label/description (never default-checked — glass behind scrolling prose is the one surface the
-// picker itself should visibly flag, not just omit from a default).
+// `messages` carries the reading-surface warning in its own label (never default-checked).
 const BLUR_SURFACE_LABELS: Record<AppearanceSettings["blurSurfaces"][number], string> = {
   panels: "Side panels",
   composer: "Composer",
@@ -96,9 +87,7 @@ export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES
   label: BLUR_SURFACE_LABELS[value],
 }));
 
-// D63 — the app background-image picker items (moved off the theme; palette-independent). `asset` (own
-// upload) is deliberately absent from BACKGROUND_IMAGE_KINDS (PD-131 — no client asset-URL resolver/
-// upload flow exists yet); seeded/external are the two that actually resolve.
+// `asset` (own upload) is deliberately absent from BACKGROUND_IMAGE_KINDS — FLAG[PD-131]: no client asset-URL resolver/upload flow exists yet.
 const BACKGROUND_KIND_LABELS: Record<AppearanceSettings["backgroundImageKind"], string> = {
   none: "None",
   seeded: "Seeded",

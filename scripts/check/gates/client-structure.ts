@@ -1,24 +1,9 @@
-// Gate: client-structure (docs/architecture/core/UI-Architecture-and-Layout.md §2.1 + §4) — the
-// @orb/client feature-slice layout. The client twin of feature-structure (server domains) +
-// ui-primitive-structure (@orb/ui): file-shape invariants dep-cruiser can't see (it watches imports,
-// not layout). Enforced per-BUILT-feature — a slice holding only a .gitkeep (reserved, not yet built)
-// is SKIPPED, so this gate is green on the empty scaffold and activates the moment a feature gets real
-// code. Ports neo-tavern's 7-rule client-structure (reference/neo-tavern/scripts/check/) ADAPTED to
-// orb's fleet: the surface↔anchor split (rule 7) is core D42 doctrine (§4), the reserved set +
-// container-suffix vocabulary are orb-verified (NOT neo's shadcn names).
-//
-//   1. front-door        — a built feature exposes features/<name>/index.ts (§2.1).
-//   2. mirror invariant  — a built feature name is a RESERVED UI-only slice OR mirrors a real
-//                          packages/server/src/domain/<name> (read live). No _shared in orb.
-//   3. no-stray-root     — the feature root holds only index.ts + *.md notes; modules live in buckets.
-//   4. buckets           — a slice's subdirs come from the known set (app-shell adds registry/store).
-//   5. surface naming    — surfaces/*.tsx end in -surface.tsx (§2.1 surfaces/ bucket).
-//   6. hook / anchor naming — hooks/*.ts are use-*, hooks/*.tsx are use-*|-context|-provider;
-//                          anchors/*.tsx end in a container-type suffix (the CONTAINMENT-PROVIDER role).
-//   7. surface purity    — a surfaces/*.tsx must NOT render its own outer container primitive
-//                          (Dialog/AlertDialog/Drawer — the modal-root sub-family). Establishing the
-//                          containment box is the anchor's job (§4/§2.1 surfaces = CONSUMER, anchors =
-//                          PROVIDER). Anchored floats (Popover/Menu/Select/Tooltip) are legal inline.
+// Gate: client-structure (UI-Architecture-and-Layout.md §2.1 + §4) — the @orb/client feature-slice
+// layout. File-shape invariants dep-cruiser can't see. Enforced per-BUILT-feature — a slice holding
+// only a .gitkeep (reserved, not yet built) is skipped. Rules: (1) front-door index.ts, (2) name is a
+// reserved UI-only slice or mirrors a real server domain, (3) no stray root files, (4) known buckets
+// only, (5) surfaces/*.tsx end -surface.tsx, (6) hooks/anchors naming, (7) a surface must not render
+// its own outer Dialog/AlertDialog/Drawer (that's the anchor's job).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
@@ -26,24 +11,15 @@ import type { Violation } from "../harness.ts";
 
 const FEATURES = "packages/client/src/features";
 const DOMAINS = "packages/server/src/domain";
-// The known slice buckets (§2.1): a feature module lives in a bucket, never sprawls at the root.
+// The known slice buckets: a feature module lives in a bucket, never sprawls at the root.
 const BUCKETS = new Set(["surfaces", "anchors", "components", "hooks", "lib"]);
-// app-shell is the SHELL-tier frame (§4.1) — it additionally owns the slot registries + the shell store.
+// app-shell is the shell-tier frame — it additionally owns the slot registries + the shell store.
 const SHELL_EXTRA = new Set(["registry", "store"]);
-// RESERVED UI-only slices (verified against orb's features/ + the AGENTS §6 domain map — orb has NO
-// _shared; corpus is NOT reserved, it must rename to the `discovery` domain when built — W1-0d/PD).
 const RESERVED = new Set(["app-shell", "auth", "prompt-manager", "user-admin"]);
-// Container-type vocabulary for anchor filenames (anchor = the containment PROVIDER; §4). Orb-verified
-// against the @orb/ui overlay fleet (packages/ui/src/primitives): dialog/drawer are the modal roots,
-// popover/menu the anchored floats an anchor may own; `anchor`/`panel` are the shell-tier dock names.
-// NOT neo's shadcn `sheet`/`sidebar` (no such orb primitive). "alert-dialog"-named anchors resolve to
-// the `dialog` suffix via last-hyphen-segment extraction below.
+// Container-type vocabulary for anchor filenames (an anchor names the containment it PROVIDES).
 const ANCHOR_SUFFIXES = ["anchor", "dialog", "drawer", "popover", "menu", "panel"];
-// Raw outer-container primitives a SURFACE must never render itself — that's the anchor's job. Matches
-// only the bare modal ROOT tag: `<Dialog` followed by whitespace/`>`/`/`, so it hits `<Dialog>`/
-// `<Dialog ` but NOT `<DialogTrigger`/`<DialogPopup` (a surface legitimately composes an anchor's
-// parts) and NOT `<ConfirmDialog`. The three names are orb's modal-root sub-family (§13.7 "modals:
-// Backdrop+Popup"); anchored floats (Popover/Menu/Select/Tooltip) are inline-legal, deliberately out.
+// The bare modal ROOT tag only (`<Dialog>`/`<Dialog `), not `<DialogTrigger`/`<DialogPopup`/`<ConfirmDialog`
+// — a surface may compose an anchor's parts, but must not render the outer container itself.
 const OUTER_CONTAINER = /<(?:Dialog|AlertDialog|Drawer)[\s/>]/u;
 const CODE_RE = /\.tsx?$/u;
 const TSX_RE = /\.tsx$/u;
@@ -96,10 +72,8 @@ function filesIn(dir: string, bucket: string): string[] {
   }
 }
 
-// Rule 5 (surface naming) + Rule 7 (surface purity) — the surfaces/ bucket. app-shell is exempt from
-// the -surface.tsx NAMING contract only (its surfaces are the frame's REGION chrome — rail/list/
-// content/context, §4.1 — named for their region, not placeable content surfaces); surface PURITY
-// still applies to it (frame overlays belong in app-shell/anchors/, surfaces stay pure).
+// Rule 5 (surface naming) + Rule 7 (surface purity). app-shell is exempt from the -surface.tsx naming
+// contract only (its surfaces are the frame's region chrome); surface purity still applies to it.
 function checkSurfaces(dir: string, name: string, out: Violation[]): void {
   const rel = `${FEATURES}/${name}`;
   const namingExempt = name === "app-shell";
@@ -227,11 +201,6 @@ function scanClientStructure(root: string): Violation[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
-// client-structure reads the real filesystem (readdirSync/existsSync/readFileSync of the features + domain
-// dirs), never the ts-morph Project — so it ports as a `run` descriptor over ctx.root reusing the exact
-// scan, and declares `fsBacked` so the conformance runner materializes its examples into a real temp dir.
-// Findings are file-level (line 0). Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "client-structure",
   docRow: "UI-Architecture-and-Layout.md §2.1 (§4)",

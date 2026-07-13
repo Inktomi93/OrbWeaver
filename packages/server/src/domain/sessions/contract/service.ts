@@ -1,15 +1,5 @@
-// domain/sessions — the typed API surface (core/Core-0-Architecture-and-Structure.md §4). `SessionsService` is the authoritative
-// verb listing (read it to know everything the domain does); `SessionsContext` is the explicit DI bundle
-// (movement table: the inferred `ReturnType<>` is invisible at a glance, so the bundle is a hand-written
-// interface here — `no-context-returntype` forbids reflecting it off the builder).
-//
-// 12 verbs across the BFF session lifecycle + identity resolution:
-//   create · validate · revokeByToken · revoke · revokeAllForUser · listForUser · ensureUser ·
-//   provisionIdentity · loadUserById · resolveHandle · authenticate · provisionAgentPrincipal. The seam
-//   (`entry/auth/seam.ts`) consumes validate/provisionIdentity/ensureUser to mint the one `Principal`
-//   (+ loadUserById for the frozen-host bridge, PD-73); `admin` consumes listForUser/revoke/
-//   revokeAllForUser via an injected port; the `entry/http` local-login route consumes authenticate
-//   (PD-83); chat consumes resolveHandle (PD-66) + provisionAgentPrincipal (D60, AP3) as injected ops.
+// The typed API surface: `SessionsService` is the authoritative verb listing, `SessionsContext` the DI
+// bundle. 12 verbs across the BFF session lifecycle + identity resolution.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
@@ -24,79 +14,55 @@ import type {
   ValidatedSession,
 } from "./results";
 
-/**
- * The DI bundle every verb closes over, wired at the composition root (`service.ts`). Explicit interface
- * (not `ReturnType<typeof createSessionsContext>`) per §7.4 + the `no-context-returntype` gate.
- *   - `db` — the libSQL handle (all queries route through `persistence/`).
- *   - `now` — the INJECTED clock (epoch-ms). Production passes the real clock at `entry/`; tests pass the
- *     frozen clock. No ambient `Date.now()` in a verb (determinism — `no-raw-clock`).
- *   - `hashToken` — the peppered token hasher, bound to `SESSION_SECRET` at the root (D38 — relocated
- *     here from `infra/crypto`; throws if the pepper is unset). The verbs never see the raw pepper.
- */
+/** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
   db: Db;
   now: () => number;
+  /** The peppered token hasher, bound to `SESSION_SECRET` at the root; throws if the pepper is unset. */
   hashToken: (token: string) => string;
-  /** Session lifetime + slide-throttle (ms), injected from the `tokens/` subsystem at the composition
-   *  root — a verb reads `ctx.ttlMs`/`ctx.slideThrottleMs`, never imports the subsystem directly
-   *  (`domain-substrate-mediates-subsystems`: only the composition surfaces touch `tokens/`). */
+  /** Session lifetime + slide-throttle (ms), injected from the `tokens/` subsystem. */
   ttlMs: number;
   slideThrottleMs: number;
-  /** The infra/auth password VERIFY (PD-83) — bound in `context.ts` from the same `SESSION_SECRET` pepper
-   *  as `hashToken` (the token-hasher precedent). Constant-time against a stored `scrypt$…` hash; a null/
-   *  malformed stored value is a fast `false` (the VERB supplies the dummy-hash burn — see authenticate). */
+  /** Password verify, bound from the same `SESSION_SECRET` pepper as `hashToken`. Constant-time against a
+   *  stored hash; a null/malformed stored value is a fast `false`. */
   verifyPassword: (plain: string, stored: string | null | undefined) => Promise<boolean>;
 }
 
 export interface SessionsService {
-  /** Mint an opaque 32-byte token (the route sets it as the cookie) + persist only its peppered hash;
-   *  audits `AUTH_LOGIN`. Returns the raw token ONCE (never stored — only its peppered hash is). */
+  /** Mint an opaque 32-byte token + persist only its peppered hash; audits `AUTH_LOGIN`. Returns the raw
+   *  token once — never stored. */
   create: (params: CreateSessionParams) => Promise<CreateSessionResult>;
-  /** Validate a cookie token → the resolved caller's principal-fields (incl. `userId`), or `null` for
-   *  missing/revoked/expired/disabled. The Route-A identity-resolution step (ledger D40): the cookie→user
-   *  read is DOMAIN resolution the `entry/auth/seam` calls DIRECTLY (it returns `userId`, unlike the
-   *  removed infra `validateCookie` port). `role` + `enabled` are RE-READ from the row each request, so a
-   *  revoke / role-change / disable propagates on the NEXT request (orbweaver is NOT JWT-baked). Slides
-   *  expiry on a throttle; `onSlide` fires with the new expiry so the route can refresh the cookie Max-Age. */
+  /** Validate a cookie token → the resolved caller's principal-fields, or `null` for
+   *  missing/revoked/expired/disabled. `role`/`enabled` are re-read from the row each request, so a
+   *  revoke/role-change/disable propagates on the next request. Slides expiry on a throttle; `onSlide`
+   *  fires with the new expiry so the route can refresh the cookie Max-Age. */
   validate: (
     token: string,
     onSlide?: (expiresAt: number) => void,
   ) => Promise<ValidatedSession | null>;
   /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. No-op if already gone. */
   revokeByToken: (token: string) => Promise<void>;
-  /** Revoke one session by id (admin: kick a specific device). @internal — via `SessionAdminPort`. */
+  /** Revoke one session by id (admin: kick a specific device). @internal */
   revoke: (sessionId: SessionId) => Promise<void>;
-  /** Revoke ALL of a user's live sessions (admin disable / kick-all) → count revoked. @internal — port. */
+  /** Revoke all of a user's live sessions → count revoked. @internal */
   revokeAllForUser: (userId: UserId) => Promise<number>;
-  /** A user's sessions for the admin device list. @internal — via `SessionAdminPort`. */
+  /** A user's sessions for the admin device list. @internal */
   listForUser: (userId: UserId) => Promise<SessionView[]>;
-  /** Resolve a handle → `UserId`, JIT-creating the row on first sight (the single-user / owner-fallback
-   *  path; keys on `handle`, `externalId` stays NULL). @internal — only the `entry/` seam calls it. */
+  /** Resolve a handle → `UserId`, JIT-creating the row on first sight. @internal */
   ensureUser: (handle: string) => Promise<UserId>;
-  /** The SSO seam upsert: keys on the stable `externalId` (rename stability), seeds `role` from the
-   *  owner policy on INSERT, preserves `role`/`enabled` on UPDATE (unless `RE_DERIVE_ROLE_ON_LOGIN`).
-   *  Returns `{ userId, enabled, role }` so the seam gates (disabled → unauthenticated) + builds the
-   *  `Principal`. @internal — only the `entry/` seam calls it. */
+  /** The SSO seam upsert: keys on the stable `externalId`, seeds `role` from owner policy on insert,
+   *  preserves `role`/`enabled` on update (unless `RE_DERIVE_ROLE_ON_LOGIN`). @internal */
   provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionResult>;
-  /** Resolve a bare row id → its live principal-fields (role/handle/externalId re-read from `users`), or
-   *  `null` for an unknown id. The frozen-host → `Principal` bridge (PD-73): chat's D19 ops are keyed by
-   *  the frozen host `UserId`, and the D17 role-sensitive ops (max-pro-sub owner-gate) need the host's
-   *  REAL role — sessions is the sanctioned `users` reader, so the read homes here. @internal — only the
-   *  `entry/auth` seam's `createHostPrincipalResolver` calls it. */
+  /** Resolve a bare row id → its live principal-fields, or `null` for an unknown id. @internal */
   loadUserById: (userId: UserId) => Promise<UserPrincipalFields | null>;
-  /** EXACT handle→userId (PD-66 — targeted chat invites; chat consumes this as an injected op). A
-   *  disabled/unknown handle collapses to null (leak-free; no listing — exact match only). */
+  /** Exact handle→userId. A disabled/unknown handle collapses to null (leak-free; exact match only). */
   resolveHandle: (handle: Handle) => Promise<UserId | null>;
-  /** LOCAL password login (PD-83): resolve `(handle, password)` → the row's `UserId`, or `null` for an
-   *  unknown handle / SSO-only (null-hash) row / wrong password / DISABLED row — all four collapse into
-   *  one leak-free null, and every path burns the same KDF time (the dummy-hash constant-time floor —
-   *  no user-enumeration timing oracle). The route mints the session from the returned id
-   *  (`sessions.create`); this verb only RESOLVES. @internal — only the `entry/http` login route calls it. */
+  /** Local password login: resolve `(handle, password)` → the row's `UserId`, or `null` for
+   *  unknown/SSO-only/wrong-password/disabled — all collapse into one leak-free null with the same KDF
+   *  time burned (no user-enumeration timing oracle). @internal */
   authenticate: (handle: string, password: string) => Promise<UserId | null>;
-  /** Mint (or idempotently adopt) an agent principal for `(ownerUserId, sourceKind)` (D60 — the ONLY site
-   *  that writes a `kind:'agent'` row). Gates the owner (`kind='human'`, enabled), inserts the agent `users`
-   *  row + `agent_principals` satellite atomically, audits `AGENT_PRINCIPAL_MINTED`. `created:false` = the
-   *  idempotent re-call / race loser. LAZY: called by `chat.seatAgent` (AP3) via an injected op — never at
-   *  hatch. FLAG[PD-17]: no production caller until AP3. */
+  /** Mint (or idempotently adopt) an agent principal for `(ownerUserId, sourceKind)`. Gates the owner,
+   *  inserts the agent `users` row + satellite atomically, audits `AGENT_PRINCIPAL_MINTED`.
+   *  `created:false` = idempotent re-call or race loser. FLAG[PD-17]: no production caller until AP3. */
   provisionAgentPrincipal: (params: ProvisionAgentParams) => Promise<ProvisionAgentResult>;
 }

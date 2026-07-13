@@ -1,14 +1,10 @@
-// The "Add a provider key" dialog (Settings → Connections → Saved keys). A COMPONENT so the Dialog root is
-// legal (client-structure rule 7). The form is the §13.4 factory (`useAddCredentialForm` — ≥3 fields +
-// validation), button-gated: "Add key" runs `form.handleSubmit()` whose `save` fires the `credentials.add`
-// mutation and closes on success; a failure keeps the dialog open (the mutation's errorToast is the failure
-// surface, and the sticky mutation error renders inline). Base UI unmounts the popup content while closed,
-// so every open mounts a FRESH form — a reopened dialog never shows the previous attempt's values.
+// The "Add a provider key" dialog. Button-gated: "Add key" runs form.handleSubmit(), whose save fires the
+// credentials.add mutation and closes on success. Base UI unmounts the popup content while closed, so
+// every open mounts a fresh form.
 //
-// SECURITY: the key is entered here and sent to `credentials.add` (which encrypts it at rest, AES-256-GCM),
-// but it is NEVER read back — `credentials.list` returns the redacted view (05-observability §5). The input
-// is a plain (unmasked) field so the user can verify the paste before saving; it is transient (cleared on
-// close by the per-open remount), never persisted client-side, and never echoed by any read.
+// Security: the key is sent to credentials.add (encrypted at rest) but never read back — credentials.list
+// returns the redacted view. The input is unmasked so the user can verify the paste; it is transient,
+// never persisted client-side, and never echoed by any read.
 
 import type { CredentialProvider } from "@orb/contracts/credentials";
 import { Button } from "@orb/ui/button";
@@ -30,7 +26,6 @@ export interface AddCredentialDialogProps {
   readonly invalidation: Invalidation;
 }
 
-/** The add-a-key dialog shell — the form body mounts fresh per open (Base UI unmounts closed popups). */
 export function AddCredentialDialog({
   open,
   onOpenChange,
@@ -99,9 +94,6 @@ function AddCredentialFormBody({
 
   return (
     <form.AppForm>
-      {/* A real <form> so `form.SubmitButton` (type="submit") actually runs `handleSubmit` — without an
-          enclosing form the submit button is inert (no validation, no field-error, `canSubmit` never flips),
-          so an empty-key click was a silent no-op. The raw <form> carries no className (compose-only). */}
       <form
         onSubmit={(event): void => {
           event.preventDefault();
@@ -160,7 +152,6 @@ function AddCredentialFormBody({
             )}
           </form.AppField>
 
-          {/* The custom-endpoint draft "Fetch models" check — advisory, never blocks submit (§5.4). */}
           <form.Subscribe
             selector={(
               state,
@@ -196,9 +187,7 @@ function AddCredentialFormBody({
   );
 }
 
-/** The pre-save custom-endpoint reachability check — fires the draft `credentials.fetchModels` (draft-wins
- *  arm) against the typed baseUrl/key and renders the count / failure inline. Purely advisory (§5.4): it
- *  NEVER blocks submit. The result is SESSION-EPHEMERAL local state. */
+/** The pre-save custom-endpoint reachability check — advisory only, never blocks submit. Session-ephemeral local state. */
 function DraftFetchModelsCheck({
   trpc,
   invalidation,

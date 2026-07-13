@@ -1,10 +1,7 @@
-// verb: update — patch an owned persona (whitelisted fields; `undefined` skips, `null` clears). The
-// whitelist is load-bearing: pre-fix an internal caller could smuggle identity columns (id/ownerId/
-// createdAt) past the structural type and overwrite them — `stripUndefined` over an EXPLICIT field list
-// closes that. `metadata` is coerced through the typed schema when set (the input is a loose write-record;
-// the column is typed) and passed through as `null` to clear. UPDATE … WHERE id=? AND owner_id=? RETURNING
-// folds the ownership check into the mutation; a no-op edit skips the write and re-reads straight away (the
-// JOINed `assets.hash` would be lost on a RETURNING-only row).
+// verb: update — patch an owned persona (whitelisted fields; undefined skips, null clears). The
+// whitelist is load-bearing: stripUndefined over an explicit field list stops an internal caller from
+// smuggling identity columns past the structural type. UPDATE ... WHERE id=? AND owner_id=? RETURNING
+// folds the ownership check into the mutation.
 
 import { personas } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
@@ -19,7 +16,7 @@ export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
   return async ({ principal, personaId, input }: UpdatePersonaParams) => {
     const ownerId = principal.userId;
     if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
-      // D21 cross-root belt: the FK proves the asset exists, never that it's the caller's.
+      // The FK proves the asset exists, never that it's the caller's.
       await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
     }
     const metadata =

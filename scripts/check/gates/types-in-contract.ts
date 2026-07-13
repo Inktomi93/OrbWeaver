@@ -15,11 +15,6 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — a FILE-LEVEL presence gate via visitFile) ────
-// The legacy predicate as a per-file hook (no node subscription — the finding is FILE-LEVEL, line 0, no
-// AST anchor): a contract/service.ts with no exported interface. scanRoot mirrors the legacy SERVICE_RE.
-// This is the visitFile exemplar — a whole-file presence assertion, not a per-node predicate. Kept
-// ALONGSIDE the legacy Check.
 export const gate: GateDescriptor = {
   name: "types-in-contract",
   docRow: "core/Core-0-Architecture-and-Structure.md §7.4",

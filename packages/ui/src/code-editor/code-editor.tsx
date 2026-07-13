@@ -9,18 +9,11 @@ import { useEffect, useId, useRef } from "react";
 import { cn } from "#lib";
 import { cssVar } from "#tokens";
 
-// THE token theme — the ONE CodeMirror↔design-token mapping site (D44 §12.1; ui-package-design
-// §6.1 "token-themed via an editor theme built FROM the TS token map"). Every color/typography
-// value is a `var(--…)` reference, so ThemeScope/theme swaps restyle the editor for free.
-//
-// Diagnostics (A5): `@codemirror/lint`'s own default theme bakes literal hex colors into inline
-// SVG data URIs (the gutter marker's `content: url(...)`, the inline mark's squiggle
-// `backgroundImage: url(...)`) — a data URI is its own document, so it cannot reference this
-// document's CSS custom properties. Those defaults are therefore replaced wholesale rather than
-// recolored: inline ranges get a token-colored `text-decoration` whose STYLE (wavy vs dotted) is
-// the non-color severity signal, and the gutter gets a token-colored SHAPE (circle vs triangle)
-// via `background-color` + `clip-path`. A real `EditorView.theme` always outranks the lint
-// module's `EditorView.baseTheme` (CM6's precedence contract), so no `!important` is needed.
+// The one CodeMirror↔design-token mapping site. Every color/typography value is a var(--…)
+// reference, so ThemeScope swaps restyle the editor for free. The lint module's default theme
+// bakes hex colors into inline SVG data URIs, which can't reference CSS custom properties, so
+// those are replaced wholesale: a token-colored text-decoration (wavy vs dotted = severity) for
+// inline ranges, and a token-colored shape (circle vs triangle) for the gutter marker.
 const TOKEN_THEME = EditorView.theme(
   {
     "&": {
@@ -102,7 +95,7 @@ const TOKEN_THEME = EditorView.theme(
   { dark: true },
 );
 
-/** A single lint diagnostic (A5 — CEL/macro rule diagnostics, themes custom-CSS `@import` warnings). */
+/** A single lint diagnostic. */
 export interface CodeEditorDiagnostic {
   readonly severity: "error" | "warning";
   readonly message: string;
@@ -117,10 +110,8 @@ const DIAGNOSTIC_SEVERITY_LABEL: Record<CodeEditorDiagnostic["severity"], string
   warning: "Warning",
 };
 
-// Positions come from a caller-owned parse (CEL/macro spans, custom-CSS lint) that can lag one
-// keystroke behind the live document — clamp rather than let `@codemirror/lint`'s internal
-// RangeSetBuilder choke on an out-of-bounds span. Every diagnostic is kept (never dropped): a
-// clamped mark still carries its message into the tooltip + the live region.
+// Positions come from a caller-owned parse that can lag one keystroke behind the live document —
+// clamp rather than let RangeSetBuilder choke on an out-of-bounds span.
 function toLintDiagnostics(
   diagnostics: readonly CodeEditorDiagnostic[],
   docLength: number,
@@ -133,7 +124,7 @@ function toLintDiagnostics(
 }
 
 export interface CodeEditorProps {
-  /** Language mode. Only `"css"` is wired today (the custom-CSS field / Tier-B card CSS — D46). */
+  /** Language mode. Only `"css"` is wired today. */
   readonly lang?: "css";
   /** Controlled document text — external changes are dispatched into the view. */
   readonly value: string;
@@ -142,43 +133,24 @@ export interface CodeEditorProps {
   readonly readOnly?: boolean;
   readonly ariaLabel: string;
   /**
-   * Lint diagnostics (A5), rendered via `@codemirror/lint`: an inline mark under the flagged
-   * span + a gutter marker per line, both token-themed (never color alone — see `TOKEN_THEME`
-   * above) and exposed to assistive tech through an `aria-describedby`-linked live region.
-   * Passing a fresh array (a different reference, same or different content) re-dispatches the
-   * diagnostics into the LIVE view via `setDiagnostics` — it never remounts the editor, so the
-   * cursor/selection survives. Omit entirely to skip the lint gutter/machinery altogether (the
-   * plain read/write editor stays exactly as before this feature).
+   * Lint diagnostics: an inline mark under the flagged span + a gutter marker per line, exposed to
+   * assistive tech via an aria-describedby-linked live region. A fresh array re-dispatches into the
+   * live view without remounting, so cursor/selection survives. Omit to skip the lint machinery.
    */
   readonly diagnostics?: readonly CodeEditorDiagnostic[];
   /**
-   * WS3 — a fixed completion vocabulary (e.g. the themeable `--color-*` var names) wired into
-   * REAL inline autocomplete via `@codemirror/autocomplete`'s `completeFromList` (CodeMirror 6's
-   * own doc-recommended shape for a static string list — this package's ONE `@codemirror/autocomplete`
-   * import site, dep-cruiser `ui-satellite-seals`). Passed as `autocompletion({ override })`, so
-   * while set it REPLACES `basicSetup`'s default completions (word-from-buffer + the `css()`
-   * language's own property names) with just this vocabulary — the right trade for a curated
-   * custom-property field, not a general CSS-authoring surface. Omit for the plain editor (no
-   * behavior change from before this prop existed — `basicSetup`'s defaults still apply).
+   * A fixed completion vocabulary wired into inline autocomplete via `completeFromList`. While set
+   * it replaces `basicSetup`'s default completions with just this vocabulary. Omit for the plain
+   * editor (basicSetup's defaults still apply).
    */
   readonly completions?: readonly string[];
   readonly className?: string;
 }
 
 /**
- * The CodeMirror 6 seal (ui-package-design §6.1 — no raw `@codemirror/*` import outside this
- * dir; dep-cruiser `ui-satellite-seals`): a controlled editor over `EditorView` + `basicSetup`,
- * themed exclusively through the design-token map (D44 §12.1 — one mapping site, above).
- *
- * Controlled contract: `value` is compared against the live view state before dispatching (no
- * update loops); user edits surface through `onChange` via an `updateListener`. The view is
- * destroyed on unmount.
- *
- * @example
- * ```tsx
- * <CodeEditor lang="css" value={cardCss} onChange={setCardCss} ariaLabel="Card CSS" />
- * <CodeEditor lang="css" value={css} onChange={setCss} ariaLabel="Custom CSS" diagnostics={warnings} />
- * ```
+ * The CodeMirror 6 seal: a controlled editor over `EditorView` + `basicSetup`, themed exclusively
+ * through the design-token map. `value` is compared against the live view state before
+ * dispatching (no update loops); user edits surface via `onChange`. The view is destroyed on unmount.
  */
 export function CodeEditor({
   lang,
@@ -201,11 +173,9 @@ export function CodeEditor({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // (Re)create the view when non-controlled config changes: basicSetup/editable/readOnly/
-  // attributes are baked into the initial state — a fresh view is simpler than a Compartment
-  // reconfigure, and these props change rarely (KISS). `hasDiagnostics` (opts the lint gutter
-  // in/out) belongs here because it changes the STATIC extension list; diagnostic CONTENT is
-  // dispatched into the live view below without ever hitting this effect.
+  // (Re)creates the view when non-controlled config changes — a fresh view is simpler than a
+  // Compartment reconfigure, and these props change rarely. Diagnostic content is dispatched into
+  // the live view below without ever hitting this effect.
   useEffect(() => {
     const host = hostRef.current;
     if (host === null) {
@@ -218,11 +188,8 @@ export function CodeEditor({
         basicSetup,
         TOKEN_THEME,
         EditorView.editable.of(!readOnly),
-        // `EditorView.editable` only toggles `contenteditable` (DOM typing); it does NOT gate
-        // paste/drop/command-triggered inserts — those check `state.readOnly` (verified against
-        // the CodeMirror 6 docs: "Not to be confused with EditorView.editable, which controls
-        // whether the editor's DOM is set to be editable"). Both facets are needed for a real
-        // read-only contract.
+        // EditorView.editable only toggles contenteditable; it doesn't gate paste/drop/command
+        // inserts, which check state.readOnly instead — both are needed for a real read-only contract.
         EditorState.readOnly.of(readOnly),
         EditorView.contentAttributes.of({
           "aria-label": ariaLabel,
@@ -234,12 +201,9 @@ export function CodeEditor({
           }
         }),
         ...(lang === "css" ? [css()] : []),
-        // `linter(null)`: no auto-computed source — diagnostics are caller-controlled and pushed
-        // in via `setDiagnostics` below, never derived from document-idle recomputation.
+        // linter(null): no auto-computed source — diagnostics are pushed via setDiagnostics below.
         ...(hasDiagnostics ? [linter(null), lintGutter()] : []),
-        // WS3 — a fixed completion vocabulary REPLACES `basicSetup`'s default sources (see the prop
-        // doc above). `completions` is expected to be a stable reference (a module-scope const like
-        // `THEME_SCOPE_EMIT_VARS`) — like `lang`/`readOnly`, a genuine change rebuilds the view.
+        // `completions` is expected to be a stable reference — a genuine change rebuilds the view.
         ...(completions === undefined
           ? []
           : [autocompletion({ override: [completeFromList([...completions])] })]),
@@ -266,12 +230,8 @@ export function CodeEditor({
     }
   }, [value]);
 
-  // Diagnostics ↔ view state: a plain `setDiagnostics` transaction, dispatched on every prop
-  // change (including the `undefined`↔defined edge, which the effect above already remounted
-  // the view for — a redundant-but-harmless dispatch against a just-created view). This is the
-  // ONLY diagnostics-driven effect that does not depend on lang/readOnly/ariaLabel, which is the
-  // correctness contract: re-rendering with new diagnostics (even a freshly-derived array from a
-  // parent re-render) never remounts the editor, so the cursor/selection is untouched.
+  // A plain setDiagnostics transaction on every prop change — never remounts the editor, so
+  // cursor/selection is untouched even for a freshly-derived array from a parent re-render.
   useEffect(() => {
     const view = viewRef.current;
     if (view === null || diagnostics === undefined) {

@@ -1,8 +1,6 @@
-// verb: duplicateTheme — the §12.1 "duplicate-to-customize" verb. Source = any READABLE row (own or
-// seed); the result is always a NEW owned row (fresh id, deep-copied `override`/`css`, name defaulted to
-// `"<source> copy"` and de-duped against the caller's own names by a numeric suffix under the
-// `unique(ownerId, name)` index). Seeds are never edited in place — customization is always
-// copy-then-edit (themes-design.md §4 — explicitly REJECTS a copy-on-write-on-edit dance).
+// verb: duplicateTheme — "duplicate-to-customize". Source = any readable row (own or seed); result is
+// always a new owned row (fresh id, deep-copied override/css, name defaulted to "<source> copy" and
+// de-duped by a numeric suffix). Seeds are never edited in place.
 
 import { DomainConflictError } from "@orb/kit/errors";
 import { ThemeNotFoundError } from "../contract/errors";
@@ -22,8 +20,7 @@ const THEME_ENTITY = "theme";
 const COPY_SUFFIX = " copy";
 const FIRST_INCREMENT = 2;
 
-/** First free `<base>[ N]` not already used by the owner (the character `duplicate` handle-suffix
- *  precedent, adapted to a space-separated numeric suffix per themes-design's `"<source> copy"`). */
+/** First free "<base>[ N]" not already used by the owner. */
 function freeThemeName(base: string, taken: ReadonlySet<string>): string {
   if (!taken.has(base)) {
     return base;
@@ -63,8 +60,7 @@ export function createDuplicateTheme(
     try {
       await insertTheme(ctx.db, row);
     } catch (err) {
-      // The free-name computation above is TOCTOU-safe against everything EXCEPT a concurrent create/
-      // duplicate racing the same free name — still surfaces as a typed conflict, never a 500.
+      // A concurrent create/duplicate racing the same free name surfaces as a typed conflict, never a 500.
       if (isThemeNameConflict(err)) {
         const dup = new DomainConflictError(`a theme named "${name}" already exists`);
         dup.cause = err;

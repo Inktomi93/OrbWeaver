@@ -1,10 +1,6 @@
-// domain/settings/constants — the themes-slice sentinel ids (themes-design.md §2.1/§5, the
-// SYSTEM_DEFAULT_PRESET_ID pattern from `domain/preset/constants.ts`). Fixed sentinel TypeIDs for the
-// THREE seed palettes: not cross-boundary (no client needs the raw ids — the view's derived `isSeed`
-// flag is what the client reads), so this lives in `domain/settings`, NOT `@orb/contracts`. The seed
-// insert (`seed-themes.ts`), the write-verb `fetchOwned` guard (implicit — a NULL owner never matches a
-// caller), and any future direct reference all pivot on these constants simultaneously. MUST NOT change
-// (a test pins these literals as valid theme ids).
+// domain/settings/constants — fixed sentinel TypeIDs for the three seed palettes. Not cross-boundary (the
+// view's derived isSeed flag is what the client reads), so this lives here, not @orb/contracts.
+// MUST NOT change — a test pins these literals as valid theme ids.
 
 import type { ThemeId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

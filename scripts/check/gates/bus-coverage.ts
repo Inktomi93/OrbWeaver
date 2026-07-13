@@ -1,16 +1,10 @@
-// Gate: bus-coverage (ledger D50) — the ChatBusEvent emit-coverage RATCHET. The union is
-// compile-exhaustive on the CONSUMER side (`CHAT_BUS_EVENT_TYPES satisfies Record<…>`; the client
-// reducer's assertNever), but nothing machine-checked the PRODUCER side — a member can be declared,
-// replay-guarded, reduced, and NEVER EMITTED (silently dead wire). This gate closes that: every
-// discriminator in `CHAT_BUS_EVENT_TYPES` (parsed from the contracts source, the one home) must
-// have a server-side emit site (the discriminator string appearing in a `domain/` or `transport/`
-// code literal) OR an entry in the DEFERRED map below carrying its citation.
+// Gate: bus-coverage (ledger D50) — the ChatBusEvent emit-coverage ratchet. The union is
+// compile-exhaustive on the CONSUMER side, but nothing checked the PRODUCER side — a member can be
+// declared, replay-guarded, reduced, and never emitted (silently dead wire). Every discriminator in
+// `CHAT_BUS_EVENT_TYPES` must have a server-side emit site OR a cited DEFERRED entry.
 //
-// The DEFERRED map is a RATCHET, self-cleaning in both directions: a member that loses its emit
-// site goes RED (regression), and a DEFERRED member that GAINS one goes RED too ("stale allowlist —
-// delete the entry"). Founding census (2026-07-03, the gate's own first catch): 8 of 26 members had
-// no producer — the PD-89 wiEntry trio plus five nobody had flagged (incl. `historyTruncated`,
-// which Tier-4-Transport.md described as live behavior — a PD-106-class doc-truth gap).
+// The DEFERRED map is a ratchet, self-cleaning in both directions: a member that loses its emit site
+// goes RED (regression), and a DEFERRED member that gains one goes RED too (stale allowlist entry).
 import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -21,11 +15,7 @@ const EMIT_SCOPE = /\/packages\/server\/src\/(?:domain|transport)\//u;
 const TYPES_CONST = "CHAT_BUS_EVENT_TYPES";
 
 /** Declared-not-emitted members, each with its tracked citation. Delete an entry the moment its
- *  emit site lands (the gate flags a stale entry). The five 2026-07-03 finds below the PD-89 trio
- *  are registered as PD-117 (`personaSwitched`/`reasoningStreamDone` wired 2026-07-05, PD-120 wave —
- *  see `engine.ts`'s post-reduce emit + `verbs/roster.ts`'s `setParticipantActivePersona`;
- *  `worldInfoActivated` wired 2026-07-06 — `AssembleWorldEntry.id` is now a required `WorldEntryId`,
- *  `assembly/context.ts`'s `wiTrace.entryIds` carries the budget-survived fired set, `engine.ts` emits it). */
+ *  emit site lands (the gate flags a stale entry). */
 const DEFERRED: Record<string, string> = {
   // biome-ignore lint/security/noSecrets: a citation string (a code path), not a secret.
   chatOpened: "stream-attach synthesis unbuilt — see the FLAG comment in verbs/start-chat.ts",
@@ -104,12 +94,6 @@ function reconcileBusCoverage(project: Project): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
-// bus-coverage is a pure whole-tree reconciliation (the union keys from the contracts home vs a literal
-// corpus of every server domain/transport string), not a per-node predicate — so it ports as a `run`
-// descriptor over the SAME shared project, reusing the exact reconcile logic. No begin/finalize needed
-// (the corpus is built inside `run`). The vacuous guards (no contracts file / empty union → []) are the
-// synthetic-tree protection. Findings byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "bus-coverage",
   docRow: "ledger D50 (Core-Laws-and-Precedents.md §7 D50)",
@@ -133,10 +117,6 @@ export const gate: GateDescriptor = {
       why: "a CHAT_BUS_EVENT_TYPES member with no server emit site + no DEFERRED entry — silent dead wire",
     },
   ],
-  // The STALE arm (a DEFERRED member that GAINS an emit site — `emitted && deferred`) is LIVE-RUN-COVERED:
-  // it has no tree-scope guard but reproducing it synthetically would brittle-couple a fixture to today's
-  // DEFERRED map contents; the accepted-delta rule applies (see FLOOR-GATE-EXHAUSTIVE-MAP.md). Only the
-  // pure MISSING (flag) and EMITTED/DEFERRED-covered (pass) arms are ported as examples.
   mustPass: [
     {
       files: {

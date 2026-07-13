@@ -181,11 +181,8 @@ function scanTestPresenceClient(root: string, project: Project): Violation[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST presence gate via `run`, fsBacked) ─────────────────
 // The client/ui twin of test-presence: reconciles client/ui logic-bearing source (AST callable-export
-// detection) against its mirror test (existsSync). A `run` descriptor over ctx.root + ctx.project reusing
-// the scan, `fsBacked` for conformance. Distinct per-tier messages → per-occurrence overrides.
-// Byte-identical to the legacy Check.
+// detection) against its mirror test (existsSync).
 export const gate: GateDescriptor = {
   name: "test-presence-client",
   docRow: "core/Spine-Testing.md §5",

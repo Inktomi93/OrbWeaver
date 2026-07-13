@@ -1,16 +1,7 @@
-// verb: resolve — the turn-time credential CHOKEPOINT. Every
-// chat/connection/buddy turn calls this before running. It dispatches on the DISPATCH axis
-// `CredentialSource` (5 arms) and returns the brand-protected `ResolvedCredential` the runners consume —
-// constructed ONLY through the `substrate/mint` factories (invariant #1). The switch is `assertNever`-
-// exhaustive: a new `CredentialSource` member fails `tsc` here until its arm + a runner arm land (§7.5).
-//
-// Arm security:
-//   • max-pro-sub  OWNER-ONLY (D17) — `mintMaxProSub` runs `requireOwner(principal)` before the cast; a
-//                  non-owner gets `DomainForbiddenError`, never the owner's box credential.
-//   • vllm / local-light  keyless local-compute markers (the owner's box) — open to any authenticated turn.
-//   • openrouter / custom_openai  the user's ACTIVE row, decrypted (AAD = `${ownerId}|${provider}`).
-// A missing/revoked BYO credential is `DomainNoCredentialError` (the floor — the client surfaces a banner
-// pointing at Connections); there is NO silent host-fallback (a host key would spend the owner's quota).
+// verb: resolve — the turn-time credential chokepoint. Dispatches on CredentialSource (assertNever-exhaustive)
+// and returns a brand-protected ResolvedCredential built only through substrate/mint. max-pro-sub is
+// owner-only; openrouter/custom_openai decrypt the user's active row; a missing/revoked BYO credential is
+// DomainNoCredentialError with no silent host-fallback (would spend the owner's quota).
 
 import type {
   CustomOpenAiCredential,
@@ -81,14 +72,12 @@ async function resolveCustomOpenAi(
     apiKey: plaintext !== null && plaintext.length > 0 ? plaintext : null,
     headers: endpoint.headers,
     credentialId: active.id,
-    // GAP-6: carry the convenience default model from metadata (parse-metadata extracts it as `string|null`).
     model: endpoint.model ?? undefined,
   });
 }
 
 export function createResolve(ctx: CredentialContext): CredentialsService["resolve"] {
-  // `async` so a synchronous throw (e.g. the max-pro-sub owner-gate) surfaces as a REJECTED promise, not
-  // a sync throw at the call site — every caller awaits resolve.
+  // async so a synchronous throw (e.g. the max-pro-sub owner-gate) surfaces as a rejected promise.
   return async (params: ResolveCredentialParams): Promise<ResolvedCredential> => {
     const { principal } = params;
     const source = params.source;
@@ -96,10 +85,8 @@ export function createResolve(ctx: CredentialContext): CredentialsService["resol
       case "vllm":
         return mintVllm();
       case "local-light":
-        // PD-9 (D39): the keyless in-process transformers.js/ONNX tier — mirror of vllm, no row/key.
         return mintLocalLight();
       case "max-pro-sub":
-        // Owner-gate (D17) runs inside the factory; throws DomainForbiddenError for a non-owner.
         return mintMaxProSub(principal, ctx.requireOwner);
       case "openrouter":
         return await resolveOpenRouter(ctx, principal.userId);

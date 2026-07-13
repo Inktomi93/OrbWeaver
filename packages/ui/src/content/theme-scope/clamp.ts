@@ -1,19 +1,10 @@
-// The D44 §12.1 token-override CLAMP — the security boundary for user/character theming. This is the
-// ui-local twin of `@orb/contracts/theme` `ThemeOverride` (ui CANNOT import @orb/contracts — the cake;
-// the contracts↔ui structural pairing is asserted in the client phase, ui-package-design §1/§10.5).
-//
-// GOVERNING RULE (D44 §12.0/§12.1): a custom-property VALUE cannot select, execute, or exfiltrate — but
-// only if it is PARSED + CLAMPED at the boundary. A color must parse as a color (reject url()/expression()/
-// injection); a dimension snaps to the token scale; a font must be allowlisted. Anything that fails is
-// DROPPED (the inherited token shows through) — never applied raw. This is what makes ThemeScope safe
-// where SillyTavern's raw `--SmartTheme*` vars are not.
+// Security boundary for user/character theming: a custom-property VALUE must be parsed + clamped
+// here before it reaches the DOM (color must parse as a color, dimension snaps to the token scale,
+// font is allowlisted) — anything that fails is dropped, never applied raw.
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 
-// The color predicate lives in `#lib/safe-color` (floor-homed — color-field, a PRIMITIVE, shares it
-// and a primitive may not reach up into content/; the ui internal cake).
-
-/** Fonts a user may pick — an allowlist (D44 §12.1 "font (allowlist)"); anything else is dropped. */
+/** Fonts a user may pick — an allowlist; anything else is dropped. */
 export const THEME_FONT_ALLOWLIST = [
   "Geist",
   "ui-sans-serif",
@@ -25,12 +16,7 @@ export const THEME_FONT_ALLOWLIST = [
 ] as const;
 type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
-// Exported for the contracts↔ui structural PAIRING test (D44 §12.5: the wire schema in
-// `@orb/contracts/theme` and this render clamp are a deliberate cake-forced two-copy; the pairing
-// suite imports both packages and asserts identical key sets / enums / font allowlist).
-// Phase 4 (§B.2): the 5 immersive modes (`@orb/client` `MESSAGE_ROW_SKINS`) join bubble/flat/document —
-// the pairing suite (`tests/contracts/theme/pairing.suite.test.ts`) enforces this tuple stays byte-
-// identical to the wire twin (`@orb/contracts/theme` `THEME_CHAT_STYLES`).
+// Exported for the contracts↔ui structural pairing test — must stay byte-identical to the wire twin.
 export const THEME_SCOPE_CHAT_STYLES = [
   "bubble",
   "flat",
@@ -70,10 +56,8 @@ export const themeScopeTokensSchema = z.object({
 export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**
- * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys, only
- * validated values) plus the non-custom-property axes (chatStyle/density are `data-*`). The decorative
- * background IMAGE is NOT here (D63): it moved off the theme to the `appearance` user-settings namespace,
- * palette-independent — ThemeScope now emits only color/enum vars.
+ * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys,
+ * only validated values) plus the non-custom-property axes (chatStyle/density are `data-*`).
  */
 export interface ClampedTheme {
   readonly vars: Readonly<Record<string, string>>;
@@ -85,19 +69,11 @@ function fontStack(font: ThemeFont): string {
   return font === "Geist" ? "Geist, ui-sans-serif, system-ui, sans-serif" : `${font}, serif`;
 }
 
-/**
- * Every `--*` custom property `clampThemeTokens` can emit into `ClampedTheme.vars` — the themeable
- * surface (WS0). MUST stay in sync with the `put()`/`vars[...]` assignments below (the emit-surface
- * test in tests/ui/content/theme-scope/emit-surface.test.ts calls `clampThemeTokens` with every field
- * populated and asserts the actual output keys match this list exactly, so a drift fails loudly).
- * Exported so that test reads the surface structurally instead of re-parsing this file.
- */
+// Every `--*` custom property clampThemeTokens can emit — must stay in sync with the put()/vars[...]
+// assignments below (an emit-surface test asserts the actual output keys match this list exactly).
 export const THEME_SCOPE_EMIT_VARS = [
   "--color-primary",
   "--color-ring",
-  // The accent picker sets --color-primary; its readable foreground DERIVES off that picked accent
-  // (contrast-tone flip) so text on primary buttons stays legible for ANY accent (a dark accent can't
-  // keep the light static default and vanish). #16: burned off the emit-pairing allowlist.
   "--color-primary-foreground",
   "--color-user-bubble",
   "--color-user-bubble-foreground",
@@ -110,67 +86,39 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-narration",
   "--color-prose-body",
   "--color-background",
-  // The neutral surface RAMP, DERIVED from `background` (below) — a user picks ONE base surface and the
-  // sidebar/panel/card/popover chrome derives coherently; they never hand-pick the neutral ramp.
+  // The neutral surface ramp, derived from `background` — a user picks one base surface and the
+  // sidebar/panel/card/popover chrome derives coherently.
   "--color-sidebar",
   "--color-surface-raised",
   "--color-card",
   "--color-popover",
-  // The hover/selected SURFACE (list-row/menu/combobox selection) derives off the base too — a member
-  // of the neutral ramp so a selected row tracks the theme instead of staying the pinned Hearth tone,
-  // which let its paired --color-accent-foreground derive as well (#16: the light-theme quick-pick
-  // illegibility, side-eye P2 — a dark static accent surface under a light theme kept near-white text).
   "--color-accent",
   "--color-accent-foreground",
-  // The SIDEBAR hover surface (rail/sidebar-button :hover, shell.css `.shell-rail-button:hover`) — a
-  // neutral ramp member off the base, sitting a hair above `sidebar`. Without it a custom theme recolors
-  // the rail but its hover stayed the pinned Hearth charcoal ("default black on hover" — owner defect #2).
-  // Its text is `--color-sidebar-foreground` (already derived), so no separate paired fg.
   "--color-sidebar-accent",
-  // `secondary` + `muted` are the remaining NEUTRAL ramp surfaces (combobox/toast chips read `bg-secondary`;
-  // skeleton/badge/progress/avatar-fallback read `bg-muted`) — derived off the base so a chip/skeleton on a
-  // themed panel tracks the palette instead of staying a Hearth-grey slab beside recolored chrome. `muted`'s
-  // text is the already-derived `--color-muted-foreground`; `secondary`'s pairs with the derived fg below.
   "--color-secondary",
   "--color-secondary-foreground",
   "--color-muted",
-  // The neutral FOREGROUNDS, DERIVED for contrast from the surface they sit on (light surface → dark
-  // text, dark surface → light text) — so "set the background white" can never yield invisible text. The
-  // picker never sets these; they're computed. (Bubble foregrounds — also derived — reuse the keys above.)
+  // Neutral foregrounds, derived for contrast from the surface they sit on — never picked directly.
   "--color-foreground",
   "--color-card-foreground",
   "--color-popover-foreground",
   "--color-sidebar-foreground",
-  // Secondary/placeholder text — derived softer than the full foreground but still AA-legible.
   "--color-muted-foreground",
-  // The UI border — an explicit `borderColor` when set, else DERIVED from the base surface (a low-alpha
-  // contrast hairline, so it stays visible on light AND dark bases). `--color-sidebar-border` is the
-  // SAME hairline for the sidebar-tinted chrome (rail edge, LIST/CONTEXT panel edges + the CONTEXT
-  // header underline) — derived alongside it so panel chrome tracks the theme instead of keeping the
-  // default near-white 7%-alpha edge (visible-defect: a themed CONTEXT panel with an unthemed border).
+  // The UI border: an explicit borderColor when set, else derived from the base surface.
   "--color-border",
   "--color-sidebar-border",
-  // The input-field surface — DERIVED from the base so a themed text field/search chip tracks the
-  // palette instead of staying a pinned near-white overlay (low-contrast on themed panels).
   "--color-input",
   "--font-sans",
   "--radius-card",
 ] as const;
 
-// OKLCH lightness deltas of the neutral surface ramp RELATIVE to the base `background` (they match
-// Hearth's authored deltas vs its 0.158 background: sidebar 0.132, surface-raised 0.185, card 0.205,
-// popover 0.245). Applied via CSS relative-color-syntax so ANY base color format works and the browser
-// does the math; same hue + chroma, only L shifts.
+// OKLCH lightness deltas of the neutral surface ramp relative to the base `background`, applied via
+// CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma held).
 const RAMP_DL_SIDEBAR = -0.026;
 const RAMP_DL_SURFACE_RAISED = 0.027;
 const RAMP_DL_CARD = 0.047;
 const RAMP_DL_POPOVER = 0.087;
-// The hover/selected surface sits a step above `card` (matches Hearth's authored 0.285 vs its 0.158
-// background). Its paired foreground derives off this same shifted L below (never hand-picked).
 const RAMP_DL_ACCENT = 0.127;
-// The SIDEBAR hover surface sits just above `sidebar` (matches Hearth's authored 0.235 vs its 0.158
-// background = +0.077); `secondary` and `muted` are the neutral chip/skeleton surfaces (Hearth 0.255 =
-// +0.097). All three are neutral ramp members — same hue/chroma as the base, only L shifts.
 const RAMP_DL_SIDEBAR_ACCENT = 0.077;
 const RAMP_DL_SECONDARY = 0.097;
 const RAMP_DL_MUTED = 0.097;
@@ -185,37 +133,24 @@ const SURFACE_RAMP_DELTAS: ReadonlyArray<readonly [name: string, deltaL: number]
   ["--color-muted", RAMP_DL_MUTED],
 ];
 
-// Contrast-safe FOREGROUND derivation (readability floor — a foreground is NEVER picked, always derived
-// from the surface it sits on). Via relative-color-syntax: L flips light↔dark around a pivot with a steep
-// step, so any surface lighter than the pivot gets near-black text and any darker gets near-white — "set
-// everything white" is physically unable to produce invisible text. Chroma 0 = neutral text, hue kept for
-// a faint warmth. min/max keep it off pure black/white (matches the design's off-white/near-black).
-const FG_PIVOT_L = 0.62; // surfaces above this L read as "light" → dark text
-const FG_STEEPNESS = 1000; // razor-thin transition band around the pivot
-const FG_L_MIN = 0.22; // darkest derived text (near-black, on light surfaces)
-const FG_L_MAX = 0.96; // lightest derived text (off-white, on dark surfaces)
-// The contrast lightness expression (light surface → low L, dark surface → high L), shared by the
-// foreground (opaque) and the derived border (low-alpha hairline).
+// Contrast-safe foreground derivation: L flips light↔dark around a pivot with a steep step, so any
+// surface lighter than the pivot gets near-black text and darker gets near-white — a foreground is
+// never picked directly, only derived, so "set everything white" can't produce invisible text.
+const FG_PIVOT_L = 0.62;
+const FG_STEEPNESS = 1000;
+const FG_L_MIN = 0.22;
+const FG_L_MAX = 0.96;
 const CONTRAST_L = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
-const BORDER_ALPHA = 0.14; // a subtle hairline — visible on either polarity, never a hard line
-const INPUT_ALPHA = 0.12; // the input-field surface lift (matches the token's default 0.12 alpha)
-// The MUTED foreground (placeholders, hints, secondary text) — the SAME pivot flip as the full
-// foreground, but a softer band (min 0.34 / max 0.82 vs the foreground's 0.22 / 0.96) so it reads as
-// secondary yet still clears WCAG AA (≥4.5:1) against the derived `--color-input` fill on both light and
-// dark bases (verified: worst realistic-pole ratio ≈4.8:1). The static token was a fixed L=0.705 that
-// failed AA on a lighter derived surface (side-eye: 3.12:1) — deriving it makes muted text track the
-// palette AND stay legible. (Mid-gray bases near the 0.62 pivot are a pre-existing pivot limitation the
-// full foreground shares — a mid-gray surface is inherently low-contrast for ANY sub-maximal tone.)
+const BORDER_ALPHA = 0.14;
+const INPUT_ALPHA = 0.12;
+// Muted foreground: same pivot flip, softer band, tuned to clear WCAG AA (>=4.5:1) against the
+// derived input fill on both light and dark bases.
 const MUTED_L_MIN = 0.34;
 const MUTED_L_MAX = 0.82;
 const MUTED_CONTRAST_L = `clamp(${MUTED_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${MUTED_L_MAX})`;
 /**
- * The NUMERIC derivation constants — the single source for both the CSS-string emits above AND the
- * seed-palette-contrast enforcement test (tests/ui/content/theme-scope/palette-contrast.suite.test.ts),
- * which recomputes the derived colors in house oklch math to prove every derived pairing clears WCAG AA.
- * Exported for the same reason as THEME_SCOPE_EMIT_VARS: the test asserts against the REAL constants, so
- * a future retune of the pivot/ramp can't silently drop a pairing below AA (R6 — a derivation claim is
- * only as good as the test that computes its result).
+ * The numeric derivation constants, exported so the seed-palette-contrast test recomputes the
+ * derived colors independently and proves every pairing clears WCAG AA against the real constants.
  */
 export const THEME_DERIVATION = {
   fgPivotL: FG_PIVOT_L,
@@ -242,25 +177,21 @@ export const THEME_DERIVATION = {
 function foregroundOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
 }
-/** The contrast foreground for a RAMP-derived surface whose L is the base's `l + deltaL` — computed
- *  SINGLE-LEVEL off the base (the pivot flip reads `l + deltaL`, never a nested relative-color of the
- *  already-derived surface) so it stays the same shape as every other derived token. */
+// Computed single-level off the base (the pivot flip reads l + deltaL, never a nested relative-color
+// of an already-derived surface) so it stays the same shape as every other derived token.
 function foregroundOnShifted(base: string, deltaL: number): string {
   const shiftedL = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - (l + ${deltaL})) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
   return `oklch(from ${base} ${shiftedL} 0 h)`;
 }
-/** A contrast-safe MUTED foreground (secondary text/placeholders) for `surface` — softer than
- *  `foregroundOn` but still ≥4.5:1 against the derived input fill. */
+/** A contrast-safe muted foreground (secondary text/placeholders) for `surface`. */
 function mutedForegroundOn(surface: string): string {
   return `oklch(from ${surface} ${MUTED_CONTRAST_L} 0 h)`;
 }
-/** A subtle contrast border DERIVED from `surface` (the foreground contrast tone at low alpha). */
+/** A subtle contrast border derived from `surface`. */
 function borderOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${BORDER_ALPHA})`;
 }
-/** The input-field SURFACE lift DERIVED from `surface` (the contrast tone at input alpha) — a
- *  translucent contrast overlay that composites over ANY surface, so a themed input tracks the palette
- *  instead of staying pinned near-white (the low-contrast search-chip defect on themed panels). */
+/** The input-field surface lift derived from `surface`, composited over any surface. */
 function inputSurfaceOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${INPUT_ALPHA})`;
 }
@@ -281,16 +212,14 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
   };
   put("--color-primary", t.accent);
   put("--color-ring", t.accent);
-  // The accent picker's readable foreground DERIVES off the picked accent (contrast-tone flip) — a
-  // static default can't survive an accent of the opposite polarity (dark accent + light static text =
-  // invisible). Emitted only alongside the accent it pairs with.
+  // The accent's readable foreground derives off the picked accent so a dark accent + static light
+  // text can never go invisible.
   put("--color-primary-foreground", t.accent === undefined ? undefined : foregroundOn(t.accent));
   put("--color-speaker", t.speaker);
   put("--color-dialogue", t.dialogueColor);
   put("--color-narration", t.narrationColor);
   put("--color-prose-body", t.bodyColor);
-  // Bubbles: the picker sets each bubble's BG; the FG is DERIVED from that bg for contrast (never picked),
-  // so a light bubble bg always gets dark text. (Any `.fg` the override carries is intentionally ignored.)
+  // Bubbles: the picker sets each bubble's bg; the fg is always derived for contrast, never picked.
   const putBubble = (bg: string, bgVar: string, fgVar: string): void => {
     vars[bgVar] = bg;
     vars[fgVar] = foregroundOn(bg);
@@ -305,53 +234,31 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     putBubble(t.systemBubble.bg, "--color-system-bubble", "--color-system-bubble-foreground");
   }
   if (t.background !== undefined) {
-    // The base surface (already isSafeColor-validated) + the derived neutral ramp + the derived neutral
-    // foregrounds. Relative-color-syntax (`oklch(from <base> calc(l ± Δ) c h)`) keeps the derivation
-    // portable (any input format) and the stored override small (it carries only `background`). A seed
-    // palette's [data-theme] block overrides these with its hand-tuned values; a custom theme derives them
-    // here so its whole chrome — surfaces AND text — tracks the one base surface color coherently + legibly.
     vars["--color-background"] = t.background;
     for (const [name, deltaL] of SURFACE_RAMP_DELTAS) {
       vars[name] = `oklch(from ${t.background} calc(l + ${deltaL}) c h)`;
     }
-    // The hover/selected surface is a ramp member (above); its text derives off the SAME shifted L so a
-    // selected row's foreground tracks the theme + stays polarity-correct (a light theme flips it dark).
     vars["--color-accent-foreground"] = foregroundOnShifted(t.background, RAMP_DL_ACCENT);
     const fg = foregroundOn(t.background);
     vars["--color-foreground"] = fg;
     vars["--color-card-foreground"] = fg;
     vars["--color-popover-foreground"] = fg;
     vars["--color-sidebar-foreground"] = fg;
-    // `secondary` is a neutral ramp surface at the same polarity as the base; its text reuses the derived
-    // foreground (the static token pins secondary-foreground = foreground too). `muted`'s text is the
-    // separately-derived `--color-muted-foreground` below; `sidebar-accent`'s is `sidebar-foreground`.
     vars["--color-secondary-foreground"] = fg;
-    // Secondary/placeholder text derives too — a softer contrast tone that still clears AA, so a custom
-    // theme's muted text tracks the palette instead of keeping the fixed (light-only) static token.
     vars["--color-muted-foreground"] = mutedForegroundOn(t.background);
-    // The border derives from the base surface too — UNLESS the user set an explicit borderColor (below).
-    // Both the generic UI border and the sidebar-chrome border derive from the same base so every themed
-    // surface's hairline (content borders AND rail/panel/panel-header edges) tracks the palette + stays
-    // polarity-correct; without this the panel chrome kept the default near-white edge under any theme.
     vars["--color-border"] = borderOn(t.background);
     vars["--color-sidebar-border"] = borderOn(t.background);
-    // The input-field surface derives too — a search chip / text field must track the palette rather
-    // than stay a pinned near-white slab on a themed panel (the low-contrast side-eye finding).
     vars["--color-input"] = inputSurfaceOn(t.background);
   }
-  // An explicit border color WINS over the derived hairline (ST parity) — for both border scopes.
+  // An explicit border color wins over the derived hairline, for both border scopes.
   put("--color-border", t.borderColor);
   put("--color-sidebar-border", t.borderColor);
   if (t.font !== undefined) {
     vars["--font-sans"] = fontStack(t.font);
   }
-  // PRE-EXISTING BUG FOUND + FIXED (discovered verifying §B.3 avatarShape="rounded" live — every
-  // `rounded-card` consumer app-wide, incl. message bubbles, was silently rendering square): aliasing
-  // `--radius-card` to `var(--radius-${t.radius})` is a self-reference when `t.radius === "card"`
-  // (`--radius-card: var(--radius-card)`), which CSS treats as invalid-at-computed-value-time — the
-  // property (and its inheritance to every descendant) goes empty, not just "falls back to the
-  // default". `radius: "card"` already means "use the token scale's own card radius" (a no-op alias),
-  // so skip the assignment for that one case — every OTHER radius choice still aliases correctly.
+  // `radius: "card"` already means "use the scale's own card radius" — aliasing --radius-card to
+  // var(--radius-card) is a self-reference that CSS treats as invalid-at-computed-value-time, so skip
+  // the assignment for that one case; every other radius choice still aliases correctly.
   if (t.radius !== undefined && t.radius !== "card") {
     vars["--radius-card"] = `var(--radius-${t.radius})`;
   }

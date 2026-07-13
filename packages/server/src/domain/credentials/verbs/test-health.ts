@@ -1,14 +1,6 @@
 // verb: testHealth — probe a credential against its provider's health endpoint + run the throttle and
-// circuit-breaker side-effects (INVARIANT: probes by `credentialId`, NOT by
-// `active=true`, so the health UI can probe INACTIVE owned credentials too). Flow:
-//   1. owner check + load (any owned row, active or not).
-//   2. throttle: one probe per 60s window — within it, return the last observed state (no second probe).
-//   3. decrypt the SPECIFIC credential (by id; not the resolver's active-only path) — bind AAD by id.
-//   4. probe (openrouter only has a probe arm today; other providers return `ok` without nagging).
-//   5. side-effects: success clears a stale revocation + resets strikes; a `revoked` classification or 3
-//      consecutive `unreachable` strikes mark the row revoked (the breaker catches 401s the message
-//      heuristic missed).
-// Determinism: `checkedAt` is the injected `ctx.now()`, never a wall-clock.
+// circuit-breaker side-effects. Probes by credentialId (not active=true) so inactive owned credentials can
+// be probed too. Throttled to one probe per 60s window; 3 consecutive unreachable strikes mark it revoked.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
@@ -22,8 +14,7 @@ import { decryptSealed } from "../substrate/decrypt";
 import { beginProbe, recordStrike, resetStrikes } from "../substrate/health-throttle";
 import { mintOpenRouter } from "../substrate/mint";
 
-/** The openrouter probe path (decrypt-by-id → probe → side-effects). Split out to keep the verb's
- *  throttle/dispatch flow under the cognitive-complexity bar; `sealed` is the row's GCM fields. */
+/** The openrouter probe path (decrypt-by-id → probe → side-effects); split out for complexity. */
 async function probeOpenRouterHealth(
   ctx: CredentialContext,
   args: {
@@ -68,7 +59,6 @@ async function probeOpenRouterHealth(
     }
     return { status: "unreachable", checkedAt: now, reason: result.reason };
   }
-  // `throttled` is service-side state the provider never returns; pass through for exhaustiveness.
   return result;
 }
 
@@ -87,8 +77,7 @@ export function createTestHealth(ctx: CredentialContext): CredentialsService["te
       return { status: "throttled", checkedAt: throttledAt };
     }
 
-    // Only openrouter has a probe arm today; other providers can't be probed — report ok (don't nag the
-    // UI status dot). A real probe for another provider lands as an added arm here + in infra/providers.
+    // Only openrouter has a probe arm today; other providers report ok (don't nag the UI status dot).
     if (row.provider !== "openrouter") {
       return { status: "ok", checkedAt: now };
     }

@@ -173,12 +173,9 @@ function isStyleTokenTarget(lhs: Node): boolean {
   );
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — the reference-gate shape: offender arm + finalize stale arm) ─
 // Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
 // `<expr>.style.<prop> = <raw>` BinaryExpression, and a `.style.setProperty("<prop>", <raw>)`
-// CallExpression. scanRoot mirrors the legacy scanSrc filter (client|ui src). The empty ALLOWLIST's
-// stale arm is finalize-guarded to project scope (§4.4), exactly like no-off-token-radius-shadow.
-// Per-occurrence (each offending inline-style site).
+// CallExpression. The empty ALLOWLIST's stale arm is finalize-guarded to project scope.
 const GATE_SELF = "scripts/check/gates/no-off-token-inline-style.ts";
 const passSeenAllowlisted = new Set<string>();
 

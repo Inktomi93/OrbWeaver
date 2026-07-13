@@ -1,14 +1,7 @@
-// CharacterFacetEditor — the CONTENT drill-in for one selected card-content facet (character-editor
-// redesign, from section-body-editor.tsx). When a facet row is selected, the facet list is REPLACED by this
-// full-width editor: a "← Back" button, the facet's glyph + label + one-liner header, and the BIG field
-// body. It is IN-REGION (the surface already holds `form`), so it binds the form DIRECTLY via the `form`
-// prop — no bridge (the CONTEXT Field inspector keeps the bridge; this is the sibling CONTENT surface).
-//
-// The BODIES are COPY-RELOCATED VERBATIM from the deleted character-main-tab.tsx / character-advanced-tab.tsx
-// (the IA reorg preserves every field 1:1 — blueprint hard rule). The one deliberate change: the cramped
-// Depth/Role pairing (audit P1 #6) is fixed here — the Depth NumberField is width-capped so Depth+Role read
-// as an adjacent pair, not spread across the full content width. Big multi-line text authors HERE (CONTENT),
-// never in the narrow CONTEXT (owner's hard rule).
+// CharacterFacetEditor — the CONTENT drill-in for one selected card-content facet. When a facet row is
+// selected, the facet list is replaced by this full-width editor: a back button, header, and the field
+// body. Binds the form directly (in-region, no bridge). Big multi-line text authors here; small
+// inputs/selects live in the CONTEXT Field tab.
 
 import { estimateTokens } from "@orb/kit/tokens";
 import { Button } from "@orb/ui/button";
@@ -36,24 +29,18 @@ import { CharacterTokenCounter } from "./character-token-counter";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
-/** The facet-id union — DERIVED from the imported canonical tuple (§7.5 declare-once-derive; the registry
- *  owns the axis). File-local, used for this file's explicit `switch` param type (an EXPLICIT param type,
- *  not `Omit<Props>`, is what lets biome's `noUnnecessaryConditions` follow the union through the switch). */
+/** Explicit (not `Omit<Props>`) so biome's `noUnnecessaryConditions` follows the union through the switch. */
 type CharacterFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
 
 export interface CharacterFacetEditorProps {
   readonly form: CardForm;
   readonly facetId: CharacterFacetId;
-  /** §6.1 preview trust for this character's own example transcript (`trustHtml === true`). */
   readonly trusted: boolean;
   /** The read-only provenance tail (import/refinery) — rendered under the Provenance facet's form fields. */
   readonly readOnly: CharacterProvenanceSectionProps;
-  /** Back to the facet list (clears the CONTENT/CONTEXT facet selection). */
   readonly onBack: () => void;
 }
 
-/** The CSS-blur className for a spoiler-bearing body when the eye toggle is on (§6.1). No transition →
- *  reduced-motion-safe by construction. `data-slot` locates the container for the CT. */
 function spoilerClass(blur: boolean): string | undefined {
   return blur ? "select-none blur-md" : undefined;
 }
@@ -66,10 +53,7 @@ export function CharacterFacetEditor({
   onBack,
 }: CharacterFacetEditorProps): ReactElement {
   const facet = facetById(facetId);
-  // Drill-in focus (side-eye P3): the editor mounts fresh on a facet-row activation, so move keyboard focus
-  // to the ← Back control — the natural first stop of the drilled view — instead of leaving it on the now-
-  // unmounted facet row (which drops `activeElement` to `<body>`). Mount-only; pairs with the list's Back
-  // focus-restore for a symmetric in/out focus trail.
+  // Move focus to Back on mount — else it drops to `<body>` when the facet row unmounts.
   const backRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     backRef.current?.focus();
@@ -100,9 +84,7 @@ export function CharacterFacetEditor({
   );
 }
 
-/** The per-facet body — each branch is copy-relocated verbatim from the old Main/Advanced tabs. The param
- *  type is spelled EXPLICITLY (not `Omit<Props>`): biome's `noUnnecessaryConditions` can't follow the
- *  `facetId` union through a mapped `Omit`, and reads the `switch` as all-unreachable. */
+/** Explicit param type (not `Omit<Props>`) — else biome's `noUnnecessaryConditions` reads the switch as unreachable. */
 function FacetBody({
   form,
   facetId,
@@ -197,9 +179,7 @@ function FacetBody({
   }
 }
 
-/** One macro-aware field, its live token counter riding `field.MacroField`'s `showTokenCount` (C10). The
- *  whole container blurs at rest when the spoiler eye is on (§6.1). Copy-relocated from the Main/Advanced
- *  tabs' `CountedMacroField` (unified: takes `rows` + optional `showTokenCount`). */
+/** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. */
 function CountedMacroField({
   form,
   name,
@@ -239,10 +219,7 @@ function CountedMacroField({
   );
 }
 
-/** Note-at-depth CONTENT drill-in: the big NOTE TEXT + its prefill warning ONLY. The SMALL Depth/Role knobs
- *  live in the CONTEXT Field tab (owner's hard rule — small inputs/selects → CONTEXT, big text → CONTENT;
- *  the preset section body/metadata split precedent: the body authors in CONTENT, the small config in the
- *  detail pane, NOT duplicated). Copy-relocated from character-advanced-tab.tsx's "Note at depth". */
+/** Note-at-depth: the big note text + its prefill warning only — Depth/Role knobs live in the Field tab. */
 function DepthPromptFacet({ form }: { readonly form: CardForm }): ReactElement {
   return (
     <Stack gap="section">
@@ -270,8 +247,7 @@ function DepthPromptFacet({ form }: { readonly form: CardForm }): ReactElement {
   );
 }
 
-/** Provenance: the editable creator/cardVersion pair + the read-only import/refinery tail. Copy-relocated
- *  from character-advanced-tab.tsx's "Provenance" section + `CharacterProvenanceSection`. */
+/** The editable creator/cardVersion pair + the read-only import/refinery tail. */
 function ProvenanceFacet({
   form,
   readOnly,
@@ -298,10 +274,8 @@ function ProvenanceFacet({
   );
 }
 
-/** exampleMessages — a collapsed read-only formatted mini-transcript (the parsed `<START>`-delimited blocks,
- *  each rendered through Markdown; §6.3) with expand-to-edit swapping to the raw MacroTextarea on the SAME
- *  field (byte-identical round-trip — the parse is DISPLAY only). Blurs at rest under the spoiler eye. Copy-
- *  relocated verbatim from character-main-tab.tsx. */
+/** A collapsed read-only mini-transcript with expand-to-edit swapping to the raw MacroTextarea on the same
+ *  field (the parse is display-only). Blurs at rest under the spoiler eye. */
 function ExampleMessagesField({
   form,
   trusted,
@@ -352,8 +326,7 @@ function ExampleMessagesField({
   );
 }
 
-/** The read-only formatted mini-transcript — one Markdown block per parsed `<START>` segment. Copy-relocated
- *  verbatim from character-main-tab.tsx. */
+/** One Markdown block per parsed `<START>` segment. */
 function ExampleTranscript({
   value,
   trusted,

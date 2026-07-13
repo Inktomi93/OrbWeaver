@@ -9,20 +9,16 @@ import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import { selectVariants } from "./variants";
 
-// Breathing room between trigger and popup — the input-hug gap (§13.0 C19 rollup, `#lib`).
+// Breathing room between trigger and popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
 const slots = selectVariants();
 
-// Minimal DOM shape for the hidden-input a11y fixup: `setAttribute` only (view-transition.ts
-// structural-typing pattern) — the node typecheck lane has no `dom` lib, so `HTMLInputElement`
-// resolves without it.
+// Minimal DOM shape for the hidden-input a11y fixup — the node typecheck lane has no `dom` lib.
 interface AttributeSettable {
   setAttribute: (name: string, value: string) => void;
 }
 
-// The chevron on the trigger and the check on a selected item are seal glyphs (Base UI ships the
-// Icon/ItemIndicator containers, not the marks) — the lucide seal, not hand-SVG.
 const CHEVRON_ICON: ReactElement = <Icon icon={ChevronDown} size="xs" />;
 
 const CHECK_ICON: ReactElement = <Icon icon={Check} size="xs" />;
@@ -79,8 +75,7 @@ function renderGroup<Value>(group: SelectOptionGroup<Value>): ReactElement {
 
 function renderItems<Value>(items: SelectItems<Value>): ReactNode {
   if (isGrouped(items)) {
-    // A Separator BETWEEN adjacent groups (not before the first) — Base UI Select.Separator, a
-    // sibling of the groups it divides.
+    // A Separator between adjacent groups, not before the first.
     return items.flatMap((group, index) =>
       index > 0
         ? [
@@ -108,24 +103,13 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
   /** Applied to the trigger (the in-flow element). */
   className?: string;
   /**
-   * A visible accessible label rendered above the trigger — Base UI `Select.Label`. Omit when the
-   * Select composes inside a `<Field>` (which wires its own label through `FieldRootContext`) or
-   * when `aria-label` suffices.
-   *
-   * Base UI delta (R8, verified 2026-07-02): `Select.Label`'s own doc claims it "automatically
-   * associates" with the trigger, but in 1.6.0 that wiring runs through `store.labelId` and never
-   * reaches the Trigger's `aria-labelledby` standalone (outside `<Field>`, which supplies the
-   * separate `LabelableProvider` context path) — verified with a failing CT before this fix (R6).
-   * We wire it ourselves: the label text renders inside a locally-`useId()`'d `<span>` and the
-   * Trigger's `aria-labelledby` points at it (unless the caller passes an explicit
-   * `aria-labelledby`, which wins).
+   * A visible accessible label rendered above the trigger. Omit when the Select composes inside a
+   * `<Field>` or when `aria-label` suffices. Base UI's `Select.Label` doesn't reach the Trigger's
+   * `aria-labelledby` standalone (outside `<Field>`), so we wire it ourselves via a locally-`useId()`'d
+   * span (unless the caller passes an explicit `aria-labelledby`, which wins).
    */
   label?: ReactNode;
-  /**
-   * Custom formatting for the trigger's selected-value text (e.g. icon + label) — forwarded straight
-   * to Base UI `Select.Value`'s children-render-fn. Receives the raw selected value (or array, when
-   * `multiple`). Omit for the default label-lookup rendering.
-   */
+  /** Custom formatting for the trigger's selected-value text, forwarded to `Select.Value`'s render-fn. */
   renderValue?: (value: unknown) => ReactNode;
   /** Render sticky hover-to-scroll arrows in the popup (long lists). @defaultValue false */
   scrollArrows?: boolean;
@@ -139,13 +123,9 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
   align?: SelectPositionerProps["align"];
   /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: SelectPositionerProps["sideOffset"];
-  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
-   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  /** Portal target — defaults to the themed portal root; pass a node/ref to override. */
   container?: PortalContainer;
-  /**
-   * Accessible name for the trigger (the combobox). `Select.Root` renders no element, so these ride
-   * the Trigger — a labelless Select gets its name here (or via `aria-labelledby`/`Field`).
-   */
+  /** Accessible name for the trigger. `Select.Root` renders no element, so these ride the Trigger. */
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
@@ -153,19 +133,8 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
 
 /**
  * The select — Base UI Select sealed with the full explicit anatomy (Trigger/Value/Icon → Portal →
- * Positioner → Popup → List/Item), so features never hand-assemble parts (D42 §2 — Base UI seal;
- * explicit Positioner kills the portal weirdness).
- *
- * The generics thread Base UI's `<Value, Multiple>` overload: pass `multiple` and the value becomes
- * an array (`Select.Value` comma-joins the labels). Grouped `items` render `Select.Group` +
- * `Select.GroupLabel`; `scrollArrows` mounts `Select.ScrollUp/DownArrow` (they self-suppress on
- * touch input and when the popup doesn't overflow — Base UI behavior). `label` mounts `Select.Label`
- * (standalone accessible name, auto-associated with the trigger); `renderValue` forwards a
- * children-render-fn to `Select.Value` for custom trigger formatting (e.g. icon + label);  `arrow`
- * mounts `Select.Arrow`; `side`/`align`/`sideOffset` override the Positioner's placement.
- *
- * Usage: `<Select items={models} placeholder="Pick a model" value={id} onValueChange={setId} />`
- * Multiple: `<Select multiple items={tags} value={ids} onValueChange={setIds} />`
+ * Positioner → Popup → List/Item), so features never hand-assemble parts. The generics thread Base
+ * UI's `<Value, Multiple>` overload: pass `multiple` and the value becomes an array.
  */
 export function Select<Value = string, Multiple extends boolean = false>(
   props: SelectProps<Value, Multiple>,
@@ -194,21 +163,16 @@ export function Select<Value = string, Multiple extends boolean = false>(
   const rootItems = items as SelectRootProps<Value, Multiple>["items"];
   const portalContainer = usePortalContainer();
   const hasLabel = label !== undefined && label !== null;
-  // Base UI's `Select.Label` strips any `id` we pass (it derives its own from the root, ignoring
-  // "runtime id overrides from untyped consumers") — so the association id lives on an inner span
-  // instead (see the `label` prop's doc comment for the verified Base UI delta this works around).
+  // Base UI's Select.Label strips any id we pass, so the association id lives on an inner span instead.
   const generatedLabelId = useId();
   const labelId = hasLabel ? generatedLabelId : undefined;
 
-  // The visually hidden input generated by Base UI for form submission gets flagged by axe-core
-  // because it is an interactive element without an accessible name. We use inputRef to fix this.
+  // The visually hidden input Base UI generates for form submission gets flagged by axe-core as an
+  // unlabeled interactive element; give it a fallback accessible name.
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (hiddenInputRef.current) {
-      // `setAttribute` rides a self-contained structural type (the view-transition.ts pattern): the
-      // node typecheck lane follows this file and has no `dom` lib, so `HTMLInputElement` lacks it.
       const node = hiddenInputRef.current as AttributeSettable;
-      // Provide a fallback name so screen readers (and axe-core) don't flag it as an unlabeled input.
       node.setAttribute("aria-label", ariaLabel || ariaLabelledby || "Hidden select value");
     }
   }, [ariaLabel, ariaLabelledby]);
@@ -222,10 +186,8 @@ export function Select<Value = string, Multiple extends boolean = false>(
       ) : null}
       <BaseField.Control
         render={
-          // Aria props are spread conditionally — Base UI's mergeProps is rightmost-wins, so an
-          // explicit `undefined` on render.props BEATS the context-injected aria-labelledby that
-          // Field.Control provides via LabelableContext. Omitting the prop entirely lets the
-          // context wiring survive (the SelectField/Field-wrapped path depends on this).
+          // Aria props spread conditionally: mergeProps is rightmost-wins, so an explicit undefined
+          // would beat the context-injected aria-labelledby from Field.Control.
           <BaseSelect.Trigger
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
@@ -249,9 +211,7 @@ export function Select<Value = string, Multiple extends boolean = false>(
         ) : null}
         <BaseSelect.Positioner
           align={align}
-          // The default plain-dropdown popup; scroll arrows only function in Base UI's
-          // align-item-with-trigger mode, so `scrollArrows` opts into it (that mode drives the
-          // ScrollUp/DownArrow visibility off the aligned popup's own overflow).
+          // Scroll arrows only function in Base UI's align-item-with-trigger mode.
           alignItemWithTrigger={scrollArrows}
           className={slots.positioner()}
           data-slot="select-positioner"

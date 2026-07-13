@@ -2,21 +2,11 @@
 // re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph fine (the
 // shell-topbar.tsx precedent).
 
-// The chat OPTIONS menu (⋯) — the J3 identity header's chat-level action cluster (ux-flow-revamp J6; NT
-// `chat-options-menu.tsx` parity). Registry-shaped over ALREADY-BUILT verbs + store actions, so later
-// features enter as ROWS, not rework. Unbuilt NT items (per-chat persona, similar chats, persistent
-// guides) are OMITTED — never a disabled stub pointing at nothing (§4.3 rule 1: no dead ends).
-//
-// The turn actions (Continue · Regenerate · Impersonate) reuse `useGuidedActions` (the composer wand's
-// own dispatch) with an EMPTY steer — from the header there is no draft text, so `useGuidedActions` OMITS
-// the `guided` object entirely (FINAL-Chat-Tab-Redesign §6.4: an empty `input` would resolve a dangling
-// template scaffold server-side; a plain turn sends no steer), giving the plain continue/reroll/impersonate
-// (rule 10: same verb, same home, second entry point). Continue/Regenerate
-// gate on a tail assistant slot (the wand's own `tailAssistantMessageId` gate). Rename is a single
-// controlled input (the §13.4 single-rename carve-out, the ChatListRowMenu precedent); Delete cascades
-// hard → an AlertDialog confirm (never an undo-toast, DESIGN.md §9), then `goToLanding` (the deleted
-// chat's id would 404). The context-tab items jump the CONTEXT panel to a tab via the shell `contextTab`
-// seam + dock it. Bulk "Select messages…" lands with the J6 selection-bar wiring (a later row here).
+// The chat options menu: registry-shaped over already-built verbs + store actions, so later features
+// enter as rows, not rework. Unbuilt items are omitted — never a disabled stub pointing at nothing. The
+// turn actions reuse useGuidedActions (the composer wand's own dispatch) with an empty steer, giving
+// the plain continue/reroll/impersonate. Delete cascades hard, through an AlertDialog confirm, never an
+// undo-toast.
 
 import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -61,14 +51,11 @@ import { useSelfLeave } from "../hooks/use-membership-mutations";
 import { InviteDialog } from "./invite-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 
-/** One character in the chat's cast — id + resolved display name (seeds the per-character gallery entry). */
 export interface ChatOptionsCastMember {
   readonly characterId: CharacterId;
   readonly name: string;
 }
 
-/** Label per impersonate person word (the composer-wand `PERSON_LABEL` precedent — a `Record` dispatch,
- *  spine §5.5, so a new person word fails `tsc` here). */
 const PERSON_LABEL: Record<(typeof GUIDED_IMPERSONATE_PERSONS)[number], string> = {
   first: "1st person",
   second: "2nd person",
@@ -77,19 +64,14 @@ const PERSON_LABEL: Record<(typeof GUIDED_IMPERSONATE_PERSONS)[number], string> 
 
 export interface ChatOptionsMenuProps {
   readonly chatId: ChatId;
-  /** The chat's current title (seeds the rename input). */
   readonly title: string | null;
-  /** The chat's character cast (id + name) — seeds "New chat with same cast" AND the per-character gallery
-   *  entries (empty for a solo assistant). */
+  /** Seeds "New chat with same cast" and the per-character gallery entries. */
   readonly characters: readonly ChatOptionsCastMember[];
-  /** Whether the viewer is the host — gates the Preview-request jump (host-only server-side). */
   readonly isHost: boolean;
-  /** `/api/auth/config.multiHumanCapable` (route→header-threaded, PD-106) — gates the membership rows
-   *  (Invite people… / Hand off host… / Leave chat); single-user installs render NONE of them. */
+  /** Gates the membership rows; single-user installs render none of them. */
   readonly multiHumanCapable?: boolean;
 }
 
-/** The ⋯ chat-options menu for the active chat's identity header. */
 export function ChatOptionsMenu({
   chatId,
   title,
@@ -112,7 +94,6 @@ export function ChatOptionsMenu({
   const [galleryFor, setGalleryFor] = useState<ChatOptionsCastMember | null>(null);
 
   const characterIds = characters.map((c) => c.characterId);
-  // A solo cast gets a direct "[Name]'s gallery" row; a group gets a submenu (below).
   const soloCharacter = characters.length === 1 ? characters[0] : undefined;
 
   const canTargetTail = guided.tailAssistantMessageId !== null;
@@ -130,9 +111,9 @@ export function ChatOptionsMenu({
     void (async (): Promise<void> => {
       try {
         await selfLeave.mutateAsync({ chatId });
-        goToLanding(); // the departed viewer's room would 404 — leave it (FINAL-Chats §8.3).
+        goToLanding();
       } catch {
-        // The mutation's own `errorToast` already surfaced it; stay in the chat.
+        // The mutation's own errorToast already surfaced it; stay in the chat.
       }
     })();
   };
@@ -140,13 +121,12 @@ export function ChatOptionsMenu({
     void (async (): Promise<void> => {
       try {
         await deleteChat.mutateAsync({ chatId });
-        goToLanding(); // the deleted chat's id would 404 — leave the room.
+        goToLanding();
       } catch {
-        // The mutation's own `errorToast` already surfaced it; stay on the chat.
+        // The mutation's own errorToast already surfaced it; stay on the chat.
       }
     })();
   };
-  // Jump the CONTEXT panel to a tab (the shell `contextTab` seam) AND ensure it's open (dock it).
   const openContextTab = (tab: string): void => {
     setContextTab(tab);
     setPanelMode("context", "docked");
@@ -211,9 +191,6 @@ export function ChatOptionsMenu({
           </MenuSubmenuRoot>
 
           <MenuSeparator />
-          {/* The §8 membership rows (FINAL-Chats §6.1) — capability-gated (PD-106) + authority-mirrored:
-              Invite/Hand-off are host rows; Leave chat is the MEMBER row (a host leaves from their own
-              Members row, where the archive consequence is spelled out — §8.3). */}
           {isHost && multiHumanCapable ? (
             <MenuItem onClick={(): void => setInviteOpen(true)}>
               <Icon icon={UserPlus} size="sm" />
@@ -256,7 +233,6 @@ export function ChatOptionsMenu({
         </MenuPopup>
       </Menu>
 
-      {/* Rename — a single controlled input (§13.4 single-rename carve-out, the ChatListRowMenu precedent). */}
       <RenameChatDialog
         open={renameOpen}
         onOpenChange={setRenameOpen}
@@ -265,7 +241,6 @@ export function ChatOptionsMenu({
         onSave={saveRename}
       />
 
-      {/* Leave — outward-facing membership change → an explicit confirm (never an undo-toast). */}
       <ConfirmDialog
         open={leaveOpen}
         onOpenChange={setLeaveOpen}
@@ -275,12 +250,10 @@ export function ChatOptionsMenu({
         onConfirm={confirmLeave}
       />
 
-      {/* Invite people… — the §8.2 mint dialog (host; a component owns the Dialog root). */}
       {isHost && multiHumanCapable ? (
         <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} />
       ) : null}
 
-      {/* Delete — a hard, non-reversible cascade → an explicit confirm (never an undo-toast). */}
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
@@ -290,7 +263,6 @@ export function ChatOptionsMenu({
         onConfirm={confirmDelete}
       />
 
-      {/* The per-character gallery modal (grid + lightbox + add-picker), opened from the entries above. */}
       {galleryFor === null ? null : (
         <CharacterGalleryDialog
           open={true}

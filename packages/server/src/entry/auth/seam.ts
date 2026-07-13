@@ -1,27 +1,14 @@
-// entry/auth/seam — THE auth seam: the ONE place a `Principal` is constructed (spine
-// Spine-Identity-and-Auth.md §1/§3; core/Tier-5-Entry.md; DECISIONS-LEDGER §7 D1). It is the only module
-// allowed to import BOTH `infra/auth` (sealed db-free VERIFICATION) and `domain/sessions` (RESOLUTION +
-// the users-row upsert) — the seam-exclusivity invariant. It turns a request's headers into the immutable, db-resolved
-// `Principal` that flows down unchanged; everything below re-reads `Principal.userId`, never re-resolves.
+// THE auth seam: the ONE place a `Principal` is constructed. The only module allowed to import BOTH
+// `infra/auth` (db-free VERIFICATION) and `domain/sessions` (RESOLUTION + the users-row upsert). Turns a
+// request's headers into an immutable, db-resolved `Principal`; everything below re-reads
+// `Principal.userId`, never re-resolves.
 //
-// THE THREE PATHS (each yields the `userId` a distinct way — spine §1):
-//   1. COOKIE (`local`/`oidc`) — the seam calls `sessions.validate(token)` DIRECTLY (ledger D40, Route A:
-//      a cookie's validation IS a `users`-row read → RESOLUTION, not verification). `validate` RETURNS the
-//      `userId` (+ a freshly-re-read `role`/`enabled`), so the seam never re-queries. The removed infra
-//      `validateCookie` port is NOT wired (it would have dropped the id — neo's "validate threw the id
-//      away" bug). The cookie is honored ONLY in cookie modes (a stale cookie under forward-header is
-//      ignored).
-//   2. OWNER FALLBACK (`via:"fallback"`) — the origin-gated un-credentialed owner (single-user: the only
-//      way in; SSO modes: local-origin belt). `via:"fallback"` is the SAFE "this IS the owner"
-//      discriminator (NEVER `externalId === null` — a forward-header identity is also null). Role is
-//      **owner** (D17 — the fallback mints owner, not admin); the `userId` comes from `sessions.ensureUser`
-//      (JIT-create on first sight, no role derivation — the boot owner-seed makes the row's role durable).
-//   3. SSO HEADER (`via:"header"`) — `infra/auth.resolve` verifies the forwarded header/JWT, then the seam
-//      upserts via `sessions.provisionIdentity` (externalId-keyed, role from the owner policy) and GATES on
-//      `enabled` (a disabled row → unauthenticated, takes effect next request — not JWT-baked).
+// Three paths: (1) cookie — `sessions.validate(token)` returns the userId directly, cookie-mode only;
+// (2) owner-fallback — origin-gated un-credentialed owner, mints role `owner` via `ensureUser`;
+// (3) SSO header — `infra/auth.resolve` verifies, then `provisionIdentity` upserts + gates on `enabled`.
 //
 // CSRF is a SIGNAL here, not a gate: the seam surfaces `csrfHeaderPresent` + `via`; the transport ladder
-// enforces (a cookie mutation without the custom header → 403). The seam constructs; it does not police.
+// enforces it.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -36,12 +23,9 @@ import type {
 } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME } from "#infra/auth";
 
-/**
- * The boot-time deps the seam binds once (the composition root supplies them). `config` is the
- * test/override seam — production omits it and the seam parses `authConfigFromEnv()` ONCE at construction
- * (no per-request env re-parse). `verifyForwardJwt`/`oidcStore` are the db/crypto VERIFICATION ports
- * `infra/auth.resolve` needs for the SSO paths; absent ⇒ that layer is inert (fail-closed).
- */
+/** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
+ *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths
+ *  need; absent ⇒ that layer is inert (fail-closed). */
 export interface AuthSeamDeps {
   readonly sessions: SessionsService;
   readonly verifyForwardJwt?: ForwardJwtVerifier;
@@ -49,35 +33,28 @@ export interface AuthSeamDeps {
   readonly config?: AuthConfig;
 }
 
-/** Per-request knobs. `onSessionSlide` fires with the slid expiry on a throttled cookie session slide so
- *  the HTTP layer can refresh the cookie Max-Age (inert when no response Context is in hand). `peerIp` is
- *  the raw TCP peer socket address (`infra/network.peerIp(c)`) the forward-header UNSIGNED trusted-proxy
- *  gate matches against — absent ⇒ that path fails closed (B1 anti-spoof: the gate keys on the socket peer,
- *  never a spoofable forwarded header). */
+/** Per-request knobs. `peerIp` is the raw TCP peer socket address the forward-header trusted-proxy gate
+ *  matches against — absent ⇒ that path fails closed (anti-spoof: never a spoofable forwarded header). */
 export interface PerRequestSeamDeps {
   readonly onSessionSlide?: (expiresAt: number) => void;
   readonly peerIp?: string;
 }
 
-/** The seam OUTPUT: the immutable `Principal` (or `null` for an anonymous / disabled caller → transport
- *  401) plus the CSRF-header signal the transport ladder keys on. */
+/** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401) plus the
+ *  CSRF-header signal the transport ladder keys on. */
 export interface SeamResult {
   readonly principal: Principal | null;
   readonly csrfHeaderPresent: boolean;
 }
 
-/** The constructed seam — bound at boot, called per request. `isAdmin` adapts the resolver into the
- *  `AdminAuthChecker` the `/api/_debug` gate consults (it MUST never throw — a transport/db error resolves
- *  to `false` so a misbehaving seam can't open the gate). */
+/** The constructed seam — bound at boot, called per request. `isAdmin` must never throw — a transport/db
+ *  error resolves to `false` so a misbehaving seam can't open the debug gate. */
 export interface AuthSeam {
   readonly resolvePrincipal: (headers: Headers, req?: PerRequestSeamDeps) => Promise<SeamResult>;
   readonly isAdmin: (headers: Headers) => Promise<boolean>;
 }
 
 function readSessionCookie(headers: Headers): string | null {
-  // The seam reads its own opaque token (the cookie path is the seam's job per D40, so the read lives
-  // here, not behind the removed infra port). Minimal parse — our token is base64url (no percent-encoding);
-  // a value that won't decode can't be ours, so treat it as no-session rather than crash the request.
   const raw = headers.get("cookie");
   if (raw === null) {
     return null;
@@ -98,8 +75,7 @@ function readSessionCookie(headers: Headers): string | null {
   return null;
 }
 
-/** PATH 1 — cookie (D40 Route A): the seam validates the cookie DIRECTLY (`validate` returns the userId);
- *  `null` when there's no cookie or the session is gone (→ fall through to the header/fallback path). */
+/** Cookie path: `null` when there's no cookie or the session is gone (→ fall through). */
 async function resolveCookiePrincipal(
   sessions: SessionsService,
   headers: Headers,
@@ -122,8 +98,7 @@ async function resolveCookiePrincipal(
   };
 }
 
-/** PATH 2 + 3 — owner-fallback (`via:"fallback"` → role owner via ensureUser, D17) or SSO header (upsert
- *  via provisionIdentity + the enabled gate). `null` for an anonymous/disabled caller (→ transport 401). */
+/** Owner-fallback or SSO header path. `null` for an anonymous/disabled caller (→ transport 401). */
 async function resolveHeaderOrFallbackPrincipal(
   sessions: SessionsService,
   res: IdentityResolution,
@@ -142,8 +117,7 @@ async function resolveHeaderOrFallbackPrincipal(
     };
   }
   const provisioned = await sessions.provisionIdentity(res.identity);
-  // DENIED (OIDC_ALLOWED_GROUPS gate refused) or DISABLED → anonymous → transport 401. A denied identity
-  // never created a row; a disabled one takes effect on this request. Both collapse to null here.
+  // Denied (allowlist gate refused) or disabled → anonymous → transport 401.
   if (provisioned.outcome === "denied") {
     return null;
   }
@@ -160,14 +134,10 @@ async function resolveHeaderOrFallbackPrincipal(
 }
 
 /**
- * The frozen-host → `Principal` bridge (PD-73; the second Principal construction site this module owns).
- * Chat's cross-feature ops are keyed by the FROZEN host `UserId` (D19 — the host funds the turn and may be
- * offline, so no request `Principal` exists to carry). The role-SENSITIVE ops (`connection.resolveChat` /
- * `credentials.resolve` — the D17 max-pro-sub owner-gate, identity §3) must key on the host's REAL
- * `users.role`, re-read live via `sessions.loadUserById` (the sanctioned `users` reader) — a fabricated
- * `role:"user"` would fail-closed-DENY the owner's own Max-sub turn. `via:"fallback"` matches the
- * compose-root synthetic-principal convention (role-clients.ts); an unknown id degrades to a plain
- * `role:"user"` principal (fail-closed for the privileged gates).
+ * The frozen-host → `Principal` bridge, the second Principal-construction site this module owns. Chat's
+ * cross-feature ops key on the frozen host `UserId` (host may be offline, no request Principal exists).
+ * Role-sensitive ops re-read the host's real `users.role` live via `loadUserById` — a fabricated
+ * `role:"user"` would fail-closed-deny the owner's own privileged turn; unknown id degrades to `"user"`.
  */
 export function createHostPrincipalResolver(
   sessions: SessionsService,
@@ -201,11 +171,8 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       if (cookiePrincipal !== null) {
         return { principal: cookiePrincipal, csrfHeaderPresent };
       }
-      // Invalid/expired/revoked cookie → fall through (anonymous unless the origin-gated owner belt grants).
     }
 
-    // db-free VERIFICATION (NO validateCookie — the cookie is handled above; wiring it would re-resolve +
-    // drop the id, the D40-forbidden bug). Optional ports spread in only when present (exactOptional).
     const res = await resolve(headers, {
       config,
       ...(deps.verifyForwardJwt !== undefined && { verifyForwardJwt: deps.verifyForwardJwt }),
@@ -222,12 +189,9 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       if (principal === null) {
         return false;
       }
-      // Route the verdict through the ONE privilege seam (spine invariant #6 — `can()` is the only
-      // role-comparison site; owner ⊇ admin lives inside it, never re-spelled here). Throw = deny.
       requireAdmin(principal);
       return true;
     } catch {
-      // Never throw upward from the debug gate — a resolver/db error fails closed (not admin).
       return false;
     }
   }

@@ -1,11 +1,7 @@
-// The probe output contract (shared by every scripts/probes/* tool, matching stack.sh):
-//   • report lines go to stdout via `print` (never console.log — uniform, no inspector noise);
-//   • the LAST stdout line is a stable machine line `RESULT <tool> key=value …` so agents
-//     `tail -1` / `grep ^RESULT` and always land the verdict + artifact paths;
-//   • the EXIT CODE carries the verdict: non-zero when anything observably went wrong
-//     (nav error, page errors, failed requests, step failures, SSIM fail). The exit code is
-//     the CALLER's to compute and return — _kit only prints; a skipped capability (e.g.
-//     ffmpeg absent) is reported in the RESULT line but is NOT a failure.
+// Probe output contract: report lines to stdout via `print`; the LAST line is a stable
+// `RESULT <tool> key=value …` machine line (`tail -1` / `grep ^RESULT`). Exit code carries
+// the verdict and is the CALLER's to compute — _kit only prints; a skipped capability is
+// reported in the RESULT line but is not a failure.
 import process from "node:process";
 
 export function print(s: string): void {

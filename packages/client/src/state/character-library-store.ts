@@ -1,20 +1,8 @@
-// The character-library VIEW-PREFS store (FINAL-Character §4 / §12 CREATE) — the ONE new store for the
-// Characters LIST. It holds ONLY view preferences: the §4.5 sort mode · the §4.3 flat⇄categorized view
-// mode · the §4.5 filter chips (favorites-only · show-archived · AND-selected tag filter) · the §4.6
-// bulk-select flag. It does NOT home the selected character (that is `character-selection-store.ts` — the
-// ONE home; double-homing selection is the §12 landmine) and it does NOT home the bulk SELECTION set
-// (that is the collection surface's transient id-set — `createCollectionSurface`).
-//
-// DEVICE-LOCAL (§12.1): a sort/view/filter/spoiler-blur preference is per-device browse/editor chrome — a
-// returning user on another device does not expect their tag-filter (or their screen-share spoiler-blur) to
-// follow (unlike a synced setting). Registered in `scripts/check/gates/persistence-boundary.ts`
-// DEVICE_LOCAL_REGISTRY under the same name.
-//
-// `spoilerBlur` (§6.1, screen-share hygiene) rides this store because it is the same class of per-device
-// view pref as the sort/filter chips: pure view state, CSS-blur only, never touches card data.
-//
-// `bulkMode` is TRANSIENT (excluded from `partialize`, like shell-store's `openModal`): a reload landing
-// in bulk mode with an empty selection would be a confusing dead state, so it never resurrects.
+// The character-library VIEW-PREFS store: sort mode, flat/categorized view mode, filter chips, bulk-select
+// flag. Does NOT home the selected character (character-selection-store.ts) or the bulk selection set
+// (createCollectionSurface's transient id-set). Device-local, registered in
+// scripts/check/gates/persistence-boundary.ts DEVICE_LOCAL_REGISTRY. `bulkMode` is transient (excluded
+// from partialize) — a reload landing in bulk mode with an empty selection would be a confusing dead state.
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
@@ -30,15 +18,13 @@ export type CharacterViewMode = (typeof CHARACTER_VIEW_MODES)[number];
 interface CharacterLibraryState {
   readonly sortMode: CharacterListSort;
   readonly viewMode: CharacterViewMode;
-  /** §4.5 Favorites-only chip. */
   readonly favoritesOnly: boolean;
-  /** §4.5 Archived opt-in disclosure (hidden by default). */
   readonly showArchived: boolean;
-  /** §4.5 tag multi-select (AND-semantics) — a row must carry EVERY id here to pass. */
+  /** Tag multi-select (AND-semantics) — a row must carry EVERY id here to pass. */
   readonly tagFilter: readonly TagId[];
-  /** §4.6 pencil bulk-select mode. Transient (not persisted). */
+  /** Bulk-select mode. Transient (not persisted). */
   readonly bulkMode: boolean;
-  /** §6.1 spoiler-free eye toggle — blurs the editor's spoiler-bearing card text for screen-sharing. */
+  /** Blurs the editor's spoiler-bearing card text for screen-sharing. */
   readonly spoilerBlur: boolean;
 }
 

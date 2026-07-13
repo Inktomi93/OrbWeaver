@@ -19,11 +19,9 @@ import type { GateDescriptor } from "../contract.ts";
 
 const BANNED_IMPORT = "Principal";
 const BANNED_IDENTIFIER = "principal";
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
 // Two arms, ONE reason (D19: the chat engine is Principal-BLIND): a `Principal` named import, or a
-// lowercase `principal` identifier, inside domain/chat/engine/**. The offending TOKEN on each finding
-// distinguishes the arms (owner ruling 2 — reason once, occurrences under). scanRoot mirrors the legacy
-// ENGINE filter (the parity oracle).
+// lowercase `principal` identifier, inside domain/chat/engine/**. The offending token on each finding
+// distinguishes the arms.
 const GATE_MESSAGE =
   "the chat engine is Principal-BLIND (D19 turn-identity): identity reaches it only as the resolved triple (runAsUserId + triggeredBy — engine/turn-identity.ts). Neither the `Principal` type nor a `principal` object may be NAMED in the engine; resolve the triple at the verb layer and pass it down (D16/D17/D19).";
 const ENGINE_ANCHORED = /packages\/server\/src\/domain\/chat\/engine\//u;

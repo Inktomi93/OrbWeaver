@@ -5,22 +5,18 @@ import { useLayoutEffect, useRef } from "react";
 import { cn, prefersReducedMotionNow } from "#lib";
 import { TOKENS } from "#tokens";
 
-// Intent-token gap between rows (maps to the `--spacing-*` scale — never a raw px). Declared once as
-// an `as const` tuple, union derived (§7.5 no-inline-union-redecl); both stay local (no-inline-types
-// + useComponentExportOnlyModules) — consumers name it via `VirtualListProps<T>["gapToken"]`.
+// Intent-token gap between rows (maps to the --spacing-* scale — never a raw px).
 const GAP_TOKENS = ["field", "row", "block", "section", "gutter"] as const;
 type VirtualListGapToken = (typeof GAP_TOKENS)[number];
 
 // The virtualizer's `gap` option is a px number; spacing tokens are authored in rem.
-// Assumes the browser-default root font size — acceptable for row-gap geometry.
 const ROOT_FONT_SIZE_PX = 16;
 
-// TanStack's own default, made explicit (rows rendered beyond the visible window on each side).
+// TanStack's own default, made explicit.
 const DEFAULT_OVERSCAN = 1;
 
-// D43 §11.3 tripwire: a scroll element taller than this many viewports at mount means the parent
-// gave the list no bounded height, so the "window" is the whole list and virtualization is a no-op.
-// neo's console.warn version of this check let a 200ms-commit list ship — hence a THROWN error.
+// A scroll element taller than this many viewports at mount means the parent gave the list no
+// bounded height, so the whole list is the "window" and virtualization is a no-op — thrown, not warned.
 const UNBOUNDED_HEIGHT_VIEWPORT_MULTIPLIER = 3;
 
 function gapPxFor(token: VirtualListGapToken): number {
@@ -42,34 +38,19 @@ export interface VirtualListProps<T> {
   /** Gap between rows as a spacing intent token. */
   readonly gapToken?: VirtualListGapToken;
   /**
-   * Round-robins rows across N lanes (TanStack's masonry primitive — each virtual item gets a
-   * `lane` index) instead of one column. Passthrough only: this seal stays a 1D row list, so a
-   * `lanes>1` caller owns the lane→horizontal-position CSS itself (e.g. via the `data-lane`
-   * attribute this seal stamps on every row) — see `@orb/ui/media-grid` for the uniform-grid shape
-   * this is NOT (that seal deliberately derives its own CSS-grid columns instead, per its own doc).
+   * Round-robins rows across N lanes instead of one column. Passthrough only: this seal stays a 1D
+   * row list, so a `lanes>1` caller owns the lane→horizontal-position CSS via `data-lane`.
    */
   readonly lanes?: number;
-  /**
-   * Overrides which indices get rendered for a given scroll range — the escape hatch for a caller
-   * that needs to keep specific rows mounted outside the normal overscan window (e.g. always
-   * keeping a pinned/sticky row alive). Passthrough straight to the virtualizer; omit for the
-   * library default (a plain overscan-padded contiguous range).
-   */
+  /** Overrides which indices render for a given scroll range (e.g. keep a pinned row mounted). */
   readonly rangeExtractor?: (range: Range) => number[];
   readonly renderItem: (item: T, index: number) => ReactNode;
   /**
-   * When provided, scrolls to this item index (end-aligned) any time the VALUE changes — the
-   * declarative "pin to bottom on append" seam (log-viewer's autoscroll composes this instead of
-   * reaching for the virtualizer directly). Respects `prefers-reduced-motion` itself, so every
-   * composer gets it free rather than each caller re-deriving the check.
+   * Scrolls to this item index (end-aligned) any time the value changes — the declarative "pin to
+   * bottom on append" seam. Respects prefers-reduced-motion itself.
    */
   readonly scrollToIndex?: number;
-  /**
-   * Fires when the rendered window's LAST index comes within `endApproachRows` of the tail — the
-   * infinite-scroll trigger, driven by the virtualizer's own range (UI-Lib-TanStack-Query.md §5:
-   * no `react-intersection-observer`; the virtualizer already reports tail proximity). The caller
-   * owns the fetch guard (`hasNextPage && !isFetching` — `createCollectionSurface` bakes it).
-   */
+  /** Fires when the rendered window's last index comes within `endApproachRows` of the tail. */
   readonly onEndApproach?: () => void;
   /** Tail-proximity threshold in rows for `onEndApproach`. @defaultValue 8 */
   readonly endApproachRows?: number;
@@ -81,26 +62,10 @@ export interface VirtualListProps<T> {
 const DEFAULT_END_APPROACH_ROWS = 8;
 
 /**
- * The `@tanstack/react-virtual` seal (UI-Gates §7 — the Virtual×Compiler footgun row): a windowed
- * list whose virtualizer config the call site cannot get wrong. Owns `directDomUpdates: true` +
- * `containerRef` (the React-19-Compiler fix, react-virtual 3.14+ — NOT `"use no memo"`),
- * `useFlushSync: false` (kills the React-19 lifecycle flushSync warning),
- * `directDomUpdatesMode: "position"` (transform mode creates a stacking context that breaks
- * `position:fixed` descendants — iframe/media rows), and the `measureElement` + `data-index`
- * row wiring. The parent MUST give the list a bounded height (via `className`) — an unbounded
- * scroll element throws at mount (D43 §11.3).
- *
- * Usage:
- * ```tsx
- * <VirtualList
- *   items={messages}
- *   getItemKey={(m) => m.id}
- *   estimateSize={() => estimatedRowPx}
- *   gapToken="row"
- *   renderItem={(m) => <MessageRow message={m} />}
- *   className="h-full"
- * />
- * ```
+ * The `@tanstack/react-virtual` seal: a windowed list whose virtualizer config the call site
+ * cannot get wrong (`directDomUpdates`/`containerRef`/`useFlushSync: false`/position-mode DOM
+ * updates/measureElement + data-index wiring). The parent must give the list a bounded height via
+ * `className` — an unbounded scroll element throws at mount.
  */
 export function VirtualList<T>({
   items,
@@ -134,13 +99,9 @@ export function VirtualList<T>({
     overscan,
     gap: gapToken === undefined ? 0 : gapPxFor(gapToken),
     getItemKey: (index) => getItemKey(itemAt(index), index),
-    // Conditionally spread (not a bare `lanes`/`rangeExtractor` key): `exactOptionalPropertyTypes`
-    // distinguishes an omitted optional property from one explicitly set to `undefined` — a bare
-    // key here would widen the virtualizer's own `lanes: number` (no `| undefined`) and fail tsc.
+    // exactOptionalPropertyTypes: a bare key here would widen lanes: number (no | undefined) and fail tsc.
     ...(lanes === undefined ? {} : { lanes }),
     ...(rangeExtractor === undefined ? {} : { rangeExtractor }),
-    // UI-Gates §7: the sealed Compiler-safe mode — scroll positioning bypasses React renders, so
-    // the Compiler caching getVirtualItems() can no longer freeze the list (upstream #736).
     directDomUpdates: true,
     // Transform mode breaks position:fixed descendants (iframe/media rows) — position writes top.
     directDomUpdatesMode: "position",
@@ -148,7 +109,7 @@ export function VirtualList<T>({
     useFlushSync: false,
   });
 
-  // The unbounded-window tripwire (D43 §11.3) — thrown, not warned.
+  // The unbounded-window tripwire — thrown, not warned.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el === null) {
@@ -167,10 +128,8 @@ export function VirtualList<T>({
     }
   }, []);
 
-  // The tail-proximity trigger: with directDomUpdates, React re-renders exactly when the rendered
-  // RANGE changes — so the last rendered index is a render-time value and an effect on it fires
-  // once per window shift, never per scroll frame. The guard against duplicate fetches is the
-  // CALLER's (`hasNextPage && !isFetching`); this seam only reports proximity.
+  // With directDomUpdates, React re-renders exactly when the rendered range changes, so this effect
+  // fires once per window shift, never per scroll frame. Duplicate-fetch guarding is the caller's.
   const virtualItems = virtualizer.getVirtualItems();
   const lastRenderedIndex = virtualItems.length === 0 ? -1 : (virtualItems.at(-1)?.index ?? -1);
   useLayoutEffect(() => {
@@ -182,11 +141,7 @@ export function VirtualList<T>({
     }
   }, [onEndApproach, lastRenderedIndex, items.length, endApproachRows]);
 
-  // The declarative "scroll to index" seam — fires only when the VALUE changes (an append that
-  // grows total item count), not on every render. `align: "end"` is the "pin to bottom" shape;
-  // reduced-motion is checked here (not left to the caller) so every composer gets it free.
-  // `virtualizer` (== the `useState`-held instance above) is referentially stable across renders,
-  // so listing it/its methods as a dependency does not cause extra re-fires.
+  // Fires only when the value changes, not on every render. align: "end" is the pin-to-bottom shape.
   useLayoutEffect(() => {
     if (scrollToIndex === undefined) {
       return;
@@ -212,8 +167,6 @@ export function VirtualList<T>({
         data-slot="virtual-list-viewport"
       >
         {virtualItems.map((virtualItem) => (
-          // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
-          // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.
           // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
           <div
             key={virtualItem.key}

@@ -1,13 +1,7 @@
 // One row of the Settings → Connections → Saved keys library — a stored provider credential as the
-// REDACTED list view (05-observability §5: the secret NEVER reaches the client — the server's
-// `CredentialView` projection drops ciphertext/key, so this renders only metadata: label · active/revoked
-// state · a health probe · set-active · remove). The list groups by provider (one ACTIVE credential per
-// provider); this row exposes the per-credential actions. IMMEDIATE-COMMIT (the tag-settings-row
-// precedent): each control is an independent `trpc.credentials.*` mutation, no draft/submit lifecycle.
-//
-// The view TYPE comes from tRPC INFERENCE (`inferOutput<credentials.list>[number]`), not a `@orb/contracts`
-// import — the redacted shape is domain-internal (`domain/credentials/contract/views`), reached across the
-// wire by inference, never a `#server/*` deep import (the cake; persona-panel-row.tsx precedent).
+// redacted list view: the secret never reaches the client, so this renders only metadata (label ·
+// active/revoked state · a health probe · set-active · remove). Immediate-commit: each control is an
+// independent trpc.credentials.* mutation, no draft/submit lifecycle.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import {
@@ -37,10 +31,6 @@ import {
   useTestCredentialHealth,
 } from "../hooks/use-connections-mutations";
 
-// The redacted credential row as the client receives it (tRPC inference — no secret fields). LOCAL,
-// non-exported (the type-home gate: an EXPORTED feature type must live in contract/; a local inference
-// alias is fine — the persona-panel-row.tsx precedent). The surface re-derives the same alias where it
-// needs it, never a cross-component type import.
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
 
 export interface CredentialKeyRowProps {
@@ -49,9 +39,7 @@ export interface CredentialKeyRowProps {
   readonly invalidation: Invalidation;
 }
 
-/** The Test-result the row holds (session-ephemeral — GAP-1 owner ruling: no persistence, `revokedAt` stays
- *  the durable marker). custom_openai rows report a reachability line from `fetchModels`; every other
- *  provider reports the `CredentialHealth` probe verbatim. */
+/** The Test-result the row holds (session-ephemeral, never persisted). custom_openai rows report a reachability line from fetchModels; every other provider reports CredentialHealth verbatim. */
 type TestResult =
   | { readonly kind: "health"; readonly health: CredentialHealth }
   | { readonly kind: "custom"; readonly modelCount: number | null };
@@ -68,7 +56,6 @@ export function CredentialKeyRow({
   const testHealth = useTestCredentialHealth(deps);
   const fetchModels = useFetchModels(deps);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  // The last Test result — SESSION-EPHEMERAL row state (GAP-1 owner ruling; never persisted).
   const [testResult, setTestResult] = useState<TestResult | null>(null);
 
   const revoked = credential.revokedAt !== null;
@@ -76,9 +63,6 @@ export function CredentialKeyRow({
   const isCustom = credential.provider === "custom_openai";
   const testing = testHealth.isPending || fetchModels.isPending;
 
-  // Route Test per provider (GAP-4): custom_openai probes /models (reachable ⇒ a model count); every other
-  // provider runs the health probe (openrouter probes for real; others return `ok` without probing — the
-  // verb's honest "ok (not probed)" for those).
   const runTest = (): void => {
     if (isCustom) {
       void fetchModels
@@ -169,8 +153,7 @@ export function CredentialKeyRow({
   );
 }
 
-/** The Test-result text — the health status (relative time via the sealed `time.ts` seam) or the custom
- *  reachability line. Honest about the "ok (not probed)" case for providers the probe doesn't reach. */
+/** The Test-result text — the health status or the custom reachability line. */
 function formatTestResult(result: TestResult, isCustom: boolean): string {
   if (result.kind === "custom") {
     return result.modelCount === null
@@ -180,10 +163,8 @@ function formatTestResult(result: TestResult, isCustom: boolean): string {
   return formatHealth(result.health, isCustom);
 }
 
-/** Format a `CredentialHealth` probe result (a dedicated function so the full status union is visible). */
 function formatHealth(health: CredentialHealth, isCustom: boolean): string {
   if (health.status === "ok") {
-    // Non-openrouter providers return `ok` without an outbound probe — say so honestly.
     return isCustom ? "ok" : `checked ${timeLib.formatRelative(health.checkedAt)}`;
   }
   if (health.status === "throttled") {
@@ -192,7 +173,6 @@ function formatHealth(health: CredentialHealth, isCustom: boolean): string {
   return `${health.status} — ${health.reason}`;
 }
 
-/** The Test-result tone — success for a healthy/reachable probe, warning/danger for the failure states. */
 function testResultTone(result: TestResult): "success" | "warning" | "destructive" {
   if (result.kind === "custom") {
     return result.modelCount === null ? "warning" : "success";

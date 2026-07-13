@@ -1,17 +1,8 @@
-// The pure ECharts option builder behind <BarList> — split out (no React/echarts-for-react
-// import) so it's cheaply unit-testable: a mounted ECharts instance does not survive the
-// Playwright component-test RPC boundary with its methods intact, so the color/rank-order/
-// formatter wiring is proven on this plain function instead (option.test.ts).
-//
-// Chrome colors arrive as CONCRETE resolved values (`ChartColors`), NOT `var()`/`TOKENS[...].value`
-// literals — ECharts paints to Canvas where `var(--token)` can't resolve, so <BarList> resolves the
-// DTCG tokens live via `useChartTheme` (§11.3) and passes them in; this builder never touches tokens.
+// Pure ECharts option builder behind <BarList> — split out so it's cheaply unit-testable without a
+// mounted ECharts instance. Chrome colors arrive as concrete resolved values, never var() literals.
 import type { OrbChartOption } from "../chart/echarts-setup";
 import type { ChartColors } from "../chart/use-chart-theme";
 
-// Defined here (not in bar-list.tsx) so this module has no dependency back on the component file
-// — bar-list.tsx re-exports it for the public API, avoiding a bar-list.tsx ↔ option.ts cycle
-// (dependency-cruiser no-circular fires on type-only cycles too).
 export interface BarListItem {
   readonly id: string;
   readonly label: string;
@@ -21,8 +12,7 @@ export interface BarListItem {
 const BAR_MAX_WIDTH_PX = 20;
 const BAR_BORDER_RADIUS_PX = 4;
 const BAR_BORDER_RADIUS = [0, BAR_BORDER_RADIUS_PX, BAR_BORDER_RADIUS_PX, 0];
-// Fixed gutter reserved for the bar-end value label (containLabel only accounts for axis labels,
-// not per-bar data labels) — a v1 simplification; revisit if a consumer needs long value strings.
+// Fixed gutter reserved for the bar-end value label (containLabel only accounts for axis labels).
 const VALUE_LABEL_GUTTER_PX = 64;
 
 export function buildBarListOption(

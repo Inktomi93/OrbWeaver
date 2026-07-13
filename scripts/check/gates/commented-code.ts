@@ -13,10 +13,6 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE line-scan gate via visitFile) ─────────────────────
-// The legacy raw-line scan as a per-file hook (byte-identical — no §2.4 comment-range upgrade here; that
-// intended finding CHANGE lands separately, behind its own parity diff). A `//` line whose content is a
-// parked code statement is flagged at its line. Not fsBacked (pure AST text).
 export const gate: GateDescriptor = {
   name: "commented-code",
   docRow: "Documentation-Law.md §Code comments",
@@ -24,9 +20,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message: COMMENTED_CODE_MESSAGE,
   fix: "delete the parked code — git history keeps it; comments are for prose (WHY), not commented-out statements.",
-  // Pinned to packages+tests: the §2.2 diagnostic-legibility fold-in added scripts/check/gates/** to the
-  // workspace globs; a gate file's own `// export const …` activation-snippet comments are documentation,
-  // not parked code — this pin keeps the scanner's findings byte-identical to before the fold-in.
+  // A gate file's own `// export const …` activation-snippet comments are documentation, not parked code.
   scanRoot: (p) => !p.startsWith("scripts/check/gates/"),
   visitFile: (sf, ctx) => {
     for (const [index, line] of sf.getFullText().split("\n").entries()) {

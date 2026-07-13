@@ -1,16 +1,7 @@
-// `<QueryBoundary>` (UI-Primitives §13.1): the suspense + error battery every surface wraps its
-// suspending reads in. Bakes THE part everyone gets wrong (UI-Lib-TanStack-Query.md §8 — verified
-// against the official suspense example): the `QueryErrorResetBoundary` → error-boundary `onReset`
-// handshake — without it "Try again" re-renders, the query is STILL in error state, and it throws
-// again; `reset()` clears the query error so the retry actually refetches. Children use
-// `useSuspenseQuery`/`useSuspenseQueries` (non-null data, Compiler-clean; queries-PLURAL for
-// parallel — suspense queries in one component run serially). Pane REVISITS don't flash a fallback
-// because <Activity> keeps visited CONTENT panes warm (§4a) — a first-visit mount legitimately shows
-// its skeleton, which a transition can't suppress anyway (React's startTransition only defers a fallback
-// when an ALREADY-shown tree suspends on update, not on initial mount). So there is no `startTransition`
-// call site to pair with here (motion audit §4.2 — the prior claim documented a policy nobody wired).
-// The error boundary is hand-built (the `@orb/ui` MarkdownErrorBoundary precedent) — a class
-// component is the platform's only error-catch primitive; no dep earns a seal for 30 lines.
+// The suspense + error battery every surface wraps its suspending reads in. Bakes the
+// QueryErrorResetBoundary -> error-boundary onReset handshake: without it "Try again" re-renders while
+// the query is still in error state and throws again; reset() clears the query error first so the
+// retry actually refetches.
 
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";

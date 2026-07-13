@@ -57,7 +57,24 @@ owning_tsconfig() {
 bout=$(mktemp); dout=$(mktemp); tout=$(mktemp)
 trap 'rm -f "$bout" "$dout" "$tout"' EXIT
 
-pnpm exec biome check --reporter=concise --diagnostic-level=error \
+# nice'd + POOL-LIMITED: under a multi-agent swarm dozens of these run concurrently, and each
+# single-file biome check pays whole-project module-graph resolution (~400% CPU) — they must lose
+# the scheduler race to interactive work AND be capped. 4 flock slots; all busy ⇒ skip (fail-soft;
+# the next edit or `pnpm check` catches it).
+pooldir="$root/node_modules/.cache/hook-pool"
+mkdir -p "$pooldir"
+pool_run() { # pool_run <name> <cmd...>: try slots 1-4, else skip
+  local name="$1"; shift
+  for slot in 1 2 3 4; do
+    # -E 99: flock's OWN busy-exit is 99, so the command's exit code (biome exits 1 on findings!)
+    # passes through unambiguously — busy ⇒ try the next slot; anything else ⇒ the command ran.
+    nice -n 10 flock -n -E 99 "$pooldir/$name.$slot.lock" "$@"
+    local rc=$?
+    [ "$rc" -ne 99 ] && return "$rc"
+  done
+  return 0 # all slots busy — skip (fail-soft)
+}
+pool_run biome pnpm exec biome check --reporter=concise --diagnostic-level=error \
   --max-diagnostics=20 --no-errors-on-unmatched "$rel" >"$bout" 2>&1 &
 bpid=$!
 
@@ -77,8 +94,14 @@ tsgo_bin="$root/node_modules/.bin/tsgo"
 if [[ -n "$owner" && -x "$tsgo_bin" && -f "$root/$owner" ]]; then
   tbi="$root/node_modules/.cache/hook-tsgo/${owner//\//_}.tsbuildinfo"
   mkdir -p "$(dirname "$tbi")"
-  "$tsgo_bin" --noEmit --pretty false --incremental --tsBuildInfoFile "$tbi" \
-    -p "$owner" >"$tout" 2>&1 &
+  # PER-PROGRAM LOCK (flock -n): under a multi-agent swarm, concurrent tsgo runs on the SAME
+  # tsconfig share one tsBuildInfoFile and thrash each other's incremental cache — every run
+  # degrades to a near-full check and the overlap snowballs (measured: load avg 120+). If a run
+  # for this program is already in flight, SKIP the type leg (the fail-soft doctrine above; the
+  # full lanes in `pnpm check` remain the whole-truth gate).
+  tlock="$root/node_modules/.cache/hook-tsgo/${owner//\//_}.lock"
+  flock -n "$tlock" nice -n 10 "$tsgo_bin" --noEmit --pretty false --incremental \
+    --tsBuildInfoFile "$tbi" -p "$owner" >"$tout" 2>&1 &
   tpid=$!
 fi
 
@@ -90,7 +113,10 @@ wait "$bpid" || true
 
 # Strip each tool's timing/summary footer; what survives is the actionable findings.
 biome_f=$(grep -vE '^(Checked |Found |check )|Some errors were emitted|^[[:space:]]*$' "$bout" || true)
-dep_f=$(grep -vE 'dependency violations|^[[:space:]]*$' "$dout" 2>/dev/null || true)
+# no-orphans is excluded here (BLOCK-wise — header + its indented err-long body): a SINGLE-file
+# cruise has no importers by construction, so the rule false-fires on every zero-import leaf file.
+# The whole-graph `pnpm depcruise` is its real home.
+dep_f=$(awk '/no-orphans/{skip=1;next} skip&&/^[[:space:]]/{next} {skip=0} !/dependency violations/&&NF' "$dout" 2>/dev/null || true)
 
 # tsgo: surface ONLY a genuine type diagnostic for the EDITED file. Exit code is deliberately NOT consulted
 # — tsgo exits 1 for tooling failures too (missing/malformed project, IO/write errors), so it can't tell

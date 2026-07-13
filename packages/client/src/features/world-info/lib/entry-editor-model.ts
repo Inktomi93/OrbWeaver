@@ -1,14 +1,9 @@
-// The world-info ENTRY editor model — the flat `EntryFormValues` the button-gated entry form binds, plus the
-// two round-trip mappers (persona-editor-model.ts precedent). The wire shape (`UpdateEntryInput`) nests the
-// per-entry behaviour in a loose `metadata` blob (`scopeMode` / `inject` / `position` + preserved unknown ST
-// keys); the form flattens it so each control binds a plain path, and the save mapper re-nests it while
-// SPREADING the entry's existing metadata first — so unknown keys imported from a SillyTavern lorebook ride
-// through untouched (the entryMetadataWriteSchema stays a loose open record; only the three typed fields are
-// re-stamped from the form).
-//
-// `scopeMode: "auto"` means "no override" — the kit resolver derives always-vs-keyword from keys.length; the
-// mapper DROPS the key so a book stays on the heuristic (never a stamped literal that pins it). `inject` is
-// the shared `{depth, role}` at-depth directive (kit/injection, D32): present only when the user opts in.
+// The world-info entry editor model — the flat EntryFormValues the button-gated entry form binds, plus
+// the two round-trip mappers. The wire shape nests per-entry behaviour in a loose `metadata` blob
+// (scopeMode/inject/position + preserved unknown ST keys); the form flattens it, and the save mapper
+// re-nests it while spreading the entry's existing metadata first so unknown ST-imported keys ride
+// through untouched. `scopeMode: "auto"` means "no override" — the mapper drops the key so the book
+// stays on the heuristic.
 
 import type { EntryMetadata, EntryView, UpdateEntryInput } from "@orb/contracts/world-info";
 import type { MessageRole } from "@orb/kit/message-role";

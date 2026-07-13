@@ -54,6 +54,35 @@ polish) is global and ships first. §6 is the rollout order for everything after
    rendering ember — sweep with ast-grep for `<Button $$$>` and check the intent prop, not a text grep
    for `intent="primary"`.
 
+## 0b. Client onboarding primer (read once, per builder — pointers, not restatement)
+
+- **Gates first, by NAME.** Skim the gate names in `../core/Core-Enforcement-Active-Gates.md`
+  (they're self-explanatory: `no-array-literal-querykey`, `form-factory-for-multifield`,
+  `touch-target-floor`…) BEFORE building — a name tells you a rule exists; read the gate file only
+  when you're about to trip it. Never re-derive conventions the battery already enforces.
+- **State — the split criterion is durability-per-PERSON, not "server-ish":** anything that must
+  survive across tabs/devices for a person (prefs, entity data, anything another session should see)
+  is SERVER state — TanStack Query + the settings namespaces (bus-driven freshness,
+  `staleTime: Infinity`). Only per-DEVICE transient concerns (selection, panel modes,
+  drafts-in-progress, scroll/stream state) live in the gated Zustand stores in `client/src/state/`
+  (minted via the three factory doors — `createGatedStore` / `createEntityDraftStore` /
+  `createPersistedStore`, never bare `create()`). If losing it on another device would surprise the
+  user, it does not belong in a store. Editors go through the form factories
+  (`createAutosaveEntityForm` — D66 A4). Full map: `../core/UI-Primitives-and-Reuse.md` §13.2
+  (a surface not using its primitive is the review flag).
+- **Feature anatomy:** `features/<name>/{index.ts (the ONLY front door) · surfaces/ (routed panes) ·
+  anchors/ (portal/dialog mounts) · components/ · hooks/ · lib/}`. Cross-FEATURE reads go through
+  `trpc.*`, never another feature's internals (dep-cruiser enforces; type-only shapes exempt).
+  Distinct + sanctioned: crossing shell REGIONS within ONE feature (Content ↔ Context share no
+  React ancestor below the route) uses that feature's editor-bridge
+  (`features/<x>/lib/*-editor-bridge.ts` — the surface publishes the live form handle, the same
+  feature's inspector subscribes). Verified within-feature-only today; it is NOT a cross-feature
+  read — don't "fix" it, and don't imitate it ACROSS features.
+- **Tooling card:** `pnpm ast <verb>` (symbol-true search — refs/callers/importers/jsx/orphans; bare
+  prints usage; prefer over grep) · `pnpm snap <route>` (headless screenshot + console/net report +
+  `--text` ARIA mode; the verify loop, §9) · `pnpm knip` (dead exports/deps) · `pnpm check`
+  (the full static gate battery).
+
 ---
 
 ## 1. The six principles (every task serves one)

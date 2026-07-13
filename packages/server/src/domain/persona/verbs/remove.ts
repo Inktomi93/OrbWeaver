@@ -1,12 +1,7 @@
-// verb: remove — delete an owned persona. DELETE … WHERE id=? AND owner_id=? RETURNING folds the
-// ownership check + the deletion into one round-trip; an empty result = not owned / not found → typed
-// NotFound. The DB does the cascade-safety: `character_personas` rows CASCADE; `messages.personaId` is
-// SET NULL (a deleted persona never orphans a message). Only a real deletion audits.
-//
-// THE LAST-PERSONA BELT (PD-100 rider): deleting the caller's FINAL persona is refused (`last_persona`) —
-// setup forces one persona and chat attribution falls back to the participant's active persona, so at least
-// one must always exist. The guard fires only when the target IS the caller's sole persona: a not-owned /
-// missing target still collapses to the leak-free NotFound below (the delete matches nothing).
+// verb: remove — delete an owned persona. DELETE ... WHERE id=? AND owner_id=? RETURNING folds the
+// ownership check + deletion into one round-trip; an empty result is the leak-free NotFound. Deleting the
+// caller's final persona is refused (last_persona) — at least one must always exist for chat attribution to
+// fall back to.
 
 import { personas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
@@ -36,10 +31,7 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
       throw new PersonaNotFoundError(personaId);
     }
 
-    // Owner invariant "never NO current persona while you own one": if the deleted persona was the global
-    // current/default pointer, re-point it (default -> first remaining -> null) so a live consumer never
-    // holds a dangling pointer. Injected settings write (persona imports no other domain); runs AFTER the
-    // delete commits so the re-point sees the post-delete roster. A no-op unless a seed named `personaId`.
+    // Re-point any default/current pointer left dangling by this delete (no-op unless a seed named personaId).
     await ctx.repointSeedsAfterPersonaDelete(ownerId, personaId);
 
     await ctx.audit(

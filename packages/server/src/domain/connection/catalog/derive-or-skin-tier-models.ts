@@ -1,22 +1,7 @@
-// domain/connection/catalog/derive-or-skin-tier-models — the KILL for the hardcoded OR-skin tier map that
-// used to live in the agent-sdk env firewall (`env.ts`). The firewall needs the three
-// `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` envs (LOAD-BEARING: the bundled CLI can't take a
-// slash-containing id as `options.model`, so a mode-2 turn maps the tier ALIASES to OR slugs via these
-// envs). We DERIVE those three slugs from the two live catalogs the connection domain already holds — the
-// agent-sdk daemon catalog (its `alias → resolvedModel` map) + the OpenRouter catalog id list — instead of
-// pinning them (a pin goes stale the moment the daemon rolls a family forward, e.g. `sonnet` →
-// `claude-sonnet-5` superseding the old `claude-sonnet-4-6`).
-//
-// PURE + never-throws: both catalogs are passed IN (the caller read them off the injected-clock caches), so
-// this is deterministic + unit-testable, and a cold/empty catalog degrades through the fallback chain — a
-// mode-2 turn must NOT die because a catalog snapshot is stale (the whole point of moving the map here).
-//
-// The FALLBACK CHAIN, per tier, in order:
-//   (a) the daemon's `resolvedModel` for the alias, transformed to an OR slug + PRESENT in the OR id list;
-//   (b) the newest same-family `anthropic/claude-<family>-*` id present in the OR list (numeric-aware
-//       version compare on the version tail; the `-fast` variants are excluded);
-//   (c) the curated shortlist's family pick (the sanctioned hardcode home — `chat-models.ts`), transformed;
-//   (d) never absent — (c) always yields a value, so every tier resolves.
+// Derives the OR-skin tier→slug map (opus/sonnet/haiku) for the agent-sdk env firewall's three
+// `ANTHROPIC_DEFAULT_*_MODEL` envs, instead of pinning them (a pin goes stale when the daemon rolls a
+// family forward). Pure + never-throws: a cold/empty catalog degrades through the fallback chain
+// (a) daemon's resolved id present in the OR list → (b) newest same-family OR id → (c) curated shortlist pick.
 
 import type { AgentSdkModel } from "@orb/contracts/connection";
 import type { OrSkinTierModels } from "../contract/results";
@@ -36,16 +21,8 @@ const VERSION_SEP_RE = /[.-]/u;
 /** OpenRouter serves throughput-optimized `-fast` variants alongside the base id — never a tier default. */
 const FAST_SUFFIX = "-fast";
 
-/**
- * Transform a daemon/curated Anthropic version id into its OpenRouter slug (verified against the live OR
- * list 2026-07-10). Rules, in order:
- *   1. strip an 8-digit date suffix   (`claude-haiku-4-5-20251001` → `claude-haiku-4-5`);
- *   2. if the id ends in two numeric segments `-N-M`, join them with a dot (`claude-opus-4-8` →
- *      `claude-opus-4.8`); a single trailing number stays as-is (`claude-sonnet-5`);
- *   3. prefix `anthropic/`.
- * An id that already carries the prefix is normalized (the prefix is stripped first, re-added last) so the
- * transform is idempotent.
- */
+/** Transform a daemon/curated Anthropic version id into its OpenRouter slug: strip an 8-digit date suffix,
+ *  dot-join a trailing two-segment numeric version, prefix `anthropic/`. Idempotent on an already-prefixed id. */
 export function toOpenRouterSlug(id: string): string {
   const bare = id.startsWith(ANTHROPIC_PREFIX) ? id.slice(ANTHROPIC_PREFIX.length) : id;
   const dateStripped = bare.replace(DATE_SUFFIX_RE, "");
@@ -145,11 +122,7 @@ function resolveTier(
   return curatedSlug(tier);
 }
 
-/**
- * Derive the OR-skin tier→slug map for a mode-2 spawn from the two live catalogs. NEVER throws: an empty
- * agent-sdk catalog and/or an empty OR list degrade to the curated shortlist pick, so a mode-2 turn always
- * gets a coherent `{opus, sonnet, haiku}` (the firewall's three `ANTHROPIC_DEFAULT_*_MODEL` envs).
- */
+/** Derive the OR-skin tier→slug map for a mode-2 spawn; never throws. */
 export function deriveOrSkinTierModels(
   agentSdk: readonly AgentSdkModel[],
   orIds: readonly string[],

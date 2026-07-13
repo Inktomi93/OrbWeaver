@@ -1,13 +1,6 @@
-// Persona × CHAT write verbs (FINAL-Persona §A.6 "This chat" section — the per-chat picker folded into
-// the ONE rail-foot panel, not a separate features/chat picker). Backs `persona-this-chat-section.tsx`:
-// the per-chat active-persona flip (`persona.setActivePersona`, `targetUserId` OMITTED — self), the
-// host anchor re-pin (`chat.setChatAnchorPersona`), and the reattribute escape hatch
-// (`chat.reattributePersona`).
-//
-// All three server verbs emit a chat-bus event on the OPEN chat that `chatReads` (data/invalidation.ts)
-// already covers — `personaSwitched` / `chatUpdated` / `messageEdited` respectively — so all three are
-// BUS-DRIVEN (the `use-roster-mutations.ts` precedent), never a manual `invalidates`: the mutation-vs-bus
-// rule forbids both (double-refetches the same keys, the observed send storm).
+// Persona x chat write verbs backing persona-this-chat-section.tsx: the per-chat active-persona flip,
+// the host anchor re-pin, and the reattribute escape hatch. All three emit a chat-bus event on the open
+// chat that chatReads already covers, so all three are bus-driven, never a manual invalidates.
 
 import type { ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";

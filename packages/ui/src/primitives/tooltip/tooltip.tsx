@@ -15,33 +15,18 @@ import { tooltipVariants } from "./variants";
 
 const slots = tooltipVariants();
 
-// The trigger-breathe gap (§13.0 C19 rollup, `#lib`) — = --spacing-row (0.5rem); Base UI Positioner
-// offsets are px numbers, not classes.
+// Base UI Positioner offsets are px numbers, not classes.
 const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 
-// Base UI 1.6's Tooltip does NOT wire the WCAG name/description relationship (verified empirically in
-// the shipped build — the popup carries no `role="tooltip"` and the trigger no `aria-describedby`; only
-// FOCUSABLE_POPUP_PROPS + dismiss/clientPoint flow to the popup). So the seal mints ONE id per `<Tooltip>`
-// and threads it: the popup gets `id` + `role="tooltip"`, the trigger gets `aria-describedby` — the APG
-// tooltip pattern. A `describedby` pointing at a not-yet-mounted popup is inert; the association becomes
-// live when the portaled popup mounts on open. One home for the id keeps trigger↔popup honest.
+// Base UI's Tooltip doesn't wire the WCAG name/description relationship itself, so this seal mints
+// ONE id per `<Tooltip>` and threads it: popup gets `id` + `role="tooltip"`, trigger gets `aria-describedby`.
 const TooltipDescriptionContext = createContext<string | undefined>(undefined);
 
-/**
- * Shares hover delay/timeout across a subtree so adjacent tooltips open instantly.
- * `<TooltipProvider><App /></TooltipProvider>`
- * Spec: ui-package-design §6.1; live Base UI Tooltip docs (Provider delay/closeDelay/timeout).
- */
+/** Shares hover delay/timeout across a subtree so adjacent tooltips open instantly. */
 export function TooltipProvider(props: BaseProviderProps): ReactElement {
   return <BaseTooltip.Provider {...props} />;
 }
 
-/**
- * Tooltip root — seals Base UI Tooltip (hover/focus open and touch suppression come free;
- * tooltips are disabled on touch devices per the live docs). State-only.
- * `<Tooltip><TooltipTrigger>?</TooltipTrigger><TooltipPopup>Help</TooltipPopup></Tooltip>`
- * Spec: ui-package-design §6.1 / UI-Arch §4b (tooltip-on-touch correctness is Base UI's).
- */
 export function Tooltip<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
   const descriptionId = useId();
   return (
@@ -51,37 +36,22 @@ export function Tooltip<Payload = unknown>(props: BaseRootProps<Payload>): React
   );
 }
 
-/**
- * The hoverable/focusable anchor. Unstyled passthrough — compose your own control via `render`.
- * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven tooltip.
- * `<TooltipTrigger render={<Button size="icon" aria-label="Help">?</Button>} />`
- * Spec: ui-package-design §6.1 / §13 R2.
- */
+/** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven tooltip. */
 export function TooltipTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   const descriptionId = useContext(TooltipDescriptionContext);
-  // `aria-describedby` associates the trigger with the tooltip content (the popup carries the matching
-  // `id`). A caller-supplied `aria-describedby` wins — don't clobber an explicit one.
   return <BaseTooltip.Trigger aria-describedby={descriptionId} {...props} />;
 }
 
 export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
-  /** Placement side, forwarded to the explicit Positioner. @defaultValue "top" (Base UI default) */
   side?: BasePositionerProps["side"];
   align?: BasePositionerProps["align"];
-  /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
-  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
-   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  /** Defaults to the themed portal root; pass an explicit node/ref to override. */
   container?: PortalContainer;
 }
 
-/**
- * The tooltip surface — bundles Portal → Positioner (`--z-tooltip`, token-safe sideOffset default)
- * → Popup.
- * `<TooltipPopup>Regenerate reply</TooltipPopup>`
- * Spec: ui-package-design §6.1 dictate — explicit Positioner with a token-safe sideOffset default.
- */
+/** Bundles Portal → Positioner → Popup. */
 export function TooltipPopup(props: TooltipPopupProps): ReactElement {
   const {
     className,
@@ -104,9 +74,6 @@ export function TooltipPopup(props: TooltipPopupProps): ReactElement {
         sideOffset={sideOffset}
       >
         <BaseTooltip.Popup
-          // `role="tooltip"` + a stable `id` (matched by the trigger's `aria-describedby`, threaded via
-          // TooltipDescriptionContext) give the WCAG name/description relationship Base UI 1.6 omits. A
-          // caller `id`/`role` in `rest` wins (spread last).
           id={descriptionId}
           role="tooltip"
           className={slots.popup({ className })}
@@ -124,13 +91,6 @@ export interface TooltipArrowProps extends Omit<BaseArrowProps, "className"> {
   className?: string;
 }
 
-/**
- * An arrow that points at the anchor — place inside `<TooltipPopup>`. Base UI positions it and sets
- * `data-side`/`data-align`; skinned as a `bg-popover` diamond that continues the popup edge (mirrors
- * `PopoverArrow`/`MenuArrow`).
- * `<TooltipPopup><TooltipArrow />Regenerate reply</TooltipPopup>`
- * Spec: ui-package-design §13 R2 (full native part surface).
- */
 export function TooltipArrow(props: TooltipArrowProps): ReactElement {
   const { className, ...rest } = props;
   return (

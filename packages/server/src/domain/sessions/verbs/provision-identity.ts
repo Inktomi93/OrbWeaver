@@ -15,17 +15,14 @@ import {
 } from "../persistence/users";
 import { deriveIdentityAccess, reDeriveRoleOnLogin } from "../substrate/role-policy";
 
-// The SSO seam upsert. Keys on the STABLE `externalId` first (a username rename updates `handle` on the
-// SAME row — never a duplicate tenant), falling back to `handle`. The `deriveIdentityAccess` policy gates
-// login (`OIDC_ALLOWED_GROUPS`) and derives the global role (owner/admin/user from IdP groups). A DENIED
-// identity returns `{outcome:"denied"}` — NO row is created or updated (the seam → null → 401). `role` is
-// SEEDED from the derived role on INSERT; on UPDATE it RE-DERIVES when group governance is active (or the
-// legacy `RE_DERIVE_ROLE_ON_LOGIN` flag) — EXCEPT the owner, the immutable bootstrap singleton, whose role
-// is never re-derived and who is never denied by the gate (matched by the EXISTING owner row). `email` is
-// refreshed from the claim when carried (keep-on-null). `enabled` is NEVER reset on UPDATE (else a disabled
-// user re-enables by logging in). Race-tolerant insert + re-read absorbs a concurrent first-login loser.
+// The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
+// same row), falling back to `handle`. The access-gate policy gates login and derives the global role. A
+// denied identity returns `{outcome:"denied"}` — no row is created or updated. `role` is seeded on insert;
+// on update it re-derives when group governance is active — except the owner, whose role is never
+// re-derived and who is never denied. `email` refreshes from the claim when carried (keep-on-null);
+// `enabled` is never reset on update. Race-tolerant insert + re-read absorbs a concurrent first-login loser.
 
-// The matched-row shape, DERIVED from the persistence query (one home — no re-spell). File-local.
+// The matched-row shape, derived from the persistence query. File-local.
 type ExistingUser = NonNullable<Awaited<ReturnType<typeof selectForProvisionByHandle>>>;
 
 /** Match by the stable `externalId` first (rename-safe), then by `handle`. */
@@ -42,10 +39,8 @@ async function findExisting(
   return await selectForProvisionByHandle(ctx.db, identity.handle);
 }
 
-/** Refresh `handle`/`externalId`/`email` (rename + first-seen link + mutable contact); re-derive `role`
- *  ONLY when `allowReDerive` (owner rows pass `false` — never re-derived) AND the re-derive policy is on;
- *  never touch `enabled`. Update only when something actually changed (no per-login churn). Email is
- *  keep-on-null: a login carrying no email never wipes a stored one. */
+/** Refresh `handle`/`externalId`/`email`; re-derive `role` only when `allowReDerive` and the re-derive
+ *  policy is on; never touch `enabled`. Update only when something actually changed. */
 async function updateExisting(
   ctx: SessionsContext,
   existing: ExistingUser,
@@ -106,7 +101,7 @@ async function insertNew(
       ? await selectForProvisionByExternalId(ctx.db, identity.externalId)
       : await selectForProvisionByHandle(ctx.db, identity.handle);
   if (settled === undefined) {
-    // Unreachable: either our insert succeeded or a concurrent one did. Fail loud, never fabricate.
+    // Unreachable: either our insert succeeded or a concurrent one did.
     throw new Error(
       `provisionIdentity: row missing after insert (handle=${identity.handle}, externalId=${identity.externalId ?? "null"})`,
     );
@@ -123,13 +118,9 @@ async function insertNew(
   };
 }
 
-/** D17 — the box has EXACTLY ONE owner (enforced by the `users_single_owner_unique` partial index). When the
- *  owner POLICY (OWNER_GROUP/OWNER_HANDLES) would mint a SECOND owner — a policy-matching login while a
- *  DIFFERENT owner row already exists — downgrade to `user` (warned) so the write never surfaces as a raw
- *  UNIQUE violation (a failed login with a DB error). `admin` is deliberately NOT chosen: the second
- *  would-be owner lands at least-privilege `user` and the owner may promote them (group→admin never mints a
- *  second owner). A re-login of the SAME owner row keeps `owner` (and the no-owner-yet first login mints it).
- *  `ownerId` is read once by the caller (also used for the owner-exemption check) and threaded in. */
+/** The box has exactly one owner. When the owner policy would mint a second owner, downgrade to `user`
+ *  (warned) so the write never surfaces as a raw unique violation. A re-login of the same owner row keeps
+ *  `owner`. */
 function reconcileOwnerSingleton(
   derivedRole: UserRole,
   ownerId: UserId | undefined,
@@ -153,10 +144,8 @@ export function createProvisionIdentity(
   ctx: SessionsContext,
 ): Pick<SessionsService, "provisionIdentity"> {
   async function provisionIdentity(identity: ResolvedIdentity): Promise<ProvisionResult> {
-    // FLAG[PD-17] / agent-principal-design/01 §3.2: refuse the reserved `__agent__` namespace (the SSO twin of
-    // the ensureUser belt). An agent has no `externalId` (DDL CHECK) so it can never match the externalId key;
-    // its handle is always `__agent__…`, so this closes the by-handle match/update path outright — no agent
-    // row is ever matched, updated, or shadow-created via the SSO seam.
+    // FLAG[PD-17]: refuse the reserved `__agent__` namespace — no agent row is ever matched, updated, or
+    // shadow-created via the SSO seam.
     if (isReservedAgentHandle(identity.handle)) {
       throw new DomainForbiddenError(
         "the __agent__ handle namespace is reserved for agent principals",
@@ -164,10 +153,8 @@ export function createProvisionIdentity(
     }
     const existing = await findExisting(ctx, identity);
     const ownerId = await selectOwnerUserId(ctx.db);
-    // OWNER EXEMPTION (D17): the immutable bootstrap owner is matched by the EXISTING owner ROW (its id ===
-    // the singleton owner id) — NOT by a role-literal compare (that lattice lives only in `can()`). The owner
-    // is NEVER denied by the `OIDC_ALLOWED_GROUPS` gate and NEVER re-derived downward, even if the owner is
-    // no longer in any configured group. Only its mutable attributes (handle/externalId/email) refresh.
+    // Owner exemption: the immutable bootstrap owner is matched by the existing owner row's id, never by a
+    // role-literal compare. The owner is never denied by the access gate and never re-derived downward.
     if (existing !== undefined && ownerId !== undefined && existing.id === ownerId) {
       return await updateExisting(ctx, existing, identity, {
         resolved: existing.role,
@@ -175,8 +162,8 @@ export function createProvisionIdentity(
       });
     }
 
-    // Non-owner: apply the login access gate + derive the role from IdP groups. A DENIED identity (in none
-    // of OIDC_ALLOWED_GROUPS, and not owner/admin) creates/updates NO row — fail-closed → the seam 401s.
+    // Non-owner: apply the login access gate + derive the role from IdP groups. A denied identity
+    // creates/updates no row — fail-closed.
     const access = deriveIdentityAccess(identity.handle, identity.groups);
     if (access.outcome === "deny") {
       getLog().warn(
@@ -185,7 +172,7 @@ export function createProvisionIdentity(
       );
       return { outcome: "denied" };
     }
-    // Reconcile a policy-matched SECOND owner against the D17 singleton (downgrade to `user`) BEFORE writing.
+    // Reconcile a policy-matched second owner against the singleton (downgrade to `user`) before writing.
     const resolvedRole = reconcileOwnerSingleton(access.role, ownerId, existing, identity);
     return existing !== undefined
       ? await updateExisting(ctx, existing, identity, {

@@ -1,12 +1,7 @@
-// `listSeededBackgrounds` — D49 §3 / WS3 background-image. The bundled placeholder set lives as
-// static files at `packages/client/public/backgrounds/` (vite `public/`, served at `/backgrounds/*`) —
-// FIXED at build time, so a hardcoded list is the right shape (not a DB/server read; see the folder's
-// own README, which names this exact function as its consumer). Cross-cutting (both the app-shell
-// background layer AND the settings theme-editor picker read it) — lives in `client/lib`, the
-// established home for cross-feature display/util seams (time/notify/message-render), so neither
-// feature imports the other (`no feature→feature imports`).
-//
-// TEMPORARY ART (see the folder README): swap for CC0/original images before ship.
+// The bundled placeholder background set: static files at packages/client/public/backgrounds/, fixed at
+// build time, so a hardcoded list is the right shape. Cross-cutting — both the app-shell background
+// layer AND the settings theme-editor picker read it, so neither feature imports the other.
+// TEMPORARY ART: swap for CC0/original images before ship.
 
 export interface SeededBackground {
   readonly id: string;

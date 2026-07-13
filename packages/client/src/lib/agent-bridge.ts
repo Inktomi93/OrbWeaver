@@ -1,17 +1,8 @@
-// Agent / automation bridge (UI-Arch §2.1 lib/ — cross-cutting util) — the BROWSER-side introspection
-// seam so Playwright, the `snap` probe, and agent browser-driving read app state directly instead of
-// scraping the DOM. The server observability (`foundation/observability`) covers the server; this is
-// its client peer. Two installs, wired once from `main.tsx`:
-//
-//   • installAppReadySignal — sets `data-app-ready` on <html> the first time the query cache goes idle
-//     AFTER the initial reads have started. SSE subscriptions are NOT queries, so this fires with the
-//     chat-bus stream still open: a stable wait target (`page.waitForSelector("html[data-app-ready]")`,
-//     `pnpm snap / --wait "html[data-app-ready]"`) that never hangs on the never-idle SSE connection —
-//     the exact friction that timed out live screenshots. Also resolves the `ready` promise. Installed
-//     in BOTH dev + prod (a tiny attribute that also serves CI e2e); a 3s fallback means it never hangs.
-//
-//   • installAgentDebugHandle — DEV-ONLY `globalThis.__orb`: one eval returns the shell/query/bus
-//     snapshot, bridging the existing `[bus]` ring (bus-devlog.ts) + the QueryClient. IS_DEV-folded out.
+// Agent/automation bridge — the browser-side introspection seam so Playwright/snap/agent
+// browser-driving read app state directly instead of scraping the DOM. Two installs, wired once from
+// main.tsx: installAppReadySignal sets `data-app-ready` on <html> once the query cache goes idle after
+// initial reads (a stable wait target that never hangs on the never-idle SSE bus); installAgentDebugHandle
+// installs dev-only `globalThis.__orb`.
 
 import type { QueryClient } from "@tanstack/react-query";
 import type { BusEventRecord } from "./bus-devlog";
@@ -41,7 +32,6 @@ export function installAppReadySignal(queryClient: QueryClient): void {
     }
     settled = true;
     el.setAttribute(READY_ATTR, "");
-    // `orb:app-ready` = navigation-start → hydrated-and-settled (User Timing track + __orb.perf()).
     perfMeasureFromLoad("app-ready");
     markReady();
   };
@@ -51,10 +41,9 @@ export function installAppReadySignal(queryClient: QueryClient): void {
     }
   };
   const unsubscribe = cache.subscribe(check);
-  // Stop listening once ready is reached (via the settle path OR the fallback timer).
   void ready.finally(unsubscribe);
-  // Give Suspense two frames to kick off the initial reads (isFetching → >0) before the first idle
-  // check, so we don't fire on the pre-fetch idle window. rAF²≈ after the first paint + effects.
+  // Give Suspense two frames to kick off the initial reads before the first idle check, so we don't
+  // fire on the pre-fetch idle window.
   requestAnimationFrame(() => {
     requestAnimationFrame(check);
   });
@@ -99,13 +88,12 @@ export interface OrbDebugHandle {
 }
 
 declare global {
-  // `var` is required here: ambient global augmentation must use `var` to attach to `globalThis`
-  // (let/const do not) — the sanctioned pattern for a `globalThis.__orb` handle.
+  // `var` is required: ambient global augmentation must use var to attach to globalThis.
   var __orb: OrbDebugHandle | undefined;
 }
 
-/** The compact motion line for snap(): ring depth + the two headline jank numbers + the count of active
- *  animations that AREN'T compositor-clean. Full detail lives behind .motion()/.animations(). */
+/** The compact motion line for snap(): ring depth + the two headline jank numbers + the count of
+ *  active animations that aren't compositor-clean. */
 function motionSummary(): {
   loafs: number;
   worstBlocking: number;
@@ -125,8 +113,6 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
   if (!IS_DEV) {
     return;
   }
-  // LoAF + layout-shift observers feeding motion-stats' rings — the DATA behind __orb.motion(). Installed
-  // here (dev-only path) so they cost nothing in prod, same as the rest of this handle.
   installMotionObservers();
   const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
   const shell = (): ShellSnapshot => ({
@@ -165,8 +151,6 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
     },
     perf: recentMeasures(),
     renders: renderHeatmap(),
-    // One-line motion summary: LoAF count + the two headline jank numbers + how many active animations
-    // are NOT compositor-clean (at risk of per-frame layout). Full detail via .motion()/.animations().
     motion: motionSummary(),
   });
   globalThis.__orb = {
@@ -181,8 +165,6 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
     animations: activeAnimations,
     snap,
   };
-  // One-line discovery hint on load (dev only) so this isn't a forgotten seam — the console channels
-  // ([bus]/[trpc]/[perf]) + this handle are easy to miss otherwise. Points at the README for the rest.
   console.info(
     "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell();  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",

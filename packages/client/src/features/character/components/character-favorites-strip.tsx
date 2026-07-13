@@ -1,12 +1,7 @@
-// The §4.2 favorites strip — starred characters as a dense, horizontally-scrolling avatar row pinned at
-// the LIST top (the analog of Discord's pinned DMs). Purely `characters.filter(c => c.starred)` — no
-// separate store. **Click = SELECT (open the editor) ONLY** (§4.2 / pain-point 7: one representation =
-// one meaning); start-chat is the row's separate CTA, never wired here.
-//
-// NOT `@orb/ui/avatar-stack`: that seal is a display-only overlap cluster with NO per-item click, and
-// this strip's whole purpose is a select-target per face — so it composes clickable `<Avatar>`-in-
-// `<Button>` controls (each a native button, a11y-clean) instead. A deliberate deviation from the §4.2
-// "avatar-stack" wording, recorded here.
+// The favorites strip — starred characters as a dense, horizontally-scrolling avatar row pinned at the
+// LIST top. Click = select (open the editor) only; start-chat is the row's separate CTA. Not
+// `@orb/ui/avatar-stack` (display-only, no per-item click) — composes clickable `<Avatar>`-in-`<Button>`
+// controls instead.
 
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";

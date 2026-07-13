@@ -8,18 +8,8 @@ export interface StreamShimmerProps {
   readonly className?: string | undefined;
 }
 
-/**
- * The TTFT (time-to-first-token) affordance shown before a stream's first character arrives
- * (ui-package-design §6.3.1 layer 3). Two `Skeleton` bars, composed from the existing seal rather
- * than hand-rolled (primitive contract R3 — never re-invent what a sibling primitive already ships).
- *
- * `role="status"` + `aria-label={label}` are required: `status`'s accessible name is "name from
- * author," not computed from content, so a visually-hidden child span alone leaves it unnamed
- * (verified live against the CT accessible-name assertion). The pulse is decorative (`Skeleton` is
- * `aria-hidden`) and is squashed by the global reduced-motion floor (styles/globals.css forces
- * `animation-duration: 0.01ms` under `prefers-reduced-motion: reduce`) — no JS branch needed here,
- * unlike the pacer.
- */
+// TTFT affordance shown before a stream's first character arrives. `aria-label` is required —
+// `role="status"`'s accessible name is "name from author," not computed from content.
 export function StreamShimmer({ label, className }: StreamShimmerProps): ReactElement {
   return (
     <span

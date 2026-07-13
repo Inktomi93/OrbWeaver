@@ -1,14 +1,5 @@
-// ── macro-textarea-logic — pure trigger/insert helpers for <MacroTextarea> ──
-//
-// The caret-walk that decides "are we inside a `{{…` macro context?" and the string/caret
-// arithmetic that rewrites the value when a macro is picked are pure functions of
-// (text, caret, macroName) — no DOM, no React state. They live here so they can be unit-tested
-// directly (the component wiring around them is exercised separately), and so the off-by-one
-// caret math has a home where a test can pin it.
-//
-// Ported nearly verbatim from neo-tavern's macro-textarea-logic.ts — the trigger-detection and
-// insertion arithmetic is domain-agnostic already (it never touched the macro catalog), so the
-// port is a straight copy with its tests.
+// Pure trigger/insert helpers for <MacroTextarea>: caret-walk that decides "are we inside a `{{…`
+// macro context?" and the string/caret arithmetic that rewrites the value on pick — no DOM, no React state.
 
 export interface MacroTrigger {
   /** Index of the `{{` in the value string. */
@@ -28,9 +19,7 @@ export interface MacroInsertion {
 // `getvar::pov`, `env.tense`). Top-level so it's compiled once, not per keystroke.
 const MACRO_NAME_CHARS_RE = /^[A-Za-z0-9_.:]*$/u;
 
-// Walk backward from the caret. We're in a `{{…` context when:
-//   • we find `{{` before `}}` or a newline,
-//   • the partial between `{{` and the caret contains only macro-name chars.
+// We're in a `{{…` context when `{{` is found before `}}`/newline and the partial after it is macro-name chars.
 export function detectTrigger(text: string, caret: number): MacroTrigger | null {
   const head = text.slice(0, caret);
   const openIdx = head.lastIndexOf("{{");
@@ -47,11 +36,8 @@ export function detectTrigger(text: string, caret: number): MacroTrigger | null 
   return { start: openIdx, partial: between };
 }
 
-// Replace the `{{partial` span at `trigger` with the macro's insert form and report the resulting
-// caret. Parameterized macros (catalog name contains `:`, e.g. `getvar::name`) are templates:
-// insert `{{getvar::}}` and drop the caret just inside the closing braces (after `::`) so the user
-// keeps typing the argument. Non-parameterized macros insert the bare `{{name}}` with the caret
-// after the closing braces.
+// Parameterized macros (name contains `:`) insert a template with the caret just inside the closing
+// braces so the user keeps typing the argument; non-parameterized macros insert the bare `{{name}}`.
 export function computeMacroInsertion(
   value: string,
   trigger: MacroTrigger,

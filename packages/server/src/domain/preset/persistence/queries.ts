@@ -1,12 +1,6 @@
-// ALL `presets`-table access (queries only; the verbs hold the business logic). User-scoped: reads are
-// the two-armed "owner's row OR the system default" (`ownerId = userId OR ownerId IS NULL`); owned
-// writes scope on `ownerId = userId` so a caller can never touch another owner's row nor the system
-// default (its `ownerId IS NULL` never matches `= userId`). The system default's own lifecycle (seed +
-// reseed) has its dedicated key-on-sentinel queries. Every timestamp arrives as a param (the verb passes
-// its injected clock) — no ambient `Date.now()` here (determinism).
-//
-// The query shapes are file-local (NOT exported — persistence is not a type home, §7.4): callers pass
-// object literals + read the inferred row, so no feature type leaks out of `persistence/`.
+// All `presets`-table access (queries only). User-scoped: reads are the two-armed "owner's row OR the
+// system default"; owned writes scope on `ownerId = userId`. The system default's own lifecycle has its
+// dedicated key-on-sentinel queries. Timestamps arrive as params.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -66,9 +60,8 @@ export async function listReadable(db: Db, userId: UserId): Promise<PresetRow[]>
     .orderBy(asc(presets.createdAt));
 }
 
-/** The owner's OWN rows only (`ownerId = userId` — EXCLUDES the un-owned system default), oldest-first.
- *  The orb-native backup export reads this: the shared default never travels in a per-owner backup (it is
- *  re-seeded at boot on the target box, so exporting it would duplicate on restore). */
+/** The owner's own rows only (excludes the un-owned system default), oldest-first. The backup export reads
+ *  this — the shared default never travels in a per-owner backup. */
 export async function listOwned(db: Db, userId: UserId): Promise<PresetRow[]> {
   return await db
     .select()
@@ -77,8 +70,8 @@ export async function listOwned(db: Db, userId: UserId): Promise<PresetRow[]> {
     .orderBy(asc(presets.createdAt));
 }
 
-/** The caller's existing owned preset with this exact `name`, or null — the `(ownerId, name)` import dedup
- *  key. Newest wins when names collide (a degenerate case; the dedup only needs ONE stable merge target). */
+/** The caller's existing owned preset with this exact `name`, or null — the import dedup key. Newest wins
+ *  when names collide. */
 export async function findOwnedPresetByName(
   db: Db,
   userId: UserId,

@@ -1,22 +1,11 @@
-// infra/network/image-guard — `isAllowedImageBuffer`: the POLICY guard over the pure byte-facts sniff
-// (`@orb/kit/image-sniff`) applied to REMOTE image bytes (hub-browse-design/01 §3 · gallery-design §6 · G6).
-// It is deliberately NOT in `@orb/kit`: the caps + allow-set are tunable, security-load-bearing POLICY and
-// policy doesn't live in kit — kit gets only the pure byte-facts (`sniffImageBytes`). This is an egress
-// concern, co-located with its one caller class (the `FetchImageOp` = `safeFetch` + this guard, bound in
-// `entry/` with a consumer's host allowlist for gif import / avatar-by-URL / D44 server-side media).
-//
-// The remote `Content-Type` header is NEVER consulted — the magic bytes are the truth (the classic failure
-// this guards: an HTML error page served with `200 image/png`). Beyond the byte cap `safeFetch` already
-// enforces on transfer, this adds the S4 defense marinara lacked: header-parsed DIMENSION caps (a valid
-// 32000×32000 PNG is a decompression bomb by pixel count, not transfer bytes, and would land in sharp).
+// `isAllowedImageBuffer` — policy guard over the pure byte-facts sniff (`@orb/kit/image-sniff`), applied
+// to REMOTE image bytes. Never trusts the remote Content-Type header — magic bytes are the truth (guards
+// against a 200-status HTML error page). Adds header-parsed DIMENSION caps beyond `safeFetch`'s byte cap
+// (S4: a valid 32000×32000 PNG is a decompression bomb by pixel count, not transfer bytes).
 
 import type { SniffedImage } from "@orb/kit/image-sniff";
 import { sniffImageBytes } from "@orb/kit/image-sniff";
 
-/** The rejection reasons — declared as a tuple (§5.5 string-union dispatch discipline: an inline 5-member
- *  union is a `no-inline-union-redecl` violation) and derived below. File-local: the `no-inline-types` gate
- *  reserves `export type` for contract homes, and consumers branch on `err.reason` (a string) or reference
- *  the exported class's field type (`ImageRejectedError["reason"]`). */
 const IMAGE_REJECT_REASONS = [
   "not-image",
   "mime-not-allowed",
@@ -26,8 +15,7 @@ const IMAGE_REJECT_REASONS = [
 ] as const;
 type ImageRejectReason = (typeof IMAGE_REJECT_REASONS)[number];
 
-/** Thrown by {@link isAllowedImageBuffer} on any rejection. A plain `Error` subclass (an infra I/O-boundary
- *  failure, not a `DomainError`), carrying the typed {@link ImageRejectReason} for the caller to branch on. */
+/** Thrown by {@link isAllowedImageBuffer} on any rejection; carries the typed reason for branching. */
 export class ImageRejectedError extends Error {
   readonly reason: ImageRejectReason;
   constructor(reason: ImageRejectReason, message: string) {
@@ -37,38 +25,22 @@ export class ImageRejectedError extends Error {
   }
 }
 
-/** The tunable caps + allow-set the guard enforces over the pure sniff. All optional at the call site —
- *  every field defaults (below); a consumer overrides only what it needs (e.g. a stricter `allowedMime`). */
+/** Tunable caps + allow-set the guard enforces over the pure sniff; all optional, defaulted below. */
 export interface ImageGuardCaps {
-  /** Hard cap on the buffer's byte length. Default 10 MiB (marinara's avatar cap, adopted). */
   readonly maxBytes: number;
-  /** Max pixels per axis (width AND height). Default 8192 — the S4 dimension-bomb defense. */
   readonly maxDimension: number;
-  /** Max total pixel count (width × height). Default 40_000_000 (≈ 8192 × 4884). */
   readonly maxPixels: number;
-  /** If set, the sniffed mime must be a member. Default: all five sniffable formats. */
   readonly allowedMime?: readonly SniffedImage["mime"][];
-  /** When true (the default — fail-closed), an image whose header dimensions are unparseable is rejected. */
+  /** Default true (fail-closed): unparseable header dimensions are rejected. */
   readonly requireDimensions?: boolean;
 }
 
-// A true 10 MiB (10 × 1024 × 1024), the marinara avatar cap. Named directly to stay noMagicNumbers-clean.
 const DEFAULT_MAX_BYTES = 10_485_760;
 const DEFAULT_MAX_DIMENSION = 8192;
 const DEFAULT_MAX_PIXELS = 40_000_000;
 
-/**
- * Validate REMOTE image bytes against the caps/allow-set, returning the pure {@link SniffedImage} on a pass
- * or throwing {@link ImageRejectedError} (typed reason) on any rejection. The enforcement order:
- *
- *   1. `not-image` — no known signature (PNG/JPEG/GIF/WebP/AVIF); catches the 200-status HTML error page.
- *   2. `too-large` — over the byte cap (defense-in-depth over `safeFetch`'s transfer cap).
- *   3. `mime-not-allowed` — a recognized format outside the caller's `allowedMime` set.
- *   4. `dimensions-unknown` — header dims unparseable AND `requireDimensions` (default true).
- *   5. `dimensions-exceeded` — width/height over `maxDimension`, or width×height over `maxPixels` (S4).
- *
- * Never trusts the remote `Content-Type` — the bytes are the truth.
- */
+/** Validates REMOTE image bytes against the caps/allow-set; enforcement order: not-image → too-large →
+ *  mime-not-allowed → dimensions-unknown → dimensions-exceeded. Never trusts remote Content-Type. */
 export function isAllowedImageBuffer(
   bytes: Uint8Array,
   caps: Partial<ImageGuardCaps> = {},

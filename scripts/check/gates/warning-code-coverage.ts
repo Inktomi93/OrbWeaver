@@ -1,16 +1,7 @@
-// Gate: warning-code-coverage (D41 resolve-chat warnings + D45/D48 the vision/tool codes + D51 the
-// domain-vs-infra warning split) — the emit-coverage RATCHET for BOTH warning-code tuples, the
-// bus-coverage/user-bus-coverage twin for the two structured warning channels:
-//   • WARNING_CODES (infra/providers/contract/resolve.ts) — the strict resolve/runner-emit set; a member
-//     is EMITTED where its code string appears as a `{ code: "…" }` literal in `infra/providers/**` (the
-//     home file itself is excluded — the tuple declaration is not an emit site).
-//   • CHAT_WARNING_CODES (@orb/contracts/chat) — the DOMAIN-side capability-gate set (D51: the engine, not
-//     the runner, drops content); a member is EMITTED where its code string appears in `domain/chat/**`.
-// The `WARNING_CODES` home banning speculative codes (D41 — "one code per DISTINCT site resolve-chat
-// actually emits") is exactly what this makes machine-permanent: a declared-never-emitted warning code is
-// silently dead, and a stale DEFERRED entry (a code that GAINED an emit) is RED too. Both channels are
-// compile-exhaustive on the CONSUMER side (`{ code }` is typed to the tuple, so every emit uses a member —
-// tsc owns that direction); this gate owns the PRODUCER direction the type system can't see.
+// Gate: warning-code-coverage — the emit-coverage ratchet for two warning-code tuples: WARNING_CODES
+// (infra/providers/contract/resolve.ts, emitted in infra/providers/**) and CHAT_WARNING_CODES
+// (@orb/contracts/chat, emitted in domain/chat/**). A declared-never-emitted code is silently dead; a
+// stale DEFERRED entry (gained an emit) is RED too. tsc owns the consumer side; this owns the producer.
 import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -35,9 +26,6 @@ const CHANNELS: readonly WarningChannel[] = [
     tuple: "WARNING_CODES",
     homeFile: /\/packages\/server\/src\/infra\/providers\/contract\/resolve\.ts$/u,
     emitScope: /\/packages\/server\/src\/infra\/providers\//u,
-    // `verbosity_dropped` (D68-B) is now WIRED (W2): the funnel `resolveVerbosity` pass drops it when the
-    // model lists no verbosity vocab, and the chat-completions runner drops it a SECOND time (the wire has
-    // no field) — both in the emit scope, so the ratchet counts it emitted (its W1 deferred entry is gone).
     deferred: {},
   },
   {
@@ -126,12 +114,6 @@ export function createWarningCodeCoverage(channels: readonly WarningChannel[]): 
   };
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
-// The bus-coverage twin, over TWO warning channels: a pure whole-tree reconciliation (each tuple's
-// members vs its emit-scope literal corpus), ported as a `run` descriptor reusing the exact
-// channelViolations logic against the LIVE CHANNELS. No begin/finalize (each corpus is built inside
-// `run`). The per-channel vacuous guard (tuple home not loaded → []) is the synthetic-tree protection.
-// Findings byte-identical to the legacy Check.
 function reconcileWarningCoverage(project: Project): Violation[] {
   return CHANNELS.flatMap((c) => channelViolations(project, c));
 }

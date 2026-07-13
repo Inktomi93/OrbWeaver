@@ -1,10 +1,6 @@
-// The Regex tab (BUILD-SPEC §8) — a ListRow list over `regexScripts[i]` (the `regexScriptSchema`: a
-// find/replace rule run over prompt/display text) plus an editor Dialog binding `regexScripts[i].*`, whose
-// find pattern uses the `@orb/ui/code-editor`. CRUD over the array via `form.pushFieldValue`/
-// `removeFieldValue("regexScripts")`.
-//
-// The LOAD-BEARING merge flip (`mergeOnSubmit` now carries `edited.regexScripts`, preset-editor-model.ts)
-// lands in the same phase — without it every edit here is silently discarded on save.
+// The Regex tab — a ListRow list over `regexScripts[i]` (a find/replace rule run over prompt/display
+// text) plus an editor Dialog binding `regexScripts[i].*`. CRUD over the array via
+// `form.pushFieldValue`/`removeFieldValue`.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";

@@ -1,15 +1,7 @@
-// SectionRow — ONE rack row for a non-pivot section (BUILD-SPEC §3.3). A DOMAIN COMPOSITION of
-// Row + Badge + Switch + a ghost Button (NOT `@orb/ui/list-row` — ListRow's contract is a string title +
-// a single clickable body and cannot hold this anatomy: the name-button, the enabled switch, and the grip
-// are THREE independent tab stops). The SortableList owns the grip (its `handle` affordance) — this row is
-// the sortable's `renderItem` content, so it carries no grip of its own.
-//
-// Anatomy left→right: type-glyph Badge (quill=literal · sparkles=templated marker · anchor=plain marker) ·
-// a ghost Button wrapping name + plain-language subtitle (click = select the section → reveal the CONTEXT
-// inspector) · cue badges shown ONLY-WHEN-SET (depth·order inject · a Triggers pill listing the turn types ·
-// override lock · custom template dot · non-system role) · the ~token estimate (mono, struck-through when
-// disabled) · the enabled Switch (bound to `sections[i].enabled`). A DISABLED row is dimmed whole (ST
-// parity). Zones are the caller's concern — it passes `zone` for the left-edge accent; the row derives nothing.
+// SectionRow — one rack row for a non-pivot section. A domain composition of Row + Badge + Switch + a
+// ghost Button (not ListRow — three independent tab stops: name-button, enabled switch, grip). Anatomy
+// left→right: type-glyph badge · name+subtitle button (selects the section) · cue badges shown only when
+// set · the ~token estimate · the enabled Switch. A disabled row is dimmed whole.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
@@ -133,16 +125,11 @@ export function SectionRow({
 }: SectionRowProps): ReactElement {
   const { name, subtitle } = sectionLabels(section);
   const tokens = estimateSectionTokens(section);
-  // Dim the WHOLE row when disabled (ST parity) so the active loadout stands out — muted tone + reduced
-  // opacity, on TOP of the ~token strike-through the count keeps.
   const rowClass = [
     "rounded-card border",
     selected ? "border-primary bg-accent" : "border-border",
     section.enabled ? "" : "opacity-60",
   ].join(" ");
-  // The left-edge ZONE accent (§3.3): a full-height token-colored bar — setup = steel-blue (`--color-info`,
-  // hue 232), post = warm-amber (`--color-warning`, hue 75). Compose-only (a Stack + a bg token, the
-  // `w-px self-stretch` divider idiom).
   const zoneAccent = zone === "post" ? "bg-warning" : "bg-info";
 
   return (
@@ -160,7 +147,6 @@ export function SectionRow({
         {sectionGlyph(section)}
       </Badge>
 
-      {/* The name-button — ONE ghost Button wrapping name + subtitle (tab stop 1 of 3). */}
       <Button
         intent="ghost"
         size="sm"

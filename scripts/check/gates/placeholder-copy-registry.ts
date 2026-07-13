@@ -72,11 +72,6 @@ function checkFile(sf: SourceFile, out: Violation[]): void {
   }
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE dedup gate via visitFile) ─────────────────────────
-// The legacy predicate as a per-file hook: within each section-placeholder-copy.ts, every entry's
-// (title, description) pair must be DISTINCT (a within-file dedup — the per-file scan is the unit).
-// scanRoot mirrors the legacy COPY_SUFFIX. The duplicate-entry message varies → per-occurrence override.
-// Not fsBacked. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "placeholder-copy-registry",
   docRow: "design-enforcement.md §3.2 (ux-flow-revamp.md J10)",

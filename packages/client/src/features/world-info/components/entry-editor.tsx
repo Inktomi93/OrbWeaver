@@ -1,15 +1,8 @@
-// The full-fidelity ENTRY editor (World Info CONTENT — the book's selected entry). A BUTTON-GATED editor
-// (`useEntryForm` → `createSavedEntityForm`, §13.4) binding EVERY contract field of a `world_entries` row:
-//   • title · description (author memo, never injected) · content (what the model sees)
-//   • keys — the keyword triggers, entered through the BUILT `@orb/ui/combobox` free-text chip picker (its
-//     own doc names world-info keyword triggers as the founding consumer): Enter/comma commit a chip.
-//   • enabled · priority (sort + inject order) · ignoreBudget (bypass the per-turn WI token budget)
-//   • scopeMode (auto/always/keyword) · position (before/after — the system-half WI anchor bucket)
-//   • the at-depth injection opt-in (`inject` = the shared {depth, role} directive, D32) — depth + role
-//     reveal only when enabled; when injecting, `position` is moot (the entry leaves the system half).
-// The metadata blob's UNKNOWN keys (ST-imported) are preserved by the save mapper (entry-editor-model.ts).
-// Delete lives here behind an AlertDialog (destructive, §13.8 R4); on delete the surface clears the entry
-// selection. A component (owns its overlays), not a surface.
+// The full-fidelity entry editor — a button-gated editor binding every contract field of a
+// world_entries row, including the at-depth injection opt-in (depth+role reveal only when enabled;
+// `position` is moot once injecting since the entry leaves the system half). The metadata blob's
+// unknown keys (ST-imported) are preserved by the save mapper. Delete lives here behind an AlertDialog;
+// on delete the surface clears the entry selection.
 
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldEntryId } from "@orb/kit/ids";

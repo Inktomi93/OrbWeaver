@@ -1,16 +1,7 @@
 // domain/discovery/cooccurrence/generate — the keyword×keyword cooccurrence pass (the `compute-cooccurrence`
-// workload). A chat's turns anchor on scene keywords; co-occurrence is keyword×keyword WITHIN a tier-0
-// digest's `keywords[]` (tier-0 LEAVES only — mixing consolidation tiers double-counts a scene;
-// content-hash collapsed — a forked scene counts once; hub-token filtered — a keyword in > `hubFraction` of an
-// owner's digests co-occurs with everything and drowns the signal, the CSLS rationale). Writes
-// `keyword_cooccurrence` (owner × keyword-pair, KEEPS ownerId) + `character_keyword_profiles` (per witnessing
-// character, ownerId DERIVES via `characterId → characters.ownerId`). Was neo-tavern
-// `corpus/cooccurrence/generate.ts` (neo's sampled per-pair `characterIds` column is dropped in orb —
-// schema/discovery.ts — so the pair is a bare weight).
-//
-// ATOMIC per-owner replace: each owner's rows are cleared + re-inserted in ONE db.batch, so a crash
-// mid-rebuild leaves either the old rollup OR the new one — never an empty table. DETERMINISM: the clock + id
-// minters are injected (no ambient Date.now / typeid).
+// workload). Co-occurrence is keyword×keyword within a tier-0 digest's `keywords[]` (content-hash collapsed,
+// hub-token filtered). Writes `keyword_cooccurrence` (owner × keyword-pair) + `character_keyword_profiles`
+// (per witnessing character). Atomic per-owner replace — a crash mid-rebuild never leaves an empty table.
 
 import type { BatchStmt, Db } from "@orb/db";
 import {
@@ -35,22 +26,18 @@ export const DEFAULT_MAX_PAIRS = 10_000;
 /** Drop a keyword present in over this fraction of an owner's digests (a hub token — mirrors CSLS). */
 export const DEFAULT_HUB_FRACTION = 0.5;
 
-// keyword_cooccurrence insert column count (id, ownerId, keywordA, keywordB, count, computedAt).
 const COOC_COLS = 6;
-// character_keyword_profiles insert column count (id, characterId, keyword, count, computedAt).
 const PROFILE_COLS = 5;
 
 type CoocInsert = typeof keywordCooccurrence.$inferInsert;
 type ProfileInsert = typeof characterKeywordProfiles.$inferInsert;
 type DigestKeywords = Awaited<ReturnType<typeof readOwnedDigestKeywords>>[number];
 
-// One digest reduced to its unique normalized keyword set (post hub-filter), with its witnessing character.
 interface NormalizedDigest {
   readonly characterId: CharacterId;
   readonly keywords: string[];
 }
 
-// The pure tally output for one owner: keyword pairs + per-character keyword counts.
 interface OwnerTally {
   readonly pairs: { keywordA: string; keywordB: string; count: number }[];
   readonly charKeywords: { characterId: CharacterId; keyword: string; count: number }[];
@@ -69,8 +56,6 @@ function bumpNested(m: Map<string, Map<string, number>>, k1: string, k2: string)
   bump(inner, k2);
 }
 
-// Tally ONE digest's keywords into the running pair-count + per-character-keyword maps (every unordered pair
-// co-occurs once, canonical A<B; every keyword credits the digest's character).
 function tallyDigest(
   d: NormalizedDigest,
   pairCount: Map<string, Map<string, number>>,
@@ -95,8 +80,8 @@ function tallyDigest(
  * every keyword credits its character. O(k²) per digest, k ≤ ~20 (the caller caps the digest keyword set).
  */
 export function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTally {
-  const pairCount = new Map<string, Map<string, number>>(); // a → b → count (a < b)
-  const charKw = new Map<string, Map<string, number>>(); // characterId → keyword → count
+  const pairCount = new Map<string, Map<string, number>>();
+  const charKw = new Map<string, Map<string, number>>();
   for (const d of digests) {
     tallyDigest(d, pairCount, charKw);
   }
@@ -115,8 +100,6 @@ export function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTa
   return { pairs, charKeywords };
 }
 
-// Normalize one owner's collapsed digests to unique keyword sets, dropping hub tokens (> hubFraction of the
-// owner's digests). Returns the normalized digests + the count of hub tokens dropped.
 function normalizeOwner(
   digests: readonly DigestKeywords[],
   hubFraction: number,
@@ -145,8 +128,7 @@ function normalizeOwner(
   return { normalized, hubDropped: hub.size };
 }
 
-// Atomically replace ONE owner's cooccurrence + profile rows. keyword_cooccurrence scopes by ownerId;
-// character_keyword_profiles has no ownerId (D23) → delete by characterId IN (owner's characters).
+// character_keyword_profiles has no ownerId column — delete by characterId IN (owner's characters).
 async function replaceOwner(
   db: Db,
   ownerId: UserId,
@@ -209,7 +191,6 @@ export async function computeCooccurrence(
   let hubTokensDropped = 0;
   for (const [ownerId, digests] of byOwner) {
     signal?.throwIfAborted();
-    // Collapse forked scenes (same content_hash counts once), then normalize + hub-filter + tally.
     const { reps } = collapseByHash(
       digests,
       (d) => d.contentHash,
@@ -234,8 +215,8 @@ export async function computeCooccurrence(
       count: c.count,
       computedAt: now,
     }));
-    // biome-ignore lint/performance/noAwaitInLoops: a per-owner atomic replace — each owner's write is its own batch; folding all owners into one batch would unbound memory on a large corpus.
-    // biome-ignore lint/plugin/no-await-db-in-loop: the per-owner replace is inherently sequential (independent atomic batches, bounded backpressure) — mirrors the themes/duplicate BULK passes.
+    // biome-ignore lint/performance/noAwaitInLoops: per-owner atomic replace — folding into one batch would unbound memory on a large corpus.
+    // biome-ignore lint/plugin/no-await-db-in-loop: independent per-owner batches, bounded backpressure.
     await replaceOwner(db, ownerId, coocRows, profileRows);
     pairsWritten += coocRows.length;
     charKeywordsWritten += profileRows.length;

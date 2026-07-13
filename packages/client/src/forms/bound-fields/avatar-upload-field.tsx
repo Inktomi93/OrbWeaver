@@ -1,12 +1,6 @@
-// Bound avatar-upload field — `useFieldContext<AssetId | null>()` binding a `FileDropzone` (pick) +
-// `Avatar` (preview) pair. UNHOSTED this phase (#67 Phase 1) — no editor wires it yet; Phase 2's persona
-// editor and the character lane are the first consumers (`FINAL-Persona-and-Immersive-Chat-Visuals.md`
-// THE KEYSTONE DEPENDENCY).
-//
-// `upload` is INJECTED, never imported: `forms/` may reach `state/`+`lib/`, NEVER `data/` (UI-Arch client
-// cake — a forms→data import would hard-couple every editor to the Query layer, dependency-cruiser
-// `client-cake`). The consuming feature binds the real `uploadAsset` (`#data`) pre-bound to its
-// `AssetKind` at composition — the same "`save` injected" seam `createSavedEntityForm` already uses.
+// Bound avatar-upload field — useFieldContext<AssetId | null>() binding a FileDropzone (pick) + Avatar
+// (preview) pair. `upload` is injected, never imported: forms/ may reach state/+lib/, never data/ — the
+// consuming feature binds the real uploadAsset pre-bound to its AssetKind at composition.
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import { blobUrl } from "@orb/contracts/assets";

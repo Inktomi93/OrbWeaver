@@ -11,12 +11,10 @@ import { fieldVariants } from "./variants";
 
 export type FieldOrientation = "vertical" | "horizontal";
 
-// The ambient orientation for every `<Field>` in the subtree (default `vertical`). A settings pane wraps
-// its fields in `<FieldLayout orientation="horizontal">` to get the UIP-404 row grammar WITHOUT threading
-// a prop through every bound-field call site; a field's own `orientation` prop still wins.
+// Lets a settings pane set orientation once instead of threading it through every field call site.
 const FieldOrientationContext = createContext<FieldOrientation>("vertical");
 
-/** Sets the ambient `<Field>` orientation for its subtree (UIP-404 settings-row grammar). */
+/** Sets the ambient `<Field>` orientation for its subtree. */
 export function FieldLayout({
   orientation,
   children,
@@ -37,12 +35,7 @@ export interface FieldProps extends Omit<FieldRootProps, "className"> {
   description?: ReactNode;
   /** Layout of label vs control. Defaults to the ambient `FieldLayout` (else `vertical`). */
   orientation?: FieldOrientation;
-  /**
-   * A short explainer surfaced as an info-icon hover tooltip beside the label, instead of always-on
-   * helper text — the persona-panel redesign's replacement for `description` on lightly-used fields
-   * (a hover tip costs no vertical space; `description` still renders when a field wants copy that's
-   * ALWAYS visible, e.g. a live validation hint). Additive — existing `description` callers unaffected.
-   */
+  /** Short explainer surfaced as an info-icon hover tooltip beside the label (no vertical-space cost). */
   hint?: ReactNode;
   /** Non-null marks the row invalid (`data-invalid` on the control) and renders destructive error text. */
   error?: ReactNode;
@@ -51,23 +44,7 @@ export interface FieldProps extends Omit<FieldRootProps, "className"> {
   children: ReactNode;
 }
 
-/**
- * The labeled-form-row primitive — Base UI Field sealed as Root/Label/Description/Error around a
- * composed control (D42 §2 — Base UI seal; ui-package-design §6.1). `FieldProps` extends the FULL
- * `Field.Root` prop surface (R5, ui-package-design §13) — `validate`/`validationMode`/
- * `validationDebounceTime`/`dirty`/`touched`/`actionsRef` all flow through untouched; `error` is a
- * convenience that ORs into `invalid` (pass `invalid` explicitly if it needs to diverge from `error`).
- *
- * Composable with any Field-aware Base UI control — Input/Textarea/Checkbox/Switch/RadioGroup/
- * Slider/NumberField/Select all register (label association + `aria-describedby` + `data-invalid`)
- * because their Roots extend Base UI's `FieldRootState` (verified per-primitive `.d.ts`).
- *
- * For validity UI beyond a single `error` message (per-constraint branching, multi-message lists),
- * drop to the raw render-prop — `FieldValidity` below re-exports Base UI's `Field.Validity`
- * unstyled; most rows only need `error`.
- *
- * Usage: `<Field label="Display name" error={errors.name}><Input /></Field>`
- */
+/** Labeled-form-row primitive — Base UI Field sealed as Root/Label/Description/Error around a composed control. */
 export function Field({
   label,
   description,
@@ -87,11 +64,7 @@ export function Field({
   const hasError = error !== undefined && error !== null;
   const hasDescription = description !== undefined && description !== null;
   const hasHint = hint !== undefined && hint !== null;
-  // A11y: derive the hint trigger's accessible name from the label so 2+ hinted fields on one surface
-  // (e.g. the persona editor) don't share the identical "More info" name in a screen-reader buttons
-  // list. `label` is a `ReactNode` — only a plain non-empty string yields a usable name; anything else
-  // (elements, fragments) falls back to the plain "More info" rather than rendering a dangling
-  // "More info about ".
+  // Derive the hint trigger's accessible name from the label so multiple hinted fields don't share one name.
   let hintAriaLabel = "More info";
   if (typeof label === "string" && label.trim().length > 0) {
     const labelString: string = label;
@@ -103,11 +76,8 @@ export function Field({
       {label}
     </BaseField.Label>
   );
-  // A11y: the hint trigger is a SIBLING of `<BaseField.Label>`, NEVER a descendant of it. The W3C accname
-  // algorithm concatenates the ENTIRE subtree of a control's associated `<label>` — a button nested inside
-  // it leaked "More info" into every hinted control's accessible name ("Display name More info, edit
-  // text"). Keeping it a sibling in the same labelRow preserves the visual layout while the `<label>`
-  // subtree stays label-text-only, so the control's accname === the label alone.
+  // Hint trigger is a SIBLING of `<BaseField.Label>`, never a descendant — nesting it inside leaks
+  // "More info" into the control's accessible name via the W3C accname subtree-concatenation algorithm.
   const labelNode = hasHint ? (
     <span className={slots.labelRow()}>
       {labelText}
@@ -148,15 +118,12 @@ export function Field({
       data-orientation={resolved}
       data-slot="field-root"
       disabled={disabled}
-      // Only force `invalid` when there's an explicit override (`invalid` prop) or `error` — leave
-      // it `undefined` otherwise so Base UI's OWN `validate`-driven invalid computation runs
-      // unobstructed (forcing `invalid={false}` at rest would silently defeat internal validation).
+      // Leave `invalid` undefined at rest so Base UI's own validate-driven computation still runs.
       invalid={invalid ?? (hasError || undefined)}
       name={name}
       {...rest}
     >
       {resolved === "horizontal" ? (
-        // UIP-404: label + description LEFT, control docked RIGHT in the fixed ~200px control column.
         <>
           <div className={slots.labelBlock()} data-slot="field-label-block">
             {labelNode}
@@ -179,14 +146,7 @@ export function Field({
   );
 }
 
-/**
- * Custom validity render-prop — Base UI's `Field.Validity` passed through unstyled, for rows that
- * need more than the `error` convenience prop (multi-message lists, per-constraint branching via
- * `valueMissing`/`patternMismatch`/etc.). The cut: `Field` itself only renders a single `error`
- * message; reach for `FieldValidity` when that's not enough.
- *
- * Usage: `<FieldValidity>{(validity) => <span>{validity.errors.join(", ")}</span>}</FieldValidity>`
- */
+/** Custom validity render-prop for rows needing more than the single `error` message. */
 export function FieldValidity(props: FieldValidityProps): ReactElement {
   return <BaseField.Validity {...props} />;
 }

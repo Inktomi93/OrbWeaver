@@ -2,9 +2,9 @@
 /**
  * pnpm record <route> [flags]
  *
- * Animation-responsiveness probe — snap's moving-picture sibling. Records a headless
- * chromium video of a scripted interaction sequence against the running dev stack
- * (`pnpm stack start` first), then renders it with ffmpeg:
+ * Animation-responsiveness probe. Records a headless chromium video of a scripted
+ * interaction sequence against the running dev stack (`pnpm stack start` first), then
+ * renders it with ffmpeg:
  *
  *   reports/recordings/<out>.webm         — always (Playwright's native capture)
  *   reports/recordings/<out>.gif          — watchable (20fps, palette-optimized)
@@ -17,10 +17,9 @@
  * (red→lime→cyan→magenta…) at the EXACT dispatch of every --click/--jsclick — find the
  * tile where the corner changes, count tiles until the UI responds (1 tile = 120ms).
  *
- * FFMPEG DEGRADATION (same contract as snap --diff): no ffmpeg → the webm still lands,
- * the gif/strip/frames legs SKIP with a reason in the RESULT line, exit stays 0 (skip ≠
- * fail). Playwright's bundled ffmpeg is NOT a fallback (screencast-only build, no
- * palette/tile filters). The dev container gains ffmpeg on the next Dockerfile rebuild.
+ * FFMPEG DEGRADATION: no ffmpeg → the webm still lands, gif/strip/frames legs SKIP with a
+ * reason in the RESULT line, exit stays 0 (skip ≠ fail). Playwright's bundled ffmpeg is NOT
+ * a fallback (screencast-only build, no palette/tile filters).
  *
  * USAGE
  *   pnpm stack start
@@ -162,10 +161,8 @@ function parseArgs(argv: string[]): Args {
 // Marker palette — high-contrast cycle so consecutive clicks are tellable apart.
 const MARKER_COLORS = ["#ff2020", "#20ff20", "#20d0ff", "#ff20ff", "#ffd020", "#ffffff"];
 
-// The click marker: a fixed corner square no app styling can miss, installed
-// pre-navigation so it exists from first paint. RAW STRING (not a function) — the
-// _kit rule: the DOM-less root tsconfig can't compile a `window`/`document` body, and
-// tsx's keepNames `__name` helper doesn't exist in the page.
+// The click marker: a fixed corner square, installed pre-navigation so it exists from first
+// paint. Raw string (not a function) — see _kit/browser.ts.
 const MARKER_INIT_JS = `(() => {
   const el = document.createElement("div");
   el.id = "__probe-marker";
@@ -204,7 +201,7 @@ async function dispatchStep(run: StepRun, step: Exclude<Step, { kind: "pause" }>
   }
   if (step.kind === "click" || step.kind === "jsclick") {
     // Flip the marker in the same task as the dispatch — the video frame where the
-    // corner changes IS the click frame. Raw-string evaluate (the _kit rule).
+    // corner changes IS the click frame.
     const color = MARKER_COLORS[run.clickIndex % MARKER_COLORS.length] as string;
     run.clickIndex += 1;
     await page.evaluate(
@@ -263,8 +260,7 @@ async function recordVideo(opts: Args, outDir: string): Promise<Recording> {
   });
   await session.context.addInitScript({ content: MARKER_INIT_JS });
 
-  // Timestamped [perf] console capture — the client long-task tracer's breach lines
-  // (T5), aligned to the step timeline below. (_kit's consoleLines are untimestamped.)
+  // Timestamped [perf] console capture, aligned to the step timeline below.
   const t0 = Date.now();
   const perfLines: TimedLine[] = [];
   session.page.on("console", (m) => {

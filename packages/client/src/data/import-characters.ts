@@ -1,17 +1,8 @@
-// data/import-characters — the character-card import POST (`entry/http/upload.ts` `POST /api/import`), the
-// client seam the LIST's "Import card" picker reaches for. Raw `fetch`, not tRPC — the route is a Hono
-// multipart handler (the same reason `uploadAsset` is a raw POST). Accepts one-or-many card files (PNG/JSON)
-// under the repeated `file` field. The caller owns the loading-state UI + the post-success list refresh
-// (invalidate `character.pathFilter`).
-//
-// The route returns 200 for an ACCEPTED batch even when individual cards fail (per-card failures[] isolation —
-// a garbage `.json` lands in `failed`, not a non-200), so this helper PARSES the real per-file outcome from
-// the response body and hands it back. The summary must be built from THIS result, never from the uploaded
-// filenames — a card the server put in `failed` is a failure, not a fabricated ✓. A non-200 (e.g. a whole
-// batch rejected, or no files) throws.
-//
-// CSRF: sends the same `CSRF_HEADER` every tRPC mutation carries (parity/defense-in-depth), matching
-// `uploadAsset` (the route is auth-gated; header enforcement is a server concern out of this file's scope).
+// The character-card import POST. Raw fetch, not tRPC — the route is a Hono multipart handler. Accepts
+// one-or-many card files under the repeated `file` field. The route returns 200 for an accepted batch
+// even when individual cards fail (per-card failures[] isolation), so this helper parses the real
+// per-file outcome and hands it back — the summary must derive from that, never from the uploaded
+// filenames. A non-200 (whole-batch rejection) throws.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { throwHttpError } from "./http-error";

@@ -2,9 +2,8 @@
 /**
  * pnpm perf-meter <route> [flags]
  *
- * Interaction-responsiveness instrumentation — record.ts's quantitative sibling (record gives
- * you eyes, this gives you numbers). Runs a scripted step sequence against the running dev
- * stack (`pnpm stack start` first) and buckets, PER STEP:
+ * Interaction-responsiveness instrumentation. Runs a scripted step sequence against the
+ * running dev stack (`pnpm stack start` first) and buckets, PER STEP:
  *
  *   • long tasks (>50ms main-thread blocks) — count, total, worst
  *   • PerformanceEventTiming for the dispatched click — input delay, processing time, and
@@ -191,9 +190,7 @@ function parseArgs(argv: string[]): Args {
   return args;
 }
 
-// In-page collector. RAW STRING (not a toString'd function) — the _kit rule: tsx's keepNames
-// `__name` helper doesn't exist in the page, and the DOM-less root tsconfig can't compile a
-// `window`/`document`-touching function body (see _kit/browser.ts's docblock).
+// In-page collector. Raw string, not a function — see _kit/browser.ts.
 const METER_INIT_JS = `(() => {
   const m = (window.__perfMeter = {
     longTasks: [],   // {t, dur}

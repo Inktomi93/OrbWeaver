@@ -14,10 +14,6 @@ const TABLE = "users";
 const DB_SPECIFIER = /^@orb\/db(?:\/|$)/u;
 const MESSAGE =
   "the 'users' table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read chokepoint — Spine-Identity-and-Auth.md). Every other domain takes userId from the resolved Principal (the injected context) — never query users directly.";
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// The legacy predicate as an ImportSpecifier subscription: a `users` named import from @orb/db, in a
-// domain file outside sessions/admin. scanRoot mirrors the legacy DOMAIN && !EXEMPT filter (the parity
-// oracle). Per-occurrence (each `users` named import is its own finding).
 const MSG_DIR = /packages\/server\/src\/domain\//u;
 const MSG_EXEMPT = /packages\/server\/src\/domain\/(?:sessions|admin)\//u;
 

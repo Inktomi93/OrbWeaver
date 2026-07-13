@@ -1,16 +1,7 @@
-// domain/discovery/verbs/archetypes — character ARCHETYPES (owner-scoped read; live compute). Clusters an
-// owner's card EMBEDDINGS (k-means over the unified card space) to surface the KINDS of characters they
-// collect ("the broken healer", "the dominant queen"), then labels each cluster CHEAPLY from the distilled
-// facets (mode genre/tone + top tags — NO LLM). The character-side analog of `themes`. Was neo-tavern
-// `corpus/verbs/archetypes.ts`.
-//
-// LOAD-BEARING (matches the built themes pass):
-//   • per (owner, embedding-space) — k-means over a MIX of spaces is meaningless (different bases). Groups by
-//     `model`; an owner's archetypes concat across their spaces (one space in practice — schema/discovery.ts).
-//   • content-collapse before clustering (esoteric #3): byte-identical fork/import copies collapse to one rep
-//     so they don't bias a centroid; every card is then assigned to its rep's cluster and tallied (full size).
-//   • owner-scoped via the card-vector read's `characters.ownerId` derivation (audit #1: no caller owner).
-//   • DETERMINISM: the fixed k-means++ seed (no ambient randomness).
+// domain/discovery/verbs/archetypes — character archetypes (owner-scoped read; live compute). Clusters an
+// owner's card embeddings (k-means, per embedding-space) to surface the kinds of characters they collect,
+// labelled cheaply from the distilled facets (mode genre/tone + top tags — no LLM). Character-side analog
+// of `themes`. Content-collapsed before clustering so byte-identical fork/import copies don't bias a centroid.
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -27,18 +18,14 @@ export function createArchetypes(ctx: DiscoveryContext): Pick<DiscoveryService, 
   return { archetypes: (userId, opts) => archetypes(ctx.db, userId, opts) };
 }
 
-// The default cluster count per embedding space (overridable via opts.k).
 const DEFAULT_ARCHETYPE_K = 10;
-// The k-means++ seed — a fixed value pins the clustering run-to-run (determinism).
 const ARCHETYPE_SEED = 1;
-// How many top tags label a cluster + how many members are returned (a bounded display slice).
 const TOP_TAGS = 5;
 const MAX_MEMBERS = 12;
 
 type CardVector = Awaited<ReturnType<typeof readOwnedCharacterVectors>>[number];
 type CardFacet = Awaited<ReturnType<typeof readOwnedCardFacets>>[number];
 
-// One accumulating cluster (members + per-facet tallies) before it becomes an Archetype.
 interface ClusterAcc {
   readonly members: ArchetypeMember[];
   readonly genre: Map<string, number>;
@@ -74,7 +61,6 @@ function topN(m: Map<string, number>, n: number): string[] {
     .map(([k]) => k);
 }
 
-// Tally ONE card into its cluster accumulator (member + the per-facet counts).
 function tallyCard(acc: ClusterAcc, card: CardVector, facet: CardFacet | undefined): void {
   acc.members.push({ characterId: card.characterId, name: facet?.name ?? "Unknown" });
   if (facet?.genre) {
@@ -88,8 +74,7 @@ function tallyCard(acc: ClusterAcc, card: CardVector, facet: CardFacet | undefin
   }
 }
 
-// Cluster ONE (owner, space) group into archetypes: collapse → k-means over reps → assign every card to its
-// rep's cluster, tallying facets. A group below the k+1 floor yields no archetypes (too few cards to cluster).
+// A group below the k+1 floor yields no archetypes (too few cards to cluster).
 function archetypesForGroup(
   group: readonly CardVector[],
   facetById: Map<CharacterId, CardFacet>,

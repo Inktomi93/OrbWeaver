@@ -1,21 +1,10 @@
-// domain/credentials/health/cache — the in-memory health-probe throttle + circuit-breaker state.
-// A NAMED subsystem, NOT `persistence/`: these are
-// module-scope Maps (per-credentialId throttle window + strike counter), and `persistence-no-in-memory-
-// state` forbids a Map in a `persistence/` dir — in-memory state lives in a named subsystem with the
-// single-replica marker. The test-health verb reaches these ONLY through `substrate/health-throttle.ts`
-// (domain-substrate-mediates-subsystems) — never a direct verb→subsystem import.
+// The in-memory health-probe throttle + circuit-breaker state. A named subsystem, not `persistence/` — these
+// are module-scope Maps. Reached only through `substrate/health-throttle.ts`, never a direct verb import.
 //
-// ASSUMES(single-replica): the throttle window + strike counters are module-scope, per-process — an
-// admin status-poll on a multi-replica deploy hits whichever replica answered, and a restart resets a
-// credential mid-strike-streak (an accepted single-replica design choice). The seam to externalize if
-// that is ever reversed is THIS subsystem (the `rate_limit_buckets` row pattern is the model to copy).
+// ASSUMES(single-replica): the throttle window + strike counters are per-process — an admin status-poll on
+// a multi-replica deploy hits whichever replica answered, and a restart resets a credential mid-strike.
 //
-// `now` is the INJECTED clock (testing §3) — these functions take the epoch-ms VALUE, never call a
-// wall-clock; determinism is the caller's (the verb passes `ctx.now()`).
-//
-// The shapes here are plain `Map<string, number>` (credentialId → timestamp / strike count); no named
-// entry type — `no-inline-types` forbids an exported subsystem interface outside `contract/`, and the
-// Map already says it.
+// `now` is the injected clock — these functions take the epoch-ms value, never call a wall-clock.
 
 /** 60s cooldown — UI status dots may poll faster, but only the first probe per window actually goes out. */
 export const HEALTH_THROTTLE_MS = 60_000;

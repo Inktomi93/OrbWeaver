@@ -1,19 +1,7 @@
-// SectionBodyEditor — the CENTER (CONTENT) drill-in for one selected section (the Assembly revamp). When
-// a rack row is selected, the Prompt tab swaps the toolbar+strip+rack for THIS full-width editor: a
-// "← Back to rack" button, the section's glyph + label + one-liner header, and the BIG body editor. It is
-// IN-REGION (the Prompt tab already holds `form`), so it binds the form DIRECTLY via the `form` prop — no
-// bridge (the CONTEXT inspector keeps the bridge; this is the sibling CENTER surface).
-//
-// The body branches per section kind (BUILD-SPEC §3.5):
-//   • literal        → a MacroField bound to `sections[i].content` (empty by default).
-//   • templated marker → a Default / Custom / Silent tri-state (ToggleGroup) mapping `template` to
-//     unset / string / "" respectively. DEFAULT ghosts `DEFAULT_MARKER_TEMPLATES[marker]`; for the
-//     empty-default markers (`main_prompt`/`post_history`, whose default is "") DEFAULT shows the
-//     plain-language explainer instead of a bare empty ghost. CUSTOM reveals the MacroTextarea bound to
-//     `template`; SILENT records an explicitly-empty template ("" ⇒ render nothing).
-//   • world-info marker (`world_info_before/after`) → the SHARED `formatStrings.wiFormat` wrapper (default
-//     `{{entry}}`), surfaced with a "shared by both WI markers" hint (one wrapper, both markers).
-//   • other plain marker (chat_history) → the explainer one-liner only (content comes from the transcript).
+// The CENTER drill-in for one selected section: a "back to rack" button, header, and body editor. Body
+// branches per section kind: literal → MacroField; templated marker → Default/Custom/Silent tri-state
+// mapping `template` to unset/string/""; world-info marker → the shared `formatStrings.wiFormat` wrapper;
+// other plain marker → an explainer one-liner only.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
@@ -35,10 +23,8 @@ import { MARKER_COPY } from "./marker-copy";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
-/** ~16 rows tall — the full CONTENT-width authoring surface (spec change 3). */
 const BODY_ROWS = 16;
-/** A roomy min-height floor so the editor reads as a real authoring surface even for short/empty content —
- *  the Textarea's `field-sizing: content` (D54) otherwise collapses the `rows` hint to ~2 lines. Still grows. */
+/** A min-height floor — the Textarea's `field-sizing: content` otherwise collapses `rows` to ~2 lines. */
 const BODY_MIN_H = "min-h-80";
 
 export interface SectionBodyEditorProps {
@@ -155,8 +141,7 @@ function TemplatedMarkerBody({
 }: Omit<SectionBodyEditorProps, "onBack">): ReactElement | null {
   const template =
     section.type === "marker" && "template" in section ? section.template : undefined;
-  // Mode is LOCAL: it lets Custom stay active with an as-yet-unwritten body (an empty custom would
-  // otherwise derive back to Default/Silent). Seeded from the persisted template on mount (top-level hook).
+  // Mode is LOCAL so Custom stays active with an as-yet-unwritten body (else an empty custom derives back).
   const [mode, setMode] = useState<TemplateMode>(() => deriveTemplateMode(template));
   if (section.type !== "marker" || !isTemplatedMarker(section.marker)) {
     return null;
@@ -173,7 +158,7 @@ function TemplatedMarkerBody({
     } else if (next === "silent") {
       form.setFieldValue(name, "");
     } else if (!emptyDefault && (template === undefined || template === "")) {
-      // Custom on a marker WITH a real default: seed the editor from that default so the user edits it.
+      // Custom on a marker with a real default: seed the editor from that default.
       form.setFieldValue(name, factoryDefault);
     }
   };

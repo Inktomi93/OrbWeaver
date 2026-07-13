@@ -1,31 +1,19 @@
-// The stream/turn lifecycle store (UI-Arch §5): the SANCTIONED local transient buffer the bus→cache
-// seam is allowed (§11.1 — "onData may buffer transient progress in LOCAL state"), holding the ghost
-// turn per chat as a discriminated-union state machine. Slot lifecycle is owned by the TERMINAL turn
-// events (Stop stays live across the whole turn incl. TTFT); transitions are `set(next, true)`
-// REPLACE (Zustand v5 strict replace — a dropped field is a typecheck error, no stale field can
-// bleed across phases, UI-Lib-Zustand.md D-5). Token churn stays isolated: only a component
-// subscribed to THAT chat's slot re-renders on a delta — chrome subscribes to phase.
-// `subscribeWithSelector` exposes the transient (render-free) seam the smooth-text pacer feeds from
-// (baked into `createGatedStore`, which also owns the devtools middleware + the REQUIRED
-// action-label discipline — every transition below is named on the DU timeline).
+// The stream/turn lifecycle store: holds the ghost turn per chat as a discriminated-union state
+// machine. Transitions are strict `set(next, true)` replace — a dropped field is a typecheck error.
+// Token churn stays isolated: only a component subscribed to that chat's slot re-renders on a delta.
 //
-// WRITE OWNERSHIP: every action here is bus-only (called ONLY from `applyChatBusEvent`, data/bus) —
-// EXCEPT `markStopping`, the ONE action a component may call directly. The composer's Stop button
-// calls it FIRST, before the abort round-trip even starts, so the UI reflects "stopping" the instant
-// the user clicks (immediate feedback) and a second click is a no-op (the phase guard below makes
-// double-abort impossible at the store level, belt-and-suspenders under the composer's own guard).
-// The slot does NOT close here — `stopping` is not a terminal phase; it closes only when the bus
-// delivers the server's `turnAborted` (or a race-won `turnCompleted`), same as every other phase.
+// Write ownership: every action here is bus-only (called only from `applyChatBusEvent`) except
+// `markStopping`, which the composer's Stop button calls directly for instant feedback before the
+// abort round-trip starts. The slot does not close there — it closes only on the bus's turnAborted
+// (or a race-won turnCompleted).
 
 import type { ChatDeltaEvent, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { perfMark, perfMeasure } from "#lib";
 import { createGatedStore } from "./create-gated-store";
 
-// The perf-marks turn layer (perf-marks.ts named consumer — the source of `__orb.perf()`'s TTFT +
-// turn-latency rows). The mark names are per-chat so concurrent rooms never cross-measure: `beginTurn`
-// stamps the start, the FIRST delta onto a `pending` slot measures TTFT, and the terminal events measure
-// end-to-end turn latency (both off the same start mark; `perfMeasure` is no-throw if it's absent).
+// Mark names are per-chat so concurrent rooms never cross-measure: beginTurn stamps the start, the
+// first delta onto a pending slot measures TTFT, and the terminal events measure end-to-end latency.
 const turnStartMark = (chatId: ChatId): string => `turn-begin:${chatId}`;
 const ttftMeasure = (chatId: ChatId): string => `turn-ttft:${chatId}`;
 const turnLatencyMeasure = (chatId: ChatId): string => `turn-latency:${chatId}`;
@@ -48,10 +36,8 @@ export type TurnSlot =
       readonly reasoning: string;
     }
   | {
-      // The user hit Stop — `markStopping` fired BEFORE the abort round-trip so feedback is instant;
-      // the server's turn may still legitimately emit deltas until it observes the cancellation, so
-      // this carries the SAME accumulated text/reasoning fields as `streaming` (appendDelta keeps
-      // writing into them) — only the phase differs. Terminal ONLY on turnCompleted/turnAborted.
+      // The server may still emit deltas until it observes the cancel, so this carries the same
+      // accumulated fields as streaming. Terminal only on turnCompleted/turnAborted.
       readonly phase: "stopping";
       readonly intent: TurnIntent;
       readonly speakerCharacterId: CharacterId | null;
@@ -70,8 +56,7 @@ interface ChatStreamState {
   readonly turns: Readonly<Record<string, TurnSlot>>;
 }
 
-/** The stable "no turn" slot — a frozen module constant so selectors returning it never mint a
- *  fresh object per render (the v5 `Object.is` infinite-loop footgun, UI-Lib-Zustand.md C-1). */
+/** The stable "no turn" slot — frozen so selectors returning it never mint a fresh object per render. */
 export const IDLE_TURN: TurnSlot = Object.freeze({ phase: "idle" as const });
 
 const useChatStreamStore = createGatedStore<ChatStreamState>(
@@ -88,8 +73,7 @@ function setSlot(chatId: ChatId, next: TurnSlot, action: string): void {
   useChatStreamStore.setState({ turns }, true, action);
 }
 
-/** The write API — every action but `markStopping` is consumed ONLY by `applyChatBusEvent` (data/bus);
- *  see the header WRITE OWNERSHIP note for the one sanctioned component-callable exception. */
+/** The write API — every action but `markStopping` is consumed only by `applyChatBusEvent`. */
 export interface ChatStreamApi {
   readonly beginTurn: (
     chatId: ChatId,
@@ -102,30 +86,20 @@ export interface ChatStreamApi {
   readonly appendDelta: (delta: ChatDeltaEvent) => void;
   readonly completeTurn: (chatId: ChatId, messageId: MessageId | null) => void;
   readonly abortTurn: (chatId: ChatId, reason: TurnAbortReason) => void;
-  /** Fire the per-chat "the caller's OWN user row committed" signal (below) — the bus calls this from
-   *  its `messageCommitted` case (role==="user" only). The composer's send-hook subscribes via
-   *  `subscribeUserMessageCommitted` to clear its draft exactly on this. A signal, NOT a slot write —
-   *  it touches no `TurnSlot`; the read side is `subscribeUserMessageCommitted`, never a store selector. */
+  /** Fire the per-chat "the caller's own user row committed" signal — a fire-and-forget notification,
+   *  not a slot write. The composer's send-hook subscribes to clear its draft exactly on this. */
   readonly notifyUserMessageCommitted: (chatId: ChatId) => void;
-  /** Component-callable (see header WRITE OWNERSHIP note): `pending`/`streaming` → `stopping`,
-   *  preserving whatever text/reasoning had already accumulated. Idempotent no-op from any other
-   *  phase (already stopping / idle / terminal) — the store-level half of the double-abort guard. */
+  /** Component-callable: pending/streaming → stopping, preserving accumulated text/reasoning.
+   *  Idempotent no-op from any other phase. */
   readonly markStopping: (chatId: ChatId) => void;
 }
 
-// The USER-MESSAGE-COMMITTED SIGNAL (the composer's clear-on-commit correlation, UI-Gates §11.1). A
-// render-free per-chat listener set — NOT a Zustand field: it is a fire-and-forget notification, not
-// state anyone reads back, so homing it as store state would only invite a stray selector and a fresh
-// render on every send. Mirrors `subscribeTurnSlot`'s imperative (no-render) seam. The producer is the
-// bus (`applyChatBusEvent`'s `messageCommitted` case → `notifyUserMessageCommitted`); the sole consumer
-// is `use-send-message`'s draft-clear correlation. Keeps §11.1 intact: the bus stays the one seam, and
-// this is a transient signal off it, never a second store.
+// Fire-and-forget notification, not state anyone reads back — homing it as store state would only
+// invite a stray selector and a fresh render on every send.
 const userMessageCommittedListeners = new Map<ChatId, Set<() => void>>();
 
-/** Subscribe to "a USER-role `messageCommitted` for `chatId` was observed on the bus" (fired once per
- *  such event). The send-hook registers RIGHT BEFORE firing the commit-producing mutation, so the NEXT
- *  user-row commit for this chat is unambiguously "mine" (one send in flight at a time). Returns an
- *  unsubscribe the caller MUST invoke (the send-hook does, in its `finally`). */
+/** Subscribe to "a user-role messageCommitted for `chatId` was observed" (fired once per such event).
+ *  Returns an unsubscribe the caller must invoke. */
 export function subscribeUserMessageCommitted(chatId: ChatId, listener: () => void): () => void {
   const set = userMessageCommittedListeners.get(chatId) ?? new Set<() => void>();
   set.add(listener);
@@ -149,10 +123,9 @@ export const chatStream: ChatStreamApi = {
   },
   appendDelta: (delta) => {
     const slot = slotOf(delta.chatId);
-    // A delta with no live turn (raced past a terminal event / replay edge) is dropped — the durable
-    // canon is the truth and the invalidation path already refetched it.
+    // A delta with no live turn (raced past a terminal event) is dropped — invalidation already
+    // refetched the durable canon.
     if (slot.phase === "pending") {
-      // The FIRST delta onto a pending slot is TTFT (send → first token) — measured off the begin mark.
       perfMeasure(ttftMeasure(delta.chatId), turnStartMark(delta.chatId));
       setSlot(
         delta.chatId,
@@ -168,8 +141,6 @@ export const chatStream: ChatStreamApi = {
       );
       return;
     }
-    // A delta legitimately keeps arriving mid-stop (the server hasn't observed the cancel yet) — it
-    // accumulates the same way `streaming` does, without leaving `stopping`.
     if (slot.phase === "streaming" || slot.phase === "stopping") {
       setSlot(
         delta.chatId,
@@ -185,7 +156,6 @@ export const chatStream: ChatStreamApi = {
   completeTurn: (chatId, messageId) => {
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
-      // Terminal: send → done end-to-end turn latency (off the same begin mark as TTFT).
       perfMeasure(turnLatencyMeasure(chatId), turnStartMark(chatId));
       setSlot(chatId, { phase: "completed", intent: slot.intent, messageId }, "turn/complete");
     }
@@ -243,13 +213,8 @@ export function useTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
   );
 }
 
-/** The live turn's voiced speaker (chrome-safe, same isolation guarantee as `useTurnPhase`): a plain
- *  id/`null` selector, stable across every token delta (only `text`/`reasoning` change per delta, never
- *  `speakerCharacterId`), so this NEVER re-renders on a delta despite the store replacing the whole slot
- *  object each append. `null` off-turn (idle/completed/aborted) or for a narrator/persona-less turn.
- *  Phase-4b gap-fix (b): the ghost row's own kind-aware avatar/decoration seam (§A.8) reads this to
- *  resolve the SAME attribution the settled row uses, so immersive decoration (Echo bleed / Whisper
- *  banner / Hush stripe / Ripple sticky-portrait) applies DURING streaming, not just after settle. */
+/** The live turn's voiced speaker — stable across every token delta (only text/reasoning change per
+ *  delta), so this never re-renders on a delta. `null` off-turn or for a narrator/persona-less turn. */
 export function useTurnSpeakerCharacterId(chatId: ChatId | null): CharacterId | null {
   return useChatStreamStore((s) => {
     if (chatId === null) {
@@ -262,15 +227,13 @@ export function useTurnSpeakerCharacterId(chatId: ChatId | null): CharacterId | 
   });
 }
 
-/** True for `pending`/`streaming`/`stopping` — the store's own "a turn is live" definition (mirrors
- *  `appendDelta`'s accumulate-through-stopping invariant above): the render side must agree that
- *  `stopping` is still live, or the ghost row unmounts/blanks the instant Stop is clicked. */
+/** True for pending/streaming/stopping — the render side must agree stopping is still live, or the
+ *  ghost row unmounts the instant Stop is clicked. */
 export function isLiveTurnPhase(phase: TurnSlot["phase"]): boolean {
   return phase === "pending" || phase === "streaming" || phase === "stopping";
 }
 
-/** Transient (render-free) subscription to one chat's slot — the smooth-text pacer's feed
- *  (UI-Lib-Zustand.md D-6: high-frequency token appends bypass React renders entirely). */
+/** Transient (render-free) subscription to one chat's slot — the smooth-text pacer's feed. */
 export function subscribeTurnSlot(chatId: ChatId, listener: (slot: TurnSlot) => void): () => void {
   return useChatStreamStore.subscribe((s) => s.turns[chatId] ?? IDLE_TURN, listener);
 }

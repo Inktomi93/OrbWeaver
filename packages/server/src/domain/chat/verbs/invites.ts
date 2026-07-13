@@ -1,25 +1,14 @@
-// domain/chat/verbs/invites — the invite lifecycle + THE one human participant-insert chokepoint. The token
-// mirrors the `sessions` discipline: CSPRNG-minted, returned RAW exactly ONCE (the `/join/:token` link),
-// STORED HASHED (the peppered `hashToken`) — lookups key on the hash, the raw token never persists. Redeem is
-// the ONE human-join path (the atomic `redeemInviteAtomic` closes the maxUses/expiry TOCTOU; `role` is
-// server-forced `member`, `joinSeq` stamped at the canon head; the re-add upsert lives in persistence).
+// domain/chat/verbs/invites — the invite lifecycle + the one human participant-insert chokepoint. The
+// token mirrors the `sessions` discipline: CSPRNG-minted, returned raw exactly once, stored hashed —
+// lookups key on the hash, the raw token never persists. Redeem is the one human-join path (the atomic
+// `redeemInviteAtomic` closes the maxUses/expiry TOCTOU; `role` is server-forced `member`).
 //
-// VERB DEPS (the second factory arg) — the two collaborators deliberately NOT on `ChatContext` (PD-61
-// resolved: `hashToken` + `newInviteId` moved ONTO ctx as crypto/minter siblings; these two stay deps by
-// design):
-//   • emit               — the chat bus (chat's OWN in-process collaborator, NOT a ctx op —
-//                          FLAG[bus-not-on-ctx] in bus.ts; every emitting bundle takes it as a deps arg).
-//   • loadParticipantViews — the roster read-model resolver, built ONCE inside chat's own composition root
-//                          (service.ts — chat-internal, shared with fork/read/start-chat; not entry-wired,
-//                          so it cannot live on the entry-assembled `ChatContext`).
+// Verb deps: `emit` is the chat bus (not a ctx op); `loadParticipantViews` is the roster read-model
+// resolver built once inside chat's own composition root.
 //
-// TARGETED invites (PD-66 cleared): `createInvite` resolves `invitedHandle` through the injected
-// `ctx.resolveHandle` (sessions' EXACT handle→userId — no listing; the probe surface is
-// transport-rate-limited). An unknown/disabled handle is a coded `invite_target_unknown` refusal (the
-// exact-handle existence answer is inherent to targeting; it is NEVER silently degraded to a share-link).
-// The stored `invitedUserId` scopes preview/redeem/decline to the target (already leak-free downstream).
-// FLAG[avatar-on-self-view]: the joining caller's `ParticipantView.avatarAssetId` resolves via
-// `loadParticipantViews` (root) — see that resolver; the verb does not read personas/assets directly.
+// Targeted invites: `createInvite` resolves `invitedHandle` through the injected `ctx.resolveHandle`
+// (exact handle→userId, no listing). An unknown/disabled handle is a coded `invite_target_unknown`
+// refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
 import type {
@@ -65,14 +54,13 @@ import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 
-/** The collaborators the invite verbs close over (see the file header VERB DEPS note). Inlined
- *  + non-exported (the `types-in-contract` gate); the root builds a matching object literal. */
+/** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
 }
 
-/** The invite slice of `ChatService` this grouped file owns (the bundle the composition root spreads in). */
+/** The invite slice of `ChatService` this grouped file owns. */
 type InviteVerbs = Pick<
   ChatService,
   | "createInvite"
@@ -84,12 +72,7 @@ type InviteVerbs = Pick<
   | "listInvites"
 >;
 
-/**
- * The invite-lifecycle verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). Folds
- * the per-verb factories (internal below) into one object keyed by their `ChatService` method names; the
- * composition root spreads it into the full service. `deps` carries the two collaborators deliberately not
- * on `ChatContext` (see the file header).
- */
+/** The invite-lifecycle verb bundle. `deps` carries the two collaborators deliberately not on `ChatContext`. */
 export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
   return {
     createInvite: createCreateInvite(ctx),
@@ -102,11 +85,9 @@ export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
   };
 }
 
-/** A loaded chat row (the inferred `loadChatRow` return) — named locally so helpers reference it without
- *  re-spelling the file-local `queries.ts` `ChatRow` (the guard.ts `MemberChat` precedent). */
 type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
-/** A 256-bit CSPRNG invite token (≥128-bit per Part III §2; base64url for a URL-safe `/join/:token`). */
+/** A 256-bit CSPRNG invite token, base64url for a URL-safe `/join/:token`. */
 const TOKEN_BYTES = 32;
 
 /** A human-readable room-mode label for the invite preview (output × policy) — never the raw config. */
@@ -114,9 +95,8 @@ function modeLabel(group: GroupConfig): string {
   return `${group.output} · ${group.policy}`;
 }
 
-/** Map a loaded chat row + its resolved roster + macro name producer → the `ChatDetail` read-model (the
- *  metadata sub-blobs applied to their defaults — never raw; the same projection `read.ts`/`fork.ts`/
- *  `start-chat.ts` use). The roster `ParticipantView[]` is resolved by the root (FLAG above). */
+/** Map a loaded chat row + its resolved roster + macro name producer → the `ChatDetail` read-model. The
+ *  same projection `read.ts`/`fork.ts`/`start-chat.ts` use. */
 interface ToChatDetailInput {
   readonly chat: LoadedChatRow;
   readonly participants: readonly ParticipantView[];
@@ -158,28 +138,21 @@ function toChatDetail({
   };
 }
 
-/** `createInvite` — host-only. Mint a CSPRNG token, store its peppered HASH, return the raw token ONCE for
- *  the `/join/:token` link (never raw again; never in an `InviteView`). Share-link by default; a targeted
- *  invite resolves `invitedHandle` → `invitedUserId` (PD-66 — file header).
+/** `createInvite` — host-only. Mint a CSPRNG token, store its peppered hash, return the raw token once for
+ *  the `/join/:token` link. Share-link by default; a targeted invite resolves `invitedHandle` →
+ *  `invitedUserId`.
  *
- *  PD-105: a TARGETED invite additionally delivers the durable `invite` notification (the per-user inbox
- *  the per-chat bus can't reach — the invitee isn't a member yet, so there's no room to fan a bus event
- *  into). Fired AFTER persist (`ctx.emitNotification`, the ONE write chokepoint every producer inherits —
- *  `notifications.record`). The event carries `inviteId` (the decline/preview-by-id handle), NEVER the raw
- *  token — the schema makes that type-level unrepresentable (accept stays token-authenticated via the
- *  `/join/:token` link the host shares out-of-band; the notification's `inviteId` only backs `declineInvite`,
- *  which is genuinely inviteId-keyed). A share-link invite (a null `invitedUserId`) has no single recipient
- *  to notify — skipped, matching `recipientUserId`'s mandatory-field schema. */
+ *  A targeted invite additionally delivers the durable `invite` notification (the per-user inbox the
+ *  per-chat bus can't reach — the invitee isn't a member yet). Fired after persist; carries `inviteId`,
+ *  never the raw token. A share-link invite has no single recipient to notify — skipped. */
 function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
     await requireHost(ctx, principal, chatId);
-    // PD-66: resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
+    // Resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
     let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
-      // D60 (agent-principal-design/06 §4): invites are the HUMAN membership chokepoint — an agent enters a
-      // room only via `seatAgent` (AP3), NEVER an invite. Refuse the reserved `__agent__` namespace at the
-      // boundary (the one-homed predicate, reused), leak-free as "no invitable user" (never confirm the
-      // namespace exists). FLAG[PD-17].
+      // Invites are the human membership chokepoint — an agent enters a room only via `seatAgent`, never
+      // an invite. Refuse the reserved `__agent__` namespace, leak-free as "no invitable user".
       if (isReservedAgentHandle(input.invitedHandle)) {
         throw new DomainOperationError(
           "invite_target_unknown",
@@ -210,8 +183,8 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
       status: "pending",
       createdAt: at,
     });
-    // PD-105: a targeted invite delivers the durable `invite` notification AFTER the persist above commits —
-    // a share-link invite (no single `invitedUserId`) has nobody to notify.
+    // A targeted invite delivers the durable `invite` notification after the persist above commits — a
+    // share-link invite has nobody to notify.
     if (invitedUserId !== null) {
       await ctx.emitNotification({
         type: "invite",
@@ -235,9 +208,9 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
   };
 }
 
-/** `previewInvite` — token-authenticated, PRE-membership preview-then-confirm (Part III §2). Returns the
- *  MINIMAL surface (room name / host handle / member count / mode label) — NO roster identities, NO history.
- *  An invalid / expired / exhausted / foreign-targeted token is a leak-free NOT_FOUND. */
+/** `previewInvite` — token-authenticated, pre-membership preview-then-confirm. Returns the minimal
+ *  surface — no roster identities, no history. An invalid/expired/exhausted/foreign-targeted token is a
+ *  leak-free NOT_FOUND. */
 function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["previewInvite"] {
   return async ({ principal, input }: PreviewInviteParams): Promise<InvitePreview> => {
     const at = ctx.now();
@@ -262,7 +235,7 @@ function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["p
     return {
       chatId: invite.chatId,
       roomName: chat.title ?? "",
-      // The host is a human participant → handle resolved; the empty fallback is a defensive floor (FLAG).
+      // The host is a human participant → handle resolved; the empty fallback is a defensive floor.
       hostHandle: host?.handle ?? castId<Handle>(""),
       memberCount,
       modeLabel: modeLabel(chat.metadata.group ?? DEFAULT_GROUP_CONFIG),
@@ -270,10 +243,9 @@ function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["p
   };
 }
 
-/** `redeemInvite` — THE participant-insert chokepoint (Part III §2). Atomic redeem (closes the maxUses/expiry
- *  TOCTOU) → server-forced `member` row at the canon head (the re-add upsert is in persistence) → emit
- *  `chatUpdated`. Idempotent for an already-present member (the upsert no-ops; the verb returns their existing
- *  membership instead of a phantom error). An invalid token is a leak-free NOT_FOUND. */
+/** `redeemInvite` — the participant-insert chokepoint. Atomic redeem (closes the maxUses/expiry TOCTOU)
+ *  → server-forced `member` row → emit `chatUpdated`. Idempotent for an already-present member. An invalid
+ *  token is a leak-free NOT_FOUND. */
 function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["redeemInvite"] {
   return async ({ principal, input }: RedeemInviteParams) => {
     const tokenHash = ctx.hashToken(input.token);
@@ -290,10 +262,8 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
       chatId = result.chatId;
       await deps.emit({ type: "chatUpdated", chatId });
     } else {
-      // `redeemInviteAtomic` returns undefined for an invalid/expired/exhausted/FOREIGN-TARGETED invite AND
-      // for an already-present member (the upsert no-op). The already-member case is recovered idempotently
-      // below — otherwise it is a genuine not-redeemable NOT_FOUND. A non-target has no membership to recover,
-      // so a targeted invite that reached the wrong user is indistinguishable from an invalid token.
+      // `redeemInviteAtomic` returns undefined for an invalid/expired/exhausted/foreign-targeted invite
+      // AND for an already-present member. The already-member case recovers below; otherwise NOT_FOUND.
       const invite = await findInviteByTokenHash(ctx.db, tokenHash);
       if (invite === undefined) {
         throw new DomainNotFoundError("invite", "");
@@ -329,15 +299,10 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
   };
 }
 
-/** `acceptInvite` — the token-free in-app accept of a TARGETED invite by id (the notification→accept loop —
- *  closes it with no raw token leaving the app). SELF-AUTHORIZING: the caller's authenticated `principal.userId`
- *  IS the authorization — the atomic `acceptInviteByIdAtomic` demands an EXACT `invitedUserId === caller` match
- *  (a share-link invite is token-only → not acceptable by id; a foreign targeted invite is never confirmed).
- *  Every failure — invalid id / foreign / expired / exhausted / declined / revoked / share-link — collapses to
- *  the SAME leak-free NOT_FOUND (no oracle). On success: the same atomic seat as redeem (server-forced `member`
- *  at the canon head, use burned, TOCTOU closed) → emit `chatUpdated`. Idempotent for an already-present member
- *  (recover their existing membership, not a phantom error), keyed by id + gated on the target match so the
- *  recovery path leaks nothing to a non-target. Returns `{ chat, participant }` — identical to `redeemInvite`. */
+/** `acceptInvite` — the token-free in-app accept of a targeted invite by id. Self-authorizing: the caller's
+ *  authenticated `principal.userId` is the authorization — the atomic `acceptInviteByIdAtomic` demands an
+ *  exact `invitedUserId === caller` match. Every failure collapses to the same leak-free NOT_FOUND. On
+ *  success: the same atomic seat as redeem → emit `chatUpdated`. Idempotent for an already-present member. */
 function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["acceptInvite"] {
   return async ({ principal, inviteId }: AcceptInviteParams) => {
     const at = ctx.now();
@@ -353,11 +318,9 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
       chatId = result.chatId;
       await deps.emit({ type: "chatUpdated", chatId });
     } else {
-      // The atomic returns undefined for an invalid/foreign/expired/exhausted/declined/revoked/share-link invite
-      // AND for an already-present member (the seat no-op). Recover ONLY the already-member case — and ONLY for
-      // the bound target (`invitedUserId === caller`), so a non-target's probe leaks nothing: a foreign invite
-      // fails the target check exactly as a missing one does (both NOT_FOUND). A non-member has no membership to
-      // recover, so a not-yet-acceptable targeted invite is indistinguishable from an invalid id.
+      // The atomic returns undefined for an invalid/foreign/expired/exhausted/declined/revoked/share-link
+      // invite AND for an already-present member. Recover only the already-member case, gated on the
+      // bound target, so a non-target's probe leaks nothing.
       const invite = await findInviteById(ctx.db, inviteId);
       if (invite === undefined || invite.invitedUserId !== principal.userId) {
         throw new DomainNotFoundError("invite", "");
@@ -393,11 +356,9 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
   };
 }
 
-/** `listInvites` — host-only (FIX #4): the host-management outstanding-invites read, newest-first. Wears
- *  the EXACT `requireHost` belt its mint/revoke siblings wear (createInvite/revokeInvite above — same
- *  guard, same position, first statement). Maps persistence rows → `InviteView`s, computing
- *  `remainingUses` (`maxUses - uses`, floored at 0; null = unlimited); the peppered `tokenHash` never
- *  leaves persistence (`InviteView` cannot carry it — the type has no token field). */
+/** `listInvites` — host-only: the host-management outstanding-invites read, newest-first. Maps
+ *  persistence rows → `InviteView`s, computing `remainingUses` (`maxUses - uses`, floored at 0; null =
+ *  unlimited); the peppered `tokenHash` never leaves persistence. */
 function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
   return async ({ principal, chatId }: ListInvitesParams): Promise<readonly InviteView[]> => {
     await requireHost(ctx, principal, chatId);
@@ -424,10 +385,9 @@ function createRevokeInvite(ctx: ChatContext): ChatService["revokeInvite"] {
   };
 }
 
-/** `declineInvite` — the invited user declines a TARGETED invite they were notified about (keyed by
- *  `inviteId`, not the raw token — Part III §2). Atomic + scoped to the caller as the target (a foreign /
- *  non-targeted invite never matches — leak-free, idempotent) via `persistence/invites.declineInviteById`
- *  (PD-67 — the inline write extracted to the persistence layer). */
+/** `declineInvite` — the invited user declines a targeted invite they were notified about (keyed by
+ *  `inviteId`, not the raw token). Atomic + scoped to the caller as the target — a foreign/non-targeted
+ *  invite never matches, leak-free and idempotent. */
 function createDeclineInvite(ctx: ChatContext): ChatService["declineInvite"] {
   return async ({ principal, inviteId }: DeclineInviteParams): Promise<void> => {
     await declineInviteById(ctx.db, inviteId, principal.userId);

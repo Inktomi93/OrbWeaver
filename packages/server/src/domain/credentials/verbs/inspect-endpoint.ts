@@ -1,15 +1,9 @@
-// verb: inspectEndpoint — the "Test endpoint" round-trip for a SAVED custom_openai credential (a real
-// 1-message request, returning the REDACTED request + raw response; the key never leaves the server — the
-// injected `inspect` op redacts before building the result). Owner-scoped by id; the credential is resolved
-// to the brand-protected `CustomOpenAiCredential` (via `substrate/mint`) and handed to the providers
-// inspector through injection.
+// verb: inspectEndpoint — the "Test endpoint" round-trip for a SAVED custom_openai credential; the key
+// never leaves the server (the injected inspect op redacts before building the result).
 //
-// FLAG[PD-25]: DRAFT (pre-save) inspect is NOT supported here — the providers diagnostic front door's
-// `inspect` takes a `ResolvedCredential`, and `CustomOpenAiCredential.credentialId` is non-null, so an
-// unsaved draft cannot be represented without either a nullable-credentialId contract change or a raw
-// inspect op on the providers front door. Both are outside this leaf. fetch-models DOES support drafts
-// (its infra op takes raw args), so a user can still validate a draft URL's `/models` before saving; the
-// full draft round-trip lands when the providers surface grows a raw inspector or the brand goes nullable.
+// FLAG[PD-25]: draft (pre-save) inspect is NOT supported here — CustomOpenAiCredential.credentialId is
+// non-null, so an unsaved draft can't be represented without a contract change; fetch-models still
+// supports drafts for pre-save /models validation.
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import type { InspectEndpointParams } from "../contract/params";

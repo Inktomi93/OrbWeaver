@@ -1,13 +1,8 @@
-// transport/trpc/context — the per-request tRPC Context the procedure ladder reads (core/Tier-4-Transport.md
-// §"context.ts"). PURE PACKAGING: it carries the entry-built `Principal`, the constructed `Services`
-// bundle, the injected rate-limit gate, and the per-request edge signals — NO db, NO header parsing, NO
-// identity resolution (those are the `entry/auth/seam.ts` + `entry/app.ts` concerns; transport CARRIES
-// the result). Identity is resolved ONCE at the seam into one immutable `Principal` (spine
-// identity-auth-permission §0/§1); `auth` is `null` for an anonymous caller.
-//
-// Type-home note: these are `interface`s, the sanctioned shape outside `domain/**` (the no-inline-types
-// grit flags `export type`/`z.object` outside a type home, and `export interface` only INSIDE a domain
-// feature — transport is neither). The DI bundle is an explicit interface, never a `ReturnType<>`.
+// The per-request tRPC Context the procedure ladder reads. Pure packaging: it carries the entry-built
+// Principal, the constructed Services bundle, the injected rate-limit gate, and the per-request edge
+// signals — no db, no header parsing, no identity resolution (those are entry's concerns; transport
+// carries the result). Identity is resolved once at the seam into one immutable Principal; `auth` is
+// `null` for an anonymous caller.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AdminService } from "#domain/admin";
@@ -31,16 +26,9 @@ import type { WorldInfoService } from "#domain/world-info";
 import type { PresenceRegistry } from "./presence-registry";
 
 /**
- * The constructed domain services, wired with their db + cross-feature deps at the `entry/` composition
- * root and handed to each request. A router reaches a domain ONLY through its front-door service here —
- * never `@orb/db`/`infra/*` directly (the `drivers-through-domain` rule). One key per domain front door.
- *
- * FLAG[PD-46]: `chat` — the chat service is now CONSTRUCTED + wired at the composition root (entry/compose/
- * chat.ts) and carried here. Its tRPC ROUTER (`chat.send`/`swipe`/`start`/`streamMessages`) is the remaining
- * PD-46 piece — the SSE `streamMessages` resume needs the chat bus replay-ring handle surfaced from compose
- * (the bus is currently held internally; see the integration report's hand-off). The admin inline embed
- * (PD-90) rides `admin.embedCharacterCard` (the composed `EmbedProducerPort`) — embeddings itself stays
- * off this bundle (no direct transport surface).
+ * The constructed domain services, wired with their db + cross-feature deps at the entry composition root
+ * and handed to each request. A router reaches a domain only through its front-door service here — never
+ * \@orb/db/infra/* directly. One key per domain front door.
  */
 export interface Services {
   readonly admin: AdminService;
@@ -63,12 +51,8 @@ export interface Services {
   readonly worldInfo: WorldInfoService;
 }
 
-/**
- * The inputs the rate-limit gate decides on. The gate body (which bucket — anonymous per-IP vs authed
- * per-user vs the $/GPU `aiTurn` bucket vs the per-member COUNT budget) is the INJECTED implementation's
- * concern; transport hands it the request facts and awaits its verdict. `principal` is `null` for an
- * anonymous caller (the gate keys the tight per-IP bucket); `type` selects the query/mutation split.
- */
+/** The inputs the rate-limit gate decides on. Which bucket is the injected implementation's concern;
+ *  transport hands it the request facts and awaits its verdict. */
 export interface RateLimitDecision {
   readonly path: string;
   readonly type: "query" | "mutation" | "subscription";
@@ -76,46 +60,27 @@ export interface RateLimitDecision {
   readonly clientIp: string | null;
 }
 
-/**
- * The rate-limit gate — the injected middleware seam (core/Tier-4-Transport.md §"rate-limit"). The DB-backed
- * limiter PRIMITIVE (`transport/rate-limit.ts`) and the bucket policy are constructed at `entry/` (db is
- * required at construction) and threaded onto `ctx`; transport declares only this port and calls
- * `enforce` from the ladder. `enforce` rejects with `DomainRateLimitError` when over cap (mapped to
- * `TOO_MANY_REQUESTS` + `Retry-After` downstream).
- */
+/** The rate-limit gate — the injected middleware seam. `enforce` rejects with `DomainRateLimitError` when
+ *  over cap (mapped to TOO_MANY_REQUESTS + Retry-After downstream). */
 export interface RateLimitGate {
   readonly enforce: (decision: RateLimitDecision) => Promise<void>;
 }
 
-/**
- * The per-request tRPC context. `auth` is the immutable seam-built `Principal` (or `null` when
- * anonymous); the ladder gates on plain fields (no db round-trip). `csrfHeaderPresent` is the custom
- * CSRF header signal the `entry/` mount reads off the request (transport does no header parsing) — the
- * auth gate keys CSRF on `Principal.via === "cookie"` + this flag. `clientIp` (peer + XFF, derived at the
- * seam) lets `publicProcedure` key its per-IP bucket even without an identity.
- */
 export interface Context {
   readonly auth: Principal | null;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
-  /** The transport presence registry (PD-70). SSE subscriptions call `presence.connect(userId, signal)` to
-   *  ref-count device liveness; the read side is injected into chat as `presence.read` at the compose root. */
+  /** SSE subscriptions call presence.connect(userId, signal) to ref-count device liveness. */
   readonly presence: PresenceRegistry;
-  /** TRUE when ≥2 humans can authenticate on this deployment (FINAL-Auth-Modes §9 / B4): single-user →
-   *  false; local → the `LOCAL_MULTI_USER` AppSettings toggle; forward-header/oidc → true. The multi-human
-   *  capability belt (PD-106): `multiHumanProcedure` refuses its surfaces with NOT_FOUND while this is
-   *  FALSE. Derived PER-REQUEST at the entry mount (mode is frozen env, but the local toggle is a runtime
-   *  AppSetting — it can NOT be a boot constant; transport still reads no env/settings itself). */
+  /** Can ≥2 humans authenticate on this deployment? `multiHumanProcedure` refuses its surfaces with
+   *  NOT_FOUND while false. Derived per-request (the local toggle is a runtime AppSetting). */
   readonly multiHumanCapable: boolean;
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
 }
 
-/**
- * Pure packaging — the typed seam `entry/app.ts` calls per request after the `entry/auth/seam.ts` has
- * resolved the `Principal`. No db, no header parsing, no identity resolution: it only assembles the
- * already-resolved parts into the `Context` the ladder reads.
- */
+/** Pure packaging — the typed seam entry/app.ts calls per request after the auth seam has resolved the
+ *  Principal. No db, no header parsing, no identity resolution. */
 export function createContext(parts: {
   readonly auth: Principal | null;
   readonly services: Services;

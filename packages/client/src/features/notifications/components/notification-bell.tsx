@@ -1,27 +1,13 @@
-// The topbar notifications BELL (the multi-human invites lane) — the DURABLE per-user inbox surface,
-// deliberately separate from the transient toast region (`@orb/ui/toast` = fire-and-forget; this =
-// rows that persist until acted on). An unread-badged bell opening an anchored Popover of inbox rows;
-// an `invite` row carries inline Accept (`invites.acceptInvite` → navigate into the joined chat) +
-// Decline; a `handoff-nominated` row carries Accept (`invites.acceptHostHandoff` — the two-party
-// handoff's step-2 self-action → navigate into the now-hosted room) + Dismiss (no decline verb exists
-// by design — a nomination is host-retractable, not invitee-settleable); the other delivery reasons
-// render their copy + a dismiss. Mounted by the composition root
-// in the shell's `topbarTrail` slot ONLY while the deployment is multi-human capable (`/api/auth/config
-// .multiHumanCapable` — the honest belt signal, never a probe-and-catch).
+// The topbar notifications bell — a durable per-user inbox surface, deliberately separate from the
+// transient toast region. An unread-badged bell opening an anchored popover of inbox rows: an invite
+// row carries inline Accept/Decline; a handoff-nominated row carries Accept/Dismiss (no decline verb —
+// a nomination is host-retractable, not invitee-settleable); other reasons render copy + a dismiss.
+// Mounted only while the deployment is multi-human capable.
 //
-// Read/act contract: OPENING the popover marks every unread row read via ONE `markAllRead` mutation (the
-// badge is "new since you looked", not "un-acted") — NOT a per-row `markRead` loop; ACTING on an invite
-// (accept or decline) dismisses its row. Navigation on
-// accept rides the sanctioned #state seam (`selectChat` + `setActiveSection` — §5.1: leaf writers
-// write, the route composes), never a feature→feature import.
+// Read/act contract: opening the popover marks every unread row read via one markAllRead mutation (the
+// badge is "new since you looked", not "un-acted"); acting on an invite dismisses its row.
 //
-// Freshness: `useInboxStream` (the tracked SSE subscription) keeps the list live — a new invite appears
-// without a refresh, and tRPC's Last-Event-ID resume replays anything missed while disconnected.
-//
-// NO data-testid inside the trigger: the bell button is addressed by its ROLE + accessible name (the
-// aria-label carries the unread count) — `testid-typed-only` cannot distinguish a nested
-// `testId()` stamp from a freeform string inside a `render={…}` attribute, and role-addressing is the
-// stronger selector anyway (the a11y name IS the contract).
+// No data-testid inside the trigger: the bell is addressed by its role + accessible name.
 
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import { Badge } from "@orb/ui/badge";
@@ -46,10 +32,8 @@ import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions";
 
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
-/** The per-reason row copy — a mapped `Record` over the CLOSED union (§5.5: a new `NotificationEvent`
- *  member fails `tsc` here until it says what the inbox row reads; the `invalidation.ts` dispatch
- *  shape). The `invite` arm deliberately reads only the host's public handle — the richer room preview
- *  is token-keyed and tokens never ride the inbox (contracts/notifications header). */
+/** The per-reason row copy — a mapped Record so a new NotificationEvent member fails tsc until it says
+ *  what the inbox row reads. */
 const ROW_COPY: {
   readonly [K in NotificationType]: (payload: Extract<NotificationEvent, { type: K }>) => string;
 } = {
@@ -60,8 +44,6 @@ const ROW_COPY: {
 };
 
 function rowCopy(payload: NotificationEvent): string {
-  // The indexed dispatch is total (mapped type over the union); the cast narrows the handler's param
-  // back from the union member the index erased (the invalidation.ts precedent).
   const handler = ROW_COPY[payload.type] as (p: NotificationEvent) => string;
   return handler(payload);
 }
@@ -82,8 +64,6 @@ export function NotificationBell(): ReactElement {
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
     if (next && unreadCount > 0) {
-      // Opening = "I've seen these" — ONE bulk mutation flips every unread row; the badge clears, the
-      // rows stay until acted on/dismissed.
       markAllRead.mutate(undefined);
     }
   };
@@ -99,7 +79,6 @@ export function NotificationBell(): ReactElement {
     }
     dismiss.mutate({ notificationId: item.id });
     setOpen(false);
-    // The sanctioned cross-feature navigation seam (§5.1): land in the joined room.
     setActiveSection("chats");
     selectChat(result.chat.id);
   };
@@ -119,7 +98,6 @@ export function NotificationBell(): ReactElement {
     }
     dismiss.mutate({ notificationId: item.id });
     setOpen(false);
-    // Land in the room you now host (the same §5.1 seam the invite accept uses).
     setActiveSection("chats");
     selectChat(chatId);
   };

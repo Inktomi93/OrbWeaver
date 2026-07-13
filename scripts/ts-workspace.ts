@@ -19,6 +19,9 @@ export type WorkspaceOptions = {
   readonly root: string;
   /** false (default) = pure-AST harness project; true = tsconfig-loaded full type graph (codemod arm). */
   readonly types?: boolean;
+  /** Override the file set. Default: harnessGlobs (types:false — the gate harness's PINNED scope,
+   *  never widen it) / searchGlobs (types:true). Search tools pass searchGlobs explicitly. */
+  readonly globs?: readonly string[];
 };
 
 /** The source globs the gate harness loads: the historical `getProject` packages+tests fileset PLUS the
@@ -38,14 +41,37 @@ export function harnessGlobs(root: string): readonly string[] {
   ];
 }
 
+/** The SEARCH scope: harnessGlobs + the closure tail the gate harness deliberately excludes but a
+ *  whole-workspace search must see — membership proven against `tsgo --listFilesOnly` unioned over
+ *  the root/ui/client programs (the tests-type-membership pattern): all of scripts/, package-root
+ *  scripts (tokens.build.ts, vite configs), the CT harness, and .mts files. */
+export function searchGlobs(root: string): readonly string[] {
+  return [
+    ...harnessGlobs(root),
+    `${root}/scripts/**/*.ts`,
+    `${root}/packages/*/*.ts`,
+    `${root}/packages/*/src/**/*.mts`,
+    `${root}/tests/**/*.mts`,
+    `${root}/playwright/**/*.tsx`,
+  ];
+}
+
 /** Build a workspace Project. The `types:false` arm is the shared pure-AST project the gate run uses. */
 export function getWorkspace(opts: WorkspaceOptions): Project {
   if (opts.types === true) {
-    const project = new Project({ tsConfigFilePath: `${opts.root}/tsconfig.json` });
+    // Root-tsconfig OPTIONS (moduleResolution etc. — needed so `@orb/*` subpath-exports and `#alias`
+    // imports resolve for the language service) but OUR file set, not the root include/exclude: the
+    // root aggregator is deliberately DOM-less and EXCLUDES packages/ui/src + packages/client/src,
+    // which a whole-workspace symbol search must see. Search scope ≠ typecheck scope.
+    const project = new Project({
+      tsConfigFilePath: `${opts.root}/tsconfig.json`,
+      skipAddingFilesFromTsConfig: true,
+    });
+    project.addSourceFilesAtPaths([...(opts.globs ?? searchGlobs(opts.root))]);
     return project;
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true });
-  project.addSourceFilesAtPaths([...harnessGlobs(opts.root)]);
+  project.addSourceFilesAtPaths([...(opts.globs ?? harnessGlobs(opts.root))]);
   return project;
 }
 

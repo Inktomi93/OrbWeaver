@@ -1,9 +1,7 @@
-// verb: createTag — mint a new owner-scoped tag. The name is CANONICALIZED through `normalizeTagName` (the one
-// chokepoint: trim + whitespace-collapse, display casing kept) before insert, so a manual create dedupes
-// identically to import/seeder. TOCTOU-safe: the `(ownerId, lower(name))` functional unique index is the race
-// guard — a concurrent OR case-variant duplicate ("Female" vs "female") surfaces as a constraint violation on
-// INSERT, classified into a `DomainConflictError` (never a phantom pre-SELECT). The id is the injected
-// `newTagId` (determinism seam).
+// verb: createTag — mint a new owner-scoped tag. The name is canonicalized through normalizeTagName
+// before insert, so a manual create dedupes identically to import/seeder. TOCTOU-safe: the (ownerId,
+// lower(name)) functional unique index surfaces a race as a constraint violation, classified into a
+// DomainConflictError.
 
 import { isConstraintViolation, tags } from "@orb/db";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
@@ -18,7 +16,6 @@ export function createCreate(ctx: TagContext): TagService["createTag"] {
     const { input } = params;
     const name = normalizeTagName(input.name);
     if (name.length === 0) {
-      // The wire min(1) passes a whitespace-only name; normalized it would be an empty-name row — refuse.
       throw new DomainOperationError(
         "tag_name_empty",
         "a tag name cannot be empty/whitespace-only",
@@ -39,7 +36,6 @@ export function createCreate(ctx: TagContext): TagService["createTag"] {
       if (row === undefined) {
         throw new DomainOperationError("tag_insert_failed", "tag insert returned no row");
       }
-      // Best-effort audit AFTER the insert landed (a refused/conflicted create writes no row).
       await ctx.audit({
         actorUserId: ownerId,
         action: "tag.create",

@@ -1,33 +1,17 @@
-// entry/import/run-bundle-import — the ENTITY-AGNOSTIC bundle-import COMPOSITION DRIVER
-// (export-import-portability.md §3). The generalization of `run-profile-import` from "a set of character
-// cards" to "any registry of portable entities": it extracts an UNTRUSTED archive through the
-// `infra/storage/zip` belt battery, routes each file to its owning entity's `importFile` by the file's
-// leading directory, and imports in the fixed `PORTABLE_IMPORT_ORDER` dependency order so cross-entity
-// attachments resolve (personas + tags + world-info before characters; characters + personas before chats).
+// The entity-agnostic bundle-import composition driver: extracts an untrusted archive through the
+// infra/storage/zip belt battery, routes each file to its owning entity's importFile by leading
+// directory, and imports in the fixed PORTABLE_IMPORT_ORDER dependency order so cross-entity attachments
+// resolve. Consumes the injected PortabilityRegistry — knows nothing about any specific entity.
 //
-// SCOPE / boundaries:
-//   • It consumes the INJECTED `PortabilityRegistry` (assembled at entry/compose from each domain's export/
-//     import verbs). The driver knows NOTHING about any specific entity — adding an entity appends a
-//     descriptor upstream and this driver routes it for free (the delivery-core one-home principle).
-//   • Per-file isolation (the card `failures[]` precedent): a descriptor's `importFile` NEVER throws for a
-//     malformed file (it returns `{ok:false, error}`), but the driver also try/catches so a throwing
-//     descriptor can't abort the bundle. One bad file is recorded and skipped; the rest still import.
-//   • A file whose leading dir matches no registered entity is recorded as SKIPPED (unknown dir) — benign,
-//     never fatal (a forward-compat bundle carrying a kind this deployment doesn't know).
-//   • A HOSTILE archive (zip-slip, bomb, lying header, bad method, oversize) is rejected WHOLE by
-//     `extractZip` — the driver never sees a single entry, so nothing is written (fail-closed).
+// Per-file isolation: a descriptor's importFile never throws for a malformed file, but the driver also
+// try/catches so a throwing descriptor can't abort the bundle. A file whose leading dir matches no
+// registered entity is a benign skip. A hostile archive is rejected whole by extractZip — nothing written.
 //
-// MEMORY: `extractZip` STAGES the decompressed entries to a temp DISK dir and returns disk-backed handles.
-// The driver groups those handles by dir before the ordered import pass (the cross-kind dependency order
-// can't be honored while streaming central-directory order) — but it holds only the handles, and reads each
-// entry's bytes back off the staging disk JUST BEFORE its `importFile`, so peak memory is ONE entry, not the
-// whole decompressed bundle (a full all-blobs bundle can exceed RAM). It MUST `dispose()` the staged archive
-// in a try/finally so the staging dir is removed on success AND error. The `infra/storage/zip` caps bound the
-// compressed buffer + the staging disk; the untrusted-upload route tightens them and runs this behind the
-// single-active workload lock.
+// Memory: extractZip stages decompressed entries to a temp disk dir; the driver holds only lazy read
+// handles and reads each entry's bytes off disk just before its importFile, so peak memory is one entry.
+// Must dispose() the staged archive in a try/finally.
 //
-// CANCELLATION is the driver's job (the contract intentionally carries no signal — it is isomorphic): the
-// optional `signal` is checked between files, so a cancelled workload stops pulling more importFile work.
+// Cancellation is the driver's job: the optional signal is checked between files.
 
 import type { PortabilityRegistry, PortableEntity, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
@@ -35,12 +19,8 @@ import type { UserId } from "@orb/kit/ids";
 import type { ExtractOptions, StagedArchive } from "#infra/storage";
 import { extractZip } from "#infra/storage";
 
-// The untrusted-upload extract caps (the PD-94 posture) — ONE home, shared by the HTTP edge (the route caps
-// the streamed-to-disk upload at `IMPORT_MAX_TOTAL_BYTES`) AND the workload runner-env op (which hands both to
-// `extractZip`). The compressed cap bounds the staged zip; the decompressed cap (a DISK-usage cap — extractZip
-// stages entries to a temp dir, ONE ≤64 MiB entry in RAM at a time) is raised to 10 GiB so a full-account
-// all-blobs "backup everything" bundle (every avatar/gallery/sprite/imagery/databank blob the owner references)
-// fits, while the all-zero amplification bomb still aborts mid-extraction.
+// Shared by the HTTP edge and the workload runner-env op (both hand these to extractZip). The decompressed
+// cap is disk-usage (10 GiB) so a full-account all-blobs backup fits, while an amplification bomb aborts.
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 const IMPORT_MAX_MIB = 256;
@@ -72,35 +52,26 @@ export interface BundleImportReport {
 }
 
 export interface BundleImportDeps {
-  /** The injected registry (assembled at entry/compose). Only its registered entities can be routed to. */
   readonly registry: PortabilityRegistry;
-  /** The owner every imported row is scoped to (the route resolved the caller; the workload carries it). */
   readonly ownerId: UserId;
-  /** The untrusted archive bytes / body stream — handed straight to the belt battery. */
   readonly archive: Uint8Array | ReadableStream<Uint8Array>;
-  /** The extract caps for THIS upload (the route tightens them from the zip defaults). */
   readonly extractOptions?: ExtractOptions;
-  /** Cancellation — checked between files so a cancelled workload stops pulling importFile work. */
   readonly signal?: AbortSignal;
 }
 
-/** The leading directory of an archive path, INCLUDING the trailing slash (so it matches a descriptor's
- *  `dir`), or null for a top-level file (no slash) — which is always an unknown-dir skip. */
+/** The leading directory of an archive path, including the trailing slash, or null for a top-level file. */
 function leadingDir(path: string): string | null {
   const slash = path.indexOf("/");
   return slash === -1 ? null : path.slice(0, slash + 1);
 }
 
-/** One staged file routed to an entity: its dir-relative name + a lazy reader over the staging disk (NOT the
- *  bytes — the whole decompressed bundle is never held in memory at once). */
+/** One staged file routed to an entity: its dir-relative name + a lazy reader over the staging disk. */
 interface StagedFile {
   readonly filename: string;
   readonly read: () => Promise<Uint8Array>;
 }
 
-/** Group the staged entries by their leading directory (the ONLY routing key), holding lazy read HANDLES.
- *  Files whose path has no directory are collected under the null key as unroutable skips. Synchronous — the
- *  staged archive is already a concrete list of handles (the disk write happened in `extractZip`). */
+/** Group the staged entries by their leading directory. Files with no directory are unroutable skips. */
 function groupByDir(staged: StagedArchive): {
   readonly byDir: Map<string, StagedFile[]>;
   readonly unrouted: string[];
@@ -114,15 +85,13 @@ function groupByDir(staged: StagedArchive): {
       continue;
     }
     const bucket = byDir.get(dir) ?? [];
-    // The filename handed to importFile is relative to the entity's dir (the descriptor's contract).
     bucket.push({ filename: entry.path.slice(dir.length), read: entry.read });
     byDir.set(dir, bucket);
   }
   return { byDir, unrouted };
 }
 
-/** Import every file routed to one entity, isolating per-file failures into outcomes. Reads each file's bytes
- *  off the staging disk JUST BEFORE its importFile, so only one entry is in memory at a time. */
+/** Import every file routed to one entity, isolating per-file failures into outcomes. */
 async function importEntity(
   entity: PortableEntity,
   files: readonly StagedFile[],
@@ -158,8 +127,8 @@ async function importEntity(
   return outcomes;
 }
 
-/** Import every registered entity in the fixed dependency order (the ONE cross-entity rule, as data). A
- *  kind with no registered descriptor, or no files in the bundle, is simply absent from the pass. */
+/** Import every registered entity in the fixed dependency order. A kind with no registered descriptor, or
+ *  no files in the bundle, is simply absent from the pass. */
 async function importInDepOrder(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
@@ -186,7 +155,7 @@ async function importInDepOrder(
   return outcomes;
 }
 
-/** Record every file that matched no registered entity as a SKIP (unknown dir, or a top-level file). */
+/** Record every file that matched no registered entity as a skip. */
 function collectSkips(
   registry: PortabilityRegistry,
   byDir: ReadonlyMap<string, readonly StagedFile[]>,
@@ -213,7 +182,6 @@ function collectSkips(
   return outcomes;
 }
 
-/** Tally the per-file outcomes into the report's summary counts. */
 function tally(outcomes: readonly BundleImportFileOutcome[]): {
   readonly imported: number;
   readonly skipped: number;
@@ -241,8 +209,6 @@ function tally(outcomes: readonly BundleImportFileOutcome[]): {
  */
 export async function runBundleImport(deps: BundleImportDeps): Promise<BundleImportReport> {
   const { registry, ownerId, archive, extractOptions, signal } = deps;
-  // extractZip stages the decompressed entries to a temp DISK dir (or rejects a hostile archive WHOLE, having
-  // already cleaned up after itself). We own the staging dir from here — dispose it on success AND error.
   const staged = await extractZip(archive, extractOptions);
   try {
     const { byDir, unrouted } = groupByDir(staged);

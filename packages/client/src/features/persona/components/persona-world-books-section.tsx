@@ -1,9 +1,7 @@
-// The persona ↔ world-book (lorebook) connection — rail-foot panel redesign: ONE book per persona, a
-// single-select dropdown over `worldInfo.listBooks` (+ "None"). Picking a book attaches it
-// (`attachToPersona`) and detaches whichever book was previously attached (`detachFromPersona`, when one
-// exists); picking "None" just detaches. Replaces the old per-book Switch list (the M:N junction still
-// supports many books server-side — the UI just never offers more than one at a time, per the redesign
-// brief). QueryBoundary loads both the library + the current attachment.
+// The persona <-> world-book (lorebook) connection: one book per persona, a single-select dropdown over
+// worldInfo.listBooks (+ "None"). Picking a book attaches it and detaches whichever was previously
+// attached; picking "None" just detaches. The M:N junction still supports many books server-side — the
+// UI just never offers more than one at a time.
 
 import type { PersonaId, WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

@@ -1,28 +1,13 @@
-// domain/character/seeder/seed — the idempotent default-card seeder.
+// domain/character/seeder/seed — idempotent default-card seeder. Wired at entry/ from two call sites: boot
+// (the deployment owner) and first authed request (a new user gets the pack on first touch).
 //
-// Same precedent as the env→OpenRouter credential boot-seed: an idempotent, composition-root-wired seeder
-// that gives every user a working starting library instead of an empty drawer. Two call sites, both wired in
-// `entry/` over the ONE instance compose constructs:
-//   1. BOOT — the deployment owner is seeded once at startup (single-user "it just works").
-//   2. FIRST AUTHED REQUEST — `entry/app.ts`'s auth middleware fires `ensureSeeded(principal)` after the
-//      Principal resolves, so a NEW user (SSO first login, admin-created local account) gets the pack the
-//      moment they first touch the API. An in-process memo + the persisted latch make the steady-state cost
-//      a Set lookup.
+// Idempotency has two layers: the persisted latch UserSettings.onboarding.defaultCharactersSeeded (once
+// true never re-runs — also the deletion-respect guard), and per-card handle_conflict tolerance (a crash
+// mid-run resolves the existing row via findByHandle instead of failing, so the latch always lands valid).
 //
-// IDEMPOTENCY — two layers, both load-bearing:
-//   • The persisted latch `UserSettings.onboarding.defaultCharactersSeeded` (read via the injected
-//     `isSeeded`, written via `markSeeded`). Once true the seed NEVER re-runs, which is also the
-//     deletion-respect guard: a user who deletes a default card doesn't get it resurrected on the next boot.
-//   • Per-card `handle_conflict` tolerance: if a previous partial run (crash between cards) already created
-//     some handles, the rerun skips those and resolves the existing row's id via `findByHandle` instead of
-//     failing — so the latch always lands with a valid Assistant id.
-//
-// Cards are created through the REAL `CharacterService.create` verb (audit log, handle-conflict translation,
-// the `character.updated` emit — no raw SQL). `create` requires the acting `Principal` (orbweaver: the verb
-// gates on `principal.userId`; neo's `create({userId})` shape is gone), so `ensureSeeded` takes the Principal
-// — boot holds the owner Principal, the app hook holds the resolved request Principal. The settings reads/
-// writes (`isSeeded`/`markSeeded`) go through injected callbacks so this file never imports `domain/settings`
-// (`domain-no-cross-feature`).
+// Cards are created through the real CharacterService.create verb (audit log, handle-conflict translation,
+// the character.updated emit — no raw SQL). Settings reads/writes go through injected callbacks so this
+// file never imports domain/settings.
 
 import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
@@ -36,8 +21,6 @@ import type {
 } from "../contract/seeder";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
 
-/** The outcome of seeding one card: its id (null only if a conflict resolved to a now-gone row) + whether
- *  this run actually created it (vs. resolving a prior partial run's existing handle). */
 interface CardOutcome {
   readonly id: CharacterId | null;
   readonly created: boolean;
@@ -47,22 +30,11 @@ export function createDefaultCharacterSeeder(
   deps: DefaultCharacterSeederDeps,
 ): DefaultCharacterSeeder {
   const log = getLog();
-  // In-process fast path: users this process has already verified-or-seeded. Only populated on SUCCESS — a
-  // transient failure retries on the next touch instead of being latched out. ASSUMES(single-replica).
+  // Only populated on success — a transient failure retries on the next touch. Assumes single-replica.
   const settled = new Set<UserId>();
-  // Same-user concurrency guard: two parallel first requests share one in-flight seed run instead of
-  // double-creating (the per-card handle_conflict tolerance would absorb it anyway, but one run is cheaper
-  // and keeps the logs clean).
+  // Two parallel first requests share one in-flight seed run instead of double-creating.
   const inFlight = new Map<UserId, Promise<void>>();
 
-  /** Create one card + attach its native tags as card/pending suggestions, tolerating the partial-rerun
-   *  `handle_conflict` (resolve the existing id instead of failing). The tag attach is idempotent + never
-   *  downgrades an accepted row, so attaching on a resolved (re-run) id is safe. Any non-conflict create error
-   *  rethrows so the latch is NOT set and the next touch retries. */
-  /** Store the bundled avatar art (when the pack ships one for this handle) → the create input WITH
-   *  `avatarAssetId` set, so the card is born with art (no post-create relink). A missing op / null result
-   *  returns the input unchanged (avatar-less, prior behavior). Extracted to keep `seedCard` under the
-   *  cognitive-complexity gate. */
   async function createCardInput(principal: Principal, card: SeedCard): Promise<SeedCard["input"]> {
     if (deps.storeAvatar === undefined) {
       return card.input;
@@ -93,8 +65,7 @@ export function createDefaultCharacterSeeder(
         await deps.attachCardTag({ ownerId: principal.userId, characterId: outcome.id, tagName });
       }
     }
-    // Seed the starter gallery ONLY for a freshly-created card (a resolved/re-run row keeps whatever the user
-    // has). Idempotent by contract; failures are swallowed so a gallery seed never breaks the card seed.
+    // Only for a freshly-created card; failures are swallowed so a gallery seed never breaks the card seed.
     if (outcome.created && outcome.id !== null && deps.seedGallery !== undefined) {
       await deps.seedGallery(principal, outcome.id, card.input.handle);
     }
@@ -145,7 +116,6 @@ export function createDefaultCharacterSeeder(
           settled.add(principal.userId);
         })
         .catch((err: unknown): void => {
-          // Never let a failed seed break request handling or boot — log and retry on the next touch.
           log.error(
             { userId: principal.userId, err: errorMessage(err) },
             "character: default card seed failed",

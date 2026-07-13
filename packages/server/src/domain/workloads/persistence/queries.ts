@@ -1,21 +1,8 @@
-// domain/workloads/persistence/queries — ALL `workloads`-table access (queries only; the verbs + engine
-// hold the logic). The load-bearing properties live HERE as physics:
-//   • CLAIM is idempotent — `markStarted` is `UPDATE … WHERE id=? AND status='queued'`; the loser of a
-//     two-worker race updates 0 rows (returns false) and polls the next row.
-//   • The STATE MACHINE is linear — `markTerminal`/`markCancelling`/`failQueuedRow` are STATUS-GUARDED and
-//     report whether they actually moved the row (a returned boolean / a transition). A zombie runner whose
-//     row was already reaped finds the predicate false, writes NOTHING; no terminal→terminal.
-//   • POISON-ROW tolerance — `nextRunnableWorkload` windows the queue head (limit 10) and FAILS an
-//     unrecognized-`kind` row in place via `failQueuedRow` instead of starving the queue; `toView` mirrors
-//     this on the read path (a legacy/renamed kind → `null`, filtered, never 500s `list`).
-//   • DAG ORDERING (§2 dependsOn enforcement) — a queued row with a non-empty `dependsOn` is dispatchable
-//     ONLY when EVERY dependency reached a TERMINAL state AND each is `succeeded`. `nextRunnableWorkload`
-//     gates on `resolveDependencyGate`: `waiting` (a dep still active) → the row is SKIPPED (stays queued);
-//     `failed` (a dep hit a NON-success terminal, or is absent) → the dependent is failed IN PLACE with the
-//     `dependency_failed` error arm (never dispatched); `ready` (all deps succeeded) → dispatch. This is the
-//     SOLE producer of the `dependency_failed` `WorkloadError` arm (§7.5 one-producer-per-arm).
-// Determinism: every timestamp write takes the INJECTED `now` (no ambient `Date.now()` / db-clock default on
-// the write path). The typed projection `toView` lives here (it touches the row); the TYPE is in `contract/`.
+// domain/workloads/persistence/queries — all `workloads`-table access. Claim is idempotent (status-guarded
+// UPDATE; a race loser updates 0 rows). The state machine is linear (terminal transitions are status-guarded
+// and report whether they moved the row — no terminal→terminal). `nextRunnableWorkload` tolerates poison
+// rows (unrecognized kind → failed in place, never starves the queue) and enforces DAG dependsOn ordering
+// (a dep still active → skip; any non-success terminal or absent dep → fail with `dependency_failed`).
 
 import type {
   WorkloadKind,
@@ -35,10 +22,7 @@ import type { WorkloadError } from "../contract/workload-error";
 import { parseParamsForKind } from "../contract/workload-params";
 import type { WorkloadRowAnyKind } from "../contract/workload-row";
 
-// The terminal states `markTerminal` may stamp (an in-flight → terminal flip). `cancelled` is handled by the
-// engine pin (cancelling → cancelled); the reaper stamps `worker_died`; the dispatcher stamps the rest.
-// Declared as a derived tuple (not an inline union — §7.5 no-inline-union-redecl); `satisfies` pins every
-// member as a real `WorkloadStatus`.
+// The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = [
   "succeeded",
   "failed",
@@ -50,30 +34,17 @@ type TerminalStatus = (typeof TERMINAL_STATUSES)[number];
 const isTerminalStatus = (status: WorkloadStatus): status is TerminalStatus =>
   (TERMINAL_STATUSES as readonly WorkloadStatus[]).includes(status);
 
-// The single terminal-SUCCESS state — the only terminal a dependency may reach for the dependent to run. Every
-// OTHER terminal (`failed`/`cancelled`/`worker_died`) is a DEPENDENCY FAILURE: the design (§2) treats any
-// non-`succeeded` terminal dep as a failure (a cancelled/reaped dep is no more "done successfully" than a
-// failed one), so the dependent can never run and is failed with `dependency_failed`.
+// The only terminal a dependency may reach for the dependent to run; any other terminal is a dependency failure.
 const TERMINAL_SUCCESS_STATUS = "succeeded" as const satisfies WorkloadStatus;
 
-// The stored message for a dependent failed because a dependency did not succeed (mirrors the reaper's static
-// terminal message). The `dependency_failed` KIND is the classification carried on the `WorkloadError` arm.
 const DEPENDENCY_FAILED_MESSAGE =
   "a dependency did not succeed (a non-success terminal, or an absent dependency) — the dependent cannot run";
 
-/** The verdict for a dependent's `dependsOn` set: `ready` (all deps `succeeded`), `waiting` (at least one dep
- *  still active — none failed), `failed` (at least one dep hit a NON-success terminal, or is absent). Failure
- *  is fail-fast — a single failed/absent dep short-circuits to `failed` even if others are still active (the
- *  dependent can never succeed, so there is nothing to wait for). Declared as a derived tuple (§7.5
- *  no-inline-union-redecl). */
+/** The verdict for a dependent's `dependsOn` set: `ready` (all deps succeeded), `waiting` (at least one dep
+ *  still active), `failed` (fail-fast — a single failed/absent dep short-circuits even if others are active). */
 const DEPENDENCY_GATES = ["ready", "waiting", "failed"] as const;
 type DependencyGate = (typeof DEPENDENCY_GATES)[number];
 
-/**
- * Classify a dependent's `dependsOn` set (§2 DAG gate). Reads the raw status of every dep in one indexed
- * `IN (…)` select; an id with no row (absent dep) counts as a failure — it can never become `succeeded`, so
- * waiting on it would leak the dependent in the queue forever.
- */
 async function resolveDependencyGate(
   db: Db,
   dependsOn: readonly WorkloadId[],
@@ -89,27 +60,23 @@ async function resolveDependencyGate(
       continue;
     }
     if (status === undefined || isTerminalStatus(status)) {
-      return "failed"; // absent OR a non-success terminal — the dependent can never run.
+      return "failed";
     }
-    anyActive = true; // queued/running/cancelling — the dep is still in flight.
+    anyActive = true;
   }
   return anyActive ? "waiting" : "ready";
 }
 
-// The in-flight states a heartbeat/terminal/reap UPDATE is guarded on (the lease holders). Derived from the
-// active set MINUS `queued` — a queued row is not in-flight (it has no worker/heartbeat).
+// The in-flight states a heartbeat/terminal/reap UPDATE is guarded on (a queued row has no worker/heartbeat).
 const IN_FLIGHT_STATUSES = ["running", "cancelling"] as const satisfies readonly WorkloadStatus[];
 
-// The poison-tolerance window: how many queue-head rows `nextRunnableWorkload` scans past unrecognized kinds.
 const QUEUE_HEAD_WINDOW = 10;
 const LIST_HARD_CAP = 500;
 
-/** A new queued row (file-local; the verb mints `id`, parses `params`, passes its injected clock). */
 interface WorkloadInsert {
   readonly id: WorkloadId;
   readonly kind: WorkloadKind;
   readonly mode: WorkloadMode;
-  /** The single-active lock partition (`workloads.source`) — the `index` kind's own source, else `none`. */
   readonly source: WorkloadSource;
   readonly params: Record<string, unknown>;
   readonly ownerId: UserId | null;
@@ -118,13 +85,9 @@ interface WorkloadInsert {
   readonly createdAt: number;
 }
 
-/** The raw Drizzle select row (the JSON columns are still `unknown`/`Record` before `toView` narrows them). */
 type WorkloadSelectRow = typeof workloads.$inferSelect;
 
-/** The persistence-facing list filter — the COLUMN predicates only (file-local; the verb resolves the
- *  server-authoritative `ownerId` scope from the caller BEFORE calling in, so persistence never sees a
- *  Principal — it is pure data access). `ownerId: null` filters to system/scheduler rows; `undefined` = no
- *  owner filter (the deployment-wide view). */
+/** `ownerId: null` filters to system/scheduler rows; `undefined` = no owner filter. */
 interface WorkloadListFilter {
   readonly kind?: WorkloadKind;
   readonly status?: WorkloadStatus;
@@ -136,11 +99,8 @@ interface WorkloadListFilter {
 const isKnownKind = (kind: string): kind is WorkloadKind =>
   (WORKLOAD_KINDS as readonly string[]).includes(kind);
 
-/**
- * Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` for a POISON row (a `kind` this build doesn't
- * ship, or a `params` blob that fails its kind schema — deploy skew). The ONE place the JSON columns are
- * narrowed against the discriminator, so no consumer casts.
- */
+/** Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` for a poison row (unrecognized kind, or a
+ *  params blob that fails its kind schema). The one place the JSON columns are narrowed. */
 export function toView(row: WorkloadSelectRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
     return null;
@@ -151,9 +111,7 @@ export function toView(row: WorkloadSelectRow): WorkloadRowAnyKind | null {
   } catch {
     return null;
   }
-  // The discriminator is validated (kind known + params parsed); the assembled object IS a valid
-  // `WorkloadRow<kind>` but TS can't correlate `row.kind` (a widened union) with the per-kind result — the
-  // single sanctioned cast for the typed projection (same seam as chat's `LoadedChat`).
+  // TS can't correlate the widened `row.kind` union with the per-kind result — sanctioned cast.
   return {
     id: row.id,
     kind: row.kind,
@@ -197,8 +155,7 @@ export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<
   return moved.length > 0;
 }
 
-/** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key). Also the progress
- *  liveness bump (the row carries no progress column — progress fans out on the bus, not the table). */
+/** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key). */
 export async function heartbeat(db: Db, id: WorkloadId, now: number): Promise<void> {
   await db
     .update(workloads)
@@ -206,14 +163,9 @@ export async function heartbeat(db: Db, id: WorkloadId, now: number): Promise<vo
     .where(and(eq(workloads.id, id), inArray(workloads.status, [...IN_FLIGHT_STATUSES])));
 }
 
-/**
- * Stamp a terminal state — STATUS-GUARDED. Returns whether it actually moved the row: a zombie runner whose
- * row was already reaped finds the predicate false → returns `false`, writes NOTHING (the
- * reaper-vs-zombie guard). The guard is status-specific to keep the machine LINEAR: `succeeded` is allowed
- * ONLY from `running` (a `cancelling` row can never flip to `succeeded` — the engine pins it to `cancelled`
- * instead); the failure terminals (`failed`/`cancelled`/`worker_died`) move from EITHER
- * in-flight state. `succeeded` carries the result JSON; the failure terminals carry an `error` string.
- */
+/** Stamp a terminal state — status-guarded, returns whether it actually moved the row (a zombie runner whose
+ *  row was already reaped writes nothing). `succeeded` is allowed only from `running`; failure terminals move
+ *  from either in-flight state. */
 export async function markTerminal(
   db: Db,
   args: {
@@ -239,7 +191,7 @@ export async function markTerminal(
   return moved.length > 0;
 }
 
-/** The raw status of one row (`undefined` when absent) — the cancel-poll's cheap read (no `toView`). */
+/** The raw status of one row (`undefined` when absent). */
 export async function loadWorkloadStatus(
   db: Db,
   id: WorkloadId,
@@ -252,12 +204,8 @@ export async function loadWorkloadStatus(
   return rows[0]?.status;
 }
 
-/**
- * Race-safe, idempotent cancel. Tries the QUEUED arm first (`queued → cancelled`); on 0 rows (the row
- * flipped to running between calls) tries the RUNNING arm (`running → cancelling`). An already-`cancelling`
- * row returns `cancelling` (idempotent); a terminal/absent row returns `null` (a no-op). No SELECT-then-act
- * gap — each arm is a status-guarded UPDATE.
- */
+/** Race-safe, idempotent cancel: tries `queued → cancelled`, then `running → cancelling` on 0 rows. No
+ *  SELECT-then-act gap — each arm is a status-guarded UPDATE. */
 export async function markCancelling(
   db: Db,
   id: WorkloadId,
@@ -279,7 +227,6 @@ export async function markCancelling(
   if (cancellingRunning.length > 0) {
     return { status: "cancelling" };
   }
-  // Neither arm moved: either already cancelling (idempotent) or terminal/absent (no-op).
   const current = await db
     .select({ status: workloads.status })
     .from(workloads)
@@ -288,9 +235,8 @@ export async function markCancelling(
   return { status: current[0]?.status === "cancelling" ? "cancelling" : null };
 }
 
-/** Fail a QUEUED row in place (the poison-row + dependency-failed paths). `markTerminal` only transitions
- *  from in-flight states, so a never-claimed row that can NEVER run (unrecognized kind, or a failed
- *  dependency) needs this guarded `queued → failed`. Returns whether it moved. */
+/** Fail a queued row in place (poison-row + dependency-failed paths) — `markTerminal` only transitions
+ *  from in-flight states. Returns whether it moved. */
 export async function failQueuedRow(
   db: Db,
   id: WorkloadId,
@@ -312,8 +258,7 @@ export async function loadWorkload(db: Db, id: WorkloadId): Promise<WorkloadRowA
   return row === undefined ? null : toView(row);
 }
 
-/** Filtered list (kind/status/owner/since), newest-first, hard-capped 500. Poison rows are filtered (never
- *  500s the read). `ownerId: null` filters to system/scheduler rows; `undefined` applies no owner filter. */
+/** Filtered list (kind/status/owner/since), newest-first, hard-capped 500. Poison rows are filtered out. */
 export async function listWorkloads(
   db: Db,
   params: WorkloadListFilter,
@@ -346,16 +291,9 @@ export async function listWorkloads(
   });
 }
 
-/**
- * The next runnable row, or `null`. Windows the queue head (`status='queued'`, oldest first) and returns the
- * first DISPATCHABLE row. Two kinds of head row are handled in place rather than returned:
- *   • an unrecognized-`kind` POISON row is FAILED in place (not thrown — a throw would back the worker off and
- *     re-poll the same oldest row forever, starving the queue);
- *   • a row whose `dependsOn` gate is not satisfied (§2 DAG ordering): `waiting` (a dep still active) is
- *     SKIPPED (stays queued, un-dispatched, until its deps terminate); `failed` (a dep hit a NON-success
- *     terminal, or is absent) is FAILED in place with the `dependency_failed` arm (the SOLE producer of it).
- * Dispatch order within the runnable set stays `(scheduledAt, createdAt)`.
- */
+/** The next runnable row, or `null`. Windows the queue head and returns the first dispatchable row: a
+ *  poison row is failed in place (never thrown, to avoid starving the queue on the same head row); a row
+ *  whose `dependsOn` gate is `waiting` is skipped, `failed` is failed in place. */
 export async function nextRunnableWorkload(
   db: Db,
   now: number,
@@ -369,8 +307,7 @@ export async function nextRunnableWorkload(
   for (const row of head) {
     const view = toView(row);
     if (view === null) {
-      // Poison row (unknown kind / bad params): fail it in place so the next valid row can proceed.
-      // biome-ignore lint/performance/noAwaitInLoops: poison rows are rare; each must be failed (sequentially) before the next valid head row is returned — Promise.all would fail unrelated rows concurrently for no benefit.
+      // biome-ignore lint/performance/noAwaitInLoops: poison rows are rare; each must be failed sequentially before the next valid head row is returned.
       await failQueuedRow(db, row.id, `unrecognized or malformed workload kind: ${row.kind}`, now);
       getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
       continue;
@@ -378,7 +315,7 @@ export async function nextRunnableWorkload(
     if (view.dependsOn !== null && view.dependsOn.length > 0) {
       const gate = await resolveDependencyGate(db, view.dependsOn);
       if (gate === "waiting") {
-        continue; // deps still in flight — leave it queued, try the next head row.
+        continue;
       }
       if (gate === "failed") {
         const error: WorkloadError = {
@@ -392,15 +329,13 @@ export async function nextRunnableWorkload(
         );
         continue;
       }
-      // gate === "ready": every dep succeeded → dispatch below.
     }
     return view;
   }
   return null;
 }
 
-/** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input. Poison
- *  in-flight rows (should not occur — a claimed row's kind was known at claim) are filtered by `toView`. */
+/** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input. */
 export async function findStaleInFlight(
   db: Db,
   staleBefore: number,

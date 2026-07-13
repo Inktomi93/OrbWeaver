@@ -1,10 +1,6 @@
-// Gate: component-size (docs/architecture/core/Core-Laws-and-Precedents.md; neo parity) — a hard
-// file-size cap on @orb/client sources so "I'll split it later" can't survive a check run. The cap is a
-// structural guard, not a style preference (≤250 lines stays the WRITING guideline in UI-Arch); it
-// exists so god-component sprawl is caught before splitting becomes a week's work. `.ts` is gated
-// alongside `.tsx` because sprawl hides in a verb-dispatch hook or a mega-store just as readily as in a
-// surface — gating only `.tsx` would leave that whole class invisible. Greenfield: no OVERSIZE_DEBT
-// grandfather list (neo carried one); the first file to breach the cap fails, which is the point.
+// Gate: component-size (Core-Laws-and-Precedents.md) — a hard file-size cap on @orb/client sources so
+// "I'll split it later" can't survive a check run. `.ts` is gated alongside `.tsx` because sprawl hides
+// in a verb-dispatch hook or a mega-store just as readily as in a surface.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
@@ -66,11 +62,6 @@ function scanComponentSize(root: string): Violation[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
-// component-size walks the real fs (readdirSync recursion + readFileSync line counts of client src) — a
-// `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance materializes examples
-// to a real temp dir. The finding lands at `cap+1` (the first over-cap line). Byte-identical to the
-// legacy Check.
 export const gate: GateDescriptor = {
   name: "component-size",
   docRow: "Core-Laws-and-Precedents.md (UI-Architecture-and-Layout.md §2.1)",

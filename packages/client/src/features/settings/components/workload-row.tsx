@@ -1,18 +1,11 @@
-// One workload row in Settings → Workloads (a COMPONENT so its destructive-cancel <AlertDialog> is
-// legal — client-structure rule 7; the admin-user-row precedent). Anatomy: a ListRow head (kind label ·
-// relative created-time · owner handle for a foreign row in the owner∪admin cross-owner view · status
-// badge + Cancel/Retry actions), then the detail line — a live progress bar (determinate off the pct,
-// indeterminate otherwise) for ACTIVE rows, a compact result preview for succeeded, the persisted error
-// reason for failure terminals.
+// One workload row in Settings → Workloads. Anatomy: a ListRow head (kind label · relative created-time
+// · owner handle for a foreign row · status badge + Cancel/Retry actions), then a detail line — a live
+// progress bar for active rows, a compact result preview for succeeded, the persisted error reason for
+// failure terminals.
 //
-// LIVE: an active row (queued/running/cancelling — the contract's slot-holding statuses) mounts the
-// `workloads.subscribe` tail via `ActiveWorkloadRow`; progress buffers in ROW-LOCAL state and every
-// state-changing event invalidates `workloads.list` through the central seam (use-workload-stream.ts).
-// A terminal event refetches the list → the row re-renders non-active → the subscription unmounts.
-//
-// Cancel mirrors the verb honestly: offered only on active rows, confirm-gated (an AlertDialog — a
-// running pass stops mid-flight). Retry is offered on the failure-ish terminals; the verb clones a
-// fresh queued row (the original stays as audit).
+// An active row mounts the workloads.subscribe tail via ActiveWorkloadRow; progress buffers in row-local
+// state and every state-changing event invalidates workloads.list. Cancel is confirm-gated; Retry clones
+// a fresh queued row (the original stays as audit).
 
 import {
   AlertDialog,
@@ -57,8 +50,7 @@ type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
 export interface WorkloadRowProps {
   readonly workload: WorkloadItem;
-  /** The owning user's handle when the viewer sees ACROSS owners (owner∪admin) and the map has
-   *  resolved; `null` = the caller's own row (or the handle read hasn't landed — omit quietly). */
+  /** The owning user's handle for a cross-owner view; `null` = the caller's own row (or unresolved). */
   readonly ownerHandle: string | null;
   readonly onCancel: () => void;
   readonly onRetry: () => void;
@@ -73,8 +65,7 @@ export function WorkloadRow(props: WorkloadRowProps): ReactElement {
   );
 }
 
-/** The live wrapper: mounts the per-row subscription + the row-local progress buffer (§11.1 — the
- *  transient progress never touches the query cache). */
+/** The live wrapper: mounts the per-row subscription + the row-local progress buffer. */
 function ActiveWorkloadRow(props: WorkloadRowProps): ReactElement {
   const invalidation = useInvalidation();
   const [progress, setProgress] = useState<WorkloadProgressView | null>(null);
@@ -96,8 +87,6 @@ function WorkloadRowBody({
   const [confirmCancel, setConfirmCancel] = useState(false);
   const kindLabel = WORKLOAD_KIND_LABELS[workload.kind];
   const active = isActiveWorkloadStatus(workload.status);
-  // Queue-state overlays the server has no distinct status for (derived from scheduledAt/dependsOn/error):
-  // a deferred run (future scheduledAt), a run blocked on its DAG gate, and the dependency_failed terminal.
   const deferred = isDeferredWorkload(workload);
   const waiting = isWaitingOnDependencies(workload);
   const depFailed = workload.status === "failed" && isDependencyFailure(workload.error);
@@ -119,12 +108,7 @@ function WorkloadRowBody({
           <Row align="center" gap="row">
             {workload.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
-            {/* aria-live so a screen-reader user hears a Running→Failed/Succeeded flip without
-                re-navigating to the row (the badge text IS the announced status). A dependency_failed
-                terminal is labelled apart from a plain failure though the underlying status is `failed`. */}
             <Row aria-live="polite" data-slot="workload-status">
-              {/* dependency_failed is a distinct terminal from a plain failure (never ran because a
-                  dependency failed) — warning tone keeps it visually apart from destructive-red Failed. */}
               <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]}>
                 {statusLabel}
               </Badge>
@@ -154,8 +138,6 @@ function WorkloadRowBody({
           </Row>
         }
       />
-      {/* A deferred or dep-gated row is queued but NOT processing — show its wait detail, not a
-          (misleading) indeterminate progress bar; a genuinely active row keeps the live bar. */}
       {active && !deferred && !waiting ? (
         <Progress
           label={progress?.label ?? WORKLOAD_STATUS_LABELS[workload.status]}
@@ -195,8 +177,7 @@ function WorkloadRowBody({
   );
 }
 
-/** The queue-state badges next to the status badge — a deferred (future-dated) or dep-gated run is queued
- *  but distinct from a plain "Queued" (it isn't processing). */
+/** The queue-state badges next to the status badge. */
 function QueueStateBadges({
   deferred,
   waiting,
@@ -215,7 +196,7 @@ function QueueStateBadges({
   );
 }
 
-/** The wait-detail line under a deferred/dep-gated row — when it will run / how many deps it waits on. */
+/** The wait-detail line under a deferred/dep-gated row. */
 function WorkloadWaitDetail({
   workload,
   deferred,
@@ -244,8 +225,7 @@ function WorkloadWaitDetail({
   );
 }
 
-/** The failure line for a failed/worker_died row: the friendly (user-actionable) copy when a class
- *  matches — with the raw exception one disclosure away for support — else the raw string verbatim. */
+/** The failure line for a failed/worker_died row: friendly copy when a class matches, with the raw exception one disclosure away. */
 function WorkloadFailureDetail({
   workload,
 }: {
@@ -264,8 +244,6 @@ function WorkloadFailureDetail({
       <Text size="micro" tone="destructive">
         {friendlyError ?? rawError}
       </Text>
-      {/* The friendly line replaced the raw exception — keep the original one disclosure away for
-          support (a real <button> with aria-expanded via the Collapsible seal). */}
       {friendlyError === null ? null : (
         <Collapsible>
           <CollapsibleTrigger>

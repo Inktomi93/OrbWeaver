@@ -1,22 +1,11 @@
-// entry/http/upload — the multipart ingest registrar (core/Tier-5-Entry.md §layout "upload.ts"). Two routes,
-// both mutating byte-ingest writes. app.ts resolves the `Principal` and derives the CSRF SIGNAL but does NOT
-// gate on it (spine §3 — "CSRF is a signal here, not a gate; the transport ladder enforces"). So EACH route
-// below enforces the belts itself, in order (mirroring POST /api/import/bundle in entry/http/import.ts):
-//   1. AUTH FIRST — `principal === null` → 401 BEFORE the body is read (an anon caller can't make us buffer).
-//   2. CSRF — a COOKIE-authenticated mutation missing the custom header → 403 (SameSite=Lax already blocks a
-//      cross-site POST from carrying the session; the custom-header check is the defense-in-depth belt).
-//   3. BODY CAP — a `hono/body-limit` stream cap → 413 over-size, rejected before the whole body is buffered
-//      (the PD-94 unbounded-`formData()` DoS fix; the belt runs AFTER auth so it never buffers for an anon).
-//   • POST /api/assets/upload  — a single asset file → `assets.store({ enforceMagic:true, maxBytes })` → StoredAsset.
-//   • POST /api/import         — character-card file(s) → DELEGATES to `entry/import/run-profile-import`
-//                                (DECISIONS-LEDGER §7 D3 — the route never re-implements the import flow).
+// The multipart ingest registrar. Two mutating byte-ingest routes; app.ts resolves the Principal and
+// derives the CSRF signal but does not gate on it, so each route enforces the belts itself: auth first
+// (401 before the body is read) → CSRF (403 on a cookie mutation missing the custom header) → a
+// hono/body-limit stream cap (413 over-size, rejected before the whole body is buffered).
+//   • POST /api/assets/upload — a single asset file → assets.store({ enforceMagic:true, maxBytes }).
+//   • POST /api/import — character-card file(s) → delegates to entry/import/run-profile-import.
 //
-// `enforceMagic:true` on the asset upload is the user-upload boundary belt (a mislabeled
-// binary is rejected before it reaches CAS). The import route trusts the import flow's own card parse, so
-// it does NOT enforce magic (the bytes are validated as a card, not by mime).
-//
-// SCOPE: the import route accepts already-extracted card FILES. A profile ZIP / dir collection (the loader
-// subsystem) is a later wave — see the DEFER(promotion) FLAG[PD-77] note in run-profile-import.ts.
+// The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
@@ -44,14 +33,12 @@ const IMPORT_ROUTE = "/api/import";
 const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 
-// ── PD-94 body caps (the stream-level `formData()` DoS bound) ────────────────────────────────────────────
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-// A single asset (avatar / gallery image): 64 MiB matches the zip per-entry cap. Also passed as the store's
-// `maxBytes` belt, so an over-cap single field is rejected before the CAS write even if it slips the body cap.
+// A single asset (avatar/gallery image). Also passed as the store's maxBytes belt, so an over-cap single
+// field is rejected before the CAS write even if it slips the body cap.
 const ASSET_UPLOAD_MAX_MIB = 64;
 const ASSET_UPLOAD_MAX_BYTES = ASSET_UPLOAD_MAX_MIB * BYTES_PER_MIB;
-// Character-card file(s), possibly several per request: 256 MiB mirrors the bundle route's compressed cap.
 const IMPORT_MAX_MIB = 256;
 const IMPORT_MAX_BYTES = IMPORT_MAX_MIB * BYTES_PER_MIB;
 
@@ -71,30 +58,23 @@ export interface UploadAssetsPort {
 export interface UploadDeps {
   /** Serves both the asset-upload `store` and (narrowed to `ImportAssetPort`) the import avatar-store. */
   readonly assets: UploadAssetsPort & ImportAssetPort;
-  /** The character create/dedup ops the import driver wires (passed through to run-profile-import). */
   readonly character: ImportCharacterPort;
-  /** The tag carry op the import driver wires (the `card.tags` → card/pending junction rows). */
   readonly tag: ImportTagPort;
-  /** The embedded-lorebook write op (W1) — so an imported card's `character_book` actually lands. Wired at
-   *  the composition root from `world-info.createBulkImportLorebook`; without it embedded books are dropped. */
+  /** So an imported card's `character_book` actually lands (without it embedded books are dropped). */
   readonly worldInfo: ImportWorldInfoPort;
 }
 
-/** The request-context shape `app.ts` populates: the resolved caller (or `null` when anonymous). */
 interface PrincipalEnv {
   // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
   Variables: { principal: Principal | null };
 }
 
-/** Read a `File` field's bytes (web `File` is a global on Node 24). */
 async function fileBytes(file: File): Promise<Uint8Array> {
   return new Uint8Array(await file.arrayBuffer());
 }
 
-/** Auth-FIRST + CSRF gate, run as middleware BEFORE the body-limit belt so an anonymous / cross-site caller
- *  is rejected before a single body byte is read (the 401-before-buffer posture the bundle route uses). 401
- *  when unauthenticated; 403 when a COOKIE-authenticated mutation omits the custom CSRF header. Non-cookie
- *  principals (header / fallback) are not CSRF-eligible. */
+/** Auth-first + CSRF gate, run as middleware before the body-limit belt so an anonymous/cross-site caller
+ *  is rejected before a single body byte is read. */
 const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
   const principal = c.get("principal");
   if (principal === null) {
@@ -107,14 +87,12 @@ const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
 };
 
 /** A `hono/body-limit` belt that returns a 413 (rather than throwing an HTTPException, which the app's
- *  observability onError would flatten to a 500). Streams the body, aborting the read the instant it exceeds
- *  `maxBytes` — never buffering the whole over-cap body (the PD-94 fix). */
+ *  observability onError would flatten to a 500). */
 function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {
   return bodyLimit({ maxSize: maxBytes, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
 }
 
-/** Register `POST /api/assets/upload` + `POST /api/import` on `app`. Each: auth-first → CSRF → body cap →
- *  handler (the belt order mirrors POST /api/import/bundle). */
+/** Register `POST /api/assets/upload` + `POST /api/import` on `app`. Each: auth-first → CSRF → body cap → handler. */
 export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void {
   app.post(ASSET_UPLOAD_ROUTE, authCsrfGuard, bodyCap(ASSET_UPLOAD_MAX_BYTES), async (c) => {
     const principal = c.get("principal");

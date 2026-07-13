@@ -1,26 +1,17 @@
-// @orb/server/kit/serde/chat — the ONE chat-JSONL serde core (W0a): the ST chat interchange grammar with
-// BOTH directions in one home, so build + parse can never drift (the card-serde precedent — PD-44). PURE:
-// zero I/O, zero db, zero id-resolution — it maps `ParsedChat` (a NAME-level canonical shape) ↔ the ST
-// `.jsonl` string. The RELATIONAL work stays OUT of here, in each domain:
-//   • export resolves character/persona ids → NAMES before `buildChatJsonl` (the verb builds a `ParsedChat`).
-//   • import maps NAMES → ids (via `personaByUserName`/attribution) AFTER `parseChatJsonl`.
-// So the serde only ever sees `speakerName`/`characterName`/`userName` strings — never a db handle or an id map.
+// The one chat-JSONL serde core: the ST chat interchange grammar with both directions in one home, so
+// build + parse can never drift. Pure: zero I/O, zero db, zero id-resolution — it maps `ParsedChat` (a
+// name-level canonical shape) to/from the ST .jsonl string. The relational work stays out of here: export
+// resolves character/persona ids → names before buildChatJsonl; import maps names → ids after
+// parseChatJsonl. So the serde only ever sees speakerName/characterName/userName strings.
 //
-// THE LOAD-BEARING ESOTERICA (carried verbatim from the corpus study — do NOT re-derive):
-//   • parse esoterica 1 — `parseStDate` / the FILENAME date WINS (the caller passes `fileName`): ST re-save
-//     rewrites the header `create_date` AND every `send_date` to the migration time; the true creation date
-//     survives ONLY in the filename token. Filename → header → null.
-//   • parse esoterica 3 — `buildVariants` DROPS empty swipe slots + remaps the active index; `mes` (the
-//     rendered content) is authoritative regardless.
-//   • build ST HUMAN DATE (`formatStDate`) — dates emit in the legacy human form ("August 27, 2025 6:36pm",
-//     UTC, MINUTE precision) so a vanilla legacy reader renders a readable date; `parseStDate` reads it back.
-//   • build SWIPE ARRAYS ONLY WHEN >1 VARIANT — matches the parser's `>1` real-swipe gate; a single-variant
-//     turn stays clean and re-imports without a swipe array.
-//   • build BRANCH + NOTE ROUND-TRIP — `main_chat` = the parent chat's imported source filename;
-//     `note_prompt` = the author's note. Both omitted when null (a clean chat stays clean).
+// Load-bearing esoterica (carried verbatim from the corpus study — do not re-derive):
+//   • the filename date wins over the header create_date (ST re-save rewrites the header to migration time).
+//   • buildVariants drops empty swipe slots + remaps the active index; `mes` is authoritative regardless.
+//   • dates emit in the legacy human form (UTC, minute precision); parseStDate reads it back.
+//   • swipe arrays build only when >1 variant, matching the parser's real-swipe gate.
+//   • main_chat/note_prompt round-trip the branch parent filename + author's note, omitted when null.
 //
-// Round-trip drift guard: `buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p)` — pinned
-// in the mirror test (build ignores `metadata`/`ttftMs`, so the SERIALIZED form is the stable fixed point).
+// Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
 import type { MessageRole } from "@orb/kit/message-role";
 import { epochToMs, isoToMs } from "@orb/kit/time";

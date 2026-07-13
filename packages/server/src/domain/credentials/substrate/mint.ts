@@ -1,20 +1,12 @@
-// domain/credentials/substrate/mint — THE single construction home for the brand-protected
-// `ResolvedCredential` arms (the brand's ONLY legal cast sites). Each factory
-// encapsulates the ONE `as <Brand>` cast for its arm; nothing else in the codebase produces a value
-// satisfying the brand. It lives in `substrate/` (not `verbs/resolve.ts`) for ONE reason that is physics,
-// not preference: `domain-no-cross-verb` forbids a verb importing another verb's value, so `resolve` +
-// `test-health` + `inspect-endpoint` could not share a factory homed in `resolve.ts`. Homing them in
-// substrate keeps the casts in ONE auditable
-// file AND lets every construction site reach them through the DI seam (substrate mediates).
+// The single construction home for the brand-protected `ResolvedCredential` arms — the brand's only legal
+// cast sites. Lives in `substrate/` (not a verb) so `resolve`/`test-health`/`inspect-endpoint` can share it
+// without a cross-verb import.
 //
-// The `max-pro-sub` factory is the load-bearing gate (D17): it is unconstructable except AFTER
-// `requireOwner` passes — the owner's box credential, never an admin's. The guard runs INSIDE the
-// factory (the DECIDED 2026-06-25 factory signature: it accepts a `Principal`), so the cast can't be reached
-// without the owner check.
+// The `max-pro-sub` factory is the load-bearing gate: it is unconstructable except after `requireOwner`
+// passes — the guard runs inside the factory, so the cast can't be reached without the owner check.
 //
-// The casts are object-literal → branded intersection: the branded type is assignable to the plain
-// shape, so TS permits the `as` (TS2352 needs NEITHER direction assignable). NOT `as unknown as` — these
-// are the brand's sanctioned escape hatch, kept narrow and single-sited.
+// The casts are object-literal → branded intersection (not `as unknown as`) — the brand's sanctioned escape
+// hatch, kept narrow and single-sited.
 
 import type {
   CustomOpenAiCredential,
@@ -27,9 +19,8 @@ import type { Principal } from "@orb/contracts/identity";
 import type { UserCredentialId } from "@orb/kit/ids";
 import type { RequireOwner } from "#domain/admin";
 
-/** Mint the OWNER's box credential (agent-sdk over the host Claude sub). OWNER-ONLY (D17): `requireOwner`
- *  throws `DomainForbiddenError` for any non-owner principal BEFORE the cast is reached — the only gate
- *  site for this arm. No key, no row. */
+/** Mint the owner's box credential (agent-sdk over the host Claude sub). Owner-only: `requireOwner` throws
+ *  for any non-owner principal before the cast is reached. No key, no row. */
 export function mintMaxProSub(
   principal: Principal,
   requireOwner: RequireOwner,
@@ -52,15 +43,14 @@ export function mintVllm(): VllmCredential {
   return { source: "vllm", credentialId: null } as VllmCredential;
 }
 
-/** Mint the in-process transformers.js/ONNX marker — the owner's-box keyless local-light tier (D39). */
+/** Mint the in-process transformers.js/ONNX marker — the owner's-box keyless local-light tier. */
 export function mintLocalLight(): LocalLightCredential {
   return { source: "local-light", credentialId: null } as LocalLightCredential;
 }
 
 /** Mint a user-defined OpenAI-compatible endpoint credential. `apiKey` is `null` for no-auth local
- *  servers; `headers` is the per-endpoint request transform; `credentialId` is the active row's id;
- *  `model` is the convenience default model string from `metadata.model` (GAP-6 — the Connections custom
- *  picker's `defaultModelId`), `undefined` when the row carries none. */
+ *  servers; `headers` is the per-endpoint request transform; `model` is the convenience default model
+ *  string from `metadata.model`, `undefined` when the row carries none. */
 export function mintCustomOpenAi(args: {
   readonly baseUrl: string;
   readonly apiKey: string | null;

@@ -1,18 +1,14 @@
-// verb: exportChat (PD-42) — read the chat + canon (D26 slots⋈variants) + the persona/character names,
-// build the canonical `ParsedChat` (NAME-level), and emit via the ONE chat serde core (`#kit/serde/chat`
-// `buildChatJsonl`/`buildChatTxt`). The RELATIONAL work (id → NAME resolution) lives HERE, before build; the
-// serde stays pure JSONL↔ParsedChat (W0a — one serde home, import is the inverse consumer).
+// Read the chat + canon (slots ⋈ variants) + persona/character names, build the canonical `ParsedChat`, and
+// emit via the chat serde core. The relational work (id → name resolution) lives here, before build; the
+// serde stays pure JSONL↔ParsedChat.
 //
-// GATE (D29): chats are MEMBERSHIP-scoped (D18 — no `chats.ownerId`); bulk transcript extraction is a HOST
-// action in v1. Export is the sanctioned bulk db-reader (no domain-service injection), so the gate is a
-// direct roster read: the caller must BE the present `role='host'` row. A non-host caller and a missing chat
-// COLLAPSE to `null` (no foreign-existence leak; HTTP maps null → 404).
+// Chats are membership-scoped (no `chats.ownerId`); bulk transcript extraction is a host action in v1. The
+// gate is a direct roster read: the caller must be the present `role='host'` row. A non-host caller and a
+// missing chat collapse to `null` (HTTP maps null → 404).
 //
-// D26 mapping: a message's primary contribution is its SELECTED variant (content + economics); the full
-// variant set is the swipe array. D28: the character name resolves off the flat `characters` row of the FIRST
-// character participant (join order — never a version pin). The `{{user}}` name is the chat's ANCHOR persona
-// (`chats.anchorPersonaId` → personas.name). Branch/note round-trip: `parentRef` = the parent chat's
-// `importedFrom`; `notePrompt` = `roomOverrides.authorsNote` (the ST author's-note home in typed metadata).
+// A message's primary contribution is its selected variant; the full variant set is the swipe array. The
+// character name resolves off the flat row of the first character participant. The `{{user}}` name is the
+// chat's anchor persona.
 
 import { characters, chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
@@ -28,8 +24,8 @@ type ChatRow = typeof chats.$inferSelect;
 type VariantRow = typeof messageVariants.$inferSelect;
 type MessageRow = typeof messages.$inferSelect;
 
-// Map a D26 variant row → the serde's swipe shape. `metadata` is not round-tripped through JSONL (build reads
-// the economics off the fields), so it's null on the export side.
+// Map a variant row → the serde's swipe shape. `metadata` is not round-tripped through JSONL, so it's null
+// on the export side.
 function toParsedVariant(v: VariantRow): ParsedVariant {
   return {
     idx: v.idx,
@@ -44,9 +40,8 @@ function toParsedVariant(v: VariantRow): ParsedVariant {
   };
 }
 
-// The per-chat speaker-name maps (D18/Part III — a room has MANY characters + personas): characterId → card
-// name (every voicing character), personaId → persona name (every human author). Built ONCE from the canon's
-// distinct ids so each turn resolves to its OWN speaker, not the header primary.
+// The per-chat speaker-name maps: characterId → card name, personaId → persona name. Built once from the
+// canon's distinct ids so each turn resolves to its own speaker, not the header primary.
 async function loadSpeakerNames(
   ctx: ExportContext,
   slots: readonly MessageRow[],
@@ -77,11 +72,9 @@ async function loadSpeakerNames(
   };
 }
 
-// Resolve THIS turn's speaker display name (Part III — the per-message speaker, never the header primary):
-// a human turn is its authoring persona; an assistant turn is its voicing character. FLAG[PD-17]: an
-// agent-authored assistant row (`characterId` NULL, `authorUserId` set — AP3) has no name source here yet
-// (its soul name needs `resolveAgentSpeaker`, doc 04 §5) → it degrades to the header character name; the
-// `agent_author` provenance (doc 06 §6) lands with the seat wave.
+// Resolve this turn's speaker display name: a human turn is its authoring persona; an assistant turn is its
+// voicing character. FLAG[PD-17]: an agent-authored assistant row has no name source here yet, so it
+// degrades to the header character name.
 function resolveSpeakerName(
   m: MessageRow,
   names: { char: Map<string, string>; persona: Map<string, string> },
@@ -97,9 +90,8 @@ function resolveSpeakerName(
   return fallback.characterName;
 }
 
-// Load the canon (slots ⋈ their variant sets, seq order) → the serde message inputs. The SELECTED variant is
-// the message's primary contribution (D26); a slot whose pointer is null degrades to variant 0 (the insert-
-// time window) — never a throw. Each row carries its OWN resolved speaker name (Part III group fidelity).
+// Load the canon (slots ⋈ their variant sets, seq order) → the serde message inputs. The selected variant is
+// the message's primary contribution; a slot whose pointer is null degrades to variant 0, never a throw.
 async function loadParsedMessages(
   ctx: ExportContext,
   chatId: ChatId,
@@ -151,8 +143,8 @@ async function loadParsedMessages(
   });
 }
 
-// The chat-level header facts: the primary character's name (D28 flat row, join order — inv #5), the anchor
-// persona's name, and the branch round-trip ref. Every miss degrades (never a throw).
+// The chat-level header facts: the primary character's name, the anchor persona's name, and the branch
+// round-trip ref. Every miss degrades, never a throw.
 async function loadExportMeta(
   ctx: ExportContext,
   chat: ChatRow,
@@ -199,8 +191,7 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     if (chat === undefined) {
       return null;
     }
-    // D29 host gate — the caller must be the PRESENT `role='host'` row (a non-host caller and a missing chat
-    // collapse to the same null). The `leftSeq IS NULL` belt mirrors canonical `requireHost` (chat/guard.ts).
+    // Host gate — the caller must be the present `role='host'` row.
     const hostRows = await ctx.db
       .select({ userId: chatParticipants.userId })
       .from(chatParticipants)
@@ -218,9 +209,8 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     }
 
     const { characterName, userName, parentRef } = await loadExportMeta(ctx, chat);
-    // The ST author's note (`note_prompt`) — orbweaver's home is `roomOverrides.authorsNote`. This reads the
-    // RAW (unparsed) metadata column, so a legacy pre-#22 value may be a bare string while a widened one is
-    // `{prompt, depth?, role?}` — take the prompt text from either shape.
+    // The author's note lives at `roomOverrides.authorsNote`; a legacy value may be a bare string while a
+    // widened one is `{prompt, depth?, role?}` — take the prompt text from either shape.
     const rawNote = chat.metadata?.roomOverrides?.authorsNote;
     const notePrompt = typeof rawNote === "string" ? rawNote : (rawNote?.prompt ?? null);
     const parsedMessages = await loadParsedMessages(ctx, chatId, { characterName, userName });

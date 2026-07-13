@@ -1,15 +1,12 @@
-// domain/chat/persistence/participant — the `chat_participants` kind-shape parser + the membership-lifecycle
-// writes. QUERIES ONLY: the shape-CHECK/UNIQUE/atomic-upsert are DB-level invariants this layer
-// enforces; the POLICY (who may join/kick/hand-off, targeting checks, AUTH_MODE gating) is the verbs'.
+// domain/chat/persistence/participant — the chat_participants kind-shape parser + the membership-lifecycle
+// writes. Queries only: the shape-check/unique/atomic-upsert are db-level invariants this layer enforces;
+// policy (who may join/kick/hand-off, targeting, AUTH_MODE gating) is the verbs'.
 //
-// THE RE-ADD UPSERT (Part III §1): a human (re)joins via the guarded atomic
-// `INSERT … ON CONFLICT(chatId,userId) DO UPDATE SET joinSeq=<current head>, leftSeq=NULL, role='member'
-// WHERE leftSeq IS NOT NULL`. The `(chatId,userId)` UNIQUE is the no-duplicate-membership enforcer; the
-// `WHERE leftSeq IS NOT NULL` means a still-present member's redeem is a no-op (empty RETURNING). `role` is
-// SERVER-FORCED `member` (never client-set) — the host role is only ever minted at chat creation / handoff.
-//
-// `joinSeq`/`leftSeq` are stamped against `messages.seq` (the join/leave HORIZON — Part III §1), NOT the
-// stream cursor; the seq + clock arrive as PARAMS (the verb reads `loadMaxMessageSeq` + its injected clock).
+// The re-add upsert: a human (re)joins via a guarded atomic INSERT … ON CONFLICT(chatId,userId) DO UPDATE
+// SET joinSeq=<head>, leftSeq=NULL, role='member' WHERE leftSeq IS NOT NULL — so a still-present member's
+// redeem is a no-op. `role` is server-forced `member`; the host role is only ever minted at chat creation /
+// handoff. `joinSeq`/`leftSeq` are stamped against messages.seq (the join/leave horizon), not the stream
+// cursor.
 
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
@@ -20,29 +17,17 @@ import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
-/** The validated participant ACTOR (the kind SHAPE resolved): the identity columns per the db
- *  `chat_participants_kind_shape` CHECK — human/agent carry `userId`, character carries `characterId`. The
- *  reserved `observer` kind carries neither and is un-seatable — {@link parseParticipant} rejects it.
- *  File-local: callers read the inferred discriminant. */
 type ParticipantActor =
   | { readonly kind: "human"; readonly userId: UserId }
   | { readonly kind: "character"; readonly characterId: CharacterId }
-  // Born at AP0 for exhaustiveness (D60; agent-principal-design/02 §1.1). An agent shares the human column
-  // shape (userId, no characterId). No agent rows exist until `chat.seatAgent` (AP3) — the arm is correct and
-  // unreachable until then; it is permanent born-compliant code (NOT temporary debt), so it carries no PD flag.
+  // No agent rows exist until chat.seatAgent — this arm is correct and unreachable until then.
   | { readonly kind: "agent"; readonly userId: UserId };
 
-/** A participant insert row (the lifecycle writers' input). Columns with schema defaults (`talkativeness`/
- *  `disabled`/`joinHistoryVisibility`) are omittable; `joinedAt`/`joinSeq` are caller-stamped (determinism). */
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
-/**
- * Validate + discriminate a `chat_participants` row's actor (the kind SHAPE — Part III §1; the db CHECK guards
- * the table, this is the parse-seam mirror). `human`/`agent` carry `userId` (no `characterId`); `character`
- * carries `characterId` (no `userId`); `observer` is reserved (carries neither, un-seatable) and the `default`
- * is `never`-exhaustive, so a new `PARTICIPANT_KINDS` member fails to compile until handled. Throws on a
- * corrupt row (the CHECK should make that unreachable).
- */
+/** Validate + discriminate a `chat_participants` row's actor. `default` is `never`-exhaustive, so a new
+ *  participant kind fails to compile until handled. Throws on a corrupt row (the db CHECK should make that
+ *  unreachable). */
 export function parseParticipant(row: {
   readonly kind: ParticipantKind;
   readonly userId: UserId | null;
@@ -62,8 +47,6 @@ export function parseParticipant(row: {
       return { kind: "character", characterId: row.characterId };
     }
     case "agent": {
-      // Same shape as human (userId, no characterId). No agent rows exist until seatAgent (AP3), so this arm
-      // is unreachable at AP0 — born for exhaustiveness + the AP2 consumers that will parse agent rows.
       if (row.userId === null || row.characterId !== null) {
         throw new Error("corrupt participant: kind 'agent' must carry userId XOR characterId");
       }
@@ -81,9 +64,7 @@ export function parseParticipant(row: {
   }
 }
 
-/** Born-compliant guard: a `character` participant is ALWAYS `role='member'` — a character can never be the
- *  host (the host is the one human authority + funding source, D18). The initial-roster builder + the
- *  add-character verb run this before writing (the host role is minted only for a human). */
+/** A `character` participant is always `role='member'` — a character can never be the host. */
 export function assertForcedCharacterMember(p: {
   readonly kind: ParticipantKind;
   readonly role: ParticipantRole;
@@ -93,15 +74,13 @@ export function assertForcedCharacterMember(p: {
   }
 }
 
-/** The present-and-contributing base predicate (Part III §1): `leftSeq IS NULL` ⇒ present (in EVERY union —
- *  WI / roster / arbitration). A left participant is gone from all of them. */
+/** `leftSeq IS NULL` ⇒ present (in every union — WI/roster/arbitration). */
 export function isPresent(p: { readonly leftSeq: number | null }): boolean {
   return p.leftSeq === null;
 }
 
-/** The arbiter-eligible predicate (Part III §1): present AND not muted. A `disabled` participant still
- *  contributes cards/WI but is never arbiter-selected + is excluded from `{{groupNotMuted}}`. (Offline-human
- *  cast-gating is presence — injected, not a DB column.) */
+/** Present and not muted. A `disabled` participant still contributes cards/WI but is never
+ *  arbiter-selected + is excluded from `{{groupNotMuted}}`. */
 export function isArbiterEligible(p: {
   readonly leftSeq: number | null;
   readonly disabled: boolean;
@@ -109,9 +88,7 @@ export function isArbiterEligible(p: {
   return p.leftSeq === null && !p.disabled;
 }
 
-/** Bulk-insert participant rows (the initial host+character roster, or a host adding a character). A pure
- *  table write; the rows are built by `roster.buildInitialRosterRows` (host action — NOT the invite chokepoint,
- *  which is human-only via {@link upsertMemberOnJoin}). No-op on an empty list. */
+/** Bulk-insert participant rows (the initial host+character roster, or a host adding a character). */
 export async function insertParticipants(
   db: Db,
   rows: readonly ParticipantInsertRow[],
@@ -122,13 +99,8 @@ export async function insertParticipants(
   await db.insert(chatParticipants).values([...rows]);
 }
 
-/**
- * The atomic human (re)join — the ONLY human-membership write (called by the invite-redeem chokepoint).
- * Inserts a fresh `member` row, or on a `(chatId,userId)` conflict re-joins a PREVIOUSLY-LEFT member
- * (`SET joinSeq=<head>, leftSeq=NULL, role='member' WHERE leftSeq IS NOT NULL`). `role` is server-forced
- * `member`; `joinSeq` is the caller-supplied canon head. Returns the resulting row, or `undefined` when the
- * user is ALREADY a present member (the conflict's `WHERE` matched nothing — an idempotent no-op).
- */
+/** The atomic human (re)join — the only human-membership write. Inserts a fresh `member` row, or on
+ *  conflict re-joins a previously-left member. Returns `undefined` when the user is already present. */
 export async function upsertMemberOnJoin(
   db: Db,
   params: {
@@ -161,14 +133,8 @@ export async function upsertMemberOnJoin(
   return rows.at(0);
 }
 
-/**
- * The atomic agent (re)seat — the ONLY agent-membership write (called by `chat.seatAgent`, D60 doc 04 §3).
- * Inserts a fresh `kind:'agent'` member row, or on a `(chatId,userId)` conflict re-seats a PREVIOUSLY-KICKED
- * agent (`SET joinSeq=<head>, leftSeq=NULL, role='member' WHERE leftSeq IS NOT NULL`) — the same re-join
- * physics as {@link upsertMemberOnJoin}, so kick-then-reseat works unchanged (doc 02 §1). `role` is
- * server-forced `member` (an agent is NEVER a host). Returns the resulting row, or `undefined` when the agent
- * is ALREADY a present member (the conflict's `WHERE` matched nothing — an idempotent double-seat no-op).
- */
+/** The atomic agent (re)seat — the only agent-membership write. Same re-join physics as
+ *  {@link upsertMemberOnJoin}; `role` is server-forced `member` (an agent is never a host). */
 export async function upsertAgentSeat(
   db: Db,
   params: {
@@ -199,9 +165,8 @@ export async function upsertAgentSeat(
   return rows.at(0);
 }
 
-/** Self-leave / kick-a-human: stamp `leftSeq` on the caller's PRESENT row (atomic — `WHERE leftSeq IS NULL`,
- *  so only the winning call gets the row back to notify). Authored rows survive; the persona drops from the
- *  cast (Part III §2). Returns the row left this call, or `undefined` if already gone / not a member. */
+/** Self-leave / kick-a-human: stamp `leftSeq` on the caller's present row (atomic). Returns the row left this
+ *  call, or `undefined` if already gone / not a member. */
 export async function markUserLeft(
   db: Db,
   chatId: ChatId,
@@ -212,8 +177,8 @@ export async function markUserLeft(
   return rows.at(0);
 }
 
-/** The {@link markUserLeft} UPDATE, UNEXECUTED (PD-24: `kick` hands it to the notifications emit op so the
- *  membership transition + the `kicked` INSERT commit in ONE batch). Atomic on the still-present row. */
+/** The {@link markUserLeft} UPDATE, unexecuted — `kick` hands it to the notifications emit op so the
+ *  membership transition + the `kicked` INSERT commit in one batch. */
 export function markUserLeftStatement(
   db: Db,
   chatId: ChatId,
@@ -233,8 +198,8 @@ export function markUserLeftStatement(
     .returning();
 }
 
-/** Kick ANY participant by id (host action — works for a character too, which has no `userId`). Atomic on the
- *  still-present row. Returns the row left this call, or `undefined` if already gone. */
+/** Kick any participant by id (works for a character too, which has no `userId`). Atomic on the still-present
+ *  row. Returns the row left this call, or `undefined` if already gone. */
 export async function markParticipantLeft(
   db: Db,
   participantId: ChatParticipantId,
@@ -244,9 +209,8 @@ export async function markParticipantLeft(
   return rows.at(0);
 }
 
-/** The {@link markParticipantLeft} UPDATE, UNEXECUTED — for callers that must commit the character-seat drop in
- *  ONE batch alongside another mutation (D64: `acceptHostHandoff` drops the prior host's un-owned character
- *  seats atomically with the host-role swap). Atomic on the still-present row (`WHERE leftSeq IS NULL`). */
+/** The {@link markParticipantLeft} UPDATE, unexecuted — for callers that must commit the character-seat drop
+ *  in one batch alongside another mutation. */
 export function markParticipantLeftStatement(
   db: Db,
   participantId: ChatParticipantId,
@@ -259,9 +223,8 @@ export function markParticipantLeftStatement(
     .returning();
 }
 
-/** Set a participant's `role` by id (a single-row role write; e.g. a targeted promotion/demotion). Returns
- *  the updated row, or `undefined` if the id is unknown. The host-handoff ACCEPT uses the atomic
- *  {@link acceptHostHandoffSwap} instead (it must demote + promote + clear the nomination in ONE batch). */
+/** Set a participant's `role` by id. The host-handoff accept uses {@link acceptHostHandoffSwap} instead (it
+ *  must demote + promote + clear the nomination in one batch). */
 export async function setParticipantRole(
   db: Db,
   participantId: ChatParticipantId,
@@ -275,9 +238,7 @@ export async function setParticipantRole(
   return rows.at(0);
 }
 
-/** Set the pending host-handoff nominee (`nominateHostHandoff`, step 1 — Part III §2). A single
- *  `chats.pendingHostUserId` write; a re-nominate overwrites the prior pending nominee. `now` stamps
- *  `updatedAt` (the injected clock — determinism). The verb gates host-authority + nominee-presence first. */
+/** Set the pending host-handoff nominee. A single write; a re-nominate overwrites the prior nominee. */
 export async function setPendingHost(
   db: Db,
   chatId: ChatId,
@@ -287,8 +248,8 @@ export async function setPendingHost(
   await setPendingHostStatement(db, chatId, nomineeUserId, now);
 }
 
-/** The {@link setPendingHost} UPDATE, UNEXECUTED (PD-24: `nominateHostHandoff` hands it to the notifications
- *  emit op so the nomination + the `handoff-nominated` INSERT commit in ONE batch). */
+/** The {@link setPendingHost} UPDATE, unexecuted — `nominateHostHandoff` hands it to the notifications emit
+ *  op so the nomination + the `handoff-nominated` INSERT commit in one batch. */
 export function setPendingHostStatement(
   db: Db,
   chatId: ChatId,
@@ -301,13 +262,9 @@ export function setPendingHostStatement(
     .where(eq(chats.id, chatId));
 }
 
-/**
- * The ATOMIC host-handoff accept (`acceptHostHandoff`, step 2 — Part III §2): ONE `db.batch` that demotes the
- * present host → `member`, promotes the nominee → `host`, and clears the chat's pending nomination. The
- * demotion is WHERE-`role='host'` (robust to 0 rows — the prior host may have left after nominating, leaving a
- * hostless room) and the promotion targets the nominee's PRESENT row by `userId`. The caller MUST verify the
- * caller IS the pending nominee BEFORE calling (the un-spoofable self-action check — the self-promotion belt).
- */
+/** The atomic host-handoff accept: one db.batch that demotes the present host → `member`, promotes the
+ *  nominee → `host`, and clears the chat's pending nomination. The caller must verify the caller IS the
+ *  pending nominee before calling. */
 export async function acceptHostHandoffSwap(
   db: Db,
   params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },
@@ -315,9 +272,7 @@ export async function acceptHostHandoffSwap(
   await db.batch(batchMany(acceptHostHandoffSwapStatements(db, params)));
 }
 
-/** The {@link acceptHostHandoffSwap} statements, UNEXECUTED (PD-24: `acceptHostHandoff` hands them to the
- *  notifications emit op so the role swap + the `handoff-accepted` INSERT commit in ONE batch). Order is
- *  load-bearing: demote → promote → clear. */
+/** The {@link acceptHostHandoffSwap} statements, unexecuted. Order is load-bearing: demote → promote → clear. */
 export function acceptHostHandoffSwapStatements(
   db: Db,
   params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },

@@ -3,21 +3,19 @@
  * pnpm sdk:session-probe [--mode sub|or] [--model <id>] [--turns N] [--verbose]
  *
  * The HELD-OPEN-WORKER justification probe — the measurement half of the held-open-sessions PD
- * (`reports/agent-sdk/held-open-sessions-pd.md`). It quantifies what the PD's opt-in mode would BUY: the
+ * (`reports/agent-sdk/held-open-sessions-pd.md`). Quantifies what the PD's opt-in mode would BUY: the
  * per-turn subprocess-spawn overhead a warm worker saves, and whether a streamed same-worker turn keeps
  * the prompt cache as warm as a `resume`-by-session per-turn spawn. Spends real Max-sub quota (mode-1) or
- * OpenRouter credits (mode-2) — HAND-RUN, NEVER CI. Same firewall as a real turn (mode-1 = catalog.ts's
- * `firewallBase()` + `buildClaudeSdkEnv()`; mode-2 = `buildClaudeOpenRouterEnv`).
+ * OpenRouter credits (mode-2) — HAND-RUN, NEVER CI.
  *
  * WHAT IT MEASURES, per mode, over N (default 3) small fixed prompts sharing ONE lore prefix:
  *   (a) BASELINE (the documented default path): a FRESH `query()` per turn, resumed by sessionId through
  *       the injected store — exactly what `runChatTurn` does today. Records wall time / TTFT / cacheRead /
  *       cacheWrite per turn.
  *   (b) HELD-OPEN (the proposed mode): ONE `query()` opened with a STREAMING-INPUT prompt (a pushable
- *       `AsyncIterable<SDKUserMessage>`), the SAME N prompts fed as streamed messages. Because the prompt
- *       is an iterable (not a string), the SDK marks the query `isSingleUserTurn=false` and keeps stdin
- *       open across turns — a string/first-message prompt would have the SDK close stdin after the first
- *       result and crash later writes. Same metrics per turn.
+ *       `AsyncIterable<SDKUserMessage>`), the SAME N prompts fed as streamed messages. The prompt being
+ *       an iterable (not a string) is what keeps stdin open across turns — a string prompt would have
+ *       the SDK close stdin after the first result and crash later writes. Same metrics per turn.
  *   (c) A comparison table + a verdict line: spawn overhead saved per turn (baseline wall − held wall on
  *       turns ≥2, where the baseline pays a fresh spawn and the held path does not) and the cache-warmth
  *       delta (held cacheRead vs baseline resumed cacheRead).

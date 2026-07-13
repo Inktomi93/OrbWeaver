@@ -1,10 +1,3 @@
-// entry/compose/effective-config — the boot wiring for settings' resolved-config seam (core/Tier-5-Entry.md
-// §layout "effective-config.ts"). settings OWNS the floor-merge (`getEffectiveConfig` SYNC
-// hot-path read + `reloadEffectiveConfig` cache rebuild) on its service; this file is the THIN boot surface:
-// it threads the sync getter for injection into hot-path consumers (chat/workloads, P5) and exposes the
-// boot `reload` the `entry/` boot order warms the cache with (step 6 "compose"). No logic — settings
-// already assembled the cache internally (the `effective-config/` subsystem); compose only surfaces it.
-
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { SettingsService } from "#domain/settings";
 

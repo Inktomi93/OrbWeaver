@@ -1,21 +1,16 @@
-// domain/settings — DI BUNDLE builder. Beyond passing through the injected deps, it OWNS the per-user
-// write serializer (one instance shared by BOTH user-settings write verbs → it lives here, not in a verb)
-// and binds the `effective-config/` subsystem read side (context.ts is a composition surface,
-// the one place allowed to reach a named subsystem — `domain-substrate-mediates-subsystems` exempts
-// service/index/context). The explicit `SettingsContext` interface is homed in `contract/service.ts`
-// (`no-context-returntype`); this file is the BUILDER.
+// domain/settings — DI bundle builder. Beyond passing through the injected deps, it owns the per-user
+// write serializer (shared by both user-settings write verbs) and binds the effective-config/ subsystem
+// read side.
 
 import type { UserId } from "@orb/kit/ids";
 import type { SettingsContext, SettingsServiceDeps } from "./contract/service";
 import { getEffectiveConfig, reloadEffectiveConfig } from "./effective-config/cache";
 
 export function createSettingsContext(deps: SettingsServiceDeps): SettingsContext {
-  // Per-user write serializer. Both user-settings write paths are read-merge-write against the same row,
-  // so two concurrent same-user writes would each read the same base and last-write-wins would silently
-  // drop one. Serialize per user via a promise chain keyed by userId — different users run concurrently;
-  // same-user writes queue. A failed write resolves the chain link (`.catch`) so one error can't wedge the
-  // queue; the map entry is pruned once it's still the tail after settling (keeps the map bounded).
-  // ASSUMES(single-replica): the chain queues writes within THIS process only (function-scope state).
+  // Per-user write serializer: both user-settings write paths are read-merge-write against the same row,
+  // so concurrent same-user writes would silently drop one under last-write-wins. Queues via a promise
+  // chain keyed by userId; different users run concurrently.
+  // ASSUMES(single-replica): the chain queues writes within this process only.
   const userWriteChains = new Map<UserId, Promise<unknown>>();
   function serializeUserWrite<T>(ownerId: UserId, run: () => Promise<T>): Promise<T> {
     const prev = userWriteChains.get(ownerId) ?? Promise.resolve();

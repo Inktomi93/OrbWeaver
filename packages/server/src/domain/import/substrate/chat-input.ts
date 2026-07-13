@@ -1,15 +1,7 @@
-// domain/import/substrate/chat-input — PURE ST→canonical mapping (Option B; PD-77): translate a parsed ST
-// chat (`ParsedChat`, import-owned) into the canonical `BulkImportChatInput` (`@orb/contracts/chat`) that
-// `chat`'s injected `bulkImportChats` op writes. This is `import`'s ST-INTERPRETATION job — the owning chat
-// domain never sees SillyTavern. Zero I/O (substrate); the only injected input is `now` (the ST date
-// fallback) + the `personaByUserName` attribution map.
-//
-// LOAD-BEARING ST esoterica carried here (were in the old `persistence/chat-writer.ts`):
-//   • esoterica 2 — `updatedAt = Math.max(send_dates)` (NON-monotonic → max, not last), NOT import `now`.
-//   • esoterica 3 — `buildVariantColumns`: the ST swipe pool → the D26 variant rows + the selected index;
-//     when the active swipe was empty-dropped (or there is no pool), a variant carrying the rendered `mes`
-//     is appended AND selected — so the selected content is ALWAYS `mes`. `ttftMs` (message-level in ST)
-//     rides on the selected variant.
+// domain/import/substrate/chat-input — pure ST→canonical mapping: translate a parsed ST chat into the
+// canonical BulkImportChatInput that chat's injected bulkImportChats op writes. Zero I/O; owning chat
+// domain never sees SillyTavern. updatedAt = max(send_dates), not last and not import `now`; the selected
+// variant's content is always the rendered `mes`, even when the active swipe was empty-dropped.
 
 import type {
   BulkImportChatInput,
@@ -20,12 +12,10 @@ import type { PersonaId } from "@orb/kit/ids";
 import type { ParsedChatMessage } from "#kit/serde/chat";
 import type { CollectedChat } from "../contract/views";
 
-// The imported-chat title is the source filename minus its `.jsonl` extension (top-level per useTopLevelRegex).
 const JSONL_EXT = /\.jsonl$/i;
 
-/** Build the D26 variant pool + the selected index for a parsed message. A multi-swipe message uses its
- *  swipe pool; when the active swipe was empty-dropped (`activeVariantIdx` null) OR there is no pool, a
- *  variant carrying the rendered `mes` + the message-level economics is appended and selected. */
+/** Multi-swipe message uses its swipe pool; when the active swipe was empty-dropped or there is no pool,
+ *  a variant carrying the rendered `mes` is appended and selected. */
 function buildVariantColumns(m: ParsedChatMessage): {
   readonly variants: BulkImportVariantInput[];
   readonly selectedIdx: number;
@@ -47,7 +37,6 @@ function buildVariantColumns(m: ParsedChatMessage): {
     );
     const selected = variants[m.activeVariantIdx];
     if (selected !== undefined) {
-      // ST's active swipe IS the rendered `mes`; the message-level ttft belongs to that generation.
       return {
         variants: variants.map((v) =>
           v.idx === m.activeVariantIdx ? { ...v, ttftMs: m.ttftMs } : v,
@@ -56,8 +45,6 @@ function buildVariantColumns(m: ParsedChatMessage): {
       };
     }
   }
-  // No pool, or the active swipe was empty-dropped: the swipe pool (if any) rides as alternates + a `mes`
-  // variant is appended and selected (esoterica 3 — `mes` is authoritative regardless).
   const alternates = m.variants.map(
     (v): BulkImportVariantInput => ({
       idx: v.idx,
@@ -88,8 +75,7 @@ function buildVariantColumns(m: ParsedChatMessage): {
   return { variants: alternates, selectedIdx: mesIdx };
 }
 
-/** Map ONE parsed message → the canonical `BulkImportMessageInput`. Attribution: a user turn credits the
- *  pre-resolved chat persona (chat stamps the owner as `authorUserId`); other roles carry no persona. */
+/** A user turn credits the pre-resolved chat persona; other roles carry no persona. */
 function toMessageInput(
   m: ParsedChatMessage,
   createdAt: number,
@@ -105,12 +91,7 @@ function toMessageInput(
   };
 }
 
-/**
- * Translate one collected ST chat → the canonical `BulkImportChatInput`. `createDate` is the FILENAME date
- * first (esoterica 1, resolved in the parser), then the first message send date, then `now` (the ST-date
- * fallback). `updatedAt` = `Math.max(send_dates)` (esoterica 2). `personaByUserName` attributes the chat's
- * `user_name` to the persona the user RP'd as.
- */
+/** createDate is the filename date first, then the first message send date, then `now`. */
 export function buildBulkImportChatInput(
   ci: CollectedChat,
   deps: {
@@ -135,8 +116,6 @@ export function buildBulkImportChatInput(
     createdAt: created,
     updatedAt,
     parentRef: pc.parentRef,
-    // ST `note_prompt` → the typed room author's note (export-chat.ts reads it back from here; the SUPERSET
-    // round-trip). Plain ST without a note arrives null.
     authorsNote: pc.notePrompt,
     isRealConversation: pc.bucket === "real_conversation",
     messages: pc.messages.map((m) => toMessageInput(m, m.sendDate ?? created, chatPersonaId)),

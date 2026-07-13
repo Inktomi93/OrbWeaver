@@ -1,27 +1,13 @@
-// domain/chat/persistence/macro-names — the CHAT MACRO NAME PRODUCER loader (Chat-Macro-Resolution.md §1):
-// resolve a chat's referenced persona/character ids into the member-gated NAME maps both consumers need —
-// server ASSEMBLE (`engine/pipeline.ts` `toShapeCanon`, via `buildCharacterNameMap`/`buildPersonaNameMap` over
-// this read's array output) and the client-read surface (`verbs/read.ts` `getChat`/`listMessages`, which
-// return the array output AS-IS, the `ChatMacroNameProducer` wire shape). ONE query shape, two consumers —
-// no second resolution path to drift (§6 parity).
+// domain/chat/persistence/macro-names — the chat macro name producer loader: resolve a chat's referenced
+// persona/character ids into the member-gated name maps both consumers need — server ASSEMBLE and the
+// client-read surface (`verbs/read.ts`, which returns the array output as-is, the `ChatMacroNameProducer`
+// wire shape). One query shape, two consumers.
 //
-// NAMES ONLY (never the full character/persona entity — §1): a member already sees who authored each line
-// (the attribution chrome), so a co-participant's persona/character NAME is not a further secret this needs
-// to gate. Modeled on `domain/export/verbs/export-chat.ts`'s `loadSpeakerNames` (the id-IN → name-map
-// precedent) — same shape, chat-domain home instead of export's.
+// Names only, never the full character/persona entity: a member already sees who authored each line, so
+// a co-participant's persona/character name is not a further secret to gate.
 //
-// COVERAGE (§1): every id the chat references — its participants' seat/active-persona ids (the `participants`
-// arg — any `{characterId, activePersonaId}`-shaped roster projection: `ParticipantView[]` or a raw
-// `chat_participants` row both satisfy it) UNION any `characterId`/`personaId` a loaded set of message rows
-// stamps (the `messages` arg — `MessageView[]` or `loadCanonHistory`'s rows both satisfy it, incl.
-// since-switched personas: a row's historical stamp is still covered even if no longer a participant's
-// ACTIVE persona). Both args are optional + independently omittable — `getChat` supplies participants only;
-// `listMessages`/the engine supply whichever set they have loaded.
-//
-// `characters`/`personas` are `@orb/db` schema tables (a shared package, not a `domain/*` feature) — reading
-// them here is a sibling-package import, not a cross-feature reach (no `domain-no-cross-feature` violation);
-// `persistence/` is a dependency-cruiser FIXED SLOT, so every verb/engine file may import this freely
-// (`domain-no-cross-subsystem` exempts fixed slots on both sides).
+// Coverage: every id the chat references — participants' seat/active-persona ids union any character/
+// persona id a loaded set of message rows stamps (incl. since-switched personas). Both args optional.
 
 import type { ChatMacroNameProducer } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";

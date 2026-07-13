@@ -16,59 +16,31 @@ import { popoverVariants } from "./variants";
 
 const slots = popoverVariants();
 
-// The trigger-breathe gap (§13.0 C19 rollup, `#lib`) — = --spacing-row (0.5rem); Base UI Positioner
-// offsets are px numbers, not classes.
+// Base UI Positioner offsets are px numbers, not classes.
 const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 
-/**
- * Popover root — seals Base UI Popover (dismiss on outside press/Esc comes free). State-only.
- * `<Popover><PopoverTrigger>Info</PopoverTrigger><PopoverPopup>…</PopoverPopup></Popover>`
- * Spec: ui-package-design §6.1 / UI-Arch §2 (explicit Positioner kills the portal weirdness).
- */
 export function Popover<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
   return <BasePopover.Root {...props} />;
 }
 
-/**
- * Opens the popover. Unstyled passthrough — compose your own control via `render`.
- * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven popover.
- * `<PopoverTrigger render={<Button intent="ghost">Details</Button>} />`
- * Spec: ui-package-design §6.1 / §13 R2.
- */
+/** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven popover. */
 export function PopoverTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   return <BasePopover.Trigger {...props} />;
 }
 
 export interface PopoverPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
-  /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" */
   side?: BasePositionerProps["side"];
-  /** Alignment on the side, forwarded to the Positioner. @defaultValue "center" */
   align?: BasePositionerProps["align"];
-  /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
   alignOffset?: BasePositionerProps["alignOffset"];
-  /**
-   * Portal target — defaults to the themed portal root from {@link usePortalContainer} (so the popup
-   * inherits the active `<ThemeScope>` instead of `<body>`'s Hearth defaults, D44 §12.1); pass an
-   * explicit node/ref to override; unset keeps Base UI's `body` default.
-   */
+  /** Defaults to the themed portal root so the popup inherits the active `<ThemeScope>` instead of `<body>`. */
   container?: PortalContainer;
-  /**
-   * Render a dismissable `bg-scrim` backdrop behind the popup (for a modal-style popover). The
-   * backdrop lives inside the bundled Portal, before the Positioner (Base UI's required placement).
-   * Pair with `<Popover modal>` for focus/scroll containment. @defaultValue false
-   */
+  /** Dismissable backdrop behind the popup; pair with `<Popover modal>` for focus/scroll containment. */
   backdrop?: boolean;
 }
 
-/**
- * The popover surface — bundles Portal → (optional Backdrop) → Positioner (`--z-overlay`, token-safe
- * sideOffset default) → Popup so the anatomy cannot be mis-assembled. Place `<PopoverArrow>` and
- * `<PopoverClose>` inside as children.
- * `<PopoverPopup side="top" backdrop><PopoverTitle>Filters</PopoverTitle>…</PopoverPopup>`
- * Spec: ui-package-design §6.1 / §13 R2 — explicit Positioner + Backdrop/Arrow/Close surface.
- */
+/** Bundles Portal → (optional Backdrop) → Positioner → Popup so the anatomy cannot be mis-assembled. */
 export function PopoverPopup(props: PopoverPopupProps): ReactElement {
   const {
     className,
@@ -111,12 +83,6 @@ export interface PopoverArrowProps extends Omit<BaseArrowProps, "className"> {
   className?: string;
 }
 
-/**
- * An arrow that points at the anchor — place inside `<PopoverPopup>`. Base UI positions it and sets
- * `data-side`/`data-align`; we skin it as a `bg-popover` diamond that continues the popup edge.
- * `<PopoverPopup><PopoverArrow /><PopoverTitle>…</PopoverTitle></PopoverPopup>`
- * Spec: ui-package-design §13 R2 (full native part surface).
- */
 export function PopoverArrow(props: PopoverArrowProps): ReactElement {
   const { className, ...rest } = props;
   return (
@@ -124,12 +90,6 @@ export function PopoverArrow(props: PopoverArrowProps): ReactElement {
   );
 }
 
-/**
- * Closes the popover — place inside `<PopoverPopup>`. Required for focus trapping in `<Popover modal>`
- * (touch screen readers escape through it). Unstyled passthrough — compose via `render`.
- * `<PopoverClose render={<Button intent="ghost">Done</Button>} />`
- * Spec: ui-package-design §6.1 / §13 R2.
- */
 export function PopoverClose(props: BaseCloseProps): ReactElement {
   return <BasePopover.Close {...props} />;
 }
@@ -138,11 +98,6 @@ export interface PopoverTitleProps extends Omit<BaseTitleProps, "className"> {
   className?: string;
 }
 
-/**
- * Accessible popover heading.
- * `<PopoverTitle>Notifications</PopoverTitle>`
- * Spec: ui-package-design §6.1.
- */
 export function PopoverTitle(props: PopoverTitleProps): ReactElement {
   const { className, ...rest } = props;
   return <BasePopover.Title className={slots.title({ className })} {...rest} />;
@@ -152,11 +107,6 @@ export interface PopoverDescriptionProps extends Omit<BaseDescriptionProps, "cla
   className?: string;
 }
 
-/**
- * Supporting copy under the popover title.
- * `<PopoverDescription>You're all caught up.</PopoverDescription>`
- * Spec: ui-package-design §6.1.
- */
 export function PopoverDescription(props: PopoverDescriptionProps): ReactElement {
   const { className, ...rest } = props;
   return <BasePopover.Description className={slots.description({ className })} {...rest} />;

@@ -33,12 +33,6 @@ const MESSAGE =
   "pipeline.ts` · the request DTO `domain/chat/contract/results.ts` · the infra/providers consumers · the " +
   "@orb/contracts/chat home) — content-parts are produced ONCE at the engine request seam and everything " +
   "upstream stays `content: string`. See Core-Path-Registry.md D51.";
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// The legacy predicate as an ImportSpecifier subscription: a `ChatContentPart` named import from
-// @orb/contracts/chat, in a prod-src file outside the D51 seam set. scanRoot mirrors the legacy
-// PROD_SRC && !SANCTIONED filter (the parity oracle — the repoRel path is prefixed `/` to match the
-// leading-slash-anchored regexes). Per-occurrence (each ChatContentPart named import). Kept ALONGSIDE
-// the legacy Check.
 /** Is this ImportSpecifier a `ChatContentPart` named import from @orb/contracts/chat? */
 function isContentPartImport(spec: Node): boolean {
   if (!Node.isImportSpecifier(spec) || spec.getName() !== SYMBOL) {

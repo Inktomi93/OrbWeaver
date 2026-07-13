@@ -21,14 +21,8 @@ export interface ProgressProps extends Omit<BaseRootProps, "className"> {
 }
 
 /**
- * A determinate/indeterminate loading bar — seals Base UI Progress (Root/Label/Track/Indicator/Value;
- * renders `role="progressbar"` + `aria-valuenow/min/max` and sizes the indicator from `value`).
- * Bundles the parts so the anatomy cannot be mis-assembled. `value={n}` is determinate; `value={null}`
- * is indeterminate (no `aria-valuenow`, pulsing bar, and the Value readout renders nothing). NOT
- * `<Meter>` — this is task completion, not a magnitude readout.
- *
- * `label`/`showValue` add the readout row: `<Progress value={72} label="Uploading" showValue />`
- * renders "Uploading … 72%". Spec: ui-package-design §6.1.
+ * Determinate/indeterminate loading bar — seals Base UI Progress. `value={null}` is indeterminate
+ * (pulsing bar, no readout). NOT `<Meter>` — this is task completion, not a magnitude readout.
  */
 export function Progress(props: ProgressProps): ReactElement {
   const { className, trackClassName, label, showValue = false, formatValue, ...rest } = props;

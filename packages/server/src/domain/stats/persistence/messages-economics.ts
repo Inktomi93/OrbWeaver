@@ -1,17 +1,11 @@
-// domain/stats/persistence/messages-economics — PD-22: the stats-OWNED economics PROJECTION (the seam's Tier
-// 2, stats-discovery-seam.md). The ONLY place the raw per-generation economics columns (tokens_in/out,
-// cost_usd, cache_*, gen_*, ttft_ms, context_window) of a turn are projected + aggregated; the caller (the
-// injected discovery insights op) receives a NARROWED, already-summed result — never a shape it can re-sum.
+// The stats-owned economics projection. The only place the raw per-generation economics columns of a turn
+// are projected + aggregated; the caller (the injected discovery insights op) receives a narrowed,
+// already-summed result — never a shape it can re-sum. The raw row shape below is module-private, so no
+// consumer can name a `tokens_out` column.
 //
-// THE TYPE BOUNDARY (the whole point — Knowledge-Cluster inv #5, economics ⟂ semantics): the raw economics
-// ROW shape (`EconomicsRow` below) is module-private — it never leaves this file, so no consumer can name a
-// `tokens_out` column. Only the pre-aggregated `CharacterEconomics`/`CharacterModelEconomics` results
-// (@orb/contracts/stats) cross the fence, via the injected op wired at the composition root. discovery
-// composes its SEMANTIC ranking around these totals; it can never SUM `tokens_out` itself.
-//
-// D26: economics live on `message_variants`, NOT `messages` — the read aggregates the SELECTED variant of
-// each assistant slot (`messages.selected_variant_id`), so a swipe that isn't selected never double-counts.
-// Owner scope DERIVES via `messages.character_id → characters.owner_id` (D23 — never a caller-supplied owner).
+// Economics live on `message_variants`, not `messages` — the read aggregates the selected variant of each
+// assistant slot, so a swipe that isn't selected never double-counts. Owner scope derives via
+// `messages.character_id → characters.owner_id`.
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -19,9 +13,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 
-// The raw aggregated row as it comes back from the untyped `sql`` boundary — MODULE-PRIVATE (never exported).
-// This is the only shape that carries the economics column names; keeping it non-exported is what makes the
-// raw economics UNSPELLABLE outside stats (the seam's compile-time half).
+// The raw aggregated row as it comes back from the untyped `sql`` boundary — module-private.
 interface EconomicsRow {
   readonly characterId: string;
   readonly generations: number;
@@ -43,8 +35,8 @@ interface ModelEconomicsRow {
   readonly costUsd: number;
 }
 
-/** Per-character economics — the SELECTED assistant-variant totals (D26), owner-scoped via
- *  `characters.owner_id`. One row per character that has ≥1 assistant generation. */
+/** Per-character economics — the selected assistant-variant totals, owner-scoped. One row per character
+ *  that has ≥1 assistant generation. */
 export async function readCharacterEconomics(
   db: Db,
   ownerId: UserId,
@@ -64,8 +56,8 @@ export async function readCharacterEconomics(
     GROUP BY m.character_id
   `);
   return rows.map((r) => ({
-    // Raw-SQL boundary mint: `m.character_id` IS the branded characters.id column; sql`` rows come back
-    // untyped — the sanctioned castId edge (mirrors readPersonaUsage's persona-id mint).
+    // Raw-SQL boundary mint: `m.character_id` is the branded characters.id column; sql`` rows come back
+    // untyped.
     characterId: castId<CharacterId>(r.characterId),
     generations: Number(r.generations ?? 0),
     tokensIn: Number(r.tokensIn ?? 0),
@@ -76,9 +68,9 @@ export async function readCharacterEconomics(
   }));
 }
 
-/** Per-(character, model) economics — the SELECTED assistant-variant totals (D26) split by the recorded
- *  model, owner-scoped. `genTimeMs`/`genSamples` sum only variants carrying both gen timestamps (so a
- *  consumer's mean has no null-skew). Model-less generations are excluded (a route needs a model). */
+/** Per-(character, model) economics — the selected assistant-variant totals split by model, owner-scoped.
+ *  `genTimeMs`/`genSamples` sum only variants carrying both gen timestamps. Model-less generations are
+ *  excluded. */
 export async function readCharacterModelEconomics(
   db: Db,
   ownerId: UserId,

@@ -1,25 +1,7 @@
-// infra/network/gif-search — the Tenor gif provider adapter (D61 gallery-design §5; the ONE place that
-// knows Tenor's URL grammar + response shape). Two ops the `domain/hub` gif verbs inject (the
-// domain-verb-over-injected-network-adapter pattern, `credentials.fetchModels` precedent):
-//   • searchTenorGifs   — GET the Tenor v2 /search catalog → normalized `GifSearchHit[]` (+ opaque cursor).
-//   • fetchTenorGifImage — download ONE gif's bytes for import, host-gated + magic-validated.
-//
-// SECURITY — this file is the egress + SSRF chokepoint for gif search/import:
-//   • SEARCH host is a FIRST-PARTY constant (`tenor.googleapis.com`) — only the query TEXT is user input
-//     (a query param, never the host), so search has no host-steering SSRF surface. It still rides
-//     `safeFetch` (response byte cap · content-type gate) as defense-in-depth.
-//   • IMPORT url is provider-authored (a Tenor `fullUrl` echoed back by the client), therefore
-//     attacker-influenceable. It is FAIL-CLOSED host-gated against the Tenor media-host allowlist BEFORE any
-//     fetch (`isTenorMediaHost`): the client can NOT steer the fetch off Tenor. `.tenor.com` is
-//     Google-owned, so an attacker cannot mint a `*.tenor.com` name resolving to a private/internal IP —
-//     the suffix allowlist is a real internal-SSRF barrier that does NOT depend on the opt-in global egress
-//     firewall. Redirects are DISALLOWED (`maxRedirects: 0`): Tenor media URLs are direct byte responses, and
-//     the as-built `safeFetch` does not re-validate the host allowlist per redirect hop (hub-browse-design/01
-//     S6), so a redirect off-host is refused rather than blindly followed. The returned bytes are then
-//     magic-validated + dimension-capped by `isAllowedImageBuffer` — the remote Content-Type is never
-//     trusted (the 200-status HTML-error-page-served-as-image classic).
-//   • The API KEY is NEVER logged: the search URL carries the key as a query param, so failures log only the
-//     host + status, NEVER the URL/query/key.
+// Tenor gif provider adapter: searchTenorGifs (v2 /search → normalized hits) + fetchTenorGifImage (import).
+// SECURITY: the import url is provider-echoed (attacker-influenceable) and is fail-closed host-gated
+// against the Tenor media allowlist before any fetch, with redirects disallowed and the returned bytes
+// magic-validated (Content-Type is never trusted). The API key is never logged (host+status only).
 
 import type { GifSearchHit, GifSearchResult } from "@orb/contracts/hub";
 import type { SniffedImage } from "@orb/kit/image-sniff";
@@ -28,22 +10,17 @@ import { getLog } from "#foundation/observability";
 import { safeFetch } from "./egress";
 import { isAllowedImageBuffer } from "./image-guard";
 
-/** The Tenor v2 search API host (first-party constant — NOT user-influenced). */
+// First-party constant — NOT user-influenced.
 export const TENOR_API_HOST = "tenor.googleapis.com";
-/** Tenor's media/CDN host suffix. A leading-dot suffix matches any subdomain (`media.tenor.com`,
- *  `c.tenor.com`, `media1.tenor.com`) but NEVER the bare apex or a lookalike (`eviltenor.com`). */
+// Leading-dot suffix matches any subdomain but never the bare apex or a lookalike (eviltenor.com).
 export const TENOR_MEDIA_HOST_SUFFIX = ".tenor.com";
 const TENOR_APEX = "tenor.com";
 
 const OK_STATUS_MIN = 200;
 const OK_STATUS_MAX = 300;
-// The Tenor /search JSON is small; a tight cap so a coaxed/compromised endpoint can't stream a large body.
 const SEARCH_MAX_BYTES = 2_000_000;
-// Per-gif transfer + buffer cap for import (DoS bound on one gif). Tenor gifs are well under this; the
-// dimension/pixel caps in `isAllowedImageBuffer` add the decompression-bomb defense on top.
+// Per-gif transfer + buffer cap for import (DoS bound); isAllowedImageBuffer adds the dimension/pixel cap.
 export const GIF_IMPORT_MAX_BYTES = 8_388_608; // 8 MiB
-// Cheap pre-filter: a 200 HTML error page (text/html) is rejected before its body is read. The REAL gate
-// is the magic-byte sniff below (a header can lie), but this drops the obvious case early.
 const IMPORT_CONTENT_TYPES: readonly string[] = [
   "image/gif",
   "image/webp",
@@ -52,20 +29,14 @@ const IMPORT_CONTENT_TYPES: readonly string[] = [
   "image/avif",
 ];
 
-/** Strip one trailing FQDN dot (hoisted — useTopLevelRegex). */
 const TRAILING_DOT_RE = /\.$/;
 
-/**
- * Is `hostname` a Tenor media host? Case-insensitive; exact apex (`tenor.com`) OR a `.tenor.com` subdomain.
- * The suffix check is anchored (`endsWith`) so `eviltenor.com` / `tenor.com.evil.net` do NOT match. IP-literal
- * hosts never match (they carry no dot-suffix that ends in `.tenor.com`). Exported for the adapter test.
- */
+// Anchored suffix check so eviltenor.com / tenor.com.evil.net do NOT match.
 export function isTenorMediaHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(TRAILING_DOT_RE, "");
   return host === TENOR_APEX || host.endsWith(TENOR_MEDIA_HOST_SUFFIX);
 }
 
-/** Args for `searchTenorGifs`, the op `domain/hub/verbs/gifs` injects. `apiKey` is the resolved Tenor key. */
 export interface SearchTenorGifsArgs {
   readonly apiKey: string;
   readonly query: string;
@@ -73,7 +44,6 @@ export interface SearchTenorGifsArgs {
   readonly cursor?: string | undefined;
 }
 
-// One Tenor media format entry (`url` + `dims:[w,h]`). `.loose()` tolerates the other fields Tenor sends.
 const tenorFormatSchema = z
   .object({
     url: z.string(),
@@ -96,9 +66,7 @@ const tenorResponseSchema = z.object({
 
 type TenorResult = z.infer<typeof tenorResultSchema>;
 
-/** Map one Tenor result → a normalized `GifSearchHit`, or `null` when it lacks a usable gif format (skipped,
- *  never a throw — a malformed row must not fail the whole page). `tinygif` is the small preview, `gif` the
- *  full import target; dims come off the full format. */
+// null when it lacks a usable gif format — skipped, never a throw (a malformed row must not fail the page).
 function toHit(result: TenorResult): GifSearchHit | null {
   const formats = result.media_formats;
   if (formats === undefined) {
@@ -109,8 +77,6 @@ function toHit(result: TenorResult): GifSearchHit | null {
   if (full === undefined || preview === undefined) {
     return null;
   }
-  // `.at()` is `number | undefined` under BOTH tsc (noUncheckedIndexedAccess) and biome — so the
-  // undefined guard is honest to both tools (a bracket-index tripped biome's noUnnecessaryConditions).
   const width = full.dims?.at(0);
   const height = full.dims?.at(1);
   if (width === undefined || height === undefined || width <= 0 || height <= 0) {
@@ -125,11 +91,6 @@ function toHit(result: TenorResult): GifSearchHit | null {
   };
 }
 
-/**
- * GET the Tenor v2 `/search` catalog → normalized hits. Best-effort mapping (a malformed result is skipped);
- * throws only on a hard transport/parse failure the verb surfaces as `hub-unavailable`. The key rides as the
- * `key` query param — NEVER logged (failures log host + status only).
- */
 export async function searchTenorGifs(args: SearchTenorGifsArgs): Promise<GifSearchResult> {
   const url = new URL(`https://${TENOR_API_HOST}/v2/search`);
   url.searchParams.set("q", args.query);
@@ -144,7 +105,7 @@ export async function searchTenorGifs(args: SearchTenorGifsArgs): Promise<GifSea
     allowedContentTypes: ["application/json"],
   });
   if (res.status < OK_STATUS_MIN || res.status >= OK_STATUS_MAX) {
-    // Host + status only — NEVER the URL (it carries the key).
+    // Host + status only — never the URL (it carries the key).
     getLog().info({ host: TENOR_API_HOST, status: res.status }, "network: tenor /search non-2xx");
     throw new Error(`tenor search failed: status ${res.status}`);
   }
@@ -164,13 +125,7 @@ export async function searchTenorGifs(args: SearchTenorGifsArgs): Promise<GifSea
   return nextCursor !== undefined && nextCursor.length > 0 ? { hits, nextCursor } : { hits };
 }
 
-/**
- * Download ONE gif's bytes for import — the SSRF + untrusted-image chokepoint. FAIL-CLOSED: rejects any host
- * outside the Tenor media allowlist before fetching, disallows redirects, caps transfer bytes, and
- * magic-validates + dimension-caps the returned bytes (`isAllowedImageBuffer`, never trusting Content-Type).
- * Throws `EgressBlockedError`-style `Error` on a bad host / non-2xx, or `ImageRejectedError` on a bad buffer;
- * the verb maps these to the leak-free import failure.
- */
+/** The SSRF + untrusted-image chokepoint for gif import. */
 export async function fetchTenorGifImage(
   url: string,
   maxBytes: number = GIF_IMPORT_MAX_BYTES,

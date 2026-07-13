@@ -17,14 +17,7 @@ export interface AccordionProps extends Omit<BaseRootProps, "className"> {
   className?: string;
 }
 
-/**
- * Accordion root — seals Base UI Accordion (value-driven open state, ARIA wiring). Keyboard focus
- * is PLAIN TAB ORDER, not roving nav — Base UI 1.6 deprecated `loopFocus`/arrow-key roving focus
- * following an APG guidance update, so triggers sit in the normal tab sequence like any other
- * button. `multiple` lets several sections stay open at once; single-open is the default.
- * `<Accordion><AccordionItem value="a"><AccordionHeader><AccordionTrigger>…</AccordionTrigger></AccordionHeader><AccordionPanel>…</AccordionPanel></AccordionItem></Accordion>`
- * Spec: ui-package-design §6.1 — multiple collapsible sections in the crew/rpg panels.
- */
+// Keyboard focus is plain tab order, not roving nav — Base UI deprecated loopFocus/arrow-key roving focus.
 export function Accordion({ className, ...rest }: AccordionProps): ReactElement {
   return (
     <BaseAccordion.Root
@@ -39,11 +32,6 @@ export interface AccordionItemProps extends Omit<BaseItemProps, "className"> {
   className?: string;
 }
 
-/**
- * One section — pairs a header with its panel, keyed by `value`.
- * `<AccordionItem value="stats">…</AccordionItem>`
- * Spec: ui-package-design §6.1.
- */
 export function AccordionItem({ className, ...rest }: AccordionItemProps): ReactElement {
   return (
     <BaseAccordion.Item
@@ -58,11 +46,6 @@ export interface AccordionHeaderProps extends Omit<BaseHeaderProps, "className">
   className?: string;
 }
 
-/**
- * The section heading element (wraps the trigger; renders the correct heading semantics).
- * `<AccordionHeader><AccordionTrigger>Stats</AccordionTrigger></AccordionHeader>`
- * Spec: ui-package-design §6.1.
- */
 export function AccordionHeader({ className, ...rest }: AccordionHeaderProps): ReactElement {
   return (
     <BaseAccordion.Header
@@ -77,12 +60,7 @@ export interface AccordionTriggerProps extends Omit<BaseTriggerProps, "className
   className?: string;
 }
 
-/**
- * The toggle for a section — bakes the trailing `ChevronDown` that rotates on open
- * (`data-panel-open`, variants §5). Renders a `<button>` with `aria-expanded`/`aria-controls`.
- * `<AccordionTrigger>Stats</AccordionTrigger>`
- * Spec: ui-package-design §6.1 — chevron via `@orb/ui/icons`, rotating on open.
- */
+/** Bakes the trailing `ChevronDown` that rotates on open. */
 export function AccordionTrigger({
   className,
   children,
@@ -104,11 +82,7 @@ export interface AccordionPanelProps extends Omit<BasePanelProps, "className"> {
   className?: string;
 }
 
-/**
- * The revealed content — animates height off Base UI's `--accordion-panel-height` var (variants §5).
- * `<AccordionPanel>…</AccordionPanel>`
- * Spec: ui-package-design §6.1.
- */
+/** Animates height off Base UI's `--accordion-panel-height` var. */
 export function AccordionPanel({ className, ...rest }: AccordionPanelProps): ReactElement {
   return (
     <BaseAccordion.Panel

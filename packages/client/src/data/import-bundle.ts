@@ -1,16 +1,8 @@
-// data/import-bundle — the portability bundle-import POST (entry/http/import.ts, `POST /api/import/bundle`),
-// the Backup & Restore pane's zip-import seam. Raw `fetch`, not tRPC — a Hono raw-body handler, the same
-// reason `importCharacters` / `uploadAsset` are raw POSTs. The whole zip rides as the request BODY (the
-// server reads `c.req.raw.body` directly — NOT multipart form-data), so the `File` streams straight up.
-//
-// WORKLOAD-BACKED: the route stages the upload to disk and enqueues a SINGULAR per-owner `import-bundle`
-// workload, replying `202 { workloadId }`. Progress + the terminal summary stream over the EXISTING
-// workloads status machinery (`workloads.subscribe`) — the caller subscribes to that id (the Workloads
-// pane's same seam). A second concurrent import for one owner is a 409 (the single-active lock); an
-// oversize upload a 413. Every non-OK response throws — the caller's dropzone owns the error/loading UI.
-//
-// CSRF: sends the same `CSRF_HEADER` every tRPC mutation carries (the cookie-session belt; parity with
-// `importCharacters` / `uploadAsset`).
+// The portability bundle-import POST — the Backup & Restore pane's zip-import seam. Raw fetch, not
+// tRPC — a Hono raw-body handler; the whole zip rides as the request body (not multipart). Workload-
+// backed: the route stages the upload and enqueues a per-owner import-bundle workload, replying
+// `202 { workloadId }`; progress streams over the existing workloads.subscribe machinery. A second
+// concurrent import for one owner is a 409; an oversize upload a 413.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { throwHttpError } from "./http-error";

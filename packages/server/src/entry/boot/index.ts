@@ -1,7 +1,4 @@
-// entry/boot — FRONT DOOR for the boot protocol's step functions. `entry/lifecycle.ts` + `entry/index.ts`
-// import the boot steps from here and run them in the §"Boot order" sequence (migrate → seed[credential /
-// owner / default-preset / default-characters] → reclaim-locks). Each step is a small injected-deps factory
-// owning zero business logic — it wires lower tiers (domain front doors + `@orb/db`) at boot time.
+// Front door for the boot protocol's step functions, run in order by entry/lifecycle.ts.
 
 export type { MigrateDeps } from "./migrate";
 export { resolveMigrationsFolder, runBootMigrations } from "./migrate";

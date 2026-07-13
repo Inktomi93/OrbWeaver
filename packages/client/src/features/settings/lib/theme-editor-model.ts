@@ -1,10 +1,6 @@
-// The theme-editor form MODEL (D44 §12.1 · themes-design §3.2): the flat form value shape the editor
-// binds, the ⇄ mappers to the `Theme` entity / `CreateThemeInput`, sensible (Hearth-derived) defaults for
-// a from-scratch theme, and the themeable-var reference the CSS editor surfaces (the browser-based WCAG
-// contrast helper lives in the sibling `theme-contrast`, kept out so this model stays DOM-free). The
-// picker exposes only the SEED set (surfaces + accent
-// + the RP text colors + the 3 bubble bgs + border + font/radius/chatStyle/density); the neutral ramp AND
-// all foregrounds are DERIVED by <ThemeScope> (never picked) — so this model carries no foreground fields.
+// The theme-editor form model: the flat form value shape, the mappers to Theme/CreateThemeInput,
+// from-scratch defaults, and the themeable-var reference the CSS editor surfaces. Foregrounds and the
+// neutral ramp are derived by <ThemeScope> (never picked), so this model carries no foreground fields.
 
 import type {
   CreateThemeInput,
@@ -37,8 +33,7 @@ export interface ThemeFormValues {
   readonly css: string;
 }
 
-/** From-scratch defaults — the Hearth seed values, so a new theme starts from a known-good, AA-passing
- *  palette (the customizer only earns Tier-2 warnings when they break it). */
+/** From-scratch defaults — the Hearth seed values, so a new theme starts from a known-good, AA-passing palette. */
 export const DEFAULT_THEME_FORM: ThemeFormValues = {
   name: "New theme",
   background: "oklch(0.158 0.006 60)",
@@ -58,8 +53,6 @@ export const DEFAULT_THEME_FORM: ThemeFormValues = {
   css: "",
 };
 
-/** The seed-value-fallback half of `themeFormFromEntity` (split out to keep either function's cognitive
- *  complexity under the gate — this one is pure `?? default` repetition, no branching). */
 function paletteFormFieldsFromOverride(o: ThemeOverride): Omit<ThemeFormValues, "name" | "css"> {
   return {
     background: o.background ?? DEFAULT_THEME_FORM.background,
@@ -79,8 +72,7 @@ function paletteFormFieldsFromOverride(o: ThemeOverride): Omit<ThemeFormValues, 
   };
 }
 
-/** Read a `Theme` entity into the flat form values (missing override fields fall back to the defaults so
- *  every picker starts on a valid color). */
+/** Read a `Theme` entity into the flat form values; missing override fields fall back to the defaults. */
 export function themeFormFromEntity(theme: Theme): ThemeFormValues {
   const o = theme.override;
   return {
@@ -90,9 +82,7 @@ export function themeFormFromEntity(theme: Theme): ThemeFormValues {
   };
 }
 
-/** The clearable color fields — an empty string ⇒ OMIT (the ColorField per-field clear, FINAL-Character
- *  §8.1): the token drops from the override so <ThemeScope> derives/inherits it (a cleared `background`
- *  falls back to the app default surface; a cleared `borderColor` derives from the base surface). */
+/** An empty string ⇒ the token drops from the override so <ThemeScope> derives/inherits it. */
 const CLEARABLE_COLOR_KEYS = [
   "background",
   "accent",
@@ -108,10 +98,7 @@ function bubbleFromBg(bg: string): { bg: string } | undefined {
   return bg.trim() === "" ? undefined : { bg };
 }
 
-/** Build the `ThemeOverride` from the flat form values. A cleared color field ("" — the ColorField's
- *  per-field clear) is OMITTED so that token inherits/derives via <ThemeScope> rather than shipping a
- *  literal empty color. Enum fields (font/radius/style/density) are fixed-choice Selects, never cleared.
- *  Bubble foregrounds are NOT set — they derive at apply-time. */
+/** Build the `ThemeOverride` from the flat form values. A cleared color field ("") is omitted so that token inherits/derives via <ThemeScope>. */
 export function themeOverrideFromForm(v: ThemeFormValues): ThemeOverride {
   const o: ThemeOverride = {
     font: v.font,
@@ -148,9 +135,5 @@ export function themeInputFromForm(v: ThemeFormValues): CreateThemeInput {
   };
 }
 
-// WCAG contrast feedback (AA_CONTRAST_FLOOR / contrastRatio) lives in the sibling `theme-contrast` — it
-// is browser-only (getComputedStyle) and kept OUT of this model so the mappers stay DOM-free/node-testable.
-
-/** The themeable CSS custom properties an author may target in the custom-CSS box — sourced from the ONE
- *  machine-current list (`THEME_SCOPE_EMIT_VARS`), so the reference never drifts from what actually emits. */
+/** The themeable CSS custom properties an author may target in the custom-CSS box — sourced from THEME_SCOPE_EMIT_VARS so the reference never drifts. */
 export const THEMEABLE_VARS: readonly string[] = THEME_SCOPE_EMIT_VARS;

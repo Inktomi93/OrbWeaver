@@ -1,20 +1,8 @@
 /**
- * Branded entity IDs — nominal types over `string`.
- *
- * Without brands, nothing stops passing a `characterId` where a `chatId` is
- * expected. The compile-time brand is a phantom `unique symbol` (erased at
- * runtime, zero cost); TypeID brands additionally carry a real `prefix_…` value
- * validated at the boundary by {@link typeIdSchema}.
- *
- * Lives in `@orb/kit` (the universal leaf — `contracts`, `db`, every domain,
- * `transport`, and `client` all import down into it). Brand attachment is the
- * FLOW's job — {@link castId} at untyped seams, {@link typeIdSchema} at request
- * boundaries.
- *
- * Mint a TypeID id: {@link mintTypeId}`(ID_PREFIX.chat)`. Cross an untyped
- * boundary: {@link castId}`<CharacterId>(raw)`. At the tRPC boundary:
- * {@link typeIdSchema}`(ID_PREFIX.persona)` (prefix-validating) or
- * {@link brandedId}`<UserId>()` (non-empty, for non-TypeID brands).
+ * Branded entity IDs — nominal types over `string`. Without brands, nothing stops passing a
+ * `characterId` where a `chatId` is expected. Mint a TypeID: {@link mintTypeId}`(ID_PREFIX.chat)`.
+ * Cross an untyped boundary: {@link castId}`<CharacterId>(raw)`. At the tRPC boundary:
+ * {@link typeIdSchema}`(ID_PREFIX.persona)` (prefix-validating) or {@link brandedId}`<UserId>()`.
  */
 
 import { fromString, typeidUnboxed } from "typeid-js";
@@ -25,29 +13,18 @@ declare const brand: unique symbol;
 /** A `string` tagged with a phantom `B` marker (erased at runtime). */
 export type Branded<B extends string> = string & { readonly [brand]: B };
 
-// --- TypeID-branded ids (strict, prefix-validated) ---------------------------
-// The COMPILE-TIME brand reuses this file's `Branded<…>` (`unique symbol` phantom),
-// NOT typeid-js's own object brand — an object-shaped brand trips biome's
-// `noBaseToString` on `${id}` template interpolation; the `unique symbol` brand
-// does not. The runtime win (prefix validation via `fromString`) is independent
-// of the brand shape.
+// The compile-time brand reuses this file's `Branded<…>` phantom, not typeid-js's own object brand —
+// an object-shaped brand trips biome's `noBaseToString` on `${id}` template interpolation.
 export type TypeIdOf<P extends string> = Branded<P>;
 
-/**
- * The TypeID prefix for each entity (orbweaver schema, ledger D0–D31).
- * TypeID prefixes must be lowercase `[a-z_]` — multi-word entities use snake_case,
- * NOT the camelCase key (`ID_PREFIX.worldBook` → the literal `"world_book"`); a
- * camelCase prefix throws `InvalidPrefixError` at mint time.
- */
+/** The TypeID prefix for each entity. TypeID prefixes must be lowercase `[a-z_]` — multi-word
+ *  entities use snake_case, not the camelCase key; a camelCase prefix throws `InvalidPrefixError`. */
 export const ID_PREFIX = {
   persona: "persona",
   chat: "chat",
   message: "message",
-  // #67 — the STRUCTURAL chat-message ↔ asset FK row (registry-covered GC retention for inline attachments).
   messageAsset: "message_asset",
   character: "character",
-  // D28: the card is the flat `characters` row; history is `character_snapshots`
-  // (no `character_version` brand — the table is gone).
   characterSnapshot: "character_snapshot",
   tag: "tag",
   worldBook: "world_book",
@@ -61,23 +38,17 @@ export const ID_PREFIX = {
   sessionEntry: "session_entry",
   chatInjection: "chat_injection",
   chatParticipant: "chat_participant",
-  // D16: the unified roster system — invites + host-offline deferred turns.
   chatInvite: "chat_invite",
   pendingTurn: "pending_turn",
   characterEmbedding: "character_embedding",
   chatDigest: "chat_digest",
   chatSegment: "chat_segment",
-  // Discovery rollups — prefixes mirror their Tier-1-DB.md table names (theme_clusters,
-  // character_keyword_profiles, keyword_cooccurrence).
   themeCluster: "theme_cluster",
-  // D24: the polymorphic `duplicate_pair` becomes per-type FK tables.
   duplicateCharacterPair: "duplicate_character_pair",
   duplicateChatPair: "duplicate_chat_pair",
   characterKeywordProfile: "character_keyword_profile",
   keywordCooccurrence: "keyword_cooccurrence",
   workload: "workload",
-  // The recurring-execution schedule row (the TIME dimension over the workload queue): a cadence + params
-  // that auto-enqueues a `workload` on its `nextRunAt`.
   workloadSchedule: "workload_schedule",
   auditLog: "audit_log",
   session: "session",
@@ -89,31 +60,21 @@ export const ID_PREFIX = {
   modelStat: "model_stat",
   buddyTurn: "buddy_turn",
   buddyQuip: "buddy_quip",
-  // D16: the per-user durable notification inbox.
   notification: "notification",
-  // D49: hosted image-generation provenance (imagery leaf, item 1) + curated gallery items (gallery v2, item 2).
   imageryGeneration: "imagery_generation",
   galleryItem: "gallery_item",
-  // D58 design-gap fix (owner 2026-07-09, no unbranded id strings): the imagery style-profile entity's
-  // brand — minted at the rpg config reference (rpg-design/03 §1.1 `styleProfileId`); the future
-  // style-profile row (imagery-owned) adopts it. The brand is the one-home; the table trails.
+  // Minted at the rpg config reference; the future style-profile row (imagery-owned) adopts it.
   styleProfile: "style_profile",
-  // D59: chat-crew review artifacts — the prose-audit edit proposal (crew-owned) + the card-evolution
-  // proposal (character-owned; the crew only FILES it — chat-crew-design/02 §4–5).
   crewEditProposal: "crewprop",
   cardEvolutionProposal: "cardprop",
-  // D46: automation rules + the fire log. `global_variables` deliberately has NO TypeID — nothing FKs
-  // it; the natural key (ownerId, key) IS the identity (automation-design/02 §4).
+  // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
   automationFire: "automation_fire",
-  // D61: saved roster presets (saved-rosters-design §2). `roster_preset_members` has NO TypeID — its
-  // identity is the composite PK (presetId, characterId).
+  // `roster_preset_members` has NO TypeID — its identity is the composite PK (presetId, characterId).
   rosterPreset: "roster_preset",
-  // D49 #5: databank source documents + their vector chunks (databank-design/02).
   document: "document",
   documentChunk: "document_chunk",
-  // D58: the rpg campaign tables (rpg-design/03 §0 — 14 new prefixes; the ID_PREFIX value is the prefix
-  // WITHOUT the trailing underscore typeid appends, e.g. `rpggame` → `rpggame_…`).
+  // ID_PREFIX value is the prefix WITHOUT the trailing underscore typeid appends, e.g. `rpggame_…`.
   rpgGame: "rpggame",
   rpgSnapshot: "rpgsnap",
   rpgNpc: "rpgnpc",
@@ -198,22 +159,22 @@ export type ModelStatId = TypeIdOf<"model_stat">;
 export type BuddyTurnId = TypeIdOf<"buddy_turn">;
 export type BuddyQuipId = TypeIdOf<"buddy_quip">;
 
-// --- Chat crew (D59 — review artifacts) ---------------------------------------
+// --- Chat crew (review artifacts) ---------------------------------------
 export type CrewEditProposalId = TypeIdOf<"crewprop">;
 export type CardEvolutionProposalId = TypeIdOf<"cardprop">;
 
-// --- Automation (D46 — rules + the fire log) ----------------------------------
+// --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;
 export type AutomationFireId = TypeIdOf<"automation_fire">;
 
-// --- Roster presets (D61 — named party presets) ------------------------------
+// --- Roster presets (named party presets) ------------------------------
 export type RosterPresetId = TypeIdOf<"roster_preset">;
 
-// --- Databank (D49 #5 — source documents + vector chunks) --------------------
+// --- Databank (source documents + vector chunks) --------------------
 export type DocumentId = TypeIdOf<"document">;
 export type DocumentChunkId = TypeIdOf<"document_chunk">;
 
-// --- RPG (D58 — the 14 campaign tables, rpg-design/03) ------------------------
+// --- RPG (the 14 campaign tables) ------------------------
 export type RpgGameId = TypeIdOf<"rpggame">;
 export type RpgSnapshotId = TypeIdOf<"rpgsnap">;
 export type RpgNpcId = TypeIdOf<"rpgnpc">;
@@ -234,66 +195,40 @@ export type WorkloadId = TypeIdOf<"workload">;
 /** A recurring-execution schedule row — the TIME dimension that auto-enqueues a `workload` on a cadence. */
 export type WorkloadScheduleId = TypeIdOf<"workload_schedule">;
 
-// --- Notifications (D16 — the per-user durable inbox) ------------------------
+// --- Notifications (the per-user durable inbox) ------------------------
 export type NotificationId = TypeIdOf<"notification">;
 
 // --- Cross-cutting -----------------------------------------------------------
 export type AuditLogId = TypeIdOf<"audit_log">;
 
-/**
- * Brand a raw string as a specific id type. The ONE sanctioned cast — use it at
- * untyped seams (raw HTTP params, polymorphic `entityId`s, test fixtures), never
- * to paper over a real type mismatch. Works for both phantom and TypeID brands.
- * Prefer {@link typeIdSchema} (validating) over a bare cast for TypeID ids at
- * boundaries.
- */
+/** Brand a raw string as a specific id type. The one sanctioned cast — use it at untyped seams, never
+ *  to paper over a real type mismatch. Prefer {@link typeIdSchema} for TypeID ids at boundaries. */
 export function castId<T extends string>(raw: string): T {
   return raw as T;
 }
 
-/**
- * Zod schema for a non-TypeID branded id at a request boundary: validates
- * non-empty, types output as the brand.
- * Usage: `z.object({ userId: brandedId<UserId>() })`.
- * For TypeID ids use {@link typeIdSchema} — it also validates the prefix.
- */
+/** Zod schema for a non-TypeID branded id at a request boundary: validates non-empty, types output
+ *  as the brand. For TypeID ids use {@link typeIdSchema} — it also validates the prefix. */
 export function brandedId<T extends Branded<string>>(): z.ZodType<T> {
   // Brand is type-only; the runtime value is unchanged (no transform).
   return z.string().min(1) as unknown as z.ZodType<T>;
 }
 
-/**
- * Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding brand.
- * The ONE id-mint primitive (the `no-mint-via-cast` gate forbids minting through
- * {@link castId}).
- */
+/** Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding brand. The one id-mint
+ *  primitive — the `no-mint-via-cast` gate forbids minting through {@link castId}. */
 export function mintTypeId<P extends string>(prefix: P): TypeIdOf<P> {
-  // typeidUnboxed returns the library's object-brand; re-brand to this file's
-  // `Branded<P>` — the runtime value (a `prefix_…` string) is identical.
   return typeidUnboxed(prefix) as string as TypeIdOf<P>;
 }
 
-/**
- * Mint a fresh PLAIN (non-TypeID) branded id — for the brands that are deliberately
- * prefix-less nanoids, not `prefix_…` TypeIDs (today: `UserId`, Tier-1-DB.md §4). The
- * companion to {@link mintTypeId}: both gates (`no-mint-via-cast`, `no-raw-id`) name
- * `newId<T>()` as THE plain-id minter so a row id never has to be laundered through
- * {@link castId}. Mints via `typeid-js` with an EMPTY prefix → a 26-char base32
- * (UUIDv7-backed, time-sortable) opaque id with no `prefix_` — isomorphic, and avoids
- * `globalThis.crypto` (kit's no-DOM/no-node lib does not type it). Mirrors
- * {@link mintTypeId}'s sanctioned `as string as T` cast (the minter is the one home).
- */
+/** Mint a fresh plain (non-TypeID) branded id — for brands that are deliberately prefix-less
+ *  nanoids, not `prefix_…` TypeIDs (today: `UserId`). Mints via `typeid-js` with an empty prefix
+ *  (avoids `globalThis.crypto`, which kit's no-DOM/no-node lib does not type). */
 export function newId<T extends Branded<string>>(): T {
   return typeidUnboxed("") as string as T;
 }
 
-/**
- * Zod schema for a STRICT TypeID at a request boundary: validates the `prefix_…`
- * shape AND that the prefix matches, then types output as the brand. Runtime win
- * over {@link brandedId}: a `chat_…` where a `persona_…` is expected is REJECTED
- * (`fromString` throws on prefix mismatch), not silently accepted.
- * Usage: `z.object({ personaId: typeIdSchema(ID_PREFIX.persona) })`.
- */
+/** Zod schema for a STRICT TypeID at a request boundary: validates the `prefix_…` shape AND that
+ *  the prefix matches — a `chat_…` where a `persona_…` is expected is rejected, not silently accepted. */
 export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>> {
   return z.string().transform((value, ctx): TypeIdOf<P> => {
     try {

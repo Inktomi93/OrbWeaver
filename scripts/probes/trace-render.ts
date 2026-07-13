@@ -3,23 +3,16 @@
  * pnpm trace:render [<file> | -]
  *
  * Pure renderer: read a `RequestTrace` JSON from stdin or a file path, print a colored
- * ASCII waterfall to stdout — the terminal companion to /api/_debug/traces for when you
- * want to see a trace WITHOUT a browser or piping JSON through jq.
+ * ASCII waterfall to stdout.
  *
- * Composes naturally (single-user dev needs no token — the admin-cookie/owner-fallback
- * short-circuit in foundation/observability/debug/routes.ts passes headerless local calls;
- * token-gated deploys add -H "x-debug-token: $DEBUG_TOKEN"):
  *   curl -s http://127.0.0.1:8788/api/_debug/traces/<rid> | pnpm trace:render
  *
  * Exported `renderTrace()` is reused by trace-tail.ts + probe-fire.ts so all three
- * surfaces print identical shapes — fix the renderer once, every surface gets it.
+ * surfaces print identical shapes.
  *
- * DRIFT-PROOFING: unlike neo (which kept a hand-maintained structural mirror of the
- * server's trace shape), `RequestTrace`/`SerializedSpan` are TYPE-ONLY imports from
- * `@orb/server/foundation/observability` — erased at runtime (no OTel/app graph is
- * loaded), and a server-side shape change fails `tsc` here instead of silently
- * desyncing the renderer. ANSI helpers are identity in a non-TTY process, so the
- * unit test (tests/tooling/trace-render.test.ts) asserts on plain text.
+ * `RequestTrace`/`SerializedSpan` are TYPE-ONLY imports from
+ * `@orb/server/foundation/observability` — erased at runtime, and a server-side shape
+ * change fails `tsc` here instead of silently desyncing the renderer.
  */
 import { readFileSync } from "node:fs";
 import process from "node:process";
@@ -46,8 +39,7 @@ const ANSI = {
   cyan: tty ? (s: string): string => `\x1b[36m${s}\x1b[0m` : identity,
 };
 
-// Per-kind colour — matches the span-naming contract (foundation/observability/tracing.ts:
-// `db.*` from the libSQL wrap, `provider.*` runners, `trpc.*` procedures, `http *` roots).
+// Per-kind colour — matches the span-naming contract (foundation/observability/tracing.ts).
 function colorFor(name: string, status: SerializedSpan["status"]): (s: string) => string {
   if (status === "error") {
     return ANSI.red;
@@ -100,8 +92,6 @@ function buildRows(trace: RequestTrace): WaterfallRow[] {
   return out;
 }
 
-// Layout constants: the label column is hard-capped so the bars align; the bar width
-// scales with the terminal, bounded so narrow panes stay readable and wide ones sane.
 const LABEL_COLS = 48;
 const MS_PAD = 6;
 const BAR_MIN = 20;
@@ -127,7 +117,6 @@ export function renderTrace(trace: RequestTrace): string {
   const totalMs = Math.max(trace.durationMs, 1);
   const lines: string[] = [];
 
-  // Header — what a glance-reader needs to orient: name, verdict, duration, rid, totals.
   const statusBadge = trace.status === "error" ? ANSI.red("✗ error") : ANSI.green("● ok");
   lines.push(
     `${ANSI.bold(trace.rootName)}  ${statusBadge}  ${Math.round(trace.durationMs)}ms  ${ANSI.dim(
@@ -156,12 +145,9 @@ function renderRow(
   const indent = "  ".repeat(row.depth);
   const color = colorFor(row.span.name, row.span.status);
   const label = `${row.span.status === "error" ? ANSI.red("✗") : color("●")} ${indent}${color(row.span.name)}`;
-  // Slow-span flag: a db span past SLOW_DB_MS is almost always a missing index or an
-  // unbatched read — paint it red so it jumps out without reading every number.
   const slow = row.span.name.startsWith("db.") && row.span.durationMs >= SLOW_DB_MS;
   const msRaw = `${Math.round(row.span.durationMs)}ms`.padStart(MS_PAD);
   const ms = slow ? ANSI.red(`${msRaw} ⚠`) : msRaw;
-  // The bar: ░ background, █ this span's slice — nested calls visibly shift right.
   const offsetCol = Math.round(((row.span.startedAt - trace.startedAt) / totalMs) * barCols);
   const widthCol = Math.max(1, Math.round((row.span.durationMs / totalMs) * barCols));
   const left = Math.min(Math.max(0, offsetCol), barCols - 1);
@@ -174,16 +160,13 @@ function renderRow(
   const attrs = pickInlineAttrs(row.span);
   const attrLine = attrs.length > 0 ? `  ${ANSI.dim(attrs.join(" "))}` : "";
 
-  // Hard-cap the visible label width so the bar stays in one column across rows (pad by
-  // the ANSI overhead so colored + plain labels line up).
   const labelTruncated = truncate(label, LABEL_COLS);
   const ansiOverhead = label.length - stripAnsi(label).length;
   return `${labelTruncated.padEnd(LABEL_COLS + ansiOverhead, " ")} ${ms}  ${bar}${attrLine}`;
 }
 
-// The most diagnostic attribute keys, in the order worth reading inline — everything
-// else stays in the raw JSON. Matches what orb's spans actually stamp (tracing.ts
-// callAttrs/enrichExecuteResult + trpc.ts + the engine/runner attrs).
+// The most diagnostic attribute keys, in the order worth reading inline; everything
+// else stays in the raw JSON.
 const INLINE_ATTR_PRIORITY = [
   "trpc.errorCode",
   "db.sql",
@@ -226,7 +209,6 @@ function truncate(s: string, max: number): string {
   if (visible.length <= max) {
     return s;
   }
-  // Best-effort: colours are lost on truncation — long names are rare in a terminal helper.
   return `${visible.slice(0, max - 1)}…`;
 }
 
@@ -255,9 +237,8 @@ async function main(): Promise<void> {
     raw = readFileSync(arg, "utf-8");
   }
   const parsed: unknown = JSON.parse(raw);
-  // Accept BOTH a bare trace and a `{traces: [...]}` list response so a user can pipe
-  // either without thinking — NOTE the /api/_debug/traces LIST strips `spans` (summary
-  // rows); only full traces (the /traces/:rid detail) render a waterfall.
+  // Accept both a bare trace and a `{traces: [...]}` list response — the list endpoint
+  // strips `spans` (summary rows); only a full trace renders a waterfall.
   if (parsed !== null && typeof parsed === "object" && "spans" in parsed) {
     process.stdout.write(`${renderTrace(parsed as RequestTrace)}\n`);
     return;

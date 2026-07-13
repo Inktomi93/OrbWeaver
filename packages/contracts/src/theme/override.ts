@@ -1,29 +1,17 @@
-// The D44 §12.1 token-override WIRE schema — the boundary clamp for user/character theming
-// (`UI-Theming-and-Content.md` §12.1 owns the field list + the parse-and-clamp rules; ledger D44 is
-// the decision record). A custom-property VALUE cannot select/execute/exfiltrate — but only if it
-// is PARSED + CLAMPED at the boundary: a color must parse as a color (the shared kit `isSafeColor`
-// — reject `url()`/`expression()`/injection), fonts allowlist, enums enumerate. Anything that fails
-// DEGRADES per-field (`.catch(undefined)` — the bad field drops, the inherited token shows through;
-// unknown keys strip) — themes-design.md §3.1's lenient posture; never a whole-blob reject.
-//
-// DELIBERATE TWO-COPY (D44 §12.5 one-home note): this WIRE schema and the ui-local RENDER clamp
-// (`@orb/ui` `content/theme-scope/clamp.ts`) exist twice BY DESIGN — the cake forbids either
-// importing the other. The shared `isSafeColor` predicate lives ONCE in `@orb/kit/safe-color`
-// (both reach kit), and the structural pairing (identical key sets, enums, font allowlist) is
-// pinned by `tests/contracts/theme/pairing.suite.test.ts`, which may import both packages.
-//
-// D63 (amends D49 §3): the decorative background IMAGE has MOVED OFF the theme. Only the base surface
-// COLOR (`background`, below) stays a ThemeOverride token — it feeds the neutral ramp via
-// `oklch(from background …)`, so it is palette-bound by nature. The decorative photo trio
-// (`backgroundImageKind`/`backgroundSeededId`/`backgroundExternalUrl` + fit/dim) is palette-INDEPENDENT
-// and now lives as FLAT fields on the `appearance` user-settings namespace (`@orb/contracts/settings`),
-// beside the glass toggle. It was never a `--*` custom property here — just a root-layer input — so its
-// departure leaves the wire clamp / render clamp pairing carrying only color + enum vars.
+// The token-override WIRE schema — the boundary clamp for user/character theming. A custom-property
+// value cannot select/execute/exfiltrate only if parsed + clamped at the boundary: a color must parse
+// as a color, fonts allowlist, enums enumerate. A failed field degrades to `undefined` (never a
+// whole-blob reject).
+// Deliberate two-copy: this wire schema and the ui-local render clamp (`@orb/ui`
+// `content/theme-scope/clamp.ts`) exist twice by design (the cake forbids either importing the other);
+// `tests/contracts/theme/pairing.suite.test.ts` pins their structural mirror.
+// The decorative background IMAGE lives as flat fields on the `appearance` settings namespace, not here
+// — only the base surface COLOR (`background`) stays a token (it feeds the neutral ramp).
 
 import { isSafeColor } from "@orb/kit/safe-color";
 import { z } from "zod";
 
-/** Fonts a user may pick — an allowlist (D44 §12.1 "font (allowlist)"); anything else drops. */
+/** Fonts a user may pick — an allowlist; anything else drops. */
 export const THEME_FONT_ALLOWLIST = [
   "Geist",
   "ui-sans-serif",
@@ -35,11 +23,8 @@ export const THEME_FONT_ALLOWLIST = [
 ] as const;
 export type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
-// Phase 4 (§B.2 FINAL-Persona-and-Immersive-Chat-Visuals.md): the 5 immersive modes join bubble/flat/
-// document as first-class peers, painted by `@orb/client` `MESSAGE_ROW_SKINS` (the exhaustive
-// `Record<ChatStyle, RowSkin>` — a new member here fails `tsc` there until it's painted). A per-character
-// `ThemeOverride.chatStyle` may ALSO pick one of these (the character-authored theme editor,
-// `features/settings/components/theme-editor.tsx`).
+// Painted by `@orb/client` `MESSAGE_ROW_SKINS` (`Record<ChatStyle, RowSkin>`) — a new member here fails
+// tsc there until it's painted.
 export const THEME_CHAT_STYLES = [
   "bubble",
   "flat",
@@ -62,19 +47,15 @@ export type ThemeRadius = (typeof THEME_RADII)[number];
 const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);
 const bubble = z.object({ bg: colorToken, fg: colorToken }).optional().catch(undefined);
 
-/**
- * The curated token-override subset (D44 §12.1 — sized to ST `--SmartTheme*` parity). Every field
- * optional; per-field failures degrade to undefined. `background` is the base surface COLOR the
- * neutral ramp derives from — the ONLY background field here (D63): the decorative photo trio moved
- * to the `appearance` namespace, palette-independent. The pairing test enforces the mirror with the
- * ui `<ThemeScope>` clamp.
- */
+/** The curated token-override subset. Every field optional; per-field failures degrade to undefined.
+ *  `background` is the base surface color the neutral ramp derives from — the only background field
+ *  here (the decorative photo trio moved to the `appearance` namespace). */
 export const themeOverrideSchema = z.object({
   accent: colorToken,
   userBubble: bubble,
   aiBubble: bubble,
   systemBubble: bubble,
-  /** The speaker-NAME color (§12.1 "name color"). */
+  /** The speaker-name color. */
   speaker: colorToken,
   dialogueColor: colorToken,
   narrationColor: colorToken,

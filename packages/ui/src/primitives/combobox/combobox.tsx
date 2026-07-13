@@ -11,28 +11,23 @@ import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#li
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants";
 
-// Breathing room between the input and the popup — the input-hug gap (§13.0 C19 rollup, `#lib`).
+// Breathing room between the input and the popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
 const slots = comboboxVariants();
 
-// Keys that commit the in-flight draft text as a new chip. Enter commits when no suggestion is
-// highlighted (a highlighted suggestion instead falls through to Base UI's own Enter-selects
-// handling — see `handleInputKeyDown`); comma has no native meaning here, so it always commits
-// (lets a pasted/typed "a, b, c" land as three chips via the same split-on-comma pass `commit`
-// applies to a single keypress' worth of text).
+// Enter commits when no suggestion is highlighted (a highlighted one falls through to Base UI's
+// own Enter-selects handling); comma always commits, letting a pasted "a, b, c" land as three chips.
 const COMMIT_KEYS = new Set(["Enter", ","]);
 
-// The async/fuzzy-search seam — forwarded straight to Base UI Root, mirrors the autocomplete seal.
+// Forwarded straight to Base UI Root, mirrors the autocomplete seal.
 type ComboboxPassthrough = Pick<BaseRootProps<string, true>, "filter" | "autoHighlight" | "limit">;
 
 export interface ComboboxProps extends ComboboxPassthrough {
   /**
    * Candidate suggestions shown in the popup. Omit entirely for pure free-text chip entry — no
-   * popup renders at all (the multi-select still works: Enter/comma commit typed text as chips).
-   * Passing `[]` (rather than omitting) keeps the popup capability mounted for a list that may
-   * populate later. May be a render-derived array (a fresh reference each render, filtered/mapped
-   * from props/state) — no referential stability required, mirroring the autocomplete seal.
+   * popup renders at all. Passing `[]` keeps the popup capability mounted for a list that may
+   * populate later.
    */
   items?: readonly string[];
   /** The committed chip values. Controlled — pair with `onValueChange`. */
@@ -65,16 +60,11 @@ export interface ComboboxProps extends ComboboxPassthrough {
   align?: BasePositionerProps["align"];
   /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: BasePositionerProps["sideOffset"];
-  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
-   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  /** Portal target — defaults to the themed portal root; pass a node/ref to override. */
   container?: PortalContainer;
 }
 
-/**
- * Announces the live suggestion count to screen readers via Base UI's `Combobox.Status` — the
- * same pattern as the autocomplete seal's status region (reads `useFilteredItems` so the count
- * always matches the rendered list).
- */
+/** Announces the live suggestion count to screen readers, same pattern as the autocomplete seal. */
 function ComboboxResultStatus(): ReactElement {
   const filtered = BaseCombobox.useFilteredItems<string>();
   const count = filtered.length;
@@ -87,46 +77,11 @@ function ComboboxResultStatus(): ReactElement {
 
 /**
  * The multi-select combobox — chips render selected values inline with the draft input; typing
- * filters a suggestion popup, and Enter/comma commit free text alongside it (R4: value-type is an
- * array of chips, so this seals Base UI's Combobox, never the Autocomplete — see that seal's own
- * doc comment for the same cross-reference). Full anatomy: InputGroup[Chips[Value-render(Chip[
- * ChipRemove] + Input)]] → Portal → Positioner → Popup → List/Item + Status.
- *
- * API choice: item VALUES are `string`, same rationale as the autocomplete seal — the near-term
- * consumers (label pickers, tag chips, keyword triggers) are string sets. `multiple` is baked in
- * (this seal IS the multi-select case); a single-select combobox isn't offered here — pick Select
- * for a fixed list or Autocomplete for free-text-plus-suggestions-into-one-input (R4).
- *
- * Keyboard: Base UI's OWN Combobox already ships Backspace-on-empty-input chip removal and
- * ArrowLeft/Right chip-focus navigation with Backspace/Delete-removes-focused-chip (verified in
- * the shipped `ComboboxInput`/`ComboboxChip` internals — R3, not hand-rolled here). The only gap
- * Base UI leaves is committing typed text that ISN'T in `items` (or when there are no `items` at
- * all): `handleInputKeyDown` intercepts Enter only when nothing is highlighted (tracked via
- * `onItemHighlighted`, since a highlighted suggestion must still go through Base UI's native
- * Enter-selects path — the two converge on the same `string[]` shape either way) and comma always
- * (Base UI has no native comma handling to preserve).
- *
- * `maxItems` is enforced once, in `handleRootValueChange` — the single funnel both the native
- * selection path (click/keyboard-select a suggestion) and the free-text `commitDraft` path route
- * through, so the cap can't be bypassed by either route.
- *
- * Deliberate omissions (R2): `Combobox.Group`/`GroupLabel` (no consumer needs categorised
- * suggestions here — the autocomplete seal has `groups` for that shape), `Combobox.Clear` (each
- * chip already removes itself; no consumer asked for a clear-all), `Combobox.Trigger`/`Icon`/
- * `Label` (this is an input-anchored combobox, not a trigger-opened one — same cut the
- * autocomplete seal makes).
- *
- * `arrow` mounts `Combobox.Arrow`; `side`/`align`/`sideOffset` override the Positioner's placement.
- * Inside a `<Field>`, the input auto-registers (label association + `aria-describedby`) because
- * `Combobox.Input` extends `FieldRootState`; `aria-describedby` is also exposed directly for
- * standalone (non-`<Field>`) composition.
- *
- * Usage:
- * ```tsx
- * <Combobox aria-label="Labels" items={seedLabels} maxItems={8} onValueChange={setLabels}
- *   value={labels} />
- * ```
- * — omit `items` for pure free-text chip entry (world-info keyword triggers).
+ * filters a suggestion popup, and Enter/comma commit free text alongside it. Item values are
+ * `string`; `multiple` is baked in (pick Select for a fixed list, Autocomplete for a single input).
+ * Base UI's own Combobox ships chip-removal/navigation; `handleInputKeyDown` only adds committing
+ * typed text that isn't in `items`. `maxItems` is enforced once in `handleRootValueChange`, the
+ * single funnel both the native selection path and `commitDraft` route through.
  */
 export function Combobox({
   items,
@@ -154,8 +109,7 @@ export function Combobox({
   const value = isControlled ? valueProp : internalValue;
 
   const [inputValue, setInputValue] = useState("");
-  // Tracks the currently-highlighted suggestion (if any) without triggering a re-render on every
-  // arrow-key move — `handleInputKeyDown` only needs its value at the moment Enter is pressed.
+  // Avoids a re-render on every arrow-key move — only read at the moment Enter is pressed.
   const highlightedRef = useRef<string | undefined>(undefined);
 
   const suggestionsEnabled = items !== undefined;

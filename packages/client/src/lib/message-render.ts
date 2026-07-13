@@ -1,20 +1,13 @@
-// The canonical DISPLAY pipeline (UI-Arch §2.1 `lib/message-render` — carried from neo, where every
-// text-showing surface routed through it). Three steps, one order, one home:
+// The canonical display pipeline every text-showing surface routes through, three steps in order:
+//   1. resolveRowMacros    — {{user}}/{{char}}/{{persona}} → live values, via the shared atom also
+//                            called by server assemble; the row's own characterId/personaId stamps
+//                            drive the subject.
+//   2. executeRegexScripts (placement: "DISPLAY") — the viewer's markdownOnly scripts, ephemeral,
+//                            never canon/shared-prompt.
+//   3. fixMarkdown          — LLM artifact repair.
 //
-//   1. resolveRowMacros(text, stamps, ctx)             ← {{user}}/{{char}}/{{persona}} → live values,
-//        via the ONE shared atom (`@orb/kit/macro`, Chat-Macro-Resolution.md §2) also called by server
-//        ASSEMBLE — the row's OWN `characterId`/`personaId` stamps drive the subject, never a
-//        caller-supplied "current" default except as the documented last resort.
-//   2. executeRegexScripts(placement: "DISPLAY")      ← the D53 per-user CLIENT display tier:
-//        the viewer's `markdownOnly` scripts, ephemeral, never canon/shared-prompt (host-tier
-//        prompt regex ran server-side; promptOnly scripts are skipped ON the DISPLAY placement
-//        by the engine itself)
-//   3. fixMarkdown(text, forDisplay: true)            ← LLM artifact repair
-//
-// Output is a STRING for the `@orb/ui/markdown` renderer (Streamdown owns sanitize — this pipeline
-// never emits HTML). NOT for composer/edit textareas (those keep `{{…}}` literal). Per-speaker
-// `<speaker>` span splitting is a separate render step (§12.4) — spans survive this pipeline
-// untouched and are consumed by the narrator renderer.
+// Output is a string for the @orb/ui/markdown renderer (never HTML) — not for composer/edit
+// textareas (those keep {{…}} literal).
 
 import { fixMarkdown } from "@orb/kit/fix-markdown";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
@@ -29,54 +22,34 @@ import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 
 export interface MessageRenderContext {
-  /** The per-chat name PRODUCER (Chat-Macro-Resolution.md §1) — every id the chat references, id→name.
-   *  Names only (never denormalized onto a row); a caller with no roster at all passes an empty Map
-   *  (the kit atom's own "Character" floor still applies, never a blank erasure). */
+  /** The per-chat name producer — every id the chat references, id→name. Names only; an empty Map is
+   *  legal (the kit atom's own floor still applies). */
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
-  /** The turn's own `{{char}}` default (the solo character) — used only when a VOICED row's own
-   *  `characterId` doesn't resolve via the producer (§2). */
+  /** The turn's own `{{char}}` default — used only when a voiced row's own characterId doesn't resolve. */
   readonly speakerCharName?: string | undefined;
-  /** The chat ANCHOR persona (`chats.anchorPersonaId`) — the null-stamp `{{user}}`/`{{persona}}` fallback
-   *  (ruling A / the design principle: a greeting or AI line addresses the SAME persona the model was told,
-   *  never the VIEWER's own active persona). Never a row's subject when its own `personaId` resolves. */
+  /** The chat anchor persona — the null-stamp `{{user}}`/`{{persona}}` fallback (never the viewer's own
+   *  active persona). Never a row's subject when its own personaId resolves. */
   readonly fallbackPersonaName?: string | undefined;
   readonly fallbackPersonaDescription?: string | undefined;
   readonly scenario?: string;
-  /** The full cast names in roster order — drives `{{group}}` AND a HUMAN-authored / narrator row's
-   *  `{{char}}` (ruling B: the joined cast in multi, the one character in solo). Omit for solo-of-one only
-   *  when unknown (the atom then falls to `speakerCharName`). */
+  /** The full cast names in roster order — drives \{\{group\}\} and a human-authored/narrator row's
+   *  \{\{char\}\} (joined cast in multi, the one character in solo). */
   readonly cast?: readonly string[];
-  /** The VIEWER's display-tier regex scripts (D53: per-user, client-side, ephemeral). */
+  /** The viewer's display-tier regex scripts (per-user, client-side, ephemeral). */
   readonly displayScripts?: readonly RegexScriptInput[];
-  /** Frozen clock for `{{time}}`/`{{date}}` (client-determinism; omit = live clock inside kit). */
+  /** Frozen clock for \{\{time\}\}/\{\{date\}\}; omit = live clock inside kit. */
   readonly nowMs?: number;
-  /** The chat's variable bag for `{{getvar}}`/`{{if}}` (the D46 config/runtime planes). Omit = empty. */
+  /** The chat's variable bag for \{\{getvar\}\}/\{\{if\}\}. Omit = empty. */
   readonly env?: MacroEnv;
-  /** ST `auto_fix_generated_markdown` parity (the `autoFixMarkdown` appearance pref). Run the client-side
-   *  `fixMarkdown` auto-fix (close odd `*`/`**`/`"`, fix `* text *` spacing) on this DISPLAY text. Default
-   *  OFF: a settled body renders as-AUTHORED, so a deliberate lone asterisk (censoring — `f*ck`) is NOT
-   *  auto-closed into a stray emphasis run (the exact fix mis-fire). ON = ST-style auto-fix for the power
-   *  user (note ST defaults this ON; orbweaver defaults OFF so the mis-fire doesn't bite). */
+  /** ST `auto_fix_generated_markdown` parity. Default off: a settled body renders as-authored, so a
+   *  deliberate lone asterisk (censoring — f*ck) is not auto-closed into a stray emphasis run. */
   readonly autoFixMarkdown?: boolean;
 }
 
-/**
- * Render a stored/authored/LLM message body for display. `rowCharacterId`/`rowPersonaId` are the
- * ROW's OWN stamps (`MessageView.characterId`/`.personaId`) — the same two ids that drive the #21
- * attribution chrome also drive the macro subject (Chat-Macro-Resolution.md §0), fed straight to
- * `resolveRowMacros` (the ONE atom server ASSEMBLE also calls, so DISPLAY == ASSEMBLE by construction).
- *
- * The subsequent DISPLAY-tier regex step also runs against a `ProcessMacroOptions` (a script's own
- * pattern/replacement may itself reference `{{char}}`/`{{user}}`) — resolved here via the SAME two
- * producer maps + the row's OWN stamps, mirroring `resolveRowMacros`'s lookup order. Its ultimate floor
- * is "" rather than kit's private "Character"/"User" literals (that floor is an unexported engine
- * constant): a fully-unresolved regex-ctx subject is a cosmetic nuance of that secondary, rarely-used
- * capability, never the primary substitution (which always goes through the real atom).
- */
-/** The `{{char}}` subject for the SECONDARY display-tier regex `ProcessMacroOptions` — mirrors the primary
- *  atom (`resolveRowMacros`): a VOICED row resolves its own character (or `speakerCharName`), a
- *  HUMAN-authored / narrator row resolves the CAST (joined in multi, one in solo — ruling B). Floor "". */
+/** The `{{char}}` subject for the secondary display-tier regex ProcessMacroOptions — mirrors the
+ *  primary atom: a voiced row resolves its own character (or speakerCharName), a human-authored /
+ *  narrator row resolves the cast (joined in multi, one in solo). Floor "". */
 function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null): string {
   if (characterId !== null) {
     return ctx.characterNamesById.get(characterId)?.name ?? ctx.speakerCharName ?? "";
@@ -129,12 +102,7 @@ export function renderMessageForDisplay(
           scripts: ctx.displayScripts,
           placement: "DISPLAY",
           ctx: macroCtx,
-          // Display tier: a failing viewer script silently skips (their own local transform —
-          // never worth breaking the room render). The native replace default is "the browser's
-          // lot" (D53 — the node:vm watchdog is a SERVER concern).
+          // Display tier: a failing viewer script silently skips — never worth breaking the room render.
         });
-  // The ST `auto_fix_generated_markdown` auto-fix (close odd `*`/`"`, fix emphasis spacing) is OPT-IN
-  // (the `autoFixMarkdown` appearance pref, default OFF): running it on a settled body auto-closes a
-  // deliberate lone/censoring asterisk into a stray emphasis run (`f*ck` → italic). Off ⇒ render as-authored.
   return ctx.autoFixMarkdown === true ? fixMarkdown(regexed, true) : regexed;
 }

@@ -56,12 +56,6 @@ function isProcessEnvAccess(node: Node): boolean {
   return false;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// The legacy predicate as a Property/ElementAccessExpression subscription (the two node shapes a
-// `process.env` / `process["env"]` access can take): no getDescendants() over every node — the runner's
-// ONE walk feeds only these two kinds. scanRoot mirrors the legacy filter (server-src ∧ ¬foundation/env).
-// The role-policy sanctioned-read exception is applied in `visit` exactly as the legacy `scan`.
-// Per-occurrence (each process.env access).
 const SOLE_ENV_MESSAGE =
   "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (core/Tier-2-Foundation.md inv #1).";
 

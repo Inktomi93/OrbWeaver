@@ -1,26 +1,13 @@
-// The character-card editor form MODEL (FINAL-Character §6 · mirrors persona-editor-model.ts /
-// theme-editor-model.ts): the flat form value shape the §6 editor binds + the ⇄ mappers to the
-// `character.update` wire, plus the §6.3/§6.5 token-count helpers. Pure logic, no JSX.
+// Character-card editor form model: the flat form value shape the editor binds + the ⇄ mappers to the
+// character.update wire, plus token-count helpers. Pure logic, no JSX.
 //
-// SCOPE — DRAFT CARD CONTENT ONLY (§2 commit-model law). This model carries the fields under the CONTENT
-// save-bar: the card text, greetings, exampleMessages, the flattened depthPrompt, regexScripts, and the
-// editable provenance (creator/cardVersion). It DELIBERATELY excludes the immediate-commit identity fields
-// (`starred`/`archived`/`forbidExternalMedia`/`trustHtml`/`themeOverride`/`avatarAssetId`/tags) — those
-// fire their own single-key `character.update` patches OUTSIDE this form (§2/§6.1), never lighting the pill.
-// It also excludes the read-only surfaces (`refinery`/`importedFrom`/`importHash`/`extensions`/
-// `residualData`) — display-only, never round-tripped through form state (§6.4).
+// Scope: draft card content only. Excludes immediate-commit identity fields (starred/archived/
+// forbidExternalMedia/trustHtml/themeOverride/avatarAssetId/tags — patched outside this form) and
+// read-only surfaces (refinery/importedFrom/importHash/extensions/residualData — display-only).
 //
-// The card READ view is inferred through tRPC — never a cross-package type import (the persona-editor-model
-// precedent); the alias stays FILE-LOCAL (a mappers-only shape, consumers infer their own from the proxy).
-//
-// null-vs-empty (§2 wire discipline): a nullable card text field maps `"" ⇒ null` on save (null = clear);
-// the always-a-list columns (`greetings`/`regexScripts`) ride as arrays, never null, so they never clear
-// spuriously. depthPrompt re-nests from the three flat siblings; an empty prompt ⇒ `null` (no note).
-//
-// SAVE = CHANGED KEYS ONLY (§2, LOAD-BEARING): `characterUpdateDiff` — not `characterUpdateFromForm` — is
-// the save payload. It diffs the normalized form against the normalized SERVER row and emits only the keys
-// the user actually changed, so a Save never re-sends untouched fields and can't silently revert a
-// concurrent edit (the two-tab data-loss bug §2 forbids). Omitted = unchanged; a present `null` = clear.
+// Save = changed keys only: `characterUpdateDiff` diffs the normalized form against the normalized
+// server row and emits only keys that actually changed, so a save can't silently revert a concurrent
+// edit to an untouched field. Omitted = unchanged; a present `null` = clear.
 
 import type { UpdateCharacterInput } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -30,29 +17,24 @@ import { estimateTokens } from "@orb/kit/tokens";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
-/** The owner card read (`character.get`/`update` return) — inferred, never a contracts type import. */
+/** The owner card read — inferred, never a contracts type import. */
 type CharacterDetail = inferOutput<Trpc["character"]["get"]>;
 
 const DEFAULT_DEPTH_PROMPT_DEPTH = 4;
 const DEFAULT_DEPTH_PROMPT_ROLE: MessageRole = "system";
 const PREFILL_DEPTH = 0;
 
-/** The flat form value shape the §6 editor binds. Nullable card text is held as `string` (`"" ⇒ null` on
+/** The flat form value shape the editor binds. Nullable card text is held as `string` (`"" ⇒ null` on
  *  save); the nested `depthPrompt` is flattened to three sibling fields (re-nested on save). */
 export interface CharacterCardFormValues {
-  // ── §6.1 hero (draft) ──
   readonly name: string;
-  // Mutable arrays (NOT `readonly`): TanStack Form's array-field helpers (`pushFieldValue`/`removeFieldValue`)
-  // only recognise a field as an array when its type is a mutable `T[]` — a `readonly T[]` drops out of the
-  // array-key union (§6.1 greeting alternates + §6.4 regexScripts both need the helpers).
+  // Mutable (not readonly): TanStack Form's array-field helpers only recognize a mutable T[].
   readonly greetings: string[];
-  // ── §6.3 Main tab (draft) ──
   readonly description: string;
   readonly personality: string;
   readonly scenario: string;
   readonly exampleMessages: string;
   readonly creatorNotes: string;
-  // ── §6.4 Advanced tab (draft) ──
   readonly systemPrompt: string;
   readonly postHistoryInstructions: string;
   /** Character's Note \@ Depth, flattened. Empty `depthPromptText` ⇒ `depthPrompt: null` on save. */
@@ -65,8 +47,8 @@ export interface CharacterCardFormValues {
   readonly cardVersion: string;
 }
 
-/** From-scratch defaults (a create with no server row yet — the editor always mounts over a real row today,
- *  but the factory requires a `defaultValues` fallback). */
+/** From-scratch defaults — the editor always mounts over a real row today, but the factory requires a
+ *  `defaultValues` fallback. */
 export const DEFAULT_CHARACTER_CARD_FORM: CharacterCardFormValues = {
   name: "",
   greetings: [""],
@@ -90,14 +72,13 @@ function orEmpty(value: string | null): string {
   return value ?? "";
 }
 
-/** `"" ⇒ null` for a nullable card text column (§2 wire discipline: null = clear the field). */
+/** `"" ⇒ null` for a nullable card text column (null = clear the field). */
 function orNull(value: string): string | null {
   return value.trim() === "" ? null : value;
 }
 
-/** Read the owner card detail into the flat form values (draft-content fields only — identity/read-only
- *  fields are handled outside the form, §2/§6.4). A card with no greetings still seeds one empty slot so the
- *  hero always has an editable "first message". */
+/** Read the owner card detail into the flat form values (draft-content fields only). A card with no
+ *  greetings still seeds one empty slot so the hero always has an editable "first message". */
 export function characterCardFormFromDetail(card: CharacterDetail): CharacterCardFormValues {
   return {
     name: card.name,
@@ -118,21 +99,15 @@ export function characterCardFormFromDetail(card: CharacterDetail): CharacterCar
   };
 }
 
-/** The full NORMALIZED card payload from the form values (every draft key, wire-normalized). Nullable text
- *  maps `"" ⇒ null` (clear), the list columns ride as arrays, and the three depthPrompt siblings re-nest into
- *  the `{prompt, depth, role}` directive (empty prompt ⇒ `null`). Identity fields are NEVER sent from here.
- *  NOT the save payload directly — `characterUpdateDiff` narrows it to only the CHANGED keys (§2 wire
- *  discipline: omitted = unchanged), which is what the save-bar actually sends. Kept separate because the
- *  diff builds BOTH sides (desired + server baseline) through this ONE normalizer, so only genuine edits
- *  differ. */
+/** The full normalized card payload from the form values (every draft key, wire-normalized). Not the
+ *  save payload directly — `characterUpdateDiff` narrows it to only the changed keys, building both
+ *  sides (desired + server baseline) through this one normalizer so only genuine edits differ. */
 export function characterUpdateFromForm(values: CharacterCardFormValues): UpdateCharacterInput {
   return {
     name: values.name,
-    // The always-a-list column: an empty first message is still a real (empty) greeting slot; drop trailing
-    // empties beyond the first so a card never persists blank alternates the author didn't write.
+    // Drop trailing empties beyond the first greeting so a card never persists blank alternates.
     greetings: normalizeGreetings(values.greetings),
-    // `description` is NON-nullable in the card create/update schema (unlike the other text fields) — send
-    // the string as-is, never null.
+    // description is non-nullable in the card schema (unlike the other text fields).
     description: values.description,
     personality: orNull(values.personality),
     scenario: orNull(values.scenario),
@@ -147,12 +122,8 @@ export function characterUpdateFromForm(values: CharacterCardFormValues): Update
   };
 }
 
-/** The §2 CHANGED-KEYS diff (the LOAD-BEARING save discipline — FINAL-Character §2: "send only changed
- *  keys … do not hand-roll a full-object PUT"). Both the desired payload and the server row's baseline are
- *  built through the SAME `characterUpdateFromForm` normalizer, so a key is emitted ONLY when the user's
- *  edit genuinely differs from what the server holds — never a full-object PUT that would silently revert a
- *  concurrent edit to an untouched field (the two-tab data-loss bug). `"" ⇒ null` clears survive as a
- *  present `null` key (distinct from omitted); an untouched nullable field is omitted, not sent as `null`. */
+/** The changed-keys diff: emits a key only when the user's edit genuinely differs from the server row,
+ *  never a full-object PUT that could silently revert a concurrent edit to an untouched field. */
 export function characterUpdateDiff(
   values: CharacterCardFormValues,
   card: CharacterDetail,
@@ -168,9 +139,8 @@ export function characterUpdateDiff(
   return patch as UpdateCharacterInput;
 }
 
-/** A structural equality for the diff's field values (strings/null, string[], regexScript objects, the
- *  depthPrompt directive). File-local — the compared shapes are exactly the `characterUpdateFromForm`
- *  outputs (plain JSON: primitives, arrays, plain objects), so no Map/Set/Date handling is needed. */
+/** A structural equality for the diff's field values. File-local — the compared shapes are plain JSON
+ *  (primitives, arrays, plain objects), so no Map/Set/Date handling is needed. */
 function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true;
@@ -214,10 +184,8 @@ function depthPromptFromForm(values: CharacterCardFormValues): UpdateCharacterIn
   };
 }
 
-/** The write guard mirror (contract `cardDepthPromptWriteSchema`, the shared `isAssistantPrefill` —
- *  `@orb/kit/injection`): assistant-role at depth 0 is a response prefill — unsupported across providers.
- *  The editor SURFACES this (§6.4), never silently drops it. Only meaningful while the note has text (an
- *  empty note saves as `null`). */
+/** Assistant-role at depth 0 is a response prefill — unsupported across providers. The editor surfaces
+ *  this, never silently drops it. Only meaningful while the note has text. */
 export function isDepthPromptPrefill(values: CharacterCardFormValues): boolean {
   return (
     values.depthPromptText.trim() !== "" &&
@@ -225,13 +193,11 @@ export function isDepthPromptPrefill(values: CharacterCardFormValues): boolean {
   );
 }
 
-// ── §6.3/§6.5 token counts (live, off the draft — the ONE kit estimator, never a second) ──────────────
-// PERMANENT (§6.5) = OUR assembly's every-turn set: description · personality · scenario · systemPrompt ·
-// postHistoryInstructions · exampleMessages · depthPrompt.prompt. greetings are NON-permanent (a one-time
-// history seed — they cost history tokens after send, never card tokens). NOTHING that never reaches the
-// model (creatorNotes/creator/cardVersion/provenance) is counted.
+// Token counts, live off the draft. Permanent = every-turn assembly set: description/personality/
+// scenario/systemPrompt/postHistoryInstructions/exampleMessages/depthPrompt.prompt. greetings are a
+// one-time history seed, not counted here.
 
-/** Sum the estimator over the §6.5 PERMANENT fields (the every-turn assembly set). */
+/** Sum the estimator over the permanent fields. */
 export function permanentTokenCount(values: CharacterCardFormValues): number {
   return (
     estimateTokens(values.description) +
@@ -244,8 +210,7 @@ export function permanentTokenCount(values: CharacterCardFormValues): number {
   );
 }
 
-/** The §6.5 TOTAL: PERMANENT + the prompt-bearing non-permanent fields (name + the ACTIVE greeting). The
- *  active greeting is the one the hero is previewing/editing (§6.1 pill-tabs) — the ST "N total" number. */
+/** The total: permanent + the prompt-bearing non-permanent fields (name + the active greeting). */
 export function totalTokenCount(
   values: CharacterCardFormValues,
   activeGreetingIndex: number,

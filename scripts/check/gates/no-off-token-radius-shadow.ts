@@ -121,14 +121,10 @@ function isClassStringSite(node: Node): boolean {
   return CLASS_STRING_CALLEES.has(callee);
 }
 
-// ── SINGLE-PASS CONTRACT FORM (TSMORPH-SINGLE-PASS-AUDIT.md §1.2) ─────────────────────────────────
-// The same predicate as the legacy `Check` above, re-expressed as a node subscription: no project loop,
-// no 5 kind sweeps — the runner's ONE walk feeds each class-string-carrier literal to `visit`. Findings
-// are byte-identical to the legacy path (proven by the parity harness + this gate's conformance proofs).
 // The offender arm is per-literal (incremental-safe); the stale ALLOWLIST arm is finalize-guarded to the
-// full-project scope (§4.4).
+// full-project scope.
 
-/** GATE_SELF is where a stale-allowlist finding points (the gate file itself), matching the legacy arm. */
+/** GATE_SELF is where a stale-allowlist finding points (the gate file itself). */
 const GATE_SELF = "scripts/check/gates/no-off-token-radius-shadow.ts";
 const passSeenAllowlisted = new Set<string>();
 

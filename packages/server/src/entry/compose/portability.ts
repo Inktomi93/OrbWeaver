@@ -1,26 +1,9 @@
-// entry/compose/portability — THE composition seam that assembles the injected `PortabilityRegistry` the
-// delivery core iterates (export-import-portability.md §2/§3). The entity-agnostic core (`infra/storage/zip`
-// + `entry/http/{export,import}` + `entry/import/run-bundle-import`) is BUILT and consumes this registry; it
-// knows NOTHING about any specific entity. Adding an entity = append ONE descriptor here (composed from that
-// domain's export verb + import verb + serde), never an edit to the core.
-//
-// Each `PortableEntity` is `{ kind, dir, ext, exportAll, importFile }`:
-//   • exportAll(ownerId) streams the OWNER's rows as portable files (owner-scoped — `ownerId` is the ONLY
-//     owner the core ever passes). Composed from the domain's export verb; the SINGLE-file verbs (tag/theme/
-//     user-settings/gallery) are wrapped in a one-item async iterable, the MULTI-file verbs (preset, and the
-//     per-book/per-character/per-chat enumerations) yield each file lazily.
-//   • importFile(ownerId, file) parses ONE file's bytes → the owner's tables. Idempotent; NEVER throws for a
-//     malformed file (returns `{ok:false,error}`). Composed from the domain's import verb + its Option-B write
-//     op. A verb that returns a domain-local outcome or throws is adapted here to `PortableImportOutcome`.
-//
-// The IMPORT ORDER is NOT this array's order — the core imports a full bundle in `PORTABLE_IMPORT_ORDER`
-// (contracts/portability), independent of how the descriptors are listed here.
-//
-// The character + chat descriptors close over a per-owner `ImportContext` (the SAME wiring the card-upload
-// path used to build in `run-profile-import`): the character create/update/dedup ops + the assets avatar
-// store + the card-tag carry + the world-info embedded-book op + the PD-77 profile-wave ops (bulkImportChats
-// for the chat descriptor). The owner's `Principal` is resolved on demand through the injected
-// `resolveOwnerPrincipal` (the PD-73 host-principal seam) — the create/update verbs owner-scope off it.
+// Composition seam that assembles the injected `PortabilityRegistry` the delivery core iterates. The
+// entity-agnostic core knows nothing about any specific entity; adding an entity = append one descriptor
+// here. Each `PortableEntity` is `{ kind, dir, ext, exportAll, importFile }`: `exportAll` streams the
+// owner's rows as portable files; `importFile` parses one file's bytes into the owner's tables, never
+// throwing for a malformed file (returns `{ok:false,error}`). Import order is NOT this array's order — the
+// core imports by `PORTABLE_IMPORT_ORDER` (contracts/portability).
 
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
@@ -70,23 +53,17 @@ import type {
 } from "../import";
 import { buildImportContext } from "../import";
 
-/** What the registry builder needs from the composition root to compose each descriptor — the built domain
- *  contexts + the cross-cutting ops (owner-principal resolve, the character/assets/tag/chat import ops). Every
- *  descriptor closes over a slice of this; the delivery core stays entity-agnostic. */
+/** What the registry builder needs from the composition root to compose each descriptor. */
 export interface PortabilityDeps {
   readonly db: Db;
   readonly now: () => number;
-  // Self-contained domain entities.
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;
   readonly presetCtx: PresetContext;
   readonly worldInfoExportCtx: WorldInfoExportContext;
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
-  // Assets + gallery (ONE full AssetsContext with the handle resolvers wired — satisfies the blob Pick too).
   readonly assetsCtx: AssetsContext;
-  // Persona (the tRPC-shape export/import verbs — idempotent-merge import, G-7 fixed).
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
-  // Character + chat.
   readonly exportService: Pick<ExportService, "exportCharacter" | "exportChat">;
   readonly character: ImportCharacterPort;
   readonly listOwnedCharacterIds: (ownerId: UserId) => Promise<readonly CharacterId[]>;
@@ -97,25 +74,20 @@ export interface PortabilityDeps {
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
-  /** Resolve the owner's id → the immutable `Principal` (the PD-73 host-principal seam) — the character
-   *  create/update verbs owner-scope off it, and the enumerating exports resolve it once per call. */
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
 }
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
 
-/** sha-256 hex of bytes (the chat `importHash` dedup oracle — same digest the loader's `importFileHash` uses). */
+/** sha-256 hex of bytes (the chat `importHash` dedup oracle). */
 function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-/** Build the per-owner `ImportContext` (character ops + the PD-77 profile-wave ops) — the run-profile-import
- *  wiring, now the composition seam BOTH the character card path and the chat path share. */
+/** Build the per-owner `ImportContext`, shared by both the character card path and the chat path. */
 async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise<ImportService> {
   const principal = await deps.resolveOwnerPrincipal(ownerId);
-  // Shared with the sync card-upload path via `buildImportContext` (task #115 — one wiring seam). This path
-  // adds the world-info + PD-77 profile-wave deps the card-only slice omits.
   const ctx = buildImportContext({
     principal,
     character: deps.character,
@@ -148,16 +120,15 @@ function errorOutcome(err: unknown): PortableImportOutcome {
   return { ok: false, error: err instanceof Error ? err.message : String(err) };
 }
 
-// ── The host-character HANDLE layout for chats (G-3): a chat bundles under `chats/<host-handle>/<file>.jsonl`.
-//    Export resolves each host chat's PRIMARY character (first by join order) → its handle; import parses the
-//    handle back out of the file's directory and re-links to the owner's character carrying it. ─────────────
+// A chat bundles under chats/<host-handle>/<file>.jsonl; export resolves each host chat's primary
+// character (first by join order) to its handle, import parses the handle back out of the directory.
 interface HostChat {
   readonly chatId: ChatId;
   readonly handle: string;
 }
 
-/** Every chat the owner HOSTS (present `role='host'` seat), paired with the handle of its primary seated
- *  character (first character by join order). A chat with no seated character is skipped (nothing to key on). */
+/** Every chat the owner hosts, paired with the handle of its primary seated character. A chat with no
+ *  seated character is skipped. */
 async function listHostChats(db: Db, ownerId: UserId): Promise<HostChat[]> {
   const hostRows = await db
     .select({ chatId: chatParticipants.chatId })
@@ -171,7 +142,6 @@ async function listHostChats(db: Db, ownerId: UserId): Promise<HostChat[]> {
     );
   const out: HostChat[] = [];
   for (const { chatId } of hostRows) {
-    // The primary seated character (first by join order) — its handle keys the bundle directory.
     // biome-ignore lint/performance/noAwaitInLoops: enumeration is intentionally sequential (bounded per-owner set); one small keyed read per hosted chat.
     const seat = await db
       .select({ handle: characters.handle })
@@ -194,9 +164,7 @@ async function listHostChats(db: Db, ownerId: UserId): Promise<HostChat[]> {
   return out;
 }
 
-/** Every world-info book the owner owns — the standalone-book export enumeration (the per-book serde runs over
- *  each id). A direct owner-scoped read at the composition root (the sanctioned entry-tier reader, like the
- *  sibling roster reads in services.ts). */
+/** Every world-info book the owner owns. */
 async function listOwnedBookIds(db: Db, ownerId: UserId): Promise<readonly WorldBookId[]> {
   const rows = await db
     .select({ id: worldBooks.id })
@@ -206,11 +174,10 @@ async function listOwnedBookIds(db: Db, ownerId: UserId): Promise<readonly World
 }
 
 /**
- * Assemble the portability registry from the built domain verbs (all 10 kinds). Owner-scoped throughout —
- * `ownerId` is the only owner any exportAll/importFile ever sees; the delivery core threads `principal.userId`.
+ * Assemble the portability registry from the built domain verbs. Owner-scoped throughout — `ownerId` is
+ * the only owner any exportAll/importFile ever sees.
  */
 export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegistry {
-  // ── assets (the blob transport — runs FIRST on import so every FK/inline ref re-links to a live row) ──
   const assets: PortableEntity = {
     kind: "assets",
     dir: "assets/",
@@ -219,7 +186,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: createImportAsset(deps.assetsCtx),
   };
 
-  // ── gallery (curation rows; re-links character by HANDLE, blob by preserved id) ──
   const exportGallery = createExportGallery(deps.assetsCtx);
   const importGallery = createImportGallery(deps.assetsCtx);
   const gallery: PortableEntity = {
@@ -230,7 +196,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: (ownerId, file) => importGallery(ownerId, file),
   };
 
-  // ── tag (a single owner tag-library file; import THROWS on malformed → adapt to {ok:false}) ──
   const exportTags = createTagLibraryExport(deps.tagCtx);
   const importTags = createTagLibraryImport(deps.tagCtx);
   const tagExportAll = oneFile(async (ownerId) => ({
@@ -252,7 +217,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  // ── theme + user-settings (the settings domain's two portable entities) ──
   const exportTheme = createThemeExport(deps.settingsCtx);
   const importTheme = createThemeImport(deps.settingsCtx);
   const theme: PortableEntity = {
@@ -273,7 +237,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: (ownerId, file) => importUserSettings(ownerId, file.bytes),
   };
 
-  // ── preset (the export verb already returns ALL presets as files; import is per-file) ──
   const exportPresets = createExportPresets(deps.presetCtx);
   const importPreset = createImportPresets(deps.presetCtx);
   const presetExportAll = async function* presetAll(ownerId: UserId): AsyncIterable<PortableFile> {
@@ -289,7 +252,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: (ownerId, file) => importPreset({ ownerId, bytes: file.bytes }),
   };
 
-  // ── world-info (STANDALONE books; export enumerates the owner's books, per-book serde) ──
   const exportWorldBook = createExportWorldBook(deps.worldInfoExportCtx);
   const importWorldBook = createImportWorldBook({
     importStandalone: deps.importStandaloneLorebook,
@@ -313,7 +275,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: (ownerId, file) => importWorldBook({ ownerId, bytes: file.bytes }),
   };
 
-  // ── persona (the tRPC-shape verbs; export enumerates + serializes, import adapts PersonaDetail → outcome) ──
   const personaExportAll = async function* personaAll(
     ownerId: UserId,
   ): AsyncIterable<PortableFile> {
@@ -341,9 +302,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       }
       try {
         const principal = await deps.resolveOwnerPrincipal(ownerId);
-        // The idempotent-merge import verb (G-7): a same-name persona merges in place (zero dup rows on
-        // re-import), else a fresh row. The verb returns the detail either way; the merged flag rides its own
-        // audit — the bundle report treats a resolved detail as an ok import.
+        // Idempotent-merge: a same-name persona merges in place (zero dup rows on re-import).
         await deps.persona.import({ principal, input });
         return { ok: true };
       } catch (err) {
@@ -352,8 +311,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  // ── character (export enumerates owned cards → the V3 PNG; import routes ONE card through the per-owner
-  //    ImportContext — the card path, now a registry descriptor rather than bespoke run-profile-import) ──
   const characterExportAll = async function* characterAll(
     ownerId: UserId,
   ): AsyncIterable<PortableFile> {
@@ -384,8 +341,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  // ── chat (the G-3 handle-layout: chats/<host-handle>/<file>.jsonl). Export resolves each host chat's primary
-  //    character → handle; import parses the handle back out of the dir and attaches to that character. ──
   const chatExportAll = async function* chatAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const { chatId, handle } of await listHostChats(deps.db, ownerId)) {

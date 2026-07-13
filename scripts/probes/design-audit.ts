@@ -2,19 +2,15 @@
 /**
  * pnpm design-audit <route> [flags]        (tsx scripts/probes/design-audit.ts)
  *
- * The "receipt engine" for a design-review agent: loads a route in its OWN headless Playwright
- * chromium (independent of any MCP browser session — read-only, never touches app settings), waits for
- * `data-app-ready`, optionally clicks to reveal a surface, then programmatically flags the high-value
- * usability/design/a11y defects a human reviewer's eye forgives — contrast, text-over-image legibility,
- * distorted images, tiny tap targets, missing accessible names/landmarks, and a handful of cheap in-DOM
- * antipatterns (z-index escalation, nested cards, gradient text, animated-on-hover images). OBJECTIVE +
- * fixture-tested — see scripts/probes/design-audit-checks.ts (the pure classify functions, unit-tested
- * at tests/tooling/design-audit.test.ts) and NO subjective judgment: every threshold is fixed and cited.
+ * Loads a route in its own headless Playwright chromium (read-only, never touches app
+ * settings), waits for `data-app-ready`, optionally clicks to reveal a surface, then flags
+ * high-value usability/design/a11y defects — contrast, text-over-image legibility, distorted
+ * images, tiny tap targets, missing accessible names/landmarks, z-index escalation, nested
+ * cards, gradient text, animated-on-hover images. Objective + fixture-tested — see
+ * scripts/probes/design-audit-checks.ts (unit-tested at tests/tooling/design-audit.test.ts).
  *
- * ARCHITECTURE: this file's in-page walker (raw-string page.evaluate, per _kit/browser.ts's docblock —
- * tsx's keepNames __name helper breaks nested named functions serialized into the browser) ONLY gathers
- * raw facts (colors, sizes, booleans). ALL severity/threshold decisions happen back in Node via
- * design-audit-checks.ts's `collectFindings` — the browser never decides pass/fail.
+ * The in-page walker below only gathers raw facts; all severity/threshold decisions happen
+ * back in Node via `collectFindings` — the browser never decides pass/fail.
  *
  * USAGE
  *   pnpm stack start                                   # once; design-audit is then a fast loop
@@ -112,12 +108,7 @@ function parseArgs(argv: string[]): Args {
   return args;
 }
 
-// ── In-page fact walker ──────────────────────────────────────────────────────
-// RAW STRING, not a function reference — see this file's docblock + _kit/browser.ts: tsx's keepNames
-// decorates nested named function expressions (the `function describe(el) {...}` style helpers this
-// walker needs) with a __name() wrapper that doesn't exist inside the browser context. An async IIFE
-// string sidesteps it entirely, same as snap.ts's scanDeadCss. It decides NOTHING — every value it
-// returns is a raw fact; design-audit-checks.ts does all the classifying back in Node.
+// ── In-page fact walker (raw string, not a function reference — see _kit/browser.ts) ──
 const COLLECT_SAMPLES_JS = `(async () => {
   var INTERACTIVE_SELECTOR = "a,button,[role=button],input,select,[tabindex]";
   var CARD_CLASS_RE = /\\bcard\\b/i;
@@ -485,8 +476,6 @@ async function navigateAndReveal(
   } else if (!resp.ok()) {
     navError = `HTTP ${resp.status()}`;
   }
-  // Same readiness gate as snap.ts: wait for the app's own `data-app-ready` marker so the audit runs
-  // against the settled app, not a mid-hydration skeleton.
   await page
     .locator("html[data-app-ready]")
     .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })

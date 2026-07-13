@@ -1,17 +1,7 @@
-// Playwright-chromium bootstrap shared by the browser probes: launch + context (viewport,
-// colorScheme, reducedMotion), pre-navigation localStorage seeding, and the tagged
-// console/network/pageerror listeners in snap's line formats. _kit stays KEY-AGNOSTIC about
-// what gets seeded — snap passes `orb:probe-mode` / `orb:debug-token` / `--ls` pairs through
-// the same `localStorage` option; the kit never hardcodes an app key.
-//
-// INIT SCRIPTS SHIP AS RAW STRINGS, not functions, for two independent reasons:
-//   1. the root tsconfig aggregator (which typechecks scripts/) is deliberately DOM-less —
-//      a function body touching `window` would not compile;
-//   2. tsx (esbuild keepNames) decorates function expressions with a `__name` helper that
-//      doesn't exist inside the browser context — a serialized string evaluates untransformed
-//      (the same constraint neo documented on every page.evaluate).
-// Probe-local extra init scripts (e.g. snap --probe's animation-killer CSS) follow the same
-// rule: `context.addInitScript({ content })` before navigation.
+// Playwright-chromium bootstrap shared by the browser probes.
+// INIT SCRIPTS SHIP AS RAW STRINGS, not functions: the DOM-less tsconfig aggregator won't
+// compile a function body touching `window`, and tsx's esbuild keepNames `__name` helper
+// doesn't exist inside the browser context when the function is serialized.
 
 import process from "node:process";
 import type { Browser, BrowserContext, ConsoleMessage, Page } from "@playwright/test";
@@ -30,13 +20,7 @@ export function buildUrl(base: string, route: string): string {
   return `${base.replace(TRAILING_SLASH_RE, "")}${route.startsWith("/") ? "" : "/"}${route}`;
 }
 
-/**
- * Wall-clock settle. The probes DELIBERATELY use short, bounded timed settles (animation
- * runs, onMount query fire, step separation) — this is an observation harness, not a test,
- * so condition-based waits are often the wrong tool (there is no condition; the point is
- * "give the page a beat, then look"). Centralized so the lint exception lives in exactly
- * one place instead of scattering ignores across every probe.
- */
+/** Wall-clock settle — deliberate, bounded (this is an observation harness, not a test). */
 export async function settle(page: Page, ms: number): Promise<void> {
   // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: deliberate bounded observation window (see docblock) — the flakiness this rule hunts in tests is the probe's feature.
   await page.waitForTimeout(ms);
@@ -90,8 +74,6 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   });
 
   if (opts.localStorage.length > 0) {
-    // JSON.stringify output is a valid JS array literal — the pairs ride into the raw
-    // string verbatim. try/catch: private mode / disabled storage → page renders defaults.
     const seedScript = `(() => {
       try {
         for (const p of ${JSON.stringify(opts.localStorage)}) window.localStorage.setItem(p.key, p.value);
@@ -119,8 +101,6 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   const requests = new Map<string, CapturedRequest>();
 
   page.on("console", (m: ConsoleMessage) => {
-    // Tag warnings/errors with their source location (url:line:col) — turns a bare
-    // "[error] undefined is not a function" into something jumpable.
     const t = m.type();
     const loc = m.location();
     const where =

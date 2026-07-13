@@ -1,31 +1,16 @@
-// domain/connection/catalog/chat-models — the curated Claude shortlist (the catalog `connection` selects
-// FROM for the agent-sdk + Claude-via-OR paths). Migrated from neo-tavern's
-// `providers/_shared/chat-models.ts`; the `ChatModel` precursor is DISSOLVED — each entry now carries its
-// `ModelCapability` directly (the ONE descriptor), so there is no second capability
-// system. `DEFAULT_CHAT_MODEL_ID`/`ChatModelId` live in `@orb/contracts/connection` (PD-10) and are
-// imported DOWN here; the opus entry's id IS `DEFAULT_CHAT_MODEL_ID` (one home for the literal).
-//
-// LOAD-BEARING — `getChatModel`'s 3-stage prefix-match (providers.md Esoteric
-// §6): OpenRouter uses version-only ids (`claude-haiku-4-5`) while the curated catalog uses the dated form
-// (`claude-haiku-4-5-20251001`). Stage 3 prefix-matches with a boundary check (the next char after the
-// version must be `-`) so `claude-haiku-4-5` resolves to the dated entry, but `claude-haiku-4` does NOT
-// match `claude-haiku-45-…`. Simplifying to exact-match silently falls Haiku through to synthesis with the
-// wrong profile (wrong effortLevels / no adaptive). The 3 stages move TOGETHER, boundary check intact.
+// The curated Claude shortlist the connection catalog selects FROM for the agent-sdk + Claude-via-OR paths.
+// `getChatModel`'s 3-stage prefix-match is LOAD-BEARING: OpenRouter uses version-only ids while the curated
+// catalog uses the dated form; stage 3 prefix-matches with a boundary check (next char must be `-`) so
+// `claude-haiku-4-5` resolves to the dated entry but `claude-haiku-4` doesn't match `claude-haiku-45-…`.
 
 import type { ChatModelId, ModelCapability } from "@orb/contracts/connection";
 import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
-/** Anchored tier detector for the heal (mirrors `model-family.ts`'s anthropic anchor discipline — the
- *  file header there — so a third-party fork like `some-org/claude-fork-sonnet` never false-matches). Matches
- *  a bare/prefixed Claude id containing the tier token (`claude-sonnet-4-6`, `anthropic/claude-opus-4.8`). */
+/** Anchored so a third-party fork like `some-org/claude-fork-sonnet` never false-matches. */
 const CLAUDE_TIER_RE = /(?:^|[/-])claude[-/](?<tier>opus|sonnet|haiku)(?:$|[-.])/i;
 
-// Curated numeric facts (named — noMagicNumbers). DEFER(promotion): the exact reasoning effortLevels +
-// max-output numbers are the "quality → axes mapping" deferred item (proposed/connection-capability-panel.md)
-// — fixed when the shortlist is verified against live model behaviour. The SHAPE (distinct axes,
-// adaptive on opus, no sampling on agent-sdk) is settled; only the numbers are tunable.
 const CLAUDE_CONTEXT_WINDOW = 200_000;
 const CLAUDE_MAX_OUTPUT = 64_000;
 const HAIKU_MAX_OUTPUT = 8192;
@@ -34,10 +19,7 @@ const MIN_OUTPUT = 1;
 /** The opus/sonnet reasoning display knobs (Anthropic-only — summarized thinking or omitted). */
 const CLAUDE_DISPLAY_MODES = ["summarized", "omitted"] as const;
 
-/** A curated shortlist entry. File-local (non-exported): the cross-boundary descriptor is
- *  `ModelCapability` (`@orb/contracts`); the entry just pairs a branded id + tier/label with it. `sampling`
- *  is `{}` for every entry — these run on `agent-sdk`, which honors NO sampling knob (the panel shows no
- *  sampling for agent-sdk); the sampling axes are synthesized for OR/vLLM, not curated here. */
+/** A curated shortlist entry; `sampling` is `{}` for every entry — agent-sdk honors no sampling knob. */
 interface CuratedChatModel {
   readonly id: ChatModelId;
   /** Coarse family tier (label/grouping only — not load-bearing for selection). */
@@ -48,12 +30,11 @@ interface CuratedChatModel {
 
 export const CHAT_MODELS: readonly CuratedChatModel[] = [
   {
-    id: DEFAULT_CHAT_MODEL_ID, // "claude-opus-4-8" — the one home for the literal (contracts, PD-10)
+    id: DEFAULT_CHAT_MODEL_ID,
     tier: "opus",
     label: "Opus 4.8",
     capability: {
-      // Opus 4.8 reasons ADAPTIVELY (providers.md Esoteric §8): the infra
-      // funnel reads `mode === 'adaptive'` and DROPS budget_tokens (sending type:'enabled' + budget → 400).
+      // Opus 4.8 reasons adaptively: the infra funnel drops budget_tokens when mode === 'adaptive'.
       reasoning: {
         mode: "adaptive",
         enabled: true,
@@ -66,9 +47,6 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
     },
   },
   {
-    // The daemon resolves the `sonnet` alias to `claude-sonnet-5` (verified via `supportedModels()`), which
-    // supersedes the stale `claude-sonnet-4-6`. Effort mode with the daemon's full `low..max` levels +
-    // adaptive thinking (the family→version fix maps a bare `sonnet` / a stale id onto this current entry).
     id: castId<ChatModelId>("claude-sonnet-5"),
     tier: "sonnet",
     label: "Sonnet 5",
@@ -85,7 +63,6 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
     },
   },
   {
-    // Dated id — Stage 3 of getChatModel maps the OR version-only `claude-haiku-4-5` onto this entry.
     id: castId<ChatModelId>("claude-haiku-4-5-20251001"),
     tier: "haiku",
     label: "Haiku 4.5",
@@ -98,19 +75,12 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
   },
 ] as const;
 
-/** Brand guard — is `id` a curated Claude-shortlist id? The discriminator `pickOrModel` guard (1) uses to
- *  reject a shortlist id on the OR path (it is agent-sdk-only) and the agent-sdk heal uses to keep a valid
- *  id. A `true` result narrows to the branded {@link ChatModelId}. */
+/** Brand guard — is `id` a curated Claude-shortlist id? */
 export function isChatModelId(id: string): id is ChatModelId {
   return CHAT_MODELS.some((entry) => entry.id === id);
 }
 
-/**
- * The 3-stage prefix-match lookup (LOAD-BEARING — file header). Returns the curated entry for an id in any
- * of: exact curated id · OR-normalized id (slash-stripped + dots→dashes) · version-only prefix of a dated
- * id (boundary-checked so a shorter version can't match a longer one). `undefined` → not curated (the
- * caller synthesizes the descriptor from the OR catalog / family instead).
- */
+/** The 3-stage prefix-match lookup; `undefined` → not curated (caller synthesizes instead). */
 export function getChatModel(id: ModelId | string): CuratedChatModel | undefined {
   // Stage 1 — exact curated id.
   const direct = CHAT_MODELS.find((entry) => entry.id === id);
@@ -132,12 +102,8 @@ export function getChatModel(id: ModelId | string): CuratedChatModel | undefined
   );
 }
 
-/**
- * Detect the tier of a bare family alias ("opus"/"sonnet"/"haiku", case-insensitive) or a Claude id whose id
- * contains the tier token (bare `claude-…` or `anthropic/claude-…`) — the tier-preservation heal's lookup
- * (heal-model.ts). A non-Claude id (`gpt-4o`) or a fork whose id merely contains "claude"
- * (`some-org/claude-fork`) returns `undefined` (the anchor discipline mirrored from `model-family.ts`).
- */
+/** Detect the tier of a bare family alias or a Claude id containing the tier token; `undefined` for a
+ *  non-Claude id or a fork whose id merely contains "claude". */
 export function detectChatModelTier(id: string): "opus" | "sonnet" | "haiku" | undefined {
   const bare = id.trim().toLowerCase();
   if (bare === "opus" || bare === "sonnet" || bare === "haiku") {
@@ -148,10 +114,7 @@ export function detectChatModelTier(id: string): "opus" | "sonnet" | "haiku" | u
   return tier === undefined ? undefined : (tier.toLowerCase() as "opus" | "sonnet" | "haiku");
 }
 
-/**
- * The curated shortlist entry for a tier — CHAT_MODELS has exactly one entry per tier (asserted by
- * `chat-models.test.ts`), so this lookup is total for the three known tiers.
- */
+/** The curated shortlist entry for a tier — CHAT_MODELS has exactly one entry per tier. */
 export function chatModelForTier(tier: "opus" | "sonnet" | "haiku"): CuratedChatModel {
   const entry = CHAT_MODELS.find((candidate) => candidate.tier === tier);
   if (entry === undefined) {

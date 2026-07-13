@@ -180,13 +180,9 @@ export const monotonicTests: Check = {
   run: (ctx): Violation[] => scanMonotonicTests(ctx),
 };
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — the suite-monotonicity guard via `run`, DORMANT) ─────────────
-// monotonic-tests scans every tests/** file for a NEW unconditional skip/only/todo/fixme modifier (tooth 1
-// — AST via the shared Project) and reconciles a committed baseline manifest against disk (tooth 2 — a
-// documented no-op until a manifest exists). It ports as a `run` descriptor reusing the exact scan (NOT
-// fsBacked — tooth 1 is AST-only and tooth 2 gracefully no-ops when the manifest file is absent, exactly
-// as on the real tree today). status:"dormant" — the loader loads it, the runner skips it, but conformance
-// runs it as-active so its tooth-1 proof holds. Byte-identical to the legacy Check. Kept ALONGSIDE it.
+// Scans every tests/** file for a new unconditional skip/only/todo/fixme modifier (tooth 1) and
+// reconciles a committed baseline manifest against disk (tooth 2 — a no-op until a manifest exists).
+// status:"dormant" — the loader loads it, the runner skips it, but conformance runs it as-active.
 export const gate: GateDescriptor = {
   name: "monotonic-tests",
   docRow: "Core-Enforcement-Deferred-Dropped.md (monotonic-tests) / Spine-Testing.md §5",

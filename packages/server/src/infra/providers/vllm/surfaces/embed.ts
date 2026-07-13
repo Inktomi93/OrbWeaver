@@ -1,14 +1,7 @@
-// infra/providers/vllm/surfaces/embed — the vLLM TEXT-embed role surface (Qwen3-VL-Embedding).
-//
-// A THIN shaper over the engine: filter empty inputs to `null` (the EmbedResult contract — the local
-// family filters; OpenRouter never emits null), wrap survivors in the cookbook ChatML conversation
-// (engine/embedding.toEmbedPrompt — raw text embeds into a worse region of the space), chunk + dispatch
-// with bounded concurrency (vLLM does CONTINUOUS batching server-side: moderate per-request arrays × a
-// few requests in flight keep its scheduler fed), then MRL-truncate + L2-normalize each vector onto its
-// caller position. Registers against engine/ ONLY (the injected client) — it imports no sibling surface.
-//
-// MRL: we request the OpenAI `dimensions` param; if a pooling combo rejects it we retry full-dim and
-// truncate+renormalize client-side (identical result for matryoshka models — see engine/embedding).
+// The vLLM text-embed role surface (Qwen3-VL-Embedding): filters empty inputs to null, wraps survivors in
+// the ChatML conversation, chunks + dispatches with bounded concurrency, then MRL-truncates + L2-normalizes
+// each vector onto its caller position. Requests the OpenAI `dimensions` param; if a pooling combo rejects
+// it, retries full-dim and truncates+renormalizes client-side.
 
 import type { EmbedRequest, EmbedResult } from "../../contract";
 import type { VllmEngineClient } from "../engine";
@@ -20,31 +13,20 @@ import {
   truncateToDim,
 } from "../engine";
 
-// vLLM hard-caps context and REJECTS over-long input with HTTP 400 (it does NOT truncate by default). `-1`
-// tells vLLM to truncate to the model's max length using ITS OWN tokenizer — exact, inline, no extra round
-// trip; only over-long inputs are touched.
+// vLLM rejects over-long input with HTTP 400 by default; `-1` tells it to truncate using its own tokenizer.
 const TRUNCATE_TO_MODEL_MAX = -1;
-// A "server rejected the `dimensions` param" message — the trigger for the full-dim client-side fallback.
 const DIMENSIONS_REJECTED_RE = /dimensions/i;
 
-// Wall-clock ceiling on ONE embed request. Embedding is a short non-streaming round trip; an engine that
-// accepts the socket but never answers (warming, wedged) must NOT pin the call forever — the invariant is
-// "boot/indexing is never HOSTAGE to a warming engine" (the seed→character.updated→re-embed path fires at
-// boot, before the engines are guaranteed live). A trip aborts the fetch → the engine client maps it to a
-// RETRYABLE ProviderError, so the indexer / PD-53 catch-up sweep re-embeds once the engine is up — bounded,
-// never dropped. This is a WHOLE-REQUEST cap, correct ONLY because embed is non-streaming; chat GENERATION
-// uses `engineStream` with a rolling idle guard (backends/kit/idle-timeout.ts), never a hard deadline.
+// Whole-request cap so a warming/wedged engine can't hang boot-time embedding forever; a trip maps to a
+// retryable ProviderError so the catch-up sweep re-embeds once the engine is up. Correct only because
+// embed is non-streaming (chat generation uses a rolling idle guard instead).
 const EMBED_REQUEST_TIMEOUT_MS = 120_000;
 
-/** Compose the caller's cancel signal with the per-request timeout so the fetch aborts on either cause. */
 function embedRequestSignal(external: AbortSignal | undefined, timeoutMs: number): AbortSignal {
   const timeout = AbortSignal.timeout(timeoutMs);
   return external === undefined ? timeout : AbortSignal.any([external, timeout]);
 }
 
-/** Deps the embed surface closes over. `embedDim`/`chunkSize`/`concurrency` are injected (the composition
- *  root reads env once; concurrency is a settings-tier knob — see the subsystem FLAG, not env today).
- *  `requestTimeoutMs` overrides the {@link EMBED_REQUEST_TIMEOUT_MS} ceiling (tests use a tiny value). */
 export interface VllmEmbedDeps {
   readonly client: VllmEngineClient;
   readonly embedDim: number;
@@ -53,20 +35,17 @@ export interface VllmEmbedDeps {
   readonly requestTimeoutMs?: number;
 }
 
-// The engine's OpenAI-compatible embeddings response (raw snake_case socket shape).
 interface OpenAiEmbeddingsResponse {
   readonly data: ReadonlyArray<{ readonly index: number; readonly embedding: number[] }>;
   readonly model: string;
   readonly usage?: { readonly prompt_tokens?: number; readonly total_tokens?: number } | undefined;
 }
 
-// A non-empty input plus its slot in the original request order (empties become `null` vectors).
 interface KeptInput {
   readonly index: number;
   readonly prompt: string;
 }
 
-// One /v1/embeddings request with the MRL `dimensions` fallback.
 async function embedChunk(
   client: VllmEngineClient,
   opts: { model: string; texts: readonly string[]; dim: number; signal: AbortSignal | undefined },
@@ -111,7 +90,6 @@ function selectInputs(inputs: readonly string[], instruction: string): KeptInput
   return kept;
 }
 
-// Scatter one chunk's response vectors onto their caller positions; return its token usage (or null).
 function scatter(
   response: OpenAiEmbeddingsResponse,
   chunk: readonly KeptInput[],
@@ -129,18 +107,14 @@ function scatter(
     : { prompt: response.usage.prompt_tokens ?? 0, total: response.usage.total_tokens ?? 0 };
 }
 
-/** Bind the embed role to the engine client + knobs. */
 export function createVllmEmbed(deps: VllmEmbedDeps): (req: EmbedRequest) => Promise<EmbedResult> {
   return async (req) => {
     const inputs: readonly string[] = typeof req.input === "string" ? [req.input] : req.input;
     const dim = req.dimensions ?? deps.embedDim;
-    // Bound the whole request (all chunks share one deadline) so a warming/wedged engine can't hang the
-    // embed — folds in the caller's cancel signal.
     const signal = embedRequestSignal(
       req.signal,
       deps.requestTimeoutMs ?? EMBED_REQUEST_TIMEOUT_MS,
     );
-    // A caller instruction (per-scope query instruction) wins; else the inputType default.
     const instruction =
       req.instruction ?? (req.inputType === "query" ? QUERY_INSTRUCTION : DOC_INSTRUCTION);
 

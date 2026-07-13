@@ -1,12 +1,6 @@
-// The Users section body (Settings → Admin → Users). A COMPONENT (not the surface) so the create /
-// sessions / reset-password dialogs mount here legally (rule 7) — ONCE, keyed to the target row,
-// never one dialog-tree per row. The surface hands down the already-suspended `users` + `viewer`
-// (one QueryBoundary owns the pane's loading/error states); this section owns the row-verb mutations
-// and the dialog open-state.
-//
-// Self/owner/agent affordance rules live in admin-user-row.tsx (mirroring the server guards); the
-// viewer's own row is matched by `userId` (`sessions.me` and the row share the id — never the handle,
-// which can be renamed).
+// The Users section body. Mounts the create/sessions/reset-password dialogs once, keyed to the target
+// row. The surface hands down the already-suspended users + viewer; this section owns the row-verb
+// mutations and the dialog open-state. Self/owner/agent affordance rules live in admin-user-row.tsx.
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
@@ -29,7 +23,6 @@ import { AdminUserSessionsDialog } from "./admin-user-sessions-dialog";
 
 type AdminUsers = inferOutput<Trpc["admin"]["listUsers"]>;
 
-/** A dialog's target row — id + handle (the dialogs render the handle in their title copy). */
 interface UserTarget {
   readonly userId: UserId;
   readonly handle: string;
@@ -37,12 +30,10 @@ interface UserTarget {
 
 export interface AdminUsersSectionProps {
   readonly users: AdminUsers;
-  /** The acting viewer (`sessions.me`) — drives the self-guard + the owner-only role control. */
   readonly viewerUserId: string;
   readonly viewerIsOwner: boolean;
 }
 
-/** The user table + create action + the row-verb dialogs. */
 export function AdminUsersSection(props: AdminUsersSectionProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();

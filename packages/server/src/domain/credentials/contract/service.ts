@@ -1,18 +1,6 @@
-// domain/credentials/contract/service — the typed API surface (read THIS to know everything the domain
-// does). Holds:
-//   • CredentialContext       the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
-//   • CredentialsServiceDeps  the deps the entry root supplies (identical to the context — no transform)
-//   • CredentialsService      the 13-verb authoritative interface (the front door re-exports the type)
-//
-// Every cross-feature/infra dep arrives as an INJECTED op (credentials sideways-imports NO sibling
-// runtime; the SecretBox + the provider probes + the owner guard are wired at the composition root):
-//   - `box`          infra/crypto's `SecretBox` — the AES-256-GCM seam (type-only import; instance at root).
-//   - `requireOwner` admin's owner-gate (D17) — type-only from the admin front door; gates `max-pro-sub`.
-//   - `probe`        infra/providers' credential-health probe (testHealth wraps it).
-//   - `inspect`      infra/providers' custom-endpoint inspector (inspectEndpoint wraps it).
-//   - `fetchModels`  infra/network's best-effort `/models` fetch (fetch-models wraps it).
-// db steps stay in `persistence/`; `now`/`newCredentialId` are the injected determinism seam (no ambient
-// clock/id — testing §3).
+// The typed API surface: CredentialContext (the DI bundle), CredentialsServiceDeps (entry-root deps), and
+// CredentialsService (the verb interface). Every cross-feature/infra dep arrives as an injected op —
+// credentials sideways-imports no sibling runtime.
 
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { EndpointInspection } from "@orb/contracts/providers";
@@ -59,12 +47,7 @@ export type InspectOp = (req: {
 /** Best-effort `/models` fetch against a user-supplied endpoint (fetch-models' op; `[]` on any failure). */
 export type FetchModelsOp = (args: FetchModelsArgs) => Promise<string[]>;
 
-/**
- * The DI bundle the credential verbs close over (wired at the entry composition root; surfaced through
- * `context.ts`). `db` routes all queries through `persistence/`; `box` is the AES-256-GCM seam (carries
- * the AAD VALUE per call, never derives it); `requireOwner`/`probe`/`inspect`/`fetchModels` are the
- * injected cross-feature/infra ops; `now`/`newCredentialId` are the determinism seam.
- */
+/** The DI bundle the credential verbs close over, wired at the composition root. */
 export interface CredentialContext {
   readonly db: Db;
   readonly now: () => number;
@@ -74,33 +57,23 @@ export interface CredentialContext {
   readonly probe: ProbeOp;
   readonly inspect: InspectOp;
   readonly fetchModels: FetchModelsOp;
-  /** The user-bus live-freshness emit (PD user-bus lane) — every user-facing credential mutation
-   *  (add/setActive/remove/markRevokedByUser/clearRevoked) fires `credentialsChanged` with the owner's
-   *  `userId` AFTER its durable write, so a second device's credential list refetches. Wired to transport's
-   *  `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  /** Fires `credentialsChanged` with the owner's `userId` after every user-facing credential mutation's
+   *  durable write, so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/** What `createCredentialsService` receives from the entry root. Identical to {@link CredentialContext}
- *  — there is no deps→context transform here (unlike sessions' pepper→hasher), so the two are aliased;
- *  the name is kept for the front-door surface symmetry with the other domains. */
+/** What `createCredentialsService` receives from the entry root; identical to {@link CredentialContext}. */
 export type CredentialsServiceDeps = CredentialContext;
 
-/**
- * The credential surface. The turn-time `resolve` is the ONLY consumer-facing
- * construction of a `ResolvedCredential`; CRUD is ownership-scoped (rows by `principal.userId`); health
- * has the runner-internal (`markRevoked`, no ownership check) vs user-facing (`markRevokedByUser`) split
- * (invariant #6 — MUST NOT merge).
- */
+/** The credential surface. The turn-time `resolve` is the only consumer-facing construction of a
+ *  `ResolvedCredential`; CRUD is ownership-scoped; health has the runner-internal (`markRevoked`) vs
+ *  user-facing (`markRevokedByUser`) split — must not merge. */
 export interface CredentialsService {
   // Turn-time
   readonly resolve: (params: ResolveCredentialParams) => Promise<ResolvedCredential>;
   readonly maybeRevokeOnAuthFailed: (params: MaybeRevokeParams) => Promise<void>;
-  /** Resolve the ACTING principal's `gif-search` (Tenor) API key — the non-LLM external-service resolver
-   *  (D61). Owner-scoped (no cross-user read); the decrypted plaintext, or `null` when the user has no live
-   *  gif-search credential (the caller — `domain/hub` — surfaces "gif search not configured"). Distinct from
-   *  `resolve`: gif-search is a STORAGE-only provider with no runner arm, so it never rides the turn-time
-   *  chokepoint. NEVER logs the key. */
+  /** Resolve the acting principal's gif-search (Tenor) API key. Owner-scoped; the decrypted plaintext, or
+   *  `null` when the user has no live gif-search credential. Never logs the key. */
   readonly resolveGifSearchKey: (params: ResolveGifSearchKeyParams) => Promise<string | null>;
 
   // CRUD

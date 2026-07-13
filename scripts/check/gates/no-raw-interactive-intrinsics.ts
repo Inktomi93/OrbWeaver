@@ -56,11 +56,8 @@ function isBannedIntrinsic(el: JsxOpeningElement | JsxSelfClosingElement): boole
     );
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — multi-kind, reference-gate shape: offender arm + finalize stale) ─
-// The legacy predicate as a JsxOpeningElement + JsxSelfClosingElement subscription: a banned raw
-// intrinsic (button/input/select/textarea, or <a href>) in features/** (excluding app-shell). scanRoot
-// mirrors the legacy FEATURES_DIR + `.tsx` filter minus app-shell. The empty BURN_DOWN's stale arm is
-// finalize-guarded to project scope (§4.4). Per-occurrence.
+// A banned raw intrinsic (button/input/select/textarea, or <a href>) in features/** (excluding
+// app-shell). The empty BURN_DOWN's stale arm is finalize-guarded to project scope.
 const GATE_SELF = "scripts/check/gates/no-raw-interactive-intrinsics.ts";
 const passSeenBurnDown = new Set<string>();
 

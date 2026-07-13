@@ -1,35 +1,21 @@
-// infra/providers/backends/anth-direct/reducer — drain the SDK's typed `Stream<RawMessageStreamEvent>`
-// (the Anthropic SSE dialect the SDK parses ITSELF, part 02 §5e) into the accumulated turn shape the
-// runner maps to `ChatResult`. Mirrors the OR runner's `reshapeChatStreamChunk`/`reduceChatCompletionStream`
-// split, but over the Anthropic event union instead of the OpenAI SSE chunk.
-//
-// THE EVENT MODEL (messages.d.ts:944): message_start (carries the `Message` with initial `usage`) →
-// N × [content_block_start (declares the block TYPE at an index) · content_block_delta (text_delta /
-// thinking_delta / signature_delta) · content_block_stop] → message_delta (the terminal `stop_reason` +
-// the OUTPUT-side `usage`) → message_stop. We track each open block's type by index so a `text_delta`
-// routes to `reply` and a `thinking_delta` routes to `reasoning`; a `redacted_thinking` block sets the
-// withheld flag (encrypted CoT — no visible text). `onDelta` fires per delta (kind:"text"|"reasoning").
+// Drains the SDK's typed `Stream<RawMessageStreamEvent>` into the accumulated turn shape the runner maps
+// to `ChatResult`. Event model: message_start (initial usage) → N × [content_block_start/delta/stop] →
+// message_delta (terminal stop_reason + output usage) → message_stop. Tracks each open block's type by
+// index so text_delta routes to reply and thinking_delta routes to reasoning.
 
 import type { Stream } from "@anthropic-ai/sdk/core/streaming";
 import type { RawMessageStreamEvent } from "@anthropic-ai/sdk/resources/messages";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatDeltaEvent } from "../../contract";
 
-/** The block dialects at a stream index — decides where a delta accumulates. `other` covers tool/server
- *  blocks anth-direct never requests (tool-less charter) but must not misroute if one ever appears. The
- *  axis is a tuple + derived type (§7.5 no-inline-union-redecl), file-local (not a cross-boundary shape). */
+// `other` covers tool/server blocks anth-direct never requests but must not misroute if one ever appears.
 const BLOCK_KINDS = ["text", "thinking", "redacted_thinking", "other"] as const;
 type BlockKind = (typeof BLOCK_KINDS)[number];
 
-/** The reducer's accumulated terminal product — the runner maps this to `ChatResult`. Usage counts default
- *  to 0/absent so a stream that ends early still yields a coherent shape. */
 export interface AnthReducedTurn {
   readonly reply: string;
   readonly reasoning: string;
-  /** True when the model emitted a `redacted_thinking` block (thought, trace withheld). */
   readonly reasoningRedacted: boolean;
-  /** The raw Anthropic `stop_reason` (`end_turn`/`max_tokens`/`stop_sequence`/`refusal`/…); `null` when the
-   *  stream never delivered a `message_delta`. */
   readonly stopReason: string | null;
   readonly inputTokens: number;
   readonly outputTokens: number;
@@ -37,13 +23,10 @@ export interface AnthReducedTurn {
   readonly cacheWriteTokens: number;
   readonly cacheCreation5mTokens: number | null;
   readonly cacheCreation1hTokens: number | null;
-  /** ttft, ms since the injected `startedAt` — set on the FIRST text/thinking delta. `null` when the stream
-   *  produced no visible delta. */
+  /** ttft in ms since the injected `startedAt`; null when the stream produced no visible delta. */
   readonly firstDeltaAt: number | null;
 }
 
-// The mutable accumulator threaded through the per-event handlers (kept file-local; the exported result is
-// the readonly {@link AnthReducedTurn} projection).
 interface Acc {
   reply: string;
   reasoning: string;
@@ -63,8 +46,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
-// File-local: read a numeric field off an unknown-shaped usage sub-object (the SDK types are stable, but
-// the null-vs-absent per-field variance is real — coerce defensively). `null`/absent ⇒ the fallback.
 function usageNum(usage: Record<string, unknown> | undefined, key: string): number {
   const raw = usage?.[key];
   return typeof raw === "number" ? raw : 0;
@@ -74,7 +55,6 @@ function usageNumOrNull(usage: Record<string, unknown> | undefined, key: string)
   return typeof raw === "number" ? raw : null;
 }
 
-// Classify a content_block's declared type into where its deltas accumulate (no nested ternary).
 function classifyBlock(type: string): BlockKind {
   switch (type) {
     case "text":
@@ -88,7 +68,6 @@ function classifyBlock(type: string): BlockKind {
   }
 }
 
-// message_start: the INPUT-side usage (input + cache read/write + creation buckets) rides the initial Message.
 function applyMessageStart(
   acc: Acc,
   event: RawMessageStreamEvent & { type: "message_start" },
@@ -102,11 +81,8 @@ function applyMessageStart(
   acc.cacheCreation1hTokens = usageNumOrNull(creation, "ephemeral_1h_input_tokens");
 }
 
-// message_delta: the stop reason + output usage — AND the INPUT-side usage (input + cache read/write). OR's
-// `/v1/messages` passthrough delivers input/cache HERE, not in `message_start` (which OR sends all-null —
-// probe-confirmed 2026-07-10; direct Anthropic puts it in `message_start`). Max-merge across both envelopes
-// so whichever carries the real value wins and a 0/absent field never clobbers it — makes the OR-key
-// anth-direct cache VISIBLE (it was caching all along; only the receipt was read from the wrong event).
+// OR's /v1/messages passthrough delivers input/cache usage in message_delta, not message_start (which OR
+// sends all-null). Max-merge across both envelopes so whichever carries the real value wins.
 function applyMessageDelta(
   acc: Acc,
   event: RawMessageStreamEvent & { type: "message_delta" },
@@ -127,7 +103,6 @@ function applyMessageDelta(
     usageNumOrNull(creation, "ephemeral_1h_input_tokens") ?? acc.cacheCreation1hTokens;
 }
 
-// content_block_delta: route text/thinking to the right accumulator + fire onDelta.
 function applyBlockDelta(
   acc: Acc,
   event: RawMessageStreamEvent & { type: "content_block_delta" },
@@ -147,22 +122,14 @@ function applyBlockDelta(
     ctx.markFirstDelta();
     ctx.onDelta?.({ chatId: ctx.chatId, kind: "reasoning", text: delta.thinking });
   }
-  // signature_delta / input_json_delta / citations_delta carry no visible text — ignored.
 }
 
-/**
- * Drain the SDK event stream into {@link AnthReducedTurn}. `onDelta` fires per text/thinking delta with the
- * turn's `chatId` (the caller-supplied correlation). `now` is injected (the determinism seam — the ttft
- * clock is not ambient). Only the fields anth-direct requests are handled; a tool/server block (never
- * requested — tool-less charter) accumulates nowhere and cannot misroute into `reply`.
- */
 export async function reduceAnthStream(
   stream: Stream<RawMessageStreamEvent>,
   args: {
     readonly chatId: ChatId;
     readonly startedAt: number;
     readonly now: () => number;
-    /** Fired on EVERY received event to restart the idle-abort window (the runner passes `idle.reset`). */
     readonly onChunk?: (() => void) | undefined;
     readonly onDelta?: ((event: ChatDeltaEvent) => void) | undefined;
   },
@@ -189,7 +156,7 @@ export async function reduceAnthStream(
   };
 
   for await (const event of stream) {
-    onChunk?.(); // restart the idle window on every received event (a healthy long stream never trips)
+    onChunk?.();
     if (event.type === "message_start") {
       applyMessageStart(acc, event);
     } else if (event.type === "content_block_start") {
@@ -203,7 +170,6 @@ export async function reduceAnthStream(
     } else if (event.type === "message_delta") {
       applyMessageDelta(acc, event);
     }
-    // content_block_stop / message_stop carry no accumulation.
   }
 
   return {

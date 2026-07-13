@@ -1,16 +1,6 @@
-// `@orb/contracts/buddy` — the companion (Tamagotchi buddy) TAXONOMY vocabulary. DAG root: kit-free,
-// `zod` only. This is the ONE cross-boundary home for the buddy's gacha vocabulary: `@orb/db` imports
-// the tuples for its enum columns (`buddies.rarity/species/hat/mood`), `domain/buddy` rolls + reacts
-// against them, and `@orb/client` renders sprites from them — all import from HERE, never re-exported
-// through `@orb/server` (Legacy-Migration-and-Gaps.md §4).
-//
-// §7.5 tuple→derived-union discipline: every string axis is an `as const` TUPLE (the one importable
-// canonical home — `no-inline-union-redecl`), its `type` is `(typeof TUPLE)[number]`, and the wire
-// `z.enum(TUPLE)` schema imports the tuple. The db enum columns DERIVE from these tuples (test-mirror).
-//
-// Ported from neo-tavern `shared/buddy/taxonomy.ts`. NOT ported: `sprites.ts` (renderSprite/renderFace
-// + the body/hat/mood art) — that is `@orb/client` presentation (Legacy-Migration-and-Gaps.md §10), and it
-// imports these taxonomy types DOWN from contracts.
+// `@orb/contracts/buddy` — the companion (Tamagotchi buddy) TAXONOMY vocabulary. The one cross-boundary
+// home for the buddy's gacha vocabulary: `@orb/db` derives its enum columns from these tuples,
+// `domain/buddy` rolls + reacts against them, `@orb/client` renders sprites from them.
 
 import { z } from "zod";
 
@@ -36,8 +26,7 @@ export const RARITY_FLOOR: Record<Rarity, number> = {
   legendary: 50,
 };
 
-/** Unwired display intent (no current consumer) — KEEP (`Core-0-Architecture-and-Structure.md` "unwired ≠ worthless").
- *  A rarity→stars map; travels with the taxonomy. */
+/** Unwired display intent (no current consumer) — a rarity→stars map; travels with the taxonomy. */
 export const RARITY_STARS: Record<Rarity, string> = {
   common: "★",
   uncommon: "★★",
@@ -50,7 +39,6 @@ export const SPECIES = ["mote", "scribe", "ember", "loom", "pixel", "wisp"] as c
 export type Species = (typeof SPECIES)[number];
 export const speciesSchema = z.enum(SPECIES);
 
-// ── Eye (a typed-text column in db, not an enum, but a closed taxonomy axis here) ─
 export const EYES = ["●", "•", "◉", "✦", "°", "×"] as const;
 export type Eye = (typeof EYES)[number];
 export const eyeSchema = z.enum(EYES);
@@ -84,8 +72,7 @@ export const companionStatsSchema = z.record(
 );
 export type CompanionStats = z.infer<typeof companionStatsSchema>;
 
-// The expressive mood set. The sprite (client) shows eyes+mouth per mood; the reactor (domain) maps each
-// signal to one of these and resolves conflicts by `MOOD_PRIORITY`.
+// The reactor (domain) maps each signal to one of these moods and resolves conflicts by `MOOD_PRIORITY`.
 export const MOODS = [
   "content",
   "working",
@@ -128,12 +115,11 @@ export const BOND_THRESHOLDS: Record<BondTier, number> = {
   bestie: 200,
 };
 
-// ── Maturity (stage) — DERIVED from the sum of stats; never stored. ───
+// Maturity (stage) — derived from the sum of stats; never stored.
 export type Stage = 0 | 1 | 2;
 /** Lower bound of total stat-sum (max 500) for stages 1 and 2. Below `stage1` = stage 0. */
 export const STAGE_THRESHOLDS = { stage1: 200, stage2: 350 } as const;
 
-// ── Form (archetype) — the dominant stat picks a title + persona blurb (flavors prompts/UI). ──
 export interface CompanionForm {
   title: string;
   blurb: string;
@@ -149,8 +135,8 @@ export const FORMS: Record<StatName, CompanionForm> = {
 };
 // biome-ignore-end lint/style/useNamingConvention: end the `STAT_NAMES`-keyed FORMS map.
 
-// ── Bones — the deterministic gacha body (rolled from the user id at hatch, then snapshotted to the
-// `buddies` row; MUTABLE thereafter as stats grow). The schema is the one home; the type is inferred. ──
+// The deterministic gacha body, rolled from the user id at hatch, then snapshotted to the `buddies`
+// row (mutable thereafter as stats grow).
 export const companionBonesSchema = z.object({
   rarity: raritySchema,
   species: speciesSchema,

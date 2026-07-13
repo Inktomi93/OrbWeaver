@@ -1,30 +1,11 @@
-// verb: store — THE single vector write path (the defining invariant: the ONLY inserter into any vector
-// table). One parametrized body collapses the 6 hand-rolled embed+upsert sites neo-tavern scattered across
-// 5 tables.
+// The single vector write path — the only inserter into any vector table. Per lens arm: hash the content →
+// read the stored hash for the upsert key (identical ⇒ noop, skipping the expensive embed) → embed via the
+// injected role op → assert the produced vector's dim matches the declared space (else
+// `SpaceMismatchError`) → upsert (never touches `hub_score`).
 //
-// The flow, per lens arm:
-//   1. content_hash the content (the staleness gate + cross-chat collapse key).
-//   2. read the stored hash for the upsert key — IDENTICAL ⇒ `noop` (no re-embed, no write; the expensive
-//      embed is skipped BEFORE it runs).
-//   3. embed via the INJECTED role op (`roleClients.embed` for text, `imageEmbed` for images — the model is
-//      bound at the root from `connection.resolveRole`; the domain never names a backend/runner/family).
-//   4. SPACE TRIPWIRE: the produced vector's dim MUST match the declared `(model, dim)` space, else
-//      `SpaceMismatchError` — a mis-tagged row never lands (the store-time half of the space invariant;
-//      the compare-time half is `@orb/kit/vector-math`'s dim-mismatch throw).
-//   5. upsert the row — `hub_score` is NEVER in the write (the column is `discovery`'s alone; §invariant 2).
-//
-// The `switch (params.lens)` is the §7.5 exhaustive dispatch (the `assertNever` default arm): a new lens
-// fails `tsc` until its embed+upsert arm is added. The `segment` / `digest` chat-block arms (memory's
-// verbatim + distilled lenses — domains/memory.md §2) carry a PRECOMPUTED `contentHash` (memory folds the
-// seq-span + the stable speaker id + the scope, §1/§4 — the store does NOT recompute it) and embed the
-// `text` (the embed input AND the stored body). There is NO `principal`/ownership check — the substrate FKs
-// to its producer and never re-checks ownership (D20).
-//
-// `chat_digest_speakers` (the §4 "which characters this digest CONTAINS" join, added PD-41) IS written here:
-// `DigestStoreParams.speakerCharacterIds` carries the set, and `storeDigest` writes the join (via
-// `replaceDigestSpeakers`) against the persisted digest id after the upsert. The chat-side `StoreDigestParams`
-// (chat/contract/context) already carries them; the compose root's chat→embeddings adapter forwards them
-// into this `DigestStoreParams`.
+// The `switch (params.lens)` is exhaustive (the `assertNever` default arm): a new lens fails tsc until its
+// arm is added. `segment`/`digest` carry a precomputed `contentHash` (memory folds it; not recomputed
+// here). There is no principal/ownership check — the substrate FKs to its producer only.
 
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors";
 import type {
@@ -106,11 +87,9 @@ async function storeImage(
   if (p.force !== true && (await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
-  // F8 — skip-don't-write on an EMPTY caption (the summarizer returned no item). `image_embeddings.content_hash`
-  // covers the BYTES only, so a captioned row written with `caption: ""` would never regenerate without `force`
-  // (the staleness gate + PD-53 sweep short-circuit on the unchanged bytes forever). Mirror the memory digest's
-  // `skippedEmpty` (build/digests.ts): leave the captioned lens UNWRITTEN so the next indexer run retries it —
-  // the raw lens already carries the image-only signal.
+  // Skip-don't-write on an empty caption (the summarizer returned nothing): content_hash covers bytes only,
+  // so a row written with caption:"" would never regenerate without force. Leave it unwritten so the next
+  // indexer run retries it — the raw lens already carries the image-only signal.
   if (p.lens === "image-captioned" && p.caption.trim().length === 0) {
     return { outcome: "noop", contentHash: hash };
   }
@@ -135,8 +114,8 @@ async function storeImage(
   return { outcome: "written", contentHash: hash };
 }
 
-/** segment → `chat_segments` (the verbatim lens, §2a). `contentHash` is PRECOMPUTED by memory (never
- *  recomputed here); the `text` is both the embed input and the stored body. */
+/** segment → `chat_segments` (the verbatim lens). `contentHash` is precomputed by memory; `text` is both
+ *  the embed input and the stored body. */
 async function storeSegment(ctx: EmbeddingsContext, p: SegmentStoreParams): Promise<StoreResult> {
   const hash = p.contentHash;
   if ((await existingSegmentHash(ctx.db, p.chatId, p.blockIdx)) === hash) {
@@ -160,8 +139,8 @@ async function storeSegment(ctx: EmbeddingsContext, p: SegmentStoreParams): Prom
   return { outcome: "written", contentHash: hash };
 }
 
-/** digest → `chat_digests` (the distilled lens, §2b). `contentHash` is PRECOMPUTED by memory (folds scope +
- *  speaker + seq-span, §1/§4); the distilled `text` is the embed input, the stored body, AND `{{memory}}`. */
+/** digest → `chat_digests` (the distilled lens). `contentHash` is precomputed by memory; the distilled
+ *  `text` is the embed input, the stored body, and `{{memory}}`. */
 async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promise<StoreResult> {
   const hash = p.contentHash;
   const existing = await existingDigestHash(ctx.db, {
@@ -191,8 +170,8 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     dim: p.dim,
     now: ctx.now(),
   });
-  // The §4 "which characters this digest CONTAINS" join — written against the PERSISTED id (on conflict the
-  // kept id differs from the mint). Only on the written path: a noop upsert left the join intact above.
+  // The "which characters this digest contains" join, written against the persisted id (on conflict the
+  // kept id differs from the mint). Only on the written path.
   await replaceDigestSpeakers(ctx.db, digestId, p.speakerCharacterIds);
   return { outcome: "written", contentHash: hash };
 }

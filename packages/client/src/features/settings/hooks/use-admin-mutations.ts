@@ -1,10 +1,6 @@
-// The Admin pane's mutations (Settings → Admin), one `createEntityMutation` per verb — the module-scope
-// factory pattern (use-tag-settings-mutations.ts). NONE are `busDriven`: the admin verbs emit no user-bus
-// event (they act on OTHER users' rows; the actor's own bus never carries them), so each self-invalidates
-// its read on settle — `admin.listUsers` for the user verbs, `admin.listSessions` for the session verbs
-// (path-filtered, so every per-user sessions read refreshes), `admin.vllmEngines` for a restart. TVars are
-// the tRPC-INFERRED inputs (never a hand-restated shape). Server enforcement (`adminProcedure` +
-// `requireAdmin`/`requireOwner`) is the floor; these toasts are the honest failure surface.
+// The Admin pane's mutations, one createEntityMutation per verb. None are busDriven: the admin verbs act
+// on other users' rows so the actor's own bus never carries them, so each self-invalidates its read on
+// settle.
 
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -32,7 +28,6 @@ export const useSetEnabled = createEntityMutation<inferInput<Trpc["admin"]["setE
     options: (trpc) => trpc.admin.setEnabled.mutationOptions(),
     invalidates: (trpc) => [
       trpc.admin.listUsers.queryFilter(),
-      // The disable kick-tail revokes the target's sessions — refresh any open sessions read too.
       trpc.admin.listSessions.pathFilter(),
     ],
     errorToast: "Couldn't change the account's enabled state.",

@@ -1,26 +1,18 @@
-// The tag-management CRUD mutations (Settings → Tags), one `createEntityMutation` per verb — the same
-// module-scope factory pattern as use-character-mutations.ts. Every tag verb emits `tagsChanged` on the
-// user-bus, and `USER_BUS_FILTERS.tagsChanged` path-invalidates the WHOLE `tag` router (so
-// `tag.listTagsWithUsage`, this pane's read, refetches); that subscription is ALWAYS on (home-page.tsx), so
-// these are `busDriven` — the echo reconciles the acting device AND another device (a self-`invalidates`
-// would double-refetch). Rename shares `updateTag` with the color/folder/hide edits but carries its OWN
-// instance purely for an accurate error toast (the `(ownerId, name)` unique → a DomainConflictError the
-// server maps to tRPC CONFLICT). TVars are the tRPC-INFERRED inputs; this feature talks to `trpc.tag.*`
-// directly (the cross-feature-reads-ride-trpc seam — there is no client tag FEATURE to sideways-import).
+// The tag-management CRUD mutations, one createEntityMutation per verb. Every tag verb emits
+// tagsChanged on the user-bus (always-on subscription), so these are busDriven.
 
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-/** Rename a tag (name-only patch). Its own instance for a name-conflict-aware toast. `busDriven` —
- *  `tagsChanged` covers `tag.listTagsWithUsage`. */
+/** Rename a tag (name-only patch). Its own instance for a name-conflict-aware toast. */
 export const useRenameTag = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, unknown>({
   options: (trpc) => trpc.tag.updateTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't rename the tag — that name may already be in use.",
 });
 
-/** Update a tag's style/behavior (color · color2 · folderType · isHiddenOnCard). `busDriven`. */
+/** Update a tag's style/behavior (color · color2 · folderType · isHiddenOnCard). */
 export const useUpdateTagStyle = createEntityMutation<
   inferInput<Trpc["tag"]["updateTag"]>,
   unknown
@@ -30,21 +22,21 @@ export const useUpdateTagStyle = createEntityMutation<
   errorToast: "Couldn't update the tag.",
 });
 
-/** Delete a tag (cascades its junction rows server-side). `busDriven`. */
+/** Delete a tag (cascades its junction rows server-side). */
 export const useRemoveTag = createEntityMutation<inferInput<Trpc["tag"]["removeTag"]>, unknown>({
   options: (trpc) => trpc.tag.removeTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete the tag.",
 });
 
-/** Merge one tag into another (re-points every attachment, then deletes the source). `busDriven`. */
+/** Merge one tag into another (re-points every attachment, then deletes the source). */
 export const useMergeTags = createEntityMutation<inferInput<Trpc["tag"]["mergeTags"]>, unknown>({
   options: (trpc) => trpc.tag.mergeTags.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't merge the tags.",
 });
 
-/** Persist the manual tag order (position → sortOrder). `busDriven`. */
+/** Persist the manual tag order (position → sortOrder). */
 export const useSetTagOrder = createEntityMutation<inferInput<Trpc["tag"]["setTagOrder"]>, unknown>(
   {
     options: (trpc) => trpc.tag.setTagOrder.mutationOptions(),
@@ -53,7 +45,7 @@ export const useSetTagOrder = createEntityMutation<inferInput<Trpc["tag"]["setTa
   },
 );
 
-/** Delete every tag with zero attachments (the "Prune unused" action). `busDriven`. */
+/** Delete every tag with zero attachments (the "Prune unused" action). */
 export const usePruneUnusedTags = createEntityMutation<void, unknown>({
   options: (trpc) => trpc.tag.pruneUnusedTags.mutationOptions(),
   busDriven: true,

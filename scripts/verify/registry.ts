@@ -1,11 +1,7 @@
-// The verification STAGE REGISTRY (UNIFIED-VERIFICATION-DESIGN.md §3.1) — every verification surface in
-// the repo, self-described. This is the `run.ts` STAGES table generalized the way the gate machine
-// generalized ALL_CHECKS with GateDescriptor: each stage declares its TIER membership, how to scope it,
-// and how to map its child's native exit into the repo's 0/1/2/3 contract (§3.3).
-//
-// A "forgotten script" becomes structurally impossible: the verify-registry-parity gate
-// (scripts/check/gates/verify-registry-parity.ts) reds when a package.json verification-shaped script has
-// no row here (§3.6). Adding a stage = adding a row; there is nowhere else for it to hide.
+// The verification stage registry (UNIFIED-VERIFICATION-DESIGN.md §3.1) — every verification surface in
+// the repo, self-described: each stage declares its tier membership, how to scope it, and how to map its
+// child's native exit into the repo's 0/1/2/3 contract. A "forgotten script" becomes structurally
+// impossible: verify-registry-parity.ts reds when a package.json verification-shaped script has no row here.
 import type { Selection } from "./selection.ts";
 
 export type Tier = "changed" | "static" | "push" | "full" | "manual";

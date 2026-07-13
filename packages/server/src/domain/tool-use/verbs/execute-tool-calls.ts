@@ -1,11 +1,7 @@
-// verb: executeToolCalls — the ONE execute pipeline BOTH projections funnel through (tool-use-design/
-// 01 §5): per call, in order — lookup → JSON.parse → the erased run-closure (zod safeParse → the
-// can() ceiling → invoke; contract/results.ts erasure note) → the ONE stringify site → record.
-// SEQUENTIAL by decision (02 §7: rpg's staged effects are order-dependent; the flip criterion is a
-// real I/O-bound tool + measured latency — concurrency would land INSIDE here, zero contract change).
-// NEVER throws for a per-call failure: every outcome is a `ToolCallRecord` (a denial/hallucinated
-// name/bad args is a fact the MODEL reads and self-corrects on the recurse). `result` is ALWAYS a
-// JSON document (chips `JSON.parse` unconditionally — 03 §4); stack traces never reach the model.
+// verb: executeToolCalls — the one execute pipeline both projections funnel through: per call, lookup →
+// JSON.parse → the erased run-closure (safeParse → can() ceiling → invoke) → the one stringify site → record.
+// Sequential by design (staged effects are order-dependent). Never throws for a per-call failure — every
+// outcome is a ToolCallRecord the model reads and self-corrects on; result is always a JSON document.
 
 import type { ToolCallInput, ToolExecutionContext } from "../contract/params";
 import type {
@@ -26,13 +22,11 @@ function errorOutcome(message: string): CallOutcome {
   return { result: JSON.stringify({ error: message }), isError: true };
 }
 
-// RunOutcome → the serialized record halves (the ONE stringify site for every error document).
 function serializeOutcome(name: string, outcome: RunOutcome): CallOutcome {
   switch (outcome.kind) {
     case "invalid":
       return errorOutcome(`invalid arguments for ${name}: ${outcome.issues}`);
     case "denied":
-      // The gate HELD; the denial is a policy fact the model should learn — data, not a dead turn.
       return errorOutcome(`not permitted: ${name}`);
     case "threw":
       return errorOutcome(outcome.message);
@@ -80,12 +74,10 @@ export function createExecuteToolCalls(
       if (entry === undefined) {
         outcome = errorOutcome(`unknown tool: ${call.name}`);
       } else {
-        // SEQUENTIAL BY DESIGN (02 §7) — a call may depend on the previous call's staged effects.
-        // biome-ignore lint/performance/noAwaitInLoops: emission-order sequencing is the invariant.
+        // biome-ignore lint/performance/noAwaitInLoops: sequential by design — a call may depend on the previous call's staged effects.
         outcome = await runCall(ctx, entry, call, exec);
       }
       records.push({
-        // Provenance-faithful — verbatim from the input even when parse failed (01 §5 step 6).
         toolCallId: call.toolCallId,
         name: call.name,
         arguments: call.arguments,

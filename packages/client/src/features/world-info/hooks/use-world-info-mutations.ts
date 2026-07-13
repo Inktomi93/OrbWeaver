@@ -1,12 +1,7 @@
-// The world-info CRUD + attachment mutations (the World Info rail section), one `createEntityMutation` per
-// verb (the module-scope factory pattern — use-preset-mutations.ts precedent). World-info writes are per-
-// USER entity changes; each carries its own `invalidates` refetching the LIST reads it dirties. The tRPC
-// input types are inferred (never re-declared — `no-client-wire-redeclare`).
-//
-// Attachment writes (global / character / persona) are the "activation" surface: a book fires in a chat's
-// per-turn pool when it is attached at one of those scopes. The CHAT scope (`attachToChat`/`detachFromChat`/
-// `listForChat`) is DEFERRED at transport (the world-info router omits it — chats are membership-scoped,
-// P5), so only the three owner-scoped surfaces are wired here.
+// The world-info CRUD + attachment mutations, one createEntityMutation per verb. Attachment writes
+// (global/character/persona) are the "activation" surface: a book fires in a chat's per-turn pool when
+// attached at one of those scopes. The chat scope is deferred at transport, so only the three
+// owner-scoped surfaces are wired here.
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";

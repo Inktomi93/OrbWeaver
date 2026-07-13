@@ -24,20 +24,11 @@ export interface FileDropzoneProps
   accept?: string;
   multiple?: boolean;
   disabled?: boolean;
-  /**
-   * Busy state (the 8-state contract, ui-package-design §5): swaps the Upload glyph for a
-   * `<Spinner>` and inerts the input, for a caller uploading the selected batch (e.g. mid-request
-   * to storage). A state, not a variant — caller-driven, same shape as `Button.loading`.
-   */
+  /** Busy state: swaps the Upload glyph for a `<Spinner>` and inerts the input. Caller-driven, same shape as `Button.loading`. */
   loading?: boolean;
-  /** Momentary success flash (the 8-state contract): a checkmark glyph + the success border
-   *  token. Caller clears it after its own delay — this primitive holds no timer. */
+  /** Momentary success flash: a checkmark glyph + the success border token. Caller clears it — this primitive holds no timer. */
   success?: boolean;
-  /**
-   * Client-side pre-check ceiling in bytes. INJECTED by the consumer (databank's 20 MB default,
-   * plugin install-from-zip, avatar uploads each pick their own) — never baked into the primitive.
-   * Omit to skip the pre-check.
-   */
+  /** Client-side pre-check ceiling in bytes, injected by the consumer. Omit to skip the pre-check. */
   maxSizeBytes?: number;
   /** Fires with every processed batch, from either the native picker or a drop. */
   onFilesSelected?: (result: FileDropzoneResult) => void;
@@ -51,8 +42,7 @@ export interface FileDropzoneProps
   className?: string;
 }
 
-// Pure byte-count formatting — NOT the Intl/locale kind of ui-side logic the house convention bans
-// (status-chip's timestamp rule): this is plain decimal-scale arithmetic, not locale-sensitive.
+// Pure byte-count formatting — plain decimal-scale arithmetic, not locale-sensitive.
 const BYTES_PER_UNIT = 1024;
 const DECIMAL_PRECISION = 10;
 
@@ -92,11 +82,7 @@ interface FileDropzoneGlyphProps {
   readonly slots: ReturnType<typeof fileDropzoneVariants>;
 }
 
-/**
- * The content-stack glyph dispatch, split out from `FileDropzone` purely to avoid a 3-way nested
- * ternary in the render tree (biome `noNestedTernary`) and keep `FileDropzone` itself under the
- * cognitive-complexity ceiling — it carries no state of its own.
- */
+/** The content-stack glyph dispatch, split out to avoid a 3-way nested ternary in the render tree. */
 function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps): ReactElement {
   if (loading) {
     return <Spinner label="Uploading…" size="sm" />;
@@ -108,30 +94,13 @@ function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps):
 }
 
 /**
- * The file uploader — a REAL `<input type="file">` under the hood, rendered through Base UI
- * `Field.Control` exactly like `Textarea` (label association + `aria-describedby` + `data-invalid`
- * flow automatically inside a `<Field>`; degrades to a plain control standalone). Keyboard/SR
- * operation is the PRIMARY path: Tab focuses the real input, Enter/Space/click opens the native
- * OS file dialog — no custom widget stands in for it.
- *
- * Drag-and-drop is progressive enhancement ONLY, layered on top of that same input: the input is
- * the topmost, full-box element (`absolute inset-0 opacity-0`), and modern browsers already accept
- * a drop directly on a file input — it sets `.files` and fires a native `change` event, so no
- * `DataTransfer` plumbing lives here. The drag handlers exist SOLELY to toggle the `data-drag-over`
- * highlight; if JS never ran, clicking still opens the native picker.
- *
- * `maxSizeBytes` is an injected ceiling (no default) checked client-side on every batch — oversized
- * files are reported via `rejected` (never silently dropped) and surfaced inline.
- *
- * `loading`/`success` (the 8-state contract, ui-package-design §5) swap the Upload glyph for a
- * `<Spinner>` / a checkmark and inert the input+drop handlers — caller-driven states (the caller
- * owns the actual upload request); this primitive holds no timer for clearing `success`.
- *
- * Usage:
- * ```tsx
- * <Field label="Avatar"><FileDropzone accept="image/*" maxSizeBytes={20_000_000}
- *   onFilesSelected={({ accepted }) => upload(accepted[0])} /></Field>
- * ```
+ * The file uploader — a real `<input type="file">` under the hood, rendered through Base UI
+ * `Field.Control`. Keyboard/SR operation is the primary path: Tab focuses the real input,
+ * Enter/Space/click opens the native OS file dialog. Drag-and-drop is progressive enhancement
+ * only, layered on top of that same input (a drop on a file input sets `.files` + fires a native
+ * `change` event; the drag handlers exist solely to toggle the `data-drag-over` highlight).
+ * `maxSizeBytes` is an injected ceiling checked client-side; oversized files are reported via
+ * `rejected`, never silently dropped.
  */
 export function FileDropzone({
   accept,
@@ -184,9 +153,7 @@ export function FileDropzone({
     event.preventDefault();
     setDragOver(false);
   };
-  // The native input underneath already handled the drop (browser-native: a file dropped on an
-  // <input type="file"> sets `.files` + fires `change`, landing in `handleChange` above) — this
-  // handler only resets the highlight.
+  // The native input underneath already handled the drop; this handler only resets the highlight.
   const handleDrop = (event: DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
     setDragOver(false);
@@ -198,10 +165,8 @@ export function FileDropzone({
 
   const errorMessage = rejectionMessage(rejected, maxSizeBytes);
 
-  // This div is decorative drag-highlight chrome, not the interactive control — the REAL control
-  // is the covering <input type="file"> (a real, focusable, keyboard-operable form element). The
-  // drag listeners exist SOLELY to toggle the visual data-drag-over highlight (progressive
-  // enhancement); no functionality or a11y semantics live on this element.
+  // This div is decorative drag-highlight chrome, not the interactive control — the real control
+  // is the covering <input type="file">.
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: see comment above the return.
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: see comment above the return.

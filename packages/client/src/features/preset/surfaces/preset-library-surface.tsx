@@ -1,16 +1,7 @@
-// The preset LIBRARY surface — the Presets LIST hub (UI-Arch §4.1: header row · search · rows; §4.2 Presets
-// row "preset rows + CRUD toolbar"; BUILD-SPEC §4). A containment CONSUMER (§2.1) — the anchor owns the box.
-// Reads `preset.list` (a small owned collection — no pagination/virtualization needed, unlike the character
-// library) + `settings.getUserSettings` (for the ACTIVE-for-generation pointer `seeds.defaultPresetId`),
-// filters client-side by name (`useDeferredValue` — §13.2 search-over-collection), and renders a
-// `PresetLibraryRow` per preset. Selection flows LEFT→RIGHT: a row click OPENS the preset in CONTENT
-// (`selectPreset` — the §5.1 writer-only seam) and NEVER activates it. Activation is the "Active for
-// generation" dropdown ONLY (ruled §0.1): a raw Select writing `seeds.defaultPresetId` via
-// `useSetDefaultPreset` (the `useSetPersonaSeed` bus-driven precedent). CRUD is client composition over the
-// existing verbs — New (`preset.create`) · Duplicate (`preset.get` config → `preset.create`) · Rename/Delete
-// (row kebab → dialogs) · Import (client-side ST parse → `preset.create`). Delete + rename overlays live in
-// the ROW / dialog components (surface-purity — a surface renders no outer overlay); the surface wires the
-// mutations and the active-delete seed-null.
+// The preset library surface — the Presets list hub. Reads `preset.list` + `settings.getUserSettings`
+// (for the active-for-generation pointer), filters client-side by name, renders a `PresetLibraryRow` per
+// preset. A row click opens the preset in CONTENT (`selectPreset`); activation is the "Active for
+// generation" dropdown ONLY. CRUD composes existing verbs — New/Duplicate/Rename/Delete/Import.
 
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -38,21 +29,14 @@ import {
   useUpdatePreset,
 } from "../hooks/use-preset-mutations";
 
-// The new-preset request — a starter arrangement (the server seeds DEFAULT_PROMPT_CONFIG when `config` is
-// omitted). `kind: "generation"` distinguishes it from other preset kinds (D61 roster presets are a
-// SEPARATE domain — not conflated here).
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";
 
 export interface PresetLibrarySurfaceProps {
-  /** Open a preset in CONTENT (the §5.1 writer-only seam). The route injects a wrapper that ALSO closes
-   *  the mobile LIST sheet (else the sheet stays open over the editor); defaults to the bare `selectPreset`
-   *  writer for non-mobile / non-route usage. Used at every "open a preset" moment (row · New · Duplicate ·
-   *  Import). */
+  /** Defaults to the bare `selectPreset` writer; the route injects a wrapper that also closes the mobile sheet. */
   readonly onSelectPreset?: ((id: PresetId) => void) | undefined;
 }
 
-/** The Presets LIST body (rendered inside the shell's `presets` LIST slot). */
 export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -119,7 +103,6 @@ function PresetList({
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: id === "" ? null : id } });
   };
 
-  // Duplicate fetches the source config (the LIST row is a summary — no config) then creates a copy.
   const onDuplicate = (id: PresetId): void => {
     const source = presets.find((p) => p.id === id);
     void (async (): Promise<void> => {
@@ -133,8 +116,6 @@ function PresetList({
     })();
   };
 
-  // Delete: when the row is the ACTIVE preset, null the seed FIRST so no stale pointer survives (the seed
-  // degrades safely at consumption, settings comment, but we keep it clean), then remove.
   const onDelete = (id: PresetId): void => {
     if (activeId === id) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
@@ -146,7 +127,6 @@ function PresetList({
 
   return (
     <Stack gap="block" className="h-full">
-      {/* §4.1 header row — micro-caps title + Import + create "+". */}
       <Row gap="field" align="center" justify="between">
         <Text size="micro" tone="muted" transform="caps">
           Presets
@@ -167,7 +147,6 @@ function PresetList({
         </Row>
       </Row>
 
-      {/* Active-for-generation dropdown — the ONLY activation affordance (§0.1). */}
       <Stack gap="field">
         <Text size="micro" tone="muted" transform="caps">
           Active for generation

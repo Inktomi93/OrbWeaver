@@ -1,16 +1,6 @@
-// domain/chat/assembly/injections — the ONE positional-injection model: the role-framing rule
-// (`frameInjection`) + the depth splice (`spliceInChatInjections`). This file is the SHARED frame()+splice
-// consumed by BOTH BUILD (the before/in-prompt section render) and SHAPE (the `in_chat` history splice) —
-// "one home, can't drift".
-//
-// FLAG[scope]: this file's canonical home is shared between the BUILD chunk (RESOLVE→GATHER→BUILD) and
-// the SHAPE chunk. SHAPE genuinely cannot run without `spliceInChatInjections` (the SHAPE step "splice
-// in_chat by depth"), and the file did not yet exist, so the SHAPE chunk establishes the
-// ONE home with ONLY the splice/frame primitives SHAPE needs. The BUILD chunk EXTENDS this same file
-// with the before_prompt/in_static/in_prompt section-render consumers (which import the same
-// `frameInjection`) — it does NOT re-home the splice. (The "do-not-touch" boundary between
-// chunks yields to the one-home rule + SHAPE's hard dependency; flagged per CLAUDE.md conflict
-// protocol.)
+// domain/chat/assembly/injections — the one positional-injection model: the role-framing rule
+// (`frameInjection`) + the depth splice (`spliceInChatInjections`). Shared frame()+splice consumed by
+// both BUILD (before/in-prompt section render) and SHAPE (the `in_chat` history splice) — one home, no drift.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -19,18 +9,10 @@ import type { MessageRole } from "@orb/kit/message-role";
 type WireRole = "user" | "assistant";
 
 /**
- * The before/in-static/in-prompt SECTION-RENDER consumer (the BUILD chunk EXTENDS
- * this file with "the before/in-prompt section-render consumers using the existing `frameInjection`"). The
- * three system-block positions (`before_prompt` PREPEND to static, `in_static` APPEND to static,
- * `in_prompt` APPEND to dynamic) all render the SAME way: macro-resolve the content (the caller's injected
- * resolver — macros BEFORE framing, render ONCE), then frame by role through the
- * ONE shared {@link frameInjection} (so the system-block render and the `in_chat` splice can NEVER drift).
- * Returns "" for an empty/whitespace render (the caller skips it). The `in_chat` position is NOT handled
- * here — that is the SHAPE splice's job ({@link spliceInChatInjections}).
- *
- * `resolveContent` is injected (the chat-domain macro renderer) so this primitive stays free of the
- * macro/AssembleContext dependency — same shape as the splice's resolver seam. Identity default keeps
- * hand-callers/tests that pass pre-resolved content unaffected.
+ * The before/in-static/in-prompt section-render consumer. The three system-block positions all render the
+ * same way: macro-resolve the content, then frame by role through the one shared {@link frameInjection}.
+ * Returns "" for an empty/whitespace render. The `in_chat` position is not handled here — that is the
+ * SHAPE splice's job ({@link spliceInChatInjections}).
  */
 export function renderInjection(
   injection: ChatInjection,
@@ -40,17 +22,15 @@ export function renderInjection(
 }
 
 /**
- * Role-specific framing — the ONE rule, shared by the before/in-prompt render AND the in_chat splice.
+ * Role-specific framing — the one rule, shared by the before/in-prompt render and the in_chat splice.
  * `content` is the caller's already-prepared (macro-resolved) text. Returns "" for empty/whitespace.
  *
- *   • system    → bare. The injection IS system text.
- *   • assistant → bare. Authors write assistant-role injections as 1st-person continuations.
- *   • user      → `[Note from user: …]` so the model reads it as the operator speaking through the user
+ *   - system    → bare. The injection is system text.
+ *   - assistant → bare. Authors write assistant-role injections as 1st-person continuations.
+ *   - user      → `[Note from user: …]` so the model reads it as the operator speaking through the user
  *                 channel, not an in-character user turn.
  *
- * `originalRole` names the ORIGINAL role when a caller auto-converted system→user for the wire (the
- * splice rewrites role=system → role=user with originalRole="system"): `[Note from system: …]`. Avoids
- * the double-nest a pre-wrapped caller would otherwise produce.
+ * `originalRole` names the original role when a caller auto-converted system→user for the wire.
  */
 export function frameInjection(
   role: MessageRole,
@@ -70,10 +50,9 @@ export function frameInjection(
   return `[Note from user: ${trimmed}]`;
 }
 
-/** A depth-0 in_chat injection whose EFFECTIVE wire role is user (user, or system → user-with-framing).
- *  depth 0 = AFTER the new user turn (ST convention — the note is the last thing the model reads).
- *  Assistant-role depth-0 is NOT a tail injection (a trailing assistant message is response PREFILL —
- *  unsupported; the splice normalizes it to depth 1, before the user turn). */
+/** A depth-0 in_chat injection whose effective wire role is user (user, or system → user-with-framing).
+ *  depth 0 = after the new user turn. Assistant-role depth-0 is not a tail injection (a trailing
+ *  assistant message is response prefill; the splice normalizes it to depth 1). */
 function isPromptTailInjection(inj: ChatInjection): boolean {
   return inj.position === "in_chat" && inj.depth === 0 && inj.role !== "assistant";
 }
@@ -81,44 +60,36 @@ function isPromptTailInjection(inj: ChatInjection): boolean {
 /**
  * Splice `in_chat` injections into a runner history list by depth.
  *
- * Depth semantics: 0 = at the tail (just before the new turn / trailing user msg); N = N positions back.
- * Depths beyond the history length clamp to the history length (the very top). We sort DESCENDING
- * (deepest first) and splice from `length - depth`, so each splice lands at the correct distance from
- * the ORIGINAL tail. Equal depths — including over-deep ones after the clamp — keep array order (stable
- * sort + each later splice landing one slot below the earlier).
+ * Depth semantics: 0 = at the tail; N = N positions back. Depths beyond the history length clamp to the
+ * history length. We sort descending (deepest first) and splice from `length - depth`, so each splice
+ * lands at the correct distance from the original tail. Equal depths keep array order (stable sort).
  *
- * Role coverage: user + assistant splice in directly. role="system" + position="in_chat" is auto-
- * converted here to role=user with `[Note from system: …]` framing (the universally-honored
- * operator-channel-via-user-slot shape). The downstream squash merges a converted user-role injection
- * into an adjacent user turn.
+ * Role coverage: user + assistant splice in directly. role="system" + position="in_chat" is auto-converted
+ * here to role=user with `[Note from system: …]` framing. The downstream squash merges a converted
+ * user-role injection into an adjacent user turn.
  */
 export function spliceInChatInjections<T extends { role: WireRole; content: string }>(
   history: readonly T[],
   injections: readonly ChatInjection[] | undefined,
-  // Macro resolver applied to injection content BEFORE framing (matching the before/in-prompt render
-  // path). The identity default keeps tests/hand-callers that pass plain content unaffected.
+  // Macro resolver applied to injection content before framing. Identity default keeps tests/hand-callers
+  // that pass plain content unaffected.
   resolveContent: (content: string) => string = (c) => c,
   opts: {
-    /** agent-sdk seed shaping: leave the prompt-tail set (depth-0 user-effective) OUT of the splice —
+    /** agent-sdk seed shaping: leave the prompt-tail set (depth-0 user-effective) out of the splice —
      *  the dispatcher appends those to the `prompt:` param instead. */
     excludePromptTail?: boolean;
-    /** D66 (W5): the resolved `turns.assistantPrefill`. `true` ⇒ keep an assistant\@depth-0 injection at
-     *  depth 0 (the trailing-assistant prefill the model honors); `false`/absent ⇒ floor it to depth 1 (the
-     *  only assistant placement a non-prefill wire can express — a trailing assistant 400s there). */
+    /** The resolved `turns.assistantPrefill`. `true` ⇒ keep an assistant\@depth-0 injection at depth 0
+     *  (the trailing-assistant prefill the model honors); `false`/absent ⇒ floor it to depth 1. */
     allowAssistantPrefill?: boolean;
-    /** D66-C (W6) — the prefix-stable re-frame boundary: the number of STABLE cached rows (rows
-     *  `[0, prefixBoundaryLen)` in `history` = the committed prefix minus the volatile tail). A depth-1
-     *  ASSISTANT-role injection landing same-role against the last stable canon row would, once squashed,
-     *  rewrite bytes INSIDE the cached prefix → the content-keyed Anthropic prefix cache misses and the whole
-     *  conversation re-bills (part 01 §1c). When set, such an injection is RE-FRAMED to a user operator
-     *  `[Note from …]` row so it lands STANDALONE, never folding into the stable row. Absent ⇒ no re-frame
-     *  (the BUILD/no-prefix callers). */
+    /** The prefix-stable re-frame boundary: the number of stable cached rows in `history`. A depth-1
+     *  assistant injection landing same-role against the last stable canon row would, once squashed,
+     *  rewrite bytes inside the cached prefix → re-framed to a user operator note instead. Absent ⇒ no
+     *  re-frame. */
     prefixBoundaryLen?: number | undefined;
   } = {},
 ): (T | { role: WireRole; content: string })[] {
-  // Generic over the row shape (orbweaver's sound upgrade over neo's `{role,content}` erasure): the
-  // canon rows keep their `authorName`/`characterId` so the downstream name-stamp reads them at the TYPE
-  // level, not just at runtime. Spliced injection rows are bare `{role, content}` — hence the union.
+  // Generic over the row shape: canon rows keep their authorName/characterId so the downstream
+  // name-stamp reads them at the type level. Spliced injection rows are bare `{role, content}`.
   if (injections === undefined || injections.length === 0) {
     return [...history];
   }
@@ -129,38 +100,31 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   if (inChat.length === 0) {
     return [...history];
   }
-  // Clamp depths to the ORIGINAL history length BEFORE the sort+splice walk (not per-splice): two
-  // over-deep injections then behave exactly like two equal-depth in-range ones — the stable sort keeps
-  // array order and each later splice lands one slot below the earlier, preserving "array order = output
-  // order". (A per-splice clamp against the GROWING result would floor over-deep insertAts to 0,
-  // REVERSING their relative order.)
+  // Clamp depths to the original history length before the sort+splice walk (not per-splice): two
+  // over-deep injections then behave exactly like two equal-depth in-range ones (array order = output
+  // order). A per-splice clamp against the growing result would reverse their relative order.
   const clamped = inChat.map((inj) => {
-    // assistant @ depth 0 is a TRAILING assistant message = response PREFILL. On a `assistantPrefill:false`
-    // wire (default) it is normalized to depth 1 (before the user turn) — the only assistant placement a
-    // non-prefill wire can express (a trailing assistant HARD-400s). W5: `allowAssistantPrefill` keeps it at
-    // depth 0 so the model honors the authored prefill.
+    // assistant @ depth 0 is a trailing assistant message = response prefill. On the default wire it is
+    // normalized to depth 1; `allowAssistantPrefill` keeps it at depth 0.
     const floor = inj.role === "assistant" && opts.allowAssistantPrefill !== true ? 1 : 0;
     return { inj, depth: Math.min(Math.max(inj.depth, floor), history.length) };
   });
-  // Primary: depth DESC (deepest splices first, from the back). Secondary: `order` ASC — within one
-  // depth, LOWER order lands first/top and HIGHER order lands closer to the tail. ST parity: ST's popup
-  // reads "Ordered from low/top to high/bottom" — the prior DESC secondary INVERTED every imported ST
-  // preset's within-depth order (the importer carries `injection_order` verbatim). Absent order ⇒ ST
-  // default 100; equal depth+order keeps array/rack order (stable sort, per the depth-clamp note above).
+  // Primary: depth desc (deepest splices first). Secondary: `order` asc — within one depth, lower order
+  // lands first/top. Absent order ⇒ default 100; equal depth+order keeps array/rack order.
   const defaultOrder = 100;
   const sorted = clamped.sort(
     (a, b) => b.depth - a.depth || (a.inj.order ?? defaultOrder) - (b.inj.order ?? defaultOrder),
   );
-  // The last stable canon row (part 01 §1c): a depth-1 assistant injection landing same-role against it
-  // would mutate the cached prefix once squashed → re-frame it to a user operator note instead.
+  // The last stable canon row: a depth-1 assistant injection landing same-role against it would mutate
+  // the cached prefix once squashed → re-frame it to a user operator note instead.
   const boundaryLen = opts.prefixBoundaryLen;
   const stableTailRole =
     boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
   const result: (T | { role: WireRole; content: string })[] = [...history];
   for (const { inj, depth } of sorted) {
     // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
-    // canon row. When that row is ALSO assistant, keeping the injection assistant-role would fold it into
-    // the cached prefix (part 01 §1c) → re-frame it through the one-home operator channel to a user note.
+    // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
+    // the cached prefix → re-frame it to a user note.
     const wouldMutatePrefix =
       inj.role === "assistant" && depth === 1 && stableTailRole === "assistant";
     const effectiveRole: WireRole = inj.role === "system" || wouldMutatePrefix ? "user" : inj.role;

@@ -9,18 +9,8 @@ export interface ContainerProps
   name?: string;
 }
 
-/**
- * THE containment provider — the anchor tier of the 4-tier container model (UI-Arch §4).
- * layout/ OWNS `container-type`: feature code never writes raw containment; it wraps a surface in
- * `<Container>` and the surface's `@container` queries resolve.
- *
- * WHY `name` is a style attr, not a class: the named-container utility would be `@container/${name}`
- * — a dynamic class Tailwind's static scanner cannot see, so it would never be generated. Setting
- * `container-name` via `style={{ containerName: name }}` is the sanctioned exception to the
- * no-inline-style rule (a string value, not a numeric literal — ui-package-design §6.1).
- *
- * Usage: `<Container name="panel" size="md"><MySurface /></Container>`.
- */
+// `name` is a style attr, not a class: `@container/${name}` is a dynamic class Tailwind's static
+// scanner cannot see, so `container-name` goes through `style` instead (sanctioned inline-style exception).
 export function Container({
   className,
   name,

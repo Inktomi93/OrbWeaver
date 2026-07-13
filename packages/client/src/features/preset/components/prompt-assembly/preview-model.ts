@@ -1,13 +1,7 @@
-// The PREVIEW view-model (BUILD-SPEC §7) — PURE, node-safe. Turns the live `PromptConfig.sections` into
-// the display-only assembled read-out `<AssemblyPreview>` paints: the ordered ENABLED sections,
-// split at the `chat_history` pivot into a `setup` band, the conversation band (with the
-// SPLICED, `inject`-carrying sections shown at their depth positions), and a `post` band; consecutive
-// same-role in-flow sections group under one role header.
-//
-// This is DISPLAY ONLY — macros are NOT resolved (the `splitMacroTokens` helper only tokenizes `{{x}}`
-// so the component can chip them). Nothing here touches live chat data or the server. The splice ordering
-// mirrors the assembler's documented semantics (P1): higher `depth` sits earlier in the band; within one
-// depth, LOWER `order` sits higher (ST parity — `injections.ts` ascending secondary).
+// The preview view-model — pure, node-safe. Turns the live `PromptConfig.sections` into the display-only
+// assembled read-out `<AssemblyPreview>` paints: ordered enabled sections split at the `chat_history`
+// pivot into setup/conversation/post bands, consecutive same-role sections grouped under one header.
+// Display only — macros are tokenized, never resolved; nothing here touches live chat data.
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";

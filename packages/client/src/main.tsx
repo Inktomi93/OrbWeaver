@@ -1,10 +1,6 @@
-// The client COMPOSITION ROOT (the entry/ mirror): constructs the singletons ONCE — QueryClient →
-// tRPC client → the toast manager (the `notify` seam's render half) — and provides them to the tree.
-// The tRPC options proxy + the `invalidation` seam are NOT built here; both are minted per-render at
-// routes/home-page.tsx (data/use-invalidation.ts) — the live path. Nothing imports this file
-// (dep-cruiser client-nothing-imports-main); everything below consumes via providers/hooks. Router
-// context only FORWARDS these already-constructed singletons (never constructs —
-// UI-Lib-TanStack-Router.md C#4: one DI channel, the root is it).
+// The client composition root: constructs the singletons once (QueryClient → tRPC client → the toast
+// manager) and provides them to the tree. Nothing imports this file; everything consumes via
+// providers/hooks.
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -30,16 +26,14 @@ import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-brid
 import { router } from "./routes/router";
 import "./styles/globals.css";
 
-// ── Dev instrumentation (T5) — both arms behind the LITERAL `import.meta.env.DEV`, which the
-// bundler constant-folds so NEITHER module (nor the devtools packages) lands in the prod output.
-// [perf] main-thread half: dynamic import keeps the tracer out of the entry chunk even in dev.
+// Both arms behind the literal import.meta.env.DEV, which the bundler constant-folds so neither
+// module lands in the prod output. Dynamic import keeps the tracer out of the entry chunk in dev too.
 if (import.meta.env.DEV) {
   void import("./lib/long-task-tracer").then(({ installLongTaskTracer }) => {
     installLongTaskTracer();
   });
 }
-// Framework devtools shell (Query + Router panels): lazy + dead-branch. Deep import ON PURPOSE —
-// dev-tools must never ride a barrel that also exports prod code (the barrel-leak failure mode).
+// Deep import on purpose — dev-tools must never ride a barrel that also exports prod code.
 const DevTools = import.meta.env.DEV
   ? lazy(async () => {
       const mod = await import("./lib/dev-tools");
@@ -47,10 +41,8 @@ const DevTools = import.meta.env.DEV
     })
   : null;
 
-// vite:preloadError recovery (client-tooling-setup §9). A redeploy rotates hashed chunk names; an old
-// tab that then lazy-imports a route (or any lazy chunk) requests a hash that no longer exists → a failed
-// dynamic import white-screens the app. Soft-reload ONCE to pull the new index — the sessionStorage
-// guard stops a genuinely-missing chunk from reload-looping.
+// A redeploy rotates hashed chunk names; an old tab that lazy-imports a chunk with a stale hash
+// white-screens. Soft-reload once — the sessionStorage guard stops a reload loop.
 const PRELOAD_RELOAD_FLAG = "orb:preload-reloaded";
 globalThis.addEventListener("vite:preloadError", () => {
   if (globalThis.sessionStorage.getItem(PRELOAD_RELOAD_FLAG) !== null) {
@@ -60,17 +52,11 @@ globalThis.addEventListener("vite:preloadError", () => {
   globalThis.location.reload();
 });
 
-// ── The singleton graph (constructed once, at module scope — the stable-query-client discipline) ──
 const queryClient = createAppQueryClient();
 const trpcClient = createTrpcClient();
 
-// ── The render half of the `notify` seam (lib/notify.ts): the app-wide toast manager, minted OUTSIDE
-// React (createToastManager) so it binds ONCE here at the composition root and the `<ToastProvider>`
-// below renders whatever `notify.*` enqueues. Every user-facing error — the D54 QueryCache/MutationCache
-// `errorToast` channel (data/query-client.ts) + the SSE `__subscriptionError` frame (use-chat-bus.ts) —
-// terminates in `notify`, so without this bind they were console-only. `add` returns an id we discard;
-// the seam is fire-and-forget (Notify returns void). `error` announces urgently (priority high); success
-// tints the border via `type` (toast/variants.ts `data-type`).
+// The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders
+// whatever notify.* enqueues. Without this bind, user-facing errors were console-only.
 const toastManager = createToastManager();
 bindNotify({
   info: (message): void => {
@@ -84,21 +70,12 @@ bindNotify({
   },
 });
 
-// ── PD-58: the app-level error boundary — `trpcClient` already exists at module scope here (the ONE
-// place outside a component that holds it), so the report callback needs no hook/context plumbing.
-// Fire-and-forget: `.catch()` swallows a failed report rather than compounding the crash it describes.
 function reportClientError(error: Error, ownerStack: string | null): void {
   const url = `${globalThis.location.pathname}${globalThis.location.search}`;
   trpcClient.clientError.mutate(buildClientErrorPayload(error, ownerStack, url)).catch(() => {
-    // A failed error REPORT must never itself throw — there is nowhere left to report that to.
+    // A failed error report must never itself throw — there is nowhere left to report that to.
   });
 }
-
-// The crash fallback JSX is inlined directly into `renderFallback` below (not its own top-level
-// function) — this entry module is a side-effecting root (nothing imports it,
-// client-nothing-imports-main) and a named top-level component definition here would collide with the
-// "a module exports either components only, or none" Fast-Refresh discipline. Full-viewport, no retry (see error-boundary.tsx: a
-// boundary with nothing to reset offers a reload, not a retry that would likely re-throw immediately).
 
 const rootEl = document.getElementById("root");
 if (rootEl === null) {
@@ -109,8 +86,7 @@ createRoot(rootEl).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-        {/* The toast render half — the same `toastManager` bound to `notify` above (mounted OUTSIDE the
-            AppErrorBoundary so a notification survives an app-level crash boundary swap). */}
+        {/* Mounted outside AppErrorBoundary so a notification survives an app-level crash boundary swap. */}
         <ToastProvider toastManager={toastManager}>
           <AppErrorBoundary
             onError={reportClientError}
@@ -147,8 +123,6 @@ createRoot(rootEl).render(
   </StrictMode>,
 );
 
-// Agent/automation bridge (agent-bridge.ts): the `data-app-ready` wait signal (dev + prod) + the
-// dev-only `globalThis.__orb` introspection handle. Installed AFTER render so the query cache exists
-// and the readiness check observes the initial reads.
+// Installed after render so the query cache exists and the readiness check observes the initial reads.
 installAppReadySignal(queryClient);
 installAgentDebugHandle(queryClient);

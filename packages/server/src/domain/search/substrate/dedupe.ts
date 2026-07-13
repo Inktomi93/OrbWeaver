@@ -1,27 +1,15 @@
-// domain/search/substrate/dedupe — the post-rank collapse helpers. PURE
-// functions over an ALREADY-RANKED (best-first) list; no I/O, no domain deps. Two collapses + the block-key
-// string:
-//   1. `blockKeyStr` — the stable string identity of a `BlockKey`. `scopedCharacterId` is ALWAYS in the key
-//      (knowledge-cluster §4 / inv 8): two scoped-group characters can produce digests for the SAME
-//      `(chatId, tier, blockIdx)` from different egocentric POVs — without the character id one POV silently
-//      overwrites the other. It is ALWAYS a real `CharacterId` (NO `''` sentinel, NO NULL — D20/inv 8).
-//   2. `dedupeRankedBlocks` — collapse rows sharing a `BlockKey` (a digest + its segment of the same block;
-//      the JOINT cross-chat list carries both lenses) to ONE: the better-RANKED representative wins (input
-//      is best-first, so keep the first seen).
-//   3. `collapseByContentHash` — collapse fork/import copies (identical `contentHash` across chats) AFTER
-//      ranking, BEFORE the k-cap (inv 6 — the better-ranked representative wins; the consumer gets distinct
-//      blocks). D9 homes content-hash in `@orb/server/kit` eventually; kept search-local until that primitive
-//      exists (the placeholder `@orb/server/kit/content-hash` is not built — FLAG[PD-35]).
+// domain/search/substrate/dedupe — post-rank collapse helpers. Pure functions over an already-ranked
+// (best-first) list; keeping the first seen keeps the better-ranked representative. scopedCharacterId is
+// always in the BlockKey since two scoped-group characters can produce digests for the same
+// (chatId, tier, blockIdx) from different egocentric POVs.
 
 import type { BlockKey } from "@orb/contracts/search";
 
-/** The stable string identity of a block (the dedupe key). Mirrors the chat-side `blockKeyStr` shape so the
- *  same `(chatId, tier, blockIdx, scopedCharacterId)` maps consistently across the domain seam. */
 export function blockKeyStr(k: BlockKey): string {
   return `${k.chatId}|${k.tier}|${k.blockIdx}|${k.scopedCharacterId}`;
 }
 
-/** Keep the first (best-ranked) row per `BlockKey`; drop later duplicates. Input MUST be best-first. */
+/** Input MUST be best-first. */
 export function dedupeRankedBlocks<T extends { readonly blockKey: BlockKey }>(
   ranked: readonly T[],
 ): T[] {
@@ -37,7 +25,7 @@ export function dedupeRankedBlocks<T extends { readonly blockKey: BlockKey }>(
   return out;
 }
 
-/** Keep the first (best-ranked) row per `contentHash`; collapse fork/import copies. Input MUST be best-first. */
+/** Collapse fork/import copies. Input MUST be best-first. */
 export function collapseByContentHash<T extends { readonly contentHash: string }>(
   ranked: readonly T[],
 ): T[] {

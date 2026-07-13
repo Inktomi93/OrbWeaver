@@ -1,13 +1,6 @@
-// entry/rate-limit-gate — the composition-root adapter that turns the DB-backed limiter PRIMITIVE
-// (transport/rate-limit) into the `RateLimitGate` the tRPC ladder reads off `ctx.rateLimit`. The limiter
-// instances need `db` at construction, so they are built HERE (the entry root) and the bucket POLICY (which
-// id keys which bucket) lives here too — transport only declares the `RateLimitGate` port + calls `enforce`.
-//
-// TWO buckets wired now (the $/GPU `aiTurn` bucket + the per-member COUNT budget are chat P5 — NOT here):
-//   • publicIp     — the tight per-IP bucket for an anonymous caller (keyed on `clientIp`).
-//   • authedGeneral — the looser per-user bucket for an authenticated caller (keyed on `principal.userId`).
-// Caps + window come from the boot-env floor (`foundation/env` RATE_LIMIT_*) — the env IS the named source
-// (no inline magic numbers). `now` is the injected entry clock (the limiter's only impurity).
+// The composition-root adapter that turns the DB-backed limiter primitive into the `RateLimitGate` the
+// tRPC ladder reads off `ctx.rateLimit`. Two buckets: publicIp (tight per-IP, anonymous callers) and
+// authedGeneral (looser per-user). Caps + window come from the boot-env floor.
 
 import type { Db } from "@orb/db";
 import { env } from "#foundation/env";

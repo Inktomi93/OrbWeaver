@@ -158,12 +158,7 @@ function scanFile(sf: SourceFile, rel: string, out: Violation[]): void {
   }
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE gate via visitFile) ───────────────────────────────
-// state-files aggregates PER FILE (count mints across the file, then judge >1; the exported-handle is a
-// per-file search), so it ports as a visitFile hook, not a per-node subscription — the whole-file scan is
-// the unit. scanRoot mirrors the legacy flatStateRel (direct children of state/, not index.ts). Three
-// arms → three messages: the field-cap (per mint) + the mint-count (>1, file-level) + the exported-handle
-// (file-level). Findings byte-identical to the legacy Check (same lines).
+// Three arms: the field-cap (per mint) + the mint-count (>1, file-level) + the exported-handle (file-level).
 const HANDLE_MESSAGE =
   "the minted store handle is exported — never expose raw set/getState across a module boundary; export intent-named actions + narrow read hooks instead (UI-Architecture-and-Layout.md §5).";
 

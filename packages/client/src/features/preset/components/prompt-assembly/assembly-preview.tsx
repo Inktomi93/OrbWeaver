@@ -1,12 +1,8 @@
-// AssemblyPreview — the display-only assembled read-out (BUILD-SPEC §7). The toolbar's Preview toggle
-// swaps the rack for this: the ordered ENABLED sections under the current lens, grouped under role block
-// headers, with the SPLICED sections shown inside an inset conversation band at their depth positions
-// (higher depth earlier; within a depth, lower order higher — the P1 ST-parity semantics). Macros render
-// as inline Badges — DISPLAY ONLY, never resolved against live chat data (the §10 hard rule).
-//
-// Every block is CLICK-THROUGH: clicking it flips back to Compose, selects that section, and reveals the
-// CONTEXT inspector (`onSelectBlock` — the caller wires the mode flip + the route-built reveal). The whole
-// read-out derives from `assemblePreview` (preview-model.ts); this component only paints.
+// AssemblyPreview — the display-only assembled read-out. The toolbar's Preview toggle swaps the rack for
+// this: ordered enabled sections grouped under role block headers, with spliced sections shown inside an
+// inset conversation band at their depth positions. Macros render as inline Badges, never resolved. Every
+// block is click-through: clicking it flips back to Compose, selects the section, and reveals the
+// inspector. Derives entirely from `assemblePreview`; this component only paints.
 
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";

@@ -1,7 +1,4 @@
-// Artifact placement for the browser probes: everything lands under `<repo>/reports/<kind>/`
-// (snaps, baselines, recordings, perf-meter, …). `/reports/` is root-anchor gitignored
-// (verified 2026-07-04) — probe output never reaches a commit; the tracked architecture
-// reports live elsewhere (docs/architecture/reports/).
+// Probe output lands under `<repo>/reports/<kind>/`, which is root-anchor gitignored.
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 

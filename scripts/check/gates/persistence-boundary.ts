@@ -125,15 +125,11 @@ function persistedNameOf(call: Node): string | undefined {
   return nameFromDraftStore(first);
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — collect-then-judge ratchet) ────────────────────────
 // TWO arms. RAW-STORAGE (per-Identifier, file-allowlist-scoped) is incremental-safe. REGISTRY (collect
-// every persist-factory call site in `visit`, judge in `finalize`): an unregistered name is per-site
-// (emitted at visit — the name is known there); a STALE registry entry (registered but no call site) is a
-// whole-tree claim → finalize, guarded on (a) project scope and (b) the persist-factory DOOR file being
-// LOADED — a synthetic conformance/parity tree that omits the real call sites must NOT fire the name-keyed
-// stale arm (the batch-3 fileLoaded pattern, keyed to a sentinel file since the registry is name-keyed).
-// The door file is loaded on every real full-tree run, so the ratchet is preserved. Kept ALONGSIDE the
-// legacy Check.
+// every persist-factory call site in `visit`, judge in `finalize`): an unregistered name is per-site; a
+// stale registry entry (registered but no call site) is a whole-tree claim → finalize, guarded on (a)
+// project scope and (b) the persist-factory door file being loaded — a synthetic tree that omits the
+// real call sites must not fire the stale arm. The door file is loaded on every real full-tree run.
 const PERSIST_DOOR_FILE = "packages/client/src/state/create-persisted-store.ts";
 const seenPersistNames = new Set<string>();
 

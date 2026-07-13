@@ -1,18 +1,9 @@
-// The bulk message-SELECTION store (ux-flow-revamp J6 · UI-Arch §4.2/§4.3) — the "select messages" mode
-// the chat options menu enters and the `@orb/ui/selection-bar` acts on. External + id-keyed for the SAME
-// reason as `message-edit-draft.ts` (PD-119): `@orb/ui/message-list` is a pure windowed virtualizer with
-// NO keep-mounted path, so a checkbox's selected state held in a row's local `useState` would silently
-// drop when the row scrolls off and unmounts. Hoisting BOTH the mode flag and the per-message selection
-// to this external store makes a scroll-driven remount lossless.
-//
-// `createGatedStore` (not `createEntityDraftStore`): this is transient, device-local UI mode — NOT the
-// crash-survival localStorage mirror the persist factory is for. Losing a selection on a hard reload is
-// fine (state-law recap, UI-Architecture-and-Layout.md §5).
-//
-// Presence in `selectedIds` IS selection (mirrors message-edit-draft's presence-is-mode-flag). NO array/
-// object selector is exposed reactively (only booleans + a count number), so the zustand-selector-derived
-// gate's frozen-EMPTY/useShallow obligation doesn't apply; the one array read is the NON-reactive
-// `readSelectedMessageIds` escape hatch (the `readMessageEditDraft` precedent) the delete action calls.
+// The bulk message-SELECTION store — the "select messages" mode the chat options menu enters and
+// @orb/ui/selection-bar acts on. External + id-keyed for the same reason as message-edit-draft.ts:
+// @orb/ui/message-list is a windowed virtualizer with no keep-mounted path, so a row-local checkbox
+// state would drop on scroll-driven unmount. Transient, device-local (createGatedStore, not
+// createEntityDraftStore) — losing a selection on a hard reload is fine. Presence in `selectedIds` IS
+// selection.
 
 import type { MessageId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";

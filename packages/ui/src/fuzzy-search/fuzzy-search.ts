@@ -1,17 +1,7 @@
-// Generic client-side fuzzy + prefix search over any `{ id, … }` list — minisearch sealed behind a
-// ui hook (the SECOND sanctioned minisearch home beside macro-textarea; dep-cruiser
-// ui-satellite-seals lists both). Carried from neo `_shared/use-fuzzy-search` (the cross-feature
-// browse-search every library surface used) with its two measured perf lessons intact:
-//   • LAZY module-level index cache — `addAll` over a big corpus is a synchronous long task
-//     (735 chats ≈ 350–1500ms, the 2026-06-10 index-page jank); no index builds on mount. WeakMap
-//     on the items array identity → the index dies with the query-cache row (no leak) and two
-//     consumers over the SAME array share one build.
-//   • VALUE-keyed memo deps — consumers pass inline field-array literals (fresh refs per render);
-//     reference-keyed deps would rebuild the index per keystroke.
-// The key affordance: ONE indexed instance, MULTIPLE search scopes — index every searchable field
-// upfront, pick the per-call subset via `searchFields` (a "Name only" toggle is a per-call option,
-// not an index rebuild). Empty/whitespace query → `items` as-is (original order). Pairs with
-// `createCollectionSurface` as the filter half of a browse view.
+// Generic client-side fuzzy + prefix search over any `{ id, … }` list, minisearch sealed behind a
+// hook. Index is built LAZILY and cached on the items array's identity (a synchronous addAll over a
+// big corpus is a long task) and memo deps are VALUE-keyed (inline field-array literals are fresh
+// refs per render; reference-keyed deps would rebuild the index per keystroke).
 
 import type { SearchOptions } from "minisearch";
 import MiniSearch from "minisearch";
@@ -26,13 +16,13 @@ export interface FuzzySearchOptions<T> {
   readonly storeFields?: readonly (keyof T & string)[];
   /** Per-field score boost (e.g. `{ name: 4 }` — name matches outrank description matches). */
   readonly boost?: Partial<Record<keyof T & string, number>>;
-  /** Fuzziness 0..1. @defaultValue 0.2 (minisearch's own default, kept) */
+  /** Fuzziness 0..1. @defaultValue 0.2 */
   readonly fuzzy?: number;
-  /** Prefix matching — partial typing matches. @defaultValue true */
+  /** @defaultValue true */
   readonly prefix?: boolean;
-  /** Cap returned matches. @defaultValue 100 */
+  /** @defaultValue 100 */
   readonly limit?: number;
-  /** Combine clause across query terms. @defaultValue "AND" */
+  /** @defaultValue "AND" */
   readonly combineWith?: "AND" | "OR";
 }
 
@@ -41,8 +31,7 @@ const DEFAULT_FUZZY = 0.2;
 const IDLE_WARMUP_TIMEOUT_MS = 2000;
 const WARMUP_FALLBACK_DELAY_MS = 500;
 
-// The idle-callback surface, structurally typed off `globalThis` — this file is followed by the
-// node typecheck lane (no `dom` lib), and node's types lack requestIdleCallback.
+// Structurally typed off `globalThis` — the node typecheck lane follows this file and lacks requestIdleCallback.
 interface IdleGlobals {
   readonly requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
   readonly cancelIdleCallback?: (id: number) => void;
@@ -50,7 +39,7 @@ interface IdleGlobals {
   readonly clearTimeout: (id: unknown) => void;
 }
 
-// The lazy index cache — see the header. The inner Map disambiguates field configs per items array.
+// The inner Map disambiguates field configs per items array.
 const indexCache = new WeakMap<readonly unknown[], Map<string, MiniSearch<never>>>();
 
 interface IndexArgs<T> {
@@ -74,8 +63,6 @@ function getOrBuildIndex<T extends { id: string }>(args: IndexArgs<T>): MiniSear
     return hit as MiniSearch<T>;
   }
   const ms = new MiniSearch<T>({
-    // The item's own `id` field is the index key — callers guarantee unique string ids (every orb
-    // entity is a branded id, so this holds by construction).
     idField: "id",
     fields: fields as string[],
     storeFields: (storeFields ?? fields) as string[],
@@ -85,12 +72,7 @@ function getOrBuildIndex<T extends { id: string }>(args: IndexArgs<T>): MiniSear
   return ms;
 }
 
-/**
- * The DOM-free core of {@link useFuzzySearch}: empty/whitespace query → `items` unchanged
- * (original order); else minisearch-ranked matches mapped back to the ORIGINAL item shape and
- * capped at `limit`. A plain function so the ranking logic is node-testable without a browser
- * render; the hook wraps it in `useMemo`.
- */
+/** DOM-free core of {@link useFuzzySearch}: empty query → `items` unchanged; else ranked matches capped at `limit`. */
 export function fuzzySearch<T extends { id: string }>(
   items: readonly T[],
   query: string,
@@ -116,8 +98,7 @@ export function fuzzySearch<T extends { id: string }>(
     searchOptions,
   );
   const limit = options.limit ?? DEFAULT_LIMIT;
-  // minisearch returns id+score+storeFields; map back to the original item by id so callers keep
-  // their own type without widening.
+  // Map back to the original item by id so callers keep their own type without widening.
   const byId = new Map(items.map((it) => [it.id, it]));
   const out: T[] = [];
   for (const hit of hits) {
@@ -140,9 +121,8 @@ export function useFuzzySearch<T extends { id: string }>(
   const { fields, storeFields } = options;
   const fieldsKey = fields.join(" ");
   const storeFieldsKey = (storeFields ?? fields).join(" ");
-  // Idle warmup: pre-fill the index cache off the critical path so neither the mount commit NOR
-  // the first keystroke eats the full build. Re-arms on items/field-key change (a stale-armed
-  // callback is a cheap no-op — getOrBuildIndex cache-hits).
+  // Idle warmup: pre-fill the index cache off the critical path so neither the mount commit nor the
+  // first keystroke eats the full build.
   // biome-ignore lint/correctness/useExhaustiveDependencies: fields/storeFields ride their joined VALUE keys — inline array literals are fresh refs each render and would re-arm every render (the neo-measured keystroke-reindex hotspot).
   useEffect(() => {
     if (items.length === 0) {

@@ -17,21 +17,7 @@ export interface SelectionBarProps {
   className?: string;
 }
 
-/**
- * SelectionBar — bulk-action chrome: a live-announcing selection count, a caller-owned actions
- * slot, and a clear button. Render-null-when-zero is the CALLER's concern (ui-package-design §12
- * Wave 3-C; work-order #21) — this primitive always renders exactly what it's given.
- *
- * Usage:
- * ```tsx
- * {count > 0 && (
- *   <SelectionBar count={count} onClear={clearSelection}>
- *     <Button intent="ghost" size="sm">Archive</Button>
- *     <Button intent="destructive" size="sm">Delete</Button>
- *   </SelectionBar>
- * )}
- * ```
- */
+/** Bulk-action chrome. Render-null-when-zero is the caller's concern — this primitive always renders exactly what it's given. */
 export function SelectionBar({
   count,
   onClear,
@@ -42,10 +28,7 @@ export function SelectionBar({
   const slots = selectionBarVariants({ placement });
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Escape bubbles from whatever's focused inside the bar (an action button, the clear button
-  // itself) up to the root's native listener — "focus within" falls out of normal DOM event
-  // bubbling, no focus tracking needed. Wired imperatively (not a JSX `onKeyDown`) because the root
-  // is a plain, non-interactive `<div>` — the handler belongs to the DOM node, not its ARIA role.
+  // Escape bubbles from whatever's focused inside the bar up to the root's native listener.
   useEffect(() => {
     const root = rootRef.current;
     if (root === null) {

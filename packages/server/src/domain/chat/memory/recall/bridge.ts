@@ -1,34 +1,24 @@
-// domain/chat/memory/recall/bridge — the TIERED bridge (§5 / §11 semantic #2). PURE coverage math: given a
-// scope's digests across ALL tiers, surface COARSE high-tier digests for the distant past + FINE tier-0
-// digests for the recent past, so the injected "story so far" stays roughly constant no matter how long the
-// chat runs. UNCOVERED-DIGESTS-ONLY: a tier-0 digest inside a surfaced higher-tier span is never also
-// surfaced (the greedy walk advances past a covered span). The protected TIP is never surfaced — digests only
-// exist for aged-out blocks (the build cutoff), so the tip has no digest to bridge.
+// domain/chat/memory/recall/bridge — the tiered bridge. Pure coverage math: given a scope's digests across
+// all tiers, surface coarse high-tier digests for the distant past + fine tier-0 digests for the recent
+// past, so the injected "story so far" stays roughly constant no matter how long the chat runs. A tier-0
+// digest inside a surfaced higher-tier span is never also surfaced (the greedy walk advances past it). The
+// protected tip is never surfaced — digests only exist for aged-out blocks.
 //
-// Indexing (matches `build/digests.ts`): a tier-k digest at blockIdx j covers tier-0 range
-// `[j·fanOutᵏ, (j+1)·fanOutᵏ − 1]`. No search call (mixA/tiered are pure assembly — §11 #1); the
-// `MemoryQueryOptions.candidates` restriction is the seam for a FUTURE retrieval-restricted tiered mode.
-// FLAG[tiered-vs-candidates]: #1 ("tiered = pure assembly") vs #2 ("tiered passes bridge keys as a
-// candidate-restriction param") read in tension — resolved as: base tiered is pure assembly (here), the
-// `candidates` param exists for the retrieval-combined case (see return note in `recall.ts`).
+// Indexing (matches build/digests.ts): a tier-k digest at blockIdx j covers tier-0 range
+// [j·fanOutᵏ, (j+1)·fanOutᵏ − 1].
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { DigestRow, MemoryScope } from "../types";
 
-/**
- * Compute the tiered bridge block-keys (chronological) from a scope's digests. The most-recent `fanOut`
- * tier-0 blocks stay FINE; everything older is covered by the highest available non-overlapping tier. Returns
- * `[]` when there are no tier-0 digests (nothing aged out yet).
- */
+/** Compute the tiered bridge block-keys (chronological) from a scope's digests. The most-recent `fanOut`
+ *  tier-0 blocks stay fine; everything older is covered by the highest available non-overlapping tier. */
 export function computeBridge(
   scope: MemoryScope,
   digests: readonly DigestRow[],
   fanOut: number,
 ): BlockKey[] {
   const present = new Set<string>();
-  // The per-(tier:blockIdx) bucket owner — each emitted key carries its OWN digest's `scopedCharacterId`, so a
-  // mode-switch UNION (a merged-era group-char block + a scoped-era speaker block) keys each correctly (§4).
   const scopeOf = new Map<string, CharacterId>();
   let maxTier = 0;
   let lastTier0 = -1;

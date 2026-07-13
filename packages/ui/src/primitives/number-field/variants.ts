@@ -1,9 +1,7 @@
 import { FOCUS_RING_INSET, tv } from "#lib";
 
-// The number-field skin. Steppers are full size-touch-target squares (the ≥44px law — the brief's
-// touch floor applies to the increment/decrement buttons, §4b axis 3); rings go inset because the
-// group clips overflow for the rounded border. The scrub area is a drag-to-scrub label (Base UI
-// ScrubArea) with a directional resize cursor; the ScrubAreaCursor is the custom pointer-lock glyph.
+// Steppers are full size-touch-target squares; rings go inset because the group clips overflow for
+// the rounded border.
 export const numberFieldVariants = tv({
   slots: {
     root: "flex w-full flex-col gap-field data-disabled:pointer-events-none data-disabled:opacity-50",
@@ -12,8 +10,6 @@ export const numberFieldVariants = tv({
     scrubCursor: "flex text-foreground",
     group: [
       "flex w-full items-stretch overflow-hidden rounded-control border border-border bg-input",
-      // Base UI sets data-invalid on every part (Group included) when wrapped in an invalid
-      // <Field> (FieldRootState).
       "data-invalid:border-destructive",
     ],
     decrement: [
@@ -21,8 +17,6 @@ export const numberFieldVariants = tv({
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       `outline-none ${FOCUS_RING_INSET}`,
       "disabled:pointer-events-none disabled:opacity-50 data-disabled:pointer-events-none data-disabled:opacity-50",
-      // Read-only (A3): NOT the disabled grey-out — colors hold; only the cursor + the Lock glyph
-      // (below, swapped in for the +/− mark) signal the blocked state.
       "data-readonly:cursor-default",
     ],
     input: [
@@ -38,8 +32,6 @@ export const numberFieldVariants = tv({
       "disabled:pointer-events-none disabled:opacity-50 data-disabled:pointer-events-none data-disabled:opacity-50",
       "data-readonly:cursor-default",
     ],
-    // The stepper glyph pair: the +/− mark hides and the Lock glyph (below) takes over the instant
-    // Base UI sets data-readonly on the stepper button itself — mirrors Checkbox/Switch's treatment.
     stepIcon: "group-data-[readonly]:hidden",
     stepReadOnlyIcon: "hidden group-data-[readonly]:block",
   },

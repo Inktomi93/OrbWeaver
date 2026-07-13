@@ -1,13 +1,8 @@
-// One preset row in the Presets LIST (W10 Panel A / BUILD-SPEC §4). A `@orb/ui/list-row` (the §13.2 entity-
-// row primitive — leading glyph · title/subtitle · trailing actions · selected). Clicking the row opens the
-// preset in the editor (`onSelect` → `selectPreset` — the §5.1 writer-only seam; the route is the single
-// reader). The system-default row is marked (editing it COWs into a fork server-side) and cannot be deleted.
-// The ACTIVE-for-generation preset carries a PASSIVE amber `Badge` (leading) — a status marker, NOT a make-
-// active affordance (activation is the LIST dropdown ONLY, ruled §9.8). A kebab `Menu` holds Rename ·
-// Duplicate · Delete; Delete confirms via an AlertDialog that additionally WARNS when the row is the active
-// preset (the seed nulls at the surface). Both overlays live HERE (a component), not in the surface — a
-// surface must not render its own outer overlay (client-structure surface-purity; the credential-key-row.tsx
-// precedent). Destructive → AlertDialog (§13.8 R4).
+// One preset row in the Presets LIST. A `@orb/ui/list-row`; clicking it opens the preset in the editor.
+// The system-default row is marked (editing it COWs into a fork server-side) and cannot be deleted. The
+// active-for-generation preset carries a passive amber Badge (a status marker, not a make-active
+// affordance — activation is the LIST dropdown only). A kebab Menu holds Rename/Duplicate/Delete; Delete
+// confirms via an AlertDialog that warns when the row is the active preset.
 
 import type { PresetId } from "@orb/kit/ids";
 import {

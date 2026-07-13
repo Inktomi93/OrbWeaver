@@ -1,46 +1,27 @@
-// domain/workloads/contract/workload-params — the per-kind PARAMS vocabulary: one Zod schema per
-// `WorkloadKind`, the `PARAMS_SCHEMAS` exhaustive Record (the §7.5 pin — a new kind missing its schema is a
-// `tsc` error here), the derived `ParamsByKind` map, and the `startWorkloadInput` discriminated union the
-// `start` verb re-parses (defense in depth).
+// domain/workloads/contract/workload-params — per-kind params vocabulary: one Zod schema per WorkloadKind,
+// the exhaustive PARAMS_SCHEMAS Record (a new kind missing its schema is a tsc error), the derived
+// ParamsByKind map, and the startWorkloadInput discriminated union the start verb re-parses.
 //
-// §7.2 settings precedence: tunables are OPTIONAL (NO Zod `.default()`) — the per-run param is just the top
-// of the precedence chain (param → user `UserSettings.workloads.<knob>` → the runner floor const), resolved
-// IN THE RUNNER, not baked into the schema. A kind with no tunables keeps an explicit `z.object({})` (NOT
-// omitted) so the admin UI still renders a confirm dialog and `start()` validates every kind uniformly.
+// Tunables are optional (no Zod .default()) — precedence (param → user setting → runner floor) resolves in
+// the runner. A kind with no tunables keeps an explicit z.object({}) so start() validates every kind uniformly.
 
 import type { WorkloadKind, WorkloadSource } from "@orb/contracts/workloads";
 import { indexSourceSchema, NON_INDEX_SOURCE } from "@orb/contracts/workloads";
 import { z } from "zod";
 
-// ── per-kind param schemas (tunables OPTIONAL — precedence lives in the runner, §7.2) ────────────────────
-
-/** No tunables — the embeddings text pass is resumable (skips already-embedded rows); nothing to configure. */
 const noParams = z.object({});
 
-/** k-means cluster count for the theme pass. OPTIONAL — falls through to the user/floor precedence. */
 const computeThemesParams = z.object({ k: z.number().int().positive().optional() });
 
-/** The parameterized `index` (embeddings reindex) params. `source` (REQUIRED — it selects WHICH embed pass(es)
- *  run AND is the single-active lock dimension the row stamps into `workloads.source`, so it must always be
- *  present) picks `text` (corpus) / `image` (assets) / `all` (both). `force` re-embeds matched rows (OPTIONAL —
- *  defaults via the runner to a resumable skip-matched pass; a forced rebuild, e.g. after an embed-model change). */
+/** source is required (also the single-active lock dimension stamped into workloads.source). */
 const indexParams = z.object({ source: indexSourceSchema, force: z.boolean().optional() });
 
-/** Validate-only: report what the maintenance pass WOULD do without mutating (assets fsck / backfill). */
 const maintenanceParams = z.object({ dryRun: z.boolean().optional() });
 
-/** The `import-bundle` handoff: the SERVER-minted staging token (the filename the route wrote the uploaded zip
- *  under, within `IMPORT_STAGING_DIR`). NOT a user tunable — the route stamps it; the runner-env op resolves
- *  `basename(token)` UNDER the staging root (path-traversal-safe), reads the staged zip, imports, then removes
- *  it. A caller-supplied token can only ever name a file inside the staging dir (basename strips any `../`). */
+/** Server-minted staging token; the runner-env op resolves basename(token) under the staging root (path-traversal-safe). */
 const importBundleParams = z.object({ token: z.string().min(1) });
 
-/**
- * The exhaustive per-kind schema Record — the §7.5 backstop. `satisfies { [K in WorkloadKind]: ZodType }`
- * forces an entry for every kind: add a kind to `WORKLOAD_KINDS` without a schema here and `tsc` goes red.
- * The reserved v2 `reconcile-world-state` and the P5-deferred memory/character backfills all keep a real
- * (empty) schema so `start()` validates them uniformly even before their runner bodies land.
- */
+/** satisfies \{ [K in WorkloadKind]: ZodType \} forces an entry for every kind — a missing one is a tsc error. */
 export const PARAMS_SCHEMAS = {
   index: indexParams,
   "distill-characters": noParams,
@@ -51,7 +32,6 @@ export const PARAMS_SCHEMAS = {
   "find-duplicates": noParams,
   csls: noParams,
   "assets-backfill": maintenanceParams,
-  // GC takes `dryRun` (report what it WOULD reclaim); fsck is read-only (no tunables).
   "assets-gc": maintenanceParams,
   "assets-fsck": noParams,
   "import-st": maintenanceParams,
@@ -59,19 +39,13 @@ export const PARAMS_SCHEMAS = {
   "reconcile-stats": noParams,
   "refresh-model-catalog": noParams,
   "reconcile-world-state": noParams,
-  // The chat-crew CW1 stubs (D59) keep the same real-empty-schema posture as the stubs above; the
-  // committed `{chatId}` (+`variantId`) params land with each kind's real runner (chat-crew-design/03 §0).
   "crew-lorebook-keeper": noParams,
   "crew-card-evolution": noParams,
   "crew-director": noParams,
   "crew-prose-audit": noParams,
-  // Expressions + databank STUB kinds (E1 / DB2-tables riders) keep the real-empty-schema posture; the
-  // committed params land with each kind's real runner.
   "expressions-sprite-sheet": noParams,
   "databank-ingest": noParams,
   "databank-reindex": noParams,
-  // The 10 rpg crew STUB kinds (R1-subset rider) keep the real-empty-schema posture; the committed
-  // params land with each real crew runner (rpg-design/10 R6/R7/R9/R10).
   "rpg-world-gen": noParams,
   "rpg-recap": noParams,
   "rpg-session-distill": noParams,
@@ -84,16 +58,9 @@ export const PARAMS_SCHEMAS = {
   "rpg-recruit-card": noParams,
 } as const satisfies { [K in WorkloadKind]: z.ZodType };
 
-/** The per-kind params payload type — derived from {@link PARAMS_SCHEMAS} (one home; the runner's
- *  `Runner<K>` second arg + the row projection both index this map). */
 export type ParamsByKind = { [K in WorkloadKind]: z.infer<(typeof PARAMS_SCHEMAS)[K]> };
 
-/**
- * The `start` input the verb re-parses — a discriminated union on `kind` carrying the kind's params. tRPC
- * derives its wire schema from this; `start` re-runs it even after the wire validated (mocked-procedure
- * tests bypass the transport validator). Built explicitly per kind (Zod needs static literal
- * discriminants); {@link PARAMS_SCHEMAS} is the exhaustiveness backstop that catches a forgotten kind.
- */
+/** Discriminated union on kind; start re-parses it even after the wire validated. */
 export const startWorkloadInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("index"), params: PARAMS_SCHEMAS.index }),
   z.object({ kind: z.literal("distill-characters"), params: PARAMS_SCHEMAS["distill-characters"] }),
@@ -157,11 +124,9 @@ export const startWorkloadInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("rpg-recruit-card"), params: PARAMS_SCHEMAS["rpg-recruit-card"] }),
 ]);
 
-/** The parsed `start` input (the wire/verb shape). The `kind`-keyed `params` is narrowed by the union. */
 export type StartWorkloadInput = z.infer<typeof startWorkloadInput>;
 
-/** Re-parse a raw params blob against its kind's schema (the `start` defense-in-depth + the row read seam).
- *  Throws the Zod error on a malformed blob; the row-read path (`toView`) catches it for poison tolerance. */
+/** Throws the Zod error on a malformed blob; the row-read path (toView) catches it for poison tolerance. */
 export function parseParamsForKind<K extends WorkloadKind>(
   kind: K,
   params: unknown,
@@ -169,11 +134,7 @@ export function parseParamsForKind<K extends WorkloadKind>(
   return PARAMS_SCHEMAS[kind].parse(params) as ParamsByKind[K];
 }
 
-/** The single-active lock partition a row inserts under (`workloads.source`): the `index` kind's own `source`
- *  param, else the `none` sentinel (every non-index kind shares one bucket so its lock stays per-(kind, owner)
- *  / per-(kind) exactly as before the column existed). `start`/`retry` call this to stamp the column from the
- *  parsed params. The `kind === "index"` runtime check can't narrow the generic `ParamsByKind[K]`, so the
- *  index arm casts (the same sanctioned per-kind narrowing seam as `toView`). */
+/** The single-active lock partition a row inserts under: index's own source, else the shared none sentinel. */
 export function resolveWorkloadSource<K extends WorkloadKind>(
   kind: K,
   params: ParamsByKind[K],

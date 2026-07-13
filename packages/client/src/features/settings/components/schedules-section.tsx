@@ -1,12 +1,7 @@
-// The SCHEDULES section (Settings → Workloads → Schedules). Lists the caller's recurring schedules (the TIME
-// dimension over the queue) with an enable/disable Switch + Edit + Delete per row, and a "New schedule" button
-// opening the create dialog. A COMPONENT so the Dialog root is legal (client-structure rule 7). Reads
-// `workloads.listSchedules` (server-scoped: a plain user sees only their own; an owner∪admin sees every
-// owner's — the deployment-wide view, so a foreign/bulk row is labelled). The mutations self-invalidate on settle.
-//
-// OWNER surfaces (bulk create + the bulk badge + the cross-owner handle) mirror the run pane's owner-gating:
-// only the box owner may create/retune a BULK (system-wide recurring sweep) schedule (the server re-gates on
-// `requireOwner`); a bulk row wears the Bulk badge, and a foreign row (owner∪admin view) shows its owner handle.
+// The Schedules section. Lists the caller's recurring schedules with an enable/disable Switch + Edit +
+// Delete per row, and a "New schedule" button opening the create dialog. Reads workloads.listSchedules
+// (server-scoped: a plain user sees only their own; owner/admin sees every owner's, so a foreign/bulk
+// row is labelled). Only the box owner may create/retune a bulk schedule; the server re-gates regardless.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
@@ -34,7 +29,7 @@ type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 export interface SchedulesSectionProps {
-  /** The box owner gets the bulk create/edit affordances (`createSchedule`/`updateSchedule` bulk = `requireOwner`). */
+  /** The box owner gets the bulk create/edit affordances. */
   readonly viewerIsOwner: boolean;
   /** The viewer's own user id — a schedule with this owner is "mine" (no foreign handle shown). */
   readonly viewerUserId: string;
@@ -42,7 +37,6 @@ export interface SchedulesSectionProps {
   readonly users: readonly AdminUser[];
 }
 
-/** The Schedules section — the list + the create/edit dialogs. Rides the parent surface's QueryBoundary. */
 export function SchedulesSection({
   viewerIsOwner,
   viewerUserId,
@@ -129,8 +123,7 @@ export function SchedulesSection({
   );
 }
 
-/** One schedule row — kind label · cadence + next-run subtitle (+ owner handle for a foreign row), a Bulk
- *  badge for a bulk schedule, an enable Switch + Edit + Delete. */
+/** One schedule row — kind label · cadence + next-run subtitle, a Bulk badge, an enable Switch + Edit + Delete. */
 function ScheduleRow({
   schedule,
   ownerHandle,

@@ -11,11 +11,6 @@ const FORBIDDEN = "callerUserId";
 
 const MESSAGE =
   "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` (the responsible human) / `runAsUserId` (the funded identity). Never route the caller's id into credential/settings resolution. See Spine-Identity-and-Auth.md (turn-identity: triggeredBy vs runAsUserId; D19).";
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// The same predicate as the legacy Check, re-expressed as an Identifier subscription: no project loop,
-// no getDescendantsOfKind sweep — the runner's ONE walk feeds each Identifier to `visit`. Per-occurrence
-// (each banned identifier is its own finding; a bare identifier IS a single token). Kept ALONGSIDE the
-// legacy export while the old runner stays authoritative; itemized parity proves the SITE set matches.
 export const gate: GateDescriptor = {
   name: "no-caller-user-id",
   docRow: "D19 turn-identity / chat.md §12 #2",

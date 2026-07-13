@@ -1,11 +1,6 @@
-// export-library-section — the Backup & Restore pane's EXPORT half: a checkbox per portable kind (which
-// entities to include), a note that media travels automatically, and the "Download my library" action.
-// Owner-scoped by the server (the session cookie on the GET is the only owner every `exportAll` sees);
-// this surface just picks the `kinds` and triggers the browser download of the streamed zip.
-//
-// SELECTION is plain surface-local `useState<Set<PortableKind>>` (starts all-on) — a transient UI pick,
-// not a store. The download href is a PURE derivation (portability-model.buildLibraryExportHref): all
-// selected ⇒ everything (no `kinds` param); a partial pick ⇒ `?kinds=<picked>,assets` (blobs always ride).
+// export-library-section — the Backup & Restore pane's export half: a checkbox per portable kind, a
+// note that media travels automatically, and the "Download my library" action. Owner-scoped by the
+// server; this surface just picks the kinds and triggers the browser download.
 
 import type { PortableKind } from "@orb/contracts/portability";
 import { Button } from "@orb/ui/button";

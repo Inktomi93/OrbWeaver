@@ -1,12 +1,6 @@
-// domain/persona/contract/views — the client read-model. `PersonaDetail` is what every read verb returns
-// (create/get/list/update/createFromCharacter/listConnectedToCharacter). One home for the shape (§7.4 /
-// types-in-contract).
-//
-// `metadata` is TYPED (`PersonaMetadata`, from `@orb/contracts/persona`) — NOT neo's `Record<string,
-// unknown>`; the blob is validated at the DB seam. The
-// `persistence/queries.ts` `detailOf` narrows the stored blob through `personaMetadataSchema` at the read
-// seam, so consumers never re-parse the placement fields. `avatarHash` is joined from `assets` (the CAS
-// key — `personas` only carries `avatarAssetId`), null when no avatar is attached.
+// domain/persona/contract/views — the client read-model. PersonaDetail is what every read verb returns.
+// metadata is typed (not Record<string, unknown>); persistence/queries.ts detailOf narrows the stored
+// blob through personaMetadataSchema at the read seam. avatarHash is joined from assets, null when unset.
 
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { AssetId, PersonaId } from "@orb/kit/ids";
@@ -14,16 +8,12 @@ import type { AssetId, PersonaId } from "@orb/kit/ids";
 export interface PersonaDetail {
   readonly id: PersonaId;
   readonly name: string;
-  /** Display subtitle for pickers/lists (ST persona "title") — never injected into the prompt. */
+  /** Display subtitle for pickers/lists — never injected into the prompt. */
   readonly title: string | null;
   readonly description: string;
-  /** Favorite flag — pickers sort/highlight starred first (mirrors `characters.starred`). */
   readonly starred: boolean;
   readonly avatarAssetId: AssetId | null;
-  /** sha-256 of the avatar blob (CAS key) — joined from `assets`, null when no avatar attached. */
   readonly avatarHash: string | null;
-  /** Typed persona metadata (placement fields + `createFromCharacter` provenance + a loose tail) —
-   *  narrowed through `personaMetadataSchema` at the DB read seam; null when unset/corrupt. */
   readonly metadata: PersonaMetadata | null;
   readonly createdAt: number;
   readonly updatedAt: number;

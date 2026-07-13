@@ -125,13 +125,10 @@ export function createNoTestFabrication(baseline?: Record<string, number>): Chec
   };
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a per-FILE baseline-count ratchet via visitFile) ───
 // A per-file baseline ratchet: each test file's live fabrication count vs its baseline budget; the sites
-// PAST the budget are surfaced. Ports as a visitFile hook (the per-file count/slice is the unit). The
-// baseline is read from fs via ctx.root — on the real run it's the real baseline.json; on a synthetic
-// conformance/parity tree that path doesn't exist (in-memory fs) → an EMPTY baseline (budget 0), so any
-// fabrication is flagged. That IS the synthetic-tree protection — no live-allowlist misfire. The baseline
-// is loaded once per run (begin).
+// past the budget are surfaced. The baseline is read from fs via ctx.root — on a synthetic tree that path
+// doesn't exist → an empty baseline (budget 0), so any fabrication is flagged. The baseline is loaded
+// once per run (begin).
 let passBaseline: Record<string, number> = {};
 
 export const gate: GateDescriptor = {

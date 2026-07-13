@@ -2,37 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "#lib";
 import { snapToGraphemeBoundary, snapToWordBoundary } from "./snap";
 
-// ── useSmoothText — adaptive streaming-text pacer (ui-package-design §6.3.1, layer 2) ────────────
-// Decouples the VISUAL reveal from network chunk cadence. Deltas arrive as jittery bursts (fat
-// multi-word chunks from some runners, single-token dribbles from others, batched by the network);
-// rendering the accumulated target directly makes the display jump. This hook lags a display cursor
-// behind the target and advances it on a requestAnimationFrame loop:
-//
-//   • Trickle floor — at least `cps` chars/second, so text always flows while a stream is live.
-//   • Adaptive catch-up — rate also scales with the backlog (BACKLOG_DRAIN_PER_SEC × behind), an
-//     exponential drain that keeps the visual lag bounded (~⅓s time-constant) no matter how fast the
-//     source produces. A slow source reads as a calm trickle; a fast one stays near-realtime.
-//   • Word snapping — the cursor only lands on whitespace boundaries (capped lookahead for unbroken
-//     runs/CJK), so per-word reveal never mounts a fragment. The trailing partial word of a
-//     still-growing target is held back until the next chunk completes it (or the stream finishes —
-//     `enabled` flips off and the strict passthrough returns the full text).
-//   • Grapheme-cluster safety — the final slice snaps to a grapheme boundary, so a torn surrogate
-//     pair or ZWJ sequence never flashes mid-reveal.
-//   • Tick throttle — state updates at most every MIN_TICK_MS (re-rendering at 60fps is wasted work;
-//     ~30fps is visually indistinguishable for text reveal).
-//
-// `enabled: false` is a strict passthrough (returns `target` with zero lag/state), so callers can
-// gate on a user pref + streaming status without conditional hooks. When a new stream starts (the
-// target no longer extends what's shown), the cursor resets and paces the new text from zero.
+// Adaptive streaming-text pacer: decouples the visual reveal from jittery network chunk cadence by
+// lagging a display cursor behind the target on a requestAnimationFrame loop, with a trickle floor
+// (`cps`), backlog-proportional catch-up, word-boundary snapping, and grapheme-safe slicing.
 
 const BACKLOG_DRAIN_PER_SEC = 3; // exponential catch-up factor (drains ~95% of a backlog in ~1s)
 const MIN_TICK_MS = 30; // ≈33fps state-update ceiling
 const MAX_FRAME_DT_SEC = 0.25; // clamp tab-suspend gaps (a background/minimized tab's huge dt)
 const MS_PER_SEC = 1000;
-
-// The paced reveal IS motion; under reduced-motion the hook degrades to the strict passthrough
-// (full text immediately, exactly like `enabled: false`). `usePrefersReducedMotion` (`#lib`) is the
-// one shared matchMedia + useSyncExternalStore home — see its file header.
 
 export interface UseSmoothTextOptions {
   /** `false` (or reduced-motion) is a strict passthrough: the full `target` is returned every render. */
@@ -41,13 +18,7 @@ export interface UseSmoothTextOptions {
   readonly cps: number;
 }
 
-/**
- * Paces the reveal of a growing `target` string at a smoothed rate rather than the raw, jittery
- * cadence it arrives at (ui-package-design §6.3.1 layer 2, ported from neo's `use-smooth-text.ts`
- * with the chat-domain `<speaker>`-tag hold-back stripped; see `snap.ts`). Pure string-math +
- * `requestAnimationFrame`; feed its output into a markdown renderer or plain text — `useSmoothText`
- * has no opinion on either.
- */
+/** Paces the reveal of a growing `target` string at a smoothed rate rather than its raw arrival cadence. */
 export function useSmoothText(target: string, opts: UseSmoothTextOptions): string {
   const { cps } = opts;
   const reducedMotion = usePrefersReducedMotion();
@@ -59,13 +30,9 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
   const lastFrameRef = useRef<number | null>(null);
   const lastTickRef = useRef(0);
 
-  // The frame loop reads the LIVE target through a ref instead of depending on `target` — dense
-  // streams can deliver deltas faster than vsync, and a per-delta effect teardown/re-arm would reset
-  // the frame clock every time (dt computed as 0 → the cursor barely advances while chunks arrive).
-  // One persistent loop per stream keeps dt honest regardless of chunk cadence.
+  // Read the LIVE target through a ref instead of depending on `target` — a per-delta effect
+  // teardown/re-arm would reset the frame clock every time dense streams outpace vsync.
   const targetRef = useRef(target);
-  // Post-commit mirror (refs must not be written during render). The rAF loop only reads between
-  // frames, always after the commit that updated this — no staleness window that matters.
   useEffect(() => {
     targetRef.current = target;
   }, [target]);
@@ -79,9 +46,7 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
       cursorRef.current = targetRef.current.length;
       setShown(targetRef.current.length);
     };
-    // Hidden-tab flush: rAF doesn't fire in hidden tabs, so pacing a backlog there is pure debt — the
-    // user isn't watching the reveal anyway. Flush on entry-while-hidden AND on every visibility flip
-    // to hidden; the frame loop below also flushes if it ever runs while hidden (belt+braces).
+    // rAF doesn't fire in hidden tabs, so flush the backlog outright rather than pace an unwatched reveal.
     const onVisibilityChange = (): void => {
       if (document.visibilityState === "hidden") {
         flushToEnd();
@@ -100,7 +65,7 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
         raf = requestAnimationFrame(frame);
         return;
       }
-      // New stream (or a reset): the target no longer extends the shown prefix.
+      // New stream (or reset): target no longer extends the shown prefix.
       if (live.length < cursorRef.current) {
         cursorRef.current = 0;
         setShown(0);
@@ -120,9 +85,6 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
           setShown((prev) => Math.max(snapped, prev));
         }
       }
-      // Keep the loop alive while the stream is live — `enabled` flipping off (stream ends / the
-      // pref flips) tears it down via cleanup. Idle frames while caught-up are a ref-read + two
-      // compares; the alternative (re-arming per delta) is the dt-reset bug this loop exists to fix.
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
@@ -136,7 +98,6 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
   if (!enabled) {
     return target;
   }
-  // Grapheme snap at the slice: the word-snap's cap/CJK paths land on code-unit indices, which can
-  // split a surrogate pair or ZWJ sequence — never emit a torn cluster.
+  // Word-snap's cap/CJK paths land on code-unit indices, which can split a surrogate pair or ZWJ sequence.
   return target.slice(0, snapToGraphemeBoundary(target, Math.min(shown, target.length)));
 }

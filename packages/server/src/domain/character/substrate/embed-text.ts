@@ -1,30 +1,17 @@
 // domain/character/substrate/embed-text — the card-text PROJECTION: the canonical "what text represents a
-// character card" fold, embedded by the embeddings indexer (`store(kind='card', lens='card-text')`). Pure,
-// zero-I/O. This is the ONE home for the projection (no doubling) — `loadCardText` reads the card row and
-// runs it through here; the indexer never re-spells the field set.
-//
-// SCOPE vs neo: neo's `corpus/substrate/embed-text.ts:buildCardEmbedText` also folded in `tags`/`proposedTags`.
-// In orbweaver `character_tags` is a `tag`-owned junction (NOT a card column), and `loadCardText` is an
-// un-principal SYSTEM by-id read of the card ROW alone (D20) — it never reaches sideways into the tag domain.
-// So the projection is the card's intrinsic identity fields only. Only character-IDENTITY content is embedded
-// (name/description/personality/scenario/greetings) — instruction/meta fields (exampleMessages, systemPrompt,
-// postHistoryInstructions, creatorNotes) are deliberately excluded: they dilute the identity signal and hurt
-// card-similarity retrieval (they're still stored + directly retrievable, just not in the embed text).
+// character card" fold, embedded by the indexer (kind='card', lens='card-text'). Pure, zero-I/O, one home.
+// Only identity content (name/description/personality/scenario/greetings) is embedded; instruction/meta
+// fields are deliberately excluded — they dilute identity signal and hurt card-similarity retrieval.
 
 import type { CharacterCard } from "@orb/contracts/character";
 
-/** The card fields that form the embeddable identity text. `greetings[0]` is the first message; the rest are
- *  alternate greetings (the unified `greetings` array, D28). */
 type CardEmbedFields = Pick<
   CharacterCard,
   "name" | "description" | "personality" | "scenario" | "greetings"
 >;
 
-// Coarse char budget mirroring the embed model's window (Qwen3-VL-Embedding is served at --max-model-len 8192
-// and truncates there regardless). 3.67 chars/token measured on the real RP corpus. Capping here keeps the
-// content_hash (computed by `embeddings.store` over this exact text) consistent with the bytes that actually
-// influence the vector — an uncapped string would hash over text the backend silently drops, causing spurious
-// re-embeds on edits past the window.
+// Char budget mirrors the embed model's window (8192 tokens, 3.67 chars/token measured). Capping here keeps
+// content_hash consistent with the bytes that actually reach the vector, avoiding spurious re-embeds.
 const APPROX_CHARS_PER_TOKEN = 3.67;
 const EMBED_MAX_TOKENS = 8192;
 const MAX_EMBED_CHARS = Math.floor(EMBED_MAX_TOKENS * APPROX_CHARS_PER_TOKEN);
@@ -59,20 +46,12 @@ function cleanText(text: string): string {
     .trim();
 }
 
-/** Replace ST placeholders: `{{char}}` → the character name; `{{user}}` → a generic user name (there is no
- *  persona context at index time, so the neutral "User" is correct). Case-insensitive. */
 function normalizePlaceholders(text: string, charName: string, userName: string): string {
-  // Function-replacement form: a name containing `$$`/`$&` must splice VERBATIM (the string form
-  // interprets $-patterns — the wrapWiFormat bug class, stickler 2026-07-09).
+  // Function-replacement form: a name containing $$/$& must splice verbatim (string form interprets $-patterns).
   return text.replace(/\{\{char\}\}/gi, () => charName).replace(/\{\{user\}\}/gi, () => userName);
 }
 
-/**
- * Assemble a card's embeddable identity text. Field ORDER is load-bearing: last-token pooling weights later
- * text less, so the most identifying fields lead (name → description → personality → scenario → first
- * message → alternate greetings). Null/empty fields drop out entirely. Capped codepoint-safe to the embed
- * window. `{{char}}`/`{{user}}` are normalized so the embedded text reads as prose, not template.
- */
+/** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead. */
 export function buildCardEmbedText(card: CardEmbedFields, userName = "User"): string {
   const name = card.name;
   const first = card.greetings[0] ?? null;

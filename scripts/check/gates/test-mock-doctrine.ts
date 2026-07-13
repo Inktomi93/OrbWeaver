@@ -1,6 +1,5 @@
-// Gate: test-mock-doctrine (core/Spine-Testing.md §3)
-// vi.mock is effectively banned for internal modules; its only legitimate use is an unavoidable third-party node edge.
-// Fakes should be injected at the composition root.
+// Gate: test-mock-doctrine — vi.mock is banned for internal modules; legitimate only for an
+// unavoidable third-party node edge. Fakes should be injected at the composition root.
 import type { CallExpression } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -16,10 +15,6 @@ function checkMockCall(call: CallExpression, filePath: string): Violation | null
     return null;
   }
   const mockTarget = arg0.getText().replace(/['"]/gu, "");
-  // Internal targets: a relative path, a raw `packages/…` path, OR the `@orb/*` workspace alias — the last
-  // is how EVERY internal cross-package import is actually written, so omitting it left the gate blind to
-  // `vi.mock("@orb/server/…")` (the whole point of the ban). Third-party node edges (bare names, `node:`)
-  // stay legal.
   if (
     !(
       mockTarget.startsWith(".") ||
@@ -36,11 +31,6 @@ function checkMockCall(call: CallExpression, filePath: string): Violation | null
   };
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a CallExpression subscription: a `vi.mock("<internal>")` call (relative /
-// packages/ / @orb/ target) in a /tests/ file. scanRoot mirrors the legacy `/tests/` filter. The message
-// names the mock target (varies), so each finding carries a per-occurrence override. The node-anchored
-// finding lands on the vi.mock call. Per-occurrence.
 const MOCK_MESSAGE =
   "vi.mock on an internal module — fake at the edges, inject at the composition root (core/Spine-Testing.md §3).";
 

@@ -1,13 +1,10 @@
-// PanelChrome — the wrapper for a side panel (LIST or CONTEXT). Renders the `.shell-panel` aside
-// whose `data-panel-mode` drives the §11.1 clamp-overlay (docked in-flow · overlay float · collapsed
-// `-translate-x-full`, zero width) entirely in shell.css — no width math in JS. The body scrolls
-// (overscroll contained, §4b axis 4, in shell.css).
+// PanelChrome — the wrapper for a side panel (LIST or CONTEXT). Renders the `.shell-panel` aside whose
+// `data-panel-mode` drives the clamp-overlay (docked in-flow · overlay float · collapsed off-screen)
+// entirely in shell.css — no width math in JS.
 //
-// HEADER (D62 UIP-202 — kill the triple title): the header is an OPTIONAL ReactNode slot. The CONTEXT
-// panel supplies one (the entity detail header, or the "Details" fallback) and gets a collapse control
-// in that row. The LIST panel supplies NONE (`header` undefined) — its own list surface owns the
-// section title (UIP-301/302), and its REOPEN/collapse affordance is the always-present topbar toggle
-// ("Hide/Show list panel"), so a translated-off panel is never the only way back.
+// The header is an optional ReactNode slot. The CONTEXT panel supplies one and gets a collapse control
+// in that row. The LIST panel supplies none — its own list surface owns the section title, and its
+// reopen/collapse affordance is the always-present topbar toggle.
 
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the status-chip.tsx precedent).
@@ -17,18 +14,14 @@ import type { PanelMode, PanelName } from "#state";
 
 export interface PanelChromeProps {
   readonly panel: PanelName;
-  /** Accessible name for the panel's `complementary` landmark — distinguishes the LIST aside from the
-   *  CONTEXT aside for AT + Playwright/agent nav (`getByRole("complementary", { name })`). The route
-   *  passes the section label for LIST and "Details" for CONTEXT. */
+  /** Accessible name for the panel's `complementary` landmark, distinguishing LIST from CONTEXT. */
   readonly label?: string;
-  /** Header content — an entity/detail header node. `undefined` renders NO header row (the LIST panel:
-   *  its list surface owns the title, the topbar owns the collapse — UIP-202). */
+  /** Header content. `undefined` renders no header row. */
   readonly header?: ReactNode;
-  /** Accessible label for the panel's collapse button (only rendered when a header + `onCollapse` are). */
   readonly collapseLabel?: string;
   /** The current mode — sets `data-panel-mode` (shell.css owns the transform/width per mode). */
   readonly mode: PanelMode;
-  /** Collapse control — the header's close button (topbar owns the reopen). Omitted ⇒ no button. */
+  /** Collapse control — the header's close button. Omitted ⇒ no button. */
   readonly onCollapse?: () => void;
   readonly children: ReactNode;
 }
@@ -49,8 +42,6 @@ export function PanelChrome({
       aria-label={label}
       data-panel-mode={mode}
       data-panel-side={panel}
-      // A collapsed panel is translated off-screen: hide it from AT + the tab order so a keyboard
-      // user never lands on an invisible control (§4a keyboard-operability baseline).
       aria-hidden={mode === "collapsed" ? "true" : undefined}
       inert={mode === "collapsed" ? true : undefined}
     >

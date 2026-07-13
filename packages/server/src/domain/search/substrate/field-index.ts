@@ -1,36 +1,16 @@
-// domain/search/substrate/field-index — the lexical BM25 engine internals (PD-37). A per-owner in-memory
-// MiniSearch index over character-card text fields (`name`/`description`/`personality`/`scenario`/
-// `creatorNotes`), fuzzy + prefix, with per-field instruction boosts (a name match outranks a lore match).
-// This is the SECOND retrieval surface on the same domain (vector is the first); callers pick the surface
-// by verb (`fields`/`suggest`), never a backend. `minisearch` is imported ONLY here (the sealed engine home
-// — the `search-minisearch-seal` dep-cruiser rule; the ONLY other minisearch homes are @orb/ui's two).
-//
-// ── THE CACHE (per-owner, LRU + TTL) ─────────────────────────────────────────────────────────────────────
-// Building the index scans the owner's whole card corpus, so it is cached per owner keyed by `UserId`, with:
-//   • TTL freshness — an entry older than {@link FIELD_INDEX_TTL_MS} is rebuilt on next use. This is the
-//     invalidation strategy (DECIDED TTL-only, not event-driven): a card edit is reflected within one TTL
-//     window — good enough for a browse/autocomplete surface, and it avoids coupling search to a
-//     `character.updated` subscription. (Upgrade path if staleness ever bites: subscribe + evict the owner's
-//     entry on `character.updated`; the cache shape already supports a targeted delete.)
-//   • LRU cap — at most {@link FIELD_INDEX_MAX_OWNERS} owners' indexes are held; the least-recently-used is
-//     evicted (Map insertion order = recency, re-inserted on hit). Bounds memory on a many-user deployment.
-// ASSUMES(single-replica): the cache is module-scope, per-process (the credentials health-cache precedent);
-// a multi-replica deploy would hold one index per replica (correct, just not shared). `nowMs` is the caller's
-// injected clock (`SearchContext.now` — `no-raw-clock`), never `Date.now()` here.
+// domain/search/substrate/field-index — the lexical BM25 engine internals. A per-owner in-memory MiniSearch
+// index over character-card text fields, fuzzy + prefix, with per-field boosts. Cache is TTL + LRU capped,
+// module-scope per-process (single-replica assumption); nowMs is always the caller's injected clock.
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import MiniSearch from "minisearch";
 import type { FieldSearchHit, SearchSuggestion } from "../contract/results";
 
-/** How long a built index stays fresh before the next use rebuilds it (5 minutes). */
 export const FIELD_INDEX_TTL_MS = 300_000;
-/** The LRU cap on how many owners' indexes are held in memory at once. */
 export const FIELD_INDEX_MAX_OWNERS = 32;
-/** The fuzzy-match edit-distance fraction + the prefix flag — the browse-search recall knobs. */
 const FUZZY = 0.2;
 
-/** Per-field score boost — a name match outranks a description/personality match, which outrank scenario/
- *  creatorNotes. The instruction-aware weighting the lexical browse surface wants. */
+/** Per-field score boost — a name match outranks description/personality, which outrank scenario/creatorNotes. */
 const FIELD_BOOSTS: Readonly<Record<string, number>> = {
   name: 4,
   description: 2,
@@ -41,8 +21,6 @@ const FIELD_BOOSTS: Readonly<Record<string, number>> = {
 
 const INDEX_FIELDS = ["name", "description", "personality", "scenario", "creatorNotes"] as const;
 
-/** One card's indexable text (file-private — the verb passes a loader whose row shape structurally
- *  satisfies this; `no-inline-types`). Nullable fields are coerced to `""` at extraction. */
 interface CardDoc {
   readonly id: CharacterId;
   readonly name: string;
@@ -52,19 +30,18 @@ interface CardDoc {
   readonly creatorNotes: string | null;
 }
 
-/** A cached owner index + the wall-clock ms it was built at (TTL freshness). File-private. */
 interface IndexCacheEntry {
   readonly index: MiniSearch<CardDoc>;
   readonly builtAtMs: number;
 }
 
+// ASSUMES(single-replica): per-process index cache — replicas would serve divergent staleness.
 const cache = new Map<UserId, IndexCacheEntry>();
 
 function buildIndex(docs: readonly CardDoc[]): MiniSearch<CardDoc> {
   const index = new MiniSearch<CardDoc>({
     idField: "id",
     fields: [...INDEX_FIELDS],
-    // Nullable card fields → "" so a card missing a field is still indexed on its present fields.
     extractField: (doc, field): string => {
       const value = doc[field as keyof CardDoc];
       return typeof value === "string" ? value : "";
@@ -75,7 +52,6 @@ function buildIndex(docs: readonly CardDoc[]): MiniSearch<CardDoc> {
   return index;
 }
 
-/** Mark `ownerId` most-recently-used (Map insertion order = recency) and evict the LRU tail over cap. */
 function touchAndEvict(ownerId: UserId, entry: IndexCacheEntry): void {
   cache.delete(ownerId);
   cache.set(ownerId, entry);
@@ -88,10 +64,7 @@ function touchAndEvict(ownerId: UserId, entry: IndexCacheEntry): void {
   }
 }
 
-/**
- * Get the owner's BM25 index — a cache hit (fresh entry) returns without touching the db; a miss / stale
- * entry rebuilds via `load` (the persistence card-fields read) and caches it. `nowMs` is the injected clock.
- */
+/** Cache hit (fresh) returns without touching the db; miss/stale rebuilds via `load` and caches it. */
 export async function getOrBuildFieldIndex(
   ownerId: UserId,
   nowMs: number,
@@ -107,8 +80,7 @@ export async function getOrBuildFieldIndex(
   return entry.index;
 }
 
-/** Run the BM25 query (fuzzy + prefix + field boosts) and return the top `topN` card ids by score
- *  (the domain's canonical {@link FieldSearchHit} shape — the verb is a thin passthrough). */
+/** Run the BM25 query (fuzzy + prefix + field boosts), return the top `topN` card ids by score. */
 export function queryFields(
   index: MiniSearch<CardDoc>,
   query: string,

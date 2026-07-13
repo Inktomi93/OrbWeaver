@@ -1,16 +1,11 @@
-// domain/stats/persistence/rollups — the READ side of the four rollup tables (db/schema/stats.ts): thin
-// projections of the rows maintained LIVE on the write path (apply-delta.ts), plus the read-derived rates
-// (substrate/rates.ts) so the stored columns stay additively mergeable. The rollups are always fresh —
-// there is no "compute now". The ONLY on-read work is the TTFT/gen latency percentiles (latency.ts), which
-// can't be `+=`-maintained. Cross-read composition (readWrapped→readOverview, readByModel→readModelLatencies)
-// lives HERE — persistence is the one layer where same-layer calls are legal.
+// The read side of the four rollup tables: thin projections of the rows maintained live on the write path,
+// plus read-derived rates so the stored columns stay additively mergeable. The rollups are always fresh —
+// there is no "compute now". The only on-read work is TTFT/gen latency percentiles, which can't be
+// `+=`-maintained.
 //
-// ORBWEAVER schema deltas vs neo: character_stats DROPS `ownerId` (D23) → the per-owner character reads JOIN
-// `characters` and filter on `characters.ownerId` (the "characterId ∈ {my characters}" scope), and the name
-// comes off the FLAT `characters.name` (D28 — no character_versions). The gen-time column is `genTimeMs`
-// (projected to the view's `totalGenTimeMs`). personaUsage is the live D18 definition (anchor persona OR a
-// participant's active persona). The canon reach/latency scans owner-scope via `characters.ownerId`
-// (the owner-attribution note in rebuild-from-canon.ts — PD-21 confirmed).
+// character_stats has no ownerId, so per-owner character reads JOIN `characters` and filter on
+// `characters.ownerId`; the name comes off the flat `characters.name`. personaUsage is the live definition
+// (anchor persona OR a participant's active persona).
 
 import type { Db } from "@orb/db";
 import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
@@ -42,8 +37,7 @@ export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsV
   if (!row) {
     return null;
   }
-  // Latency percentiles are computed ON READ (the stored rollup carries none — invariant #6). Owner scope
-  // = every owned character's assistant messages (a single bounded scan).
+  // Latency percentiles are computed on read (the stored rollup carries none).
   const latency = await readLatency(db, ownerId, { kind: "owner" });
   return {
     characters: row.characters,
@@ -73,7 +67,7 @@ export async function readCharacter(
   ownerId: UserId,
   characterId: CharacterId,
 ): Promise<CharacterStatsView | null> {
-  // character_stats has no ownerId (D23) — scope via JOIN characters on the owner; name off the flat row.
+  // character_stats has no ownerId — scope via JOIN characters on the owner; name off the flat row.
   const row = (
     await db
       .select({ cs: characterStats, name: characters.name })
@@ -108,7 +102,7 @@ export async function readCharacter(
     firstChatAt: c.firstChatAt,
     lastActivityAt: c.lastActivityAt,
     computedAt: c.computedAt,
-    // character_stats carries no cache / context columns (owner+model grain only — esoteric #5) → 0/null.
+    // character_stats carries no cache/context columns (owner+model grain only) → 0/null.
     ...deriveExtra({
       reasoningMs: c.reasoningMs,
       costUsd: c.costUsd,
@@ -205,7 +199,7 @@ export async function readByModel(
     .orderBy(desc(modelStats.generations))
     .limit(Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT));
   // Distinct-characters-per-model ("reach") — the rollup is character-less, so one owner-scoped GROUP BY
-  // over assistant SELECTED variants (D26), keyed by (model, provider) coalesced to match the rollup key.
+  // over assistant selected variants, keyed by (model, provider).
   const reachRows = await db.all<{ model: string; provider: string | null; chars: number }>(sql`
     SELECT v.model AS model, v.provider AS provider, COUNT(DISTINCT m.character_id) AS chars
     FROM messages m
@@ -264,11 +258,9 @@ export async function readFreshness(db: Db, ownerId: UserId): Promise<StatsFresh
   return { computedAt: o.computedAt, stale: false, hasData: true };
 }
 
-/** Per-persona usage (the ST persona "Usage Stats", folded into the unified stats system). D18: a persona
- *  is "used" by a chat when it's the chat's anchor persona OR a participant's active persona. Served LIVE
- *  (a cheap GROUP BY — always fresh, unlike the precomputed rollups) so a just-created persona shows
- *  immediately. The two usage sources are UNION-deduped to a (persona, chat) set so messages join once (no
- *  fan-out double-count). tokensOut is the chats' SELECTED-variant output (D26). */
+/** Per-persona usage. A persona is "used" by a chat when it's the chat's anchor persona or a participant's
+ *  active persona. Served live (a cheap GROUP BY) so a just-created persona shows immediately. The two
+ *  usage sources are union-deduped to a (persona, chat) set so messages join once. */
 export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<PersonaUsageRow[]> {
   const rows = await db.all<{
     personaId: string;
@@ -303,8 +295,8 @@ export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<Persona
     ORDER BY p.created_at DESC
   `);
   return rows.map((r) => ({
-    // Raw-SQL boundary mint: `p.id` IS the branded personas.id column, but sql`` template rows come
-    // back untyped — this is the sanctioned castId edge (2026-07-09 string-type audit).
+    // Raw-SQL boundary mint: `p.id` is the branded personas.id column, but sql`` template rows come back
+    // untyped.
     personaId: castId<PersonaId>(r.personaId),
     name: r.name,
     chatCount: Number(r.chatCount ?? 0),

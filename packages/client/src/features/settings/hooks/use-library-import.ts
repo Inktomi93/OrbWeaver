@@ -1,17 +1,11 @@
-// use-library-import — the Backup & Restore import-upload driver. A surface-local state machine over the
-// two seams: a `.zip` → the workload-backed bundle route (`importBundle` → `{ workloadId }`, then the
-// import RUNS off-request and its progress + terminal outcome stream over `workloads.subscribe`); a bare
-// character card (`.png`/`.json`) → the synchronous card route (`importCharacters`). On a finished import
-// it blanket-invalidates the user's cache through the central seam so imported entities appear across the
-// app, surfaces the normalized summary, and toasts the tally — the toast VARIANT (and the dropzone's
-// success glyph, gated in the section) matching the REAL outcome: success ONLY when nothing failed, an
-// error on a total failure (`0 imported · N failed`), an info note on a mixed batch. A completed-but-failed
-// import must never wear a fabricated ✓. Transient upload state → surface-local `useState` (nothing
-// cross-tree; no persistence).
+// use-library-import — the Backup & Restore import-upload driver. A surface-local state machine over two
+// seams: a `.zip` goes through the workload-backed bundle route (progress streams over
+// workloads.subscribe); a bare character card goes through the synchronous card route. On finish it
+// blanket-invalidates the user's cache, surfaces the normalized summary, and toasts a tally that matches
+// the real outcome (never a fabricated success on a failed import).
 //
-// The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted by the section only while
-// `state.status === "running"` (the "mounted per active row" shape). This hook owns the state transitions;
-// it hands the tracker the three terminal/progress callbacks via `track`.
+// The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted only while running; this hook
+// owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
 import { useState } from "react";
 import { importBundle, importCharacters, useInvalidation } from "#data";
@@ -26,8 +20,6 @@ import type { WorkloadProgressView } from "../lib/workloads-model";
 
 const ZIP_EXTENSION = ".zip";
 
-// The upload lifecycle, inlined into the returned handle so no bare `export type` alias leaves this hook
-// file (the feature-type-home plugin rule — interfaces are the sanctioned export shape here).
 type LibraryImportState =
   | { readonly status: "idle" }
   | { readonly status: "uploading"; readonly filename: string }
@@ -65,13 +57,8 @@ export function useLibraryImport(): LibraryImport {
   const [state, setState] = useState<LibraryImportState>({ status: "idle" });
 
   const finish = (summary: ImportSummary): void => {
-    // Imported rows span many owned surfaces (characters/chats/personas/…) — blanket-heal via the central
-    // seam (the same gap-heal the user-bus reconnect uses), not per-key inline surgery.
     invalidation.invalidateAllUserRoots();
     setState({ status: "done", summary });
-    // The toast VARIANT tracks the real tally, never a blanket success: a run that imported nothing but
-    // failed (or a mixed batch) is honestly an error / a caveat, not a green "complete" (matches the
-    // section's success-glyph gate). `summaryCaption` shows only the non-zero counts.
     const caption = summaryCaption(summary);
     if (summary.failed === 0) {
       notify.success(`Import complete — ${caption}`);
@@ -94,7 +81,6 @@ export function useLibraryImport(): LibraryImport {
     }
     setState({ status: "uploading", filename: first.name });
     if (isZip(first)) {
-      // A `.zip` is the portability bundle: upload → workload id → the tracker drives the rest.
       importBundle(first)
         .then(({ workloadId }) => {
           setState({ status: "running", workloadId, progress: { pct: null, label: null } });
@@ -102,8 +88,6 @@ export function useLibraryImport(): LibraryImport {
         .catch((error: unknown) => fail(errorMessage(error)));
       return;
     }
-    // Anything else is bare character card(s) through the synchronous card route — summarize from the
-    // server's REAL per-file result, so a card the server rejected renders as a failure, not a fake ✓.
     importCharacters(files)
       .then((result) => finish(summarizeCardImport(result)))
       .catch((error: unknown) => fail(errorMessage(error)));

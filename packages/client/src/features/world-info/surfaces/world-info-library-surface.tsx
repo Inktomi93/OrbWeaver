@@ -1,13 +1,7 @@
-// The world-info LIBRARY surface — the World Info LIST hub (UI-Arch §4.1: header row · search · rows; §4.2
-// rule 1: LIST selection drives CONTENT). A containment CONSUMER (§2.1) — the anchor owns the box. Reads
-// `worldInfo.listBooks` (a small owned collection — no pagination) + `worldInfo.listGlobal` (to mark the
-// "Global" badge on rows), filters client-side by name (`useDeferredValue` — §13.2 search-over-collection),
-// and renders a `WorldInfoLibraryRow` per book. Selection flows LEFT→RIGHT: a row click OPENS the book in
-// CONTENT (`selectWorldBook` — the §5.1 writer-only seam) and NEVER attaches it (activation is the CONTEXT
-// panel). CRUD is client composition over the verbs — New (`createBook`) · Duplicate (`duplicateBook`, a
-// server-side deep copy) · Rename (row kebab → `BookDetailsDialog` → `updateBook`) · Delete (row kebab →
-// AlertDialog → `removeBook`). Overlays live in the ROW / dialog components (surface-purity — a surface
-// renders no outer overlay); the surface wires the mutations.
+// The World Info LIST hub: header row, search, rows. Reads worldInfo.listBooks + listGlobal (to mark
+// the "Global" badge), filters client-side by name, renders a WorldInfoLibraryRow per book. A row click
+// opens the book in CONTENT and never attaches it. Overlays live in the row/dialog components; the
+// surface only wires the mutations.
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

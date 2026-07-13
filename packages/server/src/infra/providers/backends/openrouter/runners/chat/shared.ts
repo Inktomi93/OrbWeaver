@@ -1,9 +1,6 @@
-// infra/providers/backends/openrouter/runners/chat/shared — the wire-shaping helpers BOTH openrouter chat
-// runners (chat-completions + responses) lean on: message assembly, the system-prompt cache split, the
-// sampling/reasoning projection, the provider-routing pin, the customParameters overlay, the
-// mandatory-reasoning detector, and the SDK→kit stream-chunk reshaper. Pure data shaping over the SDK's
-// typed request/response shapes — no transport, no clock. Imports the shared `backends/kit` wire helpers
-// DOWN (strategy isolation); never reaches a sibling backend.
+// Wire-shaping helpers shared by both openrouter chat runners (chat-completions + responses): message
+// assembly, the system-prompt cache split, sampling/reasoning projection, provider-routing, and the
+// SDK→kit stream-chunk reshaper. Pure data shaping — no transport, no clock.
 
 import type {
   ChatContentText,
@@ -49,9 +46,6 @@ import type {
   WireTool,
 } from "../../../../contract";
 
-/** The clock + jitter seams the composition root injects (no ambient `Date.now`/`Math.random`). `random`
- *  is optional — omitted in production (the retry kit defaults to `Math.random`), passed by tests for
- *  determinism. Infra DI surface (the `no-inline-types` gate permits infra port interfaces). */
 export interface OpenRouterChatDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
@@ -62,14 +56,8 @@ const SYSTEM_ROLE = "system";
 const PROMPT_JOINER = "\n\n";
 const MANDATORY_REASONING_RE = /reasoning is mandatory/i;
 
-// ── System-prompt assembly (the cache split, Esoteric §5) ──────────────────────────────────────────
-/**
- * Build the OpenRouter system message from the split prompt. For an Anthropic model with a non-empty
- * STATIC prefix we emit a PER-BLOCK `cache_control` on that static block (pins the breakpoint at the
- * stable prefix — a top-level directive pins it at the volatile newest message → 0 cache writes, measured)
- * plus a plain dynamic-tail block. Non-Anthropic (or no static) collapses to one joined string. Both empty
- * → `null` (the message is omitted). Uses the kit's `cacheControlBlock` primitive for the breakpoint shape.
- */
+// For an Anthropic model with a non-empty static prefix, pin cache_control on that block (a top-level
+// directive would pin the volatile newest message instead, giving 0 cache writes).
 export function buildSystemMessage(
   systemPrompt: { readonly static: string; readonly dynamic: string },
   isAnthropic: boolean,
@@ -90,7 +78,6 @@ export function buildSystemMessage(
   return { role: SYSTEM_ROLE, content: joined };
 }
 
-/** Join the split system prompt into ONE string (the Responses-API `instructions` field). */
 export function joinSystemPrompt(systemPrompt: {
   readonly static: string;
   readonly dynamic: string;
@@ -100,9 +87,6 @@ export function joinSystemPrompt(systemPrompt: {
     .join(PROMPT_JOINER);
 }
 
-// ── History assembly ───────────────────────────────────────────────────────────────────────────────
-// The tool-call parts of one turn → the SDK's assistant `toolCalls[]` (D48/T2 — the materialized
-// exchange rides the wire exactly as the model emitted it; `arguments` stays the RAW string).
 function historyToolCalls(content: readonly ChatContentPart[]): ChatToolCall[] | undefined {
   const calls: ChatToolCall[] = [];
   for (const part of content) {
@@ -117,7 +101,6 @@ function historyToolCalls(content: readonly ChatContentPart[]): ChatToolCall[] |
   return calls.length > 0 ? calls : undefined;
 }
 
-// A `tool`-role turn → ONE `{role:"tool"}` SDK message PER `tool-result` part (`toolCallId` joins).
 function toolResultMessages(content: readonly ChatContentPart[]): ChatMessages[] {
   const out: ChatMessages[] = [];
   for (const part of content) {
@@ -128,8 +111,7 @@ function toolResultMessages(content: readonly ChatContentPart[]): ChatMessages[]
   return out;
 }
 
-// A user/assistant turn → its SDK message, or `null` when empty. A text-less assistant tool-call
-// turn is KEPT (the calls ARE its content).
+// A text-less assistant tool-call turn is kept (the calls ARE its content).
 function nonToolMessage(turn: ChatHistoryMessage): ChatMessages | null {
   const text = chatHistoryText(turn.content);
   const toolCalls = turn.role === "assistant" ? historyToolCalls(turn.content) : undefined;
@@ -147,11 +129,7 @@ function nonToolMessage(turn: ChatHistoryMessage): ChatMessages | null {
     : { role: "user", content: text, ...name };
 }
 
-/** Map the assembled view turns → SDK chat messages, filtering empty-content turns FIRST (so the
- *  cache-breakpoint offset-from-end the chat pipeline computed still lines up). The per-participant `name`
- *  rides through (COMPLETION names behaviour). A materialized tool exchange (D48/T2) maps per the OpenAI
- *  wire: assistant `tool-call` parts → `toolCalls[]`; a `tool`-role turn → per-result `{role:"tool"}`
- *  messages. */
+// Filters empty-content turns FIRST so the cache-breakpoint offset-from-end still lines up.
 export function buildHistoryMessages(history: readonly ChatHistoryMessage[]): ChatMessages[] {
   const messages: ChatMessages[] = [];
   for (const turn of history) {
@@ -167,9 +145,7 @@ export function buildHistoryMessages(history: readonly ChatHistoryMessage[]): Ch
   return messages;
 }
 
-// ── The D48 request-field builders (tool-use-design/02 §4 — the chat-completions dialect) ──────────
-/** WireTool[] → the SDK's `tools` (`{type:"function", function:{…}}`). Order preserved (byte-stable
- *  request bodies — the prompt cache cares). */
+// Order preserved — byte-stable request bodies, the prompt cache cares.
 export function buildWireTools(tools: readonly WireTool[]): ChatFunctionTool[] {
   return tools.map((tool) => ({
     type: "function",
@@ -181,8 +157,7 @@ export function buildWireTools(tools: readonly WireTool[]): ChatFunctionTool[] {
   }));
 }
 
-/** The contract `ToolChoice` → the SDK dialect. Mapped ONLY when the caller set it — the `auto`
- *  default is the CALLER's, never a translator constant (the committed §9 rejection). */
+// Mapped only when the caller set it — the "auto" default is the caller's, never a translator constant.
 export function buildToolChoice(choice: ToolChoice): ChatToolChoice {
   if (choice.mode === "tool") {
     return { type: "function", function: { name: choice.name } };
@@ -190,8 +165,6 @@ export function buildToolChoice(choice: ToolChoice): ChatToolChoice {
   return choice.mode;
 }
 
-/** The contract `ResponseFormat` → chat-completions `response_format` (`json_schema` dialect;
- *  tool-use-design/04 §3). `strict` defaults true. */
 export function buildChatResponseFormat(format: ResponseFormat): ChatFormatJsonSchemaConfig {
   return {
     type: "json_schema",
@@ -204,11 +177,6 @@ export function buildChatResponseFormat(format: ResponseFormat): ChatFormatJsonS
   };
 }
 
-// ── Sampling projection ──────────────────────────────────────────────────────────────────────────
-/** The chat-completions sampling slice (camelCase — the SDK serializes to snake_case). Consumes the
- *  capability-RESOLVED sampling (`resolve-chat` already clamped/gated every knob — invariant #9), so this
- *  is a pure passthrough of what survived. `maxCompletionTokens` (not the deprecated `maxTokens`) carries
- *  the resolved, range-clamped output cap. Each field is emitted only when the resolved knob is present. */
 export function chatSamplingFields(
   sampling: ResolvedSampling,
   maxOutputTokens: number | undefined,
@@ -234,13 +202,6 @@ export function chatSamplingFields(
   };
 }
 
-// ── Reasoning request (thin map from the resolved decision) ────────────────────────────────────────
-/**
- * Map the capability-RESOLVED {@link ResolvedReasoning} → the kit {@link ReasoningRequest} the wire-block
- * builders project. ALL the policy (the on/off decision, the effort-levels clamp, and the Opus-4.8
- * adaptive/budget guard — Esoteric §8) already ran in `resolve-chat`; this is a pure shape map. The OR
- * effort/max_tokens XOR still lives in the kit's `effortToResponsesReasoning` (a wire-shape concern).
- */
 export function buildReasoningRequest(reasoning: ResolvedReasoning): ReasoningRequest {
   return {
     enabled: reasoning.enabled,
@@ -249,19 +210,10 @@ export function buildReasoningRequest(reasoning: ResolvedReasoning): ReasoningRe
   };
 }
 
-// ── Warning events (resolve-chat's dropped/ignored-knob notes) ─────────────────────────────────────
-/** Build the per-turn `warning` {@link ChatEvent}s from resolve-chat's structured notes (the `code`
- *  rides through for machine dispatch; `message` is the readable detail). PURE — the runner fires
- *  `onEvent` and merges these into `ChatResult.events` (this module stays clock-free; the runner passes
- *  the resolved `at`). Both OR chat runners (chat-completions + responses) share this one builder. */
 export function warningEvents(warnings: readonly ResolvedWarning[], at: number): ChatEvent[] {
   return warnings.map(({ code, message }) => ({ kind: "warning", at, code, message }));
 }
 
-// ── provider.sampling (part 05 §3d) + the chat-completions verbosity drop (D68-B) ───────────────────
-// The sampling knob names carried on the `provider.sampling` receipt — the `UserIntent`/`ResolvedSampling`
-// fields that actually reach a wire (penalties + minP + the min/max dials). ONE list so requested/applied
-// stay symmetric; verbosity rides its own `applied` slot (it is not a `ResolvedSampling` member).
 const SAMPLING_KNOBS = [
   "temperature",
   "topP",
@@ -275,13 +227,9 @@ const SAMPLING_KNOBS = [
   "stop",
 ] as const;
 
-// The wire-specific verbosity-drop note the chat-completions runner appends: the model listed verbosity and
-// the funnel KEPT it, but the OR `ChatRequest` has no field (SDK 0.13.19) — a LOUD drop, verify-then-add.
 const CHAT_VERBOSITY_DROPPED =
   "verbosity ignored: the chat-completions wire has no verbosity field";
 
-/** Pick only the SET sampling knobs off a knob blob (requested = `UserIntent`, applied = `ResolvedSampling`)
- *  into a flat record for the `provider.sampling` receipt (metadata only — user-authored values, part 05 §5). */
 function pickSampling(source: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const knob of SAMPLING_KNOBS) {
@@ -293,13 +241,11 @@ function pickSampling(source: Record<string, unknown>): Record<string, unknown> 
   return out;
 }
 
-/** The funnel's dropped sampling knobs → the receipt's `dropped` list (the `sampling_knob_dropped` +
- *  `verbosity_dropped` notes carry the descriptor-range reason in their `message`). */
 function samplingDrops(warnings: readonly ResolvedWarning[]): ProviderSamplingDrop[] {
   const drops: ProviderSamplingDrop[] = [];
   for (const w of warnings) {
     if (w.code === "sampling_knob_dropped" || w.code === "verbosity_dropped") {
-      // The message is `"<knob> ignored: <reason>"` — split once on " ignored:" for the knob/reason pair.
+      // Message is "<knob> ignored: <reason>" — split once for the pair.
       const [knob, reason] = w.message.split(" ignored:", 2);
       drops.push({ knob: knob ?? w.code, reason: (reason ?? w.message).trim() });
     }
@@ -307,10 +253,6 @@ function samplingDrops(warnings: readonly ResolvedWarning[]): ProviderSamplingDr
   return drops;
 }
 
-/** Emit the per-turn `provider.sampling` receipt (part 05 §3d) — requested vs applied vs dropped-with-reason,
- *  so a silently-dropped knob is greppable. DECOUPLED: reads the RESOLVED facts (requested `UserIntent` ×
- *  applied `ResolvedSampling` + verbosity × the funnel's dropped warnings) — no model-id / wire branch. Both
- *  OR chat runners call this after the funnel. */
 export function emitSamplingReceipt(params: UserIntent, resolved: ResolvedChatKnobs): void {
   const applied = pickSampling(resolved.sampling as Record<string, unknown>);
   if (resolved.verbosity !== undefined) {
@@ -328,10 +270,6 @@ export function emitSamplingReceipt(params: UserIntent, resolved: ResolvedChatKn
   });
 }
 
-/** The chat-completions warnings, PLUS the wire-specific verbosity drop (D68-B): the funnel kept `verbosity`
- *  (the model lists it) but the chat-completions wire has no field, so it drops LOUDLY here — a second note
- *  the responses runner never needs (its wire carries `text.verbosity`). Returns the funnel warnings unchanged
- *  when no resolved verbosity survived to this wire. */
 export function withVerbosityDrop(resolved: ResolvedChatKnobs): readonly ResolvedWarning[] {
   if (resolved.verbosity === undefined) {
     return resolved.warnings;
@@ -339,11 +277,6 @@ export function withVerbosityDrop(resolved: ResolvedChatKnobs): readonly Resolve
   return [...resolved.warnings, { code: "verbosity_dropped", message: CHAT_VERBOSITY_DROPPED }];
 }
 
-// ── Provider routing (the cache-pin, Esoteric §5/§7) ───────────────────────────────────────────────
-// Map the contract's raw-wire (snake_case) routing → the SDK's camelCase `ProviderPreferences`. Only the
-// routing-relevant knobs are mapped (order/only/ignore/fallbacks/data-collection/require-params/sort);
-// see the FLAG in index.ts re: the exotic knobs (quantizations/maxPrice/latency) the snake↔camel contract
-// impedance leaves unmapped.
 function toProviderPreferences(routing: OpenRouterProviderRouting): ProviderPreferences {
   return {
     ...(routing.order !== undefined ? { order: routing.order } : {}),
@@ -358,8 +291,6 @@ function toProviderPreferences(routing: OpenRouterProviderRouting): ProviderPref
   };
 }
 
-/** Resolve the effective provider routing (user routing wins; else an Anthropic model gets the
- *  `{order:["Anthropic"]}` cache pin) and map it to the SDK shape. `undefined` → default routing. */
 export function resolveProviderPreferences(
   model: string,
   userRouting: OpenRouterProviderRouting | undefined,
@@ -368,17 +299,8 @@ export function resolveProviderPreferences(
   return effective === undefined ? undefined : toProviderPreferences(effective);
 }
 
-// ── customParameters overlay ───────────────────────────────────────────────────────────────────────
-/**
- * Overlay the user's `customParameters` UNDER the runner-owned request (owned wins — a preset can never
- * override `model`/`messages`/`provider`/reasoning, the security firewall). Layer 2 (PD-101): the merge is
- * a DEEP merge via `deepMergeRequestBody` (`base` = customParameters, `patch` = owned — owned wins at
- * every leaf, incl. inside nested objects like a custom `reasoning` block), and any
- * `__proto__`/`constructor`/`prototype` key is dropped regardless of which side carries it — a shallow
- * `{...customParameters, ...owned}` gave the same top-level precedence but let an unrecognized nested
- * object from `customParameters` through untouched. Generic over the chat-completions + responses request
- * shapes (the cast back to `T` is safe: `owned`'s own keys always win, so the result satisfies `T`).
- */
+// Deep merge (owned wins at every leaf, incl. nested objects like a custom reasoning block); a shallow
+// spread gave the same top-level precedence but let an unrecognized nested object through untouched.
 export function mergeCustomParameters<T extends Record<string, unknown>>(
   owned: T,
   customParameters: Record<string, unknown> | undefined,
@@ -389,23 +311,15 @@ export function mergeCustomParameters<T extends Record<string, unknown>>(
   return deepMergeRequestBody(customParameters, owned) as T;
 }
 
-// ── Error helpers ─────────────────────────────────────────────────────────────────────────────────
-/** True when the upstream 400 is a mandatory-reasoning endpoint (DeepSeek-R1) rejecting
- *  `reasoning.effort:"none"` — peels the sanitized body + cause and matches the signature. Drives the
- *  strip-and-replay-ONCE recovery (the 400 fires before any delta, so a single replay is pre-commit-safe). */
+// True when the upstream 400 is a mandatory-reasoning endpoint rejecting reasoning.effort:"none" — drives the strip-and-replay-once recovery.
 export function isMandatoryReasoningRejection(error: unknown): boolean {
   const diag = extractHttpErrorDiagnostic(error);
   const haystack = `${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`;
   return MANDATORY_REASONING_RE.test(haystack);
 }
 
-// ── SDK → kit stream-chunk reshape ─────────────────────────────────────────────────────────────────
-// Map the SDK's typed tool-call fragments (`delta.toolCalls[i]` — `ChatStreamToolCall`) → the kit's
-// structural `ChatToolCallDelta[]` the reducer's `accumulateToolCallDeltas` string-concatenates by `index`
-// (D48/T2). The SDK shape is 1:1 with the kit fragment (`index` required, `id?`, `function.{name?,
-// arguments?}`); the SDK's `type:"function"` marker is dropped (the reducer never reads it). Omitting this
-// map is what silently killed the tool loop on the chat-completions runner (the finishReason normalized to
-// "tool" but no calls were assembled → the pipeline pivot returned null).
+// Omitting this map is what silently killed the tool loop on the chat-completions runner: finishReason
+// normalized to "tool" but no calls were assembled, so the pipeline pivot returned null.
 function reshapeToolCallDeltas(
   toolCalls: ChatStreamToolCall[] | undefined,
 ): ChatToolCallDelta[] | undefined {
@@ -428,8 +342,6 @@ function reshapeToolCallDeltas(
   }));
 }
 
-// Map the SDK's typed reasoning-detail entries → the kit's structural `ChatReasoningDetail` (the reducer
-// reads BOTH the legacy `reasoning` string and the structured `reasoningDetails` to de-dupe Opus-4.8 CoT).
 function reshapeReasoningDetails(
   details: ReasoningDetailUnion[] | undefined,
 ):
@@ -446,15 +358,8 @@ function reshapeReasoningDetails(
   }));
 }
 
-/**
- * Reshape ONE SDK {@link ChatStreamChunk} into the kit's {@link ChatCompletionStreamChunk} the shared
- * reducer consumes (the SDK handles SSE itself, so the kit's raw `parseOpenAiSse` is NOT used here — this
- * is the SDK-typed equivalent of custom-byo's `reshapeChunk`). Carries the in-band `error`, the usage
- * sentinel, the finish reason, both reasoning channels, and the D48 tool-call fragments.
- */
 export function reshapeChatStreamChunk(chunk: ChatStreamChunk): ChatCompletionStreamChunk {
-  // The error + usage tail rides on every chunk shape (incl. the terminal usage-sentinel, whose `choices`
-  // is empty — `.at(0)` returns `undefined` there, where the SDK's element type would mislead us).
+  // The terminal usage-sentinel chunk has empty choices, so .at(0) returns undefined there.
   const tail = {
     ...(chunk.error !== undefined ? { error: chunk.error } : {}),
     ...(chunk.usage !== undefined ? { usage: reshapeChatUsage(chunk.usage) } : {}),
@@ -483,7 +388,6 @@ export function reshapeChatStreamChunk(chunk: ChatStreamChunk): ChatCompletionSt
   };
 }
 
-// ── Usage reshape (split into per-container helpers to stay under the cognitive-complexity gate) ────
 type SdkChatUsage = NonNullable<ChatStreamChunk["usage"]>;
 
 function reshapeCostDetails(cd: SdkChatUsage["costDetails"]): Record<string, number> | undefined {
@@ -521,7 +425,6 @@ function reshapeCompletionDetails(
   return { reasoningTokens };
 }
 
-// Map the SDK usage → the kit's lenient usage view (camelCase; the kit mapper reads these field names).
 function reshapeChatUsage(usage: SdkChatUsage): ChatCompletionStreamChunk["usage"] {
   const costDetails = reshapeCostDetails(usage.costDetails);
   const promptTokensDetails = reshapePromptDetails(usage.promptTokensDetails);

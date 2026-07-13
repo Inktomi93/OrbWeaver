@@ -31,12 +31,8 @@ export interface DrawerProps<Payload = unknown>
     VariantProps<typeof drawerVariants> {}
 
 /**
- * Drawer root — seals Base UI Drawer (swipe-to-dismiss with velocity, focus trap, Esc, and scroll
- * lock come free; do not reimplement). State-only. `side` sets the swipe-dismiss direction and
- * must match the `side` on DrawerPopup (both default to "bottom"). Generic over the detached-handle
- * `Payload` (see `createDrawerHandle`) — a render-function child receives `{ payload }`.
- * `<Drawer side="right"><DrawerTrigger>Open</DrawerTrigger><DrawerPopup side="right">…</DrawerPopup></Drawer>`
- * Spec: ui-package-design §6.1 dictate — Base UI NATIVE drawer (D54 dropped vaul).
+ * Drawer root — seals Base UI Drawer (swipe-to-dismiss, focus trap, Esc, scroll lock come free).
+ * State-only. `side` sets the swipe-dismiss direction and must match `side` on DrawerPopup.
  */
 export function Drawer<Payload = unknown>(props: DrawerProps<Payload>): ReactElement {
   const { side = "bottom", ...rest } = props;
@@ -44,12 +40,8 @@ export function Drawer<Payload = unknown>(props: DrawerProps<Payload>): ReactEle
 }
 
 /**
- * Opens the drawer. Unstyled passthrough — compose your own control via `render`.
- * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven drawer
- * — generic over `Payload` to match Base UI's own `DrawerTrigger` and the dialog/alert-dialog
- * siblings (a prior non-generic wrap silently dropped the payload's type).
- * `<DrawerTrigger render={<Button>Filters</Button>} />`
- * Spec: ui-package-design §6.1 / §13 R2.
+ * Opens the drawer. Unstyled passthrough — compose your own control via `render`. Accepts
+ * `handle` + `payload` to act as a detached trigger for a handle-driven drawer.
  */
 export function DrawerTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   return <BaseDrawer.Trigger {...props} />;
@@ -59,7 +51,7 @@ export interface DrawerPopupProps
   extends Omit<BasePopupProps, "className">,
     VariantProps<typeof drawerVariants> {
   className?: string;
-  /** Portal target — defaults to the themed portal root from context (usePortalContainer, D44 §12.1); an explicit node/ref overrides (ModalHost). */
+  /** Portal target — defaults to the themed portal root from context; an explicit node/ref overrides. */
   container?: BasePortalProps["container"];
   /** Keep the portal mounted while the drawer is closed (preserve DOM/animations). @defaultValue false */
   keepMounted?: BasePortalProps["keepMounted"];
@@ -68,17 +60,13 @@ export interface DrawerPopupProps
 }
 
 /**
- * The drawer panel — bundles Portal → Backdrop (`bg-scrim`) → Viewport → Popup (`bg-card`) →
- * Content (scrollable) at `--z-modal`. `side` places the panel and must match the root's `side`
- * (both default to "bottom").
- * `<DrawerPopup><DrawerTitle>Filters</DrawerTitle>…</DrawerPopup>`
- * Spec: ui-package-design §6.1 dictate — content panel bg-card; side variants left/right/bottom.
+ * The drawer panel — bundles Portal → Backdrop → Viewport → Popup → Content at `--z-modal`. `side`
+ * places the panel and must match the root's `side`.
  */
 export function DrawerPopup(props: DrawerPopupProps): ReactElement {
   const { className, children, side, container, keepMounted, forceRender, ...rest } = props;
-  // Default the Portal target to the themed root from context (D44 §12.1) so a feature-level drawer
-  // inherits the active <ThemeScope> instead of Hearth chrome from <body>; an explicit `container` still
-  // wins. Sentinel is undefined, never null (see portal-container.ts).
+  // Defaults the Portal target to the themed root from context so a feature-level drawer inherits
+  // the active ThemeScope instead of Hearth chrome; an explicit `container` still wins.
   const portalContainer = usePortalContainer();
   const slots = drawerVariants({ side });
   return (
@@ -103,11 +91,7 @@ export interface DrawerTitleProps extends Omit<BaseTitleProps, "className"> {
   className?: string;
 }
 
-/**
- * Accessible drawer heading (labels the panel for screen readers).
- * `<DrawerTitle>Filters</DrawerTitle>`
- * Spec: ui-package-design §6.1.
- */
+/** Accessible drawer heading (labels the panel for screen readers). */
 export function DrawerTitle(props: DrawerTitleProps): ReactElement {
   const { className, ...rest } = props;
   return <BaseDrawer.Title className={drawerVariants().title({ className })} {...rest} />;
@@ -117,11 +101,7 @@ export interface DrawerDescriptionProps extends Omit<BaseDescriptionProps, "clas
   className?: string;
 }
 
-/**
- * Supporting copy under the drawer title (wired to `aria-describedby`).
- * `<DrawerDescription>Narrow the character list.</DrawerDescription>`
- * Spec: ui-package-design §6.1.
- */
+/** Supporting copy under the drawer title (wired to `aria-describedby`). */
 export function DrawerDescription(props: DrawerDescriptionProps): ReactElement {
   const { className, ...rest } = props;
   return (
@@ -129,11 +109,7 @@ export function DrawerDescription(props: DrawerDescriptionProps): ReactElement {
   );
 }
 
-/**
- * Closes the drawer. Unstyled passthrough — compose your own control via `render`.
- * `<DrawerClose render={<Button intent="ghost">Done</Button>} />`
- * Spec: ui-package-design §6.1.
- */
+/** Closes the drawer. Unstyled passthrough — compose your own control via `render`. */
 export function DrawerClose(props: BaseCloseProps): ReactElement {
   return <BaseDrawer.Close {...props} />;
 }
@@ -145,12 +121,8 @@ export interface DrawerSwipeAreaProps
 }
 
 /**
- * An invisible edge hit-target that opens the drawer on an edge swipe (Base UI native — the axis-4
- * mobile-reach gesture; the swipe direction defaults to the opposite of the drawer's dismiss
- * direction). Mount it as a SIBLING of the drawer (always present, even while closed); `side` pins it
- * to the matching screen edge and MUST match the drawer's `side`.
- * `<Drawer side="bottom"><DrawerSwipeArea side="bottom" /><DrawerPopup>…</DrawerPopup></Drawer>`
- * Spec: ui-package-design §13 R2 (§4b axis-4) — full native part surface.
+ * An invisible edge hit-target that opens the drawer on an edge swipe. Mount it as a sibling of
+ * the drawer (always present, even while closed); `side` must match the drawer's `side`.
  */
 export function DrawerSwipeArea(props: DrawerSwipeAreaProps): ReactElement {
   const { className, side, ...rest } = props;
@@ -165,11 +137,8 @@ export function DrawerSwipeArea(props: DrawerSwipeAreaProps): ReactElement {
 }
 
 /**
- * Coordinates stacked/nested drawers within a subtree — provides the shared context that drives the
- * `<DrawerIndent>`/`<DrawerIndentBackground>` depth effect when any drawer inside it is open. Renders
- * no element; wrap the region (typically your whole app) that hosts drawers.
- * `<DrawerProvider><DrawerIndentBackground /><DrawerIndent><App /></DrawerIndent>…</DrawerProvider>`
- * Spec: ui-package-design §13 R2 — stacked-drawer depth.
+ * Coordinates stacked/nested drawers within a subtree — provides the shared context that drives
+ * the DrawerIndent/DrawerIndentBackground depth effect. Renders no element.
  */
 export function DrawerProvider(props: BaseProviderProps): ReactElement {
   return <BaseDrawer.Provider {...props} />;
@@ -180,11 +149,8 @@ export interface DrawerIndentProps extends Omit<BaseIndentProps, "className"> {
 }
 
 /**
- * Wraps your app's main UI so it scales/insets behind an open drawer (the iOS stacked-sheet depth
- * cue). Gets `data-active` when any drawer within the nearest `<DrawerProvider>` is open. Must be
- * inside a `<DrawerProvider>`.
- * `<DrawerIndent><App /></DrawerIndent>`
- * Spec: ui-package-design §13 R2 — stacked-drawer depth.
+ * Wraps your app's main UI so it scales/insets behind an open drawer. Gets `data-active` when any
+ * drawer within the nearest DrawerProvider is open. Must be inside a DrawerProvider.
  */
 export function DrawerIndent(props: DrawerIndentProps): ReactElement {
   const { className, ...rest } = props;
@@ -202,11 +168,8 @@ export interface DrawerIndentBackgroundProps extends Omit<BaseIndentBackgroundPr
 }
 
 /**
- * The background layer rendered BEFORE `<DrawerIndent>` — it peeks out from behind the scaled app
- * when a drawer opens. Gets `data-active` alongside `<DrawerIndent>`. Must be inside a
- * `<DrawerProvider>`.
- * `<DrawerProvider><DrawerIndentBackground /><DrawerIndent>…</DrawerIndent></DrawerProvider>`
- * Spec: ui-package-design §13 R2 — stacked-drawer depth.
+ * The background layer rendered before DrawerIndent — peeks out from behind the scaled app when a
+ * drawer opens. Must be inside a DrawerProvider.
  */
 export function DrawerIndentBackground(props: DrawerIndentBackgroundProps): ReactElement {
   const { className, ...rest } = props;
@@ -220,13 +183,9 @@ export function DrawerIndentBackground(props: DrawerIndentBackgroundProps): Reac
 }
 
 /**
- * Keyboard-aware wrapper for bottom-sheet drawers that host form fields — reflows the drawer content
- * ABOVE the mobile soft keyboard (the §4b axis-4 solution) by tracking the visual viewport and
- * exposing `--drawer-keyboard-inset` on the Viewport. Structural: renders no element of its own.
- * PLACEMENT (verified against the shipped source, §13 R6): it consumes the Drawer root context +
- * viewport, so it must sit INSIDE `<Drawer>` wrapping the popup — NOT around the whole Drawer.
- * `<Drawer><DrawerTrigger>…</DrawerTrigger><DrawerVirtualKeyboardProvider><DrawerPopup>…</DrawerPopup></DrawerVirtualKeyboardProvider></Drawer>`
- * Spec: ui-package-design §4b axis-4 / §13 R2.
+ * Keyboard-aware wrapper for bottom-sheet drawers that host form fields — reflows content above
+ * the mobile soft keyboard via `--drawer-keyboard-inset`. Must sit inside `<Drawer>` wrapping the
+ * popup, not around the whole Drawer.
  */
 export function DrawerVirtualKeyboardProvider(
   props: BaseVirtualKeyboardProviderProps,

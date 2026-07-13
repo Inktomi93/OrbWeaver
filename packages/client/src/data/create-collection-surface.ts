@@ -1,17 +1,6 @@
-// `createCollectionSurface` (UI-Primitives §13.1): ONE machine for every browse/list/grid view —
-// the feature supplies the infinite query + a row renderer; the machine owns everything a hand-wired
-// list gets wrong:
-//   • `useInfiniteQuery` + `maxPages` (the sliding-window memory bound — UI-Lib-TanStack-Query.md §4;
-//     requires BOTH direction param-getters, which the tRPC proxy's `infiniteQueryOptions` carries)
-//   • `placeholderData: keepPreviousData` gated on `isPlaceholderData` — a filter/search/page change
-//     keeps the prior rows visible instead of flashing empty (critical with a virtualized list to
-//     avoid scroll jump — §10)
-//   • the TAIL-FETCH GUARD off the VIRTUALIZER's own range (`onEndApproach` wires straight into
-//     `<VirtualList>`'s prop) — `hasNextPage && !isFetching` before every fetch; NO
-//     react-intersection-observer (§5: the virtualizer already reports tail proximity)
-//   • the selection set (toggle/clear/selectAll) as plain local state.
-// The hook is the logic half (node-reasoned, feature-agnostic); the feature renders `items` through
-// `<VirtualList>`/`<MediaGrid>` with the returned `listProps`.
+// ONE machine for every browse/list/grid view — the feature supplies the infinite query + a row
+// renderer; the machine owns the tail-fetch guard, placeholder-keep on param change, and selection
+// state. The hook is the logic half; the feature renders `items` via <VirtualList>/<MediaGrid>.
 
 import type {
   DefaultError,
@@ -24,13 +13,8 @@ import { useCallback, useMemo, useState } from "react";
 import type { Trpc } from "./trpc";
 
 /** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled.
- *  `TKey`/`TError` (W1-1, same fix as `use-gated-query.ts`) are the CALLER's real key/error types,
- *  not a bare `readonly unknown[]`/`Error` — the proxy's actual return is DataTag-keyed (a branded
- *  TRPCQueryKey tuple) with a TRPCClientErrorLike error (which doesn't structurally satisfy `Error`
- *  — no `name` field), and a fixed `readonly unknown[]`/`Error` rejects it (`queryFn`/`retry` embed
- *  those types contravariantly). Defaulted to `QueryKey`/`DefaultError` (the Register-resolving
- *  alias — `Error` today, no `defaultError` registered) so a caller that isn't wrapping a real tRPC
- *  options call still infers cleanly, and every factory follows §G7 uniformly if that fork lands. */
+ *  `TKey`/`TError` are the caller's real key/error types (the proxy's DataTag-keyed return + the
+ *  TRPCClientErrorLike error don't structurally satisfy a fixed `readonly unknown[]`/`Error`). */
 type BaseInfiniteOptions<
   TPage,
   TPageParam,
@@ -101,12 +85,10 @@ export function createCollectionSurface<
 >(
   config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
 ): (deps: { trpc: Trpc }, params: TParams) => CollectionSurface<TItem> {
-  // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterList = createCollectionSurface(...)), so the returned hook has a stable identity (see forms/create-saved-entity-form.ts).
+  // biome-ignore lint/nursery/noComponentHookFactories: factories run at module scope, so the returned hook has a stable identity (see forms/create-saved-entity-form.ts).
   return function useCollectionSurface({ trpc }, params): CollectionSurface<TItem> {
     const query = useInfiniteQuery({
       ...config.query(trpc, params),
-      // A params change (search/filter/page) keeps the prior rows on screen — no empty flash, no
-      // virtualized scroll jump. The surface greys rows on isPlaceholderData.
       placeholderData: keepPreviousData,
     });
 
@@ -117,11 +99,9 @@ export function createCollectionSurface<
       [query.data],
     );
 
-    // Destructured so the callback deps are the exact slices (the result object is a fresh proxy
-    // per render — depending on `query` itself would re-mint the callback every render).
+    // Destructured so the callback deps are exact slices, not the fresh-proxy-per-render `query` object.
     const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
     const onEndApproach = useCallback((): void => {
-      // The documented guard verbatim (§5): never a duplicate fetch, never a fetch past the end.
       if (hasNextPage && !isFetching) {
         void fetchNextPage();
       }

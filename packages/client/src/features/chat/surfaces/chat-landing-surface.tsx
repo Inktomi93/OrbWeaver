@@ -1,24 +1,8 @@
-// The Chats-section LANDING surface (UI-Arch §4.1 CONTENT · ux-flow-revamp J1 · D62 P4) — the CONTENT
-// hero the route renders when the active-chat handle is `{kind:"landing"}` (nothing selected). The app
-// NEVER opens on an empty room: this is a welcome hero + "Recent chats" (up to ~8 `ListRow`s from
-// `chat.listChats`, newest-first) + a "Start a chat" quick-pick row (the first ~6 characters). Pure
-// read + write-INTENT (§5.1): selecting a recent → `onSelect`(→`selectChat`); a quick-pick →
-// `onStartChat`(→`startNewChat({characterIds:[id]})`); the hero's primary → `onNewChat`(→ the J2 picker
-// modal) or, on an empty DB, → `onBrowseCharacters`(→`setActiveSection("characters")`). This surface
-// only WRITES intent out via callbacks — it holds no active-chat state and reads none (no `this_chid`
-// chase); the route owns the store.
-//
-// READ SHAPE: two suspense reads (`chat.listChats` UNPAGED `ChatSummary[]`; `character.list` FIRST PAGE
-// — a plain `.queryOptions({limit})`, NOT the infinite machine — the landing shows one small fixed slice,
-// never scrolls) fetched in parallel via ONE `useSuspenseQueries`, wrapped in `<QueryBoundary>` (the
-// §13.2 bounded-read battery). `data/invalidation.ts` already refreshes `chat.listChats` on chat events,
-// so a new chat appears here for free.
-//
-// FIELD NOTE (ChatSummary): the summary carries no per-participant avatar/id and no last-message preview
-// (participantNames is names-only) — recents render the initials fallback + participant names, the same
-// honest shape the chat-list rows use. First-run persona ask (the zero-personas onboarding the wider J1
-// spec folds into this hero) is OWNED ELSEWHERE: persona shipped, and the ask lives in the AppShell-
-// sibling `<FirstRunPersonaDialog>` (routes/home-page.tsx), not this surface.
+// The chats-section landing surface: the content hero rendered when nothing is selected. The app never
+// opens on an empty room — this is a welcome hero + "Recent chats" + a "Start a chat" quick-pick row.
+// Pure read + write-intent: this surface only writes out via callbacks, it holds no active-chat state
+// and reads none. Two suspense reads (listChats unpaged, character.list first page) fetched in parallel
+// via one useSuspenseQueries.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -41,7 +25,6 @@ import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { timeLib, useFocusOnMount, WeaveGlyph } from "#lib";
 import { initialsForAttribution } from "../lib/attribution";
 
-/** How many recents / character quick-picks the landing shows (a small fixed slice — never a scroll). */
 const RECENTS_LIMIT = 8;
 const QUICK_PICKS_LIMIT = 6;
 const SKELETON_ROW_COUNT = 4;
@@ -50,21 +33,14 @@ type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
 export interface ChatLandingSurfaceProps {
-  /** Open an existing chat (the route maps this to `selectChat`). */
   readonly onSelect: (chatId: ChatId) => void;
-  /** Start a fresh chat seeded with one character (the route maps this to `startNewChat`). */
   readonly onStartChat: (characterId: CharacterId) => void;
-  /** Open the new-chat character picker (the J2 modal) — the hero's primary when characters exist. */
   readonly onNewChat: () => void;
-  /** Jump to the Characters section (the "All characters →" link + the empty-DB primary). */
   readonly onBrowseCharacters: () => void;
-  /** Show the "Recent chats" block. The route passes `false` when the Chats LIST is DOCKED — that panel
-   *  IS the recents finder (§4.3 rule 5: LIST finds, CONTENT does), so repeating recents here is the
-   *  duplicate (#13). Defaults `true` (list collapsed/overlay, mobile, or a standalone mount). */
+  /** False when the chats list is docked — that panel is the recents finder, so this would duplicate it. */
   readonly showRecents?: boolean;
 }
 
-/** The Chats landing hero: welcome + recents + character quick-picks. */
 export function ChatLandingSurface(props: ChatLandingSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -91,7 +67,6 @@ export function ChatLandingSurface(props: ChatLandingSurfaceProps): ReactElement
   );
 }
 
-/** The suspending body — parallel recents + quick-picks reads, then the hero + the two sections. */
 function LandingBody({
   onSelect,
   onStartChat,
@@ -170,13 +145,10 @@ interface RecentRowProps {
   readonly onSelect: (chatId: ChatId) => void;
 }
 
-/** One recent-chat row — avatar (initials) · title · participants · right-aligned relative time. */
 function RecentRow({ chat, onSelect }: RecentRowProps): ReactElement {
   const title = chat.title ?? "Untitled chat";
   const subtitle =
     chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
-  // ChatSummary carries no last-message preview text on the wire — TODO(server): add a preview field to
-  // `ChatSummary` for a real last-line; today the participant names are the honest subtitle.
   const when = chat.lastMessageAt ?? chat.updatedAt;
   return (
     <ListRow
@@ -203,7 +175,6 @@ interface QuickPickRowProps {
   readonly onStartChat: (characterId: CharacterId) => void;
 }
 
-/** One character quick-pick — avatar · name; a click founds a fresh chat seeded with that character. */
 function QuickPickRow({ character, onStartChat }: QuickPickRowProps): ReactElement {
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
@@ -220,7 +191,6 @@ function QuickPickRow({ character, onStartChat }: QuickPickRowProps): ReactEleme
   );
 }
 
-/** The suspense-free loading skeleton (a hero block + a few placeholder rows, never a spinner flash). */
 function LandingSkeleton(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);

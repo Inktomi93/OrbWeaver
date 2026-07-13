@@ -1,29 +1,11 @@
-// domain/chat/assembly/world-info/pool — the per-turn World-Info POOL ("the 4-scope WI union — STAYS chat,
-// reads `@orb/db` schema directly (the sanctioned db-layer consumer)"). This is the ONE chat-domain reach
-// into the `@orb/db` world-info schema:
-// it loads + de-dups the four attachment scopes a turn's lore can come from. Per-entry BEHAVIOR
-// (always-vs-keyword, depth-injection, system-half bucket) is resolved by the pure `@orb/kit/world-info`
-// resolvers off each entry's `metadata` blob — the keyword MATCH + budget + the WI→injection conversion
-// live one layer up (context.ts's GATHER/BUILD).
+// domain/chat/assembly/world-info/pool — the per-turn World-Info pool. The one chat-domain reach into the
+// @orb/db world-info schema: loads + de-dups the four attachment scopes (chat/character/global/persona) a
+// turn's lore can come from, dedup by entry id (first wins, no precedence ladder). Per-entry behavior
+// (always-vs-keyword, depth-injection, system-half bucket) is resolved by the pure @orb/kit/world-info
+// resolvers off each entry's metadata; the keyword match + budget + WI→injection conversion live in context.ts.
 //
-// FOUR SCOPES (a book attaches at exactly one scope per junction; the pool unions all four, dedup by entry
-// id — first wins; no precedence ladder because each entry lives in one book, attached at most once/scope):
-//   chat      → chat_books        (this chat)
-//   character → character_books   (every AI cast member's identity — D28: keyed on `characters.id`)
-//   global    → global_books      (the host's deployment-global books — scoped to the host owner; see FLAG)
-//   persona   → persona_books     (the present humans' active personas)
-//
-// SOURCE TAGGING (the dual-persona routing): character-book entries tag `source:"character"` (card-derived →
-// {{user}} = the pinned anchor persona); chat / persona / global book entries tag `source:"chat"` (user-
-// authored intent → {{user}} = the speaker's active persona). The source rides on each `AssembleWorldEntry`
-// for context.ts's per-entry macro render.
-//
-// FLAG[global-scope]: neo's `global_books` carried a `userId` (per-user globals). orbweaver's
-// `global_books` (schema/world-info.ts) is PK-only (the comment reads "deployment-global"). To avoid a
-// cross-tenant lore leak (a turn funded by host H must not surface tenant G's book), this scopes global
-// books to the HOST owner via the `world_books.ownerId` join — strictly safe + byte-identical in the
-// single-tenant case. If true deployment-wide globals are intended, drop the ownerId filter (flag for the
-// world-info/schema owner to confirm).
+// FLAG[global-scope]: global_books has no userId (unlike neo); global reads are scoped to the host owner via
+// the world_books.ownerId join to avoid a cross-tenant lore leak — flag for the world-info/schema owner to confirm.
 
 import type { AssembleWorldEntry } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
@@ -43,15 +25,10 @@ import {
 } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
 
-/** The minimal turn-target shape the pool needs (keeps the seam clean — fixtures don't need a full chat
- *  row). `ownerId` is the host (the funding/owner identity — global books scope to it). File-local (the
- *  `types-in-contract` gate forbids an exported feature type outside contract/); callers pass a
- *  structurally-matching literal. */
 interface WorldInfoPoolTarget {
   readonly chatId: ChatId;
   readonly ownerId: UserId;
-  /** Every present AI cast member's identity (D28 — `characters.id`); primary first. Empty ⇒ no
-   *  character-scope books. */
+  /** Every present AI cast member's identity; primary first. Empty ⇒ no character-scope books. */
   readonly castCharacterIds: readonly CharacterId[];
   /** The present humans' active personas. Empty ⇒ no persona-scope books. */
   readonly personaIds: readonly PersonaId[];
@@ -68,8 +45,6 @@ interface BookExpansionRow {
   metadata: unknown;
 }
 
-// The shared entry projection — every scope read produces the SAME row shape so the dedup + projector stay
-// uniform. (`worldBookId` is the join key but isn't projected — the pool keys on the entry id.)
 const entryColumns = {
   id: worldEntries.id,
   content: worldEntries.content,
@@ -84,9 +59,7 @@ function extractKeys(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.filter((k): k is string => typeof k === "string") : [];
 }
 
-/** Project a book-expansion row → the assembler `AssembleWorldEntry`. Scope/injection/position are derived
- *  by the pure `@orb/kit/world-info` resolvers off the entry's `metadata` (the resolvers parse it in
- *  isolation — a malformed sibling field never poisons another). */
+/** Project a book-expansion row → the assembler `AssembleWorldEntry`. */
 function fromBookExpansion(
   row: BookExpansionRow,
   source: AssembleWorldEntry["source"],
@@ -107,7 +80,7 @@ function fromBookExpansion(
   };
 }
 
-/** Dedup the four-source pool by entry id (first wins). The id is always present — the `worldEntries` PK. */
+/** Dedup the four-source pool by entry id (first wins). */
 function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorldEntry[] {
   const seen = new Map<WorldEntryId, AssembleWorldEntry>();
   for (const source of sources) {
@@ -120,13 +93,8 @@ function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorl
   return [...seen.values()];
 }
 
-/**
- * Fetch the merged, deduped per-turn World-Info pool — four parallel SQL reads (no waterfall), one
- * Map-based dedup. Activation is EMERGENT (knowledge-cluster / ST parity): the pool yields whatever is
- * attached + entry-`enabled` + present (character books gated on the cast) — there is NO master toggle; an
- * empty result (no books attached) is the "no lore" path. Each returned entry carries its resolved scope
- * (always | keyword) + `source` tag for the downstream keyword match + dual-persona macro render.
- */
+/** Fetch the merged, deduped per-turn World-Info pool — four parallel SQL reads, one Map-based dedup. There
+ *  is no master toggle; an empty result (no books attached) is the "no lore" path. */
 export async function loadWorldInfoPool(
   db: Db,
   target: WorldInfoPoolTarget,

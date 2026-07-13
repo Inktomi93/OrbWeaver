@@ -70,11 +70,8 @@ function hasAction(el: JsxSelfClosingElement): boolean {
   });
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — reference-gate shape: offender arm + finalize stale) ─────────
-// The legacy predicate as a JsxSelfClosingElement subscription: an `<EmptyState … />` in features/**.tsx
-// with no `action` prop (and no spread that might carry one). scanRoot mirrors the legacy FEATURES_DIR +
-// `.tsx` filter; the live non-empty ALLOWLIST's stale arm is finalize-guarded to project scope (§4.4).
-// Per-occurrence.
+// An `<EmptyState … />` in features/**.tsx with no `action` prop (and no spread that might carry one).
+// The live non-empty ALLOWLIST's stale arm is finalize-guarded to project scope.
 const GATE_SELF = "scripts/check/gates/empty-state-has-action.ts";
 const passSeenAllowlisted = new Set<string>();
 

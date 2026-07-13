@@ -1,25 +1,17 @@
-// domain/chat/substrate/assemble-gather — the CHAT-INTERNAL gather (the impure shell BEFORE the pure BUILD
-// core). The turn's assemble inputs split by OWNERSHIP (see contract/foreign.ts): this gathers the half CHAT
-// owns and merges it with the FOREIGN DTO, then calls the pure `buildAssembleContext`. Homed in `substrate/`
-// because it COORDINATES three named subsystems — `assembly/` (buildAssembleContext), `memory/` (recallMemory),
-// and the regex-tier substrate — plus `persistence/` reads; cross-subsystem coordination is the substrate seam
-// (dep-cruiser `domain-substrate-mediates-subsystems` / `domain-no-cross-subsystem` — a verb or an `assembly/`
-// file may NOT import `memory/` directly). `buildAssembleContext` stays PURE (no reads added there); this shell
-// does every chat-side read and hands it a fully-resolved input literal.
+// domain/chat/substrate/assemble-gather — the chat-internal gather (the impure shell before the pure
+// build core). The turn's assemble inputs split by ownership: this gathers the half chat owns and merges
+// it with the foreign DTO, then calls the pure `buildAssembleContext`. Homed in `substrate/` because it
+// coordinates three named subsystems (`assembly/`, `memory/`, the regex-tier substrate) + `persistence/`
+// reads — a verb or an `assembly/` file may not import `memory/` directly.
 //
-// THE CHAT-INTERNAL HALF (chat owns the data/subsystem — reads it ITSELF via `ChatContext`):
-//   • recentMessages / lastMessage / lastUserMessage / lastCharMessage — the committed canon (D26 slot⋈variant),
-//     prompt-eligible only (`excludedFromPrompt` filtered); `recentMessages` is scan-depth sliced (the WI haystack).
-//   • userInjections — the persisted `chat_injections` rows (mapped to `ChatInjection`).
-//   • roomOverrides — the chat metadata `roomOverrides` sub-blob (absent ⇒ no room tier).
-//   • WI is EMERGENT — no `worldInfoEnabled` input; the 4-scope pool yields attached+enabled+present (ST parity).
-//   • variableValues — the per-chat ChoiceBlock flush (config plane, D46).
-//   • compactSummary — the chat row's compaction checkpoint summary.
-//   • memory — `recallMemory` (chat's own subsystem) over the shared/merged bucket (the round-level default).
-//   • hostTierRegexScripts — the D53 union (host-global ∪ chat-preset ∪ present cast, via `resolveHostTierRegexScripts`).
+// The chat-internal half (chat owns the data/subsystem, reads it itself via `ChatContext`): recent
+// messages/last-message family from committed canon; user injections from `chat_injections`; room
+// overrides from chat metadata; WI is emergent (no on/off gate — the 4-scope pool decides); variable
+// values (the per-chat ChoiceBlock flush); compact summary; memory (`recallMemory`); host-tier regex
+// scripts (host-global ∪ chat-preset ∪ present cast).
 //
-// The FOREIGN DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
-// memoryConfig (settings/preset/persona reads chat must NOT perform — contract/foreign.ts).
+// The foreign DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
+// memoryConfig (settings/preset/persona reads chat must not perform).
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssembleContext, ChatInjection } from "@orb/contracts/chat";
@@ -42,9 +34,8 @@ import { resolveHostTierRegexScripts } from "./regex-tier";
 import { foldChain } from "./runtime-variables";
 import { resolveChoiceVariables } from "./variables";
 
-/** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user
- *  text here so the verb persists THAT. Structural + file-local (the `types-in-contract` gate; the verb passes a
- *  `{ sendUserText?: string }`). Threaded straight through to the pure core. */
+/** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user text
+ *  here so the verb persists that. Threaded straight through to the pure core. */
 interface SendRegexSink {
   sendUserText?: string;
 }
@@ -59,8 +50,8 @@ interface CanonRow {
   readonly content: string;
 }
 
-/** Resolve the present cast's live cards (D28) under the host's ownership — the regex-tier cast source + the
- *  recall name map. A gone / mid-delete card (`null`) is skipped (never an error). */
+/** Resolve the present cast's live cards under the host's ownership — the regex-tier cast source + the
+ *  recall name map. A gone/mid-delete card (`null`) is skipped, never an error. */
 async function loadCastCards(
   ctx: ChatContext,
   ownerId: UserId,
@@ -83,8 +74,7 @@ async function loadCastCards(
   return { cards, names };
 }
 
-/** Map a persisted `chat_injections` row → the `ChatInjection` wire shape (omit `order` when null — exact
- *  optional). */
+/** Map a persisted `chat_injections` row → the `ChatInjection` wire shape (omit `order` when null). */
 function toChatInjection(
   row: Awaited<ReturnType<typeof loadChatInjections>>[number],
 ): ChatInjection {
@@ -97,11 +87,9 @@ function toChatInjection(
   };
 }
 
-/** Resolve the `{{memory}}` string for the round (the GATHER input). Round-level recall uses the SHARED/merged
- *  bucket (the synthetic group-as-character, or the primary cast char when none is minted — solo keys with the
- *  cast char); `witnessing` is the shared/merged default (undefined). Per-speaker egocentric recall +
- *  `liveWindowCutoffSeq` are post-assemble refinements (FLAG[recall-livewindow-cutoff]). Returns "" when there
- *  is no character to key on (`recallMemory` early-returns on off / empty-pool — inv 10, no embed). */
+/** Resolve the `{{memory}}` string for the round. Round-level recall uses the shared/merged bucket (the
+ *  synthetic group-as-character, or the primary cast char when none is minted). Returns "" when there is
+ *  no character to key on. */
 async function gatherMemory(
   ctx: ChatContext,
   args: {
@@ -128,10 +116,8 @@ async function gatherMemory(
       isGroup: args.castCharacterIds.length > 1,
     },
     groupCharacterId: sharedCharId,
-    // FLAG[recall-livewindow-cutoff]: the exact per-speaker `liveWindowCutoffSeq` comes from the engine's §8
-    // history-budget fit, which runs AFTER assemble — unavailable here. Left undefined (no live-window redundancy
-    // trim this round); the FIXED build-protect verbatimWindow still prevents recall/verbatim gaps. The precise
-    // engine-supplied per-speaker fit is the refinement.
+    // FLAG[recall-livewindow-cutoff]: the exact per-speaker liveWindowCutoffSeq comes from the engine's
+    // post-assemble history-budget fit — unavailable here. Left undefined (no live-window trim this round).
     ...(args.foreign.memoryConfig !== undefined && args.foreign.memoryConfig !== null
       ? { config: args.foreign.memoryConfig }
       : {}),
@@ -141,9 +127,9 @@ async function gatherMemory(
 }
 
 /**
- * Gather the CHAT-INTERNAL assemble inputs, merge with the FOREIGN DTO, and produce the IMMUTABLE per-turn
- * `AssembleContext` via the PURE `buildAssembleContext`. `out`, when supplied with a SEND turn (`pendingUserText`
- * + host-tier scripts), receives the post-USER_INPUT-regex text for the verb to PERSIST.
+ * Gather the chat-internal assemble inputs, merge with the foreign DTO, and produce the immutable per-turn
+ * `AssembleContext` via the pure `buildAssembleContext`. `out`, when supplied with a SEND turn, receives
+ * the post-USER_INPUT-regex text for the verb to persist.
  */
 export async function gatherAssembleContext(
   ctx: ChatContext,
@@ -154,18 +140,14 @@ export async function gatherAssembleContext(
     readonly castCharacterIds: readonly CharacterId[];
     readonly personaIds: readonly PersonaId[];
     readonly pendingUserText?: string | undefined;
-    /** The one-turn typed steer (PD-63) — threaded to the BUILD, which resolves the action
-     *  template ONCE and delivers it via its placement (system-marker / depth-0 injection). */
+    /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
+     *  delivers it via its placement. */
     readonly guided?: GuidedSteer | undefined;
-    /** The SEEDED turn PRNG (D46 — never ambient `Math.random`). Supplied by the turn path so the config-plane
-     *  `randomPick` draw is deterministic + replayable; ABSENT (preview / opening) ⇒ stable resolution (no
-     *  randomPick — the merged-read posture), so a preview never varies per poll. */
+    /** The seeded turn PRNG (never ambient `Math.random`) — deterministic + replayable `randomPick`.
+     *  Absent (preview/opening) ⇒ stable resolution, so a preview never varies per poll. */
     readonly prng?: (() => number) | undefined;
-    /** The turn's ST `injection_trigger` gate (F1). Maps the driving `TurnKind` → `GenerationType` at the
-     *  verb (send/generate/force/auto/opening→"normal", swipe→"swipe", continue→"continue",
-     *  impersonate→"impersonate") so trigger-gated preset sections fire on the RIGHT turn kind. ABSENT (preview /
-     *  replace-template macro env) ⇒ "normal" (the merged-read posture — a section with no trigger always fires;
-     *  a `trigger:["normal"]` section renders in the preview). */
+    /** The `injection_trigger` gate — maps the driving `TurnKind` → `GenerationType` at the verb so
+     *  trigger-gated preset sections fire on the right turn kind. Absent ⇒ "normal". */
     readonly generationType?: GenerationType | undefined;
   },
   foreign: ForeignInputs,
@@ -182,10 +164,9 @@ export async function gatherAssembleContext(
     loadCastCards(ctx, runAsUserId, castCharacterIds),
   ]);
 
-  // D46 two-plane env seed: (1) resolve the CONFIG plane (ChoiceBlock picks → concrete map; the turn's seeded
-  // PRNG drives `randomPick`, resolved ONCE here before assembly), then (2) OVERLAY the RUNTIME fold cache so a
-  // played `{{setvar}}` wins over the config default for that key. The single merged object is handed to the
-  // macro env BY REFERENCE (D46) — within-turn setvars mutate it in place; the turn flushes the delta at commit.
+  // Two-plane env seed: resolve the config plane (ChoiceBlock picks → concrete map), then overlay the
+  // runtime fold cache so a played `{{setvar}}` wins over the config default. Handed to the macro env by
+  // reference — within-turn setvars mutate it in place; the turn flushes the delta at commit.
   const resolvedConfig = resolveChoiceVariables(
     foreign.promptConfig.variables,
     storedVariables ?? {},
@@ -195,7 +176,7 @@ export async function gatherAssembleContext(
   const runtimeCache = foldChain(variableDeltas);
   const mergedVariables: Record<string, string> = { ...resolvedConfig, ...runtimeCache };
 
-  // The prompt-eligible canon (hidden rows excluded) — the WI haystack + the {{lastMessage}}-family inputs.
+  // Hidden rows excluded — the WI haystack + the {{lastMessage}}-family inputs.
   const eligible: CanonRow[] = canon
     .filter((m) => !m.excludedFromPrompt)
     .map((m) => ({
@@ -221,17 +202,15 @@ export async function gatherAssembleContext(
     names: cast.names,
   });
 
-  // The D53 host-tier regex union (host-global ∪ chat-preset ∪ present cast), deterministically ordered/deduped.
+  // The host-tier regex union (host-global ∪ chat-preset ∪ present cast), deterministically ordered/deduped.
   const hostTierRegexScripts = resolveHostTierRegexScripts({
     hostGlobal: foreign.globalRegexScripts,
     preset: foreign.promptConfig.regexScripts,
     cast: cast.cards,
   });
 
-  // WI activation is EMERGENT (ST parity — no master toggle): the 4-scope pool yields whatever is attached +
-  // entry-enabled + present, and an empty pool ⇒ no lore. The `world_info_before/_after` anchors only POSITION
-  // the always-scope bucket (DEFAULT_PROMPT_CONFIG now ships them); they are NOT an on/off gate. So there is no
-  // `worldInfoEnabled` input — the pool decides.
+  // WI activation is emergent (no master toggle): the 4-scope pool yields whatever is attached +
+  // entry-enabled + present, and an empty pool ⇒ no lore. There is no `worldInfoEnabled` input.
   const roomOverrides = chatRow?.metadata.roomOverrides;
 
   return await buildAssembleContext(
@@ -253,17 +232,13 @@ export async function gatherAssembleContext(
       model,
       generationType: args.generationType ?? "normal",
       nowMs: ctx.now(),
-      // The seeded turn PRNG (D46) drives the SEND volatile-macro FREEZE ({{roll}}/{{random}}/{{pick}} in the
-      // composer text bake deterministically at commit — Chat-Macro-Resolution.md §0). Absent on preview/aux
-      // turns (no pending composer text to freeze there).
+      // Drives the SEND volatile-macro freeze ({{roll}}/{{random}}/{{pick}} bake deterministically at
+      // commit). Absent on preview/aux turns (no pending composer text to freeze there).
       ...(args.prng !== undefined ? { prng: args.prng } : {}),
       ...(roomOverrides !== undefined ? { roomOverrides } : {}),
-      // FLAG[timezone-per-request]: `{{time}}`/`{{date}}` render server-side into the prompt, but the time
-      // zone is the CALLER's browser zone, supplied PER-REQUEST (client.md: epoch-UTC on the wire, the browser
-      // localizes; `@orb/kit/macro` honors a per-request `ctx.timezone` → server-local fallback). It is NOT a
-      // host setting (removed from `ForeignInputs` — a host-frozen DTO is the wrong home, D19). Until the turn
-      // request carries the client zone (a Phase-6 client send), `timezone` is unset ⇒ the macro engine falls
-      // back to server-local — never a stored/foreign value.
+      // FLAG[timezone-per-request]: {{time}}/{{date}} render server-side, but the timezone is the
+      // caller's browser zone, supplied per-request — not a host setting. Unset ⇒ macro engine falls
+      // back to server-local.
       ...(lastMessage !== undefined ? { lastMessage } : {}),
       ...(lastUserMessage !== undefined ? { lastUserMessage } : {}),
       ...(lastCharMessage !== undefined ? { lastCharMessage } : {}),

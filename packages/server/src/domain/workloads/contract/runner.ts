@@ -1,14 +1,8 @@
-// domain/workloads/contract/runner — the ONE `Runner<K>` signature every per-kind runner satisfies. It
-// lives in `contract/` (NOT `engine/`) on purpose: the
-// runner files depend on THIS for their type, while `engine/dispatch.ts` depends on this for the type AND on
-// each runner for the value — so there is no edge from a runner back to the engine, no cycle.
-//
-// A runner receives the per-dispatch `WorkloadRunnerContext` (db + the workload's resolved acting user +
-// the bound `roleClients` + the cached settings reader + the cross-feature `env` + log), the kind's parsed
-// `params`, a `report` callback (→ heartbeat + progress bus), and the run's `AbortSignal` (admin cancel /
-// SIGTERM). It returns the kind's `ResultByKind[K]` projection (return → `succeeded`), throws to fail
-// (→ `failed`), or honors the signal to abort (→ `cancelled`). It NEVER touches the row lifecycle — that is
-// the engine's job (claim/heartbeat/terminal); a runner is pure per-kind work over injected ops.
+// domain/workloads/contract/runner — the one Runner<K> signature every per-kind runner satisfies. Lives in
+// contract/ (not engine/) so runner files depend on this for the type while engine/dispatch depends on it
+// for the type AND on each runner for the value — no cycle. A runner never touches the row lifecycle (that's
+// the engine's job); it returns ResultByKind[K] (→ succeeded), throws (→ failed), or honors the AbortSignal
+// (→ cancelled).
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import type { WorkloadRunnerContext } from "./service";

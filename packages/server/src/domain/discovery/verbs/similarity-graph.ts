@@ -1,15 +1,8 @@
-// domain/discovery/verbs/similarity-graph — the character SIMILARITY GRAPH (owner-scoped read; live compute).
-// Every character pair whose RAW card-embedding cosine clears `minSimilarity` is an edge; nodes are the
-// highest-DEGREE characters (the dense core), capped to `maxNodes`. A force-directed "who reads like whom"
-// map, colored client-side by distilled genre. Was neo-tavern `corpus/verbs/similarity.ts` (graph arm).
-//
-// DISCOVERY-NATIVE, ZERO SEARCH: this is ALL-PAIRS in-RAM ANALYTICS over discovery's OWN substrate
-// (`substrate/pair-cosine.pairsAboveThreshold`) — NOT top-k retrieval (that is `search`, via
-// `vector_distance_cos`; the two-cosine-access-patterns rule, Knowledge-Cluster inv 2). It composes the SAME
-// reads the near-dup/projection verbs do (`readOwnedCharacterVectors` + `readOwnedCardFacets`) and calls no
-// injected op. Per (owner, embedding-space): grouped by `model` (like `imageDuplicates`) — an N-D cosine is
-// only meaningful within ONE space; discovery has no active-embedder handle, so every space contributes its
-// own edges and degrees accumulate per character across spaces.
+// domain/discovery/verbs/similarity-graph — the character similarity graph (owner-scoped read; live
+// compute). Every pair whose raw card-embedding cosine clears minSimilarity is an edge; nodes are the
+// highest-degree characters, capped to maxNodes. All-pairs in-RAM analytics (not top-k retrieval — that's
+// search). Grouped by embedding-space model: an N-D cosine is only meaningful within one space, so degrees
+// accumulate per character across spaces.
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -20,9 +13,7 @@ import { readOwnedCharacterVectors } from "../persistence/embed-store-reads";
 import { readOwnedCardFacets } from "../persistence/summary-reads";
 import { pairsAboveThreshold } from "../substrate/pair-cosine";
 
-/** The raw card-cosine floor a character pair must clear to be recorded as an edge. */
 const DEFAULT_MIN_SIMILARITY = 0.65;
-/** The default node cap — the highest-degree characters (the dense core) are kept. */
 const DEFAULT_MAX_NODES = 120;
 
 type CardVector = Awaited<ReturnType<typeof readOwnedCharacterVectors>>[number];
@@ -40,20 +31,13 @@ function groupByModel(rows: readonly CardVector[]): Map<string, CardVector[]> {
   return groups;
 }
 
-/** Bind the similarity-graph read over the DI bundle (the verb-naming factory the service composes). */
 export function createSimilarityGraph(
   ctx: DiscoveryContext,
 ): Pick<DiscoveryService, "similarityGraph"> {
   return { similarityGraph: (userId, opts) => similarityGraph(ctx.db, userId, opts) };
 }
 
-/**
- * The owner's character similarity graph — every within-space card pair with cosine over `minSimilarity`
- * (default {@link DEFAULT_MIN_SIMILARITY}) is an edge; nodes are the `maxNodes` (default
- * {@link DEFAULT_MAX_NODES}) highest-degree characters, edges filtered to kept nodes. Synthetic (per-room
- * group) characters are excluded at the read. Standalone `(db, ownerId, opts?)` so the service factory + tests
- * call it directly. No card vectors ⇒ an empty graph.
- */
+/** The owner's character similarity graph: nodes are the highest-degree characters, edges filtered to kept nodes. */
 export async function similarityGraph(
   db: Db,
   ownerId: UserId,
@@ -63,9 +47,7 @@ export async function similarityGraph(
   const maxNodes = opts.maxNodes ?? DEFAULT_MAX_NODES;
 
   const vectors = await readOwnedCharacterVectors(db, ownerId);
-  // All-pairs edges per embedding space (an N-D cosine is meaningless across spaces). Hubs pass as zeros —
-  // the THRESHOLD gates on raw cosine and the graph ranks nodes by degree, so the CSLS rank key is unused
-  // here (mirroring `imageDuplicates`).
+  // Hubs pass as zeros — threshold gates on raw cosine, so the CSLS rank key is unused here.
   const edges: SimilarityGraphEdge[] = [];
   for (const [, group] of groupByModel(vectors)) {
     if (group.length < 2) {
@@ -86,7 +68,6 @@ export async function similarityGraph(
     }
   }
 
-  // Degree per character (across all spaces), then keep the top-`maxNodes` by degree.
   const degree = new Map<CharacterId, number>();
   for (const e of edges) {
     degree.set(e.source, (degree.get(e.source) ?? 0) + 1);
@@ -100,9 +81,7 @@ export async function similarityGraph(
   );
   const keptEdges = edges.filter((e) => kept.has(e.source) && kept.has(e.target));
 
-  // Name + distilled genre per kept node (from the discovery-native summary read) — the client colors the
-  // graph by genre. A card not yet distilled has no facet row → name "Unknown", genre null (the projection
-  // precedent).
+  // A card not yet distilled has no facet row → name "Unknown", genre null.
   const facets = await readOwnedCardFacets(db, ownerId);
   const nameById = new Map(facets.map((f) => [f.characterId, f.name]));
   const genreById = new Map(facets.map((f) => [f.characterId, f.genre]));

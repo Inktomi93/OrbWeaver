@@ -1,12 +1,8 @@
-// entry/lifecycle — THE boot/shutdown protocol (core/Tier-5-Entry.md §"Boot order"; DECISIONS-LEDGER §7 D5:
-// this lives at `entry/lifecycle.ts`, read by entry only). `index.ts` constructs the lifecycle once and
-// runs `boot()`; SIGTERM/SIGINT run `shutdown()`. It owns NO business logic — it MINTS the one real clock,
-// resolves the boot chicken-egg (owner id → services → owner Principal), runs the seed steps, starts the
-// supervisors, builds + serves the Hono app, and tears it all down gracefully.
-//
-// THE CLOCK: entry mints the ONE real wall clock (`Date.now`) — entry is the `no-raw-clock`-exempt site —
-// and threads it everywhere as the injected `now` (compose, the seam, the seeders, the rate-limiter, the
-// supervisors). Nothing below entry reads ambient time.
+// The boot/shutdown protocol. index.ts constructs the lifecycle once and runs boot(); SIGTERM/SIGINT run
+// shutdown(). Owns no business logic — mints the one real clock, resolves the boot chicken-egg (owner id
+// → services → owner Principal), runs the seed steps, starts the supervisors, builds + serves the Hono
+// app, and tears it all down gracefully. Entry mints the one real wall clock and threads it everywhere as
+// the injected `now`; nothing below entry reads ambient time.
 
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
@@ -58,8 +54,6 @@ import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
 import { createRateLimitGate } from "./rate-limit-gate";
 
 const MS_PER_HOUR = 3_600_000;
-// The catalog-refresh decision tick — hourly is plenty (the actual refresh cadence is daily, gated in the
-// scheduler).
 const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;
 
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
@@ -71,7 +65,6 @@ export interface Lifecycle {
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
 export function createLifecycle(): Lifecycle {
   const log = getLog();
-  // entry mints the ONE real clock (no-raw-clock-exempt site); threaded as the injected `now` everywhere.
   const now = (): number => Date.now();
 
   let isShuttingDown = false;
@@ -79,15 +72,10 @@ export function createLifecycle(): Lifecycle {
   let db: Db | null = null;
   let server: ServerType | null = null;
   let stopScheduler: (() => void) | null = null;
-  // The recurring-schedule tick timer (the TIME dimension) — enqueues due `workload_schedules`; shutdown clears it.
   let stopScheduleScheduler: (() => void) | null = null;
-  // The OIDC PKCE-transaction GC timer (armed only in oidc mode); shutdown clears it.
   let stopOidcGc: (() => void) | null = null;
-  // The workloads worker loop runs until its AbortSignal fires; shutdown aborts it to drain the in-flight row.
   let stopWorker: AbortController | null = null;
-  // The buddy observer reaction engine (PD-45) — a supervised out-of-band loop; shutdown tears it down.
   let stopBuddyObserver: (() => void) | null = null;
-  // The vLLM supervisor's graceful-drain closer is SYNCHRONOUS (VllmEngineHandle.start → () => void).
   let drainVllm: (() => void) | null = null;
   let booted = false;
 
@@ -98,34 +86,26 @@ export function createLifecycle(): Lifecycle {
     }
     booted = true;
 
-    // 1. SSRF egress firewall FIRST — swap undici's global dispatcher for the private-IP-rejecting DNS
-    //    lookup so EVERY outbound fetch below (compose, seeds, the `/models` probe, OIDC discovery/JWKS)
-    //    is address-gated before it can fire. No-op when EGRESS_FIREWALL=false; env is import-time-loaded,
-    //    so this needs nothing from boot. (Tier-3-Infra §"infra/network": constructed at entry boot.)
+    // Swap undici's global dispatcher for the private-IP-rejecting DNS lookup so every outbound fetch
+    // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
     installEgressFirewall();
 
     db = await createDb(env.DATABASE_URL);
 
-    // 2. SecretBox key (boot crypto): resolve the key buffer; the box itself is built inside compose.
     const secretBoxKey = credentialsKeyFromEnv();
 
-    // 3. migrate (backup → migrate on the FK-off connection → assertReferentialIntegrity; aborts on failure).
     await runBootMigrations({ db, databaseUrl: env.DATABASE_URL });
 
-    // 4. Resolve the owner id BEFORE compose (the owner role-clients bundle resolves against it). A transient
-    //    sessions service is built ONLY to run the owner seed — sessions is a pure constructor, so building it
-    //    twice (here + inside compose) is harmless; compose owns the real one the seam consumes.
+    // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
+    // transient sessions service is built only to run the owner seed; compose owns the real one.
     const handles = ownerHandles();
     const bootSessions = createSessionsService({
       db,
       now,
       sessionSecret: env.SESSION_SECRET ?? null,
     });
-    // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy (no
-    // owner-fallback) isn't locked out. The password + the ONE hashing seam are passed ONLY in local mode
-    // (oidc/forward-header owners authenticate via the IdP/proxy; SSO/single-user rows carry no password).
-    // env's superRefine guarantees LOCAL_INITIAL_PASSWORD + SESSION_SECRET are set in local mode. The seed is
-    // first-boot-only + non-clobbering (guarded on `password_hash IS NULL` — see seed-owner).
+    // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy isn't
+    // locked out. Passed only in local mode; first-boot-only + non-clobbering (see seed-owner).
     const localPasswordSeed =
       env.AUTH_MODE === "local" && env.LOCAL_INITIAL_PASSWORD !== undefined
         ? {
@@ -146,23 +126,16 @@ export function createLifecycle(): Lifecycle {
     }
     const ownerHandle = handles[0] ?? env.DEFAULT_USER_HANDLE;
 
-    // 4b. The ONE GPU/vLLM-availability fact (PD-tier: one fact, no knobs). Probe the host ONCE (the shared
-    //     `infra/providers` probe the supervisor also reads — no second `nvidia-smi`). `VLLM_DISABLED` is a
-    //     force-OFF override; effective disabled = forced OR no GPU. This single value drives BOTH the vLLM
-    //     backend build (compose → registry; no GPU ⇒ no engine ⇒ the supervisor isn't started) AND the
-    //     derive-role local-light fallback (compose derives `vllmAvailable = !vllmDisabled` for connection).
+    // The one GPU/vLLM-availability fact: probe the host once. VLLM_DISABLED is a force-off override;
+    // effective disabled = forced OR no GPU.
     const gpuPresent = detectGpu();
     const vllmDisabled = env.VLLM_DISABLED || !gpuPresent;
     log.info({ gpuPresent, vllmDisabled }, "boot: gpu-detect → effective vLLM availability");
 
-    // The stable per-replica lock-holder tag — threaded into BOTH compose (the chat turn-lock acquires under
-    // it) AND the boot reclaim (it wipes this replica's own orphaned chat_locks). Stable across restarts of
-    // the same box (single-replica assumption), so a crash's locks are reclaimable on the next boot.
+    // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot
+    // reclaim (wipes this replica's own orphaned chat_locks).
     const holder = hostname();
 
-    // 5. compose the full service graph (+ the boot handles). `vllmConcurrency` comes from settings'
-    //    effective-config, which is built INSIDE compose — not available pre-compose, so it is omitted here
-    //    (compose's BackendRegistry default applies). repoRoot is the process cwd (the vLLM engine root).
     const built = await createServices({
       db,
       now,
@@ -170,8 +143,6 @@ export function createLifecycle(): Lifecycle {
       secretBoxKey,
       casDir: env.ASSETS_DIR,
       variantDir: join(dirname(env.ASSETS_DIR), "variants"),
-      // The `import-bundle` staging root — the SAME env the bundle route reads, so route-write + runner-read
-      // land in one place (absent ⇒ both default to the OS temp dir).
       ...(env.IMPORT_STAGING_DIR !== undefined ? { importStagingDir: env.IMPORT_STAGING_DIR } : {}),
       sessionSecret: env.SESSION_SECRET ?? null,
       vllmDisabled,
@@ -179,7 +150,6 @@ export function createLifecycle(): Lifecycle {
       holder,
     });
 
-    // 2b. The boot decrypt-probe → healthz `credentials_key_mismatch`.
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
     if (!credentialsKeyOk) {
       log.error(
@@ -187,8 +157,6 @@ export function createLifecycle(): Lifecycle {
       );
     }
 
-    // 6. The owner Principal (the privileged identity the env-credential seed writes under). `via:"fallback"`
-    //    is the safe "this IS the owner" discriminator (spine §1); role is owner (D17).
     const owner: Principal = {
       userId: ownerId,
       role: "owner",
@@ -204,20 +172,15 @@ export function createLifecycle(): Lifecycle {
       tenorApiKey: env.TENOR_API_KEY,
     });
 
-    // 8. the idempotent boot packs + the single-replica lock reclaim. The default-character pack seeds the
-    //    owner over the ONE seeder instance the app first-request hook also drives (shared memo + latch).
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
     await seedDefaultPersona({ seeder: built.personaSeeder, owner });
     await reclaimLocksOnBoot({ db, now, holder });
 
-    //   • vLLM engine: null when VLLM_DISABLED — start it + keep its (synchronous) drain-closer for shutdown.
     if (built.vllmEngine !== null) {
       drainVllm = built.vllmEngine.start();
     }
-    //   • catalog-refresh scheduler: enqueues the recurring `refresh-model-catalog` workload (workloads
-    //     front door only; no executor needed).
     stopScheduler = startCatalogRefreshScheduler({
       service: built.services.workloads,
       ownerId,
@@ -230,9 +193,6 @@ export function createLifecycle(): Lifecycle {
       },
       checkIntervalMs: CATALOG_CHECK_INTERVAL_MS,
     });
-    //   • recurring-schedule tick (the TIME dimension): scans `workload_schedules` for due rows + enqueues each
-    //     through the workloads `start` front door (so a scheduled run flows through dispatch + the single-active
-    //     lock + the DAG exactly like a manual start). Single-replica per-process interval; shutdown clears it.
     stopScheduleScheduler = startWorkloadScheduleScheduler({
       db,
       now,
@@ -244,10 +204,7 @@ export function createLifecycle(): Lifecycle {
         };
       },
     });
-    //   • workloads WORKER: the claim→run poll loop. Its per-dispatch role-clients come from the single
-    //     async binder compose exposes (`built.bindRoleClients` — the PD-50 collapse); the engine ops + the
-    //     wake-subscribe arrive via the workloads front door (the driver never touches the bus directly). The
-    //     loop runs until `workerAbort` fires (shutdown); fire-and-forget, errors logged (it self-recovers).
+    // The workloads worker's claim→run poll loop, fire-and-forget; errors logged (it self-recovers).
     const workerAbort = new AbortController();
     stopWorker = workerAbort;
     const scheduleTimer = (fn: () => void, ms: number): (() => void) => {
@@ -262,8 +219,6 @@ export function createLifecycle(): Lifecycle {
         env: built.runnerEnv,
         bindRoleClients: built.bindRoleClients,
         loadUserSettings: built.services.settings.loadUserSettings,
-        // PD-113: the engine audits WORKLOAD_FAILED on a terminal runtime failure through compose's ONE
-        // bound logAudit writer (the same closure every domain audit op is wired from).
         audit: built.audit,
         now,
       },
@@ -282,11 +237,6 @@ export function createLifecycle(): Lifecycle {
       );
     });
 
-    //   • buddy observer (PD-45/PD-64): the reaction engine — a SUPERVISED out-of-band loop (NOT a service
-    //     verb) that taps the workloads + chat firehoses and the observability ring, reacting one normalized
-    //     signal → one quip + mood/stat/bond shift onto the per-user reaction bus. `ownerId`'s buddy reacts to
-    //     SYSTEM-health traces (request-scoped, not user-attributed). SIGTERM tears it down (unsubscribe +
-    //     clear the sweeps).
     stopBuddyObserver = startBuddyObserver(
       createBuddyObserverEnv({
         db,
@@ -297,18 +247,14 @@ export function createLifecycle(): Lifecycle {
       }),
     ).stop;
 
-    // 10. The auth modes. Local mode wires the sessions `authenticate` verb (PD-83 — the resolution
-    // moved into `domain/sessions`; the entry no longer reads `users`/runs the KDF itself); OIDC mode
-    // mints the discovery fetcher.
     let authenticate: LocalAuthenticator | undefined;
     if (env.AUTH_MODE === "local") {
       authenticate = (handle: string, password: string): Promise<UserId | null> =>
         built.sessions.authenticate(handle, password);
     }
 
-    // forward-header fail-closed belt: the UNSIGNED trusted-header path is refused until an operator names
-    // the trusted source. Warn loudly at boot so a non-authentik proxy deploy (no signed JWT) isn't left
-    // silently rejecting every request. The signed-JWT authentik path is unaffected.
+    // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed
+    // JWT) isn't left silently rejecting every request.
     if (
       env.AUTH_MODE === "forward-header" &&
       (env.FORWARD_AUTH_TRUSTED_PROXIES === undefined ||
@@ -329,9 +275,7 @@ export function createLifecycle(): Lifecycle {
       const clientSecret = env.OIDC_CLIENT_SECRET;
 
       const oidcStore = createOidcStore(db, now);
-      // The OIDC_REDIRECT_URIS allowlist: the FULL callback URLs the per-request derived origin must
-      // exact-match. The login route derives the callback from the request origin + gates on this list
-      // (origin-flexible: public FQDN AND LAN-IP/localhost), so no single redirect URI is baked in.
+      // The full callback URLs the per-request derived origin must exact-match.
       const redirectAllowlist = (env.OIDC_REDIRECT_URIS ?? "")
         .split(",")
         .map((u) => u.trim())
@@ -354,9 +298,6 @@ export function createLifecycle(): Lifecycle {
         },
       };
 
-      //   • OIDC PKCE-transaction GC: reap expired/abandoned transactions on a cadence (the store's on-consume
-      //     sweep only fires opportunistically, so an abandoned flow's row is otherwise unbounded). Direct-sweep
-      //     driver (not a workload — a trivial idempotent DELETE); armed only in oidc mode where the table exists.
       stopOidcGc = startOidcGcScheduler({
         sweep: oidcStore.deleteExpired,
         now,
@@ -364,8 +305,6 @@ export function createLifecycle(): Lifecycle {
       });
     }
 
-    // 11. build + serve the app; the CAS handle for the blob route is re-built here (stateless, same dir —
-    //     the documented `entry/ wires createCas(env.ASSETS_DIR)` pattern; compose does not expose its own).
     const app = createApp({
       now,
       db,
@@ -382,9 +321,6 @@ export function createLifecycle(): Lifecycle {
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
-      // See AppDeps.seedUserCharacters for why the fire-and-forget void here is safe. Fires BOTH first-run
-      // seeders (default cards + the default "You" persona) so a new SSO/admin-created user is fully set up
-      // on first touch; each is independently idempotent (its own persisted latch + in-process memo).
       seedUserCharacters: (principal: Principal): void => {
         void built.characterSeeder.ensureSeeded(principal);
         void built.personaSeeder.ensureSeeded(principal);
@@ -393,11 +329,8 @@ export function createLifecycle(): Lifecycle {
       ...(oidc !== undefined ? { oidc } : {}),
     });
 
-    // Await the BIND, don't assume it: `serve()` binds asynchronously, and a bind failure
-    // (EADDRINUSE — e.g. the dev stack already holds the port) surfaces as a server "error" event,
-    // not a throw. Pre-fix, boot logged "listening" unconditionally and returned a zombie process
-    // that claimed healthy while nothing was bound (found via the lifecycle int test silently
-    // polling a NEIGHBOR server's healthz). Boot must fail LOUDLY on a dead listener.
+    // Await the bind, don't assume it: serve() binds asynchronously, and a bind failure (EADDRINUSE)
+    // surfaces as a server "error" event, not a throw. Boot must fail loudly on a dead listener.
     await new Promise<void>((resolve, reject) => {
       const onBindError = (err: Error): void => {
         reject(err);
@@ -417,7 +350,6 @@ export function createLifecycle(): Lifecycle {
     if (isShuttingDown) {
       return;
     }
-    // Flip healthz → 503 FIRST so the LB stops routing new traffic while in-flight work drains.
     isShuttingDown = true;
     log.info("shutdown: draining");
 
@@ -443,7 +375,6 @@ export function createLifecycle(): Lifecycle {
       stopOidcGc = null;
     }
     if (stopWorker !== null) {
-      // Aborts the poll loop AND the in-flight row's run (the signal threads into runWorkload → cancelled).
       stopWorker.abort();
       stopWorker = null;
     }

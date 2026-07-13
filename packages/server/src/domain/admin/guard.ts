@@ -1,12 +1,9 @@
-// domain/admin/guard — THE `can()` GUARD SEAM (the unblocker the other domains inject; identity-auth-
-// permission §6). This is the ONE place a role/host is compared: `owner ⊇
-// admin` (global) and `role === 'host'` (chat resource-role) live HERE and NOWHERE else (no scattered
-// `role === 'admin'`/`'owner'` in the gating domains, no `role === 'host'` in chat — spine #6).
+// The `can()` guard seam — the one place a role/host is compared: `owner ⊇ admin` (global) and
+// `role === 'host'` (chat resource-role) live here and nowhere else.
 //
-// PURE — no `Db`, no I/O. The decision is made over the immutable `Principal` + the resource DATA the caller
-// passes in (global needs none; chat passes the {@link ChatRoster} it loaded — admin NEVER reads chat's db,
-// `domain-no-cross-feature`). Authorization is re-evaluated PER CALL; `role` was resolved ONCE at the entry
-// seam and is fresh per request (sessions' job). The decision is never cached back onto the Principal.
+// Pure — no `Db`, no I/O. The decision is made over the immutable `Principal` + the resource data the
+// caller passes in (chat passes the {@link ChatRoster} it loaded — admin never reads chat's db).
+// Authorization is re-evaluated per call; the decision is never cached back onto the Principal.
 
 import type {
   AgentAction,
@@ -22,10 +19,8 @@ import type {
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
 
-// The role set that satisfies each global action — the SOLE encoding of `owner ⊇ admin`. A mapped Record over
-// the action axis (exhaustive: a new `GlobalAction` member fails `tsc` here — no silently-ungated action).
-// `owner` satisfies BOTH actions (it is always an administrator, D17); `admin` satisfies only `admin`; `user`
-// satisfies neither.
+// The role set that satisfies each global action — the sole encoding of `owner ⊇ admin`. Exhaustive: a new
+// `GlobalAction` member fails tsc here.
 const ROLES_FOR_GLOBAL_ACTION = {
   admin: ["owner", "admin"],
   owner: ["owner"],
@@ -38,15 +33,13 @@ function decideGlobal(principal: Principal, action: GlobalAction): void {
   }
 }
 
-/** The CHAT-scope decision (the D18 resource-role axis) — a PURE verdict over the roster chat fed in (the
- *  caller's resolved membership; admin reads NO chat db, takes no `principal` beyond it). Exhaustive over
- *  `ChatAction`: a new action fails `tsc` at the `never`. */
+/** The chat-scope decision — a pure verdict over the roster fed in. Exhaustive over `ChatAction`: a new
+ *  action fails tsc at the `never`. */
 function decideChat(action: ChatAction, roster: ChatRoster): void {
   switch (action) {
     case "read":
-      // Present membership is established by chat's `loadMemberChat` BEFORE `can()` is reached (a non-member
-      // raises chat's leak-free not-found and never gets here). Any present member reads in v1 — this is the
-      // seam where a future `observer` participant kind will deny. So: allow.
+      // Present membership is established by chat's `loadMemberChat` before `can()` is reached. Any present
+      // member reads in v1 — this is the seam where a future `observer` participant kind will deny.
       return;
     case "host":
       if (roster.role !== "host") {
@@ -60,9 +53,8 @@ function decideChat(action: ChatAction, roster: ChatRoster): void {
   }
 }
 
-// The impl param types are the BROAD unions (the overloaded `Can` couples action↔resource-kind at every CALL
-// site, so the `as` re-narrowing below is sound — `tsc` has already proven the pairing). Exhaustive over
-// `resource.kind`: a new `ResourceRef` arm fails `tsc` at the `never` (born-compliant).
+// The impl param types are the broad unions (the overloaded `Can` couples action↔resource-kind at every
+// call site, so the `as` re-narrowing below is sound). Exhaustive over `resource.kind`.
 export const can: Can = (
   principal: Principal,
   action: GlobalAction | ChatAction,
@@ -82,14 +74,9 @@ export const can: Can = (
   }
 };
 
-/** The agent-principal runtime gate (D60; agent-principal-design/03 §2) — wall two of the ceiling. An agent
- *  is a SPEAKER, never a caller (it has no `Principal`), so this is a NEW EXPORT OF THE SAME SEAM, not a
- *  second auth model. Pure verdict (no Db): the kill switch (`enabled`) + the closed-union check. The `_room`
- *  roster is the seam's scope — present-membership was established by the roster load (a kicked/absent agent
- *  never reaches here), so nothing to re-check here. Exhaustive over `AGENT_ACTIONS`: a new capability fails
- *  `tsc` at the `never` (the ceiling grows only by a deliberate tuple member + a ledger call).
- *  FLAG[PD-17]: landed at AP1; its callers (the chat engine gates `speak`, the tool executor gates
- *  `tool-propose`) inject it via `ChatContext` at AP2 — unit-tested here, wired to production callers there. */
+/** The agent-principal runtime gate. An agent is a speaker, never a caller (it has no `Principal`), so this
+ *  is a new export of the same seam, not a second auth model. Pure verdict: the kill switch (`enabled`) +
+ *  the closed-union check. FLAG[PD-17]: landed at AP1; callers inject it via `ChatContext` at AP2. */
 export const canAgent = (actor: AgentActor, action: AgentAction, _room: ChatRoster): void => {
   if (!actor.enabled) {
     throw new DomainForbiddenError("agent principal disabled");
@@ -116,9 +103,8 @@ export const requireOwner: RequireOwner = (principal) => {
   return principal.userId;
 };
 
-// The boolean form of the global admin gate (owner∪admin) — the SAME `can()` decision, caught into a
-// verdict so a role-AWARE SCOPING caller (workloads' F3 list/get/cancel/retry) can branch without a throw
-// being control flow. `can` is the sole decision function (spine #6); this never re-compares `role` itself.
+// The boolean form of the global admin gate — the same `can()` decision, caught into a verdict so a
+// role-aware scoping caller can branch without a throw being control flow.
 export const isAdmin: IsAdmin = (principal) => {
   try {
     can(principal, "admin", { kind: "global" });

@@ -132,12 +132,9 @@ function effectDepsOf(call: Node): ArrayLiteralExpression | undefined {
   return deps;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a CallExpression subscription: a useEffect-family call whose dep array touches
-// a shared-selection-tainted name. Taint is FILE-scoped (seed = selection-hook results + a name-level
-// fixpoint), so it's memoized per source file — a per-FILE computation, not cross-FILE, so the gate stays
-// incremental-safe. scanRoot mirrors the legacy FEATURES_DIR filter minus app-shell. The memo is cleared
-// in begin (the pass may run more than once — §1.1). Per-occurrence.
+// A useEffect-family call whose dep array touches a shared-selection-tainted name. Taint is FILE-scoped
+// (seed = selection-hook results + a name-level fixpoint), memoized per source file. The memo is cleared
+// in `begin` (the pass may run more than once).
 const taintMemo = new Map<string, ReadonlySet<string>>();
 
 function taintFor(sf: SourceFile): ReadonlySet<string> {

@@ -1,12 +1,9 @@
 // biome-ignore-all lint/performance/noBarrelFile: this IS the domain front door (one-home-per-concept).
 //
-// domain/tool-use — FRONT DOOR. The ONE tool registry (D48): every entry a name + description + zod
-// argsSchema + can() ceiling + handler closing over its owning domain's service, registered once at
-// `entry/compose` (collision = boot-fatal), read per turn via `resolveTools`, and projected onto the
-// OpenAI wire (`toWireTools`; the D47 MCP projection lands at T5 with buddy). Both projections funnel
-// every invocation through the SAME `executeToolCalls` — parse-with-zod, can() gate, sequential run,
-// errors-as-data — and produce the SAME `ToolCallRecord[]` that chat persistence stores on the variant.
-// The recurse loop is CHAT's (T4); this domain never loops and owns no tables.
+// domain/tool-use — FRONT DOOR. The one tool registry: every entry a name + description + zod argsSchema
+// + can() ceiling + handler closing over its owning domain's service, registered once at entry/compose,
+// read per turn via resolveTools, and projected onto the OpenAI wire. Every invocation funnels through the
+// same executeToolCalls, producing the same ToolCallRecord[] that chat persistence stores on the variant.
 
 export { ToolNameCollisionError, ToolNotFoundError } from "./contract/errors";
 export type {

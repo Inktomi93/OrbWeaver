@@ -1,49 +1,32 @@
-// domain/workloads/contract/workload-row — the typed DB-row projection `WorkloadRowAnyKind`: the per-kind
-// narrowing of the Drizzle `unknown` JSON columns (`params`/`result`) against the `kind` discriminator. ONE
-// place does the narrowing (`persistence/toView`), so no consumer casts the JSON blobs; same pattern as
-// chat's `LoadedChat`. The row is `@public` on the front door (tRPC get/list + the worker project it).
-//
-// HOME NOTE: the `no-inline-types` grit flags ANY `export type` outside a type home — a persistence file is
-// not one. So the TYPE homes here in `contract/` (core/Core-0-Architecture-and-Structure.md §7.4) and
-// `persistence/` imports it; the front door re-exports it. The PROJECTION FUNCTION (`toView`) stays in
-// `persistence/` (it touches the row).
+// domain/workloads/contract/workload-row — the typed DB-row projection WorkloadRowAnyKind: per-kind
+// narrowing of the Drizzle unknown JSON columns (params/result) against the kind discriminator. One place
+// does the narrowing (persistence/toView), so no consumer casts the JSON blobs.
 
 import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { ParamsByKind } from "./workload-params";
 import type { ResultByKind } from "./workload-result";
 
-/** The kind-agnostic columns every workload row carries (the lifecycle + audit + queue-order fields). */
 export interface WorkloadRowBase {
   readonly id: WorkloadId;
   readonly status: WorkloadStatus;
-  /** The run mode — `singular` (one owner) vs `bulk` (owner-triggered global/create). Drives the single-active
-   *  lock partition + `retry`'s re-authorization. */
   readonly mode: WorkloadMode;
-  /** The acting/triggering user (`null` for a scheduler/system row — the runner maps it to a synthetic id).
-   *  SET NULL on user delete so the never-deleted audit row outlives the user. */
+  /** null for a scheduler/system row; SET NULL on user delete so the never-deleted audit row outlives the user. */
   readonly ownerId: UserId | null;
-  /** The DAG ordering set — ENFORCED by the scheduler (§2). A row with a non-empty `dependsOn` is dispatched
-   *  ONLY once EVERY dep is `succeeded`; while a dep is still active the row waits (stays queued), and if any
-   *  dep hits a non-success terminal (or is absent) the dependent fails with `dependency_failed` instead of
-   *  running (persistence `nextRunnableWorkload`). `null` when no deps were supplied (dispatches immediately,
-   *  in `(scheduledAt, createdAt)` order). */
+  /** Enforced by the scheduler: a non-empty dependsOn dispatches only once every dep succeeded; a dep hitting
+   *  a non-success terminal fails the dependent with dependency_failed instead of running. */
   readonly dependsOn: readonly WorkloadId[] | null;
-  /** A human-readable terminal-failure reason (failed/worker_died/dependency_failed); `null` otherwise. */
   readonly error: string | null;
   readonly scheduledAt: number;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
 
-/** A single workload row narrowed to one kind — `params`/`result` typed by the discriminator. */
 export type WorkloadRow<K extends WorkloadKind> = WorkloadRowBase & {
   readonly kind: K;
   readonly params: ParamsByKind[K];
   readonly result: ResultByKind[K] | null;
 };
 
-/** The typed row ANY consumer receives (a discriminated union over `kind`) — `toView` produces it; tRPC
- *  get/list + the worker driver project it. A row whose `kind` isn't in this build narrows to nothing and is
- *  filtered as poison on the read path (deploy-skew tolerance). */
+/** A row whose kind isn't in this build narrows to nothing and is filtered as poison on the read path. */
 export type WorkloadRowAnyKind = { [K in WorkloadKind]: WorkloadRow<K> }[WorkloadKind];

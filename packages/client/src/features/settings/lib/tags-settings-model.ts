@@ -1,30 +1,23 @@
-// The Tags settings pane's pure view-model — the folder-type Select items + the usage-string derivations,
-// split out of the surface (UI-Arch §2.1 component-size gate). Every label maps from the CANONICAL
-// `@orb/contracts/tag` tuples via a `Record<Union, string>`, so a new folder-type/target member is a `tsc`
-// error here (no re-spelled union, no magic string) — the same derive-don't-respell discipline the settings
-// registry keeps.
+// The Tags settings pane's pure view-model — folder-type Select items + usage-string derivations. Every
+// label maps from the canonical @orb/contracts/tag tuples via a Record, so a new member is a tsc error.
 
 import type { TagFolderType, TagUsage } from "@orb/contracts/tag";
 import { TAG_FOLDER_TYPES } from "@orb/contracts/tag";
 import type { SelectOption } from "@orb/ui/select";
 
-// Human labels for the tags-as-folders states, keyed by the CANONICAL union members (uppercase — a Map,
-// not an object literal, so the contract's `NONE`/`OPEN`/`CLOSED` keys don't trip the camelCase naming
-// lint). `NONE` reads as "Plain tag" (the non-folder default).
+// A Map, not an object literal, so the contract's uppercase keys don't trip the camelCase naming lint.
 const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([
   ["NONE", "Plain tag"],
   ["OPEN", "Open folder"],
   ["CLOSED", "Closed folder"],
 ]);
 
-/** The folder-type Select options, derived from the canonical tuple (declared order preserved); an
- *  unlabeled member falls back to its raw value rather than dropping from the list. */
+/** The folder-type Select options, derived from the canonical tuple. */
 export const FOLDER_TYPE_ITEMS: readonly SelectOption<TagFolderType>[] = TAG_FOLDER_TYPES.map(
   (value) => ({ label: FOLDER_TYPE_LABELS.get(value) ?? value, value }),
 );
 
-/** The five per-target usage counts (singular labels — pluralized in {@link usageBreakdown}). A `Record`
- *  over the non-total `TagUsage` keys, so a new junction target is a `tsc` error until it gets a label. */
+/** The five per-target usage counts (singular labels, pluralized in {@link usageBreakdown}). */
 const USAGE_LABELS: Record<Exclude<keyof TagUsage, "total">, string> = {
   characters: "character",
   chats: "chat",
@@ -33,8 +26,7 @@ const USAGE_LABELS: Record<Exclude<keyof TagUsage, "total">, string> = {
   presets: "preset",
 };
 
-/** A human breakdown of a tag's non-zero attachments (e.g. `"3 characters, 1 chat"`) — the cascade-warning
- *  copy on the delete confirm. `"nothing"` when the tag is unused (a safe delete / prune candidate). */
+/** A human breakdown of a tag's non-zero attachments (e.g. `"3 characters, 1 chat"`), or `"nothing"` when unused. */
 export function usageBreakdown(usage: TagUsage): string {
   const parts = (Object.keys(USAGE_LABELS) as (keyof typeof USAGE_LABELS)[])
     .filter((key) => usage[key] > 0)

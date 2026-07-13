@@ -138,8 +138,6 @@ function bodyOfFunctionLike(node: TsMorphNode | undefined): TsMorphNode | undefi
   return Node.isArrowFunction(node) || Node.isFunctionExpression(node) ? node.getBody() : undefined;
 }
 
-// A single declaration's function BODY — a direct function-like declaration, or the initializer of
-// `const x = (...) => {}` / `const x = function(){}`.
 function bodyFromDeclaration(decl: TsMorphNode): TsMorphNode | undefined {
   if (
     Node.isFunctionDeclaration(decl) ||
@@ -151,8 +149,6 @@ function bodyFromDeclaration(decl: TsMorphNode): TsMorphNode | undefined {
   return Node.isVariableDeclaration(decl) ? bodyOfFunctionLike(decl.getInitializer()) : undefined;
 }
 
-// Resolve a CallExpression's callee to the BODY of the function/arrow it names. Undefined if the
-// callee isn't a resolvable identifier/property-access, or its symbol has no function-like declaration.
 function resolveCalleeBody(call: TsMorphNode): TsMorphNode | undefined {
   const expr = call.asKind(SyntaxKind.CallExpression)?.getExpression();
   const nameNode = expr === undefined ? undefined : calleeNameNode(expr);
@@ -167,9 +163,6 @@ function resolveCalleeBody(call: TsMorphNode): TsMorphNode | undefined {
   return bodies[0];
 }
 
-// True if `node` asserts directly (a matcher-chained expect) OR calls an assertion helper
-// (`expectX(...)`/`assertX(...)`) whose resolved body transitively asserts. Bounded by a visited set
-// + a depth cap so mutually-recursive helpers can't loop.
 function assertsViaExpectOrHelper(
   node: TsMorphNode,
   seen: Set<TsMorphNode> = new Set(),
@@ -204,9 +197,7 @@ function assertsViaExpectOrHelper(
   return found;
 }
 
-// An `AwaitExpression` node, OR a `for await (...)` loop — the latter awaits on every iteration via
-// a ForOfStatement `awaitKeyword` flag, never an AwaitExpression node (live-verified: neo's original
-// port missed this, false-positiving on `for await (const x of asyncIter()) {...}` bodies).
+// A `for await (...)` loop awaits per-iteration via the ForOfStatement flag, not an AwaitExpression node.
 function hasDescendantAwait(node: TsMorphNode): boolean {
   if (node.getDescendantsOfKind(SyntaxKind.AwaitExpression).length > 0) {
     return true;
@@ -218,8 +209,6 @@ function hasNestedTestOrIt(node: TsMorphNode): boolean {
   return node.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => isTestCall(c));
 }
 
-// "Bare expect" — an ExpressionStatement whose expression is a bare `expect(x)` call with no
-// member-access matcher wrapper.
 function findBareExpectStatements(node: TsMorphNode): TsMorphNode[] {
   const hits: TsMorphNode[] = [];
   node.forEachDescendant((d) => {
@@ -297,7 +286,6 @@ function isTestFile(filePath: string): boolean {
   return filePath.includes("/tests/") && TEST_FILE_RE.test(filePath);
 }
 
-/** The AST scan shared by the legacy Check and the single-pass `run` descriptor. */
 function scanAuditClientTests({ root, project }: CheckContext): Violation[] {
   const violations: Violation[] = [];
   for (const sf of project.getSourceFiles()) {
@@ -321,13 +309,6 @@ function scanAuditClientTests({ root, project }: CheckContext): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-AST test-audit via `run`, DORMANT) ────────────────────
-// audit-client-tests scans every tests/**/*.test.ts(x) for structural anti-patterns (an assertion-less
-// test callback, a missing-await async test, a bare `expect(x)`, an empty describe/lifecycle hook) via the
-// shared Project's AST — never the fs — so it ports as a `run` descriptor reusing the exact scan (NOT
-// fsBacked). status:"dormant" — the loader loads it, the runner skips it, but the conformance runner runs
-// it as-active so its proofs still hold (a dormant gate must be correct so it can be activated). Distinct
-// per-pattern messages → per-occurrence overrides. Byte-identical to the legacy Check. Kept ALONGSIDE it.
 export const gate: GateDescriptor = {
   name: "audit-client-tests",
   docRow: "Core-Enforcement-Deferred-Dropped.md (audit-client-tests) / Spine-Testing.md §5",

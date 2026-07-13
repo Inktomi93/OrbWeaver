@@ -1,5 +1,6 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS fixture snippets
 // (verb-file exports), not secrets.
+// A domain verb file must export create<Pascal(base)>(ctx).
 // Gate: verb-naming (core/Core-0-Architecture-and-Structure.md §4/§7) — one verb per file, named for the file. Each
 // domain/<f>/verbs/**/<verb>.ts must export `create<Pascal(verb)>(ctx, deps?)` (e.g. create.ts →
 // createCreate, bulk-archive.ts → createBulkArchive). index.ts barrels are exempt.
@@ -19,11 +20,6 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE presence gate via visitFile) ──────────────────────
-// The legacy predicate as a per-file hook: a domain verb file must export create<Pascal(base)>(ctx). Uses
-// the SourceFile's exported-declarations (symbol level — the Program is created lazily on first query, the
-// shared checker tax §2.3). File-level finding (line 0). scanRoot mirrors the legacy VERB_FILE. Not
-// fsBacked (pure AST). Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "verb-naming",
   docRow: "core/Core-0-Architecture-and-Structure.md §4/§7",

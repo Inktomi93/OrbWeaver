@@ -6,8 +6,7 @@
  * what it actually sees, the things you cannot read off the SDK types: turn POSITION/ORDERING (does a
  * dynamic-context marker leak as a literal? what's the earliest→latest sequence?), REASONING capture
  * (is thinking text populated, empty, or a signature? streaming vs non-streaming?), and whether
- * `continue`/prefill behave as documented. Companion to sdk-cache-probe (which measures caching);
- * this one measures WHAT THE MODEL PERCEIVES. Costs pennies but spends real quota — hand-run, never CI.
+ * `continue`/prefill behave as documented. Costs pennies but spends real quota — hand-run, never CI.
  *
  * POSITIONAL PROBES use unique NATO-ish codewords planted at each turn position, then ask the model to
  * list every codeword it sees in earliest→latest order AND flag any non-prose boundary/separator token.

@@ -1,12 +1,10 @@
-// foundation/observability/tracing — OTel spans + the per-requestId trace ring + the libSQL driver wrap.
-// One root span per request → a tree of child spans (transport procedure → domain verb → provider runner →
-// DB queries). On request end the tree seals into a bounded ring the /api/_debug/traces surface reads.
-// We run the OTel SDK (the span data model + ALS parent propagation across awaits), NOT the collector
-// stack: a custom SpanProcessor (`RingExporter`) pushes finished spans into the in-memory ring — the
-// OTLP-replaceable seam. Spans are METADATA ONLY (durations + primitive attrs + event timestamps); RP
-// content never reaches a span attribute (same discipline as logs).
+// OTel spans + the per-requestId trace ring + the libSQL driver wrap. One root span per request → a tree
+// of child spans. On request end the tree seals into a bounded ring the /api/_debug/traces surface reads.
+// We run the OTel SDK, not the collector stack: a custom SpanProcessor (RingExporter) pushes finished
+// spans into the in-memory ring — the OTLP-replaceable seam. Spans are metadata only; RP content never
+// reaches a span attribute.
 //
-// ASSUMES(single-replica): the trace ring is module-scope, per-process (core/Tier-2-Foundation.md esoteric #5).
+// ASSUMES(single-replica): the trace ring is module-scope, per-process.
 
 import type { Span, SpanOptions, Tracer } from "@opentelemetry/api";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
@@ -32,8 +30,7 @@ const MAX_ATTR_LEN = 512;
 const MS_PER_SEC = 1000;
 const NS_PER_MS = 1e6;
 
-/** Public span shape — the JSON /api/_debug/traces returns. Foundation-internal (core/Tier-2-Foundation.md
- *  §7.4 — `types-in-contract` is a domain rule; the /traces client consumes the JSON, not this type). */
+/** Public span shape — the JSON /api/_debug/traces returns. */
 export interface SerializedSpan {
   spanId: string;
   parentSpanId: string | undefined;
@@ -85,8 +82,6 @@ interface BucketState {
 export interface SpanAttrs {
   [key: string]: string | number | boolean | undefined;
 }
-
-// ── The capture seam — a custom SpanProcessor that buckets by requestId ──────────────────────────────
 
 /** Per-requestId ring of completed traces. Each finished span appends into a transient bucket keyed by the
  *  root's request id; once the root closes, the bucket seals into a RequestTrace + pushes into this ring. */
@@ -228,8 +223,6 @@ class RingExporter implements SpanExporter {
   }
 }
 
-// ── Boot ─────────────────────────────────────────────────────────────────────────────────────────────
-
 let booted = false;
 let tracer: Tracer | undefined;
 let processor: SpanProcessor | undefined;
@@ -268,8 +261,6 @@ function getTracer(): Tracer {
   }
   return tracer;
 }
-
-// ── Public surface ─────────────────────────────────────────────────────────────────────────────────
 
 /**
  * Open a child span around `fn`. The current span (if any) becomes the parent via OTel context; with none
@@ -399,7 +390,6 @@ export function getTraceByRequestId(requestId: string): RequestTrace | undefined
   return traceRing.get(requestId);
 }
 
-// ── DB driver wrap ───────────────────────────────────────────────────────────────────────────────────
 // The right seam for query timing is the libSQL client itself (drizzle's logger is pre-query only). We wrap
 // execute/batch/executeMultiple/transaction via Proxy so every query opens a child span attached to the
 // active span (the procedure → verb chain). The wrap lives here but is INJECTED into `@orb/db`'s `createDb`
@@ -478,8 +468,6 @@ export function wrapLibSqlClient<T extends object>(client: T): T {
     },
   });
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────────────────────────────────
 
 function serializeSpan(readable: ReadableSpan, requestId: string): SerializedSpan {
   const ctx = readable.spanContext();

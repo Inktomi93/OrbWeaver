@@ -1,14 +1,6 @@
-// domain/persona/persistence/queries — ALL db access for the feature (queries only, no business logic).
-// Every read is owner-scoped (the predicate is part of the WHERE, never a post-filter), so a non-owner can
-// never receive another user's row. `ownerId` is `principal.userId` (§7.1) — this layer NEVER reads the
-// `users` table (the `no-direct-users-read` chokepoint); the only cross-table reach is `characters`, a
-// SANCTIONED schema read for the connection ownership gate (domain-no-cross-feature gates importing the
-// character DOMAIN's code, not the shared @orb/db schema; precedent: world-info attachments touch both
-// book tables).
-//
-// `detailOf` narrows the stored `metadata` blob through `personaMetadataSchema` at the read seam (§8.4
-// parse-at-the-DB-seam): drizzle hands back whatever `JSON.parse` produced typed as `PersonaMetadata`
-// without validating it, so a corrupt row degrades to `null` here instead of poisoning the view.
+// All db access for the feature (queries only). Every read is owner-scoped (the predicate is part of the
+// WHERE, never a post-filter). `detailOf` narrows the stored `metadata` blob through the schema at the read
+// seam — a corrupt row degrades to `null` instead of poisoning the view.
 
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
@@ -27,11 +19,8 @@ const LIMIT_ONE = 1;
 type PersonaRow = typeof personas.$inferSelect;
 type AssetRow = typeof assets.$inferSelect;
 
-// Row + the joined avatar asset (null when no avatar is attached). The hash lives on `assets` (the CAS
-// key); `personas` only carries `avatarAssetId`. One LEFT JOIN per read keeps detail builds round-trip-
-// cheap. File-LOCAL (not exported): the `types-in-contract` gate forbids an exported type outside
-// `contract/`, and this internal join bundle is only ever produced + consumed within `persistence/` — the
-// verbs chain `load…` → `detailOf` without ever naming it.
+// Row + the joined avatar asset (null when no avatar is attached). File-local — the verbs chain
+// `load…` → `detailOf` without ever naming it.
 interface PersonaWithAvatar {
   readonly persona: PersonaRow;
   readonly avatar: AssetRow | null;
@@ -67,8 +56,7 @@ export async function listOwnedPersonasWithAvatar(
 }
 
 /** The caller's existing owned persona with this exact `name`, or null — the `(ownerId, name)` backup-import
- *  dedup key (the preset/world-info reuse-or-merge precedent). Newest wins when names collide (a degenerate
- *  case; the dedup only needs ONE stable merge target). */
+ *  dedup key. Newest wins when names collide. */
 export async function findOwnedPersonaByName(
   db: Db,
   ownerId: UserId,
@@ -83,9 +71,7 @@ export async function findOwnedPersonaByName(
   return rows[0]?.id ?? null;
 }
 
-/** Personas connected to a character (via `character_personas`), owner-scoped, newest first. The
- *  `personas.ownerId` predicate is belt-and-braces: the character is owner-gated by the caller and
- *  connections only link same-owner rows, but it keeps the read self-evidently owner-scoped. */
+/** Personas connected to a character (via `character_personas`), owner-scoped, newest first. */
 export async function listConnectedPersonasWithAvatar(
   db: Db,
   ownerId: UserId,
@@ -101,8 +87,8 @@ export async function listConnectedPersonasWithAvatar(
   return rows;
 }
 
-/** Gate: the character must belong to the caller. Reads `characters.ownerId` directly (the sanctioned
- *  schema read). A foreign/absent character collapses to {@link PersonaCharacterNotFoundError} (no existence leak). */
+/** Gate: the character must belong to the caller. A foreign/absent character collapses to
+ *  {@link PersonaCharacterNotFoundError} (no existence leak). */
 export async function ensureCharacterOwned(
   db: Db,
   ownerId: UserId,
@@ -118,10 +104,8 @@ export async function ensureCharacterOwned(
   }
 }
 
-/** Gate: a supplied avatar asset must belong to the caller (D21 cross-root belt — `personas` and
- *  `assets` are BOTH owner-stamped producers, so the FK alone proves existence, never ownership; an
- *  unchecked link would leak a foreign asset's CAS hash through the detail JOIN). A foreign/absent
- *  asset collapses to {@link AssetNotFoundError} (no existence leak). */
+/** Gate: a supplied avatar asset must belong to the caller (the FK alone proves existence, never
+ *  ownership). A foreign/absent asset collapses to {@link AssetNotFoundError} (no existence leak). */
 export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
   const rows = await db
     .select({ ownerId: assets.ownerId })

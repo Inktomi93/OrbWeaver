@@ -1,12 +1,7 @@
-// The boot seeder (domain root — the sanctioned root-singleton `seed.ts` slot the preset precedent uses;
-// named `seed-themes.ts` to sit beside a future `seed.ts` for a different concern without a collision).
-// `ensureSeedThemes` upserts the THREE seed palettes at their fixed sentinel ids, OVERWRITING on every
-// boot (themes-design.md §5 — NOT version-gated like `ensureSystemDefaultPreset`: seeds are un-editable
-// by construction (§2.1), so an overwrite can never clobber user data, and the code is the ONE source of
-// truth for seed palette values as the design ramp evolves). The override value-sets below are authored
-// from the live Hearth OKLCH ramp (`@orb/ui/styles/theme.css`) — Hearth is that ramp's `ThemeOverride`
-// projection verbatim; Mocha is a cool-hued dark variant; Light is a luminance-inverted variant of the
-// same warm hue family. Only `ThemeOverride` fields are set (no fabricated tokens).
+// domain/settings/seed-themes — boot seeder. ensureSeedThemes upserts the three seed palettes at their
+// fixed sentinel ids, overwriting on every boot: seeds are un-editable by construction, so an overwrite
+// can never clobber user data. Hearth mirrors @orb/ui/styles/theme.css's live OKLCH ramp verbatim; Mocha
+// is a cool-hued dark variant; Light is a luminance-inverted variant of the same warm hue family.
 
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";

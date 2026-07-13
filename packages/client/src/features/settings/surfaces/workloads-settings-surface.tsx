@@ -1,19 +1,8 @@
-// The WORKLOADS settings surface (Settings → Workloads; the per-user face of the workloads engine).
-// Renders inside the shell's settings modal for the `workloads` category — one registry-anchored
-// section (Jobs, WORKLOADS_SUBCATEGORY_IDS) over the built `workloads.*` verbs. Suspends on
-// `workloads.list` + `sessions.me` (QueryBoundary + useSuspenseQueries — the admin-settings-surface
-// shape).
-//
-// AUTHORITY (per-user, NOT admin-gated): `workloads.list` server-scopes a plain caller to its OWN
-// rows; an owner∪admin viewer gets the deployment-wide view — reflected here by resolving each foreign
-// row's owner handle through `admin.listUsers` (a gated read that NEVER fires for a plain user —
-// `useGatedQuery`/skipToken, so the adminProcedure is never even hit). The BULK affordances in the run
-// dialog are OWNER-only UX honesty; the server (`requireOwner` on bulk start) is the floor.
-//
-// FILTERS are client-side tabs (All/Running/Recent/Failed) over the one bounded list read — each tab
-// is a real TabsPanel (only the active one mounts). LIVE: each active row tails `workloads.subscribe`
-// (workload-row.tsx) and drives the list's freshness through the central invalidation seam, so new
-// progress/terminal states land without a manual refresh.
+// The Workloads settings surface — the per-user face of the workloads engine. Suspends on
+// workloads.list + sessions.me. workloads.list server-scopes a plain caller to its own rows; an
+// owner/admin viewer gets the deployment-wide view, resolving each foreign row's owner handle through a
+// gated admin.listUsers read that never fires for a plain user. Filters are client-side tabs over the
+// one bounded list read; each active row tails workloads.subscribe.
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -43,7 +32,6 @@ import { WORKLOADS_SUBCATEGORY_IDS } from "../lib/workloads-nav";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
-// The active-filter id — a LOCAL alias derived from the tuple (the settings-shell CategoryId pattern).
 type WorkloadFilter = (typeof WORKLOAD_FILTERS)[number];
 
 function isWorkloadFilter(value: unknown): value is WorkloadFilter {
@@ -81,8 +69,6 @@ function WorkloadsPaneBody(): ReactElement {
   const isOwner = viewer.globalRole === "owner";
   const isPrivileged = isOwner || viewer.globalRole === "admin";
 
-  // The cross-owner handle map (owner∪admin see every owner's rows) + the owner's bulk target list.
-  // Gated: a plain user's pane NEVER fires the adminProcedure read (skipToken — no probe-and-catch).
   const usersQuery = useGatedQuery(isPrivileged ? "admin-users" : null, () =>
     trpc.admin.listUsers.queryOptions(),
   );

@@ -1,19 +1,7 @@
-// verb: importTheme — restore a theme-backup file into the owner's OWN theme library (the round-trip twin of
-// `export-theme.ts`; §1 part 3). Writes the settings domain's OWN `themes` table (a domain writing its own
-// tables — no cross-domain Option-B op needed).
-//
-// IDEMPOTENT / MERGE: each theme dedupes by `(ownerId, name)` (the `themes_owner_name_uq` index, case-
-// sensitive — matching the manual `createTheme` conflict) — an existing name is left untouched, a new name is
-// minted a fresh id. Re-importing the same file creates ZERO rows. Intra-file duplicate names collapse to the
-// first; a blank name was already dropped by `parseThemeBackup`.
-//
-// SECURITY (the write boundary): the palette `override` is already D44-clamped inside the serde; here the
-// self-authored `css` runs the SAME `validateThemeCss` containment guard `createTheme` uses. A theme whose css
-// FAILS validation is still imported but with `css: null` (a safe degrade — the palette is preserved, the
-// unsafe custom CSS is dropped rather than served) — resilient, never aborts the file for one bad entry.
-//
-// A file that is not a theme-backup (`parseThemeBackup` → null) returns `{ok:false, error}` (never throws) so
-// the delivery core's per-file isolation holds and one bad file can't abort a bundle.
+// verb: importTheme — restore a theme-backup file into the owner's OWN theme library.
+// Idempotent: dedupes by (ownerId, name), existing names untouched, intra-file duplicates collapse to first.
+// Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null
+// rather than aborting the import.
 
 import type { themes } from "@orb/db";
 import { validateThemeCss } from "@orb/kit/css-validate";
@@ -37,8 +25,6 @@ export function createImportTheme(
     }
 
     const at = ctx.now();
-    // Collapse intra-file duplicate names (first wins) BEFORE the insert, so the minted ids and the
-    // `(ownerId, name)` conflict target line up exactly with the manual-create path.
     const seen = new Set<string>();
     const values: (typeof themes.$inferInsert)[] = [];
     for (const t of backup.themes) {
@@ -46,8 +32,6 @@ export function createImportTheme(
         continue;
       }
       seen.add(t.name);
-      // The write-boundary css containment guard (the `createTheme` precedent). Unsafe css degrades to null —
-      // the theme still restores, the unsafe custom CSS is never persisted/served.
       const css = t.css !== null && validateThemeCss(t.css).errors.length === 0 ? t.css : null;
       values.push({
         id: ctx.newThemeId(),

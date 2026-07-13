@@ -1,9 +1,6 @@
-// ModalHost — the shell's ONE modal seam. Reads the open modal id from the shell store and renders the
-// id-paired MODAL_SLOTS body inside a single @orb/ui <Dialog> (focus-trap · Esc · scroll-lock come free),
-// OR — for a `presentation: "drawer"` def (the mobile "You" sheet, L6/J12) — a bottom <Drawer> sheet
-// (swipe-to-dismiss · focus-trap · Esc come free). Controlled by the store: closing (Esc/backdrop/close/
-// swipe) calls `closeModal`. One host for every rail/topbar/avatar modal keeps the trigger↔body pairing
-// the single source of truth (§11.5).
+// ModalHost — the shell's one modal seam. Reads the open modal id from the shell store and renders the
+// id-paired MODAL_SLOTS body inside a single @orb/ui <Dialog>, or — for a `presentation: "drawer"` def —
+// a bottom <Drawer> sheet. Controlled by the store: closing calls `closeModal`.
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
@@ -19,13 +16,9 @@ import { MODAL_SLOTS } from "../lib/modal-slots";
 
 export interface ModalHostProps {
   readonly openModal: ModalSlotId | null;
-  /** Route-INJECTED modal bodies (keeps the shell domain-agnostic — it renders a ReactNode slot, never
-   *  imports a feature). A supplied body WINS over the static `MODAL_SLOTS` placeholder; the id keeps
-   *  its `MODAL_SLOTS` title. Bodies are lazy — only the open modal's node is ever mounted. */
+  /** Route-injected modal bodies; a supplied body wins over the static MODAL_SLOTS placeholder. */
   readonly modals?: Partial<Record<ModalSlotId, ReactNode>> | undefined;
-  /** Themed portal target (D44 §12.1) — Base UI portals the Dialog/Drawer HERE instead of `<body>`, so
-   *  the overlay inherits the active theme's tokens (a body-portaled modal escapes the app root's
-   *  `<ThemeScope>` and renders Hearth defaults under a custom theme). The app root owns the node. */
+  /** Themed portal target — Base UI portals the Dialog/Drawer here instead of `<body>` so it inherits the active theme's tokens. */
   readonly container?: DialogPopupProps["container"];
   readonly onClose: () => void;
 }
@@ -42,22 +35,17 @@ export function ModalHost({
   const def = MODAL_SLOTS[openModal];
   const injected = modals?.[openModal];
   const body = injected ?? def.render();
-  // `onOpenChange` fires on Esc/backdrop/close/swipe — funnel every close to the store's `closeModal`.
   const onOpenChange = (nextOpen: boolean): void => {
     if (!nextOpen) {
       onClose();
     }
   };
 
-  // The mobile "You" sheet (L6/J12) presents as a bottom Drawer instead of a centered Dialog — same
-  // store control, same header/close grammar; Base UI Drawer adds swipe-to-dismiss for free.
   if (def.presentation === "drawer") {
     return (
       <Drawer open={true} onOpenChange={onOpenChange} side="bottom">
         <DrawerPopup side="bottom" container={container}>
-          {/* The header pins to the top of the drawer's own scroll region (DrawerPopup wraps children in
-              its scrollable Content) — `sticky top-0` keeps the title + close in view as the body scrolls;
-              `bg-card` matches the drawer surface so content can't bleed under it. */}
+          {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
           <header className="shell-modal-header sticky top-0 z-(--z-sticky) shrink-0 bg-card">
             <DrawerTitle>{def.title}</DrawerTitle>
             <DrawerClose
@@ -78,13 +66,9 @@ export function ModalHost({
 }
 
 /**
- * The centered-Dialog presentation, split out so its `finalFocus` capture runs at OPEN time. ModalHost
- * mounts the Dialog already-open (store-driven — no `DialogTrigger`), so Base UI's own restore-focus
- * has no false→true transition to snapshot the trigger from; this child mounts fresh on each open, so its
- * `useState` initializer captures the element focused at that instant (the rail/topbar control that
- * called `openModal`) and hands it to `finalFocus` — focus returns there on close (§13.8 R1 · side-eye
- * P3). `document.activeElement` is still the trigger during render (Base UI moves focus in a later layout
- * effect). Falls back to Base UI's default (`true`) when nothing focusable was captured.
+ * The centered-Dialog presentation, split out so its `finalFocus` capture runs at open time. ModalHost
+ * mounts the Dialog already-open (store-driven, no DialogTrigger), so this child's useState initializer
+ * captures the element focused at mount and hands it to `finalFocus` so focus returns there on close.
  */
 function DialogModal({
   body,
@@ -97,20 +81,13 @@ function DialogModal({
   readonly def: ModalDef;
   readonly onOpenChange: (nextOpen: boolean) => void;
 }): ReactElement {
-  // Captured once at mount (this child mounts on open) — `document.activeElement` is still the trigger
-  // during render (Base UI moves focus in a later layout effect). A `finalFocus` FUNCTION (never a ref
-  // read in render) hands it back: the element, or `true` for Base UI's default when nothing was captured.
   const [capturedTrigger] = useState<HTMLElement | null>(() =>
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
 
-  // The @orb/ui DialogPopup is a capped flex COLUMN (max-h-full) — pin the header and scroll ONLY the
-  // interior body region, NEVER the backdrop (§13.7 scroll ownership; the receipts showed a scrollable
-  // backdrop taking the title + close out of view). SHELL modals (full/xl) FILL the popup height
-  // (`flex-1`); content modals (sm/md/lg) size to content but still scroll internally when tall
-  // (`min-h-0` + overflow, no grow). Shell tier — raw utility classes are legal HERE (§11.0).
+  // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.
   const isShellModal = def.size === "full" || def.size === "xl";
-  // `exactOptionalPropertyTypes`: spread size only when set — never pass an explicit `undefined`.
+  // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
   const sizeProp = def.size === undefined ? {} : { size: def.size };
   const bodyClass = isShellModal ? "min-h-0 flex-1 overflow-y-auto" : "min-h-0 overflow-y-auto";
   return (

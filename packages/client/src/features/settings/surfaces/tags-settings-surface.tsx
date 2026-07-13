@@ -1,15 +1,6 @@
-// The TAGS settings surface (Settings → USER → Tags — Task #65) — the tag-management screen. Lists every
-// owned tag with its five-junction usage rollup (`tag.listTagsWithUsage`), each row exposing the full tag
-// domain: rename · color/color2 · folder-type · hide-on-card · Merge into… · Delete (tag-settings-row.tsx),
-// plus drag-reorder (SortableList → setTagOrder) and a "Prune unused" action. Deliberately NOT a re-import
-// of a character/tag feature internal — there is no client tag FEATURE; this pane talks to `trpc.tag.*`
-// directly, the same "cross-feature reads ride trpc.*" seam every other settings pane uses.
-//
-// INVALIDATION (PD user-bus lane — busDriven): every tag verb emits `tagsChanged`, and
-// `USER_BUS_FILTERS.tagsChanged` path-invalidates the whole `tag` router (covers `listTagsWithUsage`) — an
-// always-on subscription (home-page.tsx), so the echo reconciles the acting device (a self-invalidate
-// would double-refetch). The mutations therefore carry no `invalidates` of their own
-// (use-tag-settings-mutations.ts).
+// The Tags settings surface — the tag-management screen. Lists every owned tag with its usage rollup,
+// each row exposing the full tag domain: rename, colors, folder-type, hide-on-card, merge, delete, plus
+// drag-reorder and a "Prune unused" action. Talks to trpc.tag.* directly (no client tag feature to import).
 
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
@@ -27,7 +18,6 @@ import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mu
 import { TAGS_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 
-/** The Tags pane body (rendered inside the settings modal's category column). */
 export function TagsSettingsSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);

@@ -1,8 +1,6 @@
-// The per-type inspector CONTROLS (BUILD-SPEC §3.5) — the placement, triggers, and override-lock
-// clusters, split out of `preset-section-inspector` to keep both under the 450-line cap. All bind the
-// live bridge form at `sections[i].*`. Placement / triggers toggles map to setting/unsetting an OPTIONAL
-// field via `form.setFieldValue` (unset = the schema default): placement In-flow (inject undefined) /
-// Spliced (inject object). The section BODY moved to the CENTER `SectionBodyEditor` (the CONTENT drill-in).
+// The per-type inspector controls — placement, triggers, and override-lock clusters. All bind the live
+// bridge form at `sections[i].*`. Placement/triggers toggles map to setting/unsetting an optional field
+// via `form.setFieldValue` (unset = the schema default).
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
@@ -26,8 +24,6 @@ interface ControlProps {
   readonly section: PromptSection;
   readonly index: number;
 }
-
-// ── PLACEMENT (literal + templated only) ──────────────────────────────────────────────────────────────
 
 /** In-flow / Spliced → `inject` unset / set. Spliced reveals depth + order NumberFields + POSITIONAL
  *  order copy (no priority/wins language — ST-parity post-P1). */
@@ -84,8 +80,6 @@ export function SectionPlacementControl({ form, section, index }: ControlProps):
   );
 }
 
-// ── TRIGGERS ──────────────────────────────────────────────────────────────────────────────────────────
-
 /** Every-generation Switch → `trigger` unset; OFF reveals the six GENERATION_TYPES multi-toggle. */
 export function SectionTriggersControl({ form, section, index }: ControlProps): ReactElement {
   const trigger = "trigger" in section ? section.trigger : undefined;
@@ -118,13 +112,9 @@ export function SectionTriggersControl({ form, section, index }: ControlProps): 
   );
 }
 
-// ── OVERRIDE LOCKS ────────────────────────────────────────────────────────────────────────────────────
-
-/** The card/room override locks — ALWAYS for main_prompt/post_history; for other templated markers only
+/** The card/room override locks — always for main_prompt/post_history; for other templated markers only
  *  when a flag is already set. */
 export function SectionLocksControl({ form, section, index }: ControlProps): ReactElement | null {
-  // `"forbidCharacterOverride" in section` narrows the union to the templated-marker branch (the only
-  // one carrying the two forbid flags) — a marker-VALUE guard would not narrow the object type.
   if (!("forbidCharacterOverride" in section)) {
     return null;
   }

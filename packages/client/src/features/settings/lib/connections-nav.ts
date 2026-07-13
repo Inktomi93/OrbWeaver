@@ -2,25 +2,19 @@
 // re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + LucideIcon fine
 // (the settings-nav.ts precedent).
 
-// The Connections settings category's nav DATA (W10 Panel 1) — split out of settings-nav.ts to keep that
-// registry under the §2.1 component-size cap. Same registry-as-data + one-home discipline as the sibling
-// categories; imported back into `SETTINGS_CATEGORIES` (settings-nav.ts). The SHAPE vocabulary lives in
-// settings-nav-model.ts.
+// The Connections settings category's nav data — split out of settings-nav.ts to keep that registry
+// under the size cap. Imported back into SETTINGS_CATEGORIES.
 
 import { ExternalLink } from "@orb/ui/icons";
 import type { SettingsCategory } from "./settings-nav-model";
 
-/** Connections pane subcategory ids (W10 Panel 1 — the two anchored sections: the role slots + the saved
- *  key library; same one-home discipline as the other panes). */
+/** Connections pane subcategory ids — the two anchored sections: role slots + the saved key library. */
 export const CONNECTIONS_SUBCATEGORY_IDS = {
   roles: "model-roles",
   keys: "saved-keys",
 } as const;
 
-/** The Connections category (USER group — connections are PER-USER: credential rows are owner-scoped
- *  (`listOwnedCredentials(ownerId)`, AAD `${userId}|${provider}`) and `routing.roleDefaults` is per-user
- *  UserSettings, so this is a user preference, not deployment/app config). Provider credentials + the
- *  per-role model connections. */
+/** The Connections category — a per-user preference (credentials + routing are owner-scoped), not deployment/app config. */
 export const CONNECTIONS_CATEGORY: SettingsCategory = {
   group: "user",
   label: "Connections",

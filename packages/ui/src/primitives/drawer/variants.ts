@@ -1,12 +1,7 @@
 import { tv } from "#lib";
 
-/**
- * Slot classes for the drawer stack (ui-package-design §5). Backdrop is `bg-scrim` at `--z-modal`;
- * the popup panel is `bg-card`. The `side` variant places the panel and wires the live swipe
- * transform to Base UI's `--drawer-*` CSS vars (transition is suspended while `data-swiping` so
- * the gesture tracks 1:1); enter/exit slide via the `translate` property (composes with the
- * swipe `transform`, and Tailwind v4 `transition-transform` covers both).
- */
+// `side` variant places the panel and wires the live swipe transform to Base UI's --drawer-* vars
+// (transition suspended while data-swiping so the gesture tracks 1:1).
 export const drawerVariants = tv({
   slots: {
     backdrop:
@@ -14,16 +9,9 @@ export const drawerVariants = tv({
     viewport: "fixed inset-0 z-(--z-modal)",
     popup:
       "fixed flex flex-col bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo data-swiping:transition-none",
-    // `flex-1 min-h-0` (NOT `h-full`) so the content scroll region resolves against the popup's `max-h-*`
-    // cap: `h-full` needs a DEFINITE parent height, which a max-height alone doesn't provide — so tall
-    // content grew unbounded and could not scroll (no-window-scroll #14: the overflow must live HERE, not
-    // leak to the clipped document). The flex-column popup + `flex-1 min-h-0` is the canonical scroll-in-a-
-    // capped-flex pattern; short content still fills the sheet.
+    // `flex-1 min-h-0` (not `h-full`) so the content scroll region resolves against the popup's max-h cap.
     content: "min-h-0 w-full flex-1 flex flex-col overflow-y-auto overscroll-contain p-section",
-    // An invisible fixed strip pinned to the matching screen edge (side variant); Base UI owns the
-    // gesture, we only place + size the hit target. Sits below the modal layer so an open drawer wins.
     swipeArea: "fixed z-(--z-overlay) touch-none",
-    // The app wrapper scales back behind an open drawer (data-active) — the stacked-sheet depth cue.
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
     indentBackground:
       "pointer-events-none fixed inset-0 bg-scrim opacity-0 transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100",

@@ -1,44 +1,14 @@
-// The APP-SHELL layout store (UI-Arch §4.1 + §4.2 + §5) — the ONE device-local, persisted home for the
-// four-region rail frame's chrome state: which rail section is active, the PER-SECTION side-panel
-// override map, and which rail-triggered modal (if any) is open. Persisted through
-// `createPersistedStore` so a reload restores the user's layout; `openModal` is deliberately NOT
-// persisted (a modal must never reappear on reload — partialize excludes it).
+// The app-shell layout store: which rail section is active, the per-section side-panel override map,
+// and which rail-triggered modal (if any) is open. `openModal` is deliberately NOT persisted.
 //
-// WHY PER-SECTION panel state (D62): §4.2 rule 2 ("per-section selection is REMEMBERED — rail-switching
-// away and back restores the section exactly") + rule 3 ("per-section panel DEFAULTS, user override wins
-// thereafter") together mean each section keeps its OWN panel modes. So the store holds a sparse
-// `panelOverrides` map (a section→panel→mode override the user's toggle writes), NOT a single global
-// list/context pair. The INITIAL value for an un-overridden (section, panel) is the SECTION_PANEL_DEFAULTS
-// table — but that table lives beside RAIL_SECTIONS in the app-shell FEATURE (features/app-shell/lib/
-// rail-slots.ts), which state MUST NOT import (that would be a reverse feature→state→feature cycle). So
-// the RESOLVE step (override ?? default) + the toggle/focus derivations (which need the resolved mode)
-// live in the feature's `use-shell-layout.ts` merge point; this store owns only the raw override writes +
-// reads. `setPanelMode(panel, mode)` keeps its `(panel, mode)` signature (writes the ACTIVE section's
-// override) so no call site changes.
-//
-// This file also HOMES the shell's layout vocabulary unions (SectionId · ModalSlotId · PanelName ·
-// PanelMode). They live in state, not the app-shell feature, so the flow is one-directional
-// (feature → state, never a cycle): the RAIL_SLOTS/MODAL_SLOTS registries (features/app-shell/lib)
-// import these unions and a `Record<SectionId|ModalSlotId, …>` there makes a missing section/modal a
-// `tsc` error (the §11.1 "derive-don't-respell / missing member is a tsc error" keystone, realized
-// across the state↔feature seam).
-//
-// State-law recap (gate `state:files`): one store per file, ≤10 fields, no exported set/getState —
-// callers use the intent-named module actions + narrow read hooks below, never the raw handle.
+// Also homes the shell's layout vocabulary unions (SectionId/ModalSlotId/PanelName/PanelMode) — state
+// owns them so app-shell (feature) imports from state, never the reverse.
 
 import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store";
 
-// The shell axes as SINGLE-HOME tuples, unions DERIVED (Spine string-union discipline §5.5 —
-// `no-inline-union-redecl`: a member is added once, in one place, never re-spelled). The registries
-// (rail-slots/modal-slots) + the migrate membership checks below all read these same tuples.
-
-/** The rail's navigable sections (UI-Arch §4.1 — Chats · Characters · Corpus · World Info · Presets ·
- *  Refinery · Analytics). `presets` = the GENERATION-preset authoring section (W10 · capability-turn-
- *  shaping/04 §W10 + D-ledger row "W10 UI placement": presets stay a rail authoring section, NOT settings).
- *  `worldInfo` = the world-books authoring section (books + keyword-triggered lore entries + the four-scope
- *  attachment surface — global / character / persona / chat). */
+/** The rail's navigable sections. */
 export const SECTION_IDS = [
   "chats",
   "characters",
@@ -50,11 +20,7 @@ export const SECTION_IDS = [
 ] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
-/** The rail/topbar/avatar-triggered modal surfaces (id-paired with MODAL_SLOTS bodies, §11.5). `newChat`
- *  (J2) is trigger-only from CONTENT affordances (chat-list "+", landing hero, ⌘K) — NOT a rail button
- *  (its trigger is the standalone `NEW_CHAT_ACTION`, never appended to `RAIL_ACTIONS`). `you` (L6 mobile,
- *  D62 P3) is the bottom-tab-bar "You" sheet — trigger-only from the mobile bar (`YOU_ACTION`), a
- *  `drawer`-presentation modal (bottom sheet), never a desktop rail button. */
+/** The rail/topbar/avatar-triggered modal surfaces (id-paired with MODAL_SLOTS bodies). */
 export const MODAL_SLOT_IDS = [
   "theme",
   "settings",
@@ -65,45 +31,28 @@ export const MODAL_SLOT_IDS = [
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
-/** A panel's 3-state model (UI-Arch §4.1): docked (in-flow, pushes CONTENT) · overlay (floats over,
- *  §11.1 clamp) · collapsed (`-translate-x-full`, zero width, no reflow). */
+/** A panel's 3-state model: docked (in-flow) · overlay (floats over) · collapsed (zero width). */
 export const PANEL_MODES = ["docked", "overlay", "collapsed"] as const;
 export type PanelMode = (typeof PANEL_MODES)[number];
 
-/** The two collapsible side panels (RAIL is fixed, CONTENT is fluid — neither is a panel). */
+/** The two collapsible side panels (rail is fixed, content is fluid — neither is a panel). */
 export type PanelName = "list" | "context";
 
 /** One section's panel overrides — a sparse map; an absent (section, panel) resolves to the feature's
- *  SECTION_PANEL_DEFAULTS table (in use-shell-layout.ts, the resolve seam). File-local (not exported):
- *  the reader is `usePanelOverride`, never a raw shape crossing a boundary. */
+ *  SECTION_PANEL_DEFAULTS table. */
 type SectionPanels = Partial<Record<PanelName, PanelMode>>;
 type PanelOverrides = Partial<Record<SectionId, SectionPanels>>;
 
 interface ShellState {
   readonly activeSection: SectionId;
-  /** Per-section side-panel overrides (sparse). Un-overridden ⇒ the feature default (§4.2 rule 3). */
   readonly panelOverrides: PanelOverrides;
   readonly openModal: ModalSlotId | null;
-  /** The CONTEXT-panel "open this tab" seam (ux-flow-revamp J6): an OPAQUE string the shell forwards and
-   *  the active CONTENT's context surface interprets (chat maps it to its Overrides/Preview/Injections/
-   *  Roster tab). Kept as a bare `string | null` — NOT a chat-specific union — so the shell stays
-   *  domain-agnostic (it never learns a chat tab id). `null` = the surface's own default tab. Transient
-   *  (never persisted — a deep-linked tab must not survive a reload, like `openModal`). */
+  /** Opaque "open this tab" request the active content's context surface interprets. Transient. */
   readonly contextTab: string | null;
-  /** L6 mobile (D62 P3 · J12): WHICH side panel is currently open AS A SHEET on mobile — `null` = you're
-   *  on CONTENT (the correct mobile landing, never an open list). At most ONE sheet at a time (opening one
-   *  closes the other): a mobile sheet is a full-width overlay, so stacked sheets make no sense. This is
-   *  DEVICE-STATE, deliberately SEPARATE from the persisted `panelOverrides` (a "docked" dock preference is
-   *  a desktop concept a sheet must never inherit) — the `use-shell-layout.ts` resolve picks this on mobile
-   *  and the persisted overrides on desktop. TRANSIENT (never persisted, like `openModal`) and RESET on
-   *  section change (`setActiveSection`) so a rail-tab tap always lands on CONTENT. */
+  /** Which side panel is open as a mobile sheet — `null` = on content. Device-state, transient, and
+   *  reset on section change. */
   readonly mobileSheet: PanelName | null;
-  /** The settings overlay "open to THIS category" seam — an OPAQUE string the settings shell interprets
-   *  against its own category registry (a cross-feature deep-link, e.g. the character editor's "Manage tags"
-   *  → the Tags pane). Kept a bare `string | null` (NOT the settings-feature category union) so the shell
-   *  store stays domain-agnostic — exactly the `contextTab` posture. `null` = the shell's own default pane.
-   *  Set alongside `openModal:'settings'` by `openSettingsTo`; cleared on `closeModal`. Transient (never
-   *  persisted — a deep-linked pane must not survive a reload, like `openModal`). */
+  /** Opaque settings-category deep-link target. Set alongside `openModal:'settings'`; transient. */
   readonly settingsCategory: string | null;
 }
 
@@ -122,9 +71,7 @@ const DEFAULT_STATE: ShellState = {
   settingsCategory: null,
 };
 
-// v2: the persisted shape changed from a single global `listPanel`/`contextPanel` pair (v1) to the
-// per-section `panelOverrides` map. A v1 blob has no override map — migrate degrades it to empty
-// overrides (the section defaults take over), keeping only a valid `activeSection`.
+// v2: the persisted shape changed from a single global panel pair to per-section `panelOverrides`.
 const PERSIST_VERSION = 2;
 
 function isSectionId(v: unknown): v is SectionId {
@@ -178,8 +125,7 @@ function sanitizeOverrides(v: unknown): PanelOverrides {
   return out;
 }
 
-/** TOTAL, crash-proof migrate: any unknown/corrupt persisted blob degrades to the default layout —
- *  a bad localStorage shape must never brick the shell (UI-Primitives §13.1). */
+/** Any unknown/corrupt persisted blob degrades to the default layout. */
 function migrate(persisted: unknown): ShellState {
   if (!isPlainObject(persisted)) {
     return DEFAULT_STATE;
@@ -208,18 +154,13 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>(
   },
 );
 
-// ── The write API — intent-named module actions (the store handle never escapes this file, §5). ──
+// ── The write API — intent-named module actions (the store handle never escapes this file). ──
 
-/** Switch the active rail section (drives the LIST + CONTENT slots). Each section keeps its own panel
- *  state — switching restores this section's overrides (§4.2 rule 2), resolved in use-shell-layout.ts.
- *  Also closes any open mobile sheet (L6/J12): a rail-tab tap must land on CONTENT, never carry the prior
- *  section's list sheet across. */
+/** Switch the active rail section. Also closes any open mobile sheet — a rail-tab tap must land on
+ *  content, never carry the prior section's list sheet across. */
 export function setActiveSection(id: SectionId): void {
-  // D5 crossfade (UI-Arch §4a): a rail-section swap is an in-app pane change at a constant `/`, so the
-  // router's VT never fires — drive it by hand here (the shared write action) so EVERY leaf writer of the
-  // section inherits the crossfade for free. Pairs with the <Activity> pane-keeping (§4a): the transition
-  // animates the visible→hidden/hidden→visible flip that keeps the panes' state alive. `withViewTransition`
-  // gates `prefers-reduced-motion` + platform support once, so this is a plain wrap.
+  // A rail-section swap is an in-app pane change at a constant route, so the router's VT never fires —
+  // drive it by hand so every writer of the section inherits the crossfade for free.
   withViewTransition(() => {
     useShellStore.setState(
       { activeSection: id, mobileSheet: null },
@@ -229,8 +170,7 @@ export function setActiveSection(id: SectionId): void {
   });
 }
 
-/** Set the ACTIVE section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). Signature is
- *  `(panel, mode)` — unchanged — so every call site is untouched; the active section is read internally. */
+/** Set the active section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). */
 export function setPanelMode(panel: PanelName, mode: PanelMode): void {
   const { activeSection, panelOverrides } = useShellStore.getState();
   useShellStore.setState(
@@ -244,9 +184,8 @@ export function openModal(id: ModalSlotId): void {
   useShellStore.setState({ openModal: id }, false, "shell/openModal");
 }
 
-/** Open the settings overlay AND target a specific category pane (the cross-feature deep-link seam — e.g.
- *  the character editor's "Manage tags" → the Tags pane). `category` is opaque here; the settings shell
- *  validates it against its own registry (an unknown id falls back to the shell's default pane). */
+/** Open the settings overlay and target a specific category pane. `category` is opaque here; the
+ *  settings shell validates it against its own registry. */
 export function openSettingsTo(category: string): void {
   useShellStore.setState(
     { openModal: "settings", settingsCategory: category },
@@ -255,8 +194,7 @@ export function openSettingsTo(category: string): void {
   );
 }
 
-/** Ask the CONTEXT panel to open a specific tab (an opaque id the active context surface interprets —
- *  ux-flow-revamp J6: the chat options menu calls this + docks the panel). `null` clears the request. */
+/** Ask the CONTEXT panel to open a specific tab. `null` clears the request. */
 export function setContextTab(tab: string | null): void {
   useShellStore.setState({ contextTab: tab }, false, "shell/setContextTab");
 }
@@ -265,9 +203,8 @@ export function closeModal(): void {
   useShellStore.setState({ openModal: null, settingsCategory: null }, false, "shell/closeModal");
 }
 
-/** Open/close the mobile side-panel SHEET (L6/J12). `null` closes (back to CONTENT); a `PanelName` opens
- *  that panel as a sheet AND closes the other (one sheet at a time). The `use-shell-layout.ts` mobile
- *  resolve maps this to the panel's `overlay`/`collapsed` mode; desktop ignores it. */
+/** Open/close the mobile side-panel sheet. `null` closes (back to content); a `PanelName` opens that
+ *  panel as a sheet and closes the other (one sheet at a time). */
 export function setMobileSheet(panel: PanelName | null): void {
   useShellStore.setState({ mobileSheet: panel }, false, "shell/setMobileSheet");
 }
@@ -278,9 +215,7 @@ export function useActiveSection(): SectionId {
   return useShellStore((s) => s.activeSection);
 }
 
-/** The stored override for one (section, panel) — `undefined` when the user hasn't toggled it (the
- *  feature's SECTION_PANEL_DEFAULTS resolves the initial value). A primitive selector (no fresh object,
- *  so it's zustand-selector-derived clean). */
+/** The stored override for one (section, panel) — `undefined` when the user hasn't toggled it. */
 export function usePanelOverride(section: SectionId, panel: PanelName): PanelMode | undefined {
   return useShellStore((s) => s.panelOverrides[section]?.[panel]);
 }
@@ -289,18 +224,17 @@ export function useOpenModal(): ModalSlotId | null {
   return useShellStore((s) => s.openModal);
 }
 
-/** The current CONTEXT-panel tab request (opaque; `null` = the surface's default). A primitive selector. */
+/** The current CONTEXT-panel tab request (opaque; `null` = the surface's default). */
 export function useContextTab(): string | null {
   return useShellStore((s) => s.contextTab);
 }
 
-/** Which side panel is open as a mobile SHEET (`null` = on CONTENT). A primitive selector. */
+/** Which side panel is open as a mobile sheet (`null` = on content). */
 export function useMobileSheet(): PanelName | null {
   return useShellStore((s) => s.mobileSheet);
 }
 
-/** The settings deep-link target category (opaque; `null` = the settings shell's default pane). A
- *  primitive selector — the settings shell reads it to open straight to a requested pane. */
+/** The settings deep-link target category (opaque; `null` = the settings shell's default pane). */
 export function useSettingsTarget(): string | null {
   return useShellStore((s) => s.settingsCategory);
 }

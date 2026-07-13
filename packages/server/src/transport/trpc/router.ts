@@ -1,13 +1,6 @@
-// transport/trpc/router — the root `appRouter`: one thin router per domain front door + the loose
-// public procs (core/Tier-4-Transport.md §"router.ts"). The type `AppRouter` is what the client type-imports
-// (`@orb/client` → `import type { AppRouter }`); it is `typeof` the root router, so its ONLY possible home
-// is here (a value below `server` in the cake cannot reference a server value — it can't live in
-// `@orb/contracts`), hence the one sanctioned `no-inline-types` exception below.
-//
-// FLAG[PD-46]: the `chat` router (`send`/`swipe`/`start`/`streamMessages` + the chat SSE subscription) lands
-// when the chat + memory domains are built WHOLE at Phase 5 (ledger D16). The inline single-card embed
-// (PD-90) is `admin.embedCharacterCard` — the cross-domain producer-ownership check is composed at
-// `entry/` into admin's `EmbedProducerPort`; the bulk embed path is the admin `index` workload.
+// The root appRouter: one thin router per domain front door + the loose public procs. The type AppRouter
+// is what the client type-imports; it is `typeof` the root router, so its only possible home is here,
+// hence the one sanctioned no-inline-types exception below.
 
 import { z } from "zod";
 import { recordClientError } from "#foundation/observability";
@@ -33,29 +26,22 @@ import { workloadsRouter } from "./routers/workloads";
 import { worldInfoRouter } from "./routers/world-info";
 import { publicProcedure, t } from "./trpc";
 
-// PD-58 — the client→server error-report verb's wire bounds. Generous (a real stack/ownerStack can run
-// long) but finite: this rejects a pathologically oversized payload at the transport edge BEFORE it's
-// parsed/logged; the sink (`recordClientError`) truncates independently to a log-line-friendly length —
-// two independent caps, not a shared constant, because they guard different things (wire abuse vs. log
-// line size) and live in different tiers.
+// The client→server error-report verb's wire bounds. Generous but finite: rejects a pathologically
+// oversized payload at the transport edge before it's parsed/logged; the sink (recordClientError)
+// truncates independently to a log-line-friendly length.
 const CLIENT_ERROR_TEXT_MAX = 20_000;
 const CLIENT_ERROR_URL_MAX = 4000;
 const CLIENT_ERROR_REQUEST_ID_MAX = 200;
 
 export const appRouter = t.router({
-  // Loose public procs — liveness + an echo diagnostic (anonymous-allowed; the per-IP public bucket
-  // covers them). The real readiness probe is `entry/http` `/api/healthz` (it reads lifecycle + engines).
   health: publicProcedure.query(() => ({ ok: true }) as const),
   echo: publicProcedure
     .input(z.object({ message: z.string() }))
     .query(({ input }) => ({ message: input.message })),
 
-  // PD-58 — the client error boundary's fire-and-forget report. `publicProcedure` (anonymous-allowed):
-  // a render throw can happen before auth resolves, or BECAUSE auth is broken, so this must never itself
-  // require a working session. `recordClientError` (foundation/observability) writes the report into the
-  // same log stream + `/api/_debug/errors` ring a server error lands in. Always returns `{ ok: true }` —
-  // the sink is best-effort and never throws; a validation failure on a malformed/oversized report is the
-  // ONLY rejection path (mapped to BAD_REQUEST by tRPC's own input-parse failure, upstream of the handler).
+  // The client error boundary's fire-and-forget report. publicProcedure (anonymous-allowed): a render
+  // throw can happen before auth resolves, or because auth is broken. Always returns { ok: true } — the
+  // sink is best-effort and never throws.
   clientError: publicProcedure
     .input(
       z.object({
@@ -97,6 +83,5 @@ export const appRouter = t.router({
 // biome-ignore lint/plugin/no-inline-types: AppRouter is the client's type-import contract — `typeof` the root router has no other home (a package below `server` in the cake cannot reference this server value).
 export type AppRouter = typeof appRouter;
 
-// The server-side caller factory — `createCaller(ctx)` invokes a procedure through the full middleware
-// ladder without HTTP (the sanctioned tRPC seam for internal/server-side calls + the gate/router tests).
+/** Invokes a procedure through the full middleware ladder without HTTP. */
 export const createCaller = t.createCallerFactory(appRouter);

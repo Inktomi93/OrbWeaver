@@ -156,7 +156,7 @@ function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
   pos = endMacroPos + BRACE_LEN;
   const args = parseArgs(argStr);
   // Original source span of this tag (`{{name:one,two}}` exactly as typed) — carried on the node so
-  // unrecognized macros re-emit byte-identical text (review V10-10).
+  // unrecognized macros re-emit byte-identical text.
   const raw = text.slice(tagStart, endMacroPos + BRACE_LEN);
   return { nodes: [makeFlatNode(kind, name, args, raw)], pos, stop: false };
 }
@@ -172,8 +172,8 @@ export function parseMacros(text: string): MacroAST {
       break;
     }
 
-    // Literal-brace escape (review V10-11): a backslash immediately before `{{` makes the opener
-    // literal — `\{{char}}` renders as the text `{{char}}` (backslash consumed, macro not parsed).
+    // Literal-brace escape: a backslash immediately before `{{` makes the opener literal —
+    // `\{{char}}` renders as the text `{{char}}` (backslash consumed, macro not parsed).
     // This is the ONLY way to author a literal `{{registeredName}}`. `\\{{` is NOT treated as an
     // escaped backslash — the char before `{{` decides, keeping the rule one-character simple.
     //
