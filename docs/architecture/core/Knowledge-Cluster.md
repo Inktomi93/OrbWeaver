@@ -55,3 +55,6 @@ implementations with no owner.
 Recall semantics (the 5 modes, tiered bridge, witnessing, egocentric scoping, the two windows, host-only
 execution, trigger discipline) are carried in full by the `chat/memory` code headers
 (`recall/recall.ts` et al.) + ledger D55 — not restated here.
+
+`document_chunks` (the databank RAG table) exists in schema with ZERO writers today; when databank lands
+it must join `embeddings.store`'s single write path or gain an explicit carve-out here.

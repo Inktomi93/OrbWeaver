@@ -20,7 +20,7 @@ updated: 2026-07-03
 
 Each is enforced at its code site (a rung-4 comment and/or a named test); this list is the cross-package index.
 
-- **Credentials AAD** `` `${userId}|${provider}` `` byte-identical (else all GCM ciphertext fails). Single `aadFor()` site (`infra/crypto/secrets.ts`).
+- **Credentials AAD** `` `${userId}|${provider}` `` byte-identical (else all GCM ciphertext fails). Single `aadFor()` site (`domain/credentials/persistence/aad.ts`; `secrets.ts` only consumes it).
 - **`ResolvedCredential` brand** — constructable only after the owner check (`requireOwner` — owner-only box-cred mint, D17).
 - **`neutralizeMacros`** U+200B between the `{{` braces (`kit/guided` — macro re-injection defense).
 - **`globalMacroRegistry`** single-tenant singleton → vitest single-worker for macro tests.
@@ -28,7 +28,7 @@ Each is enforced at its code site (a rung-4 comment and/or a named test); this l
 - **PNG dual-chunk** (chara V2 + ccv3 V3, V2 first, before IEND), CRC-32 `0xedb88320` (`kit/png-card-chunk`).
 - **ST role bimap** `{0:system,1:user,2:assistant}` — ONE home, `kit/message-role` (D32).
 - **`scopedCharacterId=''` sentinel** — SUPERSEDED (D55: the shared bucket keys on a real synthetic-group `CharacterId`, never a sentinel; see `Tier-1-DB.md` esoteric #3) for the shared memory bucket (knowledge-cluster).
-- **Two-layer prototype-pollution defense** (schema superRefine + `deepMergeRequestBody` runtime check) — Layer 2 is the one unfinished dissolution row: `server/kit/custom-parameters` is a placeholder, tracked **PD-101**.
+- **Two-layer prototype-pollution defense COMPLETE** (PD-101 done 2026-07-05): schema `superRefine` (Layer 1) + `deepMergeRequestBody` runtime scrub (Layer 2, `server/kit/custom-parameters`).
 - **`parseNeoPresetFile` strict** vs `parsePromptConfig` lenient — both behaviors preserved.
 - **storedVersion (DB column) beats in-blob version probe** (versioned-config) — else lifts re-run and corrupt.
 - **Regex executor ordering**: macros run on the template before `$N` splice (captured model text never re-evaluated) — `kit/regex`.

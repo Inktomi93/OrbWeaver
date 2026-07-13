@@ -89,7 +89,7 @@ D44 gates, tokens → Tailwind `@theme`. **`@orb/client`** scaffold — the feat
 base site boots.
 
 **The D62 lane sequence (ledger D62; step-level detail lives in the D62 program docs:
-`proposed/ui-polish-punchlist.md` · `proposed/ux-flow-revamp.md` (J1–J12 + the parity map) ·
+`history/ui-polish-punchlist.md` · `history/ux-flow-revamp.md` (J1–J12 + the parity map) ·
 `history/design-enforcement.md`). The standing rules for every lane:** feature-slice ·
 surfaces/anchors · `state:files` · intent tokens · container-driven layout (`@media` only in
 app-shell) · Query (server) + gated Zustand (client) · Router minimal · `#` imports. Every lane
@@ -132,7 +132,7 @@ Phase-6 lane.**
    character detail card (J9; the editor is its own follow-on lane — `createSavedEntityForm`, with
    the retired FINAL-Character competition doc (yeeted under D66; git history has it) §7/§12 + the parity-map satellite dialogs riding it) · corpus
    interim search (J10) · the settings full-bleed overlay shell (J11 — Appearance pane migrates
-   first; **`proposed/connection-capability-panel.md`** lands as the Connections pane's
+   first; **(design set staged out-of-repo — see `../proposed/README.md`)** lands as the Connections pane's
    descriptor-driven params half when credentials UI arrives) · the interim theme picker
    (Hearth/Mocha/Light) — the full theme EDITOR rides **`history/themes-design.md`** (server
    `themes` entity + `createSavedEntityForm`) as a follow-on.
@@ -147,7 +147,7 @@ Phase-6 lane.**
    map) → **character EDITOR** (+ import UI over the built card parsers; tag management modal —
    server half: `history/tag-pending-review.md`) → **Connections** (Settings pane; D47 direct
    providers when built) → **Corpus hub** (search/insights/stats faces; the deferred verbs:
-   `proposed/discovery-deferred-corpus-surface.md` + `proposed/stats-discovery-seam.md` slot here)
+   (design set staged out-of-repo — see `../proposed/README.md`) slot here)
    → **gallery grids** (D49 — server built; `media-grid` exists) → **`/imagine` command surface**
    (composer wand item; D46 Tier-1) → **Refinery + Analytics** (their engines' phases). Import/
    export surface growth rides `history/export-import-portability.md` (§3 delivery core, §5 ST
@@ -181,11 +181,13 @@ teaching state, no modal ships a sparkle placeholder, and mobile reflows to the 
 
 **Remaining:**
 
-1. **`domain/tool-use`** (D48 → `proposed/tool-use-design/`, PD-54) — the ONE tool registry feeding BOTH wire projections (agent-sdk → MCP loop-internal; OpenAI-path → the chat-domain recurse loop, the open Phase-5 seam) + the structured-output (`response_format`) axis. Reconciles with the D46 `can()` plugin-capability surface (one registry, two sources).
-2. **databank / document-RAG** (D49 → `proposed/databank-design/`, PD-57) — a `documents` single-owned canon producer + per-type FK scope junctions + a derived `document_chunks` vector table + a `@orb/kit/chunk` chunker + a **db-free `infra/extraction`** loader (pdfjs/mammoth/epub) + a `search.documents` lens + a chat `{{databank}}` injection slot + scraper verbs. \~70% reuse of the embeddings/search substrate; v1 = global+chat scopes, owner/host-only retrieval, txt/md/pdf/html.
-3. **expressions** (D49 → `proposed/expressions-design/`, PD-56) — a `classify` provider role (v1 = `chat`-role shaper; v2 = a `local-light classify` role, D39 template) + a `character_sprites` model (`(characterId FK, label, assetId FK)`, owner DERIVED) + an `EXPRESSION_LABELS` tuple + a per-turn chat hook + a client render slot.
-4. **The D61 leaves** — **`domain/hub`** (remote card-hub browse/import + the gif proxy, over the B5a hardened-egress guard → `proposed/hub-browse-design/`) and **`domain/roster-preset`** (saved roster presets → `proposed/saved-rosters-design.md`). The D60 **agent-principal seat wave** (AP3+ — buddy adoption + rpg seats) also rides this band (`proposed/agent-principal-design/`, PD-17).
-5. **Standalone D47 server features** — **direct model providers** (native Anthropic/OpenAI/Google keys; the clean D39 source-add, `CRED_PROVIDERS` reserves the slots), **translate** (a request-shaper over the `chat` role), **standalone caption** (an ad-hoc vision verb; pairs with D45).
+1. **`domain/tool-use`** (D48 → design set staged out-of-repo — see `../proposed/README.md`, PD-54) — the ONE tool registry feeding BOTH wire projections (agent-sdk → MCP loop-internal; OpenAI-path → the chat-domain recurse loop, the open Phase-5 seam) + the structured-output (`response_format`) axis. Reconciles with the D46 `can()` plugin-capability surface (one registry, two sources).
+2. **databank / document-RAG** (D49 → design set staged out-of-repo — see `../proposed/README.md`, PD-57) — a `documents` single-owned canon producer + per-type FK scope junctions + a derived `document_chunks` vector table + a `@orb/kit/chunk` chunker + a **db-free `infra/extraction`** loader (pdfjs/mammoth/epub) + a `search.documents` lens + a chat `{{databank}}` injection slot + scraper verbs. \~70% reuse of the embeddings/search substrate; v1 = global+chat scopes, owner/host-only retrieval, txt/md/pdf/html.
+3. **expressions** (D49 → design set staged out-of-repo — see `../proposed/README.md`, PD-56) — a `classify` provider role (v1 = `chat`-role shaper; v2 = a `local-light classify` role, D39 template) + a `character_sprites` model (`(characterId FK, label, assetId FK)`, owner DERIVED) + an `EXPRESSION_LABELS` tuple + a per-turn chat hook + a client render slot.
+4. **The D61 leaf** — **`domain/roster-preset`** (saved roster presets → design set staged out-of-repo — see `../proposed/README.md`). The D60 **agent-principal seat wave** (AP3+ — buddy adoption + rpg seats) also rides this band (design set staged out-of-repo — see `../proposed/README.md`, PD-17).
+
+**BUILT:** **`domain/hub`** (remote card-hub browse/import + the gif proxy, over the B5a hardened-egress guard) landed per D61.
+5\. **Standalone D47 server features** — **direct model providers** (native Anthropic/OpenAI/Google keys; the clean D39 source-add, `CRED_PROVIDERS` reserves the slots), **translate** (a request-shaper over the `chat` role), **standalone caption** (an ad-hoc vision verb; pairs with D45).
 
 **✅ Checkpoint:** each domain's `.int`/`.contract` suites green; the gates green; chat surfaces the new blocks (tool-call records, databank injection) end-to-end.
 
@@ -193,8 +195,9 @@ teaching state, no modal ships a sparkle placeholder, and mobile reflows to the 
 
 ## Phase 8 — scripting / automation / plugin system (D46)
 
-> **Authoritative: ledger D46 + the design sets `proposed/automation-design/` (Tier 1) and
-> `proposed/plugin-design/` (Tier 2).** Built ON the Phase-5 born-compliant hooks (the two-plane
+> **Authoritative: ledger D46 + the design sets (design set staged out-of-repo — see
+> `../proposed/README.md`) (Tier 1) and (design set staged out-of-repo — see `../proposed/README.md`)
+> (Tier 2).** Built ON the Phase-5 born-compliant hooks (the two-plane
 > variables, the turn-initiator/budget axis, the `ChatBusEvent` bus, the clock/PRNG-injected eval path,
 > the `can()` capability axis). Committed in full — NOT a maybe.
 

@@ -15,12 +15,12 @@ updated: 2026-07-09
 >
 > **Triage 2026-07-09 — what is still ALIVE in this file (everything else is a landed record):**
 > **B1** (the ST-import data-port scripts — rides `history/export-import-portability.md` §5,
-> blocked:later) · **D1** (the `logAudit('WORKLOAD_FAILED')` terminal-failure emit — still open) ·
-> **D4** (`custom-byo contextWindow?` + the BYO response-mapping schema — still open, ships with the
-> BYO form) · **§E** (owned risks — permanent acceptance record, never "resolves"). D1/D4 have no PD
-> rows yet — mint them at the next debt-registry pass rather than re-discovering them here. The §"council
-> review" half is a dated historical record kept for its verdicts. Re-kinded law→reference (the live
-> law it carried was promoted long ago; what remains is a checklist record + four live rows).
+> blocked:later) · **D1** (the `logAudit('WORKLOAD_FAILED')` terminal-failure emit — LANDED, PD-113) ·
+> **D4** (the BYO response-mapping schema — still open, ships with the BYO form) · **§E** (owned risks —
+> permanent acceptance record, never "resolves"). D4's open half has no PD row yet — mint it at the next
+> debt-registry pass rather than re-discovering it here. The §"council review" half is a dated historical
+> record kept for its verdicts. Re-kinded law→reference (the live law it carried was promoted long ago;
+> what remains is a checklist record + four live rows).
 
 ## A. Before the first domain compiles — ALL LANDED
 
@@ -93,18 +93,15 @@ makes the key the ONLY recovery path; losing it is permanent — back it up alon
 
 ## D. Failure-surface + ops hardening
 
-- **D1. Fire-and-forget memory build failure surface** — PARTIAL. The `content_hash`-diff **catch-up
+- **D1. Fire-and-forget memory build failure surface** — LANDED. The `content_hash`-diff **catch-up
   sweep** (the event-bus reliability backstop) is built (`domain/embeddings` embed-corpus/embed-assets).
-  STILL OPEN: the `logAudit('WORKLOAD_FAILED', …)` ERROR emit on terminal-failed workloads (today the
-  failed row itself is the only trail) — without it a half-failed bulk import leaves cards invisible to
-  memory search with no signal.
+  The `logAudit('WORKLOAD_FAILED', …)` ERROR emit on terminal-failed workloads is built
+  (`domain/workloads/engine/runner.ts` emits on terminal runtime failure; tracked PD-113).
 - **D2. SSE subscription error-wrapper** — LANDED: `withSubscriptionErrors` (transport/trpc) wraps
   subscription generators with typed `{type:'error'}` frames + ERROR logging.
 - **D3. `VLLM_DISABLED=true` startup escape hatch** — LANDED (foundation env + compose).
-- **D4. `custom-byo contextWindow?`** — STILL OPEN: `CustomOpenAiCredential` has no `contextWindow`
-  field (fallback 128k), so a BYO 2M-context model is budgeted to 128k. The BYO **response-mapping
-  schema** (content/usage/finish/stream field map) also needs finalizing before the BYO form ships
-  (deferred, §E).
+- **D4. The BYO response-mapping schema** — STILL OPEN: the **response-mapping schema**
+  (content/usage/finish/stream field map) needs finalizing before the BYO form ships (deferred, §E).
 - **D5. Settings-reload observability** — LANDED as the `settings.updateAppSettings` audit row
   (metadata carries the full merged config, incl. `logLevel`) before `reloadEffectiveConfig`.
 

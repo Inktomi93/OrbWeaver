@@ -29,21 +29,32 @@ packages/server/src/entry/
 │                             + domain/sessions (resolve/validate/upsert) (per §7 D1)
 ├── boot/                     migrate.ts (backup → FK-off migrations → foreign_key_check) · seed-owner.ts ·
 │                             seed-credential.ts (env→DB-once) · seed-default-preset.ts ·
-│                             seed-default-characters.ts · reclaim-locks.ts
+│                             seed-default-characters.ts · seed-default-persona.ts (+ seed-default-persona-step.ts) ·
+│                             seed-themes.ts · seed-assets/ · reclaim-locks.ts
 ├── compose/                  THE COMPOSITION ROOT (non-auth wiring; no logic)
 │   ├── services.ts           constructs every domain service with its Context; the injection graph
 │   ├── chat.ts               the chat domain's slice of the graph
 │   ├── runner-env.ts         builds the WorkloadRunnerEnv bundle (crosses every feature — the one true hub)
 │   ├── event-bus.ts          the in-process typed event bus + subscriptions (embeddings indexer, …)
 │   ├── role-clients.ts       bindRoleClientsForUser — per-role connection.resolveRole (Tier-3b §"boot binder")
-│   └── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
+│   ├── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
+│   ├── buddy-observer.ts     wires the buddy domain's cross-feature observer
+│   ├── emit-character-updated.ts / emit-chat-changed.ts   cross-feature event-emit wiring
+│   ├── portability.ts        import/export composition wiring
+│   └── resolve-image-ref.ts  cross-feature image-ref resolution wiring
 ├── http/                     non-tRPC registrars (compose domain + infra + auth)
 │   ├── blob.ts               GET /blob/… (+ ?w=&f=webp variant transform via the infra/image op)
 │   ├── upload.ts             multipart asset + card-file import routes (delegates to import/run-profile-import — D3)
 │   ├── auth-routes.ts        OIDC/local mint handlers + cookie set/clear (the __Host- contract)
+│   ├── auth-meta.ts          auth-mode/capability discovery for the client
+│   ├── export.ts / import.ts  the bulk export/import HTTP registrars
+│   ├── join.ts               /join/:token invite-acceptance registrar
+│   ├── security-headers.ts   the response security-header registrar
 │   └── healthz.ts            liveness + credentials_key_mismatch / shutdown-503 signals
 └── import/run-profile-import.ts  the bulk-import composition driver (upload route + future import-st runner)
 ```
+
+Inventory lists are illustrative — the tree on disk is the truth.
 
 ## Runtime dependencies
 
@@ -58,14 +69,15 @@ Every cross-feature dependency is a **typed op declared in the consumer domain's
 
 ## Boot order
 
-1. **env** (`foundation/env`) — the one `process.env` read; `superRefine` boot-fatality per `AUTH_MODE`.
-2. **crypto** — initialize `SecretBox` (the `.credentials-key` auto-key path + the boot decrypt-probe).
+1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `core/Tier-3-Infra.md`).
+2. **env** (`foundation/env`) — the one `process.env` read; `superRefine` boot-fatality per `AUTH_MODE`.
 3. **migrate** — `backupBeforeMigrate` → migrations on an FK-off connection → `assertReferentialIntegrity`.
-4. **seed** — env→DB credential seed; default preset; default characters; `reclaimChatLocksOnBoot`.
-5. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the jobs worker poll loop.
-6. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
-7. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`), start listening; healthz goes live.
-8. **shutdown** — drain in-flight turns, stop supervisors, healthz → 503.
+4. **seed (pre-compose)** — env→DB credential seed; default preset/characters/persona/themes; `reclaimChatLocksOnBoot`.
+5. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
+6. **crypto decrypt-probe** — runs AFTER compose via `built.services.credentials.probeKeyDecrypt()` (`entry/lifecycle.ts` is the truth).
+7. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the jobs worker poll loop.
+8. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`), start listening; healthz goes live.
+9. **shutdown** — drain in-flight turns, stop supervisors, healthz → 503.
 
 ## Invariants
 

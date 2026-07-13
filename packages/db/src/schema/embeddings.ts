@@ -1,7 +1,8 @@
 // schema/embeddings — the vector substrate (producer: domain/embeddings; the ONE write path is
-// `embeddings.store`, the inserter is the domain — the SCHEMA is here). Five tables: character_embeddings
-// · image_embeddings · chat_digests · chat_segments · chat_digest_speakers (MOVED out of the neo
-// `search.ts` lie — the producer, not the consumer, names the schema file). Authoritative spec: the domain
+// `embeddings.store`, the inserter is the domain — the SCHEMA is here). Five primary vector tables:
+// character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks (MOVED out
+// of the neo `search.ts` lie — the producer, not the consumer, names the schema file; `chat_digest_speakers`
+// is a separate identity-keyed join, not a vector table). Authoritative spec: the domain
 // module (`packages/server/src/domain/embeddings/`) + `domains/memory.md` + `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
@@ -12,10 +13,10 @@
 //     images). Enforced downstream by the `vector-scope-derived` gate.
 //   • D28 — `character_versions` is GONE: `character_embeddings.characterId` FKs `characters.id` (the
 //     live card); there is NO `characterVersionId` on any table (was a chat-pinning artifact).
-//   • content_hash on ALL four primary tables (notNull) — the staleness gate (re-embed iff the hash
+//   • content_hash on ALL five primary tables (notNull) — the staleness gate (re-embed iff the hash
 //     changed) + the cross-chat collapse key (fork/import copies with identical content collapse to one
 //     hit). Replaces the neo `character_embeddings.sourceText` divergence.
-//   • hub_score on ALL four primary tables — the advisory-stale CSLS ranking signal. Written ONLY by
+//   • hub_score on ALL five primary tables — the advisory-stale CSLS ranking signal. Written ONLY by
 //     `discovery` via `embeddings.writeHubScores`, read by `search`. A vector write (`embeddings.store`)
 //     MUST NOT null it (the neo reset-in-3-places bug). It is nullable + never defaulted by a store.
 //   • The `(model, dim)` space tag on every row — `search`/`memory` compare ONLY within one space; the

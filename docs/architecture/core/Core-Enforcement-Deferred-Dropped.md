@@ -21,9 +21,9 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `assets-single-writer` | only `domain/assets` writes the assets table + `storeBlob` (the one CAS coherence site) | assets domain built (PRE-SCAFFOLD §A1) |
 | `asset-owner-gated` | assets are per-user (`assets.ownerId` + `unique(ownerId,hash)`); the `/blob/:hash` route resolves the caller (session cookie) + `fetchOwned` (or the roster-avatar membership exception) — NEVER serves on bare row-existence; `Cache-Control: private`; the CAS is per-user keyed (ledger D21 — "no leaks ever") | assets domain + blob route built |
 | `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
-| `dead-code` (knip) | unused exports / files / deps | **DEFERRED to \~4c–6** — knip false-fires now: `contracts`/`db`/`kit` export symbols the domains (4c), transport/entry (4d/4e), and client (6) don't consume yet (same reason `no-orphans` is set to `ignore`). When the consuming tiers land, adopt a workspace knip config seeded from neo's `.config/knip.json` (entry: routes / shadcn / provider barrels; ignore: CSS-only deps). |
+| `dead-code` (knip) | unused exports / files / deps | **PARTIALLY BUILT (2026-07-13)** — the workspace knip config (`knip.ts`) + `pnpm knip`/`knip:prod` scripts (`knip@^6.26.0`) landed; run on-demand, all issue types as errors. Remaining trigger: promote it to a failing gate in the check chain (`pnpm check`/CI). |
 | `api-surface` | public package-surface drift snapshot ("lock the surface") | packages export a stable surface |
-| `monotonic-tests` | test-count baseline only grows (behavior lock) | first real test suite + baseline file |
+| `monotonic-tests` | test-count baseline only grows (behavior lock) | BUILT (dormant) — activation = flip `status` in the gate descriptor; triggers: first real client test suite + committed baseline |
 | `suppressions` | `biome-ignore` count ratchet + audit (reasons are already biome-native) | post-Phase-1 baseline (count-down ratchet needs existing code) |
 | `provider-vocab` | provider-routing vocabulary has one home | connection domain built |
 | `env-natures` | settings "four natures" split, machine-locked | settings domain built |
@@ -32,10 +32,9 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `notifications-durable-first` | a notification is INSERTed in the membership-transition tx and fanned out only after commit (deliverable from the table alone); the stream uses the `chat.streamMessages` resume shape, never `buddy.stream` | notifications domain built |
 | `optimistic-chat` | client optimistic-update call-site invariants | **DROPPED 2026-07-07** — superseded by architecture-B (the `ChatHandle` discriminated union + the `startChat` carry-params). A draft is NOT an optimistic query-cache seed (`state/chat-handle.ts` rejected `isOptimistic`); it is a distinct `{kind:"draft"}` handle whose pre-send edits live in the `draft-config` store and ride `chat.startChat` carry-params at first send. ZERO `isOptimistic` call-sites to gate — the fully-editable-draft feature (greeting · overrides · roster · injections · group, all carried to commit) makes this gate's premise moot. |
 | `design-tokens` | design-token file shape (globals.css) | client styling built |
-| `state-files` | canonical store layout (zustand) | client state built |
 | `substrate-clean` | substrate/canonical cleanliness ratchet | client built |
 | `entity-editor` | entity-editor checklist ratchet | client entity editors built |
-| `audit-client-tests` | client test audit | client tests exist |
+| `audit-client-tests` | client test audit | BUILT (dormant) — activation = flip `status` in the gate descriptor; triggers: client tests exist |
 | `doc-tables` | docs ↔ code table-consistency | a docs-table convention is adopted |
 | `no-inline-union-redecl` (tuple-vs-tuple) | **UPGRADED (4b)**: the active gate now flags an inline union (any position, incl. interface property) OR a `z.enum([…])` literal array that re-spells an EXISTING canonical tuple's member set (the AUTH\_MODE class). Remaining: a 2nd `as const` TUPLE duplicating a 1st's members — doctrinally contested (distinct axes may legitimately share a member set, e.g. `REASONING_DISPLAY_MODES`/`THINKING_DISPLAYS`, ledger §5 vs D5), so left unbuilt pending that policy call. | decide the distinct-axis-vs-dup policy |
 | `dangling-refs` | prose pointers (paths/symbols) that lead nowhere | revisit (risk: doc-path refs); candidate post-Phase-1 |

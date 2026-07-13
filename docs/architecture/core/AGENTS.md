@@ -219,7 +219,7 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
 | Topic | Home |
 | - | - |
 | package cake · server tiers · 8-slot feature template · partitioning table · the 13 legibility gates | `Core-0-Architecture-and-Structure.md` |
-| the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
+| the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
 | build phases · checkpoints · stack + version pins | `Core-BUILD-PLAN.md` (§0 for the stack) |
 | build cursor / status | `Core-STATUS.md` |
 | planning + checklists | `Core-Planning-and-Checklists.md` |
@@ -236,7 +236,7 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
 | live debt registry | `Core-Audits-and-Debt.md` |
 | doc/comment law + markdown mechanics | `Documentation-Law.md` (this dir) · `Core-Docs-Formatting-Law.md` |
 | mission | `../../Mission.md` |
-| the domain re-audit protocol + running log | `../Parity-Audit-Protocol.md` |
+| the neo→orb parity-audit record (campaign complete, protocol retired) | `../history/neo-orb-parity-audit.md` |
 | structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (scripts/codemods/ast.ts — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `scripts/codemods/codemod-kit.ts`. Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
 | the ONE active program doc | `../proposed/README.md` (D66 rule: one at a time; currently `ui-cohesion-north-star.md`) — unbuilt design sets are staged OUT of the repo, see that README |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |

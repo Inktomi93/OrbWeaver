@@ -47,7 +47,7 @@ interfaces — matches structure §7.4), `noExcessiveCognitiveComplexity: 15`, `
 for `packages/client/**` (`info/warn/error` ok in the browser until a client logger lands) and turned
 off for `scripts/**` + `tests/**` (console is their output channel).
 
-## Layer 2 — GritQL plugins (`tools/grit/`, 35 active)
+## Layer 2 — GritQL plugins (`tools/grit/`, 37 active)
 
 AST patterns Biome rules can't express. Node matchers are **PascalCase** (`JsDecorator()`,
 `JsxAttribute()`). The count is the `biome.json` `plugins` array (the `!**/*.grit` ignore entry is not a
@@ -69,14 +69,17 @@ plugin); full list + rationale in `tools/grit/README.md`.
 - **D44 containment trio (3):** no-untrusted-html-in-main-dom, no-external-media-without-gate,
   theme-override-only-via-scope.
 - **kit (1):** no-manual-token-estimate (`.length / 4` hand-rolled token estimates → `@orb/kit/tokens`).
+- **Misc bans (2):** no-arbitrary-tw-values (the className-arm Tailwind arbitrary-value ban — distinct
+  from the same-named Layer-3 structural gate), no-raw-matchmedia (raw `matchMedia()` ban).
 
 Client belts are LIVE now but fire only once client code lands.
 
 ## Layer 3 — Structural gates (`scripts/check/`, ts-morph + fs)
 
 Layout: `harness.ts` (Project loader + Violation runner) and `report.ts` (registry) at the root;
-each gate is one module in `gates/`. Add a gate by dropping it in `gates/` and listing it in
-`report.ts`. All are lenient on absent code (vacuously pass on the placeholder tree, activate as code
+each gate is one module in `gates/`. Add a gate by exporting a valid `gate` descriptor in `gates/` —
+the loader (`report.ts`'s `loadGates()`) discovers and registers it: glob → validate descriptor →
+run, fail-closed on an invalid descriptor. All are lenient on absent code (vacuously pass on the placeholder tree, activate as code
 lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives the gate registry from
 `report.ts` and asserts every gate fires on a fixture (a broken AST query can't silently pass; anti-drift).
 
@@ -129,7 +132,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `registry-pairing` | the RAIL registry (`rail-slots.ts`) and its sibling `MODAL_SLOTS` bodies (`modal-slots.tsx`) are a bijection on modal ids — every trigger has a body, every body has a reachable trigger | new | | |
 | `modal-body-not-placeholder` | a `MODAL_SLOTS` body whose `render` still returns `<SectionPlaceholder>` must carry an explicit `placeholder: true` flag — an unbuilt modal can't ship silently | new | | |
 | `placeholder-copy-registry` | every `SECTION_PLACEHOLDER_COPY` entry's `(title, description)` pair is DISTINCT — kills the "three sections share one string" silent-duplicate case | new | | |
-| `enforcement-registry-parity` | this doc's declared registered-gate COUNT + Layer-3 ACTIVE table must agree with `report.ts`'s `ALL_CHECKS` (both directions), and every `scripts/check/gates/*.ts` file must be registered or DORMANT — the meta-gate that promotes `check-gates.int.test.ts`'s anti-drift assertion to every `pnpm check` | new (2026-07-09) | | |
+| `enforcement-registry-parity` | this doc's declared registered-gate COUNT + Layer-3 ACTIVE/DORMANT tables must agree with the DISCOVERED gate descriptors' `status` fields (both directions) — reconciles the doc against `loadGates()`'s discovered set, not an `ALL_CHECKS` array — the meta-gate that promotes `check-gates.int.test.ts`'s anti-drift assertion to every `pnpm check` | new (2026-07-09) | | |
 | `no-array-literal-querykey` | a `queryKey:` property whose value is an inline array literal anywhere in `packages/client/src` is RED — client query keys are 100% tRPC-proxy-derived (`.queryKey()`/`.queryFilter()`/`.pathFilter()`), §11.1; the data/ factory passthroughs are identifiers, never literals, so they pass | new (2026-07-09, client-foundation) | | |
 | `no-inline-invalidate-outside-seam` | `.invalidateQueries(` may be called ONLY in `data/invalidation.ts` (the central seam); everything else routes `invalidate(event)`/`invalidateFilters`. Tighter than the Layer-2 grit `client-cache-surgery-only-in-data` (which allows all of `data/`) — §11.3 | new (2026-07-09, client-foundation) | | |
 | `bus-onData-no-store-write` | a raw `.setState(` inside a `data/bus/*` subscription `onData`/`onConnectionStateChange` body is RED — the seam buffers through the chatStream api + routes to the invalidation seam, never a second store (§11.1); the reducer-body twin of the import-side grit `chat-stream-writes-in-bus-only` | new (2026-07-09, client-foundation) | | |
@@ -154,7 +157,8 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `verify-registry-parity` | UNIFIED-VERIFICATION-DESIGN.md §3.6 — every `package.json` script matching the verification shape (`check*`/`test*`/`lint*`/`typecheck*`/`depcruise*`/`e2e*`/`cpd*`/`format*`) must be reachable from the `pnpm verify` stage registry (`scripts/verify/registry.ts`): either it IS a registry stage's `pnpm <script>` argv, or it is a writer/artifact-generator on the gate's `NON_STAGE_ALLOWLIST` (lint:fix, format(:docs), depcruise:graph/focus/reaches, cpd:report, the verify/check hosts). The mirror arm: every registry stage's whole-scope `pnpm <script>` argv must name a real package.json script (a dead row is RED). Makes a "forgotten script" — one added to package.json without a tier — a structural violation | new (2026-07-12, V4) | | |
 | `tsconfig-routing-parity` | TSC-INCREMENTAL-PERFILE.md §2.2 — the file→tsconfig routing algebra (`scripts/verify/selection.ts` `staticPrograms`, which scopes `verify --file/--changed`'s type lanes to the OWNING program(s)) must match each program's REAL root membership. For every present tsconfig (the root graph + 6 package configs) the gate reads its resolved `files` via `tsgo --showConfig` (the include/files expansion, pre-import-closure) and reconciles both directions: a file a program ROOTS that the algebra doesn't predict is RED (forward), and a file the algebra routes to a program that doesn't root it is RED (mirror). A wrong route type-checks a file against the WRONG program (or skips it) → a FALSE GREEN at `verify --file` (the four shipped bugs — tests/client tsx → graph not client; ct-data-providers → ui not client; vite.config → no program; tests/ui tsx → graph not ui — are exactly this class). GREEN today | new (2026-07-12) | | |
 
-The table mirrors `scripts/check/report.ts` (71 registered gates); `report.ts` is the runtime truth.
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (71 registered gates);
+the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
 cross-cutting property suite `tests/server/domain/chat/solo-byte-identical.suite.int.test.ts`: two
@@ -162,14 +166,15 @@ identically-shaped roster-of-one chats (untouched-solo config vs fully group-con
 round each through the REAL engine and the wire request + persisted canon must be BYTE-identical
 (D16 "solo is a group of one"; the behavioral half of the `no-if-is-group` grit).
 
-### Layer 3 — DORMANT structural gates (built + self-tested, deliberately NOT in `ALL_CHECKS`)
+### Layer 3 — DORMANT structural gates (built + self-tested, deliberately `status:"dormant"`)
 
 These gate files exist in `scripts/check/gates/` and each carries its own `tests/tooling/` self-test
-proving it fires, but are held out of `report.ts`'s `ALL_CHECKS` by decision (each finds real debt whose
-backfill rides a later wave, or gates a construct that doesn't exist yet — keeping them off preserves
-green-to-commit without hiding the debt). Activation is a one-line `ALL_CHECKS` add. **Ground truth:** the
-`DORMANT_GATES` set in `tests/tooling/check-gates.int.test.ts` (a gate is DORMANT iff it's there / absent
-from `ALL_CHECKS`).
+proving it fires, but their descriptor's `status` field is `"dormant"` by decision — `report.ts`'s
+`loadGates()`/`runPass` filters to active descriptors only (each finds real debt whose backfill rides
+a later wave, or gates a construct that doesn't exist yet — keeping them off preserves green-to-commit
+without hiding the debt). Activation is flipping the descriptor's `status` field to `"active"`. The
+`DORMANT_GATES` set in `tests/tooling/check-gates.int.test.ts` is a mirror of this, not ground truth —
+the descriptor's `status` field is ground truth.
 
 | Gate | Enforces | Activation trigger |
 | - | - | - |
@@ -183,18 +188,24 @@ keeping `corpus`); tracked inline in `client-structure.ts`'s `RESERVED` comment 
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 
-The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 35 rules:
-the 6-package cake (kit←contracts←db←server←client, + `@orb/ui` between contracts and client), server tier direction
+The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 45 rules
+(43 error + 1 warn + 1 ignore): the 6-package cake (kit←contracts←db←server←client, + `@orb/ui` between contracts and client), server tier direction
 (entry→transport→domain→infra→foundation→kit), kit-purity + kit/ui no-node-builtins, infra-no-db, foundation-reaches-up-to-nothing,
 drivers-through-domain, domain isolation (no-cross-feature/-verb/-subsystem + front-door + substrate
 mediation), the client rules (feature front-door, no-cross-feature, no-backend-runtime, the `@orb/ui`
 satellite seals — D42/D52 physics), providers public-surface + strategy-isolation + vllm-surface-isolation + the transitive credential firewall
-(openrouter ↛ agent-sdk), persistence-no-io, stats-no-vector-tables, and `not-to-dev-dep` (prod `packages/*/src` must not import a
-pure devDependency — restored from neo; `recommended-strict` omits it). Every rule is **pinned by
+(openrouter ↛ agent-sdk), persistence-no-io, stats-no-vector-tables, `not-to-dev-dep` (prod `packages/*/src` must not import a
+pure devDependency — restored from neo; `recommended-strict` omits it), and `no-orphans` (severity
+`warn`, re-enabled 2026-07-13 — a module nothing imports; `knip` is the deep authority, this is a
+cheap graph-level smell). Every rule is **pinned by
 `tests/tooling/dependency-cruiser.int.test.ts`** (derives the rule set from the config, fires each on a
 fixture — anti-drift). The full feature set (err-long, mermaid graph, `--focus`/`--reaches`/`--affected`)
 
 - deliberate non-adoptions are documented in the config header.
+
+`pnpm knip` / `pnpm knip:prod` (`knip.ts` config, all issue types as errors) is the on-demand
+dead-code/dead-export/dead-dependency lane — not in `pnpm check` yet (promotion tracked in
+`Core-Enforcement-Deferred-Dropped.md`).
 
 ## Layer 5 — jscpd (`jscpd.json`) — copy-paste detection
 

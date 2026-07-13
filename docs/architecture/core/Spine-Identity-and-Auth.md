@@ -20,7 +20,7 @@ Identity resolves ONCE at the edge into one immutable `Principal` (`@orb/contrac
 
 The numbered invariants (code comments cite these as "invariant #n"):
 
-1. **One mint.** `entry/auth/seam.ts` is the only module that constructs a `Principal` — the request seam plus its offline frozen-host bridge `createHostPrincipalResolver` (PD-73).
+1. **One mint.** `entry/auth/seam.ts` is the only module that mints a `Principal` FROM A REQUEST; entry-tier composition/lifecycle code mints synthetic SYSTEM Principals (`entry/compose/role-clients.ts`, `entry/lifecycle.ts` boot-seed, `entry/compose/chat.ts` host-ops, `entry/compose/services.ts`) — and NO `domain/` code ever constructs one.
 2. **Resolve once.** Everything below the seam reads `Principal.userId`; nothing re-resolves or re-queries identity.
 3. **`ResolvedIdentity` carries NO `userId` and NO `role`.** Infra must not know DB row ids; the seam adds them.
 4. **`MODE_RESOLVERS` is exhaustive** over `AuthConfig["mode"]` (mapped-type `Record` — a new `AUTH_MODES` member fails `tsc`).
@@ -45,6 +45,10 @@ The sanctioned `Principal`/credential construction + cookie sites — everything
 - `entry/auth/seam.ts` — the mint (all three request paths: cookie via `sessions.validate` → header SSO upsert → origin-gated owner fallback) + the frozen-host bridge.
 - `entry/http/auth-routes.ts` — the `__Host-orb_session` cookie WRITE side (mints session tokens via `domain/sessions`; never re-implements resolution).
 - `entry/boot/seed-owner.ts` — the one-time boot-only `role=owner` backfill for `OWNER_HANDLES` (the chicken-egg: no owner `Principal` exists at boot to call the guarded `admin.setRole`).
+- `entry/compose/role-clients.ts` — mints a synthetic owner `Principal` to bind the boot-time role-clients bundle.
+- `entry/lifecycle.ts` — mints a synthetic owner `Principal` for the boot-seed steps (default preset/characters/persona).
+- `entry/compose/chat.ts` — the frozen-host bridge (`resolveHostPrincipal`/`hostPrincipal`) mints synthetic Principals for role-irrelevant and owner-gated host-ops when no request `Principal` exists.
+- `entry/compose/services.ts` — wires `createHostPrincipalResolver` + agent-principal provisioning, minting synthetic Principals for the same offline host-ops seam.
 
 ## 4. Agents are first-class principals (D60)
 

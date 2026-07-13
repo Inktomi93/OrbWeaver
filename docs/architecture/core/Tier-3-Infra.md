@@ -31,6 +31,8 @@ The db-free Strategy executor turning request `Headers` into a pre-row `Resolved
 ### `infra/network` — raw fetch adapters + the SSRF/edge belts
 
 - **`openai-models.ts`** — `fetchOpenAiModels` against a USER-supplied endpoint; best-effort (any failure → `[]`, redacted log, never throws). Routes through `safeFetch` (NOT raw fetch) so the response-side controls + per-hop redirect re-validation apply to the user-supplied `baseUrl`.
+- **`gif-search.ts`** — the Tenor adapter for the `/imagine`-adjacent gif search; routes through `safeFetch`.
+- **`image-guard.ts`** — the image-fetch guard (size/content-type/redirect belts) over `safeFetch`, consumed by avatar-by-URL and hub-import image fetches.
 - **`egress.ts`** — `installEgressFirewall()` (called as the first boot step in `entry/lifecycle.ts`): swaps undici's global dispatcher for one with TWO gates — (1) a DNS lookup that rejects private/loopback/Tailscale *resolved* addresses and hands the resolved address straight to connect (closing the DNS-rebind TOCTOU), AND (2) a connector-level pre-check that rejects a private **IP-literal** target (v4/v6, bracket-tolerant) before the socket opens — because undici only invokes the lookup for hostnames needing DNS, so an IP-literal target would otherwise bypass gate 1 (every practical SSRF vector uses an IP literal). Plus `safeFetch` — the defense-in-depth wrapper for user-supplied-URL features (first consumers: `fetchImageBytes`, `fetchOpenAiModels`): size cap, content-type allowlist, redirect cap with per-hop re-validation, forwarded headers, single-use body guard.
 - **The ingress IP allowlist** (`ingress.ts`) — `ipAllowlistMiddleware(cidrs)` + `clientIp(c)` (peer-vs-XFF trust precedence), mounted by `entry/app.ts`.
 - **`ip-ranges.ts`** — the pure CIDR matcher all belts + the auth origin gate share.
@@ -108,4 +110,4 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 ## Open decisions
 
 - **`ip-ranges.ts` / `host.ts` — infra substrate vs `@orb/kit/net`.** Both are isomorphic-pure, but every consumer is infra. Kept infra-local until a client consumer appears (the code comments cite this deferral).
-- **`safeFetch`** stays a staged unwired seam; wire it on the first avatar-by-URL/webhook feature.
+- **`safeFetch`** is wired; consumers today = `infra/network/gif-search.ts` (Tenor adapter), `image-guard.ts`, `openai-models.ts`.

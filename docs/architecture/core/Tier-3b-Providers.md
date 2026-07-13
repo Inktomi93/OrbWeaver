@@ -18,7 +18,7 @@ The infra **execution layer** — the sealed inference backends behind the role 
 ## What this tier owns
 
 - **The role dispatchers** (`roles/`) — one thin dispatcher per role + `dispatch.ts` (`deriveRunner(api, source)` → `BackendKey`; `requireBackend`/`requireRoleImpl`) + `firewall.ts` (`assertCredentialAllowed` — role×source×consent policy). Chat/agent derive the backend from `{api, source}`; the non-chat roles dispatch on `credential.source`. Every switch is `assertNever`-exhaustive; invalid pairings fail-closed with a typed `ProviderError`.
-- **The sealed backends** (`backends/`) — `openrouter` (stateless chat-completions/responses + embed/rerank/image runners + catalog/account/probe), `agent-sdk` (STATEFUL — the Max sub + the OR-Anthropic skin + agent mode; owns its session-as-canon-derived-cache internally in `session/`), `custom-byo` (raw-fetch to a user-wired endpoint, FULLY user-declared — see Esoteric §10), `local-light` (D39 — keyless in-process transformers.js/ONNX, CPU+CUDA; serves ONLY embed/rerank/imageEmbed), and the shared pure `backends/kit/` (openai-compat reducer/mapper, cache-control, reasoning-budget, wire-schemas, error-classify, retry, idle-timeout, sanitize, history).
+- **The sealed backends** (`backends/`) — `openrouter` (stateless chat-completions/responses + embed/rerank/image runners + catalog/account/probe), `agent-sdk` (STATEFUL — the Max sub + the OR-Anthropic skin + agent mode; owns its session-as-canon-derived-cache internally in `session/`), `anth-direct` (D67 — the direct Anthropic-Messages backend, reached only through the `openrouter` source in v1), `custom-byo` (raw-fetch to a user-wired endpoint, FULLY user-declared — see Esoteric §10), `local-light` (D39 — keyless in-process transformers.js/ONNX, CPU+CUDA; serves ONLY embed/rerank/imageEmbed), and the shared pure `backends/kit/` (openai-compat reducer/mapper, cache-control, reasoning-budget, wire-schemas, error-classify, retry, idle-timeout, sanitize, history).
 - **The agent-sdk credential firewall** (`backends/agent-sdk/env.ts`) — the per-turn env builders, the `RESERVED_CLAUDE_ENV_KEYS` denylist, the ephemeral `CLAUDE_CONFIG_DIR` symlink-isolation, the isolation/cost pins. Security-load-bearing, rebuilt every turn (Esoteric §1).
 - **The vLLM local engine** (`vllm/`) — its own multi-role subsystem: `engine/` (supervisor lifecycle: adopt/spawn/death-couple/breaker/health/orphan-reap; status + control registries; the loopback client; gpu detect) + `surfaces/` (independent chat/embed/rerank/image-embed/summarize registrations). The remote backends serve chat; vLLM serves five roles — that asymmetry is why it is its own engine, not a chat-backend peer.
 - **`resolve-chat.ts`** — the `(UserIntent × ModelCapability) → wire knobs` funnel. Needs the wire-quirk knowledge (the XORs, the adaptive/budget guard) so it stays infra; it READS the injected `ModelCapability` (connection produced it) and never authors it.
@@ -42,6 +42,8 @@ infra/providers/
 │   ├── openrouter/     runners/{chat,embed,rerank,image} · client · catalog · account · probe · credential-guard
 │   ├── agent-sdk/      env.ts (THE credential firewall) · runner · agent-runner · translate · types ·
 │   │                   verify · verify-auth · session/ (SessionStore + seed/reseed frames — backend-internal)
+│   ├── anth-direct/    the direct Anthropic-Messages backend (D67; reached only via the `openrouter`
+│   │                   source in v1)
 │   ├── custom-byo/     runners/chat · inspect (the "Test endpoint" inspector)
 │   ├── local-light/    embed · rerank · image-embed · model-cache (D39; no chat surface)
 │   └── kit/            shared infra-pure wire helpers (the strategy-isolation seam)
@@ -101,7 +103,7 @@ The OR catalog parse and the chat/responses wire schemas (`backends/kit/wire-sch
 
 ### §7.5 — the sealed dispatch axes
 
-- **`BackendKey` (`openrouter | agent-sdk | vllm | custom-openai | local-light`)** — derived inside via `deriveRunner(api, source)` / `backendForSource`; never leaves the tier (`ResolvedConnection` carries `backend`-opaque vocab, never `runner`/`family`).
+- **`BackendKey` (`openrouter | agent-sdk | anth-direct | vllm | custom-openai | local-light`)** — derived inside via `deriveRunner(api, source)` / `backendForSource`; never leaves the tier (`ResolvedConnection` carries `backend`-opaque vocab, never `runner`/`family`).
 - **`credential.source`** — the non-chat dispatchers switch on it; unsupported pairings throw typed. `local-light` serves the three derive roles only (its backend simply lacks the other methods; `requireRoleImpl` throws typed not-supported).
 - Adding a backend = the source arm + the runner arm + the credential arm simultaneously; `assertNever` makes a missed arm a `tsc` error. *Gates: `providers-runner-seal`, `infra-strategy-isolation`, `vllm-surface-isolation`, `providers-public-surface-only`.*
 
