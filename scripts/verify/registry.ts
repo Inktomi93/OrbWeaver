@@ -182,6 +182,31 @@ export const REGISTRY: readonly StageDef[] = [
     classify: asViolations,
     // vitest typecheck is one program — whole-only, deferred at a scoped tier.
   },
+  {
+    name: "types:tests-dom",
+    group: "types",
+    tiers: STATIC,
+    argv: ["pnpm", "typecheck:tests-dom"],
+    classify: asViolations,
+    // The DOM-libbed home (tsconfig.tests-dom.json) for DOM-COUPLED NON-`.tsx` tests: a `.ts` test that
+    // can't be a `.tsx` (the int lane is `.ts`-only) but drags a DOM barrel — the root graph `exclude`s it
+    // and no `*.tsx` reach-back claims it, so WITHOUT this program it is type-checked by nothing. Tiny (one
+    // small `include`) — whole-only, deferred at a scoped tier; the tests-type-membership stage guards that
+    // every such escapee is actually listed here.
+  },
+  {
+    name: "types:tests-membership",
+    group: "types",
+    tiers: STATIC,
+    argv: ["pnpm", "check:tests-membership"],
+    // Our OWN 0/1/2/3-speaking tsx script (scripts/verify/tests-type-membership.ts): reconciles every
+    // tests/** + playwright/** TS file against the union of every type program's import closure and REDs
+    // (exit 1) on any file in ZERO programs — the structural floor that makes "silently un-type-checked
+    // test" impossible. `--listFilesOnly` = module resolution only, so it stays cheap.
+    classify: ownScheme,
+    // A WHOLE-TREE invariant (it reconciles the entire test surface against every program) — whole-only,
+    // deferred at a scoped tier, like the other cross-file registry/parity reconciliations.
+  },
 
   // ── structure stage-group (the ts-morph single-pass gates) ──
   {
