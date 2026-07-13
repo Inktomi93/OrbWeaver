@@ -117,6 +117,9 @@ function PromptTab({
           if (selected !== undefined) {
             return (
               <SectionBodyEditor
+                // Keyed by section id so the body REMOUNTS on a section swap — the tri-state `mode` is
+                // seeded once via useState, so a swap without a remount would strand a stale mode.
+                key={selected.id}
                 form={form}
                 section={selected}
                 index={index}
