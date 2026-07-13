@@ -151,7 +151,7 @@ A full-read audit of all 41 docs (6 agents, every doc end-to-end) surfaced cross
 
 Cite as `Core-Laws-and-Precedents.md §7 Dxx` or `Core-Path-Registry.md Dxx`. D-numbers are stable global ids — grep the id.
 
-- **D1–D66** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — THE registry, one file (merged 2026-07-13, D66); grep the D-number.
+- **D1–D67** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — THE registry, one file (merged 2026-07-13, D66); grep the D-number.
 - **D65** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — OIDC group-derived roles (extends D17)
 
 ## Enforcement registry

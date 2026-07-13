@@ -4,9 +4,9 @@ status: active
 updated: 2026-07-13
 ---
 
-# Orbweaver — Path/Home Registry (D1–D66)
+# Orbweaver — Path/Home Registry (D1–D67)
 
-> THE decision registry — every ledger ruling D1–D66, one file (merged from the range files 2026-07-13, D66; each entry is a STANDING RULING per `Documentation-Law.md` §Ledger-entry style). Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. `Core-Laws-and-Precedents.md` remains the master (its §7 points here); on any conflict the ledger wins over every other doc.
+> THE decision registry — every ledger ruling D1–D67, one file (merged from the range files 2026-07-13, D66; each entry is a STANDING RULING per `Documentation-Law.md` §Ledger-entry style). Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. `Core-Laws-and-Precedents.md` remains the master (its §7 points here); on any conflict the ledger wins over every other doc.
 
 ## D1-D34
 
@@ -214,3 +214,7 @@ updated: 2026-07-13
   focus-ring cluster, micro-caps voice) STANDS. Presets remain a rail section (settles the
   presets-placement question ux-flow L7 was pending on; Connections goes to Settings per J11).
   (Nate — chose Chats as the north star + full doc consolidation over minimal, 2026-07-13.)
+
+## D67
+
+- **D67** — `anth-direct` is the direct Anthropic-Messages backend: sealed at `infra/providers/backends/anth-direct/`, a sixth `BACKEND_KEYS` member, reached ONLY through the `openrouter` credential source in v1 (no new `CRED_SOURCES` member; the source→backend fork happens at dispatch). Coexists with the agent-sdk path — it serves the direct-API turn shape where the SDK's session model doesn't fit. *(Ledger note: this entry was RECONSTRUCTED 2026-07-13 from the built code + its `D67` self-citations — the originating capability-turn-shaping design left the repo before its ledger entry landed. If the staged design set returns, reconcile it against this entry; the owner has not re-ratified details beyond what the code enforces.)*
