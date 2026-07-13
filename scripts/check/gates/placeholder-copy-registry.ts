@@ -64,7 +64,7 @@ function checkFile(sf: SourceFile, out: Violation[]): void {
         message:
           `SECTION_PLACEHOLDER_COPY entry "${prop.getName()}" has the SAME (title, description) as ` +
           `"${firstOwner}" — every section's placeholder must be DISTINCT (the "all sections look ` +
-          'identical" root cause). Give it its own copy per docs/architecture/proposed/ux-flow-revamp.md J10.',
+          'identical" root cause). Give it its own copy per docs/architecture/history/ux-flow-revamp.md J10.',
       });
       continue;
     }
