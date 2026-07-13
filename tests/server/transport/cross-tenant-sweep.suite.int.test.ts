@@ -502,6 +502,12 @@ const PROBES: readonly Probe[] = [
     path: "invites.revokeInvite",
     call: (c, i) => c.invites.revokeInvite({ chatId: i.chatId, inviteId: FAKE.inviteId }),
   },
+  // Host-only outstanding-invites read (requireHost → requireParticipant miss = leak-free NOT_FOUND for a
+  // non-member stranger, exactly like createInvite/revokeInvite).
+  {
+    path: "invites.listInvites",
+    call: (c, i) => c.invites.listInvites({ chatId: i.chatId }),
+  },
   {
     path: "invites.declineInvite",
     call: (c) => c.invites.declineInvite({ inviteId: FAKE.inviteId }),
