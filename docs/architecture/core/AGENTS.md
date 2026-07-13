@@ -220,7 +220,7 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
 | - | - |
 | package cake · server tiers · 8-slot feature template · partitioning table · the 13 legibility gates | `Core-0-Architecture-and-Structure.md` |
 | the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
-| build phases · checkpoints · stack + version pins | `Core-BUILD-PLAN.md` (§0 for the stack) |
+| build phases · checkpoints · stack + version pins | `Core-BUILD-PLAN.md` (version pins: the pnpm catalog) |
 | build cursor / status | `Core-STATUS.md` |
 | planning + checklists | `Core-Planning-and-Checklists.md` |
 | identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ the agent-principal design set, staged out-of-repo, D60) |
