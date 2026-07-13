@@ -394,6 +394,8 @@ export const gate: GateDescriptor = {
       }
     }
   },
+  // NOTE: the ALLOWLIST ratchet/stale arms are guarded to the real full tree — their coverage moves to
+  // the live `pnpm check:structure` run. Only the pure FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <div style={{ borderRadius: "8px" }} />;\n',
@@ -404,6 +406,17 @@ export const gate: GateDescriptor = {
       files: 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "8px";\n}\n',
       at: "packages/ui/src/primitives/demo/demo.ts",
       why: "an imperative `.style.x = 'raw'` assignment — the second carrier the class gates can't see",
+    },
+    {
+      files: 'export const G = <div style={{ color: "#fff" }} />;\n',
+      at: "packages/client/src/features/demo/components/hex.tsx",
+      why: "a raw hex color in a JSX inline style — a token-backed color axis written off-token",
+    },
+    {
+      files:
+        'export function f(el: HTMLElement): void {\n  el.style.setProperty("gap", "12px");\n}\n',
+      at: "packages/ui/src/primitives/demo/setprop.ts",
+      why: "an imperative `.style.setProperty('gap','12px')` — the third carrier, a token-backed spacing axis",
     },
   ],
   mustPass: [
@@ -416,6 +429,22 @@ export const gate: GateDescriptor = {
       files: 'export const G = <div style={{ left: "8px" }} />;\n',
       at: "packages/client/src/features/demo/components/np.tsx",
       why: "a non-token property (left) is out of scope — this gate owns only tokens.json's axes",
+    },
+    {
+      files:
+        'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "var(--radius-card)";\n}\n',
+      at: "packages/ui/src/primitives/demo/imp-var.ts",
+      why: "an imperative `.style.x = 'var(--…)'` is on-token (just inline) — passes",
+    },
+    {
+      files: "export const G = <div style={{ margin: 0 }} />;\n",
+      at: "packages/client/src/features/demo/components/zero.tsx",
+      why: "a bare `0` no-op inline value is not a magic value — passes",
+    },
+    {
+      files: "export const G = ({ r }: { r: string }) => <div style={{ borderRadius: r }} />;\n",
+      at: "packages/client/src/features/demo/components/dynamic.tsx",
+      why: "a DYNAMIC inline value (identifier) is conservatively not chased — passes",
     },
   ],
 };

@@ -274,6 +274,30 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "must carry a pointer" },
       why: "a gate `message:` with no doc/code-home pointer — the amnesiac agent gets a dead-end 'no'",
     },
+    {
+      // a message resolved ONE level through a same-file const — the pointerless const still fires.
+      files: {
+        "scripts/check/gates/x.ts":
+          'const MESSAGE = "no home for this rule";\nexport const gate = { message: MESSAGE };\n',
+      },
+      expect: { messageIncludes: "must carry a pointer" },
+      why: "a `message:` resolved through a same-file const is checked — a pointerless const fires",
+    },
+    {
+      // a `const MSG` object-table string value (the shorthand-`{ message }` idiom).
+      files: {
+        "scripts/check/gates/x.ts":
+          'const MSG = { verb: "bare table diagnostic" } as const;\nexport const use = MSG.verb;\n',
+      },
+      expect: { messageIncludes: "must carry a pointer" },
+      why: "a pointerless value in a `const MSG` object table fires (the shorthand-`{ message }` idiom)",
+    },
+    {
+      // grit register_diagnostic message with no pointer — the grit arm (fs-scanned).
+      files: { "tools/grit/bad.grit": 'message="bare grit diagnostic"\n' },
+      expect: { messageIncludes: "must carry a pointer" },
+      why: "a grit `register_diagnostic` message with no pointer fires (the grit arm)",
+    },
   ],
   mustPass: [
     {
@@ -282,6 +306,19 @@ export const gate: GateDescriptor = {
           'export const gate = { message: "the fix lives in packages/ui/src/x.ts" };\n',
       },
       why: "a gate message carrying a concrete code-home pointer (packages/…/x.ts) — a navigable next step, passes",
+    },
+    {
+      // a `// terse-ok:` marker on the line above the message escapes the gate.
+      files: {
+        "scripts/check/gates/terse.ts":
+          'export const gate = {\n  // terse-ok: fix is fully self-contained, no doc covers it\n  message: "just do the obvious thing",\n};\n',
+      },
+      why: "a `// terse-ok:` marker on the line above the message is the sanctioned escape — passes",
+    },
+    {
+      // a grit message carrying a *.md pointer is clean.
+      files: { "tools/grit/good.grit": 'message="fix it. See Foo.md §1."\n' },
+      why: "a grit message carrying a *.md pointer is a navigable next step — passes",
     },
   ],
 };

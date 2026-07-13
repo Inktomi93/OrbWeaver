@@ -327,12 +327,63 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "D18" },
       why: "chats.ownerId — the ledger DROPPED it (D18, chats are membership-scoped)",
     },
+    {
+      files: 'export const t = sqliteTable("messages", { content: text("content") });\n',
+      at: "packages/db/src/schema/message.ts",
+      expect: { messageIncludes: "D26" },
+      why: "a messages economics column (content) — messages is a pure slot (D26)",
+    },
+    {
+      files:
+        'export const t = sqliteTable("chats", { activePresetId: text("active_preset_id") });\n',
+      at: "packages/db/src/schema/chat.ts",
+      expect: { messageIncludes: "D58" },
+      why: "a chats.*presetId* column-pattern — never bind a preset to a chat (D58)",
+    },
+    {
+      files: 'export const t = sqliteTable("character_versions", { id: text("id") });\n',
+      at: "packages/db/src/schema/character.ts",
+      expect: { messageIncludes: "D28" },
+      why: "a character_versions table — the card is a flat characters row (D28)",
+    },
+    {
+      files: "export interface Principal {\n  userId: string;\n  kind: string;\n}\n",
+      at: "packages/contracts/src/identity/index.ts",
+      expect: { messageIncludes: "D60" },
+      why: "a `kind` field on Principal — agents are structurally Principal-less (D60)",
+    },
+    {
+      files:
+        "export const appSettingsSchema = z.object({\n  guidedActions: z.array(z.string()),\n});\n",
+      at: "packages/contracts/src/settings/index.ts",
+      expect: { messageIncludes: "D33" },
+      why: "appSettingsSchema.guidedActions — a neo phantom; guided actions live only on the preset (D33)",
+    },
+    {
+      files: 'import { X } from "@orb/contracts/sessions";\nexport const y = 1;\n',
+      at: "packages/server/src/x.ts",
+      expect: { messageIncludes: "D12" },
+      why: "an @orb/contracts/sessions import — the namespace is `session` singular (D12)",
+    },
   ],
   mustPass: [
     {
       files: 'export const chats = sqliteTable("chats", { title: text("title") });\n',
       at: "packages/db/src/schema/chat.ts",
       why: "a chats table with only a non-banned column — no rejected shape, passes",
+    },
+    {
+      // born-compliant across every arm: chats/messages slots, a kind-less Principal, singular session.
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'export const c = sqliteTable("chats", { id: text("id"), hostUserId: text("host_user_id") });\n' +
+          'export const m = sqliteTable("messages", { id: text("id"), role: text("role") });\n',
+        "packages/contracts/src/identity/index.ts":
+          "export interface Principal {\n  userId: string;\n  role: string;\n}\n",
+        "packages/server/src/x.ts":
+          'import { X } from "@orb/contracts/session";\nexport const y = 1;\n',
+      },
+      why: "born-compliant shapes across every arm (slots, kind-less Principal, singular session import) — passes",
     },
   ],
 };

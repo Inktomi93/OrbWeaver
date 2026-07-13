@@ -239,11 +239,20 @@ export const gate: GateDescriptor = {
       why: "a NEW ownerId on a table not on the D23 allowlist — a redundant ownership doubling",
     },
   ],
+  // NOTE: the OWNERID_ALLOWLIST stale/ratchet arm (a listed table with no ownerId anywhere) is
+  // `fileLoaded`-guarded to the real schema barrel — its coverage moves to the live `pnpm check:structure`
+  // run. Only the pure FLAG/PASS branches port as examples below.
   mustPass: [
     {
       files: 'export const t = sqliteTable("characters", { ownerId: text("owner_id") });\n',
       at: "packages/db/src/schema/character.ts",
       why: "characters is a D23 TRUE PRODUCER on the allowlist — a sanctioned ownerId, passes",
+    },
+    {
+      // a table with no ownerId column is not stamped — ignored.
+      files: 'export const t = sqliteTable("chats", { id: text("id").primaryKey() });\n',
+      at: "packages/db/src/schema/chat.ts",
+      why: "a table with no ownerId column is not an ownership stamp — ignored, passes",
     },
   ],
 };

@@ -169,6 +169,12 @@ export const gate: GateDescriptor = {
       ctx.report(finding);
     }
   },
+  // NOTE: the BASELINE-BUDGET ratchet arms (a file AT its baseline passes; EXCEEDING REDs only the excess;
+  // a regenerate-baseline shift) need an INJECTED baseline via createNoTestFabrication — the conformance
+  // runner cannot inject one (an in-memory example has no baseline.json), so those arms are not expressible
+  // as examples. Their coverage is retained in tests/tooling/no-test-fabrication.residual.test.ts (the
+  // baseline arithmetic) + the live `pnpm check:structure` run (the real baseline.json). Only the pure
+  // detection FLAG/PASS branches (budget 0) port as examples below.
   mustFlag: [
     {
       files: "export const x = {} as unknown as { a: number };\n",
@@ -176,12 +182,46 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "double-cast" },
       why: "an `X as unknown as Y` double-cast in a test with no baseline budget — a fabrication (W1h)",
     },
+    {
+      files: "export const b = { n: 1 } as Widget;\n",
+      at: "tests/tooling/lit.test.ts",
+      expect: { messageIncludes: "literal" },
+      why: "an object-literal `as Y` (Y not const/any/unknown) — a hand-shaped literal asserted complete",
+    },
+    {
+      files: "export const c = [1, 2] as Widget[];\n",
+      at: "tests/tooling/arr.test.ts",
+      expect: { messageIncludes: "literal" },
+      why: "an array-literal `as Y[]` — the same fabrication shape",
+    },
   ],
   mustPass: [
     {
       files: "export const x = { a: 1 } satisfies { a: number };\n",
       at: "tests/tooling/y.test.ts",
       why: "`satisfies Y` re-checks the literal on every change — the sanctioned shape, passes",
+    },
+    {
+      files:
+        "export const a = { n: 1 } as const;\nexport const b = { n: 1 } as unknown;\nexport const c = [1] as any;\n",
+      at: "tests/tooling/exempt.test.ts",
+      why: "`as const`/`as unknown`/`as any` are the exempt cast types — passes",
+    },
+    {
+      files: "export const b = { n: 1 } as Widget; // FABRICATION-OK: invalid-input probe\n",
+      at: "tests/tooling/escape-same.test.ts",
+      why: "a `// FABRICATION-OK` comment on the SAME line exempts the deliberate-fabrication site — passes",
+    },
+    {
+      files:
+        "// FABRICATION-OK: negative-space never-cast\nexport const a = {} as unknown as Widget;\n",
+      at: "tests/tooling/escape-above.test.ts",
+      why: "a `// FABRICATION-OK` comment on the line ABOVE exempts the site — passes",
+    },
+    {
+      files: "export const a = {} as unknown as { n: number };\n",
+      at: "packages/server/src/domain/widget/x.ts",
+      why: "scope: a fabrication cast OUTSIDE tests/ is not gated here — passes",
     },
   ],
 };

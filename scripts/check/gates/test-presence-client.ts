@@ -211,6 +211,14 @@ export const gate: GateDescriptor = {
       },
       why: "a logic-bearing client data hook with no mirror test — an untested surface (§5)",
     },
+    {
+      // clause B: a ui-logic module with NO test anywhere in its mirror dir.
+      files: {
+        "packages/ui/src/markdown/policy.ts": "export function build(): number {\n  return 1;\n}\n",
+      },
+      expect: { messageIncludes: "non-primitive @orb/ui logic module" },
+      why: "clause B: a ui-logic module (markdown/policy) with no test in its mirror dir — fires (dir-level)",
+    },
   ],
   mustPass: [
     {
@@ -219,6 +227,41 @@ export const gate: GateDescriptor = {
         "tests/client/data/use-thing.test.ts": "export const t = 1;\n",
       },
       why: "the hook has its mirror .test.ts — presence satisfied, passes",
+    },
+    {
+      // clause A: a file with no callable export (plain value / barrel) is naturally skipped.
+      files: {
+        "packages/client/src/data/constants.ts": "export const X = 1;\n",
+      },
+      why: "clause A: a file with NO callable export (plain value) is not a logic surface — passes",
+    },
+    {
+      // clause A: the nested buckets (data/bus, forms/bound-fields) are excluded.
+      files: {
+        "packages/client/src/data/bus/apply-chat-bus-event.ts":
+          "export function build(): number {\n  return 1;\n}\n",
+        "packages/client/src/forms/bound-fields/text-field.tsx":
+          "export function build(): number {\n  return 1;\n}\n",
+      },
+      why: "clause A: nested buckets (data/bus, forms/bound-fields) are deliberately excluded — passes",
+    },
+    {
+      // clause B dir-level: a sibling test (different basename) in the mirror dir satisfies presence.
+      files: {
+        "packages/ui/src/markdown/policy.ts": "export function build(): number {\n  return 1;\n}\n",
+        "packages/ui/src/markdown/to-plain-text.ts":
+          "export function build(): number {\n  return 1;\n}\n",
+        "tests/ui/markdown/markdown.ct.tsx": "export {};\n",
+      },
+      why: "clause B dir-level: a sibling test (different basename) in the mirror dir satisfies presence — passes",
+    },
+    {
+      // bare primitives/ are covered by ui-primitive-structure's CT clause — not scanned here.
+      files: {
+        "packages/ui/src/primitives/button/button.tsx":
+          "export function build(): number {\n  return 1;\n}\n",
+      },
+      why: "bare primitives/ are covered by ui-primitive-structure's CT clause — not scanned here, passes",
     },
   ],
 };

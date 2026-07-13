@@ -242,12 +242,28 @@ export const gate: GateDescriptor = {
       why: "a `*Id` text column with no .references() FK, not on the allowlist — a banned soft ref (D24)",
     },
   ],
+  // NOTE: the SOFT_REF_ALLOWLIST stale/ratchet arm (a listed pair that gains an FK or vanishes) is
+  // `fileLoaded`-guarded to the real schema barrel — its coverage moves to the live `pnpm check:structure`
+  // run. Only the pure FLAG/PASS branches port as examples below.
   mustPass: [
     {
       files:
         'export const t = sqliteTable("t", { widgetId: text("widget_id").references(() => w.id) });\n',
       at: "packages/db/src/schema/y.ts",
       why: "the `*Id` column carries a .references() FK — a typed ref, passes",
+    },
+    {
+      // an allowlisted no-FK id column (audit_logs.entityId — the sole D24 soft ref) passes.
+      files: 'export const t = sqliteTable("audit_logs", { entityId: text("entity_id") });\n',
+      at: "packages/db/src/schema/audit.ts",
+      why: "an allowlisted no-FK id column (audit_logs.entityId, the sole D24 soft ref) passes",
+    },
+    {
+      // a primary-key id + a non-id column are not soft refs.
+      files:
+        'export const t = sqliteTable("t", { id: text("id").primaryKey(), name: text("name") });\n',
+      at: "packages/db/src/schema/z.ts",
+      why: "a primary-key id and a non-id column are not id-shaped soft refs — passes",
     },
   ],
 };

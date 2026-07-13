@@ -158,6 +158,26 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "no test in its domain tree invokes" },
       why: "a Service verb (uncoveredVerb) with no test invocation in the domain tree — a dead-wired verb",
     },
+    {
+      // a longer identifier ending in the verb name (rebuild vs build) is NOT boundary-anchored coverage.
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts":
+          "export interface HubService {\n  readonly build: () => void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "await rebuild({ id: 1 });\n",
+      },
+      expect: { messageIncludes: "hub.build" },
+      why: "a bare call to a LONGER identifier ending in the verb name (rebuild) does not count as coverage",
+    },
+    {
+      // MethodSignature members (not just readonly-arrow properties) are enumerated as verbs.
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts":
+          "export interface HubService {\n  save(): void;\n}\n",
+        "tests/server/domain/hub/x.test.ts": "export const q = 'nothing';\n",
+      },
+      expect: { messageIncludes: "hub.save" },
+      why: "a MethodSignature member is enumerated as a verb too — flags when uncovered",
+    },
   ],
   mustPass: [
     {
@@ -167,6 +187,33 @@ export const gate: GateDescriptor = {
         "tests/server/domain/hub/x.test.ts": "export const q = coveredVerb();\n",
       },
       why: "the verb is invoked (`coveredVerb(`) in the domain test tree — covered, passes",
+    },
+    {
+      // covered only by its create<Verb>( factory (the alias-invoked closure shape).
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts":
+          "export interface HubService {\n  readonly build: () => void;\n}\n",
+        "tests/server/domain/hub/build.int.test.ts":
+          "const run = createBuild({ db });\nawait run();\n",
+      },
+      why: "a verb covered only by its create<Verb>( factory (alias-invoked) is covered — passes",
+    },
+    {
+      // a DEFERRED entry (discovery.themes) suppresses its RED — the tracked W1i backlog.
+      files: {
+        "packages/server/src/domain/discovery/contract/service.ts":
+          "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
+      },
+      why: "a DEFERRED verb (discovery.themes) is a tracked gap — suppressed, passes",
+    },
+    {
+      // *ServiceDeps (a DI bundle) + non-Service interfaces are not the verb surface.
+      files: {
+        "packages/server/src/domain/hub/contract/service.ts":
+          "export interface HubServiceDeps {\n  readonly build: () => void;\n}\n" +
+          "export interface HubContext {\n  readonly wipe: () => void;\n}\n",
+      },
+      why: "*ServiceDeps and non-Service interfaces are ignored — only the verb surface counts, passes",
     },
   ],
 };

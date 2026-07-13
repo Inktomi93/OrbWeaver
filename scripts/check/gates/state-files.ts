@@ -222,6 +222,28 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/state/grab-bag.ts",
       why: "two store-minting calls in one file — the grab-bag store smell §5 forbids (one store per file)",
     },
+    {
+      // rule 2: >10 top-level fields in the initializer object literal.
+      files:
+        'const useX = createGatedStore("x", () => ({ f0: 0, f1: 0, f2: 0, f3: 0, f4: 0, f5: 0, f6: 0, f7: 0, f8: 0, f9: 0, f10: 0 }));\nexport const v = () => useX();\n',
+      at: "packages/client/src/state/big.ts",
+      expect: { messageIncludes: "top-level fields" },
+      why: "rule 2: a store initializer with 11 top-level fields — past the ≤10 cap, split it",
+    },
+    {
+      // rule 3: an exported minted store handle escaping its module.
+      files: 'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+      at: "packages/client/src/state/leak.ts",
+      expect: { messageIncludes: "minted store handle is exported" },
+      why: "rule 3: an exported minted store handle — never expose raw set/getState across a module boundary",
+    },
+    {
+      // rule 3: the wrapped create<T>()(...) application form is caught too.
+      files: "export const s = create<{ n: number }>()(() => ({ n: 0 }));\n",
+      at: "packages/client/src/state/wrapped.ts",
+      expect: { messageIncludes: "minted store handle is exported" },
+      why: "rule 3: a wrapped exported handle (create<T>()(...) application form) is caught too",
+    },
   ],
   mustPass: [
     {
@@ -229,6 +251,25 @@ export const gate: GateDescriptor = {
         "declare const create: (f: () => unknown) => unknown;\nconst useOne = create(() => ({}));\n",
       at: "packages/client/src/state/one.ts",
       why: "one mint, handle NOT exported, small initializer — the sanctioned single-store shape, passes",
+    },
+    {
+      // rule 2 boundary: exactly 10 fields passes (the cap is >10).
+      files:
+        'const useX = createGatedStore("x", () => ({ f0: 0, f1: 0, f2: 0, f3: 0, f4: 0, f5: 0, f6: 0, f7: 0, f8: 0, f9: 0 }));\nexport const v = () => useX();\n',
+      at: "packages/client/src/state/edge.ts",
+      why: "rule 2 boundary: exactly 10 fields is at the cap (cap is >10) — passes",
+    },
+    {
+      // scope: nested state buckets + index.ts + non-state files are not the flat store tier.
+      files: {
+        "packages/client/src/state/sub/nested.ts":
+          'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+        "packages/client/src/state/index.ts":
+          'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+        "packages/client/src/data/x.ts":
+          'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+      },
+      why: "scope: nested state buckets + index.ts barrel + non-state files are out of the flat tier — passes",
     },
   ],
 };

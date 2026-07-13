@@ -80,5 +80,16 @@ export const gate: GateDescriptor = {
       at: "packages/db/src/schema/y.ts",
       why: "an imported contracts tuple identifier — the sanctioned derive-from-one-home idiom, passes",
     },
+    {
+      files:
+        'const KINDS = ["text", "reasoning"] as const satisfies readonly string[];\nexport const t = sqliteTable("t", { k: text("k", { enum: KINDS }) });\n',
+      at: "packages/db/src/schema/z.ts",
+      why: "a local `as const satisfies` tuple identifier — the sanctioned db idiom where no z-schema home exists",
+    },
+    {
+      files: 'export const t = sqliteTable("t", { k: text("k", { enum: ["a", "b"] }) });\n',
+      at: "packages/server/src/x.ts",
+      why: "scope: an inline enum config OUTSIDE the schema dir is not a drizzle column config — not scanned",
+    },
   ],
 };

@@ -74,5 +74,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/infra/auth/modes/notes.ts",
       why: "the `// NO userId` invariant comments + string mentions DOCUMENT the ban — AST identifiers only",
     },
+    {
+      files: "export function f(userId: string) {}\n",
+      at: "packages/server/src/domain/sessions/verbs/validate.ts",
+      why: "scope: the same identifier OUTSIDE infra/auth (a domain sessions.validate) is legal — passes",
+    },
   ],
 };
