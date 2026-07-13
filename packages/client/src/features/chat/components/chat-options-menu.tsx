@@ -1,3 +1,7 @@
+// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react
+// re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph fine (the
+// shell-topbar.tsx precedent).
+
 // The chat OPTIONS menu (⋯) — the J3 identity header's chat-level action cluster (ux-flow-revamp J6; NT
 // `chat-options-menu.tsx` parity). Registry-shaped over ALREADY-BUILT verbs + store actions, so later
 // features enter as ROWS, not rework. Unbuilt NT items (per-chat persona, similar chats, persistent
@@ -17,8 +21,18 @@
 import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the chat-list-row-menu.tsx precedent).
-import { Icon, Images, MessagesSquare, MoreHorizontal, Pencil, Trash2, X } from "@orb/ui/icons";
+import {
+  Crown,
+  Icon,
+  Images,
+  LogOut,
+  MessagesSquare,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  UserPlus,
+  X,
+} from "@orb/ui/icons";
 import {
   Menu,
   MenuItem,
@@ -43,6 +57,8 @@ import {
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { useGuidedActions } from "../hooks/use-guided-actions";
+import { useSelfLeave } from "../hooks/use-membership-mutations";
+import { InviteDialog } from "./invite-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 
 /** One character in the chat's cast — id + resolved display name (seeds the per-character gallery entry). */
@@ -68,6 +84,9 @@ export interface ChatOptionsMenuProps {
   readonly characters: readonly ChatOptionsCastMember[];
   /** Whether the viewer is the host — gates the Preview-request jump (host-only server-side). */
   readonly isHost: boolean;
+  /** `/api/auth/config.multiHumanCapable` (route→header-threaded, PD-106) — gates the membership rows
+   *  (Invite people… / Hand off host… / Leave chat); single-user installs render NONE of them. */
+  readonly multiHumanCapable?: boolean;
 }
 
 /** The ⋯ chat-options menu for the active chat's identity header. */
@@ -76,16 +95,20 @@ export function ChatOptionsMenu({
   title,
   characters,
   isHost,
+  multiHumanCapable = false,
 }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   const deleteChat = useDeleteChat({ trpc, invalidation });
+  const selfLeave = useSelfLeave({ trpc, invalidation });
   const guided = useGuidedActions({ handle: committedChat(chatId) });
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [galleryFor, setGalleryFor] = useState<ChatOptionsCastMember | null>(null);
 
   const characterIds = characters.map((c) => c.characterId);
@@ -102,6 +125,16 @@ export function ChatOptionsMenu({
     const trimmed = renameValue.trim();
     updateTitle.mutate({ chatId, title: trimmed === "" ? null : trimmed });
     setRenameOpen(false);
+  };
+  const confirmLeave = (): void => {
+    void (async (): Promise<void> => {
+      try {
+        await selfLeave.mutateAsync({ chatId });
+        goToLanding(); // the departed viewer's room would 404 — leave it (FINAL-Chats §8.3).
+      } catch {
+        // The mutation's own `errorToast` already surfaced it; stay in the chat.
+      }
+    })();
   };
   const confirmDelete = (): void => {
     void (async (): Promise<void> => {
@@ -178,6 +211,28 @@ export function ChatOptionsMenu({
           </MenuSubmenuRoot>
 
           <MenuSeparator />
+          {/* The §8 membership rows (FINAL-Chats §6.1) — capability-gated (PD-106) + authority-mirrored:
+              Invite/Hand-off are host rows; Leave chat is the MEMBER row (a host leaves from their own
+              Members row, where the archive consequence is spelled out — §8.3). */}
+          {isHost && multiHumanCapable ? (
+            <MenuItem onClick={(): void => setInviteOpen(true)}>
+              <Icon icon={UserPlus} size="sm" />
+              Invite people…
+            </MenuItem>
+          ) : null}
+          {isHost && multiHumanCapable ? (
+            <MenuItem onClick={(): void => openContextTab("members")}>
+              <Icon icon={Crown} size="sm" />
+              Hand off host…
+            </MenuItem>
+          ) : null}
+          {!isHost && multiHumanCapable ? (
+            <MenuItem onClick={(): void => setLeaveOpen(true)}>
+              <Icon icon={LogOut} size="sm" />
+              Leave chat
+            </MenuItem>
+          ) : null}
+          {multiHumanCapable ? <MenuSeparator /> : null}
           <MenuItem onClick={enterSelectionMode}>Select messages…</MenuItem>
           <MenuItem onClick={(): void => openContextTab("overrides")}>Chat overrides…</MenuItem>
           {isHost ? (
@@ -209,6 +264,21 @@ export function ChatOptionsMenu({
         onValueChange={setRenameValue}
         onSave={saveRename}
       />
+
+      {/* Leave — outward-facing membership change → an explicit confirm (never an undo-toast). */}
+      <ConfirmDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        title="Leave this chat?"
+        description="You'll lose access until someone invites you again. Your messages stay."
+        confirmLabel="Leave"
+        onConfirm={confirmLeave}
+      />
+
+      {/* Invite people… — the §8.2 mint dialog (host; a component owns the Dialog root). */}
+      {isHost && multiHumanCapable ? (
+        <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} />
+      ) : null}
 
       {/* Delete — a hard, non-reversible cascade → an explicit confirm (never an undo-toast). */}
       <ConfirmDialog

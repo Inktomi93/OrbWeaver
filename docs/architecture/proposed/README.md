@@ -19,7 +19,10 @@ decision DIGESTS proved zero-code-cited and were CO-LOCATED into their sets (own
 `tool-use-design/tool-use.md` · `automation-design/automation.md` · `databank-design/databank.md` ·
 `expressions-design/expressions.md` (basenames kept — prose citing "the digest `x.md`" stays true).
 `gallery.md` + `gallery-design.md` retired to `../history/` (2026-07-11) — gallery v1/v2 + gif
-search/import all landed; see `history/gallery.md`. Any future move: run the citation-shaped sweep
+search/import all landed; see `history/gallery.md`. `prompt-manager/BUILD-SPEC.md` (THE ASSEMBLY)
+retired to `history/prompt-manager.md` (2026-07-12) — all phases built inside `features/preset/`,
+audited + dual-verified (verifier + live side-eye), all findings fixed (`5dc9dc05`, `62ea35d8`); the
+code is the doc now. Any future move: run the citation-shaped sweep
 first (`grep -rnE '<name>\.md|proposed/<name>|<name> §'` over
 packages/scripts/tests/config), and treat a bare-word count as noise. THIS README is the
 organization; §0 below is the dispatch order.
@@ -165,7 +168,7 @@ exactly this). Current: `FINAL-Character-Library-and-Editor-UX.md` (in build) ·
 | - | - | - | - |
 | Capability-complete turn & wire shaping — the UNIFIED program: `ModelCapability.turns` (prefill/mid-conv-system/role-handling floor/explicit cache + per-model `cacheMinTokens`) + the role-merge prefix-cache fix + the SHAPE-clamped user role-handling knob (**D66**) · the anth-direct backend (paid-key-only, TOOL-LESS, additive; official `@anthropic-ai/sdk`; v1 rides the existing `openrouter` source; THE SUB-EXCLUSION + the extended ambient-credential belt; the `cli`/`direct` transport axis) (**D67**) · sampling completeness (minP end-to-end, verbosity live on the responses wire, per-model direct-transport Claude sampling) (**D68**) — all proposed | [`capability-turn-shaping/`](capability-turn-shaping/README.md) (a 4-part set: 01 capability-model · 02 anth-direct · 03 sampling · 04 migration+ledger; absorbed the former `anth-direct-backend/` 2026-07-10) | `draft` (ratification-ready; honor matrix + OR-key SDK path wire-tested 2026-07-10; adversarial review applied 2026-07-10) | ratify D66+D67+D68 together (part 04 §2), then the part-04 §1 waves in order: W1 contracts+resolver (incl. the api-threading fix) → W2 sampling → … — server-side, unblocked, ZERO new credential; the client picker/panels are W10 |
 | Descriptor-driven params panel + `quality` dial mapping | [`connection-capability-panel.md`](connection-capability-panel.md) | deferred:no-client-surface | the client params panel build |
-| `PresetFormValues` + mapper elimination | [`preset-form-mapper-elimination.md`](preset-form-mapper-elimination.md) | deferred:no-client-surface | the preset editor build (criterion: TanStack binds every nested path) |
+| `PresetFormValues` + mapper elimination | [`history/preset-form-mapper-elimination.md`](../history/preset-form-mapper-elimination.md) | built (retired 2026-07-12) | DONE — mappers deleted, editor direct-binds the nested `PromptConfig`; code is the doc |
 
 (`character-snapshot-ux.md` was RETIRED at the 2026-07-09 triage — both of its open questions are
 answered by `FINAL-Character-Library-and-Editor-UX.md` §7 History + §12 FIX #3.)

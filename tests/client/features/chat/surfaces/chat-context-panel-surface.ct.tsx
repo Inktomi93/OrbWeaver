@@ -1,8 +1,10 @@
-// CT: the chat CONTEXT panel (task #28 — overrides · preview · injections). Drives the production path
-// over the stubbed network (routeTrpc): `chat.getChat` supplies the roster (the host gate) + the current
-// room overrides; `chat.listChatInjections` + `chat.previewAssembly` feed the tabs. Asserts the host vs
-// member split (member loses the Preview tab and edits nothing), the preview trace render, an injection
-// add, and an override save (autosave → setRoomOverrides).
+// CT: the chat CONTEXT panel (task #28 + the §7.1 Members merge — members · overrides · group ·
+// preview · injections). Drives the production path over the stubbed network (routeTrpc):
+// `chat.getChat` supplies the roster (the host gate + the Members rows) + the current room overrides;
+// `chat.listChatInjections` + `chat.previewAssembly` feed the tabs; `invites.*` feeds the mint dialog.
+// Asserts the host vs member split (member loses the Preview tab and edits nothing), the Members tab
+// gates + default-tab rule, the invite dialog wire, the preview trace render, an injection add, and an
+// override save (autosave → setRoomOverrides).
 //
 // The roster stub returns only what the panel reads (`viewerIsHost` — the server-resolved, per-viewer
 // host gate every tab now shares; `participants` for the D16 group size-gate; `roomOverrides` for the
@@ -13,6 +15,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatContextPanelStory } from "../_ct-stories";
 
+const NATE_HOST_RE = /Nate — host/u;
+const BUDDY_MEMBER_RE = /Buddy — member/u;
+
 // A human seat in the room — `role` seats a host/member (the roster shape); the surface's host gate is
 // the separate server-resolved `viewerIsHost` field, NOT this seat's role. The rest is filler the panel
 // ignores.
@@ -20,10 +25,21 @@ function human(role: "host" | "member"): Record<string, unknown> {
   return { kind: "human", role, userId: "user_ct", characterId: null };
 }
 
-// A character seat — only the fields `resolveIsGroupChat` reads (kind/characterId), same shape as
-// chat-cast-bar.ct's fixture (the identical roster filter both surfaces share).
+// A character seat — the fields `resolveIsGroupChat` AND the Members Cast rows read (the §7.1 merge
+// projects displayName/disabled/talkativeness/avatarHash into `MemberCastRow`s).
 function character(key: string): Record<string, unknown> {
-  return { kind: "character", userId: null, characterId: `character_${key}`, role: "member" };
+  return {
+    id: `participant_${key}`,
+    kind: "character",
+    userId: null,
+    characterId: `character_${key}`,
+    role: "member",
+    displayName: key.charAt(0).toUpperCase() + key.slice(1),
+    disabled: false,
+    talkativeness: 0.5,
+    avatarHash: null,
+    leftSeq: null,
+  };
 }
 
 // `role` seats the viewer's OWN human row AND sets the server-resolved `viewerIsHost` to match — the
@@ -118,7 +134,7 @@ test("host sees all three tabs (Overrides · Preview · Injections)", async ({ m
   await expect(component.getByRole("tab", { name: "Injections" })).toBeVisible();
 });
 
-test("host in a SOLO (1-character) chat sees no Roster tab (D16 size-gate)", async ({
+test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", async ({
   mount,
   page,
 }) => {
@@ -130,13 +146,16 @@ test("host in a SOLO (1-character) chat sees no Roster tab (D16 size-gate)", asy
 
   const component = await mount(<ChatContextPanelStory />);
 
-  // Preview stays (host-only, not group-gated); Roster is hidden — mute/talkativeness/force-turn are
-  // meaningless for one character (mirrors ChatCastBar's identical solo size-gate).
+  // Preview stays (host-only, not group-gated); Members is hidden — the Cast section needs ≥2
+  // characters and the People section needs a multi-human install with >1 human (§7).
   await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Roster" })).toHaveCount(0);
+  await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
 });
 
-test("host in a GROUP (2-character) chat sees the Roster tab", async ({ mount, page }) => {
+test("host in a GROUP (2-character) chat sees the Members tab AND it is the default tab (§7)", async ({
+  mount,
+  page,
+}) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host", {}, [character("aria"), character("bryn")]),
     "chat.listChatInjections": () => [],
@@ -145,10 +164,16 @@ test("host in a GROUP (2-character) chat sees the Roster tab", async ({ mount, p
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "Roster" })).toBeVisible();
+  const members = component.getByRole("tab", { name: "Members" });
+  await expect(members).toBeVisible();
+  // The §7 ONE rule: with no tab requested, a group composition opens to Members.
+  await expect(members).toHaveAttribute("aria-selected", "true");
+  // The Cast rows render with the row contract's accessible names.
+  await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Bryn — character" })).toBeVisible();
 });
 
-test("NOT multi-human capable → no People tab at all (single-user renders no invite surface)", async ({
+test("NOT multi-human capable → no People section anywhere (single-user renders no invite surface)", async ({
   mount,
   page,
 }) => {
@@ -162,10 +187,11 @@ test("NOT multi-human capable → no People tab at all (single-user renders no i
   const component = await mount(<ChatContextPanelStory />);
 
   await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "People" })).toHaveCount(0);
+  // One character + one human, no capability ⇒ no Members tab at all (both sections empty).
+  await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
 });
 
-test("capable HOST: People lists the humans (host badge) and invite-by-handle fires createInvite", async ({
+test("capable HOST: Members lists the humans (host chip) and the invite dialog mints by handle", async ({
   mount,
   page,
 }) => {
@@ -177,6 +203,7 @@ test("capable HOST: People lists the humans (host badge) and invite-by-handle fi
       ]),
     "chat.listChatInjections": () => [],
     "chat.previewAssembly": () => PREVIEW,
+    "invites.listInvites": () => [],
     "invites.createInvite": () => ({
       invite: { id: "chatinvite_ct_new", status: "pending" },
       token: "tok_ct_minted",
@@ -184,18 +211,21 @@ test("capable HOST: People lists the humans (host badge) and invite-by-handle fi
   });
 
   const component = await mount(<ChatContextPanelStory multiHumanCapable={true} />);
-  await component.getByRole("tab", { name: "People" }).click();
+  await component.getByRole("tab", { name: "Members" }).click();
 
-  // The humans section — people differentiated from the seated cast, host crowned.
-  const panel = page.getByTestId("people-panel");
-  await expect(panel.getByText("Nate", { exact: false })).toBeVisible();
-  await expect(panel.getByText("Buddy", { exact: false })).toBeVisible();
-  await expect(panel.getByText("Host", { exact: true })).toBeVisible();
+  // The People section — humans differentiated from the seated cast, host crowned; the server
+  // `viewerIsHost:true` also means the viewer's own seat carries the "you" marker on Nate's row.
+  const panel = page.getByTestId("members-panel");
+  await expect(panel.getByRole("button", { name: NATE_HOST_RE })).toBeVisible();
+  await expect(panel.getByRole("button", { name: BUDDY_MEMBER_RE })).toBeVisible();
 
-  // The host's invite affordances: targeted-by-handle + the copy-link mint.
-  await expect(page.getByTestId("invite-copy-link")).toBeVisible();
-  await page.getByTestId("invite-handle-input").fill("frodo");
-  await page.getByTestId("invite-submit").click();
+  // The host's invite affordance: the People-header action → the §8.2 mint dialog.
+  await panel.getByRole("button", { name: "Invite people" }).click();
+  const dialog = page.getByTestId("invite-dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Invite by handle" }).click();
+  await dialog.getByLabel("Handle").fill("frodo");
+  await dialog.getByRole("button", { name: "Send invite" }).click();
 
   await expect
     .poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] })
@@ -208,7 +238,7 @@ test("capable HOST: People lists the humans (host badge) and invite-by-handle fi
   expect(input.input?.invitedHandle).toBe("frodo");
 });
 
-test("capable MEMBER: People shows who's here but NO invite controls (host-only mirror)", async ({
+test("capable MEMBER: Members shows who's here but NO invite/kick controls (host-only mirror)", async ({
   mount,
   page,
 }) => {
@@ -222,12 +252,14 @@ test("capable MEMBER: People shows who's here but NO invite controls (host-only 
   });
 
   const component = await mount(<ChatContextPanelStory multiHumanCapable={true} />);
-  await component.getByRole("tab", { name: "People" }).click();
+  await component.getByRole("tab", { name: "Members" }).click();
 
-  const panel = page.getByTestId("people-panel");
-  await expect(panel.getByText("Nate", { exact: false })).toBeVisible();
-  await expect(page.getByTestId("invite-handle-input")).toHaveCount(0);
-  await expect(page.getByTestId("invite-copy-link")).toHaveCount(0);
+  const panel = page.getByTestId("members-panel");
+  await expect(panel.getByRole("button", { name: NATE_HOST_RE })).toBeVisible();
+  // No invite header action; no kick menu on another human's row (zero actions ⇒ no menu opens).
+  await expect(panel.getByRole("button", { name: "Invite people" })).toHaveCount(0);
+  await panel.getByRole("button", { name: NATE_HOST_RE }).click();
+  await expect(page.getByRole("menu")).toHaveCount(0);
 });
 
 test("member loses the Preview tab and the overrides are read-only", async ({ mount, page }) => {

@@ -285,6 +285,14 @@ export function MessageList<T>({
   // lets `onScrollTracked` tell virtual-core's own drift/re-pin from an EXTERNAL scroll. `null` until
   // the first programmatic scroll (mount anchor).
   const programmaticTopRef = useRef<number | null>(null);
+  // Sets the follow INTENT — the guard's own signal (NOT a caller-facing "am I at the tail" readout;
+  // a consumer reads real position via `getDistanceFromEnd()` at settle, because intent ≠ position
+  // once virtual-core drifts). Stable (touches only refs) so the imperative handle can depend on it.
+  const setFollowing = useCallback((value: boolean): void => {
+    if (stickToBottomRef.current !== value) {
+      stickToBottomRef.current = value;
+    }
+  }, []);
 
   const itemAt = (index: number): T => {
     const item = items.at(index);
@@ -418,8 +426,7 @@ export function MessageList<T>({
     if (expected !== null && Math.abs(el.scrollTop - expected) <= PROGRAMMATIC_SCROLL_EPSILON_PX) {
       return; // virtual-core's own drift/re-pin — never re-reads as user intent.
     }
-    stickToBottomRef.current =
-      el.scrollHeight - el.scrollTop - el.clientHeight <= scrollEndThreshold;
+    setFollowing(el.scrollHeight - el.scrollTop - el.clientHeight <= scrollEndThreshold);
   };
 
   // The inner content node's ref: STABLE (virtualizer identity is stable), so React runs it only on
@@ -440,9 +447,14 @@ export function MessageList<T>({
     (): MessageListHandle => ({
       isAtEnd: () => virtualizer.isAtEnd(),
       getDistanceFromEnd: () => virtualizer.getDistanceFromEnd(),
-      scrollToEnd: () => virtualizer.scrollToEnd({ behavior: reducedMotion ? "auto" : "smooth" }),
+      scrollToEnd: () => {
+        // A DELIBERATE "jump to latest" — resume following (a plain re-pin/drift must NOT, but this
+        // is the user's explicit intent). Set intent BEFORE scrolling so the ensuing resize re-pins.
+        setFollowing(true);
+        virtualizer.scrollToEnd({ behavior: reducedMotion ? "auto" : "smooth" });
+      },
     }),
-    [virtualizer, reducedMotion],
+    [virtualizer, reducedMotion, setFollowing],
   );
 
   // The unbounded-window tripwire (D43 §11.3) — thrown, not warned. Identical to virtual-list.

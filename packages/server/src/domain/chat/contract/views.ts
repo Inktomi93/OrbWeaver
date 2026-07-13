@@ -94,6 +94,10 @@ export interface ChatDetail {
    *  content" signal for a client-side own-messages filter (e.g. reattribute's `authorUserId` match).
    *  NOT an identity/whoami surface (no handle/avatar/email) — those stay deferred to auth #50. */
   readonly viewerUserId: UserId;
+  /** The pending host-handoff NOMINEE (`chats.pendingHostUserId`, Part III §2) — null when no handoff is
+   *  in flight. Drives the Members-panel pending-nomination chip (FINAL-Chats §8.3); room-public (members
+   *  already see every participant's userId), refreshed by the `chatUpdated` the nominate/accept verbs emit. */
+  readonly pendingHostUserId: UserId | null;
   /** The effective room behavior (parsed from `metadata`; defaults applied — never raw). */
   readonly group: GroupConfig;
   readonly roomOverrides: RoomOverrides;

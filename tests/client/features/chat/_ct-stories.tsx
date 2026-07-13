@@ -43,7 +43,7 @@ import {
   buildPersonaNameMap,
   DEFAULT_GROUP_CONFIG,
 } from "@orb/contracts/chat";
-import type { AssetId, CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
@@ -56,17 +56,21 @@ import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
+import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
+import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
 import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea";
 import { MessageMediaBlock } from "../../../../packages/client/src/features/chat/components/message-media-block";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
-import type { RosterMember } from "../../../../packages/client/src/features/chat/components/roster-panel";
-import { RosterPanel } from "../../../../packages/client/src/features/chat/components/roster-panel";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
+import type {
+  MemberCastRow,
+  MemberPersonRow,
+} from "../../../../packages/client/src/features/chat/lib/member-rows";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 
@@ -848,40 +852,173 @@ export function ChatHeaderStory(): ReactElement {
   );
 }
 
-/** The Roster tab body (roster-panel.tsx) as the PURE component it now is — the `.ct.tsx` passes fixed
- *  `members` and asserts the three write CALLBACKS fire (via the `roster-last-action` readout), no network.
- *  `omitForceTurn` drops `onForceTurn` (the DRAFT case — a draft has no turn to force ⇒ no Zap button). */
-export interface RosterPanelStoryProps {
+/** The Members panel (members-panel.tsx + member-row-menu.tsx — the §7.1 Roster+People merge) as the
+ *  PURE source-agnostic component it is: fixed People + Cast rows in, every action observed via the
+ *  `members-last-action` readout, no network. `withPeople` seats two humans (viewer-host Riley + member
+ *  Kestrel, Kestrel pending-nominated); `memberView` is the NON-host viewer (only View character
+ *  remains); `omitForceTurn` is the DRAFT case (no turn to force). */
+export interface MembersPanelStoryProps {
   readonly omitForceTurn?: boolean;
+  readonly withPeople?: boolean;
+  readonly memberView?: boolean;
 }
-export function RosterPanelStory({ omitForceTurn = false }: RosterPanelStoryProps): ReactElement {
+export function MembersPanelStory({
+  omitForceTurn = false,
+  withPeople = false,
+  memberView = false,
+}: MembersPanelStoryProps): ReactElement {
   const [lastAction, setLastAction] = useState("");
-  const members: RosterMember[] = [
+  const people: MemberPersonRow[] = withPeople
+    ? [
+        {
+          kind: "person",
+          key: "participant_riley",
+          userId: castId<UserId>("user_riley"),
+          displayName: "Riley",
+          handle: "riley",
+          isHost: !memberView,
+          isViewer: true,
+          avatarHash: null,
+          pendingNominee: false,
+        },
+        {
+          kind: "person",
+          key: "participant_kestrel",
+          userId: castId<UserId>("user_kestrel"),
+          displayName: "Kestrel",
+          handle: "kestrel",
+          isHost: memberView,
+          isViewer: false,
+          avatarHash: null,
+          pendingNominee: !memberView,
+        },
+      ]
+    : [];
+  const cast: MemberCastRow[] = [
     {
+      kind: "cast",
+      key: "participant_aria",
       characterId: castId<CharacterId>("character_aria"),
       displayName: "Aria",
       disabled: false,
       talkativeness: 0.5,
+      avatarHash: null,
+      responding: true,
     },
     {
+      kind: "cast",
+      key: "participant_bryn",
       characterId: castId<CharacterId>("character_bryn"),
       displayName: "Bryn",
       disabled: true,
       talkativeness: 0.5,
+      avatarHash: null,
+      responding: false,
     },
   ];
   return (
     <CtDataProviders>
-      <div style={{ width: 360 }}>
-        <div data-testid="roster-last-action">{lastAction}</div>
-        <RosterPanel
-          members={members}
-          onSetDisabled={(id, disabled): void => setLastAction(`disabled:${id}:${disabled}`)}
-          onSetTalkativeness={(id, t): void => setLastAction(`talkativeness:${id}:${t}`)}
-          {...(omitForceTurn
+      <div style={{ width: 420 }}>
+        <div data-testid="members-last-action">{lastAction}</div>
+        <MembersPanel
+          people={people}
+          cast={cast}
+          onViewCharacter={(id): void => setLastAction(`view:${id}`)}
+          {...(memberView
+            ? {}
+            : {
+                onSetDisabled: (id: CharacterId, disabled: boolean): void =>
+                  setLastAction(`disabled:${id}:${disabled}`),
+                onSetTalkativeness: (id: CharacterId, t: number): void =>
+                  setLastAction(`talkativeness:${id}:${t}`),
+              })}
+          {...(omitForceTurn || memberView
             ? {}
             : { onForceTurn: (id: CharacterId): void => setLastAction(`force:${id}`) })}
+          {...(withPeople && !memberView
+            ? {
+                onInvitePeople: (): void => setLastAction("invite"),
+                onKick: (userId: UserId): void => setLastAction(`kick:${userId}`),
+                onNominateHost: (userId: UserId): void => setLastAction(`nominate:${userId}`),
+                onLeave: (): void => setLastAction("leave"),
+                leaveArchivesRoom: true,
+              }
+            : {})}
+          {...(withPeople && memberView ? { onLeave: (): void => setLastAction("leave") } : {})}
         />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Members panel with a REMOVABLE person row — `remove-kestrel` simulates the bus echo dropping
+ *  the kicked row, so the CT can prove the §7.1 post-destructive focus rule (focus lands on a
+ *  neighbor, never `body`). */
+export function MembersKickFocusStory(): ReactElement {
+  const [kicked, setKicked] = useState(false);
+  const kestrel: MemberPersonRow = {
+    kind: "person",
+    key: "participant_kestrel",
+    userId: castId<UserId>("user_kestrel"),
+    displayName: "Kestrel",
+    handle: "kestrel",
+    isHost: false,
+    isViewer: false,
+    avatarHash: null,
+    pendingNominee: false,
+  };
+  const people: MemberPersonRow[] = [
+    {
+      kind: "person",
+      key: "participant_riley",
+      userId: castId<UserId>("user_riley"),
+      displayName: "Riley",
+      handle: "riley",
+      isHost: true,
+      isViewer: true,
+      avatarHash: null,
+      pendingNominee: false,
+    },
+    ...(kicked ? [] : [kestrel]),
+  ];
+  const cast: MemberCastRow[] = [
+    {
+      kind: "cast",
+      key: "participant_aria",
+      characterId: castId<CharacterId>("character_aria"),
+      displayName: "Aria",
+      disabled: false,
+      talkativeness: 0.5,
+      avatarHash: null,
+      responding: false,
+    },
+  ];
+  return (
+    <CtDataProviders>
+      <div style={{ width: 420 }}>
+        <button type="button" data-testid="remove-kestrel" onClick={(): void => setKicked(true)}>
+          remove
+        </button>
+        <MembersPanel
+          people={people}
+          cast={cast}
+          onInvitePeople={(): void => undefined}
+          onKick={(): void => undefined}
+          onSetDisabled={(): void => undefined}
+          onSetTalkativeness={(): void => undefined}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The invite MINT dialog (invite-dialog.tsx — §8.2) over the stubbed network: the `.ct.tsx` sets
+ *  `invites.createInvite`/`invites.listInvites`/`invites.revokeInvite` per case. Mounted OPEN. */
+export function InviteDialogStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <InviteDialog chatId={CHAT_ID} open={true} onOpenChange={(): void => undefined} />
       </div>
     </CtDataProviders>
   );
@@ -902,28 +1039,33 @@ export function ChatOptionsMenuStory(): ReactElement {
   );
 }
 
-/** The Roster tab with a re-seed harness (F4): `bump-aria` moves the talkativeness PROP (a bus/other-device
- *  echo), and `onSetTalkativeness` is a NO-OP (busDriven: no optimistic prop update — stands in for a FAILED
- *  write). Proves the thumb re-seeds from the prop on a value-only change AND snaps back on a failed write —
- *  neither of which a once-seeded `useState` could do (the row is keyed by member id, so no remount). */
-export function RosterReseedStory(): ReactElement {
+/** The Members panel with a re-seed harness (F4): `bump-aria` moves the talkativeness PROP (a
+ *  bus/other-device echo), and `onSetTalkativeness` is a NO-OP (busDriven: no optimistic prop update —
+ *  stands in for a FAILED write). Proves the weight chip re-seeds from the prop on a value-only change
+ *  AND the popover thumb snaps back after a failed write (the row is keyed by member id, so no remount). */
+export function MembersReseedStory(): ReactElement {
   const [ariaWeight, setAriaWeight] = useState(0.5);
-  const members: RosterMember[] = [
+  const cast: MemberCastRow[] = [
     {
+      kind: "cast",
+      key: "participant_aria",
       characterId: castId<CharacterId>("character_aria"),
       displayName: "Aria",
       disabled: false,
       talkativeness: ariaWeight,
+      avatarHash: null,
+      responding: false,
     },
   ];
   return (
     <CtDataProviders>
-      <div style={{ width: 360 }}>
+      <div style={{ width: 420 }}>
         <button type="button" data-testid="bump-aria" onClick={(): void => setAriaWeight(0.8)}>
           bump
         </button>
-        <RosterPanel
-          members={members}
+        <MembersPanel
+          people={[]}
+          cast={cast}
           onSetDisabled={(): void => undefined}
           onSetTalkativeness={(): void => undefined}
         />

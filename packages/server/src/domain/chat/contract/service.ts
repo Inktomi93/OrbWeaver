@@ -57,6 +57,7 @@ import type {
   ListChatInjectionsParams,
   ListChatsParams,
   ListForksParams,
+  ListInvitesParams,
   ListMessagesParams,
   ListMessageVariantsParams,
   ListParticipantsParams,
@@ -113,6 +114,7 @@ import type {
   ChatStreamReplayEvent,
   ChatSummary,
   InvitePreview,
+  InviteView,
   MessagesPage,
   MessageVariantSummary,
   MessageView,
@@ -280,6 +282,9 @@ export interface ChatService {
   readonly acceptInvite: (params: AcceptInviteParams) => Promise<RedeemInviteResult>;
   /** Revoke an outstanding invite (host-only; status → `revoked`). */
   readonly revokeInvite: (params: RevokeInviteParams) => Promise<void>;
+  /** The host-management outstanding-invites read (FIX #4) — every invite for the chat as `InviteView`s
+   *  (`remainingUses` computed; tokens never re-derivable). Host-only, newest-first. */
+  readonly listInvites: (params: ListInvitesParams) => Promise<readonly InviteView[]>;
   /** Decline a targeted invite the caller was notified about (status → `declined`). */
   readonly declineInvite: (params: DeclineInviteParams) => Promise<void>;
 

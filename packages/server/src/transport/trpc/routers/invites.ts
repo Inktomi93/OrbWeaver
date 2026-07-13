@@ -83,6 +83,15 @@ export const invitesRouter = t.router({
       ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input }),
     ),
 
+  // FIX #4 — the host-management outstanding-invites read (`InviteView`s; tokens never re-derivable).
+  // A genuine `.query()`: unlike preview/redeem there is no raw token in the input or output, so the
+  // token-in-URL transport concern (file header) does not apply. Host authority lives INSIDE the verb.
+  listInvites: multiHumanProcedure
+    .input(chatScopedSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.chat.listInvites({ principal: ctx.auth, chatId: input.chatId }),
+    ),
+
   declineInvite: multiHumanProcedure
     .input(declineSchema)
     .mutation(({ ctx, input }) =>

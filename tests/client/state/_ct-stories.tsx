@@ -12,6 +12,8 @@ import {
   clearPresetSection,
   clearPresetSelection,
   clearTagFilter,
+  clearWorldBookSelection,
+  clearWorldEntrySelection,
   closeModal,
   commitDraft,
   dismissImportOnboarding,
@@ -23,6 +25,8 @@ import {
   selectChat,
   selectPreset,
   selectPresetSection,
+  selectWorldBook,
+  selectWorldEntry,
   setActiveSection,
   setBulkMode,
   setCharacterSortMode,
@@ -48,10 +52,12 @@ import {
   useSelectedCharacterId,
   useSelectedPresetId,
   useSelectedPresetSectionId,
+  useSelectedWorldBookId,
+  useSelectedWorldEntryId,
   useShowArchived,
   useTagFilter,
 } from "@orb/client/state";
-import type { CharacterId, ChatId, PresetId, TagId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId, TagId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 
@@ -251,6 +257,35 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearTagFilter()}>
         clear tags
+      </button>
+    </div>
+  );
+}
+
+const PROBE_BOOK = castId<WorldBookId>("world_book_ct_probe");
+const PROBE_ENTRY = castId<WorldEntryId>("world_entry_ct_probe");
+
+/** WorldInfoSelectionProbe — renders the world-info-selection store's read hooks as text + buttons that fire
+ *  its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
+ *  and assert select → clear for BOTH the open book (LIST drives CONTENT) and the drilled entry: selecting an
+ *  entry reveals its editor; opening a different book clears a stale entry. */
+export function WorldInfoSelectionProbe(): ReactElement {
+  const book = useSelectedWorldBookId();
+  const entry = useSelectedWorldEntryId();
+  return (
+    <div>
+      <output>{`book=${book ?? "none"} entry=${entry ?? "none"}`}</output>
+      <button type="button" onClick={(): void => selectWorldBook(PROBE_BOOK)}>
+        select book
+      </button>
+      <button type="button" onClick={(): void => selectWorldEntry(PROBE_ENTRY)}>
+        select entry
+      </button>
+      <button type="button" onClick={(): void => clearWorldEntrySelection()}>
+        clear entry
+      </button>
+      <button type="button" onClick={(): void => clearWorldBookSelection()}>
+        clear book selection
       </button>
     </div>
   );

@@ -39,6 +39,13 @@ export const SECTION_PLACEHOLDER_COPY: Record<SectionId, SectionPlaceholderCopy>
     description:
       "Your generation presets live here — pick one to tune sampling, reasoning, and prompts.",
   },
+  // World Info is route-composed with real content (home-page.tsx: the book library + entry editor) — this
+  // entry exists for Record completeness + distinctness, and never actually paints.
+  worldInfo: {
+    title: "World Info",
+    description:
+      "Your world books live here — pick one to edit its keyword-triggered lore and where it attaches.",
+  },
   // The three genuinely-unbuilt hubs (their real surfaces are later lanes) — each distinct + branded.
   corpus: {
     title: "Corpus",

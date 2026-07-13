@@ -7,10 +7,11 @@ VISUAL/LAYOUT task; the ONE sanctioned server touch in the whole program is J5's
 pass-through (see `ux-flow-revamp.md`).
 
 **Companions:** [`ux-flow-revamp.md`](ux-flow-revamp.md) (UX/flow/IA redesign + NeoTavern parity map
-+ build lanes — the punchlist's tasks slot into its lanes L0–L6) ·
-[`design-enforcement.md`](../history/design-enforcement.md) (how the bar gets locked in: law text, gates,
-golden baselines, and rulings P1–P6 — ALL DECIDED 2026-07-05 under Nate's delegation; tasks below
-cite them as settled).
+
+- build lanes — the punchlist's tasks slot into its lanes L0–L6) ·
+  [`design-enforcement.md`](../history/design-enforcement.md) (how the bar gets locked in: law text, gates,
+  golden baselines, and rulings P1–P6 — ALL DECIDED 2026-07-05 under Nate's delegation; tasks below
+  cite them as settled).
 
 > **Triage 2026-07-09 (dispatch board — `README.md` §0):** re-verified against code — the §0c
 > reconciliation table below is ACCURATE; the program is LARGELY LANDED. Still open, and the ONLY
@@ -47,6 +48,7 @@ chats, chat history, welcome hero, chat options menu, group create, message sele
 
 **Verify loop:** `bash scripts/dev/stack.sh start` once, then `pnpm snap <route> [flags]`
 (headless screenshot + console/net report → `reports/snaps/<out>.png`). Useful idioms:
+
 - `pnpm snap / --wide --out x` — 1920×1080 shot of the shell.
 - `pnpm snap / --wide --click "[aria-label=Characters]" --out x` — interact before the shot.
 - `pnpm snap / --viewport 390x844 --out x` — mobile.
@@ -88,7 +90,7 @@ comparison is against the corrected palette. Within a section, tasks are indepen
 > remaining-work picture for this program; the task prose below stays as the as-planned spec record.
 
 | Task | State (2026-07-09) | Evidence / what remains |
-|---|---|---|
+| - | - | - |
 | UIP-101 corrected Hearth palette | **LANDED** | `tokens.json` background `oklch(0.158 0.006 60)`, primary `oklch(0.72 0.175 52)`, `info` + `glow`/`shadow-overlay` tokens present |
 | UIP-102 pointer-conditional density | **LANDED** | `tokens.json` `$extensions.orb.pointerFine` (control-sm 28px …) emitted under `@media (pointer: fine)` |
 | UIP-103 micro-caps + mono voice | **LANDED** | `Text` `size="micro"` + `transform="caps"` (`text/variants.ts`); `--text-micro`/`--tracking-micro` tokens. The `SectionLabel`-primitive alternative was RULED OUT (Text variants only — ux-flow §4.3) |
@@ -114,7 +116,7 @@ comparison is against the corrected palette. Within a section, tasks are indepen
 | §5 distinct placeholders | **LANDED** | `section-placeholder-copy.ts` registry (distinct per-section copy, gate-paired) |
 | §6 empty states + Weave | **LANDED** | `EmptyState` `action` + `decoration` slots; `WeaveGlyph` re-homed to `client/src/lib/` with `anim` |
 | §7 mobile (bottom tabs, P3) | **LANDED** | `shell.css` bottom tab bar + `env(safe-area-inset-*)`; `index.html` `interactive-widget=resizes-content` |
-| §8 micro-polish sweep | **PARTIAL** | LANDED: devtools FAB dev-gating, kbd chips, mono relative times. OPEN: `::selection` styling · thin themed scrollbars · the focus-ring audit · the streaming caret/typing-dots verification |
+| §8 micro-polish sweep | **PARTIAL** | LANDED: devtools FAB dev-gating, kbd chips, mono relative times; re-trued 2026-07-12: `::selection` + thin themed scrollbars are ALSO LANDED (`packages/ui/src/styles/globals.css` — both carry `D62 §8` cites). OPEN: the focus-ring audit · the streaming caret/typing-dots verification |
 | §9 placement map | superseded / pending | `ux-flow-revamp.md` §3 is the richer, current map; §9's Presets/World-Info rail rows are **PENDING owner decision (presets→settings candidate)** — do not build from §9 |
 
 ---
@@ -127,14 +129,14 @@ comparison is against the corrected palette. Within a section, tasks are indepen
 (frontmatter says `seed: true — re-derive real tokens once code lands`; that re-derive never
 happened). The mockup runs the CORRECTED palette (`reference/design/neo-tavern/themes.css`
 `.theme-hearth`), whose whole point is written in `shell.jsx`'s PaletteBoard: *"Near-neutral charcoal
-base (chroma ~0.006) so one glowing Ember reads as intentional. No more monochrome brown."* The app
+base (chroma \~0.006) so one glowing Ember reads as intentional. No more monochrome brown."* The app
 currently reads muddy-brown because every neutral carries chroma 0.012–0.02 at hue 65.
 
 Change (tokens.json → rebuild): retune the neutral ramp to chroma ≤0.009 at hue 60, deepen the
 sidebar, and swap Ember to the richer value. Key values from the corrected block:
 
 | token | current (seed) | corrected (mockup) |
-|---|---|---|
+| - | - | - |
 | background | `oklch(0.175 0.012 65)` | `oklch(0.158 0.006 60)` |
 | card | `oklch(0.205 0.012 65)` | `oklch(0.205 0.006 60)` |
 | popover | `oklch(0.235 0.013 65)` | `oklch(0.245 0.007 60)` |
@@ -201,6 +203,7 @@ audit snaps (`reports/snaps/audit-*.png`, regenerate per §0).
 
 Current: brand glyph crowds the top, active section is a filled orange square, footer stacks two
 icons + avatar with the same cramped gap. Mockup rail (`shell.jsx Rail`, `themes.css .nt-rail*`):
+
 - Brand: Weave glyph alone, comfortable block padding, muted-foreground color, NO active/hover box.
 - **P1 is RULED** (design-enforcement.md §2 — pointer-conditional floor): the sub-44px sizes in
   this task are the FINE-pointer scale; they ship with (or after) UIP-102's token-layer change,
@@ -238,7 +241,7 @@ the section name for a draft/none. `ShellTopbar` already accepts a `header` Reac
   `primitives/` (not `content/`) so the `ui-primitive-structure` gate + CT contract cover it. Also
   used by the cmdk footer (UIP-403).
 - Focus-mode (Expand/Shrink) and panel toggles: fine as icons, but group order should be
-  [list-toggle | title/identity] … [⌘K chip | focus | context-toggle], and all four icon buttons
+  \[list-toggle | title/identity] … \[⌘K chip | focus | context-toggle], and all four icon buttons
   need tooltips.
 - Height: 3rem is right; keep. Border-bottom stays `--color-border`.
 
@@ -254,7 +257,7 @@ here.") is correct behavior but should use the Weave-styled empty state (UIP-601
 ### UIP-205 · Document-scroll leak (P2 bug) — reproduce, then fix at the shell tier
 
 `pnpm snap / --wide --click "[aria-label='Start a new chat']" --out x` captures the page shifted
-~56px left: the RAIL is scrolled out of the viewport and the context panel edge is clipped
+\~56px left: the RAIL is scrolled out of the viewport and the context panel edge is clipped
 (see audit-draft-chat.png / audit-command-modal.png). Something (focus scroll on click / Base UI
 focus management) scrolls the DOCUMENT despite `.shell-grid{overflow:hidden}`. Fix in shell.css
 (e.g. `html,body{overflow:hidden}` for the app root via `packages/client/src/styles/globals.css`,
@@ -271,7 +274,7 @@ Current row = a Card holding title + participant names, no avatar, no timestamp,
 line; selected state is only `data-selected`/`aria-pressed` with (verify) barely-visible styling.
 Mockup row (`shell.jsx ListPanel` + `themes.css .nt-convo*`): 34px avatar · name (semibold, truncate)
 · last-message line (12px muted, truncate) · right-aligned relative time (11px muted). Active row =
-`color-mix(primary 10-14%, transparent)` bg; hover = `--sidebar-accent`. Padding ~10px block, radius
+`color-mix(primary 10-14%, transparent)` bg; hover = `--sidebar-accent`. Padding \~10px block, radius
 `--radius-base`, gap `--spacing-row`.
 
 Server gives `ChatSummary` — check what it carries; if `lastMessageAt`/preview text aren't on the
@@ -299,22 +302,24 @@ styling per mockup `.nt-search`: pill-ish, `--color-input` bg, search icon, "Sea
 placeholder voice.
 
 ### UIP-304 · Message thread column + prose polish (P1) —
+
 `surfaces/message-list-surface.tsx`, `lib/message-row-variants.ts`, `components/message-content.tsx`
 
 The transcript hugs the full content width. The mockup's chat (BOTH bubble-ish Hearth and the
 Manuscript direction) caps the reading column and centers it: `.nt-ms-col` = `max-width: 680px`,
 centered, generous block padding (28px top). Do this at the SKIN layer (`message-row-variants.ts`):
+
 - `document`: already `items-center max-w-prose` — audit `max-w-prose` (Tailwind default 65ch —
   right), add the top/bottom breathing room via the list's existing `gapToken`/padding.
-- `bubble`: bubbles should still live inside a centered ≤ ~48rem (`--container-cq-lg`) column, not
+- `bubble`: bubbles should still live inside a centered ≤ \~48rem (`--container-cq-lg`) column, not
   span a 1920px viewport (user right / assistant left INSIDE that column).
 - `flat`: full-width is the point, keep, but pad `px-section` not `px-block`.
-Also verify the speaker-name treatment: mockup speaker label = 11px caps-ish primary-colored for
-characters, muted for "You" (`.nt-speaker` / message `.nt-who`); ours is `size="label"` muted for
-everyone — color the character name with the attribution ThemeScope accent (the tokens already
-thread through `attribution.tokens`) so speakers are scannable. Narration/italic `*text*` renders
-as `--color-narration` italic (verify `message-content.tsx` maps `em` to the narration token in
-untrusted markdown; if not, add it to the markdown skin in `@orb/ui/markdown`).
+  Also verify the speaker-name treatment: mockup speaker label = 11px caps-ish primary-colored for
+  characters, muted for "You" (`.nt-speaker` / message `.nt-who`); ours is `size="label"` muted for
+  everyone — color the character name with the attribution ThemeScope accent (the tokens already
+  thread through `attribution.tokens`) so speakers are scannable. Narration/italic `*text*` renders
+  as `--color-narration` italic (verify `message-content.tsx` maps `em` to the narration token in
+  untrusted markdown; if not, add it to the markdown skin in `@orb/ui/markdown`).
 
 ### UIP-305 · Message actions row → hover-reveal (P1) — `components/message-actions-row.tsx`
 
@@ -328,16 +333,18 @@ only. Group them right-aligned under the bubble edge like the mockup's quiet met
 full-width toolbar.
 
 ### UIP-306 · Composer (P1) — `components/composer.tsx`, `components/composer-wand.tsx`,
+
 `components/speak-as-select.tsx`
 
 Current: edge-to-edge footer Card; textarea with visible resize grabber; wand + speak-as sit
 OUTSIDE the input box bottom-aligned; send is a filled orange square. Mockup
 (`nt-app.jsx` ChatView composer + `shell.jsx Composer`): ONE rounded input container
-(`--radius-card`+, `--color-input`/card bg, border) holding [textarea grows | attach/wand icon
+(`--radius-card`+, `--color-input`/card bg, border) holding \[textarea grows | attach/wand icon
 buttons | circular send]. Spec:
+
 - Wrap textarea + trailing icon cluster in one bordered rounded container; container gets the
   focus ring (`:focus-within`), textarea itself borderless/resize-none with auto-grow (rows=1,
-  max ~8 rows then scroll).
+  max \~8 rows then scroll).
 - Wand + speak-as move INSIDE the container as leading/trailing ghost icon buttons, vertically
   CENTERED against a single-line input (not `align="end"` against the whole card).
 - Send: circular (radius-full) primary icon button, disabled at 50% opacity; morphs to the Stop
@@ -348,6 +355,7 @@ buttons | circular send]. Spec:
   roster is known, use the lead character's first name.)
 
 ### UIP-307 · Cast bar + context tabs polish (P2) — `components/chat-cast-bar.tsx`,
+
 `surfaces/chat-context-panel-surface.tsx`
 
 Unverifiable in snaps until the DB fix (§0); code-level spec: cast bar avatars 24–28px overlapping
@@ -359,10 +367,12 @@ currently renders a bare `<button>Retry</button>` (raw intrinsic inside a compos
 also just ugly): swap to `@orb/ui/button` ghost sm, same pattern as the other ErrorStates.
 
 ### UIP-308 · Draft/empty thread → real welcome (P1) — `surfaces/message-list-surface.tsx`
+
 (`EmptyThread`), route composition in `routes/home-page.tsx`
 
 "No messages yet." centered in a black void is the first thing a user sees (audit-home.png). Two
 distinct states, both currently the same string:
+
 - DRAFT (new chat, no character): this should TEACH the flow — Weave-glyph empty state (UIP-601),
   title "Start a new thread", description pointing at picking a character, and a real action button
   (go to Characters section: `setActiveSection("characters")` — the store action already exists).
@@ -372,6 +382,7 @@ distinct states, both currently the same string:
   composer focus is enough for now.
 
 ### UIP-309 · Loading skeletons — shape-match + shimmer (P3) — `chat-list-surface.tsx`
+
 (`LoadingRows`), `message-list-surface.tsx` (`LoadingRows`), `@orb/ui/skeleton`
 
 Chat-list skeletons are five full-width `h-control-lg` slabs — they don't match the row shape they
@@ -426,7 +437,7 @@ already built). WIRING + surface home: `ux-flow-revamp.md` J4 is authoritative
 Content exists but reads as a raw form dump: cramped section gaps, full-width selects, a lone
 unlabeled-row toggle (audit-settings-modal.png). Restructure: every setting becomes a
 `packages/ui/src/primitives/setting-row/` row (label + description left, control right, control
-column ~200px), section headers per UIP-103 with `--spacing-section` separation and a hairline
+column \~200px), section headers per UIP-103 with `--spacing-section` separation and a hairline
 divider, selects sized to content not 100%, the toggle in the same row grammar. Keep autosave
 (the "Changes save automatically" line moves to a muted footnote under the title).
 
@@ -438,7 +449,7 @@ pane of that shell and carries over unchanged.
 
 ### UIP-405 · Account modal (P3) — surface route-composed into the `account` slot
 
-Placeholder. Minimum honest content until auth (#50): avatar + display name + AUTH_MODE badge, and
+Placeholder. Minimum honest content until auth (#50): avatar + display name + AUTH\_MODE badge, and
 the sign-out affordance disabled-with-reason. Same wiring rule as UIP-402/403: route composes the
 body via `AppShellProps.modals`; `modal-slots.tsx` keeps only placeholder defaults. Low priority;
 skip if #50 lands first.
@@ -456,7 +467,7 @@ placeholder copy + its own icon (rail-slots already has them): Corpus → "Searc
 thread, character, and scene — the web, searchable."; Refinery → "Score → rewrite → analyze a
 character card without drifting from your original."; Analytics → "Charts over your corpus land
 here — cast time, thread connections, drift." Description text belongs in the ROUTE/section config
-(one map in `home-page.tsx` or alongside RAIL_SECTIONS), not hardcoded per-surface.
+(one map in `home-page.tsx` or alongside RAIL\_SECTIONS), not hardcoded per-surface.
 
 ## 6. Empty states + the Weave (P2)
 
@@ -517,7 +528,7 @@ When each lands, its LAYOUT HOME is already decided by the shell grammar — rec
 invents a new region:
 
 | Feature (NeoTavern precedent) | Orbweaver home |
-|---|---|
+| - | - |
 | Persona picker/editor (`persona` modal) | Rail-adjacent MODAL slot (add to `RAIL_ACTIONS` or account modal section) + composer speak-as already exists |
 | Presets / sampler + prompt-manager (left drawer) | New rail SECTION (`rail-slots.ts` entry) — LIST = preset list, CONTENT = editor |
 | Connections / credentials (`connections` modal) | Settings modal SECTION (settings-surface composition, like NeoTavern's settings absorbing account/admin) |
@@ -526,7 +537,7 @@ invents a new region:
 | Chat history / recent chats / similar chats | Chats LIST panel (history = the list; similar-chats = context-panel tab) |
 | Group create / add-character | Modal from the Characters LIST + cast bar `+` affordance |
 | Message selection bar (bulk ops) | A topbar TAKEOVER state above CONTENT (NeoTavern `message-selection-bar.tsx`) |
-| User admin | Stays on `/admin` route (exists) — link from Settings when AUTH_MODE ≠ single-user |
+| User admin | Stays on `/admin` route (exists) — link from Settings when AUTH\_MODE ≠ single-user |
 
 ---
 

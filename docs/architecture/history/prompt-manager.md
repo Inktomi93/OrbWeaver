@@ -6,6 +6,7 @@ mockup (`the-assembly.html`, session scratchpad) — every surface below was ren
 mockup and this spec disagree, THIS SPEC WINS (§9 lists the reconciliations).
 
 Doctrine that binds every phase (constitution `docs/architecture/core/AGENTS.md`):
+
 - **Compose-only** — a surface cannot paint itself: no `className` on raw intrinsic elements; all
   styling comes from @orb/ui primitives + layout variants.
 - **ZERO net-new @orb/ui primitives.** Every composed primitive exists today (§0.2 inventory). The ONE
@@ -24,10 +25,10 @@ The Assembly lives entirely inside the existing shell's `presets` section
 (`features/app-shell/lib/rail-slots.ts:93`, panel defaults `:119` — `list: docked, context: collapsed`).
 No shell changes beyond one registry append (§3.1).
 
-| Region  | Role | Built on |
-|---|---|---|
-| RAIL    | Persistent nav — `presets` in the `authoring` group. Already shipped (`rail-slots.ts:93`). | no change |
-| LIST    | **The preset hub**: "Active for generation" dropdown · search · CRUD (New/Duplicate/Rename/Delete/Import) · library rows with a PASSIVE amber active-indicator. | `preset-library-surface.tsx` + `state/preset-selection-store.ts` |
+| Region | Role | Built on |
+| - | - | - |
+| RAIL | Persistent nav — `presets` in the `authoring` group. Already shipped (`rail-slots.ts:93`). | no change |
+| LIST | **The preset hub**: "Active for generation" dropdown · search · CRUD (New/Duplicate/Rename/Delete/Import) · library rows with a PASSIVE amber active-indicator. | `preset-library-surface.tsx` + `state/preset-selection-store.ts` |
 | CONTENT | **The rack** — the existing tabbed editor (`preset-editor-surface.tsx`); the Prompt tab becomes toolbar · zone strip · full-width sortable rack · three collapsed Sections (Message delivery / Message handling / Guided actions). Two new nav tabs (Variables, Regex). | `preset-editor-surface.tsx`, `preset-structure-tabs.tsx`, `preset-nav.ts` |
 | CONTEXT | **The section inspector** as a CONTEXT TAB pair (Section / Usage), registry-driven. Selecting a section docks it open; nothing selected ⇒ collapsed + EmptyState. | `CONTEXT_SLOTS` append (`context-slots.ts:30`), route wiring (`home-page.tsx:300-316`) |
 
@@ -84,6 +85,7 @@ Place it per the mirror-test convention next to the assembly tests.
 `RouteChatAssignment` into the preset's `params.advanced`.
 
 Edits:
+
 1. **Schema add:** `contracts/src/preset/index.ts` — add `roleHandling: roleHandlingSchema.optional()`
    inside `userIntentSchema.advanced` (`:161-183`), beside `squashSystemMessages` (`:181`). Import
    `roleHandlingSchema` from `#connection` (`contracts/src/connection/index.ts:135`; the
@@ -113,6 +115,7 @@ strict; preset says `none`, floor `strict` ⇒ strict).
 ### P3 — SERDE fixes (ST import)
 
 **Target:** `contracts/src/preset/index.ts` `DROPPABLE_FIELDS` (`:1153-1167`).
+
 1. `squash_system_messages` (`:1164`) — currently dropped with reason "neo squashes system messages
    automatically" (false post-D66-C). MAP it: importer sets
    `params.advanced.squashSystemMessages: true` when the ST field is `true`; remove the drop row.
@@ -138,15 +141,16 @@ All client. No rendering yet. Everything here gets its own unit tests (pure func
 ### 2.1 Pure libs — `features/preset/lib/`
 
 **`derive-zones.ts` (create).** Pure. Zones are DERIVED at render, never stamped on sections:
+
 - Input: `readonly PromptSection[]` (schema `contracts/src/preset/index.ts:392-437`).
 - Find the FIRST section with `type === "marker" && marker === "chat_history"`
   (`PLAIN_MARKERS`, `:347-351`). Everything above = zone `setup`; everything below = zone `post`.
-- Returns per-index zone assignments + flags: `missingPivot` (no chat_history — the rack shows a
-  callout), `duplicatePivotIndexes` (2nd+ chat_history rows render as inert warning rows, zone still
+- Returns per-index zone assignments + flags: `missingPivot` (no chat\_history — the rack shows a
+  callout), `duplicatePivotIndexes` (2nd+ chat\_history rows render as inert warning rows, zone still
   derives from the FIRST).
 - Also derives the zone summaries for the strip: per zone `{enabledCount, tokenEstimate}`.
 
-**`estimate-tokens.ts` (create).** Pure, heuristic (~chars/4 over resolved-ish text): a section's
+**`estimate-tokens.ts` (create).** Pure, heuristic (\~chars/4 over resolved-ish text): a section's
 displayed `~token` figure — literal `content`, templated `template ??
 DEFAULT_MARKER_TEMPLATES[marker]` (`preset/index.ts:465-476`), plain markers `0`/em-dash. This is a
 UI hint, mono-rendered; no server call.
@@ -176,6 +180,7 @@ lexical form context cannot cross. TanStack Form instances are external stores, 
 handle binds cleanly across the boundary (`form.AppField` works from any subscriber).
 
 Shape:
+
 - Module-scope `let handle: {presetId: PresetId; form: AppFormInstance<PromptConfig>} | null` + a
   listener set — a hand-rolled external store.
 - `publishAssemblyForm({presetId, form})` — called from `PresetEditor`
@@ -185,6 +190,7 @@ Shape:
 - `useAssemblyForm(): typeof handle` — `useSyncExternalStore` subscriber for the inspector.
 
 Guards (the inspector renders the EmptyState unless ALL hold — stale ids must never crash):
+
 1. `handle !== null`
 2. `handle.presetId === selectedPresetId`
 3. `selectedSectionId` resolves against `handle.form.state.values.sections` (find by `s.id`) — a
@@ -200,7 +206,7 @@ notification; each guard branch (null handle / preset mismatch / unresolvable se
 
 ## 3 · PHASE B — core: CONTEXT wiring + the rack + the inspector
 
-### 3.1 CONTEXT_SLOTS wiring
+### 3.1 CONTEXT\_SLOTS wiring
 
 **`features/app-shell/lib/context-slots.ts` (edit).** Append to `CONTEXT_SLOTS` (`:30-40`):
 
@@ -264,21 +270,23 @@ Accessibility plugin are on by construction).
 `ListRow`: ListRow's contract is a string `title` + single clickable body
 (`ui/src/primitives/list-row/list-row.tsx:4-57`) and cannot hold this anatomy. Anatomy (3 native
 tab stops: name-button · switch · grip):
+
 - grip (SortableList's handle affordance)
 - type-glyph `Badge`: quill = literal, brackets = templated marker, gear = plain marker
 - name + plain-language subtitle (`MARKER_COPY`) — ONE ghost `Button` wrapping name+subtitle; click
-  = `selectPresetSection(s.id)` + reveal choreography (§3.4)
+  \= `selectPresetSection(s.id)` + reveal choreography (§3.4)
 - cue badges ONLY-WHEN-SET: `@depth·order` inject chip (`inject` present, schema
   `preset/index.ts:386-390`), trigger-count chip (`trigger` non-empty), lock chip
   (`forbidCharacterOverride || forbidRoomOverride`), template-state dot (templated marker with
   custom/silent template), U/A role chip (role !== system)
 - `~token` estimate (mono, `estimate-tokens`; struck-through when disabled)
-- enabled `Switch` → `form.AppField name={`sections[${i}].enabled`}`
+- enabled `Switch` → `form.AppField name={`sections\[${i}].enabled`}`
 
 **`PivotBand`** (`chat_history`) — a real sortable item, full-width horizon band: grip + wave glyph
-+ "Chat history" + enabled `Switch`; edge labels `up: setup · sent before the conversation` /
-`down: post · sent after your last message`. **NO cache claim on the band** — cache-stability is
-model-dependent (ruled).
+
+- "Chat history" + enabled `Switch`; edge labels `up: setup · sent before the conversation` /
+  `down: post · sent after your last message`. **NO cache claim on the band** — cache-stability is
+  model-dependent (ruled).
 
 ### 3.4 Reveal choreography — route-built callbacks
 
@@ -330,7 +338,7 @@ Renders from the bridge (`useAssemblyForm()`, guards §2.3). Per-type anatomy:
 **Done-criteria (Phase B):** rack renders all sections + pivot; grip-drag AND keyboard reorder
 reorder the form array; pivot drag re-zones accents + strip counts live; row click reveals the
 inspector in CONTEXT (desktop dock + mobile sheet); every inspector field round-trips through
-`form.handleSubmit` → `preset.update`; chat_history shows no role field; stale-section guard
+`form.handleSubmit` → `preset.update`; chat\_history shows no role field; stale-section guard
 verified by test. Existing Message-delivery bindings preserved.
 **Gate:** `pnpm check` + client tests + a side-eye pass on the rack + inspector.
 
@@ -379,8 +387,8 @@ Two controls (`features/preset/components/message-handling-section.tsx`, create)
      (`preset-editor-surface.tsx:71-84` → `capability.turns.roleHandlingFloor`,
      `connection/index.ts:210`); no capability ⇒ line hidden.
    - a clamp `StatusChip` when the picked value is BELOW the floor ("clamped to {floor}").
-   This is the FUNNEL made visible: user intent stored, model floor shown, resolver clamps
-   `max(floor, choice)` at `shape.ts:249` — the UI never clamps, it only annotates.
+     This is the FUNNEL made visible: user intent stored, model floor shown, resolver clamps
+     `max(floor, choice)` at `shape.ts:249` — the UI never clamps, it only annotates.
 2. **Squash system notes** — `Switch` → `params.advanced.squashSystemMessages`
    (`preset/index.ts:176-181`).
 
@@ -396,6 +404,7 @@ Server fully shipped: `guidedActionsSchema` (`preset/index.ts:245-261`), `DEFAUL
 current flat fields (`preset-structure-tabs.tsx:74-112`).
 
 `features/preset/components/guided-actions-section.tsx` (create):
+
 - **Header:** framing copy ("when you steer a generation, the matching template wraps your text —
   `{{input}}` is where your steer lands") + a live cross-link chip to the `guided_instruction`
   marker in the rack: healthy (marker present + enabled) / OFF-warning (present, disabled) /
@@ -421,6 +430,7 @@ ghost/customized detection correct (compare against `DEFAULT_GUIDED_ACTIONS`).
 
 Toolbar `Preview` toggle (§3.2) swaps the rack for `<AssemblyPreview>` (create): an assembled
 read-out —
+
 - ordered ENABLED sections under the current lens, grouped with role block headers,
 - macro chips (render `{{…}}` tokens as inline `Badge`s — display only, NO macro resolution:
   never resolve against live chat data here),
@@ -441,8 +451,8 @@ splices by depth desc, order asc within depth); click-through lands on the right
    (`:144-155` pattern).
 2. **Variables tab:** `ListRow` list over `variables[i]` (`choiceBlockSchema`,
    `preset/index.ts:484-492`: name/question/options/defaultValue/multiSelect/separator/randomPick)
-   + editor `Dialog` binding `variables[i].*`; add/remove via
-   `form.pushFieldValue`/`removeFieldValue("variables", i)`.
+   - editor `Dialog` binding `variables[i].*`; add/remove via
+     `form.pushFieldValue`/`removeFieldValue("variables", i)`.
 3. **Regex tab:** same shape over `regexScripts[i]` (`regexScriptSchema` via `#regex`,
    `preset/index.ts:510`) + editor Dialog.
 4. **⚠ LOAD-BEARING — same commit as the tabs:** in `preset-editor-model.ts` `mergeOnSubmit`
@@ -474,7 +484,7 @@ carries `edited.*`); tabs render; dialogs bind.
 5. **Line drift (informational):** `squash_system_messages` drop row is `:1164` (summary `:1163`);
    `group_nudge_prompt` is `:1155` (summary `:1154`); `advanced.squashSystemMessages` is `:181`
    (summary `:180`); `mergeOnSubmit` hardcoded assigns are `:103-104` (summary said "the two
-   hardcoded assignments" unnumbered). Sections block is `:321-541` (summary "~320-520").
+   hardcoded assignments" unnumbered). Sections block is `:321-541` (summary "\~320-520").
 6. **`form.moveValue`:** shorthand — the real API is `form.moveFieldValues(field, from, to)`
    (`@tanstack/form-core@1.33.0`).
 7. **Mockup footer button** "Move below conversation" = the Move-to-zone action (label flips by the
@@ -490,7 +500,7 @@ Order: §1 (P1→P2→P3, server) → §2 (A) → §3 (B) → §4 (C) → §5 (D
 §8 (G). C/D/E are independent after B and may parallelize across builders with disjoint file sets.
 
 | Risk | Mitigation |
-|---|---|
+| - | - |
 | Form bridge (§2.3) — the only net-new machinery | own unit tests + fresh-context `verifier` pass before B integrates |
 | Stale section id after delete/undo | bridge guard 3 + `clearPresetSection` on delete; test both |
 | Variables/Regex without the merge flip | §8.4 same-commit rule; round-trip test |

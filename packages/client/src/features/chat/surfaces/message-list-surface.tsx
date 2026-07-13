@@ -46,6 +46,7 @@ import {
 } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
+import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
@@ -63,8 +64,10 @@ import {
   useTurnSpeakerCharacterId,
 } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row";
+import { JumpToLatestPill } from "../components/jump-to-latest-pill";
 import { MessageRow } from "../components/message-row";
 import { useChatStyle } from "../hooks/use-chat-style";
+import { useJumpToLatest } from "../hooks/use-jump-to-latest";
 import { useMessageAppearance } from "../hooks/use-message-appearance";
 import { messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items";
 import { resolveRowAttribution } from "../lib/attribution";
@@ -207,6 +210,13 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
   const newArrivalKeys = useNewArrivalKeys(items, chatId);
 
   const live = isLiveTurnPhase(phase);
+
+  // "Jump to latest" pill (side-eye P2). Its "am I at the tail" comes from REAL scroll geometry sampled
+  // at settle — NOT the seal's follow-INTENT signal, which desyncs from position once virtual-core
+  // writes scrollTop during a re-measure (the P0s: pill hid while stranded 9,600px up / stayed shown
+  // after jumping). See use-jump-to-latest.ts.
+  const listHandleRef = useRef<MessageListHandle>(null);
+  const jump = useJumpToLatest({ messagesCount: messages.length, live, listHandleRef });
   // The tail assistant message is the swipe-eligible row (hidden mid-stream — scout swipe-strip rule).
   const lastAssistantId = live ? null : findLastAssistantId(messages);
   // Phase 4b §B.5.2 — the current "last-in-context" boundary (lib/context-boundary; null ⇒ no divider).
@@ -257,15 +267,22 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
   if (items.length === 0) {
     return <EmptyThread />;
   }
+  // `relative` box so the pill anchors to the transcript region (just above the composer), floating
+  // OUTSIDE the scroll flow. `min-h-0` lets the list shrink and scroll inside it.
   return (
-    <MessageList
-      items={items}
-      getItemKey={messageItemKey}
-      estimateSize={(): number => ESTIMATED_ROW_PX}
-      renderItem={renderItem}
-      gapToken="block"
-      className="h-full"
-    />
+    <Stack className="relative h-full min-h-0">
+      <MessageList
+        ref={listHandleRef}
+        items={items}
+        getItemKey={messageItemKey}
+        estimateSize={(): number => ESTIMATED_ROW_PX}
+        renderItem={renderItem}
+        scrollContainerRef={jump.scrollContainerRef}
+        gapToken="block"
+        className="h-full"
+      />
+      <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
+    </Stack>
   );
 }
 

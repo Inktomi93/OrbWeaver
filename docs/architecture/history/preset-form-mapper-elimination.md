@@ -1,14 +1,18 @@
 ---
 kind: spec
-status: draft
-updated: 2026-07-03
+status: done
+updated: 2026-07-12
 ---
 
-# Proposed: eliminate `PresetFormValues` + the flat-form mapper (client preset editor)
+# Eliminate `PresetFormValues` + the flat-form mapper (client preset editor) — BUILT
 
-> **Status: proposed / unbuilt.** Salvaged from the gutted `domains/preset.md` movement table
-> (the one DEFERRED row). Everything else in that doc is carried by the code; this is the one
-> genuinely-open design decision, and it can only be decided when the client preset editor is built.
+> **Status: BUILT + retired to history (2026-07-12).** The proposal was taken: `PresetFormValues`,
+> `presetFormValuesSchema`, and both `toPresetFormValues`/`toPromptConfig` mappers were DELETED from
+> `@orb/contracts` (2026-07-11); the client preset editor binds the nested `PromptConfig` DIRECTLY
+> via TanStack Form. All three surviving constraints hold — bounds still sourced from the one
+> `generationKnobSchemas` object, server-only fields preserved via `mergeOnSubmit`, and the
+> `assignIfDefined` absent→unset discipline (see `features/preset/lib/preset-editor-model.ts` + its
+> round-trip test). The prose below is the original proposal, kept for the record.
 
 ## The current state (built + tested)
 

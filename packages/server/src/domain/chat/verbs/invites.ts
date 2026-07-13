@@ -42,6 +42,7 @@ import type {
   AcceptInviteParams,
   CreateInviteParams,
   DeclineInviteParams,
+  ListInvitesParams,
   PreviewInviteParams,
   RedeemInviteParams,
   RevokeInviteParams,
@@ -56,6 +57,7 @@ import {
   declineInviteById,
   findInviteById,
   findInviteByTokenHash,
+  listInvitesForChat,
   redeemInviteAtomic,
   revokeInvite as revokeInvitePersist,
 } from "../persistence/invites";
@@ -79,6 +81,7 @@ type InviteVerbs = Pick<
   | "acceptInvite"
   | "revokeInvite"
   | "declineInvite"
+  | "listInvites"
 >;
 
 /**
@@ -95,6 +98,7 @@ export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
     acceptInvite: createAcceptInvite(ctx, deps),
     revokeInvite: createRevokeInvite(ctx),
     declineInvite: createDeclineInvite(ctx),
+    listInvites: createListInvites(ctx),
   };
 }
 
@@ -141,6 +145,7 @@ function toChatDetail({
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
     viewerIsHost: viewer?.role === "host",
     viewerUserId,
+    pendingHostUserId: chat.pendingHostUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     opening: chat.metadata.opening ?? null,
@@ -385,6 +390,28 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
       }),
       participant,
     };
+  };
+}
+
+/** `listInvites` — host-only (FIX #4): the host-management outstanding-invites read, newest-first. Wears
+ *  the EXACT `requireHost` belt its mint/revoke siblings wear (createInvite/revokeInvite above — same
+ *  guard, same position, first statement). Maps persistence rows → `InviteView`s, computing
+ *  `remainingUses` (`maxUses - uses`, floored at 0; null = unlimited); the peppered `tokenHash` never
+ *  leaves persistence (`InviteView` cannot carry it — the type has no token field). */
+function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
+  return async ({ principal, chatId }: ListInvitesParams): Promise<readonly InviteView[]> => {
+    await requireHost(ctx, principal, chatId);
+    const rows = await listInvitesForChat(ctx.db, chatId);
+    return rows.map((row) => ({
+      id: row.id,
+      chatId: row.chatId,
+      status: row.status,
+      maxUses: row.maxUses,
+      remainingUses: row.maxUses === null ? null : Math.max(0, row.maxUses - row.uses),
+      expiresAt: row.expiresAt,
+      invitedUserId: row.invitedUserId,
+      createdAt: row.createdAt,
+    }));
   };
 }
 

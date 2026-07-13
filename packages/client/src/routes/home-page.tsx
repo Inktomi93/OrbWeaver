@@ -1,4 +1,4 @@
-import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId, WorldBookId } from "@orb/kit/ids";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -52,6 +52,13 @@ import {
 } from "#features/preset";
 import { ImportOnboardingCard, SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
+  BookAttachments,
+  WorldInfoEditorSurface,
+  WorldInfoLibraryAnchor,
+  WorldInfoLibrarySurface,
+  WorldInfoWelcome,
+} from "#features/world-info";
+import {
   chatStream,
   clearPresetSection,
   commitDraft,
@@ -61,6 +68,7 @@ import {
   openModal,
   selectChat,
   selectPreset,
+  selectWorldBook,
   setActiveSection,
   setContextTab,
   setMobileSheet,
@@ -72,6 +80,7 @@ import {
   useActiveSessionKey,
   useSelectedCharacterId,
   useSelectedPresetId,
+  useSelectedWorldBookId,
 } from "#state";
 
 // The `/` home: the composition root + the app's central navigation seam. It mounts the four-region
@@ -125,6 +134,7 @@ export function HomePage(): ReactElement {
   const sessionKey = useActiveSessionKey();
   const activeSection = useActiveSection();
   const selectedPresetId = useSelectedPresetId();
+  const selectedWorldBookId = useSelectedWorldBookId();
   // The resolved shell layout — the composition root reads it to lay CONTENT out against the panels. Here:
   // when the Chats LIST is DOCKED it already IS the recents finder (§4.3 rule 5), so the landing drops its
   // own "Recent chats" to kill the duplicate (#13). Collapsed/overlay/mobile ⇒ the landing owns recents.
@@ -157,6 +167,12 @@ export function HomePage(): ReactElement {
   // else the sheet stays over the editor after a row/New/Duplicate/Import selection. No-op on desktop.
   const selectPresetFromList = (id: PresetId): void => {
     selectPreset(id);
+    setMobileSheet(null);
+  };
+  // Opening a book from the World Info LIST closes any open mobile LIST sheet (the preset/chat precedent) —
+  // else the sheet stays over the editor after a row/New/Duplicate selection. No-op on desktop.
+  const selectWorldBookFromList = (id: WorldBookId): void => {
+    selectWorldBook(id);
     setMobileSheet(null);
   };
   // The character-editor redesign reveal choreography (mirrors `revealSectionInspector`) — a facet-row
@@ -211,7 +227,7 @@ export function HomePage(): ReactElement {
   const draftCharacterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
   const chatsHeader = ((): ReactElement | null => {
     if (activeChatId !== null) {
-      return <ChatHeaderSurface chatId={activeChatId} />;
+      return <ChatHeaderSurface chatId={activeChatId} multiHumanCapable={multiHumanCapable} />;
     }
     if (draftCharacterIds.length > 0) {
       return <DraftChatHeader characterIds={draftCharacterIds} />;
@@ -380,6 +396,27 @@ export function HomePage(): ReactElement {
                     usage: <PresetUsageContext presetId={selectedPresetId} />,
                   }}
                 />
+              ),
+          },
+          // The WORLD INFO authoring section (§4.1 authoring group): LIST = the book library; CONTENT = the
+          // book's entry editor for the open book, else the teaching welcome (LIST selection drives CONTENT,
+          // §4.2 rule 1 — the route is the single reader of the world-info-selection store, §5.1); CONTEXT =
+          // the activation panel (global/character/persona attachment; default-collapsed until a book opens).
+          worldInfo: {
+            list: (
+              <WorldInfoLibraryAnchor>
+                <WorldInfoLibrarySurface onSelectBook={selectWorldBookFromList} />
+              </WorldInfoLibraryAnchor>
+            ),
+            content:
+              selectedWorldBookId === null ? (
+                <WorldInfoWelcome />
+              ) : (
+                <WorldInfoEditorSurface bookId={selectedWorldBookId} />
+              ),
+            context:
+              selectedWorldBookId === null ? undefined : (
+                <BookAttachments bookId={selectedWorldBookId} />
               ),
           },
         }}

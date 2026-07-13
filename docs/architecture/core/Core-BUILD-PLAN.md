@@ -142,8 +142,8 @@ Phase-6 lane.**
 8. **L7 — parity growth — REMAINING (the only open Phase-6 lane)** (the `ux-flow-revamp.md` §3 map is
    the authority; each row cites its decided home; build by product priority as server domains
    allow): **Presets section** (P6; +
-   prompt-manager Prompt tab; **`proposed/preset-form-mapper-elimination.md`** is a lane rule for
-   its editor — no flat-form mapper) → **World Info section** (P6; four activation sources per the
+   prompt-manager Prompt tab; **`history/preset-form-mapper-elimination.md`** (BUILT 2026-07-12) was
+   the lane rule for its editor — no flat-form mapper) → **World Info section** (P6; four activation sources per the
    map) → **character EDITOR** (+ import UI over the built card parsers; tag management modal —
    server half: `history/tag-pending-review.md`) → **Connections** (Settings pane; D47 direct
    providers when built) → **Corpus hub** (search/insights/stats faces; the deferred verbs:

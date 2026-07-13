@@ -10,9 +10,9 @@
 // cards (`character.get`) for the member names — the same reads the greeting preview already warmed
 // (shared Query cache) — inside its own QueryBoundary.
 //
-// TABS: Overrides · Injections (always) · Roster · Group (GROUP drafts only — ≥2 founding characters,
-// mirroring the committed host-AND-group gate). The Preview tab is deliberately ABSENT — there is no
-// server assembly to preview before the chat exists.
+// TABS: Overrides · Injections (always) · Members · Group (GROUP drafts only — ≥2 founding characters,
+// mirroring the committed gates; a draft has no humans, so Members is Cast-only). The Preview tab is
+// deliberately ABSENT — there is no server assembly to preview before the chat exists.
 
 import type { ChatInjectionInput, RoomOverrides } from "@orb/contracts/chat";
 import {
@@ -43,12 +43,12 @@ import {
 import { DraftAddMemberPopover } from "../components/add-member-popover";
 import { GroupConfigForm } from "../components/group-config-form";
 import { InjectionsList } from "../components/injections-manager";
+import { MembersPanel } from "../components/members-panel";
 import { RoomOverridesForm } from "../components/room-overrides-form";
-import type { RosterMember } from "../components/roster-panel";
-import { RosterPanel } from "../components/roster-panel";
 import { GROUP_CONFIG_ENTITY_PREFIX } from "../hooks/use-group-config-form";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import { fromInjectionForm } from "../hooks/use-injection-row-form";
+import type { MemberCastRow } from "../lib/member-rows";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
 
 const EMPTY_ROOM_OVERRIDES: RoomOverrides = {};
@@ -85,17 +85,19 @@ export function DraftContextPanel({
   // and the add-member picker's exclude set — so an added member disappears from the picker + appears in
   // Roster the instant it's added, and a 2nd add flips a solo draft into a group (Roster/Group tabs appear).
   const cast = [...new Set([...characterIds, ...(draftConfig.addedCharacterIds ?? [])])];
-  // A draft is always hosted by its author. The Roster tab shows only for a GROUP draft (mirrors the
-  // committed host-AND-group gate). A hidden/stale `contextTab` request safely falls back to Overrides.
-  const showRoster = cast.length >= GROUP_FLOOR;
+  // A draft is always hosted by its author. The Members tab shows only for a GROUP draft (mirrors the
+  // committed Cast ≥2 disclosure gate). A hidden/stale `contextTab` request falls back per the §7 ONE
+  // rule (Members if it renders, else Overrides).
+  const showMembers = cast.length >= GROUP_FLOOR;
   const contextTab = useContextTab();
   const visibleTabs = new Set<string>(["overrides", "injections"]);
-  if (showRoster) {
-    // Group config is group-only (the same gate as Roster — generation behavior is meaningless solo).
-    visibleTabs.add("roster");
+  if (showMembers) {
+    // Group config is group-only (the same gate as Members' Cast — generation behavior is meaningless solo).
+    visibleTabs.add("members");
     visibleTabs.add("group");
   }
-  const activeTab = contextTab !== null && visibleTabs.has(contextTab) ? contextTab : "overrides";
+  const defaultTab = showMembers ? "members" : "overrides";
+  const activeTab = contextTab !== null && visibleTabs.has(contextTab) ? contextTab : defaultTab;
 
   // The draft persist seam for Overrides (the committed twin passes the `setRoomOverrides` verb): a
   // synchronous store write, wrapped as the Promise the autosave form's `save` contract expects.
@@ -121,8 +123,8 @@ export function DraftContextPanel({
       >
         <TabsList>
           <TabsTab value="overrides">Overrides</TabsTab>
-          {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
-          {showRoster ? <TabsTab value="group">Group</TabsTab> : null}
+          {showMembers ? <TabsTab value="members">Members</TabsTab> : null}
+          {showMembers ? <TabsTab value="group">Group</TabsTab> : null}
           <TabsTab value="injections">Injections</TabsTab>
           <TabsIndicator />
         </TabsList>
@@ -136,8 +138,8 @@ export function DraftContextPanel({
           />
         </TabsPanel>
 
-        {showRoster ? (
-          <TabsPanel value="roster">
+        {showMembers ? (
+          <TabsPanel value="members">
             <QueryBoundary
               fallback={<Text tone="muted">Loading roster…</Text>}
               renderError={(_error, retry): ReactElement => (
@@ -149,7 +151,7 @@ export function DraftContextPanel({
                 </Text>
               )}
             >
-              <DraftRosterTab
+              <DraftMembersTab
                 draftKey={draftKey}
                 characterIds={cast}
                 rosterOverrides={draftConfig.rosterOverrides}
@@ -158,7 +160,7 @@ export function DraftContextPanel({
           </TabsPanel>
         ) : null}
 
-        {showRoster ? (
+        {showMembers ? (
           <TabsPanel value="group">
             <GroupConfigForm
               entityId={`${GROUP_CONFIG_ENTITY_PREFIX}draft:${draftKey}`}
@@ -234,37 +236,43 @@ function DraftInjectionsTab({ draftKey, injections }: DraftInjectionsTabProps): 
   );
 }
 
-interface DraftRosterTabProps {
+interface DraftMembersTabProps {
   readonly draftKey: string;
   readonly characterIds: readonly CharacterId[];
   readonly rosterOverrides: DraftConfig["rosterOverrides"];
 }
 
-/** The draft Roster tab body — the founding cast projected into `RosterMember`s (names from the founding
- *  cards, mute/talkativeness from `draftConfig.rosterOverrides`), writing to `setDraftRosterOverride`. No
- *  force-turn (a draft has no turn to force — the `RosterPanel.onForceTurn` omission). */
-function DraftRosterTab({
+/** The draft Members tab body — the founding cast projected into Cast rows (names/avatars from the
+ *  founding cards, mute/talkativeness from `draftConfig.rosterOverrides`), writing to
+ *  `setDraftRosterOverride`. People is empty (a draft has exactly its author) and there is no
+ *  force-turn (a draft has no turn to force) — the callback omissions, per the source-agnostic panel. */
+function DraftMembersTab({
   draftKey,
   characterIds,
   rosterOverrides,
-}: DraftRosterTabProps): ReactElement {
+}: DraftMembersTabProps): ReactElement {
   const trpc = useTRPC();
   const characters = useSuspenseQueries({
     queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
   });
-  const members: RosterMember[] = characters.map((c) => {
+  const cast: MemberCastRow[] = characters.map((c) => {
     const override = rosterOverrides?.[c.data.id];
     return {
+      kind: "cast",
+      key: c.data.id,
       characterId: c.data.id,
       displayName: c.data.name,
       disabled: override?.disabled ?? false,
       talkativeness: override?.talkativeness ?? TALKATIVENESS_DEFAULT,
+      avatarHash: c.data.avatarHash ?? null,
+      responding: false,
     };
   });
 
   return (
-    <RosterPanel
-      members={members}
+    <MembersPanel
+      people={[]}
+      cast={cast}
       onSetDisabled={(characterId, disabled): void =>
         setDraftRosterOverride(draftKey, characterId, { disabled })
       }
