@@ -188,6 +188,8 @@ export const gate: GateDescriptor = {
       }
     }
   },
+  // NOTE: the BURN_DOWN ratchet/stale arms are guarded to the real full tree — their coverage moves to
+  // the live `pnpm check:structure` run. Only the pure FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <button type="button">Go</button>;\n',
@@ -199,6 +201,21 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/demo/link.tsx",
       why: "an <a> carrying href is interactive — must be an @orb/ui Link",
     },
+    {
+      files: 'export const G = <input type="text" />;\n',
+      at: "packages/client/src/features/demo/input.tsx",
+      why: "a raw <input> in a feature — must be an @orb/ui TextField",
+    },
+    {
+      files: "export const G = <select><option>a</option></select>;\n",
+      at: "packages/client/src/features/demo/select.tsx",
+      why: "a raw <select> in a feature — must be an @orb/ui Select",
+    },
+    {
+      files: "export const G = <textarea />;\n",
+      at: "packages/client/src/features/demo/textarea.tsx",
+      why: "a raw <textarea> in a feature — must be an @orb/ui TextArea",
+    },
   ],
   mustPass: [
     {
@@ -207,10 +224,20 @@ export const gate: GateDescriptor = {
       why: "a non-interactive <a> with no href (an anchor-name target) stays legal",
     },
     {
+      files: 'export const G = <a name="top">top</a>;\n',
+      at: "packages/client/src/features/demo/anchor-name.tsx",
+      why: "an <a name> with no href is a non-interactive anchor target — stays legal",
+    },
+    {
       // biome-ignore lint/security/noSecrets: a JSX fixture snippet (a raw <button>), not a secret.
       files: 'export const G = <button type="button">Shell</button>;\n',
       at: "packages/client/src/features/app-shell/thing.tsx",
       why: "app-shell is EXEMPT (shell-tier) — out of scanRoot, so a raw button there passes",
+    },
+    {
+      files: "export const G = <button>Go</button>;\n",
+      at: "packages/ui/src/primitives/button/button.tsx",
+      why: "scope: outside features/** a ui/ primitive legally hosts the raw element — not scanned, passes",
     },
   ],
 };

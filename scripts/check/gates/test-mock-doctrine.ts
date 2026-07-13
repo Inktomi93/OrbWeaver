@@ -88,12 +88,27 @@ export const gate: GateDescriptor = {
       at: "tests/tooling/x.test.ts",
       why: "vi.mock on an internal (relative) module — the ban §3 enforces",
     },
+    {
+      files: 'vi.mock("packages/server/src/foo");\n',
+      at: "tests/tooling/pkg.test.ts",
+      why: "vi.mock on a raw packages/ internal target — banned",
+    },
+    {
+      files: 'vi.mock("@orb/server/domain/chat");\n',
+      at: "tests/tooling/alias.test.ts",
+      why: "vi.mock on the @orb/ workspace alias — the closed blind spot (every internal import uses it)",
+    },
   ],
   mustPass: [
     {
       files: 'vi.mock("node:fs");\n',
       at: "tests/tooling/y.test.ts",
       why: "vi.mock on a third-party node edge (node:fs) — the one legitimate use, passes",
+    },
+    {
+      files: 'vi.mock("better-sqlite3");\n',
+      at: "tests/tooling/bare.test.ts",
+      why: "vi.mock on a third-party bare-name package — a legal node edge, passes",
     },
   ],
 };

@@ -160,6 +160,14 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "corsproxy.io" },
       why: "the NAMED-REJECTED third-party CORS proxy literal anywhere in server source",
     },
+    {
+      // de-sanctioned 2026-07-09: the provider-returned image URL is response-controlled, so a raw fetch
+      // in imagery generate-picture is an SSRF hole — it must ride the fetchImage port → safeFetch.
+      files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
+      at: "packages/server/src/domain/imagery/verbs/generate-picture.ts",
+      expect: { messageIncludes: "safeFetch" },
+      why: "imagery generate-picture is de-sanctioned — its provider-returned URL is response-controlled, a raw fetch flags",
+    },
   ],
   mustPass: [
     {
@@ -172,6 +180,16 @@ export const gate: GateDescriptor = {
       files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
       at: "packages/server/src/infra/providers/vllm/engine/client.ts",
       why: "a raw fetch in the sanctioned provider-egress zone (vLLM loopback) passes",
+    },
+    {
+      files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
+      at: "packages/server/src/infra/network/openai-models.ts",
+      why: "a raw fetch in the sanctioned infra/network zone (the /models catalog probe + safeFetch home) passes",
+    },
+    {
+      files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
+      at: "packages/client/src/x.ts",
+      why: "scope: non-server source is not scanned — passes",
     },
   ],
 };

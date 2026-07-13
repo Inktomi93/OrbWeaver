@@ -229,6 +229,9 @@ export const gate: GateDescriptor = {
       }
     }
   },
+  // NOTE: the ALLOWLIST ratchet/stale arms are `fileLoaded`-guarded to the real full tree (a synthetic
+  // conformance project omits the real allowlisted files) — their coverage moves to the live
+  // `pnpm check:structure` run. Only the pure FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <div className="w-[137px] p-[7px]" />;\n',
@@ -242,6 +245,11 @@ export const gate: GateDescriptor = {
       at: "packages/ui/src/x/x.tsx",
       why: "a variant-prefixed value arbitrary (hover:w-[…]) — the terminal segment still flags",
     },
+    {
+      files: 'export const G = <div className="text-[13px]" />;\n',
+      at: "packages/ui/src/primitives/demo/demo.tsx",
+      why: "the gate scans packages/ui/src too — a scoped-type value arbitrary flags there",
+    },
   ],
   mustPass: [
     {
@@ -253,6 +261,26 @@ export const gate: GateDescriptor = {
       files: 'export const G = <div className="data-[state=open]:opacity-100" />;\n',
       at: "packages/client/src/features/x/np.tsx",
       why: "a variant-SELECTOR bracket (non-terminal segment) is not a value bracket — passes",
+    },
+    {
+      files: 'export const G = <div className="translate-x-[calc(var(--a)-var(--b))]" />;\n',
+      at: "packages/client/src/features/x/calc.tsx",
+      why: "a calc(...) bracket body is token-driven — passes",
+    },
+    {
+      files: 'export const G = <div className="has-[:focus-visible]:ring-2" />;\n',
+      at: "packages/client/src/features/x/has.tsx",
+      why: "a has-[...]: selector bracket is a variant selector, not a terminal value bracket — passes",
+    },
+    {
+      files: "export const G = <div className=\"before:content-['']\" />;\n",
+      at: "packages/client/src/features/x/content.tsx",
+      why: "content-['...'] — content is not a scoped utility, out of scope — passes",
+    },
+    {
+      files: 'export const G = <div className="fill-[#fff]" />;\n',
+      at: "packages/client/src/features/x/fill.tsx",
+      why: "fill is an unscoped utility — a bracket on it is out of scope — passes",
     },
   ],
 };

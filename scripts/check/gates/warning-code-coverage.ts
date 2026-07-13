@@ -151,6 +151,11 @@ export const gate: GateDescriptor = {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
+  // NOTE: the DEFERRED-member arms (a DEFERRED member with no emit passes; a DEFERRED member that GAINS an
+  // emit is stale/RED) need an INJECTED channel with a non-empty `deferred` map via createWarningCodeCoverage
+  // — the LIVE CHANNELS this descriptor runs both declare `deferred: {}`, so those arms cannot be driven from
+  // an example (which runs the live descriptor). Their coverage is retained in
+  // tests/tooling/warning-code-coverage.residual.test.ts + the live `pnpm check:structure` run.
   mustFlag: [
     {
       files: {
@@ -160,6 +165,16 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "NO emit site" },
       why: "a CHAT_WARNING_CODES member with no emit site + no DEFERRED entry — a silently dead warning code",
+    },
+    {
+      // the tuple home file is EXCLUDED from its own emit corpus: the member string appears in the home
+      // declaration but there is no separate emit site, so it still flags (the home copy doesn't count).
+      files: {
+        "packages/contracts/src/chat/index.ts":
+          'export const CHAT_WARNING_CODES = ["home_only"] as const;\n',
+      },
+      expect: { messageIncludes: "NO emit site" },
+      why: "the tuple home file is excluded from its own emit corpus — a home-only member has no emit, flags",
     },
   ],
   mustPass: [

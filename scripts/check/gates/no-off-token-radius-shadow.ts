@@ -292,8 +292,30 @@ export const gate: GateDescriptor = {
       at: "packages/ui/src/x/variants.ts",
       why: "interpolated template PART (TemplateHead) inside tv() — the case a plain-string scan misses",
     },
+    {
+      files: `export const G = <div className="shadow" />;\n`,
+      at: "packages/client/src/features/x/bare.tsx",
+      why: "bare `shadow` (no scale suffix) is a default-scale utility — flags",
+    },
+    {
+      files: `export const G = <div className="hover:shadow-lg" />;\n`,
+      at: "packages/client/src/features/x/variant.tsx",
+      why: "a variant-prefixed off-token shadow (hover:shadow-lg) — the terminal segment still flags",
+    },
+    {
+      files: `export const G = <div className="rounded-lg shadow-md" />;\n`,
+      at: "packages/client/src/features/preset/components/thing.tsx",
+      // PER-TOKEN: two banned tokens → two findings; the preset lane is scanned like any other feature file.
+      expect: { count: 2 },
+      why: "the preset lane is scanned like any other feature file (its mid-revamp carve-out was retired)",
+    },
   ],
   mustPass: [
+    {
+      files: `export const G = <div className="drop-shadow-sm" />;\n`,
+      at: "packages/client/src/features/x/drop.tsx",
+      why: "drop-shadow-* is a filter utility (a different CSS property/namespace) — out of scope, passes",
+    },
     {
       files: `export const G = <div className="rounded-card shadow-overlay" />;\n`,
       at: "packages/ui/src/x/x.tsx",

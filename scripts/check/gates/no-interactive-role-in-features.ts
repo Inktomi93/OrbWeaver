@@ -1,3 +1,5 @@
+// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX role-attribute
+// fixture snippets (role="checkbox" etc.), not secrets.
 // Gate: no-interactive-role-in-features (UI-Gates-and-Lessons.md §8) — closes the layout-kit
 // interactive-role escape hatch. The compose-only biome keystone bans className/style on raw
 // intrinsics in features/**, and no-raw-interactive-intrinsics (planned, D62) bans raw <button>/<input>
@@ -220,11 +222,40 @@ export const gate: GateDescriptor = {
       }
     }
   },
+  // NOTE: the BURN_DOWN ratchet/stale arms are guarded to the real full tree (a synthetic conformance
+  // project omits the real burn-down files) — their coverage moves to the live `pnpm check:structure`
+  // run. Only the pure FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <Row role="button" tabIndex={0} />;\n',
       at: "packages/client/src/features/demo/thing.tsx",
       why: "a hand-rolled interactive role on a layout component — dodges the compose-only + raw-intrinsic belts",
+    },
+    {
+      files: 'export const G = <Row role={"checkbox"} />;\n',
+      at: "packages/client/src/features/demo/braced.tsx",
+      why: "a braced string-literal widget role — still a hand-roll, flags",
+    },
+    {
+      files: 'export const G = <Row role={cond ? "button" : undefined} />;\n',
+      at: "packages/client/src/features/demo/conditional.tsx",
+      why: "a conditional expression carrying a banned widget-role literal — still a hand-roll, flags",
+    },
+    {
+      files: {
+        "packages/client/src/features/demo/components/menuitem.tsx":
+          'export const G = <Row role="menuitem" />;\n',
+        "packages/client/src/features/demo/components/tab.tsx":
+          'export const G = <Row role="tab" />;\n',
+        "packages/client/src/features/demo/components/slider.tsx":
+          'export const G = <Row role="slider" />;\n',
+        "packages/client/src/features/demo/components/treeitem.tsx":
+          'export const G = <Row role="treeitem" />;\n',
+        "packages/client/src/features/demo/components/gridcell.tsx":
+          'export const G = <Row role="gridcell" />;\n',
+      },
+      expect: { count: 5 },
+      why: "a spread of five distinct widget roles across files — each flags",
     },
   ],
   mustPass: [
@@ -232,6 +263,21 @@ export const gate: GateDescriptor = {
       files: 'export const G = <div role="list" />;\n',
       at: "packages/client/src/features/demo/structural.tsx",
       why: "a structural role (list) stays legal — it describes document structure, not a widget",
+    },
+    {
+      files: 'export const G = <div role="img" />;\n',
+      at: "packages/client/src/features/demo/img.tsx",
+      why: "the img presentation role is structural, not an interactive widget — passes",
+    },
+    {
+      files: 'export const G = <div data-role="button" />;\n',
+      at: "packages/client/src/features/demo/data-role.tsx",
+      why: "data-role is not ARIA — the attribute name must be exactly `role`; ignored, passes",
+    },
+    {
+      files: 'export const G = <div role="button" />;\n',
+      at: "packages/ui/src/primitives/list-row/list-row.tsx",
+      why: "scope: a @orb/ui seal file outside features/** legally uses the widget role — not scanned, passes",
     },
   ],
 };

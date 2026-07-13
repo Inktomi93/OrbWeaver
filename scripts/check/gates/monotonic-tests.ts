@@ -200,12 +200,30 @@ export const gate: GateDescriptor = {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
+  // NOTE: tooth 2 (deleted-baseline-manifest reconciliation) reads a committed `docs/test-baseline/
+  // manifest.json` from disk. A deleted-file FLAG needs a real temp-dir tree with a manifest.json present
+  // — this descriptor is NOT fsBacked (tooth 1 is AST-only; tooth 2 gracefully no-ops when the manifest is
+  // absent, as on the real tree today), so an in-memory example can't materialize a manifest. That FLAG is
+  // retained in tests/tooling/monotonic-tests.residual.test.ts. The no-baseline no-op IS exercised by every
+  // tooth-1 example below (each runs tooth 2 with no manifest and stays clean). Tooth 1 ports fully:
   mustFlag: [
     {
       files: 'it.skip("later", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/x.test.ts",
       expect: { messageIncludes: "unconditionally" },
       why: 'a bare `it.skip("title", fn)` modifier — an unconditional skip the suite can\'t go green by (§5)',
+    },
+    {
+      files: 'test.only("focused", () => {\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/only.test.ts",
+      expect: { messageIncludes: "test.only" },
+      why: "test.only has no conditional variant — always the forbidden modifier form",
+    },
+    {
+      files: 'test.todo("later");\n',
+      at: "tests/tooling/todo.test.ts",
+      expect: { messageIncludes: "test.todo" },
+      why: "test.todo has no conditional variant — always the forbidden modifier form",
     },
   ],
   mustPass: [
@@ -214,6 +232,29 @@ export const gate: GateDescriptor = {
         'it.skipIf(process.env.CI === undefined)("gated", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/ok.test.ts",
       why: "a conditional `.skipIf(cond)` gate (env/engine) — exact-name match, never the forbidden modifier",
+    },
+    {
+      files:
+        'test("some flow", async ({ page }) => {\n  test.skip(!!process.env.CI, "flaky in CI");\n  await page.goto("/");\n});\n',
+      at: "tests/e2e/z.spec.ts",
+      why: "Playwright's runtime test.skip(cond, reason) guard (condition arg, no test body) — allowed",
+    },
+    {
+      files:
+        '// allow-skip: flaky pending PD-999\nit.skip("known-flaky", () => {\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/escape.test.ts",
+      why: "the `// allow-skip: <reason>` escape hatch on the line above exempts the skip — passes",
+    },
+    {
+      files:
+        'test("iterates", () => {\n  const it = [1, 2][Symbol.iterator]();\n  it.next();\n  expect(it.next().done).toBe(true);\n});\n',
+      at: "tests/tooling/iter.test.ts",
+      why: "a local `it` async-iterator variable (it.next()) is not a test call — not mistaken for one, passes",
+    },
+    {
+      files: 'it.skip("not even a real test file", () => {});\n',
+      at: "packages/server/src/x.ts",
+      why: "scope: a file outside tests/ is ignored entirely — passes",
     },
   ],
 };

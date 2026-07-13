@@ -129,5 +129,19 @@ export const gate: GateDescriptor = {
       },
       why: "the surface renders a <Container> around its structural content — the sanctioned shape, passes",
     },
+    {
+      files: {
+        "packages/client/src/features/x/surfaces/name-surface.tsx":
+          "export const N = () => <Name />;\n",
+      },
+      why: "a surface returning only a single composed child (no structural root) needs no container — passes",
+    },
+    {
+      files: {
+        "packages/client/src/features/app-shell/surfaces/app-shell.tsx":
+          "export const A = () => <Stack>x</Stack>;\n",
+      },
+      why: "the app-shell shell tier is the container PROVIDER frame — exempt, passes",
+    },
   ],
 };

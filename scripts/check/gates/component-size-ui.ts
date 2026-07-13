@@ -28,6 +28,9 @@ import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const UI_SRC = "packages/ui/src";
 const CAP = 450;
+// A comfortably-over-cap line count for the exempt-file conformance examples (a CT/fixture/.d.ts file
+// well past CAP must STILL pass because it is exempt by name, not by size).
+const OVER_CAP_LINES = CAP + CAP;
 const SKIP_DIRS = new Set(["node_modules", "dist", "__screenshots__"]);
 const SKIP_RE = /\.(?:test|spec|ct|fixtures|gen)\.tsx?$/u;
 const TRAILING_NL = /\n$/u;
@@ -114,6 +117,18 @@ export const gate: GateDescriptor = {
     {
       files: { "packages/ui/src/small/small.tsx": "export const x = 1;\n" },
       why: "a small ui source well under the cap — passes",
+    },
+    {
+      files: { "packages/ui/src/edge/edge.tsx": "export const x = 1;\n".repeat(CAP) },
+      why: "exactly at the 450 cap (boundary) — the cap is >450, so this passes",
+    },
+    {
+      files: {
+        "packages/ui/src/x/x.ct.tsx": "export const x = 1;\n".repeat(OVER_CAP_LINES),
+        "packages/ui/src/x/x.fixtures.tsx": "export const x = 1;\n".repeat(OVER_CAP_LINES),
+        "packages/ui/src/x/x.d.ts": "export const x = 1;\n".repeat(OVER_CAP_LINES),
+      },
+      why: "test / CT / fixture / .d.ts files are exempt at any size — not hand-authored primitives, passes",
     },
   ],
 };

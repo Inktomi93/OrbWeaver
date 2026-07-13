@@ -1,3 +1,5 @@
+// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX/form fixture
+// snippets (factory imports + controlled-input markup), not secrets.
 // Gate: form-factory-for-multifield (D54 §13.3/§13.4 + UI-Primitives-and-Reuse.md §13.4's threshold
 // rule). The live `no-direct-useform` grit already forces `useAppForm`/the factories the moment TanStack
 // Form is TOUCHED. The HOLE this gate closes is the form that dodges Form ENTIRELY: a features/**
@@ -225,6 +227,14 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "hand-rolls" },
       why: "a feature component with 3 controlled inputs + no factory import — a hand-rolled form (§13.4)",
     },
+    {
+      // raw controlled input/textarea/select tags count too (not just the @orb/ui field controls).
+      files:
+        "export function ThingForm() {\n  return (\n    <form>\n      <input value={a} onChange={set} />\n      <textarea value={b} onChange={set} />\n      <select value={c} onChange={set} />\n    </form>\n  );\n}\n",
+      at: "packages/client/src/features/x/raw.tsx",
+      expect: { messageIncludes: "hand-rolls" },
+      why: "raw controlled input/textarea/select tags count too — three hand-rolled fields, no factory",
+    },
   ],
   mustPass: [
     {
@@ -232,6 +242,47 @@ export const gate: GateDescriptor = {
         "export const F = () => (\n  <div>\n    <input value={a} onChange={x} />\n    <input value={b} onChange={y} />\n  </div>\n);\n",
       at: "packages/client/src/features/x/two-field.tsx",
       why: "only 2 controlled inputs — under the ≥3 threshold (a lone search / login 2-field), passes",
+    },
+    {
+      // importing createSavedEntityForm exempts the file — the form is routed through the factory.
+      files:
+        'import { createSavedEntityForm } from "#forms";\nconst use = createSavedEntityForm({});\nexport function ThingForm() {\n  return (\n    <div>\n      <Input value={a} onValueChange={set} />\n      <Select value={b} onValueChange={set} />\n      <NumberField value={c} onValueChange={set} />\n    </div>\n  );\n}\n',
+      at: "packages/client/src/features/x/saved.tsx",
+      why: "the file imports createSavedEntityForm — the ≥3-field form is routed through the factory, passes",
+    },
+    {
+      // importing createAutosaveEntityForm likewise exempts the file.
+      files:
+        'import { createAutosaveEntityForm } from "#forms";\nconst use = createAutosaveEntityForm({});\nexport function ThingForm() {\n  return (\n    <div>\n      <Input value={a} onValueChange={set} />\n      <Select value={b} onValueChange={set} />\n      <NumberField value={c} onValueChange={set} />\n    </div>\n  );\n}\n',
+      at: "packages/client/src/features/x/autosave.tsx",
+      why: "the file imports createAutosaveEntityForm — routed through the factory, passes",
+    },
+    {
+      // Tabs value/onValueChange is active-tab state, not a form field — excluded from FORM_CONTROLS.
+      files:
+        "export function Panel() {\n  return (\n    <Tabs value={t} onValueChange={set}>\n      <Tabs value={t} onValueChange={set} />\n      <Tabs value={t} onValueChange={set} />\n      <Tabs value={t} onValueChange={set} />\n    </Tabs>\n  );\n}\n",
+      at: "packages/client/src/features/x/tabs.tsx",
+      why: "Tabs value/onValueChange is active-tab state, not a field — not counted, passes",
+    },
+    {
+      // uncontrolled inputs (value present, no onChange handler) are not controlled fields.
+      files:
+        "export function ReadOnly() {\n  return (\n    <div>\n      <Input value={a} />\n      <Input value={b} />\n      <Input value={c} />\n    </div>\n  );\n}\n",
+      at: "packages/client/src/features/x/readonly.tsx",
+      why: "uncontrolled inputs (value, no onChange) are not two-way bound fields — not counted, passes",
+    },
+    {
+      // the count is per-component — two separate 2-field components do not aggregate.
+      files:
+        "export function A() {\n  return (<div><Input value={v} onValueChange={set} /><Select value={v} onValueChange={set} /></div>);\n}\nexport function B() {\n  return (<div><Input value={v} onValueChange={set} /><Select value={v} onValueChange={set} /></div>);\n}\n",
+      at: "packages/client/src/features/x/per-component.tsx",
+      why: "the count is per enclosing component — two separate 2-field components do not aggregate, passes",
+    },
+    {
+      // scope: a non-.tsx feature file is not scanned.
+      files: "export const x = 1;\n",
+      at: "packages/client/src/features/demo/hooks/use-thing.ts",
+      why: "scope: a non-.tsx feature file is out of scope — not scanned, passes",
     },
   ],
 };

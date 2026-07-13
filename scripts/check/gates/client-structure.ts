@@ -259,6 +259,57 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "stray file" },
       why: "a BUILT feature (has code) with a stray root file + no index.ts front door — feature-slice violations",
     },
+    {
+      // rule 2: a built feature that mirrors no domain and isn't reserved.
+      files: {
+        "packages/client/src/features/nodomain/index.ts": "export const x = 1;\n",
+      },
+      expect: { messageIncludes: "neither a reserved UI-only slice" },
+      why: "rule 2: a built feature name that is neither reserved nor a real server-domain mirror",
+    },
+    {
+      // rule 5: a surfaces/*.tsx not ending in -surface.tsx.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/surfaces/card.tsx":
+          "export const C = () => null;\n",
+      },
+      expect: { messageIncludes: "end in -surface.tsx" },
+      why: "rule 5: a surface file not named -surface.tsx",
+    },
+    {
+      // rule 6: a hooks/ file not named use-*.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/hooks/helpers.ts": "export const h = 1;\n",
+      },
+      expect: { messageIncludes: "hooks/ files are use-*" },
+      why: "rule 6: a hooks/ file not named use-* (nor -context/-provider)",
+    },
+    {
+      // rule 6: an anchor without a container-type suffix.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/anchors/thing.tsx":
+          "export const T = () => null;\n",
+      },
+      expect: { messageIncludes: "container-type suffix" },
+      why: "rule 6: an anchor filename without a known container-type suffix",
+    },
+    {
+      // rule 7: a surface rendering its own outer Dialog root (surface purity).
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/surfaces/edit-surface.tsx":
+          "export const E = () => <Dialog>x</Dialog>;\n",
+      },
+      expect: { messageIncludes: "must not render its own outer Dialog" },
+      why: "rule 7: a surface rendering its own outer Dialog root — the containment box is the anchor's job",
+    },
   ],
   mustPass: [
     {
@@ -270,6 +321,53 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/chat/hooks/use-chat.ts": "export const useChat = () => 1;\n",
       },
       why: "a built feature mirroring a real domain with an index.ts, a -surface.tsx, and a use-* hook — the layout, passes",
+    },
+    {
+      // rule 2: a reserved UI-only slice needs no server-domain mirror.
+      files: {
+        "packages/client/src/features/prompt-manager/index.ts": "export const x = 1;\n",
+      },
+      why: "rule 2: a reserved UI-only slice (prompt-manager) is clean without a domain mirror",
+    },
+    {
+      // rule 5: app-shell surfaces are exempt from the -surface.tsx naming contract (region chrome).
+      files: {
+        "packages/client/src/features/app-shell/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/app-shell/surfaces/rail.tsx":
+          "export const R = () => null;\n",
+      },
+      why: "rule 5: app-shell surfaces are exempt from the -surface.tsx naming contract",
+    },
+    {
+      // rule 7: a surface composing a Dialog PART (DialogTrigger) is clean — not the bare root.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/surfaces/edit-surface.tsx":
+          "export const E = () => <DialogTrigger>x</DialogTrigger>;\n",
+      },
+      why: "rule 7: composing a Dialog PART (DialogTrigger) is legal — only the bare modal root is banned",
+    },
+    {
+      // rule 6: a use-*.ts hook + a .gitkeep in hooks/ are clean.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/hooks/use-card.ts":
+          "export const useCard = () => 1;\n",
+        "packages/client/src/features/character/hooks/.gitkeep": "",
+      },
+      why: "rule 6: a use-*.ts hook plus a .gitkeep both pass the hooks/ naming contract",
+    },
+    {
+      // rule 6: a -dialog anchor carries a known container-type suffix.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/anchors/edit-dialog.tsx":
+          "export const E = () => null;\n",
+      },
+      why: "rule 6: a -dialog anchor carries a known container-type suffix and passes",
     },
   ],
 };

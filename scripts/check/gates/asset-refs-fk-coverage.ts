@@ -362,5 +362,37 @@ export const gate: GateDescriptor = {
       },
       why: "the FK column is classified RETAINING in ASSET_REFS — a covered column, passes",
     },
+    {
+      // classified DERIVED (the image_embeddings precedent) via its snake-case "table.column" key.
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
+        "packages/db/src/schema/assets.ts":
+          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts":
+          'export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = ["thing.asset_id"];\n',
+      },
+      why: "the FK column is classified DERIVED in DERIVED_ASSET_COLUMNS (the image_embeddings precedent) — passes",
+    },
+    {
+      // vacuous when the registry file isn't loaded (a schema-only fixture with nothing to check against).
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { assets } from "./assets";\nexport const t = sqliteTable("thing", {\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
+        "packages/db/src/schema/assets.ts":
+          'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+      },
+      why: "vacuous: the asset-refs registry file isn't in the project — nothing to reconcile against, passes",
+    },
+    {
+      // a schema column with no FK to assets.id is not an asset ref — ignored.
+      files: {
+        "packages/db/src/schema/x.ts":
+          'export const t = sqliteTable("thing", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts":
+          "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS: string[] = [];\n",
+      },
+      why: "a schema column with no FK to assets.id is not an asset ref — ignored, passes",
+    },
   ],
 };

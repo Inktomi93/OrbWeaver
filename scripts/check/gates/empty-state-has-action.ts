@@ -191,6 +191,11 @@ export const gate: GateDescriptor = {
       }
     }
   },
+  // NOTE: the ALLOWLIST ratchet/stale arms (suppress-allowlisted, gone-clean-is-RED, absent-is-stale)
+  // are barrel/`fileLoaded`-guarded to the REAL full tree — a synthetic conformance project omits the
+  // real allowlisted files, so those branches cannot run as an in-memory example. Their coverage moves
+  // to the live `pnpm check:structure` run (this gate's finalize on the real tree). Only the pure
+  // FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <EmptyState title="Nothing here" />;\n',
@@ -203,6 +208,17 @@ export const gate: GateDescriptor = {
       files: 'export const G = <EmptyState title="Nothing here" action={<Button>Go</Button>} />;\n',
       at: "packages/client/src/features/demo/ok.tsx",
       why: "an <EmptyState> WITH an action prop — the next-step affordance is present",
+    },
+    {
+      files:
+        'export const G = <EmptyState title="Nothing here" {...(cond ? { action: 1 } : {})} />;\n',
+      at: "packages/client/src/features/demo/spread.tsx",
+      why: "a spread attribute might carry action (a conditional CTA the gate can't statically resolve) — treated as present",
+    },
+    {
+      files: 'export const G = <EmptyState title="x" />;\n',
+      at: "packages/ui/src/primitives/empty-state/demo.tsx",
+      why: "scope: an <EmptyState> outside features/** is not scanned — passes",
     },
   ],
 };

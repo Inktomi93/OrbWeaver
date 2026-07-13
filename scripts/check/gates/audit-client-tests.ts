@@ -392,12 +392,88 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "doesn't throw" },
       why: 'a test callback with no expect(...).<matcher>() — pure "doesn\'t throw" is not a test (§5)',
     },
+    {
+      files: 'test("async no await", async () => {\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/async.test.ts",
+      expect: { messageIncludes: "no AwaitExpression" },
+      why: "rule 2: an async callback with no AwaitExpression — drop async or add an await",
+    },
+    {
+      files: 'test("bare", () => {\n  expect(1);\n});\n',
+      at: "tests/tooling/bare.test.ts",
+      expect: { messageIncludes: "bare `expect(x);`" },
+      why: "rule 3: a bare expect(x) statement with no matcher chain — assertion incomplete",
+    },
+    {
+      files: 'describe("a suite", () => {\n  const x = 1;\n  void x;\n});\n',
+      at: "tests/tooling/empty-describe.test.ts",
+      expect: { messageIncludes: "no nested test()/it()" },
+      why: "rule 4: a describe() block with no nested test()/it() descendant",
+    },
+    {
+      files: "beforeEach(() => {});\n",
+      at: "tests/tooling/empty-hook.test.ts",
+      expect: { messageIncludes: "empty body" },
+      why: "rule 5: an empty lifecycle hook body — delete the hook",
+    },
+    {
+      files: 'test("int no assert", async () => {\n  await Promise.resolve();\n});\n',
+      at: "tests/server/domain/x.int.test.ts",
+      expect: { messageIncludes: "no descendant expect" },
+      why: "suffix scope: .int.test.ts is still a .test.ts suffix match — it is audited",
+    },
   ],
   mustPass: [
     {
       files: 'test("asserts", () => {\n  expect(1).toBe(1);\n});\n',
       at: "tests/tooling/ok.test.ts",
       why: "a test with a matcher-chained expect — the audited shape holds, passes",
+    },
+    {
+      files:
+        // biome-ignore lint/security/noSecrets: a fixture SOURCE string (a helper function + a test call), not a secret.
+        "function expectOk(x: number): void {\n  expect(x).toBeGreaterThan(0);\n}\n" +
+        'test("asserts via a helper", () => {\n  expectOk(1);\n});\n',
+      at: "tests/tooling/helper.test.ts",
+      why: "rule 1: the assertion lives inside a resolved assertion helper — transitively resolved, passes",
+    },
+    {
+      files: 'test("polls", async () => {\n  await expect.poll(() => 1).toBe(1);\n});\n',
+      at: "tests/tooling/poll.test.ts",
+      why: "rule 1: expect.poll(...) is a matcher chain via the bare `expect` identifier target",
+    },
+    {
+      files: 'test("sync", () => {\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/sync.test.ts",
+      why: "rule 2: a sync callback (no async keyword) is not required to await",
+    },
+    {
+      files:
+        'test("async with await", async () => {\n  await Promise.resolve();\n  expect(1).toBe(1);\n});\n',
+      at: "tests/tooling/awaited.test.ts",
+      why: "rule 2: an async callback that awaits passes",
+    },
+    {
+      files:
+        'test("drains an async iterable", async () => {\n' +
+        "  const out: number[] = [];\n" +
+        "  for await (const x of gen()) {\n" +
+        "    out.push(x);\n" +
+        "  }\n" +
+        "  expect(out).toEqual([1]);\n" +
+        "});\n",
+      at: "tests/tooling/for-await.test.ts",
+      why: "rule 2: `for await (...)` awaits per-iteration (no AwaitExpression node) — the live-verified false positive this gate fixes",
+    },
+    {
+      files: "export const helper = () => 1;\n",
+      at: "tests/support/helper.ts",
+      why: "suffix scope: a non-test file under tests/ is ignored",
+    },
+    {
+      files: 'test("mounts", () => {\n  const x = 1;\n  void x;\n});\n',
+      at: "tests/ui/button.ct.tsx",
+      why: "suffix scope: .ct.tsx (Playwright CT lane) is audited elsewhere, not here",
     },
   ],
 };
