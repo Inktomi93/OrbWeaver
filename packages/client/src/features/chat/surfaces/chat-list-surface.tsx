@@ -1,21 +1,8 @@
-// The Chats-section LIST surface (UI-Arch §2.1 CONSUMER tier; §4.1/§4.2 LIST region) — the existing-chats
-// picker that fills the shell's LIST panel: a header row (micro-caps "Chats" title + a compact ghost `+`
-// icon-button → the J2 picker) → a search field → the caller's chats as `@orb/ui/list-row` rows
-// (avatar · title · participants · relative time), select-to-open, with a per-row kebab (rename/star/
-// archive/delete). UIP-301/302/303 + J5.
-//
-// READ SHAPE: `chat.listChats` returns a plain, UNPAGED `ChatSummary[]` — a `useSuspenseQuery` in
-// `<QueryBoundary>` (the §13.2 bounded-read row), NOT `createCollectionSurface` (the infinite machine —
-// wrong tool for a bounded array). No new invalidation is wired: `data/invalidation.ts` already refreshes
-// `chat.listChats` on chat events + the J5 row mutations invalidate it, so the list stays fresh for free.
-//
-// SEARCH (UIP-303): a client-side `useDeferredValue` filter over the loaded summaries (title + participant
-// names — `filterChats`, mirroring the character library's `filterCharacters`). `chat.listChats` has no
-// server-side search param — a server search is a real domain change, out of scope (flagged in filter-chats).
-//
-// SELECTION: this surface only WRITES the choice out via `onSelect`/`onNewChat`/`onDeletedChat` — it holds
-// no active-chat state and reads none (§5.1: no surface chases an ambient active chat). The route owns the
-// active-chat store; `activeChatId` is passed down purely to paint the selected row.
+// The chats-list surface: a header row, search field, and the caller's chats as list-row rows
+// (avatar/title/participants/relative time), select-to-open, with a per-row kebab menu. chat.listChats
+// is a plain unpaged array, so this is a bounded useSuspenseQuery, not createCollectionSurface. Search
+// is a client-side useDeferredValue filter — there is no server-side search param. This surface only
+// writes the choice out via onSelect/onNewChat/onDeletedChat; it holds no active-chat state.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
@@ -48,20 +35,13 @@ type ChatListRows = inferOutput<Trpc["chat"]["listChats"]>;
 type ChatSummaryItem = ChatListRows[number];
 
 export interface ChatListSurfaceProps {
-  /** The active chat's id (or null for landing/draft) — paints the selected row; never a read source. */
+  /** Paints the selected row only; never a read source. */
   readonly activeChatId: ChatId | null;
-  /** Open an existing chat (the route maps this to `selectChat`). */
   readonly onSelect: (chatId: ChatId) => void;
-  /** Open the new-chat character picker (the route maps this to `openModal("newChat")`). */
   readonly onNewChat: () => void;
-  /** Fired after a row's delete succeeds — the route leaves the room if it was the active one (J1). */
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
 }
 
-/** The chats picker: a header row (title + `+`) → optional per-character filter chip → search → the
- *  suspense-loaded rows. The per-character filter (`useChatListCharacterFilter`) is the character editor
- *  hero's "N chats ›" seam (state/chat-list-filter-store) — this surface READS it and scopes the list,
- *  showing a "filtered by [name] ✕" clear chip. */
 export function ChatListSurface({
   activeChatId,
   onSelect,
@@ -75,8 +55,6 @@ export function ChatListSurface({
 
   return (
     <Stack className="h-full min-h-0" gap="block">
-      {/* Header row (UIP-202/302): the section title lives HERE (not in PanelChrome) + a compact ghost
-          `+` icon-button (the demoted New-chat slab → the J2 picker). */}
       <Row align="center" justify="between">
         <Text size="micro" weight="semibold" tone="muted" transform="caps">
           Chats
@@ -121,10 +99,6 @@ export function ChatListSurface({
   );
 }
 
-/** The "Filtered: [name] ✕" affordance — a dismissible chip whose ✕ clears the per-character scope (back to
- *  the full list). Sits under the header so it reads as a scope on the whole list below. The "Filtered:"
- *  micro-caps prefix is the at-a-glance cue that the name is an ACTIVE FILTER, not a tag (the "filter"
- *  meaning otherwise lived only in the ✕'s aria-label). */
 function FilterChip({ filter }: { readonly filter: ChatListCharacterFilter }): ReactElement {
   return (
     <Row align="center" gap="field">
@@ -157,8 +131,6 @@ interface ChatListBodyProps {
   readonly query: string;
 }
 
-/** The suspending body — reads canon, applies the per-character scope THEN the text search, then renders
- *  the empty-state or the row list. */
 function ChatListBody({
   activeChatId,
   characterFilter,
@@ -187,9 +159,6 @@ function ChatListBody({
     );
   }
 
-  // Scope to the character's threads first (the hero "N chats ›" seam), then the text search over that
-  // scope. `participantCharacterIds` counts DEPARTED seats too (views.ts) — "every chat you've had with
-  // them", which is what the filter means. A filter with zero threads offers "start a new one".
   const scoped =
     characterFilter === null
       ? chats
@@ -253,13 +222,10 @@ interface ChatListRowProps {
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
 }
 
-/** One chats-list row — avatar (initials) · title · participants · relative time, plus the kebab menu. */
 function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowProps): ReactElement {
   const title = chat.title ?? "Untitled chat";
   const subtitle =
     chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
-  // ChatSummary carries no last-message preview text on the wire — TODO(server): add a preview field to
-  // `ChatSummary` for a real last-line; today the participant names are the honest subtitle.
   const when = chat.lastMessageAt ?? chat.updatedAt;
 
   return (

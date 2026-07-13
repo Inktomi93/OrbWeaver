@@ -1,19 +1,8 @@
-// The cast-bar ADD-MEMBER affordance (ux-flow-revamp J7) — a trailing "+" on the cast bar (host-only)
-// opening a quiet anchored Popover picker of characters NOT already in the roster. Picking a row adds
-// that character (`chat.addCharacterToChat` — the J7 router pass-through) and keeps the popover open so
-// several can be added in a row; the cast bar re-renders as `getChat` invalidates.
-//
-// A POPOVER, not a MODAL_SLOTS entry (§4.2 rule 5): this is a small anchored picker off a content
-// affordance, not a rail/topbar-triggered interrupt — so it does NOT belong in the shell modal registry
-// (the new-chat picker, which IS rail/⌘K-reachable, does). Composes `@orb/ui/command` for the search +
-// roving-listbox keyboard nav (the new-chat-picker precedent); reads ONE bounded `character.list` page
-// (a larger library needs server-side picker search — the same follow-up flagged there).
-//
-// SOURCE-AGNOSTIC (the J2/J3 committed/draft dual-mode, mirroring roster-panel.tsx): the popover chrome +
-// picker are PURE over an `onAdd(id)` callback — the committed `AddMemberPopover` wires it to the
-// `chat.addCharacterToChat` verb; the `DraftAddMemberPopover` wires it to the `addDraftCharacter` store
-// write (folded into the founding cast at commit, draft-commit.ts). Same picker, same look — only the
-// SAVE seam differs; a draft has no server row to invalidate, so its verb is a synchronous store patch.
+// The cast-bar add-member affordance: a trailing "+" (host-only) opening an anchored Popover picker of
+// characters not already in the roster. Picking a row adds it and keeps the popover open for more. A
+// popover, not a modal-slot entry — this is a small anchored picker, not a rail/topbar interrupt. Source-
+// agnostic over an onAdd(id) callback: committed wires chat.addCharacterToChat, draft wires the
+// addDraftCharacter store write.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -41,8 +30,6 @@ const SKELETON_ROW_COUNT = 5;
 
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
-/** The shared picker shell — the "+" trigger, tooltip, and the QueryBoundary-wrapped list. Source-agnostic
- *  over an `onAdd(id)`; the committed + draft wrappers supply the SAVE seam + the already-in-roster set. */
 function AddMemberShell({
   existingCharacterIds,
   onAdd,
@@ -82,12 +69,9 @@ function AddMemberShell({
 
 export interface AddMemberPopoverProps {
   readonly chatId: ChatId;
-  /** The characters already in the roster — excluded from the picker (no double-seat). */
   readonly existingCharacterIds: readonly CharacterId[];
 }
 
-/** The cast-bar "+" → an anchored character picker; picking adds the member (host-only affordance).
- *  COMMITTED variant: the save seam is the `chat.addCharacterToChat` verb (invalidates `getChat`). */
 export function AddMemberPopover({
   chatId,
   existingCharacterIds,
@@ -104,15 +88,10 @@ export function AddMemberPopover({
 }
 
 export interface DraftAddMemberPopoverProps {
-  /** The active draft's key — the `draft-config` partition the added members land in. */
   readonly draftKey: string;
-  /** The draft's current founding cast (seed ∪ already-added) — excluded from the picker. */
   readonly existingCharacterIds: readonly CharacterId[];
 }
 
-/** The DRAFT-side "+" → the same anchored picker; picking writes `addDraftCharacter` (no server row yet —
- *  the added members fold into the founding cast at commit, draft-commit.ts). Host is implicit (a draft is
- *  authored by, and visible only to, its creator — draft-context-panel-surface.tsx). */
 export function DraftAddMemberPopover({
   draftKey,
   existingCharacterIds,
@@ -157,8 +136,6 @@ interface AddRowProps {
   readonly onAdd: (id: CharacterId) => void;
 }
 
-/** One candidate row — avatar · name; selecting adds it (the popover stays open for more). `keywords`
- *  carries the display name so cmdk's `value`-based filter still matches what the user reads. */
 function AddRow({ character, onAdd }: AddRowProps): ReactElement {
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (

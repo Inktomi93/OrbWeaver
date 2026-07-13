@@ -1,17 +1,8 @@
-// domain/stats/contract/service — the typed API surface (core/Core-0-Architecture-and-Structure.md §4). `StatsService` is the
-// authoritative verb listing (read it to know everything the read side does); `StatsContext` is the
-// explicit DI bundle (the inferred `ReturnType<>` is invisible at a glance, so it's hand-written here per
-// §7.4 + the no-inline-types gate — matches the sessions/admin precedent of homing the context interface
-// in contract/service.ts).
-//
-// READ-ONLY: the rollups (db/schema/stats.ts) are maintained LIVE on the chat write-path
-// (`applyStatsDelta`, write/apply-delta.ts); the full rebuild is `reconcileStats` (write/rebuild-from-
-// canon.ts), driven by the admin `reconcile-stats` workload. NEITHER write path is a verb here — they're
-// the standalone write substrate exported via the front door, not the read service.
-//
-// `ownerId` is ALWAYS `principal.userId` (never input) — the single-owner row-scoping invariant across
-// every verb (§7.1). Verbs return data or `null`/empty for an absent rollup — stats has NO typed error
-// (documented choice; there is no contract/errors.ts).
+// The typed API surface: `StatsService` is the authoritative verb listing, `StatsContext` the DI bundle.
+// Read-only: the rollups are maintained live on the chat write-path (`applyStatsDelta`); the full rebuild is
+// `reconcileStats`, driven by the admin `reconcile-stats` workload — neither write path is a verb here.
+// `ownerId` is always `principal.userId`. Verbs return data or `null`/empty for an absent rollup — no typed
+// error.
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -32,9 +23,7 @@ import type {
   WrappedSummary,
 } from "./views";
 
-/** The DI bundle every verb closes over, wired at the composition root (`service.ts`). Stats is read-only,
- *  so the bundle is just the libSQL handle — all queries route through `persistence/`. Explicit interface
- *  (not `ReturnType<typeof createStatsContext>`) per §7.4 + the no-context-returntype gate. */
+/** The DI bundle every verb closes over. Stats is read-only, so the bundle is just the libSQL handle. */
 export interface StatsContext {
   db: Db;
 }
@@ -72,12 +61,10 @@ export interface StatsService {
    *  rollups carry no percentiles (they can't be `+=`-maintained — invariant #6). */
   latency: (ownerId: UserId, scope: LatencyScope) => Promise<LatencyStats>;
 
-  // ── economics projection (PD-22 — the stats↔discovery seam Tier 2; NOT tRPC-routed) ──────────────────
-  /** Per-character SELECTED-variant economics (D26), owner-scoped — the injected op discovery's
-   *  `forgottenGems` composes for the cost/usage dimension. Discovery receives only this narrowed rollup;
-   *  the raw economics columns stay UNSPELLABLE outside stats (Knowledge-Cluster inv #5). */
+  /** Per-character selected-variant economics, owner-scoped — discovery's `forgottenGems` composes this
+   *  for the cost/usage dimension. */
   characterEconomics: (ownerId: UserId) => Promise<CharacterEconomics[]>;
-  /** Per-(character, model) SELECTED-variant economics (D26), owner-scoped — the injected op discovery's
-   *  `modelRouting` re-groups by the character's distilled genre (stats owns which model performed how). */
+  /** Per-(character, model) selected-variant economics, owner-scoped — discovery's `modelRouting` re-groups
+   *  by the character's distilled genre. */
   characterModelEconomics: (ownerId: UserId) => Promise<CharacterModelEconomics[]>;
 }

@@ -1,18 +1,6 @@
-// domain/persona/contract/service — the typed API surface (read THIS to know everything the domain does).
-// Holds:
-//   • PersonaContext   the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4 /
-//                      no-context-returntype; re-exported via context.ts, assembled at
-//                      `entry/compose/services.ts`)
-//   • PersonaService   the verb interface (the front door re-exports the type)
-//
-// The human's persona cards — owner-scoped CRUD + the character⇄persona junction + the non-lossy
-// createFromCharacter mint. Every verb gates on `principal.userId` (ownership IS the gate — no admin/owner
-// guard is injected; there is no privileged persona surface in W1). Cross-feature deps arrive type-only;
-// persona sideways-imports nothing (domain-no-cross-feature).
-//
-// NOTE — `setActivePersona` writes `chat_participants.activePersonaId` (a chat-domain table)
-// and is host-or-self, which routes through the `{ kind: 'chat', roster }` `can()` arm.
-// It is fully wired into `PersonaService` and `entry/compose` supplies the chat database update ops.
+// The typed API surface: PersonaContext (the DI bundle) and PersonaService (the verb interface). Owner-scoped
+// CRUD + the character⇄persona junction + the non-lossy createFromCharacter mint. Every verb gates on
+// `principal.userId`; persona sideways-imports nothing.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaBackupInput } from "@orb/contracts/persona";
@@ -38,25 +26,14 @@ import type {
 import type { DisconnectResult, RemovePersonaResult } from "./results";
 import type { PersonaDetail } from "./views";
 
-/**
- * The DI bundle every persona verb closes over (wired at `service.ts`). Explicit interface (not
- * `ReturnType<typeof createPersonaContext>`) per §7.4 + the `no-context-returntype` gate.
- *   - `db` — the libSQL handle (all queries route through `persistence/`).
- *   - `now` — the INJECTED clock (epoch-ms). Production passes the real clock at `entry/`; tests the frozen
- *     clock. No ambient `Date.now()` in a verb (determinism — `test-determinism`).
- *   - `newPersonaId` — the INJECTED id minter (production `mintTypeId(ID_PREFIX.persona)`; tests the seeded
- *     generator). No ambient `mintTypeId()` in a verb (the same determinism seam).
- *   - `audit` — `foundation/observability`'s `logAudit`, pre-bound to `db` at the root (best-effort; the
- *     verb supplies the timestamp from `now`).
- */
+/** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newPersonaId: () => PersonaId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  /** The user-bus live-freshness emit (PD user-bus lane) — every persona-CRUD verb fires `personasChanged`
-   *  with the acting owner's `userId` AFTER its durable write commits, so a second device's persona list
-   *  refetches. Wired to transport's `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  /** Fires `personasChanged` with the acting owner's `userId` after every persona-CRUD write commits, so a
+   *  second device's list refetches. Fire-and-forget. */
   readonly emitUserEvent: EmitUserEvent;
 
   readonly requireChatAuthorOrHost: (
@@ -69,12 +46,9 @@ export interface PersonaContext {
     targetUserId: UserId,
     personaId: PersonaId | null,
   ) => Promise<void>;
-  /** Re-point the GLOBAL seed pointers (`settings.seeds.current/defaultPersonaId`) after `remove` deletes
-   *  `deletedId` — an INJECTED settings write (persona sideways-imports nothing; wired at `entry/compose`).
-   *  Enforces the owner invariant "never NO current persona while you own one": if the deleted persona was
-   *  the current (or default) pointer, the op re-points to default → first remaining → null. A no-op when
-   *  neither pointer named the deleted id. Fires AFTER the row deletion commits (best-effort ordering
-   *  matches `setChatActivePersona` — the display fallback covers the window if it ever fails). */
+  /** Re-point the global seed pointers after `remove` deletes `deletedId`. Enforces "never no current
+   *  persona while you own one": re-points to default → first remaining → null. No-op when neither pointer
+   *  named the deleted id. Fires after the row deletion commits. */
   readonly repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId) => Promise<void>;
 }
 

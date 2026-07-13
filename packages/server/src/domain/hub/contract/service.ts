@@ -1,12 +1,7 @@
-// domain/hub/contract/service — the typed API surface (read THIS to know everything the leaf does). Holds
-// the explicit DI bundle (`HubContext`), the injected-op TYPES (hub declares the type; `entry/` binds the
-// impl over infra/sibling front doors — the `credentials.fetchModels` precedent), and the verb interface.
-//
-// v1 = the gif slice ONLY (D61 gallery-design §5 migrated here per doc 02 §5). `domain/hub` owns NO tables
-// (no `@orb/db` import — the no-tables claim is structural); a gif import writes the EXISTING `assets` CAS +
-// `gallery_items` via injected ops. Every outbound fetch is a compose-bound infra op — the domain NEVER
-// spells global `fetch`/undici (the sealed-executor line). The Tenor host allowlist + the image guard live
-// INSIDE those ops (infra/network/gif-search); the domain sees only normalized shapes + a plaintext key.
+// The typed API surface: HubContext (the DI bundle), the injected-op types, and the verb interface. v1 is
+// the gif slice only; `domain/hub` owns no tables — a gif import writes the existing `assets` CAS +
+// `gallery_items` via injected ops. Every outbound fetch is a compose-bound infra op; the Tenor host
+// allowlist + image guard live inside those ops.
 
 import type { GalleryItemView, GifSearchResult } from "@orb/contracts/hub";
 import type { Principal } from "@orb/contracts/identity";
@@ -56,12 +51,8 @@ export type AssertCharacterOwnedOp = (
   characterId: CharacterId,
 ) => Promise<boolean>;
 
-/**
- * The DI bundle every hub verb closes over (wired at the entry composition root; surfaced through
- * `context.ts`). Explicit interface (not `ReturnType<>`) per §7.4 + the `no-context-returntype` gate. Every
- * field is an injected op — hub sideways-imports no sibling runtime and never imports `infra/network`
- * internals (the ops arrive type-only here).
- */
+/** The DI bundle every hub verb closes over. Every field is an injected op — hub sideways-imports no
+ *  sibling runtime and never imports `infra/network` internals. */
 export interface HubContext {
   readonly searchGifs: SearchGifsAdapterOp;
   readonly fetchGifImage: FetchGifImageOp;
@@ -74,11 +65,7 @@ export interface HubContext {
 /** What `createHubService` receives — identical to {@link HubContext} (no deps→context transform). */
 export type HubServiceDeps = HubContext;
 
-/**
- * The hub surface. v1 = the two gif verbs (D61 doc 02 §5). Both are owner-scoped off `principal.userId`:
- * `searchGifs` resolves the caller's OWN gif-search key (no cross-user read); `importGif` stores the asset
- * as the caller + gates the subject character on the caller's ownership.
- */
+/** The hub surface. v1 = the two gif verbs. Both are owner-scoped off `principal.userId`. */
 export interface HubService {
   /** Search Tenor for gifs. Resolves the caller's gif-search key (missing ⇒ `DomainNoCredentialError`),
    *  then returns normalized hits (+ the provider's opaque cursor). The `limit` is clamped at the wire. */

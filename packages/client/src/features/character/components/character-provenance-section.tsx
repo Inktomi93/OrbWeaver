@@ -1,24 +1,16 @@
-// The §6.4 read-only tail of the Advanced tab — NONE of this is a form field (display only):
-//   • Provenance (import): `importedFrom` + `importHash` render as muted rows ONLY when non-null (an
-//     app-authored card shows neither). The editable `creator`/`cardVersion` live in the tab's FORM section.
-//   • Unrecognized data: `extensions` + `residualData` — a collapsed read-only JSON viewer (hygiene-only
-//     round-trip fields the editor never authors).
-//   • Refinery: `{score, analysis}` — DERIVED, never authored → a `stat-figure` readout (§6.4: "a
-//     meter/stat-figure readout, NOT a form field"). `null`/no-score degrades to a muted "not analyzed".
+// The read-only tail of the Advanced tab — none of this is a form field. Provenance (import metadata)
+// renders muted rows only when non-null; unrecognized data (extensions/residualData) is a collapsed
+// read-only JSON viewer; refinery `{score, analysis}` is a derived stat-figure readout.
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { StatFigureProps } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-// biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
-// specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
-// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
+// biome-ignore lint/correctness/noUnresolvedImports: biome mis-enumerates react's conditional-CJS export map and misses lazy/Suspense; tsc resolves them fine.
 import { lazy, Suspense } from "react";
 
-// `@orb/ui/stat-figure` pulls in the ECharts seal at module load (chart.tsx → echarts-setup
-// registers the full modular graph) — lazy so the ~60MB echarts package never lands in the entry
-// chunk for a tile that renders every character-detail view (P1, rollup audit).
+// Lazy so the ~60MB echarts package (pulled in by @orb/ui/stat-figure) never lands in the entry chunk.
 const StatFigure = lazy(async () => {
   const mod = await import("@orb/ui/stat-figure");
   return { default: mod.StatFigure };

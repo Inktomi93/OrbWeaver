@@ -1,12 +1,9 @@
-// foundation/observability/logger — pino (multistream: stdout + the in-process ring) + the bounded ring
-// buffers behind /api/_debug + the AsyncLocalStorage request scope + `securityEvent`. Read DOWN by every
-// tier; `getLog()`/`logger` is the ONLY sanctioned output (the `noConsole` total ban goes live with this
-// file). Doctrine: logs are METADATA — RP content lives in the DB (never a log line — core/Tier-2-Foundation.md
-// esoteric #12).
+// pino (multistream: stdout + the in-process ring) + the bounded ring buffers behind /api/_debug + the
+// AsyncLocalStorage request scope + securityEvent. `getLog()`/`logger` is the only sanctioned output.
+// Doctrine: logs are metadata — RP content lives in the DB, never a log line.
 //
-// ASSUMES(single-replica): the log + request rings are module-scope, per-process (core/Tier-2-Foundation.md
-// esoteric #5). An admin browsing /api/_debug on a multi-replica deploy sees only the replica they hit;
-// the rings are the seam to externalize if that is ever reversed.
+// ASSUMES(single-replica): the log + request rings are module-scope, per-process. An admin browsing
+// /api/_debug on a multi-replica deploy sees only the replica they hit.
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import process from "node:process";
@@ -109,8 +106,8 @@ export function recentRequests(limit: number): RequestRecord[] {
   return requestRing.recent(limit);
 }
 
-// A stream that captures each already-serialized JSON line into the ring. No parsing here — that is the
-// whole point (cheap on the hot path); the line is already serialized on the main thread.
+// A stream that captures each already-serialized JSON line into the ring. No parsing here — cheap on the
+// hot path.
 const ringStream = new Writable({
   write(chunk: Buffer, _encoding, callback): void {
     logRing.push(chunk.toString("utf8").trimEnd());
@@ -121,25 +118,18 @@ const ringStream = new Writable({
 export const logger: Logger = pino(
   {
     level: env.LOG_LEVEL,
-    // Emit the level as its string label ("warn"), not pino's numeric 40 — greppable + readable in any
-    // viewer/aggregator without a level map. pino-pretty renders both; this is for the raw JSON.
+    // Emit the level as its string label ("warn"), not pino's numeric 40 — greppable in any aggregator.
     formatters: { level: (label) => ({ level: label }) },
-    // ISO-8601 timestamps in the JSON (aggregator-friendly + human-readable raw) over epoch ms.
     timestamp: pino.stdTimeFunctions.isoTime,
-    // An Error logged under `err` serializes to { type, message, stack } — full traces, not `{}`.
     serializers: { err: pino.stdSerializers.err },
-    // Auth/secrets only — RP bodies are never logged, so there is nothing else to scrub. Top-level keys +
-    // one-level `*.x` wildcards: pino redact is NOT recursive, so a bare "apiKey" misses a nested
-    // `{ credential: { apiKey } }`. Defense-in-depth (current call sites log ids/source, never plaintext).
+    // Auth/secrets only — RP bodies are never logged. Top-level keys + one-level *.x wildcards: pino
+    // redact is not recursive, so a bare "apiKey" misses a nested { credential: { apiKey } }.
     redact: {
       paths: [
         "req.headers.authorization",
         "req.headers.cookie",
         "authorization",
         "token",
-        // The `@anthropic-ai/sdk` constructor field (anth-direct, D67 §5): `token` ≠ `authToken` and
-        // `*.token` will not match it — the one credential field the existing belt misses. The outbound
-        // OR Bearer key rides this ctor arg; defense-in-depth behind the metadata-only emit doctrine.
         "authToken",
         "apiKey",
         "password",
@@ -154,10 +144,8 @@ export const logger: Logger = pino(
       censor: "[redacted]",
     },
   },
-  // Each multistream destination needs its OWN level — without it pino.multistream defaults streams to
-  // `info` and silently DROPS debug logs even when the logger level is `debug`, making every per-op
-  // getLog().debug line unreachable (stdout AND the ring). Tie both to LOG_LEVEL; dedupe:false → a log
-  // goes to every stream at/above its level (core/Tier-2-Foundation.md esoteric #7).
+  // Each multistream destination needs its own level — without it pino.multistream defaults streams to
+  // `info` and silently drops debug logs even when the logger level is `debug`.
   pino.multistream(
     [
       { level: env.LOG_LEVEL, stream: process.stdout },
@@ -186,9 +174,8 @@ export function getLog(): Logger {
   return requestContext.getStore()?.log ?? logger;
 }
 
-/** Attach the resolved caller to the current request scope. Called from the transport context seam the
- *  moment identity is known — afterwards every line in the request carries `userId`/`handle` via the child
- *  bindings. No-op outside a request scope (tests that build a context without `runInRequest`). */
+/** Attach the resolved caller to the current request scope; afterwards every line carries `userId`/`handle`.
+ *  No-op outside a request scope. */
 export function bindRequestUser(userId: string, handle?: string): void {
   const store = requestContext.getStore();
   if (store === undefined) {
@@ -203,10 +190,8 @@ export function getRequestUserId(): string | undefined {
   return requestContext.getStore()?.userId;
 }
 
-/** Security-relevant events. One consistently-tagged pino line so the whole security trail is greppable as
- *  `security:true` and filterable by `event`. Emitted at warn (rejections/blocks, not errors). The
- *  auth/network/transport seams (SSRF block, rate-limit, CSRF reject, auth fail, JWKS reject) call this.
- *  DELIBERATELY pino-only — for a single-operator deploy the log stream + the ring IS the audit surface. */
+/** Security-relevant events. One consistently-tagged pino line so the whole security trail is greppable
+ *  as `security:true` and filterable by `event`. Emitted at warn (rejections/blocks, not errors). */
 export function securityEvent(
   event: string,
   fields: Record<string, unknown> = {},

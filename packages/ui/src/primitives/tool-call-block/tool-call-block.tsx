@@ -5,18 +5,15 @@ import { Badge } from "#primitives/badge";
 import { AlertTriangle, Check, Icon } from "#primitives/icons";
 import { toolCallBlockVariants } from "./variants";
 
-/**
- * The ui-local structural mirror of `@orb/contracts/chat`'s `ToolCallRecord` (tool-use-design/03
- * §3) — ui never imports contracts (ui-package-design §1), so this is the shape, not the type.
- */
+// ui-local structural mirror of @orb/contracts/chat's ToolCallRecord — ui never imports contracts.
 export interface ToolCallBlockRecord {
   readonly toolCallId: string;
   readonly name: string;
   /** The model's raw JSON-string arguments (provenance-faithful — may be malformed). */
   readonly arguments: string;
-  /** A parseable JSON document when non-null; `null` = recorded but not executed (03 §2.2). */
+  /** A parseable JSON document when non-null; `null` = recorded but not executed. */
   readonly result: string | null;
-  /** Authoritative for error styling — never inferred from `result`'s shape (03 §4 MAY #4). */
+  /** Authoritative for error styling — never inferred from `result`'s shape. */
   readonly isError: boolean;
   readonly durationMs: number | null;
 }
@@ -52,20 +49,8 @@ function prettyOrRaw(raw: string): string {
 }
 
 /**
- * The generic tool-invocation block (D48; tool-use-design/03 §4 + 05 §T7) — the `TOOL_RENDERERS`
- * fallback every unregistered tool name falls back to (the registry itself is client/features
- * wiring, not shipped here). THREE states, driven ONLY by the record — never by parsing prose (03
- * §4 MAY-NOT #1):
- * - `isError: true` → error styling (danger token + icon).
- * - `result === null` → neutral "requested, not run" badge (recorded but the recurse-limit or an
- *   abort meant it never ran, 03 §2.2).
- * - else → success.
- *
- * Arguments and (when present) the result document are independently `JSON.parse`d for pretty-
- * printing; a parse failure falls back to the raw string rather than going blank (03 §4 MAY-NOT
- * #2 — the same rule for both fields, since either can carry a malformed provenance string).
- *
- * Usage: `<ToolCallBlock record={toolCallRecord} />`
+ * Generic tool-invocation block — the fallback every unregistered tool name falls back to. Three
+ * states driven only by the record, never by parsing prose: error, unexecuted (`result === null`), success.
  */
 export function ToolCallBlock({
   record,

@@ -1,34 +1,15 @@
-// domain/chat/verbs/roster — the roster / group-config / room-override / membership-lifecycle MUTATION verbs.
-// Each verb is a FACTORY `createX(ctx, emit)`: it GATES via the membership chokepoint (`requireHost`/
-// `requireParticipant` → `ctx.can`, never a `role==='host'` compare), MUTATES via persistence / a `ctx.db`
-// inline write, then EMITS the room-public bus event (+ a `notifications` op where the design reaches a
-// non-member). Group-ness is DATA: no `if(isGroup)` — solo is a roster-of-1, byte-identical (Part III §0).
+// The roster/group-config/room-override/membership-lifecycle mutation verbs. Each verb is a factory
+// createX(ctx, emit): gates via the membership chokepoint, mutates via persistence, then emits the
+// room-public bus event (+ a notifications op where the design reaches a non-member). Group-ness is data:
+// no if(isGroup) — solo is a roster-of-1, byte-identical.
 //
-// EMIT SEAM: the chat bus is chat's own in-process collaborator (NOT on `ChatContext` — see bus.ts), so the
-// emitting factories take it as the SECOND arg, typed inline (`(e: ChatBusEvent) => Promise<void>`) because
-// `types-in-contract` forbids an exported emit type outside `contract/`. The composition root wires
-// `createChatBus(ctx).emit` into each.
+// The ChatBusEvent union has no dedicated roster/membership member, so every roster/group/override/
+// membership mutation emits the chatUpdated catch-all (a "refetch the chat detail" signal).
 //
-// FLAG[no-roster-bus-event]: the `ChatBusEvent` union has NO dedicated roster/membership member (no
-// `memberJoined`/`memberKicked`/`rosterChanged`/`groupConfigChanged`). The only fitting member is the
-// `chatUpdated` catch-all ("low-payload chat-row changes") — so every roster/group/override/membership
-// mutation emits `chatUpdated` (a "refetch the chat detail" signal). A dedicated roster event would need a
-// new union member in `@orb/contracts/chat` (chunk 1, allowlist-gated) — out of this chunk's scope.
-// HOST HANDOFF (PD-60 — Part III §2; the two-party "nominate → notify → nominee accepts" flow). The pending
-// nomination is persisted on `chats.pendingHostUserId` (the schema seam this chunk added), carried between the
-// two verbs so `acceptHostHandoff` can SECURELY verify the caller was nominated (no storage = a self-promotion
-// hole — chunk 5's correct refusal to stub). `nominateHostHandoff` = host-only (`requireHost`); the nominee
-// must be a PRESENT non-host member. `acceptHostHandoff` = the nominee's un-spoofable SELF-action
-// (`requireParticipant` + `principal.userId === chats.pendingHostUserId` — a verb-level check on the nomination
-// record, NOT a host check; chunk-3 matrix). Doc §2 is silent on two cases → security-conservative + FLAGGED:
-//   • FLAG[handoff-nominee]: a nominee who is not a present non-host member (incl. a host self-nominating —
-//     their row is `role='host'`, not a member) → `ChatNotFoundError` (NOT_FOUND) — kept leak-free by design
-//     (the nominee arg is a USER id, unlike the character-target verbs' coded `participant_not_found`): a
-//     coded refusal would confirm a foreign user's membership state. No `invalid_nominee` code exists.
-//   • FLAG[handoff-accept-code]: a non-nominee accept is refused with `CHAT_OP_CODES.not_turn_owner` — the
-//     closest existing "you don't own this pending action" code (a dedicated `not_nominee` would be tidier,
-//     but the code set is in `contract/errors.ts`, out of scope). This is the belt that keeps the
-//     self-promotion hole CLOSED: only the exact nominee can accept.
+// Host handoff is a two-party flow: the pending nomination is persisted on chats.pendingHostUserId, carried
+// between nominateHostHandoff (host-only) and acceptHostHandoff (the nominee's un-spoofable self-action —
+// principal.userId === chats.pendingHostUserId). A non-eligible nominee is a leak-free NOT_FOUND; a
+// non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
@@ -81,16 +62,15 @@ import {
 import { loadMaxMessageSeq, loadPendingHostUserId } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 
-/** The emit op the mutating roster verbs close over (inlined — see the file header `types-in-contract` note). */
+/** The emit op the mutating roster verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
 
-/** The extra collaborators the roster bundle needs beyond `ChatContext` (the chat bus emit — chat's own,
- *  not a ctx field; see bus.ts). One `deps` param per the grouped-file bundle convention. */
+/** The extra collaborators the roster bundle needs beyond `ChatContext`. */
 interface RosterDeps {
   readonly emit: EmitChatEvent;
 }
 
-/** The roster slice of `ChatService` this grouped file owns (the bundle the composition root spreads in). */
+/** The roster slice of `ChatService` this grouped file owns. */
 type RosterVerbs = Pick<
   ChatService,
   | "addCharacterToChat"
@@ -107,11 +87,7 @@ type RosterVerbs = Pick<
   | "acceptHostHandoff"
 >;
 
-/**
- * The roster/group/override/membership-lifecycle verb BUNDLE (the grouped-file `create<File>` convention —
- * `verb-naming` gate). Folds the per-verb factories (internal below) into one object keyed by their
- * `ChatService` method names; the composition root spreads it into the full service.
- */
+/** The roster/group/override/membership-lifecycle verb bundle the composition root spreads into the full service. */
 export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
   const { emit } = deps;
   return {
@@ -130,11 +106,9 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
   };
 }
 
-/** One resolved `chat_participants` row (the persistence read shape) → the `ParticipantView` read-model. A
- *  CHARACTER participant: `displayName`/`avatarAssetId` come from the live card (D28), `handle` is null (a
- *  character has no public handle). A null card (gone mid-delete) degrades the name to "" — never an error.
- *  `resolveAssetHash` is `ctx.resolveAssetHash` (the `ParticipantView.avatarHash` bridge) — threaded as a
- *  param rather than a `ChatContext` closure so this stays a pure-ish mapper the caller controls. */
+/** Maps a resolved chat_participants row to the ParticipantView read-model for a character participant:
+ *  displayName/avatarAssetId come from the live card, handle is null. A null card (gone mid-delete)
+ *  degrades the name to "" — never an error. */
 async function characterParticipantView(
   row: typeof chatParticipants.$inferSelect,
   card: CharacterCard | null,
@@ -162,10 +136,8 @@ async function characterParticipantView(
   };
 }
 
-// ── group config / room overrides (host-only writes; member reads) ─────────────
-
-/** `setGroupConfig` — host-only. Parse the lenient `GroupConfigInput` → a fully-defaulted `GroupConfig`,
- *  merge into `chatMetadata.group` (siblings preserved), persist, emit `chatUpdated`. */
+/** `setGroupConfig` — host-only. Parses the lenient GroupConfigInput into a fully-defaulted GroupConfig,
+ *  merges into chatMetadata.group, persists, emits chatUpdated. */
 function createSetGroupConfig(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -178,7 +150,6 @@ function createSetGroupConfig(
       .set({ metadata: { ...chat.metadata, group: parsed }, updatedAt: ctx.now() })
       .where(eq(chats.id, chatId));
     await emit({ type: "chatUpdated", chatId });
-    // Best-effort audit (host reconfigured the shared room). Output/policy only — the small forensic hint.
     await ctx.audit(
       {
         actorUserId: principal.userId,
@@ -193,8 +164,7 @@ function createSetGroupConfig(
   };
 }
 
-/** `setRoomOverrides` — host-only. The four-field allowlist (`roomOverridesSchema.strict()`) DEFAULT-DENIES a
- *  stray/`forbidRoomOverride` field (Part III §9) → `ChatOperationError('forbidden_override')`. */
+/** `setRoomOverrides` — host-only. The four-field allowlist default-denies a stray field. */
 function createSetRoomOverrides(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -213,8 +183,7 @@ function createSetRoomOverrides(
       .set({ metadata: { ...chat.metadata, roomOverrides: parsed.data }, updatedAt: ctx.now() })
       .where(eq(chats.id, chatId));
     await emit({ type: "chatUpdated", chatId });
-    // Best-effort audit — FIELD LABELS only, never the override bodies (Part III §9: the trace/labels rule —
-    // an override value is card-body-like text and must not leak into a log row).
+    // Field labels only, never the override bodies (card-body-like text must not leak into a log row).
     await ctx.audit(
       {
         actorUserId: principal.userId,
@@ -229,7 +198,7 @@ function createSetRoomOverrides(
   };
 }
 
-/** `getGroupConfigForChat` — member. The effective `GroupConfig` (parsed sub-blob or the canonical default). */
+/** `getGroupConfigForChat` — member. The effective GroupConfig (parsed sub-blob or the canonical default). */
 function createGetGroupConfigForChat(ctx: ChatContext): ChatService["getGroupConfigForChat"] {
   return async ({ principal, chatId }: GetGroupConfigForChatParams): Promise<GroupConfig> => {
     const { chat } = await requireParticipant(ctx, principal, chatId);
@@ -237,7 +206,7 @@ function createGetGroupConfigForChat(ctx: ChatContext): ChatService["getGroupCon
   };
 }
 
-/** `getRoomOverridesForChat` — member. The effective `RoomOverrides` (parsed sub-blob or the empty default). */
+/** `getRoomOverridesForChat` — member. The effective RoomOverrides (parsed sub-blob or the empty default). */
 function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOverridesForChat"] {
   return async ({ principal, chatId }: GetRoomOverridesForChatParams): Promise<RoomOverrides> => {
     const { chat } = await requireParticipant(ctx, principal, chatId);
@@ -245,21 +214,16 @@ function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOv
   };
 }
 
-// ── roster mutation (host-only) ────────────────────────────────────────────────
-
-/** `addCharacterToChat` — host-only; the ONE character participant-insert chokepoint (D16). Stamps a fresh
- *  `member` row at the current canon head (`joinSeq`), emits `chatUpdated`, returns the resolved roster row.
- *  NB: ownership of the character is NOT hard-gated here — `getCard` is owner-scoped, so a foreign character
- *  resolves to a null card (name ""); the host UI only offers owned characters. */
+/** `addCharacterToChat` — host-only; the character participant-insert chokepoint. Stamps a fresh member
+ *  row at the current canon head, emits chatUpdated, returns the resolved roster row. */
 function createAddCharacterToChat(
   ctx: ChatContext,
   emit: EmitChatEvent,
 ): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     await requireHost(ctx, principal, chatId);
-    // PD-21 single-owner invariant: the character must be the HOST's (owner-scoped read — foreign ==
-    // missing, leak-free). No foreign ghost seats: a roster character is always host-owned, which keeps
-    // the stats rebuild's `characters.ownerId` attribution ≡ the live deltas' D19 host.
+    // The character must be the host's (owner-scoped read — foreign == missing, leak-free). A roster
+    // character is always host-owned, keeping the stats rebuild's ownerId attribution consistent.
     const card = await ctx.getCard({ ownerId: principal.userId, characterId });
     if (card === null) {
       throw new DomainNotFoundError("character", characterId);
@@ -302,10 +266,8 @@ function createAddCharacterToChat(
   };
 }
 
-/** One resolved AGENT `chat_participants` row → `ParticipantView`. An agent seat FKs `users` (userId), carries
- *  no character. FLAG[PD-17]: the agent's `displayName`/`avatarAssetId` come from the doc-04 §5 speaker source
- *  (`resolveAgentSpeaker`, AP3-2) — not yet wired, so the roster view carries the placeholder floor; the client
- *  renders the room-facing identity via the D22 `AgentCardView` (doc 06 §5), not this row. */
+/** Maps a resolved agent chat_participants row to ParticipantView. An agent seat FKs users, carries no
+ *  character; the client renders the room-facing identity via AgentCardView, not this row. */
 function agentParticipantView(row: typeof chatParticipants.$inferSelect): ParticipantView {
   return {
     id: row.id,
@@ -328,15 +290,12 @@ function agentParticipantView(row: typeof chatParticipants.$inferSelect): Partic
   };
 }
 
-/** `seatAgent` — host-gated; the ONE agent-seat insert path (D60, doc 04 §3). The HOST consents to the seat;
- *  the OWNER (whose agent/buddy) must be a PRESENT human member (owner==host is the common case — one call).
- *  The principal is lazily minted via `provisionAgentPrincipal` (idempotent), refused if disabled (containment,
- *  doc 03 §5), then seated via the re-join upsert (a kicked agent re-seats; a present agent is an idempotent
- *  no-op). Emits `chatUpdated`. Unseating is the normal kick path — no new verb. */
+/** `seatAgent` — host-gated; the agent-seat insert path. The host consents to the seat; the owner (whose
+ *  agent) must be a present human member. The principal is lazily minted, refused if disabled, then seated
+ *  via the re-join upsert. Emits chatUpdated. Unseating is the normal kick path. */
 function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["seatAgent"] {
   return async ({ principal, chatId, ownerUserId, sourceKind }: SeatAgentParams) => {
     await requireHost(ctx, principal, chatId);
-    // The owner (whose agent) must be a PRESENT human member — the owner-consent-by-presence model (doc 04 §3).
     const roster = await loadRoster(ctx.db, chatId);
     const ownerPresent = roster.some((p) => p.kind === "human" && p.userId === ownerUserId);
     if (!ownerPresent) {
@@ -345,9 +304,7 @@ function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
         `chat ${chatId}: the agent's owner is not a present member`,
       );
     }
-    // Lazily find-or-mint the owner's agent principal (D60 — the mint gates the owner human+enabled).
     const { agentUserId } = await ctx.provisionAgentPrincipal({ ownerUserId, sourceKind });
-    // Containment kill switch (doc 03 §5): a disabled agent principal is refused a seat.
     if (!(await ctx.resolveAgentEnabled(agentUserId))) {
       throw new ChatOperationError(
         CHAT_OP_CODES.agentDisabled,
@@ -364,8 +321,8 @@ function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
       now: at,
     });
     await emit({ type: "chatUpdated", chatId });
-    // A `undefined` upsert means the agent was ALREADY present (idempotent double-seat) — it is in the roster
-    // loaded above; a miss there is a real inconsistency (fail loud, not a phantom branch).
+    // An undefined upsert means the agent was already present; a miss in the roster loaded above is a real
+    // inconsistency (fail loud, not a phantom branch).
     const seated = row ?? roster.find((p) => p.kind === "agent" && p.userId === agentUserId);
     if (seated === undefined) {
       throw new ChatNotFoundError(chatId);
@@ -374,10 +331,8 @@ function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
   };
 }
 
-/** Set a single field on a present CHARACTER participant (the disable/talkativeness shared write), returning
- *  the resolved view. A missing roster target → `ChatOperationError('participant_not_found')` — the caller is
- *  already the verified host, so the coded refusal leaks nothing. `ownerId` is the host's id (host-only verb)
- *  — the card is read under host ownership for the view. */
+/** Sets a single field on a present character participant (the disable/talkativeness shared write). A
+ *  missing roster target is a coded participant_not_found refusal (the caller is already the verified host). */
 async function updateCharacterParticipant(
   ctx: ChatContext,
   args: {
@@ -410,18 +365,10 @@ async function updateCharacterParticipant(
   return characterParticipantView(row, card, ctx.resolveAssetHash);
 }
 
-/** `setParticipantActivePersona` — flip a HUMAN participant's active persona for this room (PD-120). NOT a
- *  `ChatService` verb: persona owns the `principal`-facing surface (`persona.setActivePersona`) and already
- *  cleared `requireChatAuthorOrHost` before calling this — this op is the chat-domain write + emit chokepoint
- *  persona's compose binding calls directly (the `requireAuthorOrHost` precedent, guard.ts). Callable outside
- *  a full `ChatContext`/`ChatService` instance (persona composes before chat at the entry root — see
- *  `entry/compose/services.ts`), so it takes a minimal `db` + injected `emit` rather than `ChatContext`.
- *
- *  A miss (target not a PRESENT participant of this chat) is a real caller error — persona already validated
- *  `targetUserId`/`chatId` via its own gate, so a 0-rows write here means a race (the target left mid-call) or
- *  a caller bug; either way it must surface, not silently no-op (`ChatOperationError('participant_not_found')`
- *  — the caller already knows this chat exists, so the coded refusal leaks nothing, per the sibling
- *  `updateCharacterParticipant` precedent above). Emits `personaSwitched` (PD-117) after the write commits. */
+/** Flips a human participant's active persona for this room. Not a ChatService verb: persona owns the
+ *  principal-facing surface and already cleared its own gate before calling this — the chat-domain write +
+ *  emit chokepoint. Takes a minimal db + injected emit since persona composes before chat at the entry root.
+ *  A miss (target not present) is a real caller error, never a silent no-op. Emits personaSwitched. */
 export async function setParticipantActivePersona(
   db: Db,
   emit: EmitChatEvent,
@@ -437,8 +384,7 @@ export async function setParticipantActivePersona(
     eq(chatParticipants.userId, targetUserId),
     isNull(chatParticipants.leftSeq),
   );
-  // Read the prior value first (SQLite's `UPDATE … RETURNING` only surfaces the POST-write row, and the bus
-  // event carries `from` — the pre-switch persona a client reducer might diff against).
+  // Read the prior value first: the bus event carries `from`, the pre-switch persona a client reducer diffs against.
   const before = await db
     .select({ activePersonaId: chatParticipants.activePersonaId })
     .from(chatParticipants)
@@ -496,19 +442,14 @@ function createSetParticipantTalkativeness(
   };
 }
 
-// ── membership lifecycle (kick host-only; self-leave self) ─────────────────────
-
-/** `kick` — host-only. Stamp `leftSeq` on the target's PRESENT row + deliver the durable `kicked`
- *  notification in ONE batch (PD-24 tx-atomicity: the UNEXECUTED transition statement rides the emit op,
- *  which owns the commit — a crash can't remove the member without the notification, or vice versa; the
- *  per-chat bus can't reach the now-removed member — Part III §3). A non-present target is an idempotent
- *  no-op (the PRESENT pre-check; single-replica serialized writes keep the check→batch window benign). */
+/** `kick` — host-only. Stamps leftSeq on the target's present row + delivers the durable kicked
+ *  notification in one batch — a crash can't remove the member without the notification, or vice versa.
+ *  A non-present target is an idempotent no-op. */
 function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] {
   return async ({ principal, chatId, userId }: KickParticipantParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const present = (await loadRoster(ctx.db, chatId)).some((p) => p.userId === userId);
     if (!present) {
-      // Already gone / never a member — idempotent; nothing to emit or notify.
       return;
     }
     const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
@@ -516,13 +457,8 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
       markUserLeftStatement(ctx.db, chatId, userId, leftSeq),
     ]);
     await emit({ type: "chatUpdated", chatId });
-    // PD user-bus lane: the roster changed → fan `chatsChanged` to the remaining present members AND the kicked
-    // user (their list must DROP this chat). The kicked user's row is already `leftSeq`-stamped (so no longer
-    // enumerated by the fan) — they ride `extraUserIds`. `detail` ⇒ the chat's own row/detail changed.
+    // The kicked user's row is already leftSeq-stamped (no longer enumerated), so they ride extraUserIds.
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [userId] });
-    // Best-effort audit AFTER the transition committed (the emit op owns the batch). NOT a co-statement:
-    // `ctx.audit` is the foundation logAudit contract — suppress-and-drop, never the primary channel; an
-    // in-tx ride would promote it to a channel that can abort the kick.
     await ctx.audit(
       {
         actorUserId: principal.userId,
@@ -536,9 +472,8 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
   };
 }
 
-/** `selfLeave` — a member leaves their own membership (`leftSeq` stamped; authored rows retained, persona
- *  drops). A HOST self-leave has no successor (role `host` is singular), so it ARCHIVES the room — never
- *  refused (Part III §2: sole-host self-leave archives). Emits `chatUpdated`. */
+/** `selfLeave` — a member leaves their own membership. A host self-leave has no successor, so it archives
+ *  the room instead of being refused. Emits chatUpdated. */
 function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["selfLeave"] {
   return async ({ principal, chatId }: SelfLeaveParams): Promise<void> => {
     const { role } = await requireParticipant(ctx, principal, chatId);
@@ -552,18 +487,10 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
   };
 }
 
-// ── host handoff (two-party: nominate host-only; accept = the nominee self-action — Part III §2) ─────────
-
-/** The character seats a NEW room owner does NOT own — the seats a transfer (handoff/fork) must DROP (D64 —
- *  F4/PD-21 ruling: a transfer hands the room + history but NOT the prior owner's characters). Cards are
- *  single-owned (D28 — `getCard` is owner-scoped, `null` for a non-owner) and the whole engine loads cast +
- *  memory under the ONE new-owner `runAsUserId`, so a character seat whose card resolves `null` under the new
- *  owner would collapse to a blank `{name:"Assistant"}` (context.ts) and re-mint/orphan the owner-keyed
- *  group-memory bucket. Rather than REFUSE the transfer, we DROP those seats (the ruling: "remove the host's
- *  characters, leaving the humans; the new room owner can then add his own"). In today's single-owner model
- *  that is every seat the outgoing owner owns; an owner transferring to themselves (a solo self-fork) drops
- *  nothing. Human + agent seats are never dropped here (a human's own seat is theirs). Returns the present
- *  character participant ids to `leftSeq`-stamp. */
+/** The character seats a new room owner does not own — the seats a transfer must drop, since cards are
+ *  single-owned and a character seat whose card resolves null under the new owner would collapse to a
+ *  blank name. Rather than refuse the transfer, drops those seats. Human + agent seats are never dropped.
+ *  Returns the present character participant ids to leftSeq-stamp. */
 async function resolveDroppedCharacterSeatIds(
   ctx: ChatContext,
   newOwnerUserId: UserId,
@@ -580,11 +507,9 @@ async function resolveDroppedCharacterSeatIds(
   return characterSeats.flatMap((s, i) => (cards[i] === null ? [s.id] : []));
 }
 
-/** `nominateHostHandoff` — host-only, step 1 (Part III §2). Persist the pending nominee on
- *  `chats.pendingHostUserId` (carried to the nominee's accept), emit `chatUpdated`, and notify the nominee
- *  ("you've been nominated as host"). The nominee MUST be a PRESENT non-host member — a non-member / a host
- *  self-nomination collapses to a leak-free `ChatNotFoundError` (FLAG[handoff-nominee], file header). No role
- *  swap happens here; only the nominee's accept promotes (the un-spoofable self-action). */
+/** `nominateHostHandoff` — host-only, step 1. Persists the pending nominee, emits chatUpdated, and notifies
+ *  the nominee. The nominee must be a present non-host member — otherwise a leak-free NOT_FOUND. No role
+ *  swap happens here; only the nominee's accept promotes. */
 function createNominateHostHandoff(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -594,16 +519,12 @@ function createNominateHostHandoff(
     const roster = await loadRoster(ctx.db, chatId);
     const nominee = roster.find((p) => p.userId === userId);
     if (nominee === undefined || nominee.role === "host") {
-      // Not a present non-host member (a host self-nominating lands here — their row is role 'host').
       throw new ChatNotFoundError(chatId);
     }
-    // PD-24: the nomination write + the `handoff-nominated` INSERT commit in ONE batch (the emit op owns
-    // the commit of the unexecuted statement).
     await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [
       setPendingHostStatement(ctx.db, chatId, userId, ctx.now()),
     ]);
     await emit({ type: "chatUpdated", chatId });
-    // Best-effort audit after the commit (see the kick note — never a co-statement).
     await ctx.audit(
       {
         actorUserId: principal.userId,
@@ -617,15 +538,10 @@ function createNominateHostHandoff(
   };
 }
 
-/** `acceptHostHandoff` — step 2: the nominee accepts (a SELF-action — Part III §2). Gate present-membership
- *  (`requireParticipant`), then the verb-level self-action check: the caller MUST equal
- *  `chats.pendingHostUserId` (else `not_turn_owner` — FLAG[handoff-accept-code]; this is the belt that keeps
- *  the self-promotion hole closed). On pass, atomically swap roles (old host → member, caller → host), DROP the
- *  outgoing host's character seats the new host does not own (D64 — F4/PD-21 ruling: the handoff hands the room
- *  + history but not the prior host's characters), and clear the nomination — all in ONE batch. Then emit
- *  `chatUpdated` (so seated clients refetch the roster) and notify the previous host of the swap. The dropped
- *  characters' prior canon rows are retained (attribution intact); their owner-keyed group-memory bucket is
- *  naturally orphaned (the room is now a different cast) — EXPECTED per the ruling, not migrated. */
+/** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal
+ *  chats.pendingHostUserId, else not_turn_owner. On pass, atomically swaps roles, drops the outgoing host's
+ *  character seats the new host doesn't own, and clears the nomination in one batch; emits chatUpdated and
+ *  notifies the previous host. */
 function createAcceptHostHandoff(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -639,11 +555,9 @@ function createAcceptHostHandoff(
         `chat ${chatId}: only the nominated member may accept the host handoff`,
       );
     }
-    // The previous host (for the post-swap notification) — may be absent if they left after nominating.
+    // The previous host (for the post-swap notification) may be absent if they left after nominating.
     const roster = await loadRoster(ctx.db, chatId);
     const oldHost = roster.find((p) => p.role === "host" && p.userId !== null);
-    // D64 (F4/PD-21): the handoff transfers room + history but DROPS the character seats the new host does not
-    // own (leaving humans/agents). `leftSeq`-stamp them at the canon head, in the SAME batch as the role swap.
     const droppedSeatIds = await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster);
     const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const swap = [
@@ -659,8 +573,6 @@ function createAcceptHostHandoff(
       oldHost.userId !== null &&
       oldHost.userId !== principal.userId
     ) {
-      // PD-24: the role swap + the `handoff-accepted` INSERT commit in ONE batch (the emit op owns the
-      // commit of the unexecuted swap statements).
       await ctx.emitNotification(
         {
           type: "handoff-accepted",
@@ -671,11 +583,9 @@ function createAcceptHostHandoff(
         swap,
       );
     } else {
-      // No prior host to notify (they left after nominating) — the swap alone is the atomic unit.
       await ctx.db.batch(batchMany(swap));
     }
     await emit({ type: "chatUpdated", chatId });
-    // Best-effort audit after the swap committed (see the kick note — never a co-statement).
     await ctx.audit(
       {
         actorUserId: principal.userId,

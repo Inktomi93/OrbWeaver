@@ -1,16 +1,8 @@
-// World-info kit primitives — the const tuples, the pure metadata resolvers, the ST role bimap, and
-// the keyword-matching helpers. Pure / isomorphic: a future client-side entry editor previews matches
-// and resolves scope/injection/position live without a server roundtrip, and the server reads the same
-// values at context-build time. No DB, no domain types, no node:* — kit-purity.
-//
-// What lives here vs. @orb/contracts: ONLY the leaf primitives. The wire schemas built ON these tuples
-// (`z.enum(...)`, book/entry create+update, the metadata write guard) live in @orb/contracts/world-info
-// and import these tuples DOWN — contracts depends on kit, never the reverse (shared-dissolution §1/§5).
-//
-// World info is BOOKS-ONLY: books contain entries; books attach at one of four scopes and the per-turn
-// pool unions all four. Per-entry behavior (always-vs-keyword via `scopeMode`, depth-injection via
-// `inject`, system-half bucket via `position`) lives ON the entry in `metadata` and applies uniformly
-// however the entry's book got into the pool.
+// World-info kit primitives — the const tuples, pure metadata resolvers, and keyword-matching
+// helpers. Pure/isomorphic: a future client-side entry editor previews matches without a server
+// roundtrip, and the server reads the same values at context-build time.
+// Only leaf primitives live here — the wire schemas built on these tuples live in
+// @orb/contracts/world-info and import these tuples down.
 
 import { z } from "zod";
 import { isPlainObject } from "#guards";
@@ -18,30 +10,18 @@ import type { InjectionPlacement } from "#injection";
 import { injectionDirectiveSchema } from "#injection";
 import { escapeRegExp } from "#strings";
 
-// ── Entry scope-mode override ──────────────────────────────────────────────
-// Per-entry knob the user can set to FORCE a scope independent of keys:
-//   • "auto"    (default) — derive from keys.length: 0 → always, ≥1 → keyword
-//   • "always"  → force always-scope, ignore keys entirely (no scan, always renders)
-//   • "keyword" → force keyword-scope (won't fire unless at least one key matches)
-// It's the ONLY scope knob: entry-level pins were dropped in migration 0003, so there is no
-// higher-precedence per-attachment scope to beat it.
+// Per-entry knob the user can set to force a scope independent of keys: "auto" (default) derives
+// from keys.length; "always"/"keyword" force it. It's the only scope knob — entry-level pins were
+// dropped in migration 0003, so there is no higher-precedence per-attachment scope to beat it.
 export const ENTRY_SCOPE_MODES = ["auto", "always", "keyword"] as const;
 export type EntryScopeMode = (typeof ENTRY_SCOPE_MODES)[number];
 
-// ── Entry depth-injection (WI-at-depth) ────────────────────────────────────
-// Opt-in: instead of rendering into the system-prompt half, the entry splices into the chat HISTORY at
-// `depth` with `role` — the SHARED injection primitive (`@orb/kit/injection`), the same one author's
-// note / persona / the card depth-prompt / memory / guided use (ledger D32). The role axis is
-// `MessageRole` (`@orb/kit/message-role`); the ST numeric role bimap lives there too. World-info no
-// longer owns either — it just consumes the shared shape with its own default role (`user`).
-// Depth 0 = at the tail, AFTER the new user turn; N = N positions back. role:assistant + depth 0 is a
-// response prefill (rejected at the contracts write schema); the read path stays lenient.
+// Depth-injection (WI-at-depth) is opt-in: instead of the system-prompt half, the entry splices into
+// chat history at `depth` with `role` — the shared `@orb/kit/injection` primitive. Depth 0 = at the
+// tail after the new user turn.
 
-// ── Entry system-half position (ST worldInfoBefore/After) ──────────────────
-// For ALWAYS-scope entries that render into the system half (i.e. NOT depth-injected), `position`
-// selects which WI anchor bucket they join: `before` → the `world_info_before` marker, `after` →
-// the `world_info_after` marker. Only takes effect when the active preset HAS the matching anchor
-// marker; otherwise the entry falls back to the default in_static placement. Default `before`.
+// For always-scope entries rendering into the system half, `position` selects which WI anchor
+// bucket they join. Only takes effect when the active preset has the matching anchor marker.
 export const ENTRY_POSITIONS = ["before", "after"] as const;
 export type EntryPosition = (typeof ENTRY_POSITIONS)[number];
 
@@ -86,37 +66,19 @@ export function resolveEntryPosition(metadata: unknown): EntryPosition {
   return parsed.success ? parsed.data : "before";
 }
 
-// ── World-info keyword matching ────────────────────────────────────────────
-// Pure bytes-in/bytes-out. The matching shape:
-//   1. Caller lowercases both the keys and the haystack via locale-INDEPENDENT `.toLowerCase()` (the
-//      Unicode default case fold) — NOT `toLocaleLowerCase()`. orbweaver folds on BOTH server and
-//      client ("live once, identical server+client"), so the fold must be deterministic across
-//      platforms; host-locale-dependent folding (Turkish dotless-i, German ß) would let the two sides
-//      produce different keys/haystacks for the same input and silently diverge on matches. We accept
-//      marginally weaker per-locale fold correctness in exchange for that cross-platform determinism.
-//   2. `keyRegex(key)` returns an LRU-cached RegExp using Unicode whole-word boundaries (`\p{L}` +
-//      `\p{N}` + `_`). Word boundaries are case-sensitive because the caller already folded. Keys
-//      containing characters from scriptio-continua scripts (Han, kana, Hangul, Thai, …) fall back to
-//      SUBSTRING matching — those scripts write without spaces, so a "whole word" boundary would make
-//      the key unmatchable in running text (`北京` must fire inside `我去北京了`). Mirrors ST. [V2-11/H3-7]
-//   3. `matchEntryKeys(keys, haystack)` returns the matched keys (or [] if none fired).
-//
-// The cache is process-lifetime; the LRU cap is far above any realistic per-chat WI vocabulary but
-// bounds the worst case in a long-running server cycling through many chats with distinct keys.
-
+// Callers lowercase both keys and haystack via locale-INDEPENDENT `.toLowerCase()` (never
+// `toLocaleLowerCase()`) so server and client fold identically across platforms.
 const KEY_REGEX_CACHE_MAX = 1024;
 const keyRegexCache = new Map<string, RegExp>();
 
-// Scripts that write WITHOUT word separators (scriptio continua). A key containing any of these can
-// never whole-word match running text in its own script — the neighboring characters are always
-// letters — so such keys match as substrings instead. Latin/Cyrillic/Greek/etc. keep the whole-word
-// boundaries (substring matching there causes the classic "cat fires on 'category'").
+// Scripts that write WITHOUT word separators (scriptio continua) fall back to substring matching —
+// a whole-word boundary would make the key unmatchable in running text (`北京` must fire inside
+// `我去北京了`). Latin/Cyrillic/Greek/etc. keep whole-word boundaries.
 const BOUNDARYLESS_SCRIPT =
   /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}\p{sc=Tibetan}]/u;
 
 /** Compile-or-return the cached RegExp for a lowercased key: Unicode whole-word for spaced scripts,
- *  substring for boundary-less scripts (see header §2). Updates the LRU position on hit so the cap
- *  doesn't evict hot keys. */
+ *  substring for boundary-less scripts. Updates the LRU position on hit so the cap doesn't evict hot keys. */
 export function keyRegex(key: string): RegExp {
   const existing = keyRegexCache.get(key);
   if (existing !== undefined) {

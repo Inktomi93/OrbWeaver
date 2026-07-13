@@ -17,8 +17,6 @@ function assertNever(value: never): never {
 }
 
 export function createConfirm(ctx: BuddyContext): BuddyService["confirm"] {
-  // Resolve the proposal into an outcome. `confirm` persists the spoken outcome (`detail`) regardless of
-  // which branch produced it, so the transcript stays coherent across reloads.
   async function resolve(params: ConfirmBuddyParams): Promise<ConfirmBuddyResult> {
     const userId = params.principal.userId;
     if (!params.confirmed) {
@@ -31,7 +29,6 @@ export function createConfirm(ctx: BuddyContext): BuddyService["confirm"] {
       return { applied: false, detail: "That suggestion expired — just ask me again." };
     }
 
-    // The capability ceiling: the kill switch + the hourly rate-limit gate EVERY mutation.
     const row = await loadBuddy(ctx.db, userId);
     if (row !== null && !row.agencyEnabled) {
       return { applied: false, detail: "My hands are switched off right now." };
@@ -82,8 +79,6 @@ export function createConfirm(ctx: BuddyContext): BuddyService["confirm"] {
 
   return async (params: ConfirmBuddyParams) => {
     const result = await resolve(params);
-    // The buddy's reply to the confirm/cancel becomes an assistant turn — keeps the persisted transcript
-    // coherent (the ephemeral proposal is gone by then).
     await appendTurn(ctx.db, {
       id: ctx.newTurnId(),
       userId: params.principal.userId,

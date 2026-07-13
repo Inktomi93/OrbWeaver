@@ -1,13 +1,7 @@
-// The CHARACTER-EDITOR facet registry (character-editor redesign — mirrors preset-nav.ts). Registry-as-data:
-// the CONTENT master list renders from `CHARACTER_CARD_FACETS`, so the facet order/tiers/copy live in ONE
-// place and the id union is DERIVED from the tuple (§11.1 derive-don't-respell). Grounds in the canonical
-// `characterCardSchema` (contracts/src/character): every facet id here is a real card-content field the §6
-// editor already binds — this is an IA reorg (a static nav, NOT a form array), never a schema change.
-//
-// The TIER is the missing hierarchy the audit flagged (§2 "no chunking above the field level"): Voice = the
-// two-plus fields that DEFINE the character (loud, first), Extras = authoring aids, Advanced = the quiet
-// clerical overrides. Selection is LOCAL `useState<CharacterCardFacetId | null>` at the surface (a facet id
-// can't go stale like a preset section id — the set is static), not a store.
+// The character-editor facet registry — registry-as-data: the CONTENT master list renders from
+// `CHARACTER_CARD_FACETS`, so facet order/tiers/copy live in one place and the id union derives from the
+// tuple. Voice = the fields that define the character (loud, first); Extras = authoring aids; Advanced =
+// the quiet clerical overrides.
 
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve this type fine (the preset-section-inspector.tsx precedent).
 import type { LucideIcon } from "@orb/ui/icons";
@@ -17,19 +11,18 @@ import { Anchor, BookOpen, Drama, Hash, Info, Pencil, Send, Sparkles, Zap } from
 /** The facet tiers, in render order — the CONTENT master list's group headings (the hierarchy fix). */
 export const CHARACTER_FACET_TIERS = ["voice", "extras", "advanced"] as const;
 
-/** The tier-id union (file-local — §7.4 forbids an exported bare `type` alias in a feature lib; consumers
- *  read it via `CharacterCardFacet.tier` or derive from `CHARACTER_FACET_TIERS`). */
+/** File-local — consumers read it via `CharacterCardFacet.tier` or derive from `CHARACTER_FACET_TIERS`. */
 type CharacterFacetTier = (typeof CHARACTER_FACET_TIERS)[number];
 
-/** The human heading for each tier (sentence-case; §13 voice). */
+/** The human heading for each tier. */
 export const CHARACTER_FACET_TIER_LABELS: Record<CharacterFacetTier, string> = {
   voice: "Voice",
   extras: "Extras",
   advanced: "Advanced",
 };
 
-/** The facet ids, in strip order (Voice → Extras → Advanced). The canonical AXIS TUPLE — the id type is
- *  DERIVED from it (§7.5 declare-once-derive), never re-spelled as an inline union. */
+/** The facet ids, in strip order (Voice → Extras → Advanced). The canonical axis tuple — the id type is
+ *  derived from it, never re-spelled as an inline union. */
 export const CHARACTER_CARD_FACET_IDS = [
   "description",
   "personality",
@@ -43,8 +36,7 @@ export const CHARACTER_CARD_FACET_IDS = [
   "provenance",
 ] as const;
 
-/** The facet-id union — DERIVED from the tuple (§7.5). File-local (§7.4 forbids an exported bare `type`
- *  alias in a feature lib; consumers read it via the exported `CharacterCardFacet["id"]` interface field). */
+/** File-local — consumers read it via the exported `CharacterCardFacet["id"]` interface field. */
 type CharacterCardFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
 
 /** One card-content facet (the master-list row + drill-in header copy). */

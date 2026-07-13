@@ -1,9 +1,6 @@
-// verb: mergeTags — fold `sourceTagId` INTO `targetTagId`, owner-scoped. Re-points every attachment across
-// all five junctions to the target (deduping where the target already tags that entity; the character
-// junction keeps the STRONGEST status — accepted over pending), then deletes the source tag, in ONE atomic
-// libSQL batch (mergeTagBatch). Both ids must be the principal's — a foreign/missing tag reads as
-// TagNotFoundError (owner-scoped). A self-merge (equal ids) is a coded DomainOperationError (a nonsensical
-// op, not a silent no-op) — checked BEFORE the owner loads so a `source === target` call fails fast.
+// verb: mergeTags — fold sourceTagId into targetTagId, owner-scoped. Re-points every attachment across
+// all five junctions to the target (character junction keeps the strongest status), then deletes the
+// source tag in one atomic batch. A self-merge is a coded DomainOperationError, checked before the owner loads.
 
 import { DomainOperationError } from "@orb/kit/errors";
 import { TagNotFoundError } from "../contract/errors";
@@ -17,7 +14,6 @@ export function createMerge(ctx: TagContext): TagService["mergeTags"] {
     if (params.sourceTagId === params.targetTagId) {
       throw new DomainOperationError("tag_merge_self", "a tag cannot be merged into itself");
     }
-    // Both endpoints must be owner-owned — a foreign/missing tag reads as not-found (owner-scoped).
     const source = await loadOwnedTag(ctx.db, params.sourceTagId, ownerId);
     if (source === undefined) {
       throw new TagNotFoundError(params.sourceTagId);
@@ -27,7 +23,6 @@ export function createMerge(ctx: TagContext): TagService["mergeTags"] {
       throw new TagNotFoundError(params.targetTagId);
     }
     await mergeTagBatch(ctx.db, ownerId, params.sourceTagId, params.targetTagId);
-    // Best-effort audit AFTER the merge landed (a foreign/self merge threw above — no phantom row).
     await ctx.audit({
       actorUserId: ownerId,
       action: "tag.merge",
@@ -35,7 +30,6 @@ export function createMerge(ctx: TagContext): TagService["mergeTags"] {
       entityId: params.sourceTagId,
       metadata: { into: params.targetTagId },
     });
-    // Both the source (gone) and target (grown) tags changed — path-invalidate the whole tag surface.
     ctx.emitUserEvent(ownerId, { type: "tagsChanged" });
   };
 }

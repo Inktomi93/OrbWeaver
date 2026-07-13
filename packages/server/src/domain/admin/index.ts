@@ -1,22 +1,10 @@
-// domain/admin — FRONT DOOR (the only legal external import). Re-exports the public surface:
-//   • the AdminService contract + AdminUserView (client consumes via tRPC service-method-signature
-//     inference) + the UserRole union (canonical home @orb/contracts/identity, re-exported for ergonomics)
-//   • createAdminService (the factory the entry root wires)
-//   • the GUARD SEAM primitives — `can`/`requireAdmin`/`requireOwner` (NOT AdminService methods): the entry
-//     composition root imports these here and INJECTS them into the other domains that gate (settings ←
-//     requireAdmin, credentials ← requireOwner, transport ← can). A sibling domain NEVER runtime-imports
-//     them sideways (domain-no-cross-feature) — it declares the injected dep with the op TYPES (the
-//     type-only cross-feature edge is sanctioned) and receives the runtime op at the root.
+// domain/admin — front door (the only legal external import). Also re-exports the guard seam primitives
+// (can/requireAdmin/requireOwner/canAgent) — NOT AdminService methods — which the entry composition root
+// injects into the other domains that gate; a sibling domain never runtime-imports them sideways.
 
-// The privilege union + the `can()` seam types (canonical home @orb/contracts/identity since PD-1 — the seam
-// types are cross-boundary; chat feeds the `{kind:'chat',roster}` arm). Re-exported for ergonomics.
 export type { Can, GlobalAction, ResourceRef, UserRole } from "@orb/contracts/identity";
-// The GLOBAL-role wrapper op types the gating domains inject (type-only) at the composition root.
 export type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
 export type { AdminService } from "./contract/service";
 export type { AdminUserView } from "./contract/views";
-// The guard seam primitives — injected at the root into the other domains that gate. `canAgent` (D60/PD-17)
-// is the agent arm of the same seam; its injection into chat (the engine's `speak` gate) is AP2 — exported
-// here now for the AP1 unit tests + the AP2 wiring (same posture as `can`).
 export { can, canAgent, isAdmin, requireAdmin, requireOwner } from "./guard";
 export { createAdminService } from "./service";

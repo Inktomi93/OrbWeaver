@@ -1,10 +1,7 @@
-// The CONTEXT Actions menu (FINAL-Character §7) — the persistent options menu ABOVE the CONTEXT tab strip
-// (secondary chrome, rule 4): Duplicate · Export card · Convert to persona · Set as welcome greeter ·
-// Delete. All immediate identity gestures (never the CONTENT save-bar). The two DESTRUCTIVE/irreversible-
-// feeling ops (Duplicate spawns a copy; Delete cascades hard) sit behind a `ConfirmDialog` INTERRUPT
-// (§13.8 R4 — a legal AlertDialog, never a plain Dialog). Export is a straight `<a href>` to the SHIPPED
-// route (MenuLinkItem — no build). The ConfirmDialogs live OUTSIDE the Menu (a menu item closes the menu
-// on click, so the confirm is opened via controlled state — the chat-list-row-menu precedent).
+// The CONTEXT Actions menu — the persistent options menu above the CONTEXT tab strip: Duplicate · Export
+// card · Convert to persona · Set as welcome greeter · Delete. All immediate identity gestures. Duplicate
+// and Delete sit behind a `ConfirmDialog` interrupt, opened via controlled state outside the Menu (a menu
+// item closes the menu on click).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -38,8 +35,6 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // mutateAsync so the follow-up selection rides the result (the mutation surfaces its own errorToast;
-  // the .catch keeps a rejected write from leaking an unhandled rejection — the ChatContextPanel precedent).
   const confirmDuplicate = (): void => {
     void duplicate
       .mutateAsync({ characterId })
@@ -56,9 +51,6 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
   return (
     <>
       <Menu>
-        {/* Icon-only kebab (the every-list-row MoreHorizontal convention) — a text "Actions" button was a
-            fat ~76px `shrink-0` sibling that starved the inline tab strip at the docked ~264px width, clipping
-            "Options". The icon frees ~50px so the 3 equal-width tabs fit without overflow. Labeled for AT. */}
         <MenuTrigger
           render={
             <Button aria-label="Character actions" intent="ghost" size="icon" type="button">

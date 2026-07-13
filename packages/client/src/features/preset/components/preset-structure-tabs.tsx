@@ -1,8 +1,6 @@
-// The STRUCTURAL preset-editor tabs (W10 Panel A) — the non-descriptor tabs that edit `PromptConfig`
-// fields DIRECTLY (no model/capability needed): Prompt (names/continue behavior + guided actions), Post-
-// process (the receive-cleanup toggles), Compaction (the memory-compaction knobs), and Templates (the
-// inline `<think>` reasoning-parse pair). Bound via the direct-bind form (`form.AppField name="..."` walks
-// the nested `PromptConfig` — no flat mapper). The DESCRIPTOR-driven params tabs live in params-panel.tsx.
+// The structural preset-editor tabs — the non-descriptor tabs that edit `PromptConfig` fields directly:
+// Prompt, Post-process, Compaction, Templates. Bound via the direct-bind form (no flat mapper). The
+// descriptor-driven params tabs live in params-panel.tsx.
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
@@ -35,10 +33,9 @@ type AppForm = AppFormInstance<PromptConfig>;
 interface PresetStructureTabsProps {
   readonly form: AppForm;
   readonly tab: "prompt" | "templates" | "postProcess" | "compaction";
-  /** Reveal the CONTEXT section inspector (the route-built choreography, §3.4) — Prompt tab only. */
+  /** Reveal the CONTEXT section inspector — Prompt tab only. */
   readonly onRevealSection?: (() => void) | undefined;
-  /** Dismiss the CENTER section drill-in (the route-built §3.4 choreography: `clearPresetSection` +
-   *  close the mobile CONTEXT sheet) — Prompt tab only, the `SectionBodyEditor` back button. */
+  /** Dismiss the CENTER section drill-in — Prompt tab only, the `SectionBodyEditor` back button. */
   readonly onDismissSection?: (() => void) | undefined;
   /** The chat-role model's capability (the Message-handling floor line) — Prompt tab only, may be unset. */
   readonly capability?: ModelCapability | undefined;
@@ -82,24 +79,20 @@ function PromptTab({
   readonly onDismissSection?: (() => void) | undefined;
   readonly capability?: ModelCapability | undefined;
 }): ReactElement {
-  // Mode is LOCAL VIEW state — it never touches the form (BUILD-SPEC §3.2).
+  // Mode is local view state — it never touches the form.
   const [mode, setMode] = useState<"compose" | "preview">("compose");
   const selectedSectionId = useSelectedPresetSectionId();
 
-  // A rack row's name-button: write the selection AND reveal the inspector (the route builds the reveal).
-  // The selection now ALSO drives the CENTER drill-in (`SectionBodyEditor` replaces the rack below).
   const onSelectSection = (sectionId: string): void => {
     selectPresetSection(sectionId);
     onRevealSection?.();
   };
 
-  // A Preview block click-through: flip back to Compose, then select + reveal (BUILD-SPEC §7).
   const onSelectPreviewBlock = (sectionId: string): void => {
     setMode("compose");
     onSelectSection(sectionId);
   };
 
-  // Append a fresh section (Add menu / missing-pivot callout). `chat_history` seeds the pivot.
   const onAdd = (marker: MarkerType | null): void => {
     form.pushFieldValue("sections", makeSection(marker));
   };
@@ -107,8 +100,6 @@ function PromptTab({
 
   return (
     <Stack gap="block">
-      {/* The CENTER of the Prompt tab is a DRILL-IN: when a section is selected AND resolves in the live
-          form, the toolbar+strip+rack are replaced by the full-width `SectionBodyEditor`; else the rack. */}
       <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
         {(sections): ReactElement => {
           const index =
@@ -117,8 +108,6 @@ function PromptTab({
           if (selected !== undefined) {
             return (
               <SectionBodyEditor
-                // Keyed by section id so the body REMOUNTS on a section swap — the tri-state `mode` is
-                // seeded once via useState, so a swap without a remount would strand a stale mode.
                 key={selected.id}
                 form={form}
                 section={selected}

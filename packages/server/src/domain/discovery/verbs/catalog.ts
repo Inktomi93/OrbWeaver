@@ -1,11 +1,7 @@
-// domain/discovery/verbs/catalog — distill-powered CATALOG analytics (owner-scoped reads; cheap SQL, NO LLM)
-// over `character_summaries`. `catalog` answers "what did I collect" (per-facet card counts + top tags +
-// co-tagged pairs); `compareCharacters` is a free facet diff of two cards (shared vs distinct tags + a tag
-// Jaccard redundancy signal). Was neo-tavern `corpus/verbs/catalog.ts`.
-//
-// CONTENT-only (Knowledge-Cluster fence): NO engagement/"played" counts — how often a card was actually RP'd
-// is a stats concern, composed client-side. Owner scope derives via `characterId → characters.ownerId`
-// (character_summaries KEEPS no ownerId, D23) — a JOIN, never a caller-supplied owner (audit #1).
+// domain/discovery/verbs/catalog — distill-powered catalog analytics (owner-scoped reads; cheap SQL, no
+// LLM) over character_summaries. catalog = per-facet card counts + top tags + co-tagged pairs;
+// compareCharacters = a facet diff of two cards. Owner scope derives via a characters join
+// (character_summaries keeps no ownerId), never a caller-supplied owner.
 
 import type { Db } from "@orb/db";
 import { characterSummaries, characters } from "@orb/db";
@@ -21,13 +17,10 @@ import type {
 } from "../contract/results";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service";
 
-// How many top tags + tag-pairs the catalog returns (the long tail is noise).
 const TOP_TAGS_LIMIT = 40;
 const TAG_PAIRS_LIMIT = 30;
-// A tag pair must co-occur on at least this many cards to be worth showing.
 const TAG_PAIR_MIN = 2;
 
-/** Bind the catalog reads over the DI bundle (the verb-naming factory the service composes). */
 export function createCatalog(
   ctx: DiscoveryContext,
 ): Pick<DiscoveryService, "catalog" | "compareCharacters"> {
@@ -37,7 +30,6 @@ export function createCatalog(
   };
 }
 
-// The per-facet (genre|tone) card counts for the owner, descending. Owner scope via the characters join.
 async function facetCounts(
   db: Db,
   ownerId: UserId,
@@ -53,17 +45,12 @@ async function facetCounts(
   return rows.flatMap((r) => (r.value === null ? [] : [{ value: r.value, count: r.count }]));
 }
 
-/**
- * The owner's distilled catalog overview (CONTENT-only). Standalone `(db, ownerId)` so the service factory +
- * tests call it directly.
- */
 export async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
   const [genres, tones] = await Promise.all([
     facetCounts(db, ownerId, characterSummaries.genre),
     facetCounts(db, ownerId, characterSummaries.tone),
   ]);
-  // json_each unnests the JSON tag arrays; lower() folds distill case-dups ("NSFW"/"nsfw"). Owner scope via
-  // the characters join (character_summaries has no ownerId).
+  // json_each unnests the JSON tag arrays; lower() folds distill case-dups ("NSFW"/"nsfw").
   const topTags = await db.all<TagCount>(sql`
     SELECT lower(je.value) AS tag, COUNT(*) AS count
     FROM ${characterSummaries} cs
@@ -87,7 +74,6 @@ export async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
   return { genres, tones, topTags, tagPairs, totalDistilled: totalRows[0]?.count ?? 0 };
 }
 
-// One card's compare-facets (identity + headline facets + the tag set) for the owner, or undefined.
 async function comparedCard(
   db: Db,
   ownerId: UserId,
@@ -122,10 +108,7 @@ async function comparedCard(
   };
 }
 
-/**
- * Compare two of the owner's distilled cards by facets (no LLM). `null` when the ids are equal or either card
- * isn't distilled/owned. Standalone `(db, ownerId, idA, idB)` so the factory + tests call it directly.
- */
+/** null when the ids are equal or either card isn't distilled/owned. */
 export async function compareCharacters(
   db: Db,
   ownerId: UserId,

@@ -1,10 +1,7 @@
-// verbs: markRead · markAllRead · dismiss — the CALLER's inbox-state flips.
-// All are RECIPIENT-SCOPED to `principal.userId` (the scope lives in the persistence WHERE clause): a
-// notification that isn't the caller's matches NOTHING → `DomainNotFoundError` for the single-row flips, so
-// a user can neither read nor probe another's inbox; `markAllRead` never touches another recipient's rows
-// either (same WHERE-clause scope, just no id filter). All are IDEMPOTENT — the timestamp is set once
-// (`COALESCE` in persistence), so a re-flip returns the same row with the original instant. The flip
-// instant is the injected clock.
+// verbs: markRead · markAllRead · dismiss — the caller's inbox-state flips. All are recipient-scoped to
+// principal.userId (WHERE-clause scope): a notification that isn't the caller's matches nothing ->
+// DomainNotFoundError, so a user can neither read nor probe another's inbox. All are idempotent — the
+// timestamp is set once (COALESCE in persistence).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { DismissParams, MarkAllReadParams, MarkReadParams } from "../contract/params";

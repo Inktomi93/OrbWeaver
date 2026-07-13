@@ -1,33 +1,8 @@
-// The per-message ACTION cluster (scout brief "message-actions/edit-in-place"): Edit · Hide-from-AI ·
-// Delete · Fork · Copy, always-available on a canon row (message-row.tsx never renders a streaming
-// row — that's the separate ghost-message-row.tsx — so "non-streaming rows only" is true by
-// construction, no turn-phase check needed here). A later appearance-pref task may collapse this to
-// hover/expanded chrome; for now every row shows it, same posture as SwipeStrip.
-//
-// GATING per row kind (author-or-host authority mirrors the domain verbs' own gates, but this row does
-// NOT re-derive authority client-side — a caller without permission simply gets the verb's leak-free
-// NOT_FOUND, same as every other mutation in this feature):
-//   • Edit    — user + assistant rows (a system row is a room notice, not user-authored prose to
-//     inline-edit here).
-//   • Hide    — user + assistant rows (per the build brief).
-//   • Fork    — user + assistant rows (per the build brief; forking "at" a system-only tail is an
-//     unlikely path and the brief scopes fork to the same two roles as hide).
-//   • Delete  — every role (author-or-host per-slot; the server gate is the real authority).
-//   • Copy    — every role (pure client, no mutation).
-//
-// Each mutation goes through `createEntityMutation` (module scope, §13.1) — the swipe-strip.tsx
-// precedent for a `components/` leaf owning its own mutations rather than a `hooks/` file. Edit doesn't
-// mutate here at all: it only flips the external edit-draft store's mode (state/message-edit-draft) —
-// message-row.tsx reads that flag and swaps in `<MessageEditTextarea>`, which owns the actual
-// `chat.editMessage` call. Hide/Delete/Fork are all `busDriven` — the settle-time reconcile is the bus
-// echo, never a manual cache patch (see the audit table below).
-//
-// FORK NAVIGATION SEAM — now WIRED (the active-chat store closed the gap the earlier note called for).
-// `forkChat` returns the new chat's id; the `onChatForked` callback threads UP through
-// `MessageRow`/`MessageListSurface`/`ChatRoomSurface` from the route, which maps it to the active-chat
-// store's `selectChat` — the SAME landing the chat-list select + the new-chat flow use (one seam, unified
-// at state, §5.1). Optional: a caller that hasn't wired it (e.g. a CT of the row alone) still forks +
-// notifies; only navigation is skipped.
+// The per-message action cluster: Edit / Hide-from-AI / Delete / Fork / Copy, always available on a
+// canon row (the streaming row is a separate component with no actions). Edit/Hide/Fork apply only to
+// user/assistant rows — a system row is a room notice, not authored prose. This row does not re-derive
+// author-or-host authority client-side; a caller without permission gets the verb's own NOT_FOUND. Edit
+// doesn't mutate here — it only flips the external edit-draft store's mode.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -62,16 +37,6 @@ interface ForkVars {
   readonly throughSeq: number;
 }
 
-// Module-scope factories → stable hook identities (§13.1). INVALIDATION (chat-bus + PD user-bus lane):
-//   verb              bus              event             client filters
-//   setMessageHidden  chat (open)      messageHidden     chatReads (getChat/listMessages/…/listChats)
-//   deleteMessages    chat (open)      messagesDeleted   chatReads (getChat/listMessages/…/listChats)
-//   forkChat          user (always on) chatsChanged      listChats.path + getChat({chatId: new chat})
-// Hide/Delete act on the OPEN chat — their chat-bus event is delivered by the active subscription. Fork
-// creates a NEW chat the caller isn't subscribed to (so the chat bus can't reach it), but the ALWAYS-ON
-// user bus does: `forkChat` emits `chatsChanged` with the new chat's id, and `USER_BUS_FILTERS.chatsChanged`
-// covers `listChats` (the list row) + `getChat` for that id — a superset of the old `listChats`-only
-// invalidate. All three are `busDriven`; a mutation-side invalidate here would double-refetch the echo.
 const useHideMutation = createEntityMutation<HideVars, unknown>({
   options: (trpc) => trpc.chat.setMessageHidden.mutationOptions(),
   busDriven: true,
@@ -86,26 +51,21 @@ const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
 
 const useForkMutation = createEntityMutation<ForkVars, { chat: { id: ChatId } }>({
   options: (trpc) => trpc.chat.forkChat.mutationOptions(),
-  busDriven: true, // emits `chatsChanged` → USER_BUS_FILTERS covers listChats + getChat(new chat).
+  busDriven: true,
   errorToast: "Couldn't fork this chat.",
 });
 
-/** Roles the Edit/Hide/Fork actions apply to — a system row is a room notice, not authored prose. */
 function isEditableRole(role: MessageView["role"]): boolean {
   return role === "user" || role === "assistant";
 }
 
 export interface MessageActionsRowProps {
   readonly message: MessageView;
-  /** Navigate to the forked chat once `forkChat` resolves (the route maps this to `selectChat`).
-   *  Optional — a row without it still forks + notifies, just doesn't switch the active chat. */
+  /** Optional — a caller without it still forks + notifies, just doesn't switch the active chat. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
-  /** The `messageActions` appearance pref (D44 §12.1) — `"hover"` (default) is today's reveal-on-hover
-   *  posture; `"expanded"` keeps the cluster always visible. */
   readonly messageActions?: "expanded" | "hover" | undefined;
 }
 
-/** The always-available per-message action affordance: Edit · Hide-from-AI · Delete · Fork · Copy. */
 export function MessageActionsRow({
   message,
   onChatForked,
@@ -146,8 +106,6 @@ export function MessageActionsRow({
     }
     try {
       const result = await fork.mutateAsync({ chatId, throughSeq: message.seq });
-      // Navigate to the fork (the wired seam — see file header), then confirm. A caller without the
-      // callback still forks (`chat.listChats` is invalidated above so any list refreshes) + notifies.
       onChatForked?.(result.chat.id);
       notify.success("Forked to a new chat.");
     } catch {
@@ -165,13 +123,6 @@ export function MessageActionsRow({
   };
 
   return (
-    // UIP-305 progressive disclosure (§4.3 rule 4): the action cluster rests DIMMED (opacity-40, NOT
-    // hidden — `lib/message-actions-reveal.ts` documents why opacity-0 was rejected; pointer-events stay
-    // `auto`), brightened to full on row hover (`group-hover`, the message-row `group` hook) AND on
-    // keyboard focus within it (`group-focus-within` — the gate-relevant keyboard-parity half), and is
-    // ALWAYS visible on a coarse pointer (`pointer-coarse:` — a capability variant, not a viewport one,
-    // so it's compose-legal per the no-media-queries-in-features carve-out). Right-aligned under the
-    // bubble edge (`justify-end`), quiet metadata voice — not a full-width toolbar.
     <Row
       gap="field"
       align="center"

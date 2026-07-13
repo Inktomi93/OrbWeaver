@@ -10,16 +10,14 @@ import { macroTextareaVariants } from "./variants";
 const slots = macroTextareaVariants();
 
 const MAX_SUGGESTIONS = 8;
-// Slack window for the non-mouse blur-close guard (see the Textarea `onBlur` below) — not
-// load-bearing for mouse clicks, which the mousedown preventDefault already fully handles.
+// Slack window for the non-mouse blur-close guard — not load-bearing for mouse clicks, which the
+// mousedown preventDefault already fully handles.
 const BLUR_CLOSE_DELAY_MS = 100;
 
 /**
- * A macro-catalog entry — app-level data, passed in as a prop (ui never imports a domain macro
- * registry). `name` is the literal text inserted inside `{{…}}`; a `:` in `name` marks it as a
- * parameterized macro (e.g. `getvar::name`) whose template form is `{{getvar::}}` with the caret
- * left just inside the closing braces. `args` is display-only — the arg names/hints shown in the
- * post-insert `::`-arg hint (orbweaver's automation macros take args; ui never validates them).
+ * A macro-catalog entry — app-level data, passed in as a prop. `name` is the literal text inserted
+ * inside `{{…}}`; a `:` in `name` marks it parameterized (e.g. `getvar::name`), whose template form
+ * is `{{getvar::}}` with the caret left just inside the closing braces. `args` is display-only.
  */
 export interface MacroSuggestion {
   name: string;
@@ -33,11 +31,9 @@ export interface MacroTextareaProps {
   onChange: (next: string) => void;
   onBlur?: () => void;
   /**
-   * The macro catalog to complete against. Filtered against the typed partial with `minisearch`
-   * (fuzzy, prefix) once more than 0 chars are typed after `{{`; the first `MAX_SUGGESTIONS`
-   * entries show unfiltered on a bare `{{`. May be a fresh array reference each render — the
-   * fuzzy index is memoized by the array's IDENTITY (see `getMacroSearch` below), not deep-equal,
-   * so a stable app-level registry constant is what makes the memo actually pay off.
+   * The macro catalog to complete against. Filtered with `minisearch` (fuzzy, prefix) once chars
+   * follow `{{`; the fuzzy index is memoized by the array's identity, so a stable registry
+   * constant is what makes the memo pay off.
    */
   suggestions: readonly MacroSuggestion[];
   placeholder?: string;
@@ -52,10 +48,8 @@ export interface MacroTextareaProps {
   "aria-label"?: string;
 }
 
-// Keyed by the `suggestions` ARRAY IDENTITY rather than a true module singleton (neo's catalog was
-// an immutable module const; ours is a prop, so a per-array WeakMap is the closest equivalent —
-// every macro-bearing field sharing the SAME app-level registry reference shares one fuzzy index
-// instead of re-tokenizing the catalog per mount, and an unmounted feature's array is GC-able).
+// Keyed by array identity: every field sharing the same registry reference shares one fuzzy index,
+// and an unmounted feature's array is GC-able.
 const indexCache = new WeakMap<
   readonly MacroSuggestion[],
   MiniSearch<MacroSuggestion & { id: string }>
@@ -86,9 +80,7 @@ type SuggestionRow =
   | { kind: "header"; label: string }
   | { kind: "item"; suggestion: MacroSuggestion; index: number };
 
-/** Groups ADJACENT same-category entries with a header, preserving the relevance order the fuzzy
- * search (or the catalog itself, on a bare `{{`) already produced — a full bucket-by-category sort
- * would discard that ranking, which matters more than a strictly alphabetized grouping. */
+/** Groups adjacent same-category entries with a header, preserving the fuzzy search's relevance order. */
 function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
   const rows: SuggestionRow[] = [];
   let lastCategory: string | undefined;
@@ -104,25 +96,12 @@ function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
 
 /**
  * A textarea that watches for `{{…` at the caret and pops a fuzzy-matching macro autocomplete
- * anchored beneath it. Selecting a macro inserts the full `{{name}}` form (replacing whatever the
- * user typed since the `{{`); parameterized macros (`name` containing `:`) insert the `{{base::}}`
- * template with the caret left just inside the closing braces, and — since orbweaver's automation
- * macros take args where neo's didn't — surface an inline `::`-arg hint naming them.
- *
- * A hand-rolled combobox on the SAME textarea, not Base UI Autocomplete/cmdk (ui-package-design
- * §12): Autocomplete is whole-input-only (can't anchor mid-text), and cmdk would force either a
- * focus jump to its own input or a two-input state sync. ArrowUp/Down + Enter/Tab operate the
- * popover; Esc closes it leaving value + focus untouched; an empty suggestion set closes it
- * (no "no results" noise). Controlled (`value`/`onChange`) to fit TanStack Form's Field idiom.
- *
- * ARIA: the textarea plays `combobox` (`aria-expanded`/`aria-controls`/`aria-activedescendant`,
- * `aria-autocomplete="list"`) over a `listbox` popup of `option` rows — the standard combobox-with-
- * listbox-popup composite pattern, hand-wired because this widget is hand-rolled. The textarea is
- * the ONE tab stop (option rows carry `tabIndex={-1}` — real DOM focus never leaves it; highlight
- * moves via `aria-activedescendant`); the post-insert `::`-arg hint is `aria-live="polite"` (it
- * lands after the popover closes, so it's otherwise a silent DOM change for a screen-reader user).
- *
- * Usage: `<MacroTextarea value={body} onChange={setBody} suggestions={MACRO_CATALOG} />`
+ * anchored beneath it. Selecting a macro inserts the full `{{name}}` form; parameterized macros
+ * insert the `{{base::}}` template with the caret left inside the closing braces plus an inline
+ * `::`-arg hint. Hand-rolled combobox on the same textarea (not Base UI Autocomplete/cmdk, which
+ * can't anchor mid-text or would force a two-input state sync). Controlled to fit TanStack Form's
+ * Field idiom. ARIA: textarea plays `combobox` over a `listbox` popup; the textarea is the one tab
+ * stop, highlight moves via `aria-activedescendant`.
  */
 export function MacroTextarea({
   value,
@@ -152,8 +131,7 @@ export function MacroTextarea({
       return suggestions.slice(0, MAX_SUGGESTIONS);
     }
     const hits = getMacroSearch(suggestions).search(q, { combineWith: "AND" });
-    // Project the stored fields explicitly rather than a blanket cast — MiniSearch hits also carry
-    // score/terms/match, and the projection stays correct if the stored-fields list ever changes.
+    // Explicit projection rather than a blanket cast — MiniSearch hits also carry score/terms/match.
     return hits.slice(0, MAX_SUGGESTIONS).map(
       (h): MacroSuggestion => ({
         name: h["name"] as string,
@@ -193,9 +171,7 @@ export function MacroTextarea({
     onChange(next);
     setTrigger(null);
     setArgHint(macro.args !== undefined && macro.args.length > 0 ? macro : null);
-    // Restore caret. We need the new caret *after* React applies the value, so do it on the next
-    // microtask. For parameterized macros the helper sits the caret just inside the braces (after
-    // `::`); otherwise after the macro.
+    // Restore caret after React applies the value (next microtask).
     queueMicrotask((): void => {
       const el = textareaRef.current;
       if (!el) {
@@ -250,21 +226,12 @@ export function MacroTextarea({
         aria-label={ariaLabel}
         data-slot="macro-textarea-control"
         disabled={disabled}
-        // Conditionally spread (not a bare `id={id}`) — Base UI's Field.Control→…→this element
-        // render chain merges props via `mergeProps`, which treats an EXPLICITLY-declared key as
-        // an override even when its value is `undefined`. A bare `id={id}` here would silently
-        // erase the id Field.Control auto-generates when the caller doesn't pass one (the common
-        // case), breaking `<Field label>` association (the color-field.tsx precedent — verified
-        // empirically there via a `getByLabel` timeout).
+        // mergeProps treats an explicit key as an override even when undefined — a bare id={id}
+        // would erase Field.Control's auto-generated id when the caller doesn't pass one.
         {...(id === undefined ? {} : { id })}
         onBlur={(): void => {
-          // Two-part close-on-blur guard:
-          //   • PRIMARY (mouse): the popover items' `onMouseDown` preventDefault (below) stops the
-          //     textarea from ever losing focus on a click, so a macro pick never races this blur
-          //     at all — that path needs no timeout.
-          //   • This deferred close only covers NON-mouse blur (tab-away, focus jump, programmatic
-          //     blur): close the popover, but on a short delay so any in-flight selection settles
-          //     first (see BLUR_CLOSE_DELAY_MS above).
+          // Mouse picks are handled by the popover's own mousedown preventDefault (below); this
+          // deferred close covers non-mouse blur (tab-away, programmatic) after a short settle delay.
           setTimeout(() => setTrigger(null), BLUR_CLOSE_DELAY_MS);
           onBlur?.();
         }}
@@ -303,20 +270,12 @@ export function MacroTextarea({
                 data-slot="macro-textarea-option"
                 id={optionId(row.index)}
                 key={row.suggestion.name}
-                // The roving-focus contract this widget CLAIMS (aria-activedescendant roving over
-                // a listbox, textarea comment above): the textarea is the ONE tab stop, and
-                // highlight moves via ArrowUp/Down, never real DOM focus. A plain `<button>`
-                // defaults to tabIndex 0, which would make every option row its OWN page tab stop
-                // — breaking that contract (Tab would walk through N option buttons instead of
-                // leaving the popover). -1 keeps them out of the tab sequence while `onMouseDown`/
-                // `onClick` still fire normally (tabIndex has no effect on pointer activation).
+                // tabIndex=-1 keeps option rows out of the tab sequence (the textarea is the one
+                // tab stop; highlight moves via ArrowUp/Down) without affecting pointer activation.
                 tabIndex={-1}
                 onMouseDown={(e): void => {
-                  // PRIMARY mouse-click guard: preventDefault on mousedown stops the textarea from
-                  // blurring at all, so the popover can't unmount out from under the click — this
-                  // is what actually makes mouse picks reliable (the onBlur timeout above is only
-                  // the fallback for non-mouse blur paths). Fires before onClick, so the pick
-                  // lands cleanly.
+                  // preventDefault stops the textarea from blurring at all, so the popover can't
+                  // unmount out from under the click.
                   e.preventDefault();
                   insertMacro(row.suggestion);
                 }}
@@ -336,9 +295,7 @@ export function MacroTextarea({
         </div>
       ) : null}
       {argHintText ? (
-        // aria-live="polite": the hint appears AFTER the popover closes (on insert), so it's the
-        // only remaining signal that the macro takes args — a screen-reader user who just
-        // dismissed the listbox needs it announced, not silently rendered.
+        // aria-live: the hint appears after the popover closes, so it needs to be announced.
         <p aria-live="polite" className={slots.argHint()} data-slot="macro-textarea-arg-hint">
           {argHintText}
         </p>

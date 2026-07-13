@@ -1,33 +1,14 @@
-// domain/chat/verbs/read — the chat READ SURFACE (the listings, the single-chat reads, the DRY-RUN prompt
-// previews, and the resumable stream-ring reads). PURE reads: no canon
-// mutation, no bus emit. Every chatId surface is MEMBERSHIP-gated (D18) through the ONE `requireParticipant`
-// chokepoint (default-deny — a non-participant gets a leak-free `ChatNotFoundError`); listings are pure
-// membership (`listMemberChats` — only the caller's chats); the lineage/fork walks gate per-ancestor
-// INDEPENDENTLY (a fork grants NO parent membership — inv §16).
+// domain/chat/verbs/read — the chat read surface (listings, single-chat reads, dry-run prompt previews,
+// resumable stream-ring reads). Pure reads: no canon mutation, no bus emit. Every chatId surface is
+// membership-gated through the one `requireParticipant` chokepoint; listings are pure membership; the
+// lineage/fork walks gate per-ancestor independently (a fork grants no parent membership).
 //
-// THE DRY-RUN PREVIEWS (`previewAssembly` / `peekPrompt` / `previewSection` / `getActivePresetConfig`): they
-// `buildAssembleContext` (RESOLVE→GATHER→BUILD) + `assemblePrompt`/`previewSection` THROUGH the
-// `substrate/assembly-access` seam (a direct `verbs/ → assembly/` import is `domain-no-cross-subsystem`-illegal)
-// and return the BUILD product for inspection — NO turn runs, NOTHING persists. The returned view-models
-// (`AssembledPrompt`/`AssemblyPreview`/`SectionPreview`) are the BUILD halves (static/dynamic/afterHistory +
-// the host/admin trace); the SHAPE wire-history is a turn-only product (not in these read-models).
+// The dry-run previews (`previewAssembly`/`peekPrompt`/`previewSection`/`getActivePresetConfig`) build the
+// assemble ctx + render through the `substrate/assembly-access` seam and return the BUILD product for
+// inspection — no turn runs, nothing persists.
 //
-// GUIDED (PD-63 routed): `previewAssembly` threads its `guided` steer into the GATHER→BUILD —
-// the SAME resolution a real turn gets (template + neutralized `{{input}}` → the `{{guided_instruction}}`
-// marker or a depth-0 injection), so the preview mirrors the steered prompt exactly.
-//
-// D22 NOTE: the member-card visibility CLAMP is for a roster character's CARD read (`MemberCardView`) — NOT in
-// this verb set. `listParticipants` returns `ParticipantView` (the roster identity row — no card content to
-// clamp). The clamp lands with the member-card read verb.
-//
-// DEPS NOT ON `ChatContext` (the second factory arg — the `fork.ts`/`turn.ts` precedent):
-//   • loadParticipantViews   — resolve the roster read-model (`users` publics are resolved at the root, OUTSIDE
-//                              the `no-direct-users-read` domain scope).
-//   • resolveConnection      — `connection.resolveChat` (the previews need the resolved `model` for the WI
-//                              `{{model}}` regex; the host funds it — D19 `runAsUserId`).
-//   • resolveForeignInputs   — the FOREIGN half of the assemble ctx (preset/persona/settings — the same seam
-//                              `turn.ts` uses; contract/foreign.ts). The CHAT-INTERNAL half (canon/injections/
-//                              vars/metadata/memory/regex-tier) `gatherAssembleContext` reads itself.
+// Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
+// resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
 import type {
   ChatMacroNameProducer,
@@ -94,19 +75,19 @@ import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildPrompt, previewSection } from "../substrate/assembly-access";
 
-/** The collaborators not on `ChatContext` (the second factory arg — see the file header). */
+/** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
   readonly resolveConnection: (args: {
     readonly runAsUserId: UserId;
     readonly chatId: ChatId;
   }) => Promise<ResolvedConnection>;
-  /** The FOREIGN half of the assemble ctx (preset/persona/settings) — the same seam `verbs/turn.ts` +
-   *  `start-chat.ts` use (contract/foreign.ts). The CHAT-INTERNAL half is gathered by `gatherAssembleContext`. */
+  /** The foreign half of the assemble ctx (preset/persona/settings). The chat-internal half is gathered
+   *  by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
 }
 
-/** The read slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
+/** The read slice of `ChatService` this grouped file owns. */
 type ReadVerbs = Pick<
   ChatService,
   | "listChats"
@@ -126,12 +107,10 @@ type ReadVerbs = Pick<
   | "streamEventBounds"
 >;
 
-/** A loaded chat row (the inferred membership/list reader return — the `fork.ts` named-local precedent). */
 type ChatRowView = Awaited<ReturnType<typeof listMemberChats>>[number];
 
-/** The resolved preview substrate: the host (D19 funding id), the resolved cast/personas, the connection
- *  `model`, and the cross-domain assemble inputs (incl. the `PromptConfig`). The previews + `getActivePresetConfig`
- *  share this resolution. */
+/** The resolved preview substrate: the host, the resolved cast/personas, the connection `model`, and the
+ *  cross-domain assemble inputs. The previews + `getActivePresetConfig` share this resolution. */
 interface PreviewInputs {
   readonly hostUserId: UserId;
   readonly model: string;
@@ -140,13 +119,8 @@ interface PreviewInputs {
   readonly foreign: ForeignInputs;
 }
 
-// ── view mappers ────────────────────────────────────────────────────────────────
-
-/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail` (metadata sub-blobs
- *  applied to defaults; the same projection `fork.ts`/`invites.ts`/`start-chat.ts` use — one shape, no
- *  drift). `macroNames` is the participant-scoped {@link ChatMacroNameProducer} (Chat-Macro-Resolution.md
- *  §1) — always resolved from the SAME `participants` set passed in (one query, no drift between the
- *  roster shown and the names it backs). */
+/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail`. The same projection
+ *  `fork.ts`/`invites.ts`/`start-chat.ts` use — one shape, no drift. */
 interface ToChatDetailInput {
   readonly chat: ChatRowView;
   readonly participants: readonly ParticipantView[];
@@ -189,8 +163,7 @@ function toChatDetail({
 }
 
 /** Map a loaded chat row + its canon stats + present roster + character-seat ids → the light `ChatSummary`
- *  list row (D18 — no `ownerId`; `participantNames` are display names only — the heavy roster is `getChat`;
- *  `participantCharacterIds` is the reverse-read membership set, incl. departed seats — see the view doc). */
+ *  list row. `participantNames` are display names only — the heavy roster is `getChat`. */
 function toChatSummary(
   row: ChatRowView,
   stat: { messageCount: number; lastMessageAt: number | null },
@@ -212,7 +185,7 @@ function toChatSummary(
   };
 }
 
-/** The canon stats for a chat with no messages (absent from the batched aggregate — D18 just-created room). */
+/** The canon stats for a chat with no messages (absent from the batched aggregate). */
 const EMPTY_STATS = { messageCount: 0, lastMessageAt: null } as const;
 
 /** Resolve a set of chat rows → `ChatSummary[]` (the canon stats batched in one read; the names per chat).
@@ -241,12 +214,9 @@ async function buildSummaries(
   );
 }
 
-// ── preview substrate ─────────────────────────────────────────────────────────
-
 /** Resolve the {@link PreviewInputs} for a chat: the present roster → host + cast + personas, then the
- *  connection (`model`) + the cross-domain assemble inputs. A hostless room is unusable (a leak-free
- *  NOT_FOUND). The cast is reordered to put `speakerCharacterId` PRIMARY when supplied (so the preview shows
- *  that speaker's per-speaker turn). */
+ *  connection (`model`) + the cross-domain assemble inputs. A hostless room is unusable (leak-free
+ *  NOT_FOUND). The cast is reordered to put `speakerCharacterId` primary when supplied. */
 async function resolvePreviewInputs(
   ctx: ChatContext,
   deps: ReadDeps,
@@ -285,9 +255,8 @@ async function resolvePreviewInputs(
   return { hostUserId, model: connection.model, castCharacterIds, personaIds, foreign };
 }
 
-/** Build the ONE immutable assemble ctx for a preview (RESOLVE→GATHER→BUILD via the gather) from the resolved
- *  {@link PreviewInputs}. No persist, no turn (no SEND sink — previews take no composer input). An optional
- *  `guided` steer mirrors a real turn's steered assembly (PD-63 — file header). */
+/** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
+ *  optional `guided` steer mirrors a real turn's steered assembly. */
 async function buildPreviewContext(
   ctx: ChatContext,
   inputs: PreviewInputs,
@@ -308,9 +277,7 @@ async function buildPreviewContext(
   );
 }
 
-// ── listings ─────────────────────────────────────────────────────────────────────
-
-/** `listChats` — the caller's chats (pure membership, host OR member; D18), newest-updated first. */
+/** `listChats` — the caller's chats (pure membership, host or member), newest-updated first. */
 function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listChats"] {
   return async ({ principal, includeArchived }: ListChatsParams): Promise<ChatSummary[]> => {
     const rows = await listMemberChats(ctx.db, principal.userId, includeArchived ?? false);
@@ -318,8 +285,8 @@ function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listCha
   };
 }
 
-/** `listForks` — the fork CHILDREN of a chat the caller is ALSO a member of (a fork grants no parent
- *  membership, and parent membership grants no child membership — inv §16; gated per child INDEPENDENTLY). */
+/** `listForks` — the fork children of a chat the caller is also a member of (a fork grants no parent
+ *  membership, and vice versa; gated per child independently). */
 function createListForks(ctx: ChatContext, deps: ReadDeps): ChatService["listForks"] {
   return async ({ principal, chatId }: ListForksParams): Promise<ChatSummary[]> => {
     await requireParticipant(ctx, principal, chatId);
@@ -339,8 +306,8 @@ function createListForks(ctx: ChatContext, deps: ReadDeps): ChatService["listFor
   };
 }
 
-/** `getChatLineage` — the fork ancestry chain (D27 `parentChatId`), oldest-root first, membership-gated per
- *  ancestor INDEPENDENTLY (a hidden / not-a-member ancestor is OMITTED — the chain may be sparse, inv §16). */
+/** `getChatLineage` — the fork ancestry chain, oldest-root first, membership-gated per ancestor
+ *  independently (a hidden/not-a-member ancestor is omitted — the chain may be sparse). */
 function createGetChatLineage(ctx: ChatContext, deps: ReadDeps): ChatService["getChatLineage"] {
   return async ({ principal, chatId }: GetChatLineageParams): Promise<ChatLineageView> => {
     await requireParticipant(ctx, principal, chatId);
@@ -362,10 +329,8 @@ function createGetChatLineage(ctx: ChatContext, deps: ReadDeps): ChatService["ge
   };
 }
 
-// ── single reads ───────────────────────────────────────────────────────────────
-
-/** `getChat` — one chat resolved (row + present roster + effective room behavior). NOT_FOUND when missing OR
- *  the caller is not a participant (leak-free). */
+/** `getChat` — one chat resolved (row + present roster + effective room behavior). NOT_FOUND when missing
+ *  or the caller is not a participant (leak-free). */
 function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"] {
   return async ({ principal, chatId }: GetChatParams): Promise<ChatDetail> => {
     const membership = await requireParticipant(ctx, principal, chatId);
@@ -382,16 +347,12 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   };
 }
 
-// `listMessages` page bounds (mirrors `domain/character/verbs/list.ts`'s DEFAULT_LIMIT/MAX_LIMIT pair) —
-// an unclamped `limit` is a DoS surface (an unbounded SQL `.limit()`), not an authz hole.
+// An unclamped `limit` is a DoS surface (an unbounded SQL `.limit()`), not an authz hole.
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
-/** `listMessages` — a paged canon read (D26 — each slot joined to its selected variant), chronological, +
- *  the page's {@link ChatMacroNameProducer} (Chat-Macro-Resolution.md §1/§3: participant-scoped names UNION
- *  this page's own loaded rows' `characterId`/`personaId` stamps — covers a since-switched persona whose id
- *  isn't any participant's CURRENT active persona). The `excludedFromPrompt` (hidden) flag rides each
- *  `MessageView` (the client renders the held-out state); a member sees the full room canon (D18). */
+/** `listMessages` — a paged canon read (each slot joined to its selected variant), chronological, + the
+ *  page's {@link ChatMacroNameProducer}. The `excludedFromPrompt` flag rides each `MessageView`. */
 function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["listMessages"] {
   return async ({
     principal,
@@ -411,9 +372,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
   };
 }
 
-/** `listMessageVariants` — the full sibling-variant set for one slot (D26), ordered by idx, no content
- *  (the swipe strip's step-target resolver — `MessageView` carries only the SELECTED variant per slot). A
- *  foreign-chat/unknown `messageId` collapses to a leak-free NOT_FOUND (the persistence join scopes it). */
+/** `listMessageVariants` — the full sibling-variant set for one slot, ordered by idx, no content. A
+ *  foreign-chat/unknown `messageId` collapses to a leak-free NOT_FOUND. */
 function createListMessageVariants(ctx: ChatContext): ChatService["listMessageVariants"] {
   return async ({
     principal,
@@ -437,10 +397,8 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
   };
 }
 
-// ── dry-run prompt previews (NO turn, NO persist) ─────────────────────────────────
-
-/** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn (host/admin debug surface).
- *  A `guided` steer is routed through the SAME GATHER→BUILD a real turn uses (file header — PD-63). */
+/** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn (host/admin debug
+ *  surface). A `guided` steer is routed through the same gather→build a real turn uses. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
   return async ({
     principal,
@@ -476,8 +434,8 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
   };
 }
 
-/** `getActivePresetConfig` — the resolved `PromptConfig` the chat assembles against (the cross-domain
- *  resolver's preset, under the host's settings). No assemble ctx is built (only the config is needed). */
+/** `getActivePresetConfig` — the resolved `PromptConfig` the chat assembles against. No assemble ctx is
+ *  built (only the config is needed). */
 function createGetActivePresetConfig(
   ctx: ChatContext,
   deps: ReadDeps,
@@ -514,8 +472,6 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
   };
 }
 
-// ── stream-ring reads (the resumable SSE log; resume cursor) ──────────────────────
-
 /** `replayStreamEvents` — resume the resumable SSE token log from a cursor (late-subscriber ramp-up). */
 function createReplayStreamEvents(ctx: ChatContext): ChatService["replayStreamEvents"] {
   return async ({
@@ -536,11 +492,8 @@ function createStreamEventBounds(ctx: ChatContext): ChatService["streamEventBoun
   };
 }
 
-// ── durable chat-bus reads (the `streamMessages` SSE resume; PD-46's stream half) ───────────────
-
-/** `replayChatEvents` — resume the durable chat-bus log from a cursor (the SSE reconnect replay; the log is
- *  append-only, so a resume is never truncated). Member-gated; the events are room-public by the bus
- *  payload allowlist (inv #11). */
+/** `replayChatEvents` — resume the durable chat-bus log from a cursor (the log is append-only, so a
+ *  resume is never truncated). Member-gated; the events are room-public by the bus payload allowlist. */
 function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents"] {
   return async ({ principal, chatId, afterSeq }: ReplayChatEventsParams) => {
     await requireParticipant(ctx, principal, chatId);
@@ -549,9 +502,9 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
   };
 }
 
-/** `chatEventBounds` — the durable bus-log cursor bounds. ALSO the SSE per-yield membership gate: the
+/** `chatEventBounds` — the durable bus-log cursor bounds. Also the SSE per-yield membership gate: the
  *  `streamMessages` generator calls this before each live yield so a kicked member's stream stops within
- *  the kick tx (Tier-4 "the membership chokepoint must cover the SSE subscribe path"). */
+ *  the kick tx. */
 function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
   return async ({ principal, chatId }: ChatEventBoundsParams): Promise<StreamEventBounds> => {
     await requireParticipant(ctx, principal, chatId);
@@ -559,11 +512,8 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
   };
 }
 
-/**
- * The read-surface verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). The root
- * spreads it into the full service. PURE reads (membership-gated; no mutation, no bus emit). `deps` carries the
- * roster resolver + the connection/assemble resolvers the dry-run previews need.
- */
+/** The read-surface verb bundle. Pure reads (membership-gated; no mutation, no bus emit). `deps` carries
+ *  the roster resolver + the connection/assemble resolvers the dry-run previews need. */
 export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
   return {
     listChats: createListChats(ctx, deps),

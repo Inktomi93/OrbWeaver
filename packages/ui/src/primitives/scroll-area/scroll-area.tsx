@@ -18,26 +18,14 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
   viewportClassName?: string;
   /** Class for the sized `Content` wrapper (where `children` live). */
   contentClassName?: string;
-  /**
-   * Props forwarded to the scrolling Viewport — the element that actually scrolls, NOT the Root.
-   * This is where `onScroll` and a `ref` belong for chat autoscroll / scroll-position tracking
-   * (spread onto Root they'd be dead-on-arrival). `viewportClassName` still merges the class.
-   */
+  /** Props forwarded to the scrolling Viewport, not the Root — where `onScroll`/`ref` belong for autoscroll tracking. */
   viewportProps?: ScrollAreaViewportProps;
 }
 
 /**
- * A scroll region with custom, token-skinned scrollbars — seals Base UI ScrollArea (native scroll
- * physics preserved; the scrollbar/thumb overlay only appears where content overflows). Bundles
- * Root → Viewport → Content(children) → Scrollbar(vertical + horizontal) → Thumb → Corner so the
- * anatomy cannot be mis-assembled. `Content` is the sized content wrapper that carries the overflow
- * state; `Corner` fills the square where both scrollbars meet (visible only on BOTH-axis overflow).
- * Set a bounded height/width on the root (`className`) to make it scroll.
- * `<ScrollArea className="h-[...]"><LongList/></ScrollArea>`
- *
- * Scroll tracking (chat autoscroll): `<ScrollArea viewportProps={{ ref, onScroll }}>` — the ref/
- * handler reach the Viewport (the scrolling element), not the non-scrolling Root.
- * Spec: ui-package-design §6.1 / §13 R2 — styled scrollbars + Content/Corner surface.
+ * A scroll region with custom, token-skinned scrollbars — seals Base UI ScrollArea. Bundles Root →
+ * Viewport → Content(children) → Scrollbar(vertical + horizontal) → Thumb → Corner so the anatomy
+ * cannot be mis-assembled. Set a bounded height/width on the root (`className`) to make it scroll.
  */
 export function ScrollArea(props: ScrollAreaProps): ReactElement {
   const { className, viewportClassName, contentClassName, viewportProps, children, ...rest } =

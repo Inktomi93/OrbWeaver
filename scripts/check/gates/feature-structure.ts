@@ -107,11 +107,6 @@ function scanFeatureStructure(root: string): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
-// feature-structure reads the real filesystem (readdirSync/existsSync/statSync of the domain dir), never
-// the ts-morph Project — so it ports as a `run` descriptor over ctx.root reusing the exact scan, and
-// declares `fsBacked` so the conformance runner materializes its examples into a real temp dir. Findings
-// are file-level (line 0). Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "feature-structure",
   docRow: "core/Core-0-Architecture-and-Structure.md §7 (§4)",

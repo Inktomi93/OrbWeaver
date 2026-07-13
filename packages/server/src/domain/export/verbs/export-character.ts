@@ -1,21 +1,9 @@
-// verb: exportCharacter — read the owner's live character card (flat `characters` row + attached books +
-// ACCEPTED tags) and emit a V3 character-card PNG. The OUT assembly + the direct `@orb/db` reads + the
-// packaging (basePng + slug + the bytes envelope) are export's job; the card mapper (`buildCardV3`) and the
-// PNG byte codec (`writeCardChunk`) are COMPOSED from below (the serde core / kit), never re-implemented
-// here — crossing that line would re-create the second emitter this domain exists to kill (export owns
-// the assembly/packaging; the mappers/codec are shared). The serde core is `@orb/server/kit/serde/card`
-// (PD-44 resolved).
+// Read the owner's live character card and emit a V3 character-card PNG. The out assembly + the direct
+// `@orb/db` reads + packaging are export's job; the card mapper (`buildCardV3`) and PNG byte codec
+// (`writeCardChunk`) are composed from the serde core, never re-implemented here.
 //
-// Ownership is `principal.userId` (§7.1 — never a `users` read). `fetchOwned` puts the owner predicate in
-// the WHERE, so a non-owner / missing character both collapse to `undefined` → the verb returns `null`
-// (→ 404 at the HTTP layer; no foreign-existence leak, no error class — verbs return null by design).
-//
-// D28 adaptations vs neo: there is no `currentVersionId` / `character_versions` — the card is read straight
-// off the flat `characters` row; the book walk re-keys to `character_books.characterId`; the card's `tags`
-// come from `character_tags WHERE status='accepted'` (NOT the deleted `proposedTags`); `creator` /
-// `cardVersion` / `regexScripts` / `extensions` / `residualData` / `depthPrompt` are typed columns (no `raw`
-// blob). `residualData` (PD-127) re-emits the preserved top-level `data.*` residuals `buildCardV3` writes at
-// the `data` root.
+// Ownership is `principal.userId`. `fetchOwned` puts the owner predicate in the WHERE, so a non-owner or
+// missing character both collapse to `undefined` → the verb returns `null` (404 at the HTTP layer).
 
 import type { CardDepthPrompt } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
@@ -34,15 +22,14 @@ import { slug } from "../substrate/download-slug";
 import { PLACEHOLDER_PNG } from "../substrate/placeholder-png";
 
 const PNG_MIME = "image/png";
-// The card's tags are the ACCEPTED junction rows; derived from the canonical schema, not an inline
-// re-spelling (§7.5).
+// The card's tags are the ACCEPTED junction rows; derived from the canonical schema, not an inline re-spell.
 const ACCEPTED_STATUS = tagStatusSchema.enum.accepted;
-// `cas.read` rejects with a Node ENOENT when the blob is absent (GC'd / never written) — that one error
-// falls through to the placeholder; any other I/O error propagates (corrupt ≠ absent).
+// `cas.read` rejects with a Node ENOENT when the blob is absent — that one error falls through to the
+// placeholder; any other I/O error propagates (corrupt ≠ absent).
 const ENOENT = "ENOENT";
 
-// Parse the typed `depth_prompt` JSON column through the canonical schema (the read-seam — a malformed /
-// legacy value collapses to null, never a throw).
+// Parse the typed `depth_prompt` JSON column through the canonical schema — a malformed/legacy value
+// collapses to null, never a throw.
 function parseDepthPrompt(raw: unknown): CardDepthPrompt | null {
   if (raw === null || raw === undefined) {
     return null;
@@ -57,10 +44,8 @@ function isMissingBlob(err: unknown): boolean {
 }
 
 export function createExportCharacter(ctx: ExportContext): ExportService["exportCharacter"] {
-  // The base PNG the card JSON embeds into: the owner's avatar (transcoded to PNG when it isn't already),
-  // else the 256×256 placeholder. The avatar blob is read with a SINGLE `cas.read` attempt — `cas.exists`
-  // THEN `cas.read` was a TOCTOU race where a concurrent GC pass could drop the blob between the two
-  // calls. ENOENT falls through to the placeholder; any other error throws.
+  // The base PNG the card JSON embeds into: the owner's avatar (transcoded to PNG when needed), else the
+  // placeholder. Read with a single `cas.read` attempt (exists-then-read would TOCTOU-race a concurrent GC).
   async function basePng(avatarAssetId: AssetId | null, ownerId: UserId): Promise<Uint8Array> {
     if (avatarAssetId === null) {
       return PLACEHOLDER_PNG;
@@ -90,8 +75,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       return null;
     }
 
-    // The card's tags = the ACCEPTED `character_tags` names (pending suggestions are NOT serialized —
-    // the accepted-tags round-trip fix; neo re-exported `proposedTags` and lost accepted tags).
+    // The card's tags = the accepted `character_tags` names; pending suggestions are not serialized.
     const tagRows = await ctx.db
       .select({ name: tags.name })
       .from(characterTags)
@@ -101,10 +85,8 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       );
     const acceptedTags = tagRows.map((row) => row.name);
 
-    // Walk the character's attached books (primary + auxiliary) → their entries. The entry carries the full
-    // round-trip payload (typed columns PLUS the preserved metadata blob) so import → export → reimport
-    // doesn't strip `constant` / `position` / vendor extensions. De-duped by entry id (a book attached
-    // twice, or shared across attachments, must not double an entry).
+    // Walk the character's attached books (primary + auxiliary) → their entries. De-duped by entry id (a
+    // book attached twice must not double an entry).
     const entryRows = await ctx.db
       .select({
         id: worldEntries.id,
@@ -138,9 +120,8 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       });
     }
 
-    // The typed columns (`creator` / `cardVersion` / `regexScripts` / `extensions` / `depthPrompt`) are
-    // read straight off the flat row — no `raw` blob, so an app-authored card round-trips identically
-    // (the §7.3 lossiness fix). The serde owns re-encoding depthPrompt + regexScripts back into `extensions`.
+    // The typed columns are read straight off the flat row — no `raw` blob, so an app-authored card
+    // round-trips identically. The serde owns re-encoding depthPrompt + regexScripts back into `extensions`.
     const card = buildCardV3(
       {
         name: charRow.name,

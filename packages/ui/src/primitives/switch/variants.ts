@@ -1,14 +1,8 @@
 import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
 
-// The switch skin. The visible track is switch-thumb (32px) tall × switch-track (48px) wide — dedicated
-// pointer-INDEPENDENT display tokens, so the desktop switch stays generous instead of collapsing toward
-// a near-square ~4px-travel toggle (owner defect #3: the old h-section × w-touch-target sized the track
-// off the pointer-narrowing touch-target, leaving fine-pointer travel = 28px − 24px = 4px). The 32px
-// track height also clears the design-audit tap-target hard floor on its own box (Task #76). The ≥44px
-// touch floor is met SEPARATELY by the size-touch-target ::before pseudo (coarse), so the visible track
-// never has to carry the hit floor. Thumb travel = switch-track − switch-thumb (16px) — an unmistakable
-// left↔right slide — PLUS the track/thumb colour flip (hollow bg-input/foreground → filled primary/
-// primary-foreground), so on vs off reads at a glance on colour AND position. Token calc, no raw px.
+// The visible track rides pointer-independent display tokens, so the desktop switch stays generous
+// rather than collapsing toward a near-square toggle. The ≥44px touch floor is met separately by the
+// `before:size-touch-target` pseudo, so the visible track never has to carry the hit floor.
 export const switchVariants = tv({
   slots: {
     root: [
@@ -27,10 +21,7 @@ export const switchVariants = tv({
       "transition-transform duration-(--motion-fast) ease-out-expo",
       "data-checked:translate-x-[calc(var(--spacing-switch-track)-var(--spacing-switch-thumb))] data-checked:bg-primary-foreground",
     ],
-    // Read-only signal (A3): hidden by default, shown only when Base UI sets data-readonly on the
-    // thumb. Color inverts against whichever thumb bg is live so it stays legible on/off
-    // (text-background reads on the dark bg-foreground thumb; text-primary reads on the light
-    // bg-primary-foreground thumb) — never the disabled opacity treatment.
+    // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
     readOnlyIcon:
       "hidden text-background group-data-[readonly]:block group-data-[checked]:text-primary",
   },

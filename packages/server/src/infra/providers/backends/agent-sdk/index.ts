@@ -2,11 +2,9 @@
 // uses to obtain the backend factory + the SDK-free tool-server factory, and the surface the family's
 // tests import (deep imports into `backends/agent-sdk/<file>` are RED for everyone else by the
 // `providers-public-surface-only` cruiser rule). Load-bearing for the encapsulation invariant.
-//
-// infra/providers/backends/agent-sdk — THE STATEFUL CHAT BACKEND: the Max sub (mode-1) + the
-// OpenRouter-Anthropic skin (mode-2) + the local vLLM agent path (mode-3) + agent mode. Sealed: no other
-// backend imports it; the SDK (`@anthropic-ai/claude-agent-sdk`) is its PRIVATE dep and never leaks
-// upward (the contract is SDK-free; `AgentToolServer` is opaque `unknown`, narrowed inside this family).
+
+// The stateful chat backend: the Max sub (mode-1) + the OpenRouter-Anthropic skin (mode-2) + the local
+// vLLM agent path (mode-3) + agent mode. Sealed: the SDK is its private dep, never leaks upward.
 
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/connection";
@@ -33,9 +31,6 @@ import { summarize } from "./summarize";
 import type { AgentSdkDeps } from "./types";
 import { verifyAuth } from "./verify-auth";
 
-// ── Family-internal surface (entry wiring + the family's OWN tests). NOT a domain-reachable surface —
-//    `providers-public-surface-only` keeps domains on the providers root barrel; this family barrel is
-//    reachable only by `entry/` + the agent-sdk tests (whose import resolution can only hit an index.ts). ──
 export { fetchAgentSdkModels } from "./catalog";
 export {
   buildClaudeOpenRouterEnv,
@@ -69,38 +64,22 @@ export { consumeTurnStream } from "./runner";
 export { disciplineOptions, dynamicContextOptions, firewallBase } from "./translate";
 export { assertInitFrameShape, classifyTerminalReason } from "./verify";
 
-/** Default MCP namespace for a tool server built via {@link createAgentToolServer}. */
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 
-/**
- * The deps `entry/` injects to build the backend. `now` is REQUIRED — the composition root owns the clock
- * (the `no-raw-clock` determinism seam; this barrel can't fabricate one). `query` + `sessionStore` default
- * to the real SDK entry and an in-memory resume cache; the root overrides `sessionStore` with a durable
- * one when cross-restart resume is wanted (see session/store.ts).
- */
 export interface AgentSdkBackendDeps {
   readonly now: () => number;
   readonly query?: AgentSdkDeps["query"];
   readonly sessionStore?: AgentSdkDeps["sessionStore"];
-  /** Pre-spawn mode-1 host-token refresh. Defaults to the real {@link ensureFreshHostSubToken} bound to
-   *  `now`; tests inject a hermetic no-op so discovery/turn tests never hit the live OAuth endpoint. */
+  /** Tests inject a hermetic no-op so discovery/turn tests never hit the live OAuth endpoint. */
   readonly refreshHostSubToken?: AgentSdkDeps["refreshHostSubToken"];
 }
 
-/**
- * Build the sealed agent-sdk {@link ProviderBackend}. `runChatTurn` narrows the incoming {@link
- * ChatRequest} to its `api:"agent-sdk"` arm (the role dispatcher guarantees it; a mismatch fail-closes
- * with a typed error). The per-chat {@link SessionCache} is owned by this instance — the canon-derived
- * resume cache that keeps the Max-sub prompt cache alive across turns.
- */
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBackend {
   const sessions = new SessionCache(deps.sessionStore);
   const resolved: AgentSdkDeps = {
     now: deps.now,
     query: deps.query ?? query,
     sessionStore: sessions.store,
-    // Real pre-spawn host-token refresh (mode-1). Bound to the composition-root clock; `fetch`/host path
-    // default to the real host resources inside the seam. Tests inject their own via `AgentSdkBackendDeps`.
     refreshHostSubToken:
       deps.refreshHostSubToken ??
       ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
@@ -109,7 +88,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     key: "agent-sdk",
     runChatTurn: (req: ChatRequest): Promise<ChatResult> => {
       if (req.api !== "agent-sdk") {
-        // A rejected promise (not a sync throw) — the contract method must always be awaitable.
         return Promise.reject(
           new ProviderError({
             kind: "invalid",

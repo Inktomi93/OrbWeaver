@@ -1,17 +1,9 @@
-// The ModelPicker's pure MODEL (Settings → Connections → Model roles — the source-driven picker;
-// CONNECTIONS-BUILD-SPEC §3). Split from `model-picker.tsx` (UI-Arch §2.1 component-size gate) since the
-// render-cap / price formatting / Recent-pool resolve are data + string-math, not JSX. The Recent MRU's
-// device-local PERSISTENCE lives in state/recent-models-store.ts (the createPersistedStore door).
-//
-// The picker entry SHAPE is derived from the facade result by tRPC INFERENCE in the COMPONENT (a local,
-// non-exported alias — the `credential-key-row.tsx` precedent; an exported inference `type` in a feature is
-// a type-home leak, no-inline-types.grit §7.4). This lib takes only the STRUCTURAL fields it needs as a
-// local `interface`, so it never imports the server shape (the cake) and exports no leaking `type`.
+// The ModelPicker's pure model — render-cap, price formatting, and Recent-pool resolve. The Recent MRU's
+// device-local persistence lives in state/recent-models-store.ts.
 
 import { timeLib } from "#lib";
 
-/** The minimal entry shape the pure helpers read (a structural subset of the facade's `SourceModelEntry`).
- *  Local — the component passes its inference-typed entries, which satisfy this by shape. */
+/** The minimal entry shape the pure helpers read — a structural subset of the facade's SourceModelEntry. */
 interface PickerEntry {
   readonly id: string;
   readonly label: string;
@@ -21,19 +13,12 @@ interface PickerEntry {
   readonly supportedParameters?: readonly string[] | undefined;
 }
 
-/** The render cap for the "All models" group — a large catalog (OpenRouter ships 500+) is sliced so the
- *  popover never mounts hundreds of rows; the "+N more — keep typing" row teaches the user to narrow. */
+/** The render cap for the "All models" group — a large catalog is sliced so the popover never mounts hundreds of rows. */
 export const MODEL_PICKER_RENDER_CAP = 50;
 
-// Compact-number thresholds (extracted — no magic numbers).
 const MILLION = 1_000_000;
 const THOUSAND = 1000;
 const PRICE_FRACTION_DIGITS = 2;
-
-// The device-local Recent-models MRU (read + write + persistence) lives in state/recent-models-store.ts —
-// it must go through the createPersistedStore door (persistence-boundary gate), never a bare localStorage
-// read/write from this pure lib. This file keeps only the pure render helpers (string-math + the Recent
-// pool→entry resolve below).
 
 /** Format a context length as a compact human string (200000 → "200K", 1_000_000 → "1M"). */
 export function formatContextLength(contextLength: number | undefined): string | null {
@@ -49,9 +34,7 @@ export function formatContextLength(contextLength: number | undefined): string |
   return String(contextLength);
 }
 
-/** Format the per-token USD price as a $/M string. `promptPrice` is USD PER TOKEN (`ModelCatalogEntry`
- *  semantics — the facade carries the raw value), so $/M = price × 1e6 (1.5e-5 → "$15.00/M"). Absent/zero
- *  price ⇒ `null` (the meta cell omits it). */
+/** Format the per-token USD price as a $/M string ($/M = price × 1e6). Absent/zero price ⇒ `null`. */
 export function formatPromptPrice(promptPrice: number | undefined): string | null {
   if (promptPrice === undefined || promptPrice <= 0) {
     return null;
@@ -74,8 +57,7 @@ export function hasTools(entry: PickerEntry): boolean {
   return (entry.supportedParameters ?? []).includes("tools");
 }
 
-/** Apply the Vision/Tools chip filter (AND across active chips) BEFORE the render cap. An empty chip set is
- *  a no-op pass-through. Generic so the caller keeps its inference-typed entries (never a widen/cast). */
+/** Apply the Vision/Tools chip filter (AND across active chips) before the render cap. An empty chip set is a no-op pass-through. */
 export function filterByChips<T extends PickerEntry>(
   entries: readonly T[],
   chips: readonly string[],
@@ -90,8 +72,7 @@ export function filterByChips<T extends PickerEntry>(
   );
 }
 
-/** The footer's synced line — the snapshot `fetchedAt` as relative time when present, else the source's
- *  static provenance note (the facade returns `fetchedAt: null` for config/builtin/custom sources). */
+/** The footer's synced line — relative time when a snapshot `fetchedAt` is present, else the source's static provenance note. */
 export function footerSyncedLabel(fetchedAt: number | null, allowsFreeText: boolean): string {
   if (fetchedAt !== null) {
     return `synced ${timeLib.formatRelative(fetchedAt)}`;
@@ -99,9 +80,7 @@ export function footerSyncedLabel(fetchedAt: number | null, allowsFreeText: bool
   return allowsFreeText ? "endpoint /models" : "from config";
 }
 
-/** Resolve the Recent-group entries: the device-local MRU ids mapped to their live pool entries, dropped
- *  when the id is no longer in the pool, and only when the query is empty (Recent is a rest-state group).
- *  Pure — the caller passes its inference-typed pool + a lookup so no widen/cast leaks. */
+/** Resolve the Recent-group entries: MRU ids mapped to live pool entries, only when the query is empty. */
 export function resolveRecentEntries<T extends PickerEntry>(
   recentIds: readonly string[],
   poolById: ReadonlyMap<string, T>,

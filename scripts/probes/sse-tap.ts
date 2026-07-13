@@ -6,8 +6,6 @@
  * via a real tRPC client and pretty-prints every ChatBusEvent envelope. Exits on
  * Ctrl-C OR when the subscription closes.
  *
- * WHY: bisects "is the UI broken or is the backend not emitting" without a browser.
- * Events here but not in the client → client bug. Silence here → chat verb / bus bug.
  * NOTE the withhold-not-throw gate (transport/trpc/routers/chat.ts): a chatId you are
  * not a member of (or that doesn't exist yet) yields an OPEN, SILENT stream — silence
  * can mean "not a member", not only "no events". `connection open` + no error proves
@@ -26,12 +24,10 @@
  * 5173 — deliberate, so "vite proxy ate my SSE" shows as "sse-tap works, browser doesn't".
  *
  * NODE EVENTSOURCE: `httpSubscriptionLink` constructs `new (opts.EventSource ??
- * globalThis.EventSource)(url)` at subscribe time — on this Node (24.x, undici's
- * EventSource) the global only exists behind `--experimental-eventsource` (live-verified:
- * without it, subscribe() throws "opts.EventSource is not a constructor"). Rather than a new
- * dependency (an EventSource polyfill) or asking every caller to remember the flag, this
- * self-re-execs ONCE under the flag before constructing the client — replaying tsx's own
- * loader `execArgv` so the re-exec still runs through tsx, not bare node.
+ * globalThis.EventSource)(url)` at subscribe time — on this Node (24.x) the global only
+ * exists behind `--experimental-eventsource` (without it, subscribe() throws). This
+ * self-re-execs ONCE under the flag before constructing the client, replaying tsx's own
+ * loader `execArgv` so the re-exec still runs through tsx.
  */
 import { spawnSync } from "node:child_process";
 import process from "node:process";
@@ -67,9 +63,8 @@ if (chatIdArg === undefined || chatIdArg === "") {
   process.exit(EXIT_USAGE);
 }
 
-// tRPC v11 SSE (httpSubscriptionLink → Node's global EventSource). The Cookie rides in
-// via eventSourceOptions.fetch — the sanctioned header-injection seam for undici's
-// EventSource. Only a subscription flows through this client, so one link suffices.
+// The Cookie rides in via eventSourceOptions.fetch — the header-injection seam for
+// undici's EventSource.
 const client = createTRPCClient<AppRouter>({
   links: [
     httpSubscriptionLink({
@@ -89,8 +84,6 @@ const client = createTRPCClient<AppRouter>({
 process.stdout.write(`tapping ${TRPC_URL}  chatId=${chatIdArg}\n`);
 process.stdout.write("press Ctrl-C to exit\n\n");
 
-// `streamMessages` yields tracked envelopes — onData receives `{id, data}` where `id`
-// is the durable per-chat seq (the SSE resume cursor) and `data` is the ChatBusEvent.
 const sub = client.chat.streamMessages.subscribe(
   { chatId: castId<ChatId>(chatIdArg) },
   {
@@ -98,11 +91,8 @@ const sub = client.chat.streamMessages.subscribe(
     onData: (envelope) => {
       const ts = new Date().toISOString().slice(TS_START, TS_END);
       const { data } = envelope;
-      // withSubscriptionErrors (transport/trpc/subscriptions.ts) mixes a typed terminal
-      // `SubscriptionErrorFrame` into the same tracked stream as the real ChatBusEvent
-      // union (the withhold-not-throw doctrine this probe's header documents) — narrow on
-      // the `__subscriptionError` sentinel before touching `.type`, which only the real
-      // events carry.
+      // Narrow on the `__subscriptionError` sentinel before touching `.type`, which only
+      // real events carry (see withSubscriptionErrors, transport/trpc/subscriptions.ts).
       if ("__subscriptionError" in data) {
         process.stdout.write(
           `${ts}  seq=${envelope.id}  ! subscription-error  code=${data.code}  ${data.message}\n`,

@@ -1,14 +1,8 @@
-// infra/providers/vllm/surfaces/image-embed — the vLLM JOINT image+text embed surface (Qwen3-VL-Embedding).
-//
-// Same engine, SAME vector space, SAME dim as the text embed surface (one unified multimodal space, so an
-// image embedding and a text embedding from this model compare directly). Covers the modes that need the
-// chat-style `messages` request (images can't ride the raw `input` path): kind "image", kind "text" (the
-// text side of image search), kind "multimodal" (joint image+text in one forward pass — Qwen3-VL natively
-// can; a two-tower CLIP family can't). Registers against engine/ ONLY — it imports no sibling surface.
-//
-// neo-grounded: `messages` + `add_generation_prompt: true` + the EOS serve template reproduces the official
-// similarity matrix; data URIs ≡ remote URLs; MRL `dimensions` honored. One conversation per request —
-// throughput comes from `concurrency` requests in flight, merged by the engine's continuous batcher.
+// vLLM joint image+text embed surface (Qwen3-VL-Embedding). Same engine/vector space/dim as text embed
+// (one unified multimodal space). Covers modes needing the chat-style `messages` request (images can't
+// ride the raw `input` path): "image", "text", "multimodal" (joint image+text in one forward pass).
+// `messages` + `add_generation_prompt: true` reproduces the official similarity matrix. Throughput comes
+// from `concurrency` requests in flight, merged by the engine's continuous batcher.
 
 import type { ImageEmbedInput, ImageEmbedPair, ImageInput } from "@orb/contracts/role-clients";
 import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract";

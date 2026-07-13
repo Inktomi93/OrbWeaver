@@ -1,13 +1,7 @@
-// The character-SELECTION store (ux-flow-revamp J9 · UI-Arch §4.2 rule 1: LIST selection drives CONTENT).
-// Holds which character the Characters section has selected — the route reads it to render the detail card
-// in CONTENT (else the teaching welcome). Separate from the chat stores by design (J9: "Selection state: a
-// `selectedCharacterId` field — NOT in the chat stores"): the Characters section's selection is its own
-// per-section concern, remembered independently (§4.2 rule 2), mirroring how message-selection-store keeps
-// the chat's bulk mode out of the active-chat store.
-//
-// `createGatedStore` (not persisted): transient device-local UI selection — a hard reload landing back on
-// the section's welcome state is fine (state-law recap, UI-Arch §5). One field, so it stays well under the
-// ≤10-field cap; presence of a non-null id IS "a character is selected".
+// The character-SELECTION store: which character the Characters section has selected — the route reads
+// it to render the detail card in CONTENT (else the welcome state). Separate from the chat stores by
+// design: its own per-section concern, remembered independently. createGatedStore (not persisted): a
+// hard reload landing back on the welcome state is fine.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";
@@ -15,12 +9,9 @@ import { createGatedStore } from "./create-gated-store";
 interface CharacterSelectionState {
   /** The character whose detail card the Characters CONTENT shows — `null` = the section's welcome state. */
   readonly selectedCharacterId: CharacterId | null;
-  /** The card-content FACET the CONTENT drill-in + the CONTEXT Field inspector show (character-editor
-   *  redesign) — `null` = the facet list is showing (nothing drilled). A facet id (not branded — facet ids
-   *  are card-field-local strings from the static registry, not a `@orb/kit/ids` entity id; mirrors
-   *  preset-selection-store's `selectedSectionId`). CONTENT (the surface) + CONTEXT (the Field inspector)
-   *  are sibling shell regions with no shared React ancestor, so the selection lives HERE, not in local
-   *  `useState`. */
+  /** The card-content facet the CONTENT drill-in + the CONTEXT Field inspector show — `null` = nothing
+   *  drilled. CONTENT and CONTEXT are sibling shell regions with no shared React ancestor, so this
+   *  selection lives here, not in local useState. */
   readonly selectedFacetId: string | null;
 }
 

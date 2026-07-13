@@ -1,26 +1,11 @@
 // biome-ignore-all lint/style/useFilenamingConvention: the gate NAME is `bus-onData-no-store-write`
-// (UI-Gates-and-Lessons.md §8 + §11.1 + the reducer header) — check-gates.int.test.ts cross-checks the
-// file basename against the gate name report.ts prints, so the file MUST match the documented name.
+// (check-gates.int.test.ts cross-checks the file basename against the gate name report.ts prints).
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS fixture snippets
 // (onData handler bodies), not secrets.
-// Gate: bus-onData-no-store-write (UI-Gates-and-Lessons.md §11.1 — "the bus→cache sync seam is the
-// only sanctioned SSE shape"). A subscription `onData` / `onConnectionStateChange` body may (a) route
-// events into the pure reducer (`applyChatBusEvent`), (b) buffer transient progress through the
-// SANCTIONED chatStream write api, and (c) drive the invalidation seam (`invalidate`/`invalidateUser`/
-// `invalidateAllUserRoots`) or the notify seam — and NOTHING ELSE. It must NEVER become a second store:
-// a raw Zustand write (`.setState(`) inside the callback forks canon into an unsanctioned buffer the
-// reducer/seam don't know about (the exact "onData grows a second store" drift §11.1 forbids).
-//
-// WHAT IT FLAGS: a `.setState(` call (AST — comments don't count) lexically inside an `onData` or
-// `onConnectionStateChange` function-valued property/method, in packages/client/src/data/bus/**. Pins
-// today's clean shape (use-chat-bus.ts routes to `applyChatBusEvent`; use-user-bus.ts routes to
-// `deps.invalidate*`) against drift.
-//
-// WHAT IT DELIBERATELY DOES NOT FLAG: the sanctioned calls the current bodies make —
-// `applyChatBusEvent(...)`, `deps.stream.*` (the chatStream write api), `deps.invalidate*(...)`,
-// `notify.*(...)` — none is a `.setState(`. The chatStream api itself lives in state/chat-stream.ts
-// (whose `useChatStreamStore.setState` IS the sanctioned write, out of scope here); and who may IMPORT
-// that api is the twin grit `chat-stream-writes-in-bus-only`'s job (the import-side half).
+// Gate: bus-onData-no-store-write (UI-Gates-and-Lessons.md §11.1). A subscription `onData` /
+// `onConnectionStateChange` body may route into the pure reducer, buffer through the sanctioned
+// chatStream write api, or drive the invalidation/notify seam — and nothing else. A raw Zustand write
+// (`.setState(`) inside the callback forks canon into an unsanctioned second store.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -47,10 +32,6 @@ function insideHandler(node: Node): boolean {
   return false;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a PropertyAccessExpression subscription: a `.setState(` call lexically inside
-// an onData/onConnectionStateChange handler body, in data/bus/**. scanRoot mirrors the legacy BUS_DIR
-// filter. Per-occurrence (each store write in a handler).
 export const gate: GateDescriptor = {
   name: "bus-onData-no-store-write",
   docRow: "UI-Gates-and-Lessons.md §11.1",

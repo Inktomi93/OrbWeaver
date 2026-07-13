@@ -1,44 +1,17 @@
-// The credential cross-boundary wire surface — the CANONICAL home of the provider-source axis (D31)
-// and the brand-protected `ResolvedCredential` the `infra/providers` runners consume. Both the
-// `credentials` DOMAIN (which mints the values) and the runners (which read them) sit DOWN from this
-// node: contracts is the one place both consumers can reach without an infra→domain edge.
-//
-// TWO distinct axes live here — never conflate them:
-//   • CredentialSource (CRED_SOURCES) — the DISPATCH axis. The 5 sources the turn-time resolver has a
-//     runner arm for: `max-pro-sub | openrouter | vllm | local-light | custom_openai`. THE
-//     provider-source axis (D31/D39); `@orb/contracts/connection` re-exports it verbatim as
-//     `ChatSource` rather than declaring a second tuple — routing's `source` IS the credential source.
-//     `vllm` + `local-light` are the two KEYLESS local-compute tiers (the owner's box, D17): vllm is
-//     the supervised-subprocess GPU engine, local-light the in-process transformers.js/ONNX tier.
-//   • CredentialProvider (CRED_PROVIDERS) — the STORAGE axis. The broader set of providers a row may be
-//     persisted under: `openrouter | anthropic | openai | google_vertex | custom_openai`. The
-//     `anthropic`/`openai`/`google_vertex` members are forward-compat storage slots with NO resolver
-//     arm yet — storable, never dispatched. The two axes overlap only on `openrouter` + `custom_openai`.
-//
-// AES-256-GCM AAD invariant: the at-rest ciphertext is bound to
-// `${userId}|${provider}` where `provider` is a CredentialProvider. No wire shape in THIS node carries the
-// AAD — it is a domain `persistence/aad.ts` concern — but the storage axis defined here is the
-// `provider` half of that binding, so the CRED_PROVIDERS tuple must stay byte-stable.
-//
-// v1 deferral (shared-dissolution §1.3 cycle break): the metadata
-// schema is `baseUrl`/`headers` (custom_openai) + project/region (google_vertex) only. The BYO
-// `modelProfile?: CustomModelProfile` is FLAG[PD-12] — defining it here would tempt importing
-// `connection.ModelCapability` and invert the D31 `connection → credentials` edge into a cycle. When
-// it lands, `CustomModelProfile` is homed HERE as an independent subset shape (never importing
-// `ModelCapability`). The per-endpoint request/response transforms (`includeBody`/`excludeBody`/
-// `responseMap`) are likewise FLAG[PD-12] to the custom-endpoint runner.
+// The credential cross-boundary wire surface — home of the provider-source axis and the
+// brand-protected `ResolvedCredential` the `infra/providers` runners consume.
+// Two axes: CredentialSource is the DISPATCH axis (resolver+runner arm); CredentialProvider is the
+// broader STORAGE axis (a row may persist with no resolver arm yet).
+// AES-256-GCM AAD invariant: at-rest ciphertext is bound to `${userId}|${provider}`, so CRED_PROVIDERS
+// must stay byte-stable. FLAG[PD-12]: BYO `modelProfile`/per-endpoint transforms deferred.
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { z } from "zod";
 
-// Zod `.min(MIN_NON_EMPTY)` reads as "non-empty string"; named so the boundary intent is explicit
-// (noMagicNumbers) and every metadata arm shares the one floor.
 const MIN_NON_EMPTY = 1;
 
-// --- The provider-SOURCE axis (D31 canonical) --------------------------------
-// The dispatch axis: every member has a resolver arm + an infra/providers runner. Adding a source is
-// a member here + a resolver arm + a runner arm — `tsc` (the resolver's `assertNever`) red-flags any
-// of the three left undone. `@orb/contracts/connection` re-exports `CredentialSource` as `ChatSource`.
+// Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
+// red-flags a gap). `@orb/contracts/connection` re-exports this as `ChatSource`.
 export const CRED_SOURCES = [
   "max-pro-sub",
   "openrouter",
@@ -49,22 +22,11 @@ export const CRED_SOURCES = [
 export type CredentialSource = (typeof CRED_SOURCES)[number];
 export const credentialSourceSchema = z.enum(CRED_SOURCES);
 
-// --- The provider-STORAGE axis -----------------------------------------------
-// The broader storable set (the `user_credentials.provider` enum derives from this tuple). Distinct
-// from CredentialSource: `anthropic`/`openai`/`google_vertex` are storable with no resolver arm yet —
-// a row with one is persisted but never reached at turn time (do NOT add a partial runner — a DB row
-// with no runner is a stranded credential that shows as "revoked / not found" to the user; adding a
-// provider means the union member + the resolver arm + the `infra/providers` runner land TOGETHER).
-// The neo `CredProvider` re-export collapses (now `CredentialProvider`) to this one home.
-//
-// `gif-search` is a NON-LLM storage slot (D61 / gallery-design §5): the Tenor gif-search API key, a metered
-// third-party secret. It is a STORAGE-axis member ONLY — deliberately NOT a `CredentialSource` (it is never
-// dispatched at turn time and has no `infra/providers` runner). It is resolved by its OWN dedicated verb
-// (`domain/credentials/resolveGifSearchKey`), never through the turn-time `resolve()` chokepoint, so the
-// `assertNever` there stays green. Its own provider slot (not a label under an LLM provider) gives it a
-// distinct AAD binding (`${userId}|gif-search`) and keeps it out of the LLM credential lifecycle (a health
-// probe against it would false-revoke a key stored under `openrouter`/`anthropic` — the reason it is not a
-// label). Future external-service keys (hub:<key>, D61 doc 02 §6) follow this per-service-provider shape.
+// Storage axis (the `user_credentials.provider` enum derives from this tuple). `anthropic`/`openai`/
+// `google_vertex` are storable with no resolver arm yet — a provider's union member, resolver arm, and
+// runner must land TOGETHER (never a stranded partial).
+// `gif-search` is a non-LLM storage-only slot (never dispatched, no runner) resolved by its own verb
+// (`resolveGifSearchKey`) so it stays outside the LLM credential lifecycle / turn-time `assertNever`.
 export const CRED_PROVIDERS = [
   "openrouter",
   "anthropic",
@@ -76,13 +38,8 @@ export const CRED_PROVIDERS = [
 export type CredentialProvider = (typeof CRED_PROVIDERS)[number];
 export const credentialProviderSchema = z.enum(CRED_PROVIDERS);
 
-// --- Provider metadata (the `metadata` JSON column wire shape) ----------------
-/**
- * The SINGLE runtime gate for the `user_credentials.metadata` JSON blob, also imported by the client
- * for custom-endpoint form validation (same pattern as `createCharacterSchema`). `.loose()` on each
- * arm tolerates forward-compat keys without dropping them; the `null` arm is the no-metadata case
- * (openrouter/anthropic/openai have fixed base URLs). v1 scope per the file header.
- */
+/** The runtime gate for the `user_credentials.metadata` JSON blob, also used client-side for
+ *  custom-endpoint form validation. `.loose()` tolerates forward-compat keys; `null` = no metadata. */
 export const providerMetadataSchema = z.union([
   z
     .object({
@@ -93,13 +50,10 @@ export const providerMetadataSchema = z.union([
       model: z.string().optional(),
       /** Per-endpoint request headers the runner applies. */
       headers: z.record(z.string(), z.string()).optional(),
-      /** User-declared context window (tokens) for the BYO model. Without this the budgeting layer has
-       *  no ceiling to work from — a 2M-context model silently gets treated as whatever the default
-       *  budget assumes (the D4 footgun). Trusted user input, not probed from the endpoint. */
+      /** User-declared context window (tokens) for the BYO model — trusted input, not probed. */
       contextWindow: z.number().int().positive().optional(),
     })
     .loose(),
-  // `project` (NOT `projectId`) — Google's identifier is an assigned string, not a branded id.
   z
     .object({
       kind: z.literal("google_vertex"),
@@ -113,34 +67,21 @@ export const providerMetadataSchema = z.union([
 /** Provider-specific metadata, inferred from the schema so the type and the runtime gate can't drift. */
 export type ProviderMetadata = z.infer<typeof providerMetadataSchema>;
 
-/**
- * Parse a raw `metadata` column value (Drizzle hands it back as `unknown`) into the typed shape, or
- * `null` when it matches no arm. The single read-side seam: a corrupt `{kind:"custom_openai"}` row
- * with no `baseUrl` yields `null` here, so `undefined` can never escape into an outbound fetch URL.
- */
+/** Parse a raw `metadata` column value into the typed shape, or `null` when it matches no arm. */
 export function parseProviderMetadata(raw: unknown): ProviderMetadata {
   const parsed = providerMetadataSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
 }
 
-// --- Credential health (probe result) ----------------------------------------
-/**
- * Result of a credential health probe. Cross-role contract: the `infra/providers` `probe()` returns a
- * subset (ok/revoked/unreachable); the domain `testHealth` surfaces the full set including
- * `throttled` (service-side throttle state the provider has no knowledge of).
- */
+/** Result of a credential health probe; `throttled` is a domain-only state the provider can't see. */
 export type CredentialHealth =
   | { status: "ok"; checkedAt: number }
   | { status: "revoked"; checkedAt: number; reason: string }
   | { status: "unreachable"; checkedAt: number; reason: string }
   | { status: "throttled"; checkedAt: number };
 
-// --- The ResolvedCredential brand (load-bearing) -----------------------------
-// A phantom `unique symbol` intersection: an arbitrary `{ source, ... }` literal can NOT satisfy a
-// branded member (the brand key is unreachable outside this module), so the ONLY way to produce a
-// `ResolvedCredential` is the domain `resolve.ts` factory's encapsulated cast. `max-pro-sub` is the
-// critical arm — it is the OWNER's box credential (D17), mintable only after the `requireOwner` gate;
-// the opaque `MaxProSubCredential` type carries no key material a non-owner path could fabricate.
+// Phantom `unique symbol` brand: an arbitrary `{ source, ... }` literal can't satisfy it, so the ONLY
+// way to produce a `ResolvedCredential` is the domain `resolve.ts` factory's encapsulated cast.
 declare const credentialBrand: unique symbol;
 interface CredentialBrand {
   readonly [credentialBrand]: true;
@@ -173,13 +114,7 @@ export type LocalLightCredential = CredentialBrand & {
   readonly credentialId: null;
 };
 
-/**
- * User-defined OpenAI-compatible endpoint. The active `custom_openai` row IS the endpoint selection.
- * `apiKey` is `null` for no-auth local servers; `headers` carries the per-endpoint request transform
- * resolved from the credential's metadata. (Request/response body transforms are v1-deferred, FLAG[PD-12].)
- * `contextWindow` is the user-declared BYO context ceiling (PD-112) — undefined until the form/metadata
- * supplies one; the budgeting consumer is a later surface.
- */
+/** User-defined OpenAI-compatible endpoint. `apiKey` is `null` for no-auth local servers. */
 export type CustomOpenAiCredential = CredentialBrand & {
   readonly source: "custom_openai";
   readonly baseUrl: string;
@@ -187,16 +122,12 @@ export type CustomOpenAiCredential = CredentialBrand & {
   readonly headers: Record<string, string> | null;
   readonly credentialId: UserCredentialId;
   readonly contextWindow: number | undefined;
-  /** The convenience default model string carried from the credential's `metadata.model` (GAP-6) — the
-   *  Connections custom picker's `defaultModelId`. `undefined` until the add-key form supplies one. */
+  /** Default model string from the credential's `metadata.model`; undefined until the form supplies one. */
   readonly model: string | undefined;
 };
 
-/**
- * The decrypted-credential shape every provider runner consumes, discriminated by `source` and
- * brand-protected. Constructed ONLY through the `domain/credentials/substrate/mint` factories (the
- * turn-time `resolve` is the consumer-facing chokepoint). One credential = one backend = N roles.
- */
+/** The decrypted-credential shape every provider runner consumes. Constructed ONLY through the
+ *  `domain/credentials/substrate/mint` factories. */
 export type ResolvedCredential =
   | MaxProSubCredential
   | OpenRouterCredential

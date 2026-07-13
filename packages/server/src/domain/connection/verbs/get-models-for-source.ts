@@ -1,15 +1,9 @@
-// verb: getModelsForSource — the read-only Connections role-slot picker facade (CONNECTIONS-BUILD-SPEC §2).
-// ZERO OUTBOUND FETCH by construction: it reads snapshots (OR / agent-sdk), env/config (vllm), the injected
-// builtin trio (local-light), and CREDENTIAL PRESENCE only — never a live `/models` call. The SSRF-guarded
-// outbound probes stay on the credentials-router `.mutation()`s (Esoteric #9); this stays a safe
-// `authedProcedure.query`. The whole verb is a 5-arm switch over `params.source`, `assertNever`-exhaustive
-// like `credentials/verbs/resolve.ts` — a new `ChatSource` member is a `tsc` error until its arm lands.
+// verb: getModelsForSource — the read-only Connections role-slot picker facade. Zero outbound fetch by
+// construction: reads snapshots (OR/agent-sdk), env/config (vllm), the injected builtin trio (local-light),
+// and credential presence only — never a live /models call. 5-arm switch over params.source, assertNever-exhaustive.
 //
-// LOAD-BEARING — the DERIVE-NOT-STAMP contract: `defaultModelId` is what `resolveRole` picks for an UNSET
-// slot for this (role, source). The client DISPLAYS it (ghost/auto-fill) but PERSISTS `""`; the resolver
-// re-derives it live from env/builtin. Stamping the env value into `roleDefaults` would freeze a server-
-// config change — the bug this contract exists to prevent (resolve-role.ts applyVllmFallback + env
-// fallbacks). A ghost-parity test guards `defaultModelId` against resolver drift.
+// defaultModelId is what resolveRole picks for an unset slot; the client displays it but persists "" — the
+// resolver re-derives it live so a server-config change never freezes into roleDefaults.
 
 import type { ModelCatalogEntry, RoutingRoleKey } from "@orb/contracts/connection";
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
@@ -26,24 +20,15 @@ function assertNever(value: never): never {
   throw new Error(`getModelsForSource: unhandled source ${String(value)}`);
 }
 
-/** The fixed local-light / built-in vector space (`F32_BLOB(1024)`; connections-model.ts) — surfaced on the
- *  embed-role builtin/config entries so the picker can render "1024-dim". */
 const BUILTIN_EMBED_DIM = 1024;
 
-/** The roles whose vllm/local-light model is an EMBED model (env `VLLM_EMBED_MODEL` / the jina builtin) — the
- *  imageEmbed role shares the embed model + dim (mirrors `resolve-role.ts` embed/imageEmbed selectors). */
 const EMBED_ROLES: ReadonlySet<RoutingRoleKey> = new Set<RoutingRoleKey>(["embed", "imageEmbed"]);
 
-/** The keyless-legal OR default the resolver would heal an unset chat-family slot to (`openrouter/auto`).
- *  generateImage has no OR default (the resolver's model stays null → castId), so it ghosts nothing. */
 function orDefaultForRole(role: RoutingRoleKey): string | null {
   return role === "generateImage" ? null : DEFAULT_OR_CHAT_MODEL_ID;
 }
 
-/** The vllm env model for a role, mirroring the resolver's per-role selectors (resolve-role.ts:78/84/104).
- *  embed/imageEmbed → VLLM_EMBED_MODEL, rerank → VLLM_RERANK_MODEL, else → VLLM_GEN_MODEL. generateImage is
- *  not a vllm role (the schema forbids it, openrouter-only) — the client never asks, so GEN is a harmless
- *  fall-through. */
+/** Mirrors resolve-role.ts's per-role selectors; generateImage isn't a vllm role so GEN is a harmless fall-through. */
 function vllmModelForRole(role: RoutingRoleKey): string {
   if (EMBED_ROLES.has(role)) {
     return env.VLLM_EMBED_MODEL;
@@ -54,9 +39,7 @@ function vllmModelForRole(role: RoutingRoleKey): string {
   return env.VLLM_GEN_MODEL;
 }
 
-/** The local-light builtin model for a derive role, from the injected trio. `null` for a non-derive role
- *  (chat/agent/summarize/generateImage) — local-light serves the three derive roles only, and the client
- *  never asks the picker for the others (`INFERENCE_SOURCES` gates the options). */
+/** null for a non-derive role — local-light serves the three derive roles only. */
 function localLightModelForRole(
   role: RoutingRoleKey,
   trio: ConnectionContext["localLightDefaults"],
@@ -70,7 +53,6 @@ function localLightModelForRole(
   return null;
 }
 
-/** Map an OR catalog entry → the picker entry (carry the display + filter-chip facts). */
 function orEntryToSourceModel(entry: ModelCatalogEntry): SourceModelEntry {
   return {
     id: entry.id,
@@ -84,9 +66,7 @@ function orEntryToSourceModel(entry: ModelCatalogEntry): SourceModelEntry {
   };
 }
 
-/** Whether the principal has a resolvable credential for `source` (KEY PRESENCE only — no fetch). A
- *  `DomainNoCredentialError` means "no key" (the deliberate keyless-browse signal); any other throw is a
- *  real fault and re-throws. */
+/** Key presence only — no fetch. DomainNoCredentialError means "no key"; any other throw re-throws. */
 async function hasCredential(
   ctx: ConnectionContext,
   params: GetModelsForSourceParams,
@@ -102,8 +82,7 @@ async function hasCredential(
   }
 }
 
-/** openrouter — read the persisted catalog snapshot (warm-on-read is free); keyless browse stays legal
- *  (models stay populated, only the state goes `needs-key`). */
+/** Keyless browse stays legal — models stay populated, only the state goes needs-key. */
 async function openrouterArm(
   ctx: ConnectionContext,
   params: GetModelsForSourceParams,
@@ -130,9 +109,7 @@ async function openrouterArm(
   };
 }
 
-/** max-pro-sub — owner-gated (D17). Non-owner → `owner-only` (the curated list is still returned so the
- *  disabled option renders honestly). Models: the agent-sdk snapshot, else the curated `CHAT_MODELS`
- *  cold-cache fallback. `defaultModelId` = the curated opus id (what `healToChatDefault(null)` returns). */
+/** Owner-gated. Non-owner → owner-only, but the curated list is still returned so the disabled option renders honestly. */
 async function maxProSubArm(
   ctx: ConnectionContext,
   params: GetModelsForSourceParams,
@@ -158,9 +135,7 @@ async function maxProSubArm(
   };
 }
 
-/** custom_openai — KEY-PRESENCE ONLY, never a fetch. No key → `needs-key`; resolves → `needs-probe` (the
- *  client fires `credentials.fetchModels` on picker open). `defaultModelId` = the credential's
- *  `metadata.model` (GAP-6) when present; free-text is always allowed. */
+/** Key-presence only, never a fetch. No key → needs-key; resolves → needs-probe (client fetches models on picker open). */
 async function customOpenAiArm(
   ctx: ConnectionContext,
   params: GetModelsForSourceParams,

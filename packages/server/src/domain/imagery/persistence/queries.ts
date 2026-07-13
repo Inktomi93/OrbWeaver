@@ -1,17 +1,11 @@
-// domain/imagery/persistence/queries — ALL `imagery_generations` db access (the ONE writer). The row is the
-// durable per-image provenance (imagery-design/03 §4.1): what each `kind:"generated"` asset IS + the FK the
-// assets ref-registry carries so mark-sweep never reaps a live in-chat image. P5 (free mode) populates the
-// free-mode columns only; the Phase-7 orchestrator fills `subjectCharacterId`/`identityHash`/`negativePrompt`
-// with NO migration (they are nullable / defaulted). Store-THEN-provenance order (verb): a crash between
-// leaves a benign unreferenced blob, never a provenance row pointing at nothing.
+// domain/imagery/persistence/queries — all imagery_generations db access. Store-then-provenance order
+// (verb): a crash between leaves a benign unreferenced blob, never a provenance row pointing at nothing.
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { Db } from "@orb/db";
 import { imageryGenerations } from "@orb/db";
 import type { AssetId, ChatId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
 
-/** The columns one generation row writes (P5 free-mode subset; the reserved columns stay at their defaults).
- *  File-local (the verb passes a structurally-matching literal — no exported feature type outside contract/). */
 interface InsertGenerationInput {
   readonly id: ImageryGenerationId;
   readonly assetId: AssetId;

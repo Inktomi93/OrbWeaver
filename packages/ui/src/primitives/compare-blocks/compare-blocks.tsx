@@ -6,10 +6,7 @@ import { Icon, Minus, Plus } from "#primitives/icons";
 import { compareBlocksVariants } from "./variants";
 
 export interface CompareBlock {
-  /**
-   * Optional field name, shown above the pair. Present for the multi-field itemized shape (card
-   * evolution); omitted for the single full-text pair (prose audit) — one component, no mode prop.
-   */
+  /** Optional field name, shown above the pair — omitted for a single full-text pair. */
   readonly label?: string;
   readonly before: string;
   readonly after: string;
@@ -17,12 +14,7 @@ export interface CompareBlock {
 
 export interface CompareBlocksProps {
   readonly blocks: readonly CompareBlock[];
-  /**
-   * Controlled per-block acceptance, parallel to `blocks`. Supplying BOTH this and
-   * `onAcceptedChange` turns on the accept checkbox row per block, plus an "accept all" toggle
-   * when there is more than one block (with one block, "accept all" would just duplicate the
-   * block's own checkbox). Omit both for a read-only review with no accept affordance.
-   */
+  /** Controlled per-block acceptance, parallel to `blocks`. Omit both this and `onAcceptedChange` for a read-only review. */
   readonly accepted?: readonly boolean[];
   readonly onAcceptedChange?: (accepted: readonly boolean[]) => void;
   /** @defaultValue "Accept all" */
@@ -31,18 +23,9 @@ export interface CompareBlocksProps {
 }
 
 /**
- * Before/After review (work order item 8) — renders `blocks` as intent-tinted pairs: before on the
- * danger token pair, after on the success token pair. Colorblind-safe by construction: each side
- * ALSO carries a glyph (Minus/Plus) plus visually-hidden "Before"/"After" text, so the distinction
- * never rests on tint alone. ONE component handles both shapes blocks.length pans out to — a
- * single full-text pair (prose audit) or N labeled itemized pairs (card evolution) — there is no
- * separate mode prop; a length-1 caller simply omits `label`.
- *
- * Distinct from `@orb/ui/diff` (token-level jsdiff segments): this renders two WHOLE strings
- * side-by-side, never a computed diff. The crew-specific proposal-diff wrapper (chat-crew-design/
- * 07 §4.2) composes this from `client/features`; it is not itself a ui concern.
- *
- * Usage: `<CompareBlocks blocks={[{ label: "Class", before: "Rogue", after: "Assassin" }]} accepted={a} onAcceptedChange={setA} />`
+ * Renders `blocks` as intent-tinted pairs (before = danger, after = success). Colorblind-safe: each
+ * side also carries a glyph plus visually-hidden text, so the distinction never rests on tint alone.
+ * Distinct from `@orb/ui/diff` (token-level jsdiff segments) — this renders two whole strings side-by-side.
  */
 export function CompareBlocks({
   blocks,

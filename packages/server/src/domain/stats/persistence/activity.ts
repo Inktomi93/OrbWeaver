@@ -1,15 +1,8 @@
-// domain/stats/persistence/activity — the on-read behavioral analytics the rollup TABLES can't express:
-//   • daily_stats is day-grained, so the hour-of-day axis (the day×hour heatmap) comes from message
-//     timestamps directly.
-//   • character_stats is CUMULATIVE (one row per character), so per-character momentum (this month vs last)
-//     needs the per-(character, month) series, also straight from canon.
-// Both are bounded owner-scoped scans (same cost class as latency.ts). Time buckets are UTC (strftime
-// default — NO 'localtime'), matching readTemporal's UTC day math (one clock everywhere).
-//
-// ORBWEAVER (D18/D28): the heatmap counts user+assistant messages in the owner's CHATS — and under D18 a
-// chat has no ownerId, so "the owner's chats" is membership-derived: chats with a character PARTICIPANT the
-// owner owns (`chat_participants → characters.ownerId`). Momentum counts assistant turns per character
-// (`messages.characterId → characters.ownerId`, D28). See the owner-attribution note in rebuild-from-canon.ts (PD-21 confirmed).
+// domain/stats/persistence/activity — on-read behavioral analytics the rollup tables can't express: the
+// day×hour heatmap (daily_stats is day-grained) and per-character momentum (character_stats is cumulative),
+// both straight from canon. Bounded owner-scoped scans. Time buckets are UTC (strftime default, no
+// 'localtime'). A chat has no ownerId (D18) — "the owner's chats" is membership-derived via an owned
+// character participant.
 
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
@@ -23,9 +16,8 @@ const MAX_DOW = 6; // Saturday (strftime %w: 0 = Sunday)
 const MAX_HOUR = 23;
 const DEFAULT_MOMENTUM_LIMIT = 10;
 
-/** Messages-per-(weekday, hour) over the owner's whole history — the real heatmap behind the day-of-week
- *  row-sums `readTemporal` exposes. Counts user + assistant turns (the exchange), not system rows. Scoped
- *  to the owner's chats (membership via an owned character participant — D18). */
+/** Messages-per-(weekday, hour) over the owner's whole history. Counts user + assistant turns, not system
+ *  rows; scoped to the owner's chats (membership via an owned character participant). */
 export async function readActivityHeatmap(db: Db, ownerId: string): Promise<ActivityHeatmap> {
   const rows = await db.all<{ dow: number; hour: number; n: number }>(sql`
     SELECT CAST(strftime('%w', m.created_at / 1000, 'unixepoch') AS INTEGER) AS dow,
@@ -62,7 +54,6 @@ export async function readActivityHeatmap(db: Db, ownerId: string): Promise<Acti
   return { matrix, total, peak };
 }
 
-// One row of the per-(character, month) assistant-turn count (file-local; not a leaked feature type).
 interface MonthCountRow {
   characterId: CharacterId;
   name: string;
@@ -70,8 +61,7 @@ interface MonthCountRow {
   n: number;
 }
 
-/** The two most-recent calendar months WITH activity (ascending), or nulls if fewer than two. Query-local
- *  dedup without a Set (persistence holds no in-memory state). */
+/** The two most-recent calendar months with activity (ascending), or nulls if fewer than two. */
 function latestTwoMonths(rows: MonthCountRow[]): {
   latestMonth: string | null;
   prevMonth: string | null;
@@ -114,9 +104,8 @@ function momentumRows(
   }));
 }
 
-/** Per-character attention shift between the two most-recent active months. Anchored to the DATA's latest
- *  months (not wall-clock now) so a quiet current month doesn't read as "everything falling". Counts
- *  assistant turns (real generated engagement); per-character via `messages.characterId` (D28). */
+/** Per-character attention shift between the two most-recent active months. Anchored to the data's latest
+ *  months (not wall-clock now) so a quiet current month doesn't read as "everything falling". */
 export async function readCharacterMomentum(
   db: Db,
   ownerId: string,

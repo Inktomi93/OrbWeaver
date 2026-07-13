@@ -1,22 +1,7 @@
-// One persona row in the rail-foot panel — LEAN redesign (identity edited IN THE ROW, no sub-editor
-// identity block). Interaction model:
-//   • Avatar click → `@orb/ui/file-trigger` → `uploadAsset(file,"avatar")` → `persona.update` PARTIAL
-//     patch (`avatarAssetId`), autosaved. NO drag-drop zone.
-//   • Name click → inline rename (the name becomes an `Input` in place; Enter/blur commits via the SAME
-//     partial-patch mutation; Escape cancels).
-//   • Row-body click (anywhere but the avatar/name/actions) = set that persona as CURRENT (#2).
-//   • Hover-reveal actions: ♥ favorite (a `persona.update` partial patch, `starred`) · ★ set-Default
-//     (#1, gold Crown once set) · 🗑 delete (`ConfirmDialog`). NO ✎ edit button.
-//   • An ALWAYS-visible ⌄ chevron is a disclosure toggle (`@orb/ui/collapsible`), not an edit
-//     button — it expands/collapses the row's DETAILS (`<PersonaEditor>`, itself fully autosaving).
-// A11y model (side-eye item 13 / no-interactive-role-in-features): the "set current" target is a real
-// stretched `<Button>` pinned `absolute inset-0` UNDER the row's controls, NOT a hand-rolled
-// `role="button"` div wrapping them. The avatar/name/action controls are `relative` SIBLINGS layered
-// above it — every one a first-class tab stop, nothing nested inside another interactive element — so
-// the old `stopPropagation` crutches are gone (disjoint elements never fire each other). `@orb/ui/list-row`
-// is not used because its `title` is a plain string with no room for the live edit-in-place name control.
-//
-// A COMPONENT, not a surface — so the inline delete `<ConfirmDialog>` is legal (surface-purity §A.7b).
+// One persona row in the rail-foot panel: avatar/name edited inline, row-body click sets Current, hover
+// reveals favorite/set-default/delete, chevron discloses details. The "set current" target is a real
+// stretched <Button> pinned absolute inset-0 UNDER the row's controls; those controls are relative
+// siblings layered above it so each is a disjoint tab stop (no stopPropagation crutch needed).
 
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
@@ -104,9 +89,6 @@ export function PersonaPanelRow({
         gap="row"
         padding="field"
       >
-        {/* The "set current" target: a real stretched <Button> pinned under the row's controls (NOT a
-            hand-rolled role="button" div). Empty — its accessible name is the aria-label; the controls
-            layered above (relative) intercept their own clicks, gaps fall through to this. */}
         <Button
           aria-current={isCurrent ? "true" : undefined}
           aria-label={`Switch to ${persona.name}`}
@@ -137,8 +119,6 @@ export function PersonaPanelRow({
           )}
         </FileTrigger>
 
-        {/* `pointer-events-none` lets the Stack's EMPTY space (right of the short name) fall through to the
-            stretched select overlay below — only the actual name control re-enables pointer events. */}
         <Stack className="pointer-events-none relative min-w-0 flex-1">
           {editingName ? (
             <Input
@@ -182,9 +162,6 @@ export function PersonaPanelRow({
           )}
         </Stack>
 
-        {/* Rest state: only glanceable status (default/favorite) so the name keeps full width —
-            Current is already conveyed by the selected row background + `aria-current`. On
-            hover/focus the whole cluster swaps to the action buttons below. */}
         <Row
           align="center"
           className="pointer-events-none relative shrink-0 group-hover:hidden group-focus-within:hidden"
@@ -198,7 +175,6 @@ export function PersonaPanelRow({
           ) : null}
         </Row>
 
-        {/* Hover/focus: the full action cluster (favorite · set-default · delete). */}
         <Row
           align="center"
           className="pointer-events-none relative hidden shrink-0 group-hover:flex group-focus-within:flex"
@@ -262,13 +238,10 @@ interface IconActionProps {
   readonly label: string;
   readonly onClick: () => void;
   readonly disabled?: boolean;
-  /** An active-state color override (e.g. `text-warning` gold once Default, `text-destructive` red
-   *  once Favorited) — the ghost intent's muted tone otherwise. */
   readonly className?: string;
 }
 
-/** A non-interactive, glanceable status glyph shown at rest (gold Crown = default, red Heart =
- *  favorited) — swapped out for the action cluster on row hover/focus. */
+/** A non-interactive, glanceable status glyph shown at rest. */
 function StatusGlyph({
   icon,
   label,
@@ -292,8 +265,7 @@ function StatusGlyph({
   );
 }
 
-/** A reveal-action icon button — a `relative` sibling layered above the stretched select-Button, so it
- *  is its own disjoint tab stop and never fires "set current" (no stopPropagation crutch needed). */
+/** A reveal-action icon button — a `relative` sibling layered above the stretched select-Button. */
 function IconAction({
   icon,
   label,
@@ -307,8 +279,6 @@ function IconAction({
         render={
           <Button
             aria-label={label}
-            // `pointer-events-auto` re-enables clicks inside the pointer-events-none action clusters (the
-            // stretched select overlay owns the row's empty space; each control re-claims its own hit area).
             className={`pointer-events-auto${className === undefined ? "" : ` ${className}`}`}
             disabled={disabled}
             intent="ghost"

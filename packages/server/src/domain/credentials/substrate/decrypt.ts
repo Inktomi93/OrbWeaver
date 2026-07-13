@@ -1,12 +1,6 @@
-// domain/credentials/substrate/decrypt — the single decrypt-with-AAD seam (used by resolve / test-health /
-// fetch-models; cross-verb value sharing is banned, so the shared helper lives in substrate). A decrypt
-// failure (rotated CREDENTIALS_KEY, corrupt row, a row lifted into a different `(owner, provider)` slot →
-// GCM tag mismatch) is treated as ABSENT, never thrown into the turn: it logs a redacted error and returns
-// `null` so the caller falls through to "no credential" rather than crashing the request.
-//
-// SECURITY: this logs only `errorMessage(err)` (a GCM "unable to authenticate data" string — no secret) —
-// NEVER the plaintext key, NEVER the AAD. The max-pro-sub OAuth token is keyless (no row), so it never
-// reaches this path at all.
+// domain/credentials/substrate/decrypt — the single decrypt-with-AAD seam (resolve/test-health/fetch-models).
+// A decrypt failure is treated as absent, never thrown: logs a redacted error and returns null.
+// SECURITY: logs only errorMessage(err) — never the plaintext key, never the AAD.
 
 import { errorMessage } from "@orb/kit/error-message";
 import { getLog } from "#foundation/observability";

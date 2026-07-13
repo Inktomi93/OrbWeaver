@@ -1,14 +1,8 @@
-// The persona DETAILS body (rail-foot panel redesign — the panel-row's expand-to-edit content;
-// FINAL-Persona §A.6b origin, rebuilt LEAN per the live redesign brief). Identity (avatar/name) is
-// ROW-owned (persona-panel-row.tsx) and never repeated here. What's left, AUTOSAVING on every change
-// (`createAutosaveEntityForm` — no Save button, no dirty pill): title · description (macro-aware +
-// token-count) · starred · the injection placement (ONE Placement select; depth/role reveal compactly
-// only for `at_depth`; the assistant@0 prefill combo is withheld from the write + warned inline) · the
-// single-select lore
-// book (a separate live-mutation control, not part of the form — mirrors the M:N attach/detach it drives)
-// · duplicate/export actions. Set-as-default + delete live on the PANEL ROW; reattribute is a CHAT action.
-//
-// A COMPONENT (the panel row's Collapsible body), not a surface.
+// The persona details body — the panel row's expand-to-edit content. Identity (avatar/name) is
+// row-owned and never repeated here. What's left, autosaving on every change: title, description,
+// starred, injection placement (depth/role reveal only for at_depth; the assistant@0 prefill combo is
+// withheld from the write + warned inline), the single-select lore book (a separate live-mutation
+// control), duplicate/export actions. A component, not a surface.
 
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";

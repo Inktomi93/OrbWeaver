@@ -2,24 +2,18 @@
 /**
  * pnpm check:show [--errors-only|--gate <name>|--file <path>|--limit <N>]
  *
- * Human-readable, READ-DON'T-RERUN view of `reports/check-structure.json` — the JSON
- * `scripts/check/report.ts` writes UNCONDITIONALLY (clean or dirty) right after
- * `pnpm check:structure` prints its own console report. Re-running `pnpm check:structure`
- * just to see what failed re-pays the whole-repo ts-morph load (the dominant fixed cost of
- * every one of the four global gates); this tool reads the JSON that run already produced.
+ * Human-readable, read-don't-rerun view of `reports/check-structure.json` — avoids re-paying the
+ * whole-repo ts-morph load just to see what failed.
  *
  * Flags:
  *   --errors-only     terse view — failing gate names + violation counts only, no per-site detail.
- *   --gate <substr>   filter to gates whose name contains <substr> (case-insensitive; an
- *                     INSPECTION filter — shows the gate even if it currently passes, e.g.
- *                     `pnpm check:show --gate test-layout` to see it's clean).
+ *   --gate <substr>   filter to gates whose name contains <substr> (shows it even if it passes).
  *   --file <substr>   filter violations whose file path contains <substr> (case-insensitive).
  *   --limit <N>       sample violations per gate before an "…and N more" hint (default 10).
  *   --help, -h        usage.
  *
- * Exit code: mirrors the report's overall `ok` (0 clean / 1 dirty) — UNLESS a filter is active,
- * in which case this is an inspection view and always exits 0 (same convention as neo's
- * check:show: "filters-on-passing-report" is a look, not an assertion).
+ * Exit code: mirrors the report's overall `ok` (0 clean / 1 dirty) — unless a filter is active,
+ * in which case this is an inspection view and always exits 0.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -27,9 +21,7 @@ import process from "node:process";
 
 const DEFAULT_LIMIT = 10;
 const REPORT_PATH = join(import.meta.dirname, "..", "..", "reports", "check-structure.json");
-// The 0/1/2/3 exit scheme (TSMORPH-SINGLE-PASS-AUDIT.md §9.4): a missing report is MISUSE (3) — you
-// invoked the viewer without generating the report first (run `pnpm check:structure`). Not a tool error
-// (2 = the viewer itself broke) and not a violation (1 = the report says dirty).
+// A missing report is misuse (3): run `pnpm check:structure` first to generate it.
 const EXIT_MISSING_REPORT = 3;
 
 interface Violation {
@@ -165,10 +157,7 @@ function main(): void {
       continue;
     }
     const violations = filteredViolations(g, filter);
-    // A clean gate is noise UNLESS the caller explicitly asked to inspect this exact gate
-    // (`--gate`, e.g. "prove test-layout is clean") — `--file` alone narrows violations, it
-    // doesn't ask to see every otherwise-uninvolved gate's ✓ line (report.ts's console output
-    // already shows that list).
+    // A clean gate is noise unless the caller explicitly asked to inspect this exact gate.
     if (violations.length === 0 && filter.gate === null) {
       continue;
     }

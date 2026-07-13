@@ -1,16 +1,7 @@
-// domain/chat/persistence/queries — QUERIES ONLY. The
-// membership-scoped chat-row reads (D18 — `loadMemberChat` replaces neo's `loadOwnedChat`; there is no
-// `chats.ownerId`, the host is just a `chat_participants` row), the D26 canon reads (slot ⋈ selected-variant),
-// and the durable chat-bus + resumable SSE stream-log replay/cursor reads. NO business logic, NO cross-feature
-// calls, NO I/O beyond `db`. The agent-sdk frame readers LEAVE to providers (movement table) — not here.
-//
-// THE ONE JSON-PARSE BOUNDARY: `chats.metadata` is read through `parseChatMetadata` (the contract's
-// fault-isolated lazy parser — reused, never re-spelled). Every other column is trusted (db CHECK/FK enforced).
-//
-// `users` is NEVER joined here (the `no-direct-users-read` chokepoint — admin + sessions are the only sanctioned `users` readers): roster name/handle
-// resolution is a verb concern (it takes ids from the resolved Principal + injected ops); persistence returns
-// the raw membership-scoped rows. Row/return SHAPES are file-LOCAL (callers read the inferred return) so no
-// feature type leaks out of `persistence/` (`types-in-contract`). Timestamps/cursors arrive as PARAMS.
+// domain/chat/persistence/queries — QUERIES ONLY: membership-scoped chat-row reads, canon reads (slot ⋈
+// selected-variant), and durable chat-bus + resumable SSE stream-log replay/cursor reads. No business
+// logic, no cross-feature calls, no I/O beyond `db`. `chats.metadata` is read only through
+// `parseChatMetadata`. `users` is never joined here — roster name/handle resolution is a verb concern.
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { variableDeltaSchema } from "@orb/contracts/chat";
@@ -60,8 +51,8 @@ const LIMIT_ONE = 1;
 // The default `listMessages` page window when the verb passes no explicit limit (paged canon read).
 const DEFAULT_PAGE_LIMIT = 50;
 
-/** A resolved `chats` row with its `metadata` blob parsed at the one JSON-parse boundary. File-local: the
- *  verb maps it into the `ChatDetail`/`ChatSummary` view (applying the metadata sub-blob defaults). */
+/** A resolved `chats` row with its `metadata` blob parsed. File-local: the verb maps it into the
+ *  `ChatDetail`/`ChatSummary` view. */
 interface ChatRow {
   id: ChatId;
   title: string | null;
@@ -70,8 +61,7 @@ interface ChatRow {
   parentChatId: ChatId | null;
   forkedAt: number | null;
   anchorPersonaId: PersonaId | null;
-  /** The pending host-handoff nominee (Part III §2) — carried onto `ChatDetail` so the host's Members
-   *  panel can render the pending-nomination chip; null = no nomination in flight. */
+  /** The pending host-handoff nominee; null = no nomination in flight. */
   pendingHostUserId: UserId | null;
   compactSummary: string | null;
   compactedAtSeq: number | null;
@@ -80,13 +70,13 @@ interface ChatRow {
   updatedAt: number;
 }
 
-/** One durable chat-bus log row (the replay-ring source of truth) — the cursor + the full room-public event. */
+/** One durable chat-bus log row — the cursor + the full room-public event. */
 interface ChatEventLogRow {
   seq: number;
   payload: ChatBusEvent;
 }
 
-// The chat-row column set, shared by the unscoped + membership-scoped reads (one selection, no re-spell).
+// Shared by the unscoped + membership-scoped reads (one selection, no re-spell).
 const chatRowSelection = {
   id: chats.id,
   title: chats.title,
@@ -103,9 +93,8 @@ const chatRowSelection = {
   updatedAt: chats.updatedAt,
 } as const;
 
-// The D26 slot ⋈ selected-variant projection. `variantCount` is a correlated count over the slot's swipes;
-// `selectedVariantId`/`selectedVariantIdx` come off the JOINED variant (non-null post-commit). Field names
-// mirror `MessageView` exactly so the read returns the view directly (no re-mapping).
+// Slot ⋈ selected-variant projection. Field names mirror `MessageView` exactly so the read returns the
+// view directly (no re-mapping).
 const messageViewSelection = {
   id: messages.id,
   chatId: messages.chatId,
@@ -145,8 +134,8 @@ function toChatRow(
 
 // ── chat-row reads ────────────────────────────────────────────────────────────
 
-/** Unscoped chat-row read (boot / reap / lineage internals) — the row + its parsed `metadata`, or undefined.
- *  Membership is NOT checked here; the membership-scoped front door is {@link loadMemberChat}. */
+/** Unscoped chat-row read (boot/reap/lineage internals). Membership is NOT checked here; the
+ *  membership-scoped front door is {@link loadMemberChat}. */
 export async function loadChatRow(db: Db, chatId: ChatId): Promise<ChatRow | undefined> {
   const rows = await db
     .select(chatRowSelection)
@@ -157,9 +146,8 @@ export async function loadChatRow(db: Db, chatId: ChatId): Promise<ChatRow | und
   return r ? toChatRow(r) : undefined;
 }
 
-/** Read the chat's pending host-handoff nominee (the two-party carrier — Part III §2). Returns the nominee
- *  `userId` or null (no pending nomination). `acceptHostHandoff` reads this to verify the caller IS the
- *  nominee before the atomic role swap (the self-promotion belt). */
+/** Read the chat's pending host-handoff nominee. `acceptHostHandoff` verifies the caller IS the nominee
+ *  before the atomic role swap. */
 export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<UserId | null> {
   const rows = await db
     .select({ pendingHostUserId: chats.pendingHostUserId })
@@ -170,13 +158,9 @@ export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<Use
 }
 
 /**
- * The membership-scoped chat read (D18 — replaces neo's `loadOwnedChat`): the chat row joined to the CALLER's
- * PRESENT participant row (`leftSeq IS NULL`), returning the row (metadata parsed) + the caller's `role`
- * (`host|member`) + the caller's `activePersonaId` (the PD-100 attribution fallback — a user-message persist
- * with no explicit `personaId` stamps the acting participant's active persona). `undefined` ⇒ no such chat OR
- * the caller is not a present member — the two collapse into one leak-free answer (the verb maps it to
- * `ChatNotFoundError`). The host is just a participant with `role='host'`, so this also yields the authority
- * bit with no extra query.
+ * The membership-scoped chat read: the chat row joined to the caller's present participant row, returning
+ * the row + the caller's `role` + `activePersonaId` (the attribution fallback for un-stamped sends).
+ * `undefined` ⇒ no such chat OR the caller is not a present member (collapsed into one leak-free answer).
  */
 export async function loadMemberChat(
   db: Db,
@@ -210,11 +194,9 @@ export async function loadMemberChat(
   return { chat: toChatRow(rest), role, activePersonaId };
 }
 
-/** The membership-scoped library list (listChats) — every chat the user is a PRESENT member of (host or
- *  member; pure membership, no `ownerId OR member` branch — D18), newest-updated first. Archived excluded
- *  unless `includeArchived`; TEMPORARY chats are ALWAYS hidden (ST "Temporary Chat", PD-65 — they persist
- *  so turns can run, but never surface in the library; `reapTemporaryChats` sweeps them once expired).
- *  Name/preview resolution (`participantNames`) is the verb's (no `users` join). */
+/** The membership-scoped library list — every chat the user is a present member of, newest-updated first.
+ *  Archived excluded unless `includeArchived`; temporary chats are always hidden (they persist so turns
+ *  can run, but never surface in the library — `reapTemporaryChats` sweeps them once expired). */
 export async function listMemberChats(
   db: Db,
   userId: UserId,
@@ -239,8 +221,8 @@ export async function listMemberChats(
   return rows.map(toChatRow);
 }
 
-/** The fork CHILDREN of a chat (listForks) — the `chats_parent_idx` lookup. Membership-gating per child is
- *  the verb's (a fork grants no parent membership — inv §16); persistence returns the candidate rows. */
+/** The fork children of a chat. Membership-gating per child is the verb's (a fork grants no parent
+ *  membership); persistence returns the candidate rows. */
 export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<ChatRow[]> {
   const rows = await db
     .select(chatRowSelection)
@@ -250,10 +232,8 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
   return rows.map(toChatRow);
 }
 
-/** Per-chat canon aggregates for the `ChatSummary` list chrome (listChats / listForks / getChatLineage):
- *  the message COUNT + the newest message timestamp (`lastMessageAt`). Batched over a set of ids (one GROUP
- *  BY, no N+1); a chat with NO messages is simply ABSENT from the map (the verb defaults it to `{0, null}`).
- *  No-op (empty map) on an empty id list. */
+/** Per-chat canon aggregates for the `ChatSummary` list chrome: message count + newest timestamp. Batched
+ *  over a set of ids (one GROUP BY, no N+1); a chat with no messages is absent from the map. */
 export async function loadChatMessageStats(
   db: Db,
   chatIds: readonly ChatId[],
@@ -277,13 +257,9 @@ export async function loadChatMessageStats(
   return out;
 }
 
-/** The character-SEAT ids per chat (the reverse "which chats include character X" read for `ChatSummary`).
- *  Batched over a set of chatIds (ONE junction read, no N+1 — the `canonicalTagsFor` precedent). Only
- *  `kind='character'` seats (characterId non-null by the D60 kind-shape CHECK; `isNotNull` narrows the type);
- *  DEDUPED (a character can leave + rejoin → two rows). INCLUDES departed seats (NO `leftSeq` filter): §7
- *  Activity wants "every chat you've had with them," so a chat a character has since left still counts here
- *  (mirrors `roster.characterSeatedInAnotherChat`, which also counts past seats). A chat with no character
- *  seats is simply ABSENT from the map (the verb defaults it to `[]`). No-op (empty map) on an empty id list. */
+/** The character-seat ids per chat (the reverse "which chats include character X" read). Batched over a
+ *  set of chatIds (one junction read, no N+1). Deduped; includes departed seats (no `leftSeq` filter) —
+ *  Activity wants "every chat you've had with them." A chat with no seats is absent from the map. */
 export async function loadChatParticipantCharacterIds(
   db: Db,
   chatIds: readonly ChatId[],
@@ -317,10 +293,8 @@ export async function loadChatParticipantCharacterIds(
   return out;
 }
 
-/** Walk the fork-lineage chain (D27 `parentChatId` self-FK) from `chatId` UP to its root — UNSCOPED (membership
- *  is gated per-ancestor by the verb; a fork grants NO parent membership — inv §16). Returns the rows SELF-first
- *  (self → parent → … → root); the verb reverses to root-first + redacts the ancestors the caller can't see. A
- *  `visited` set + `maxDepth` cap defend against a (schema-impossible) cycle / pathological depth. */
+/** Walk the fork-lineage chain from `chatId` up to its root — unscoped (membership is gated per-ancestor
+ *  by the verb). Returns rows self-first; the `visited` set + `maxDepth` cap defend against a cycle. */
 export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): Promise<ChatRow[]> {
   const chain: ChatRow[] = [];
   const visited = new Set<ChatId>();
@@ -338,11 +312,9 @@ export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): 
   return chain;
 }
 
-// ── canon reads (D26 slot ⋈ selected-variant) ──────────────────────────────────
+// ── canon reads (slot ⋈ selected-variant) ──────────────────────────────────
 
-/** The current canon seq head for a chat (`max(messages.seq)`, 0 when empty). The membership lifecycle stamps
- *  `joinSeq`/`leftSeq` against THIS (Part III §1 — the join/leave horizon lives in `messages.seq`, NOT the
- *  stream cursor); the next-turn writer derives the next seq from it. */
+/** The current canon seq head for a chat (0 when empty). The next-turn writer derives the next seq from it. */
 export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number> {
   const rows = await db
     .select({ maxSeq: max(messages.seq) })
@@ -351,9 +323,8 @@ export async function loadMaxMessageSeq(db: Db, chatId: ChatId): Promise<number>
   return rows.at(0)?.maxSeq ?? 0;
 }
 
-/** The FULL canon history for a chat (assembly's substrate), oldest→newest, each slot joined to its SELECTED
- *  variant (D26 — the `innerJoin` drops a mid-insert slot whose pointer isn't set yet; a committed slot always
- *  has one). Includes excluded/hidden slots (the `excludedFromPrompt` flag rides each row; assembly filters). */
+/** The full canon history for a chat (assembly's substrate), oldest→newest, each slot joined to its
+ *  selected variant. Includes excluded/hidden slots (`excludedFromPrompt` rides each row; assembly filters). */
 export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageView[]> {
   return await db
     .select(messageViewSelection)
@@ -363,9 +334,8 @@ export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageV
     .orderBy(asc(messages.seq));
 }
 
-/** ONE slot ⋈ its selected variant (the `MessageView` for a single message). The engine re-reads this after an
- *  append-variant / continue commit (the authoritative `variantCount`/`selectedVariantIdx`/content the write
- *  produced); undo/revert re-read it for the returned view. `undefined` ⇒ no such committed slot. */
+/** One slot ⋈ its selected variant. The engine re-reads this after an append-variant/continue commit;
+ *  undo/revert re-read it for the returned view. `undefined` ⇒ no such committed slot. */
 export async function loadMessageView(
   db: Db,
   messageId: MessageId,
@@ -379,8 +349,8 @@ export async function loadMessageView(
   return rows.at(0);
 }
 
-// ── The stats-delta canon reads (the delete-messages arm — the canon-mutator mandate). Full rows so
-// the signed deltas mirror the rebuild's streams column-for-column (drift gate). File-local shapes. ──
+// ── Stats-delta canon reads (the delete-messages arm). Full rows so the signed deltas mirror the
+// rebuild's streams column-for-column. File-local shapes. ──
 
 /** One canon stat row (the inferred selection, named for the explicit return type). */
 interface CanonStatRow {
@@ -443,9 +413,8 @@ const canonStatSelection = {
   variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
 } as const;
 
-/** The stats-contribution rows (slot ⋈ SELECTED variant, the rebuild's message-stream fields) for a set of
- *  slots in one chat — the delete-messages delta input. Chat-scoped (defense-in-depth: a foreign id from
- *  another chat matches nothing). Callers read the inferred return (file-local shape). */
+/** The stats-contribution rows (slot ⋈ selected variant) for a set of slots in one chat — the
+ *  delete-messages delta input. Chat-scoped: a foreign id from another chat matches nothing. */
 export async function loadCanonStatRows(
   db: Db,
   chatId: ChatId,
@@ -458,8 +427,8 @@ export async function loadCanonStatRows(
     .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds])));
 }
 
-/** The NON-selected variants (swipes) of a slot set, joined to the slot's attribution — the rebuild's
- *  swipe-stream fields (the delete-messages swipe-delta input). Inferred return (file-local shape). */
+/** The non-selected variants (swipes) of a slot set, joined to the slot's attribution — the
+ *  delete-messages swipe-delta input. */
 export async function loadSwipeStatRows(
   db: Db,
   chatId: ChatId,
@@ -491,8 +460,8 @@ export async function loadSwipeStatRows(
     );
 }
 
-// The append-variant / continue write TARGET — the slot's attribution + seq (for canon truncation) joined to
-// its SELECTED variant's current content/idx (for the next swipe idx + the continue base). File-local shape.
+// The append-variant/continue write target — the slot's attribution + seq joined to its selected
+// variant's current content/idx.
 const slotTargetSelection = {
   messageId: messages.id,
   seq: messages.seq,
@@ -507,7 +476,7 @@ const slotTargetSelection = {
   variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
 } as const;
 
-/** The write target for a swipe (`append-variant`) / `continue` (file-local — `types-in-contract`). */
+/** The write target for a swipe (`append-variant`) / `continue`. */
 interface SlotTarget {
   messageId: MessageId;
   seq: number;
@@ -522,7 +491,7 @@ interface SlotTarget {
   variantCount: number;
 }
 
-/** The continue-undo snapshot of a slot's selected variant (file-local). */
+/** The continue-undo snapshot of a slot's selected variant. */
 interface ContinueSnapshot {
   variantId: MessageVariantId;
   preContinueContent: string | null;
@@ -531,11 +500,9 @@ interface ContinueSnapshot {
   lastContinuationReasoning: string | null;
 }
 
-/** The write target for a swipe (`append-variant`) / `continue` — the slot's seq + attribution + its selected
- *  variant's current state. `variantCount` is the next swipe's `idx`; `content`/`reasoning` are the continue
- *  base. CHAT-SCOPED (the `id AND chatId` predicate — a foreign-chat `messageId` matches nothing, so a member
- *  of one chat cannot read/mutate another's canon; the cross-chat IDOR fix). `undefined` ⇒ no such committed
- *  slot IN THIS CHAT — the verb maps a missing/foreign slot to ONE leak-free NOT_FOUND (indistinguishable). */
+/** The write target for a swipe/`continue` — the slot's seq + attribution + its selected variant's current
+ *  state. Chat-scoped (`id AND chatId`) so a foreign-chat `messageId` matches nothing. `undefined` ⇒ no
+ *  such committed slot in this chat. */
 export async function loadSlotTarget(
   db: Db,
   chatId: ChatId,
@@ -550,11 +517,8 @@ export async function loadSlotTarget(
   return rows.at(0);
 }
 
-/** The continue-undo snapshot for a slot's SELECTED variant (D26 `preContinue*`/`lastContinuation*`). All-null
- *  ⇒ the variant was never continued (undo/revert refuse `no_continuation`). CHAT-SCOPED (the `id AND chatId`
- *  predicate — a foreign-chat `messageId` matches nothing, so a member of one chat cannot restore/mutate
- *  another's canon; the cross-chat IDOR fix). `undefined` ⇒ no such slot IN THIS CHAT (missing/foreign
- *  collapse to the same `no_continuation` refusal — indistinguishable). */
+/** The continue-undo snapshot for a slot's selected variant. All-null ⇒ never continued (undo/revert
+ *  refuse `no_continuation`). Chat-scoped (`id AND chatId`); `undefined` ⇒ no such slot in this chat. */
 export async function loadContinueSnapshot(
   db: Db,
   chatId: ChatId,
@@ -575,9 +539,8 @@ export async function loadContinueSnapshot(
   return rows.at(0);
 }
 
-/** A backwards page of canon (listMessages) — the slot ⋈ selected-variant rows strictly before `beforeSeq`
- *  (absent ⇒ from the tail), newest-first, capped at `limit` (default {@link DEFAULT_PAGE_LIMIT}). The verb
- *  reverses for chronological display; this is the windowed read. */
+/** A backwards page of canon — slot ⋈ selected-variant rows strictly before `beforeSeq` (absent ⇒ from
+ *  the tail), newest-first, capped at `limit`. The verb reverses for chronological display. */
 export async function loadMessagesPage(
   db: Db,
   chatId: ChatId,
@@ -599,8 +562,8 @@ export async function loadMessagesPage(
 
 // ── stream-log / bus-log replay + cursor reads ─────────────────────────────────
 
-/** Resume the resumable SSE token log (replayStreamEvents) — every `chat_stream_events` row strictly after
- *  `afterSeq` (absent ⇒ from the retained window start), oldest-first (the late-subscriber ramp-up). */
+/** Resume the resumable SSE token log — every row strictly after `afterSeq` (absent ⇒ from the retained
+ *  window start), oldest-first. */
 export async function replayStreamEvents(
   db: Db,
   chatId: ChatId,
@@ -622,8 +585,7 @@ export async function replayStreamEvents(
     .orderBy(asc(chatStreamEvents.seq));
 }
 
-/** The resumable SSE log's replay cursor bounds (streamEventBounds) — the min/max `seq` (null/null when the
- *  retained window is empty), so the consumer can size the replay window. */
+/** The resumable SSE log's replay cursor bounds — min/max `seq` (null/null when empty). */
 export async function streamEventBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
   const rows = await db
     .select({ minSeq: min(chatStreamEvents.seq), maxSeq: max(chatStreamEvents.seq) })
@@ -633,8 +595,8 @@ export async function streamEventBounds(db: Db, chatId: ChatId): Promise<StreamE
   return { minSeq: r?.minSeq ?? null, maxSeq: r?.maxSeq ?? null };
 }
 
-/** Replay the durable chat-bus log (the replay ring's source of truth) — every `chat_events` row strictly
- *  after `afterSeq` (absent ⇒ from the start), oldest-first, the full room-public payload. */
+/** Replay the durable chat-bus log — every row strictly after `afterSeq` (absent ⇒ from the start),
+ *  oldest-first, the full room-public payload. */
 export async function replayChatEvents(
   db: Db,
   chatId: ChatId,
@@ -651,7 +613,7 @@ export async function replayChatEvents(
     .orderBy(asc(chatEvents.seq));
 }
 
-/** The durable chat-bus log's cursor bounds — the min/max `seq` (null/null when empty); the `maxSeq` is the
+/** The durable chat-bus log's cursor bounds — min/max `seq` (null/null when empty); `maxSeq` is the
  *  `lastEventId` a fresh subscriber resumes from. */
 export async function chatEventBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
   const rows = await db
@@ -662,13 +624,9 @@ export async function chatEventBounds(db: Db, chatId: ChatId): Promise<StreamEve
   return { minSeq: r?.minSeq ?? null, maxSeq: r?.maxSeq ?? null };
 }
 
-// ── chunk-13 reads: canon-edit ownership / move · compaction window · variables · injections · fork-copy ──
-
-/** The full sibling-variant set for one slot, ordered by `idx` ascending (`listMessageVariants` — D26: no
- *  content, just enough to resolve an idx to its variant id). Chat-scoped via the `messages` join: a
- *  foreign-chat `messageId` matches nothing, so the verb collapses an empty result to a leak-free NOT_FOUND
- *  (the same `loadSlotInChat` collapse `verbs/edit.ts` uses — every committed slot has ≥1 variant, so an
- *  empty result unambiguously means "no such slot in this chat"). */
+/** The full sibling-variant set for one slot, ordered by `idx` ascending — just enough to resolve an idx
+ *  to its variant id. Chat-scoped via the `messages` join: a foreign-chat `messageId` matches nothing, so
+ *  the verb collapses an empty result to a leak-free NOT_FOUND. */
 export async function loadMessageVariantSummaries(
   db: Db,
   chatId: ChatId,
@@ -682,9 +640,9 @@ export async function loadMessageVariantSummaries(
     .orderBy(asc(messageVariants.idx));
 }
 
-/** The owning slot of a variant (`selectVariant` ownership belt — D26: a `selectedVariantId` may only point
- *  at a SIBLING of the slot). Returns the variant's `messageId`, or `undefined` for an unknown variant; the
- *  verb verifies it equals the target slot before flipping the pointer (never selects a foreign chat's swipe). */
+/** The owning slot of a variant (`selectVariant` ownership belt). Returns the variant's `messageId`, or
+ *  `undefined` for an unknown variant; the verb verifies it equals the target slot before flipping the
+ *  pointer. */
 export async function loadVariantMessageId(
   db: Db,
   variantId: MessageVariantId,
@@ -697,8 +655,7 @@ export async function loadVariantMessageId(
   return rows.at(0)?.messageId;
 }
 
-/** Every slot's `(id, seq)` for a chat, ascending (the `moveMessage` re-sequence input — the verb computes
- *  the range-shift plan from this). File-local row shape. */
+/** Every slot's `(id, seq)` for a chat, ascending — the `moveMessage` re-sequence input. */
 export async function loadMessageSeqs(
   db: Db,
   chatId: ChatId,
@@ -710,8 +667,7 @@ export async function loadMessageSeqs(
     .orderBy(asc(messages.seq));
 }
 
-/** The canon history STRICTLY AFTER `afterSeq` (the compaction window — D25: a manual/engine compaction
- *  summarizes `seq > compactedAtSeq` and advances the checkpoint). Slot ⋈ selected-variant, oldest-first. */
+/** The canon history strictly after `afterSeq` (the compaction window). Slot ⋈ selected-variant, oldest-first. */
 export async function loadCanonHistoryAfter(
   db: Db,
   chatId: ChatId,
@@ -725,18 +681,15 @@ export async function loadCanonHistoryAfter(
     .orderBy(asc(messages.seq));
 }
 
-/** One entry in the runtime-variable fold source: a message's `seq` + the SELECTED variant's parsed delta
- *  (D46 runtime plane). File-local (the `types-in-contract` gate); callers read the inferred return. */
+/** One entry in the runtime-variable fold source: a message's `seq` + the selected variant's parsed delta. */
 interface VariableDeltaRow {
   readonly seq: number;
   readonly messageId: MessageId;
   readonly delta: readonly VarOp[];
 }
 
-/** The per-variant variable deltas along the SELECTED-variant chain, seq-ordered (mirror `loadCanonHistory`'s
- *  slot⋈selected-variant join). Each `variable_delta` is parsed at the read seam via `variableDeltaSchema`
- *  (the `parseChatMetadata` `.safeParse` boundary — a malformed blob degrades to `[]`, never throws). The fold
- *  (`foldVarOps`) over these IS `chats.runtime_variables` (D46). */
+/** The per-variant variable deltas along the selected-variant chain, seq-ordered. Each `variable_delta` is
+ *  parsed at the read seam; a malformed blob degrades to `[]`, never throws. */
 export async function loadVariableDeltas(db: Db, chatId: ChatId): Promise<VariableDeltaRow[]> {
   const rows = await db
     .select({
@@ -754,8 +707,8 @@ export async function loadVariableDeltas(db: Db, chatId: ChatId): Promise<Variab
   });
 }
 
-/** ONE variant's parsed `variable_delta` (the `selectVariant` re-fold — D46). The read-parse boundary
- *  (`variableDeltaSchema.safeParse`); a malformed/absent blob degrades to `[]`. */
+/** One variant's parsed `variable_delta` (the `selectVariant` re-fold). A malformed/absent blob degrades
+ *  to `[]`. */
 export async function loadVariantDelta(
   db: Db,
   variantId: MessageVariantId,
@@ -769,8 +722,7 @@ export async function loadVariantDelta(
   return parsed.success ? parsed.data : [];
 }
 
-/** The persisted per-chat ChoiceBlock variable flush (`getStoredVariables` + the fork copy — D46 config
- *  plane). Null ⇒ nothing flushed yet (the verb returns `{}`). */
+/** The persisted per-chat ChoiceBlock variable flush. Null ⇒ nothing flushed yet (the verb returns `{}`). */
 export async function loadStoredVariables(
   db: Db,
   chatId: ChatId,
@@ -783,8 +735,8 @@ export async function loadStoredVariables(
   return rows.at(0)?.variableValues ?? null;
 }
 
-/** The persisted positional injections for a chat (`listChatInjections` + the fork copy). Full rows, ordered
- *  by depth then the within-depth `order` then insert order (a deterministic, splice-ready read). */
+/** The persisted positional injections for a chat. Full rows, ordered by depth then the within-depth
+ *  `order` then insert order (a deterministic, splice-ready read). */
 export async function loadChatInjections(
   db: Db,
   chatId: ChatId,
@@ -796,9 +748,9 @@ export async function loadChatInjections(
     .orderBy(asc(chatInjections.depth), asc(chatInjections.order), asc(chatInjections.createdAt));
 }
 
-/** The full message SLOT rows for a fork copy (D27 deep copy), oldest-first, optionally truncated at
- *  `throughSeq` (absent ⇒ the whole chat). Raw `$inferSelect` rows so the fork can spread→re-id every column
- *  (no field drift); the verb mints fresh ids + remaps the selected-variant pointer. */
+/** The full message slot rows for a fork copy, oldest-first, optionally truncated at `throughSeq`. Raw
+ *  `$inferSelect` rows so the fork can spread→re-id every column; the verb mints fresh ids + remaps the
+ *  selected-variant pointer. */
 export async function loadMessageSlots(
   db: Db,
   chatId: ChatId,
@@ -811,8 +763,7 @@ export async function loadMessageSlots(
   return await db.select().from(messages).where(where).orderBy(asc(messages.seq));
 }
 
-/** Every variant (swipe) for a set of slots (the fork copy — D27 copies EVERY variant, not just the selected
- *  one). Raw `$inferSelect` rows for the spread→re-id copy. No-op (empty) on an empty id list. */
+/** Every variant (swipe) for a set of slots (the fork copy — every variant, not just the selected one). */
 export async function loadVariantsByMessageIds(
   db: Db,
   messageIds: readonly MessageId[],

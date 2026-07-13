@@ -1,10 +1,7 @@
-// verbs: attachTag · detachTag · bulkAttachTag — the junction trio (one file: they share the ownership +
-// junction-dispatch mechanics; splitting scatters identical guards). Every op: (1) verify the tag is owned
-// (TagNotFoundError), (2) gate the TARGET via `ensureTargetAccessible` (target-derived ownership for the four
-// owned types; the injected `requireParticipant` membership gate for chat — D30), (3) dispatch the junction
-// write through the registry. The `status` (proposed/accepted) is honored only for the character junction;
-// a manual attach defaults `accepted` — import/corpus distillation pass `pending` to stage a suggestion, and
-// re-attaching with `accepted` flips a pending row (the "Accept").
+// verbs: attachTag · detachTag · bulkAttachTag — the junction trio (one file: they share ownership +
+// junction-dispatch mechanics). Every op: verify the tag is owned, gate the target via
+// ensureTargetAccessible, then dispatch the junction write. A manual attach defaults status to accepted;
+// import/corpus distillation pass pending to stage a suggestion.
 
 import type { TagStatus } from "@orb/contracts/tag";
 import { TagNotFoundError } from "../contract/errors";
@@ -18,7 +15,6 @@ import {
 } from "../persistence/junctions";
 import { fetchOwnedTagIds, loadOwnedTag } from "../persistence/queries";
 
-// A manual attach is a LIVE tag; the staging (`pending`) flavor is reached only by passing `status` explicitly.
 const DEFAULT_ATTACH_STATUS: TagStatus = "accepted";
 
 type AttachTrio = Pick<TagService, "attachTag" | "bulkAttachTag" | "detachTag">;
@@ -45,7 +41,6 @@ export function createAttach(ctx: TagContext): AttachTrio {
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
     });
-    // Best-effort audit AFTER the junction write (a not-found/denied target threw above).
     await ctx.audit({
       actorUserId: ownerId,
       action: "tag.attach",
@@ -80,7 +75,6 @@ export function createAttach(ctx: TagContext): AttachTrio {
       tagId: params.tagId,
       taggerId: ownerId,
     });
-    // Best-effort audit AFTER the junction delete (see the attach note).
     await ctx.audit({
       actorUserId: ownerId,
       action: "tag.detach",
@@ -96,7 +90,6 @@ export function createAttach(ctx: TagContext): AttachTrio {
     if (params.tagIds.length === 0) {
       return;
     }
-    // ONE ownership belt for all requested tags; any non-owned id is a not-found (no partial attach).
     const owned = new Set(await fetchOwnedTagIds(ctx.db, ownerId, params.tagIds));
     const missing = params.tagIds.find((id) => !owned.has(id));
     if (missing !== undefined) {
@@ -117,7 +110,6 @@ export function createAttach(ctx: TagContext): AttachTrio {
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
     });
-    // Best-effort audit — ONE row for the bulk op (no per-tag fan-out; the set rides metadata).
     await ctx.audit({
       actorUserId: ownerId,
       action: "tag.bulkAttach",

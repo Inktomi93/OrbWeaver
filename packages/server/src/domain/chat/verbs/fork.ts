@@ -1,23 +1,14 @@
-// domain/chat/verbs/fork — `forkChat` (D27: a fork is a DEEP COPY into a NEW membership-scoped chat; the ONLY
-// link is `chats.parentChatId`; NO shared rows). Per the auth matrix: a member may fork the
-// source, and the FORKER becomes the new chat's HOST (a fork grants NO parent membership). Every copied row —
-// the chat, each message SLOT + EVERY one of its variants (swipes), each persisted injection — gets a FRESH
-// id, and the slot's `selectedVariantId` pointer is REMAPPED to the copied variant. The whole copy commits in
-// ONE atomic `db.batch` (so a fork is all-or-nothing).
+// domain/chat/verbs/fork — `forkChat`: a fork is a deep copy into a new membership-scoped chat; the only
+// link is `chats.parentChatId`, no shared rows. A member may fork the source, and the forker becomes the
+// new chat's host (a fork grants no parent membership). Every copied row gets a fresh id, and the slot's
+// `selectedVariantId` pointer is remapped to the copied variant. The whole copy commits in one atomic
+// `db.batch`.
 //
-// WHAT IS COPIED vs RESET (D27 + the D16 participant chokepoint — reconciled):
-//   • COPIED: the chat row's behavior (title/metadata/anchor/variables), the CHARACTER roster the FORKER OWNS
-//     (D64 — the cast, minus the seats the forker doesn't own; an owner forking their own chat keeps all), the
-//     canon (messages + all variants up to `throughSeq` — history is copied WHOLE, even a dropped character's
-//     prior lines), the injections.
-//   • RESET: `parentChatId` → the source; `forkedAt`/timestamps → now; `star`/`archived` → false; the HOST →
-//     the FORKER (a fresh host participant). FLAG[fork-humans]: other HUMAN participants are NOT copied — D16
-//     makes a `chat_participants` insert a chokepoint (invite/host-action only); auto-joining other humans to
-//     a member's private fork would be a stray insert + a consent break. D27's literal "copy participants" is
-//     read as the CAST (characters); the human side is the forker-as-host per the matrix. For a SOLO source
-//     (forker == the lone host) this is byte-identical — copy-participants and forker-is-host coincide.
-//   • compaction checkpoint (D25): copied only when `compactedAtSeq` is within the fork point (else reset to
-//     null — a truncated fork must not carry a summary covering trimmed-away turns).
+// Copied: the chat row's behavior (title/metadata/anchor/variables), the character roster the forker owns
+// (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
+// the injections. Reset: `parentChatId`/`forkedAt`/timestamps/`star`/`archived`; the host becomes the
+// forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
+// only). The compaction checkpoint copies only when covered by the fork point, else reset to null.
 
 import type {
   ChatBusEvent,
@@ -56,28 +47,25 @@ import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { foldChain } from "../substrate/runtime-variables";
 import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
-/** The collaborators not on `ChatContext` (the second factory arg — the invites.ts precedent). `emit` is the
- *  chat bus; `loadParticipantViews` resolves the roster read-model for the returned `ChatDetail` (the root
- *  resolves `users` publics OUTSIDE the domain `no-direct-users-read` scope — shared with read.ts/invites.ts). */
+/** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
+ *  roster read-model for the returned `ChatDetail`. */
 interface ForkDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
 }
 
-/** The fork slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
+/** The fork slice of `ChatService` this grouped file owns. */
 type ForkVerbs = Pick<ChatService, "forkChat">;
 
-/** A loaded source chat row (the inferred `loadChatRow` return) — named locally (the invites.ts precedent). */
 type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
-/** A present character roster row with its `characterId` narrowed non-null (the D64 owned-cast resolver's
- *  element — a character seat carries a `characterId`, never a `userId`). */
+/** A present character roster row with its `characterId` narrowed non-null. */
 type CharacterSeatRow = typeof chatParticipants.$inferSelect & {
   readonly characterId: CharacterId;
 };
 
-/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail` (the metadata sub-blobs
- *  applied to defaults; the same projection `read.ts`/`invites.ts`/`start-chat.ts` use). */
+/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail`. The same projection
+ *  `read.ts`/`invites.ts`/`start-chat.ts` use. */
 interface ToChatDetailInput {
   readonly chat: LoadedChatRow;
   readonly participants: readonly ParticipantView[];
@@ -119,8 +107,8 @@ function toChatDetail({
   };
 }
 
-/** Build the D26 deep-copy statements (per slot: a fresh slot with a null pointer, then every variant, then
- *  the remapped `selectedVariantId` flip — FK-safe in that order). Pure given the loaded rows + ctx minters. */
+/** Build the deep-copy statements (per slot: a fresh slot with a null pointer, then every variant, then
+ *  the remapped `selectedVariantId` flip — FK-safe in that order). */
 function buildCanonCopy(
   ctx: ChatContext,
   args: {
@@ -155,11 +143,8 @@ function buildCanonCopy(
     variantIdMap.set(variant.id, newId);
     const newMessageId = slotIdMap.get(variant.messageId);
     if (newMessageId !== undefined) {
-      // The §8 fit-pass boundary references ANOTHER slot (not the variant's own — a cross-slot pointer,
-      // unlike `selectedVariantId`'s same-slot remap below). Remap it through the SAME `slotIdMap`; a
-      // boundary that pointed OUTSIDE the copied range (truncated fork / a since-pruned earlier turn)
-      // has no entry → null (never a stale cross-chat id — the source chat's slot still exists, so a
-      // raw copy would silently point the fork at the WRONG chat's message).
+      // The fit-pass boundary references another slot (a cross-slot pointer). Remap it through the
+      // same slotIdMap; a boundary outside the copied range has no entry → null (never a stale cross-chat id).
       const newBoundaryId =
         variant.contextBoundaryMessageId !== null
           ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null)
@@ -208,8 +193,8 @@ function pushForkStatsDeltas(
   ctx.applyStatsDelta(
     stmts,
     ctx.db,
-    // newCharacter false BY CONSTRUCTION (PD-96): a fork copies an existing room's cast, so the parent
-    // chat already seats every character — a fork is never a character's first chat.
+    // newCharacter false by construction: a fork copies an existing room's cast, so the parent chat
+    // already seats every character — a fork is never a character's first chat.
     chatCreatedDelta({
       ownerId,
       characterId: args.primaryCharacterId,
@@ -261,15 +246,10 @@ function pushForkStatsDeltas(
   }
 }
 
-/** The character seats a FORKER owns — the cast seats a fork carries (D64 — F4/PD-21 ruling). A fork moves room
- *  authority to the FORKER, who becomes the sole `runAsUserId` under which every cast card resolves. Cards are
- *  single-owned (D28 — `getCard` is owner-scoped, `null` for a non-owner), so a character seat the forker does
- *  not own would collapse to a blank `{name:"Assistant"}` (context.ts) under the fork's new host. Rather than
- *  REFUSE the fork, we DROP those seats (the ruling: transfer room + history, drop the prior host's characters,
- *  keep humans; the new owner adds their own). An OWNER forking their OWN chat owns every card → keeps the whole
- *  cast unchanged. The dropped characters' copied canon rows are still carried (history kept); their prior
- *  owner-keyed group-memory bucket is naturally orphaned (the fork is a different cast) — EXPECTED, not migrated.
- *  Returns the present character seats the forker owns (the seats to copy). */
+/** The character seats a forker owns — the cast seats a fork carries. A fork moves room authority to the
+ *  forker, who becomes the sole `runAsUserId` under which every cast card resolves. Cards are
+ *  single-owned, so a seat the forker doesn't own would collapse to a blank card — rather than refuse the
+ *  fork, we drop those seats. An owner forking their own chat keeps the whole cast unchanged. */
 async function resolveOwnedCharacterSeats(
   ctx: ChatContext,
   forkerUserId: UserId,
@@ -286,8 +266,8 @@ async function resolveOwnedCharacterSeats(
   return characterSeats.filter((_, i) => cards[i] !== null);
 }
 
-/** `forkChat` — D27 deep copy. Gate membership (a member may fork), copy the chat + cast + canon + injections
- *  with fresh ids into a NEW chat where the forker is host, in ONE atomic batch. Emits `chatCreated`. */
+/** `forkChat` — deep copy. Gate membership (a member may fork), copy the chat + cast + canon + injections
+ *  with fresh ids into a new chat where the forker is host, in one atomic batch. Emits `chatCreated`. */
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
     const { chat: source } = await requireParticipant(ctx, principal, chatId);
@@ -300,25 +280,22 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       loadChatInjections(ctx.db, chatId),
       loadRoster(ctx.db, chatId),
     ]);
-    // D64 (F4/PD-21): the fork carries only the character seats the forker OWNS (the ruling — transfer room +
-    // history, drop the prior host's characters, keep humans; the new owner adds their own). An owner forking
-    // their OWN chat owns every card → the whole cast is kept unchanged. The canon (history) is copied WHOLE
-    // below regardless, so a dropped character's prior lines survive in the fork; only the live seat is gone.
+    // The fork carries only the character seats the forker owns. The canon is copied whole regardless,
+    // so a dropped character's prior lines survive in the fork; only the live seat is gone.
     const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, roster);
     const variants = await loadVariantsByMessageIds(
       ctx.db,
       slots.map((s) => s.id),
     );
 
-    // The compaction checkpoint copies only when it is covered by the fork point (else a truncated fork would
-    // claim a summary over trimmed turns — D25).
+    // The compaction checkpoint copies only when it is covered by the fork point (else a truncated fork
+    // would claim a summary over trimmed turns).
     const keepCheckpoint =
       source.compactedAtSeq !== null &&
       (throughSeq === undefined || source.compactedAtSeq <= throughSeq);
 
-    // D46 runtime plane: the fork's runtime cache = the FOLD of the COPIED selected-variant chain (recomputed
-    // from the possibly-TRUNCATED `slots` — a partial fork must not claim the source's full-chain cache). The
-    // config picks copy via `variableValues` above; the runtime state re-derives here (derive-don't-stamp).
+    // The fork's runtime cache is the fold of the copied selected-variant chain (recomputed from the
+    // possibly-truncated `slots` — a partial fork must not claim the source's full-chain cache).
     const forkRuntimeCache = foldChain(
       slots.map((s) => {
         const selected = variants.find((v) => v.id === s.selectedVariantId);
@@ -380,11 +357,8 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       ),
     ];
 
-    // The canon-mutator stats push: a fork is a COPY — the rebuild counts the copied canon under
-    // the new room, so the live path must too (chat-created + fork lineage + every copied slot's SELECTED
-    // contribution + every copied swipe), all in the SAME creation batch. Owner = the fork's host (the
-    // forker — D19). primaryCharacterId is the first KEPT (forker-owned) cast seat — D64: after dropping the
-    // un-owned seats, every retained roster character is forker-owned, so this IS the character owner.
+    // The rebuild counts the copied canon under the new room, so the live path must too. Owner = the
+    // fork's host. primaryCharacterId is the first kept (forker-owned) cast seat.
     pushForkStatsDeltas(ctx, stmts, {
       ownerId: principal.userId,
       primaryCharacterId: keptCharacterSeats.at(0)?.characterId ?? null,
@@ -395,8 +369,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
 
     await ctx.db.batch(batchMany(stmts));
     await deps.emit({ type: "chatCreated", chatId: newChatId });
-    // Fan `chatsChanged` to the new room's present human members (at fork this is just the forker/host) so
-    // their chat list gains the row. `detail` ⇒ the new chat's `getChat` is covered too.
+    // Fan `chatsChanged` to the new room's present human members so their chat list gains the row.
     await ctx.emitChatChanged(newChatId, { detail: true });
 
     const forkRow = await loadChatRow(ctx.db, newChatId);
@@ -418,11 +391,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
   };
 }
 
-/**
- * The fork verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). The root spreads it
- * into the full service. `deps` carries the chat bus `emit` + the `loadParticipantViews` resolver (see the
- * header FLAG / the invites.ts precedent).
- */
+/** The fork verb bundle. `deps` carries the chat bus `emit` + the `loadParticipantViews` resolver. */
 export function createFork(ctx: ChatContext, deps: ForkDeps): ForkVerbs {
   return {
     forkChat: createForkChat(ctx, deps),

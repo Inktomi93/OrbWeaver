@@ -1,23 +1,13 @@
-// entry/compose/services — THE composition root's service graph (core/Tier-5-Entry.md §"injection model" + §layout
-// "services.ts"). `createServices` constructs every domain service with its DI bundle and wires every
-// cross-feature injected op (the ONE tier above `domain-no-cross-feature`). It builds the infra handles
-// (SecretBox / CAS / variant cache / image adapter / the provider backend-registry → executor + diagnostics),
-// the in-process event bus, the boot-global owner `RoleClients` bundle, then the 15 transport-facing services
-// + the non-Services ones downstream wiring needs (sessions for the auth seam; embeddings + its indexer;
-// assets; export). Returns the `Services` bundle the transport `Context` reads, plus the boot handles the
-// lifecycle supervises (vLLM engine) / probes (SecretBox) / wires (event bus, indexer, runner-env).
+// The composition root's service graph. `createServices` constructs every domain service with its DI
+// bundle and wires every cross-feature injected op. Builds the infra handles (SecretBox/CAS/variant
+// cache/image adapter/provider backend-registry), the in-process event bus, the boot-global owner
+// RoleClients bundle, then every transport-facing service. Returns the `Services` bundle transport reads,
+// plus the boot handles the lifecycle supervises/probes/wires.
 //
-// DETERMINISM: `now` is an injected param (compose NEVER calls `Date.now()`); id minters are built from the
-// kit `mintTypeId`/`newId` (the composition root is the sanctioned mint site). COMPOSE ORDER (D38): guards →
-// sessions → settings → credentials → connection → roleClients → the leaf/heavy services. settings is built
-// (and its effective-config cache boot-warmed) BEFORE the infra backend-registry so the registry sources the
-// admin-resolved `vllmConcurrency` from AppSettings (PD-14) — settings' deps don't touch the registry, so the
-// hoist is safe; the registry/executor still precede every consumer (credentials/connection) that needs them.
-//
-// FLAGGED INERT WIRES (no backing front-door verb in the current slices — see the report, not papered over):
-//   • character.reapAssets — assets `reapIfOrphan` (PD-26 wave built); best-effort, called on every delete.
-//   • tag.requireParticipant — chat membership gate is PD-19 (chat is P5).
-//   • import — its service is PER-OWNER (`ImportContext.ownerId`), built by the `entry/import` driver later.
+// Determinism: `now` is an injected param (compose never calls Date.now()); id minters are built from
+// mintTypeId/newId. Compose order: guards → sessions → settings → credentials → connection → roleClients
+// → the leaf/heavy services. settings is built (and its effective-config cache warmed) before the infra
+// backend-registry so the registry sources the admin-resolved vllmConcurrency from AppSettings.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
@@ -145,14 +135,10 @@ import { bindRoleClientsForUser } from "./role-clients";
 import { buildWorkloadRunnerEnv } from "./runner-env";
 
 /**
- * What boot supplies to stand up the whole service graph. `now` + `secretBoxKey` + `casDir`/`variantDir` +
- * `vllmDisabled` are boot-resolved (crypto key path, data dirs, env); `vllmDisabled` is the EFFECTIVE fact
- * (`env.VLLM_DISABLED || !gpuPresent` — entry/lifecycle's ONE gpu-detect), and compose derives its positive
- * complement `vllmAvailable = !vllmDisabled` for the connection resolver's derive-role fallback; `ownerId`
- * is the deployment owner the
- * boot-global `RoleClients` bundle resolves against; `providerSeams` is the test/durable-override channel for
- * the sealed backend registry (the only way to reach a sealed backend's deps). The vLLM `concurrency` is NOT
- * a boot dep — it is sourced from settings' resolved effective-config inside `createServices` (PD-14).
+ * What boot supplies to stand up the whole service graph. `vllmDisabled` is the effective fact
+ * (`env.VLLM_DISABLED || !gpuPresent`); compose derives its complement `vllmAvailable` for the connection
+ * resolver's derive-role fallback. The vLLM `concurrency` is NOT a boot dep — it is sourced from settings'
+ * resolved effective-config inside `createServices`.
  */
 export interface ServicesDeps {
   readonly db: Db;
@@ -161,92 +147,66 @@ export interface ServicesDeps {
   readonly secretBoxKey: Buffer | null;
   readonly casDir: string;
   readonly variantDir: string;
-  /** The controlled staging root the `POST /api/import/bundle` route stages an uploaded zip under + the
-   *  `import-bundle` runner-env op reads it back from (the `IMPORT_STAGING_DIR` boot-env). Absent ⇒ the OS temp
-   *  dir — the SAME default the route resolves, so route-write and op-read agree without threading a value. */
+  /** The staging root the upload route stages a zip under; absent ⇒ the OS temp dir (the same default the
+   *  route resolves). */
   readonly importStagingDir?: string;
   readonly sessionSecret: string | null;
   readonly vllmDisabled: boolean;
   readonly repoRoot?: string;
   readonly providerSeams?: Partial<BackendRegistryDeps>;
-  /** This replica's stable lock-holder tag — the chat turn-lock holder (and the boot reclaim's match key, so
-   *  the same value MUST drive `reclaimChatLocksOnBoot`). Stable across restarts of the same replica (entry
-   *  passes `os.hostname()`); defaulted for tests that don't run chat turns. */
+  /** This replica's stable lock-holder tag — must match the boot reclaim's match key. */
   readonly holder?: string;
 }
 
 /** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
- *  supervises/probes/wires (the auth seam consumes `sessions`; the indexer/bus are wired here; the runner-env
- *  + vLLM engine go to the worker/lifecycle; the SecretBox is probed by the crypto boot step). */
+ *  supervises/probes/wires. */
 export interface ServicesResult {
   readonly services: Services;
-  /** The transport presence registry (PD-70) — surfaced so `entry/` can thread it onto the request ctx (the
-   *  SSE `connect` side); its `read` side is already injected into the chat service's `presence.read` op. */
   readonly presence: PresenceRegistry;
   readonly sessions: SessionsService;
   readonly embeddings: EmbeddingsService;
   readonly indexer: EmbeddingsIndexer;
   readonly assets: AssetsService;
   readonly exportService: ExportService;
-  /** The injected portability registry (export-import-portability.md §2/§3) — assembled by `./portability`,
-   *  threaded to `createApp` for the export/import bundle routes. Empty until the orchestrator populates the
-   *  per-entity descriptors; the entity-agnostic delivery core iterates whatever is registered. */
   readonly portability: PortabilityRegistry;
-  /** The world-info embedded-lorebook import op (W1) — threaded to `createApp` → the card-upload route so the
-   *  LIVE import path writes an imported card's embedded book (previously dropped). */
   readonly importWorldInfo: ImportWorldInfoPort;
   readonly eventBus: DomainEventBus;
   readonly runnerEnv: WorkloadRunnerEnv;
   readonly roleClients: RoleClients;
-  /** The per-owner `RoleClients` binder, PRE-BOUND to the connection service + the executor (async — it
-   *  resolves each role's `{credential, model}` via `connection.resolveRole`). The workloads worker's
-   *  `WorkloadRunnerDeps.bindRoleClients` is wired from this; entry never touches the raw executor. */
+  /** The per-owner `RoleClients` binder, pre-bound to the connection service + the executor. The workloads
+   *  worker's `bindRoleClients` is wired from this; entry never touches the raw executor. */
   readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClients>;
-  /** The ONE bound `logAudit` writer (suppress-and-drop) — the same closure every domain's `audit` op is
-   *  wired from; surfaced so the lifecycle can hand it to `WorkloadRunnerDeps.audit` (PD-113). */
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   readonly vllmEngine: VllmEngineHandle | null;
-  /** The default-card seeder (PD-32) — the ONE instance both boot (`ensureSeeded(owner)`) and the app
-   *  first-request hook (`ensureSeeded(principal)`) share, so the in-process memo + persisted latch hold
-   *  across both call sites. Constructed over the built `character` service + the settings latch ops. */
+  /** The default-card seeder — the one instance both boot and the app first-request hook share, so the
+   *  in-process memo + persisted latch hold across both call sites. */
   readonly characterSeeder: DefaultCharacterSeeder;
-  /** The default-"You"-persona seeder — the ONE instance both boot (`ensureSeeded(owner)`) and the app
-   *  first-request hook share (same memo + `onboarding.defaultPersonaSeeded` latch). Mirrors
-   *  `characterSeeder`; constructed over the built `persona` service + the settings latch + the bundled
-   *  avatar store. */
+  /** Mirrors `characterSeeder`, for the default "You" persona. */
   readonly personaSeeder: DefaultPersonaSeeder;
 }
 
-/** Build a production id minter for a TypeID prefix (the composition root is the sanctioned mint site). */
 function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => mintTypeId(prefix);
 }
 
 /** Exhaustiveness guard for the closed `DomainEvent` union — a new event member without a bus route is a
- *  `tsc` error here (§7.5 string-union dispatch), not a silent drop. */
+ *  tsc error here, not a silent drop. */
 function assertNeverEvent(event: never): never {
   throw new Error(`unhandled domain event: ${JSON.stringify(event)}`);
 }
 
-/** Construct the full service graph + the boot handles. ASYNC: the boot-global `RoleClients` bundle resolves
- *  each derive-role's connection once (the PD-9 paydown) before the consumers that require it are built. */
+/** Construct the full service graph + the boot handles. Async: the boot-global `RoleClients` bundle
+ *  resolves each derive-role's connection once before the consumers that require it are built. */
 export async function createServices(deps: ServicesDeps): Promise<ServicesResult> {
   const { db, now } = deps;
-  // PD-70: the transport presence registry — built HERE over the injected `now` (transport modules can't read
-  // ambient time, the `no-raw-clock` seam). Its `read` side feeds chat's `presence.read` op (cast-gating);
-  // its `connect` side is surfaced on `ServicesResult` for `entry/` to thread onto the request ctx.
   const presence = createPresenceRegistry(now);
 
-  // ── Shared seams (the bound audit writer, the user-id minter, the in-process event bus) ───────────────
   const audit = (entry: AuditEntry, at: number): Promise<void> => logAudit(db, entry, at);
   const newUserId = (): UserId => newId<UserId>();
   const eventBus = createDomainEventBus();
 
-  // ── guards → sessions → settings (the auth/config spine head, D38). settings is hoisted ABOVE the infra
-  //    backend-registry so the registry can source the admin-resolved vLLM concurrency from the effective-
-  //    config (PD-14). Its deps (db/now/audit + the pure guard fns) never touch the registry → safe hoist. ──
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
   const settingsDeps: SettingsServiceDeps = {
     db,
@@ -258,21 +218,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emitUserEvent: publishUserEvent,
   };
   const settings = createSettingsService(settingsDeps);
-  // The `SettingsContext` for the portability theme + user-settings descriptors (the front door exports the
-  // builder for exactly this). It carries the SAME per-user write serializer semantics the service uses (its
-  // own instance — a bundle import + a live settings write for one user are both idempotent merges).
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
 
-  // ── The effective-config boot surface: warm the resolved-config cache from the stored override so the SYNC
-  //    getEffectiveConfig() returns the floor⊕override config (incl. vllmConcurrency) before the registry reads
-  //    it. The cache is module-scoped + lazily env-floored, so this boot warm is what lets a DB override land. ─
+  // Warm the resolved-config cache from the stored override so the sync getEffectiveConfig() returns the
+  // floor⊕override config (incl. vllmConcurrency) before the registry reads it.
   const effectiveConfig = createEffectiveConfigWiring(settings);
   await effectiveConfig.reload();
   const resolved = effectiveConfig.getEffectiveConfig();
 
-  // ── Infra handles (the sealed I/O executors + the provider surfaces). The backend registry sources the
-  //    resolved vLLM batch concurrency from AppSettings — ResolvedVllmConcurrency {embed,summarize} (every
-  //    field present) maps onto the registry's optional {embed?,summarize?} concurrency shape (PD-14). ───────
   const registry = createBackendRegistry({
     ...(deps.providerSeams ?? {}),
     now,
@@ -291,7 +244,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const imageAdapter = createImageAdapter();
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
 
-  // ── credentials → connection (the rest of the auth/config spine, D38) ─────────────────────────────────
   const credentials = createCredentialsService({
     db,
     now,
@@ -303,36 +255,25 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     fetchModels: fetchOpenAiModels,
     emitUserEvent: publishUserEvent,
   });
-  // The ONE GPU fact in positive form — the connection resolver's no-GPU derive fallback reads it (the
-  // registry above reads its complement, `deps.vllmDisabled`). No re-probe: both arms share the boot fact.
   const vllmAvailable = !deps.vllmDisabled;
   const connection = createConnectionService({
     db,
     now,
     resolveCredential: (params): Promise<ResolvedCredential> => credentials.resolve(params),
     fetchOrCatalog: diagnostics.fetchOrCatalog,
-    // The agent-sdk daemon `supportedModels()` discovery — providers' agent-sdk diagnostic through the
-    // same sealed front door as fetchOrCatalog (agent-sdk-fixed; connection owns the SEPARATE snapshot).
     fetchAgentSdkModels: diagnostics.fetchAgentSdkModels,
     loadUserSettings: settings.loadUserSettings,
-    // The host-Claude auth verify (testClaudeAuth) — providers' agent-sdk diagnostic through the same
-    // sealed front door as fetchOrCatalog.
     verifyClaudeAuth: (req): Promise<VerifyAuthResult> => diagnostics.verifyAuth(req),
-    // The OpenRouter account reads (getOrCredits / getGenerationCost) — source-dispatched diagnostics.
     accountCredits: (req): Promise<AccountCredits> => diagnostics.accountCredits(req),
     generationCost: (req): Promise<GenerationCost> => diagnostics.generationCost(req),
     vllmAvailable,
-    // The local-light builtin model trio (embed/imageEmbed/rerank) — a DISPLAY fact for the Connections
-    // picker's `getModelsForSource` (the resolver keeps deriving via its empty-model pass-through, so this
-    // is never stamped). Imported through the providers front door (the seal forbids reaching
-    // `backends/local-light` directly; precedent: `fetchModels: fetchOpenAiModels` above).
+    // A display fact for the Connections picker; the resolver keeps deriving via its own empty-model
+    // pass-through, so this is never stamped.
     localLightDefaults: {
       embed: DEFAULT_EMBED_MODEL,
       imageEmbed: DEFAULT_IMAGE_EMBED_MODEL,
       rerank: DEFAULT_RERANK_MODEL,
     },
-    // Owner-ness via the admin seam (non-throwing boolean over `requireOwner`) — the resolver's
-    // owner-conditional chat default (owner → max-pro-sub, else vllm) without re-spelling the D17 lattice.
     isOwner: (principal) => {
       try {
         requireOwner(principal);
@@ -343,33 +284,23 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  // ── The per-owner RoleClients binder (the ONE binder — no vLLM floor): pre-bound to the connection service
-  //    + the executor. The boot-global OWNER bundle resolves through it ONCE; the workloads worker rebinds
-  //    per acting-owner through the same thunk (so workload roles honor the user's per-role roleDefaults). ──
   const bindRoleClients = (ownerId: UserId): Promise<RoleClients> =>
     bindRoleClientsForUser({ connection, executor }, ownerId);
   const roleClients = await bindRoleClients(deps.ownerId);
 
-  // ── Tag (built BEFORE character so character's by-name card-tag attach port wires to the real tag verb —
-  //    PD-49 paid down; tag has no upward deps, so the hoist is safe) ─────────────────────────────────────
+  // Built before character so character's by-name card-tag attach port wires to the real tag verb.
   const tagCtx: TagContext = {
     db,
     newTagId: minter(ID_PREFIX.tag),
-    // RESOLVED (PD-19): the chat membership gate is wired via the domain/chat/guard.
     requireParticipant: (principal, chatId) =>
       requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
-    // Tag is CLOCKLESS (rows born-stamp via SQL default), so the audit timestamp is pre-bound HERE from
-    // the root's injected clock — the verbs hand only the entry.
+    // Tag is clockless (rows born-stamp via SQL default), so the audit timestamp is pre-bound here.
     audit: (entry): Promise<void> => audit(entry, now()),
     emitUserEvent: publishUserEvent,
   };
-  // The tag ctx is shared: the service + the portability `tag` library descriptor (writes the same `tags` table).
   const tag = createTagService(tagCtx);
 
-  // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──
-  // The `AssetsContext` is captured as a named const so the portability registry's `gallery` descriptor can
-  // reuse it (extended with the character handle resolvers, below) and the `assets` blob descriptor can read
-  // its `db`/`cas`/`now` slice — the delivery core's blob + curation transports (audit G-1).
+  // Captured as a named const so the portability registry's gallery descriptor can reuse it.
   const assetsCtx: AssetsContext = {
     db,
     cas,
@@ -379,10 +310,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newAssetId: minter(ID_PREFIX.asset),
     newGalleryItemId: minter(ID_PREFIX.galleryItem),
-    // Gallery owner-only posture (§1.3): does `ownerId` own `characterId`? A direct owner-scoped
-    // `characters` read (assets never sideways-imports the character domain — the check arrives as an
-    // injected op, the same seam as `loadCoParticipantOwner`). `addToGallery` gates the subject character
-    // on this before curating.
     assertCharacterOwned: async (ownerId, characterId) => {
       const rows = await db
         .select({ id: charactersTable.id })
@@ -391,24 +318,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .limit(1);
       return rows.length > 0;
     },
-    // PD-28 / D21 (amended 2026-07-02, widened 2026-07-07 for multi-human group persona avatars): the
-    // roster-avatar reference-check — NOT a hash→any-owner oracle (PD-107). Returns an owner ONLY IF `hash`
-    // is the asset-hash of the `avatarAssetId` of EITHER (a) a CHARACTER rostered (`kind='character'`,
-    // present — `leftSeq IS NULL`) in a chat where `callerId` is a PRESENT member, OR (b) a PERSONA that is
-    // a present HUMAN participant's `activePersonaId` in a chat where `callerId` is ALSO a present member
-    // (the sibling case: a co-participant's OWN persona avatar in a shared group chat — without this arm a
-    // multi-human room's other members' persona avatars 404 and fall back to initials). Both arms are pure
-    // REFERENCE-checks (the join proves the asset IS that rostered identity's CURRENT avatar): a
-    // co-participant's non-avatar asset, an identity in a chat the caller isn't in, or a left caller/
-    // identity all miss on both arms. Returns `assets.ownerId` (NOT `characters.ownerId`/`personas.ownerId`)
-    // — the CAS bytes live in the ASSET owner's partition, so the downstream `metadataForOwnerAndHash`/
-    // `cas.read(ownerId, hash)` must key off the asset owner. `undefined` when neither arm matches.
-    // SPRITE-SET EXTENSION POINT (PD-56, deferred): when `character_sprites` lands, D21's exception widens
-    // from `avatarAssetId` to the sprite set — add a UNION arm joining `character_sprites.assetId = assets.id`
-    // under the same rostered-character + present-caller gate. v1 constrains to `avatarAssetId` only.
+    // Roster-avatar reference-check, not a hash→any-owner oracle. Returns an owner only if `hash` is the
+    // asset-hash of the `avatarAssetId` of either (a) a character currently rostered in a chat where
+    // `callerId` is a present member, or (b) a persona that is a present human participant's
+    // `activePersonaId` in a chat where `callerId` is also present (a co-participant's own persona avatar
+    // in a shared group chat). Returns `assets.ownerId` (the CAS bytes live in the asset owner's partition).
     loadCoParticipantOwner: async (callerId, hash) => {
-      // Self-join `chat_participants` twice: `rosterChar` = the character's own present roster row;
-      // `callerSeat` = the caller's own present membership of THAT SAME chat.
       const rosterChar = alias(chatParticipants, "roster_char");
       const callerSeat = alias(chatParticipants, "caller_seat");
       const characterRows = await db
@@ -437,8 +352,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         return characterRows[0].ownerId;
       }
 
-      // Sibling persona arm: `personaSeat` = the OTHER human's present seat carrying this persona as their
-      // CURRENT `activePersonaId`; `personaCallerSeat` = the caller's own present membership of that chat.
       const personaSeat = alias(chatParticipants, "persona_seat");
       const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
       const personaRows = await db
@@ -467,12 +380,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         return personaRows[0].ownerId;
       }
 
-      // Attachment arm (#67 co-participant render): the hash is an asset STRUCTURALLY referenced by a
-      // `message_assets` row for a message in a chat where BOTH the caller AND the asset's owner are PRESENT
-      // participants (`attachCallerSeat` / `attachOwnerSeat`). This is the blob-serve sibling of
-      // `loadChatAssetRefs` below — same reference-check discipline (the `message_assets` FK proves the asset
-      // is attached to a real message in a shared chat), never a bare co-participant hash oracle. Owner-
-      // present mirrors `resolve-image-ref.ts`'s gate: a member's upload stops resolving once they leave.
+      // Attachment arm: the hash is an asset structurally referenced by a message_assets row for a message
+      // in a chat where both the caller and the asset's owner are present participants.
       const attachOwnerSeat = alias(chatParticipants, "attach_owner_seat");
       const attachCallerSeat = alias(chatParticipants, "attach_caller_seat");
       const attachmentRows = await db
@@ -500,12 +409,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .limit(1);
       return attachmentRows[0]?.ownerId;
     },
-    // #67 co-participant RENDER resolver — the chat-scoped `(assetId, hash)` resolver a viewer (present member,
-    // not just the uploader) uses to render inline attachments. STRUCTURAL gate, mirroring
-    // `resolve-image-ref.ts` exactly: a pair is returned ONLY when the asset has a `message_assets` row for a
-    // message IN `chatId` (`ma`→`msg`), the asset OWNER is a present participant (`ownerSeat`), AND the CALLER
-    // is a present participant (`callerSeat`). Membership alone is NOT sufficient — the `message_assets` FK is
-    // the reference. A non-present caller / non-present owner / non-referenced asset all yield no row (no leak).
+    // Chat-scoped resolver a present viewer uses to render inline attachments: a pair is returned only
+    // when the asset has a message_assets row for a message in `chatId` AND both owner and caller are
+    // present participants. Membership alone is not sufficient — the message_assets FK is the reference.
     loadChatAssetRefs: async (callerId, forChatId, assetIds) => {
       if (assetIds.length === 0) {
         return [];
@@ -546,27 +452,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     emit: eventBus.emit,
     emitUserEvent: publishUserEvent,
-    // The avatar-orphan reap port → assets' `reapIfOrphan` (PD-26 wave built). Best-effort by contract:
-    // `remove`/`bulk-remove` wrap it in try/catch, so a reap failure never fails the delete — the orphan
-    // self-heals on the next `collectGarbage` sweep. The op's rich `ReapResult` is dropped to `void` here (the
-    // character verbs only need "attempted"); assets never sideways-imports character (injected type-only).
+    // Best-effort: remove/bulk-remove wrap it in try/catch, so a reap failure never fails the delete —
+    // the orphan self-heals on the next collectGarbage sweep.
     reapAssets: async (assetIds): Promise<void> => {
       await assets.reapIfOrphan(assetIds);
     },
-    // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
-    // 1:1 ({ ownerId, characterId, tagName } → Promise<boolean>); ownership is pre-gated by bulkAddCardTag.
     attachCardTag: tag.attachCardTagByName,
-    // The by-name card-tag DETACH port → tag's resolve-by-name detach verb (the mirror; §12-FIX). Same 1:1
-    // shape; ownership is pre-gated by bulkRemoveCardTag.
     detachCardTag: tag.detachCardTagByName,
   });
 
-  // ── hub (D61 gif slice — gallery-design §5 / doc 02 §5): a thin leaf owning NO tables. Its ops bind the
-  //    Tenor adapter (infra/network — the SSRF media-host allowlist + the image guard live INSIDE the ops,
-  //    the domain never fetches raw), the ACTING user's gif-search credential (owner-scoped, no host
-  //    fallback), and the EXISTING assets CAS + gallery write. `importGif` gates the subject character EARLY
-  //    (leak-free NOT_FOUND before any fetch) via an owner-scoped `characters` read — mirroring the assets
-  //    ctx gate (assets re-checks it on the write too; belt-and-suspenders). ──
   const hub = createHubService({
     searchGifs: searchTenorGifs,
     fetchGifImage: async (url) => {
@@ -596,11 +490,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  // The gallery-portability `AssetsContext` (audit §1 gallery re-link): the live assets ctx EXTENDED with the
-  // two character-handle resolvers the gallery export/import verbs need — export resolves each curated item's
-  // subject character id → its portable HANDLE; import re-links a HANDLE → the owner's character id (the same
-  // owner-scoped `character.findByHandle` the card importer + PD-108 use). Wired HERE (after `character`) so
-  // the forward reference resolves; without these ops gallery export drops handles + import un-characters.
+  // The live assets ctx extended with the two character-handle resolvers the gallery export/import verbs
+  // need. Wired after `character` so the forward reference resolves.
   const galleryCtx: AssetsContext = {
     ...assetsCtx,
     resolveCharacterHandle: async (characterId): Promise<string | null> => {
@@ -617,20 +508,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   };
 
-  // ── The default-card seeder (PD-32): the ONE idempotent instance boot + the app first-request hook share.
-  //    The settings latch lives in a SIBLING domain (domain-no-cross-feature), so the read/write are injected
-  //    here as closures over the settings front door. `markSeeded` mirrors neo: stamp the latch, then point
-  //    seeds.welcomeAssistantCharacterId at the seeded Assistant ONLY when the user hasn't already picked one
-  //    (never clobber an explicit choice). `create` requires the acting Principal → ensureSeeded takes it. ──
+  // The one idempotent instance boot + the app first-request hook share.
   const characterSeeder = createDefaultCharacterSeeder({
     characters: character,
-    // Each default card's native tags land as card/pending suggestions (same carry as an imported card).
     attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
       tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
-    // Store the bundled on-brand avatar PNG for the handle → its asset id (threaded into the card's
-    // `avatarAssetId` at create, so the seeded card is born with art). `enforceMagic` — the bundled bytes ARE
-    // PNG, so the sniff must agree. A missing bundled file / store hiccup returns null → the card seeds
-    // avatar-less (never blocks the seed).
+    // A missing bundled file / store hiccup returns null → the card seeds avatar-less (never blocks the seed).
     storeAvatar: async (principal, handle): Promise<AssetId | null> => {
       const art = await readSeedAvatar(handle);
       if (art === null) {
@@ -645,8 +528,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       });
       return stored.assetId;
     },
-    // Seed the character's starter gallery: its own avatar + a bundled generative piece (so a fresh library's
-    // gallery isn't empty). Both adds are upsert-guarded on `(assetId, subject)` → idempotent on re-run.
     seedGallery: async (principal, characterId, handle): Promise<void> => {
       const avatarArt = await readSeedAvatar(handle);
       if (avatarArt !== null) {
@@ -698,11 +579,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  // ── The default-"You"-persona seeder (mirror of characterSeeder): the ONE idempotent instance boot + the
-  //    app first-request hook share. `storeAvatar` stores the bundled `persona-you.png` (avatar kind);
-  //    `markSeeded` stamps the `defaultPersonaSeeded` latch, then points seeds.defaultPersonaId +
-  //    seeds.currentPersonaId at the seeded persona ONLY when the user hasn't already picked one (never
-  //    clobbers an explicit choice — the exact welcomeAssistantCharacterId posture). ──
+  // Mirror of characterSeeder, for the default "You" persona.
   const personaSeeder = createDefaultPersonaSeeder({
     createPersona: async ({ principal, input }): Promise<{ id: PersonaId }> => {
       const detail = await persona.create({ principal, input });
@@ -748,10 +625,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  // ── The vector substrate (embeddings) — built AFTER the asset/character cluster: the PD-53 bulk embed
-  //    passes inject their UN-PRINCIPAL enumeration + canon re-reads (D20 — the vector substrate carries no
-  //    ownerId; the sweeps are trusted SYSTEM consumers). `?? undefined` bridges the domains' `| null`
-  //    "absent" convention to the ops' `| undefined` (a deleted source is a silent skip either way). ───────
   const embeddings = createEmbeddingsService({
     db,
     roleClients,
@@ -770,12 +643,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imageEmbedDim: env.VLLM_EMBED_DIM,
   });
 
-  // ── The embeddings indexer (the event SUBSCRIBER) + its bus subscription (PD-48 paid down) ─────────────
-  //    The canon re-readers are the UN-PRINCIPAL system by-id reads (D20 — the vector substrate carries no
-  //    ownerId; the indexer re-reads canon by the event's branded id with no owner gate). `?? undefined`
-  //    bridges the domains' `| null` "absent" convention to the indexer op's `| undefined` (a deleted source
-  //    is a silent skip either way). Subscribing wires character.updated → re-embed card-text, asset.created
-  //    → embed both image lenses; emit is fire-and-forget + error-isolated (event-bus.ts).
   const indexer = createEmbeddingsIndexer({
     store: embeddings.store,
     loadCardText: async (characterId): Promise<string | undefined> =>
@@ -786,12 +653,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     embedDim: env.VLLM_EMBED_DIM,
     imageEmbedDim: env.VLLM_EMBED_DIM,
   });
-  // Gate the SUBSCRIPTION on the search-corpus knob (effective-config `corpusAutoindex`, the env/admin floor
-  // resolved above). OFF ⇒ the indexer is built but NOT subscribed ⇒ no embed-on-write (a clean boot; the
-  // seeder's character.updated writes never trigger inference — the path of the boot "vllm not wired"/local-
-  // light spam). ON ⇒ subscribe; the embed routes through the now-fallback-capable role-clients (vLLM when a
-  // GPU is present, local-light-jina otherwise). This is DISTINCT from `memoryDefaults.mode` (chat digests,
-  // P5): character/image search ⟂ chat-memory (decision (b) — two separate knobs).
+  // OFF ⇒ the indexer is built but not subscribed (a clean boot with no embed-on-write). Distinct from
+  // memoryDefaults.mode (chat digests) — two separate knobs.
   if (resolved.corpusAutoindex) {
     eventBus.subscribe((event: DomainEvent): Promise<void> => {
       switch (event.type) {
@@ -805,27 +668,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     });
   }
 
-  // PD-128: the ONE chat bus. persona's active-persona write needs the chat bus's durable-first emit, but
-  // persona composes BEFORE `buildChatService` (chat needs `persona.get` for turn assembly — a genuine cycle),
-  // so the bus is built HERE, early — it needs only {db, now, newEventId}, all available — and threaded into
-  // BOTH persona's write AND `buildChatService`. ONE durable-first emit, ONE replay ring (bus.ts
-  // FLAG[bus-not-on-ctx]: service builds ONE bus). This replaces the former split — a `personaSwitchBus` here
-  // + a second `createChatBus` inside chat.ts — whose per-instance ring had zero readers today but was a
-  // latent per-chat `seq`-gap trap the moment the transport ever reads the ring for a resume window (PD-128).
+  // The one chat bus, built early (persona composes before buildChatService — chat needs persona.get for
+  // turn assembly, a genuine cycle) and threaded into both persona's write and buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
   const emitChatEvent = async (event: ChatBusEvent): Promise<void> => {
-    // Durable-first: the bus assigns the per-chat `seq` (the `chat_events` INSERT commits first), THEN the
-    // cursor-stamped event goes to the transport live channel — a dead live path never loses an event.
     const seq = await chatBus.emit(event);
     publishChatEvent({ seq, event });
   };
 
-  // ── The MULTI-HUMAN bridge (task #17): character.updated → a `chatUpdated` chat-bus event on every chat where
-  //    that character is CURRENTLY seated, so a co-member's OPEN room refetches the roster/theme/assembly fields
-  //    when another human's card edit lands (emit-character-updated.ts). SEPARATE, ALWAYS-ON subscription —
-  //    UNLIKE the indexer's, it is NOT gated on `corpusAutoindex` (open-room freshness ⟂ the search-corpus knob):
-  //    a stale co-member room is a bug whether or not the corpus indexes. Fans through the durable-first
-  //    `emitChatEvent` (the ONE bus); asset.created is not our concern here (a narrow single-arm subscriber). ──
+  // Multi-human bridge: character.updated → chatUpdated on every chat where the character is currently
+  // seated. Always-on (not gated on corpusAutoindex) — open-room freshness is orthogonal to the search knob.
   const fanCharacterUpdateToChats = createCharacterUpdatedChatFan(db, emitChatEvent);
   eventBus.subscribe((event: DomainEvent): Promise<void> => {
     if (event.type === "character.updated") {
@@ -839,8 +691,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newPersonaId: minter(ID_PREFIX.persona),
     audit,
-    // PD user-bus lane: the per-user live-freshness emit → transport's process-local `publishUserEvent`.
-    // The SAME closure backs every domain below (one bus, keyed per userId).
     emitUserEvent: publishUserEvent,
     requireChatAuthorOrHost: async (principal, chatId, targetUserId) => {
       await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
@@ -848,14 +698,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
       await setParticipantActivePersona(db, emitChatEvent, { chatId, targetUserId, personaId });
     },
-    // Owner invariant "never NO current persona while you own one": after `remove` deletes `deletedId`,
-    // re-point the global seed pointers if either named it. Runs THROUGH the settings section-patch verb
-    // (serialized per-user w.r.t. sibling settings writes + emits `settingsChanged` so a live device
-    // refetches) — persona owns no settings table. New current = default (if still valid) -> newest
-    // remaining owned persona -> null (only when the delete emptied the roster, which `remove`'s
-    // last-persona belt already refuses, so `null` is effectively unreachable here). Default is only
-    // re-pointed when the deleted id WAS the default (a stale default otherwise stays; `resolveDefaultPersona`
-    // already null-collapses a dead one). A synthetic host `Principal` (userId is all the verb consults).
+    // Owner invariant "never NO current persona while you own one": after remove deletes deletedId,
+    // re-point the global seed pointers if either named it, runs through the settings section-patch verb.
     repointSeedsAfterPersonaDelete: async (ownerId, deletedId) => {
       const seeds = (await settings.loadUserSettings(ownerId)).seeds;
       const currentHit = seeds.currentPersonaId === deletedId;
@@ -869,8 +713,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .where(eq(personasTable.ownerId, ownerId))
         .orderBy(desc(personasTable.createdAt));
       const firstRemaining: PersonaId | null = remaining[0]?.id ?? null;
-      // Prefer the surviving default; else the newest remaining persona (mirrors the client `personas[0]`
-      // + `list`'s `desc(createdAt)`), else null.
+      // Prefer the surviving default; else the newest remaining persona; else null.
       const survivingDefault = defaultHit ? firstRemaining : seeds.defaultPersonaId;
       const nextCurrent = currentHit
         ? (survivingDefault ?? firstRemaining)
@@ -914,23 +757,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newCharacterKeywordProfileId: minter(ID_PREFIX.characterKeywordProfile),
     newDuplicateChatPairId: minter(ID_PREFIX.duplicateChatPair),
     summarize: roleClients.summarize,
-    // The distill pass (PD-40) stamps the summarize model on `character_summaries.model` and stages its
-    // labels through the tag domain's by-name chokepoint (source:'auto', status:'pending' — the review queue).
     summarizerModel: roleClients.summarizerModel,
     attachCardTagByName: tag.attachCardTagByName,
     writeHubScores: embeddings.writeHubScores,
-    // PD-22 the stats↔discovery economics seam (Tier 2 → Tier 3): the stats-OWNED economics projections
-    // discovery's `forgottenGems`/`modelRouting` compose. discovery receives only the NARROWED results — the
-    // raw `message_variants` economics columns never cross the fence (Knowledge-Cluster inv #5).
+    // discovery receives only the narrowed economics results — raw message_variants columns never cross the fence.
     characterEconomics: stats.characterEconomics,
     characterModelEconomics: stats.characterModelEconomics,
   });
   const notifications = createNotificationsService({
     db,
     now,
-    // D60 recipient belt (agent-principal-design/06 §3): the entry root is the sanctioned `users` reader
-    // (exempt from `no-direct-users-read`, the `resolveAgentEnabled` precedent) — an agent principal has no
-    // inbox, so `record` refuses it. A missing row ⇒ false (only a real agent row refuses).
+    // An agent principal has no inbox, so record refuses it. A missing row ⇒ false.
     isAgentRecipient: async (userId) => {
       const rows = await db
         .select({ kind: users.kind })
@@ -945,8 +782,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newWorkloadId: minter(ID_PREFIX.workload),
     newScheduleId: minter(ID_PREFIX.workloadSchedule),
-    // MODE authz seam (D17/spine #6): `requireOwner` gates a BULK start/retry (BOX-OWNER only); `isAdmin`
-    // chooses the per-user read scope (owner∪admin → all; a user → own).
     requireOwner,
     isAdmin,
   });
@@ -958,8 +793,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     hashPassword: passwordHasher.hash,
     audit,
     sessions: {
-      // The admin device list needs the `userId` SessionView deliberately omits — the caller already holds
-      // it, so re-stamp it onto each row (SessionAdminView = SessionView + userId).
+      // SessionView deliberately omits userId; re-stamp it onto each row.
       listForUser: async (
         userId: UserId,
       ): Promise<readonly (SessionView & { userId: UserId })[]> => {
@@ -977,9 +811,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
           ? Promise.resolve("vllm supervisor not running")
           : registry.vllmEngine.restart(name as Parameters<VllmEngineHandle["restart"]>[0]),
     },
-    // The PD-90 inline single-card embed port: the OWNER-SCOPED card read is the producer-ownership check
-    // (a foreign/missing character reads null — leak-free), then the same card-text projection + store the
-    // indexer uses (idempotent — the store verb hash-gates, so re-embedding an unchanged card is a noop).
     embed: {
       embedCharacterCard: async (principal, characterId): Promise<boolean> => {
         const card = await character.getCard({ principal, characterId });
@@ -1011,9 +842,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveAgentConnection: ({ principal }): Promise<ResolvedConnection> =>
       connection.resolveRole({ role: "agent", principal }),
     agentTurn: async (req): Promise<BuddyAgentResult> => {
-      // A mode-2 (openrouter) agent turn needs the derived OR-skin tier→slug map so the env firewall holds
-      // no hardcoded model strings; mode-1 sub / mode-3 loopback ignore it. Derived from connection's two
-      // live catalogs (never throws — a cold catalog degrades to the curated shortlist).
       const orSkinTierModels =
         req.credential.source === "openrouter" ? await connection.getOrSkinTierModels() : undefined;
       const result = await executor.runAgentTurn({
@@ -1030,9 +858,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       });
       return { text: result.reply };
     },
-    // Build the in-process MCP tool server via the seal-preserving providers front-door factory.
-    // `BuddyToolSpec` mirrors `AgentToolSpec` by design (name/description/inputSchema:ZodRawShape/
-    // handler→{content:[{type:'text',text}],isError?}); the cast bridges the readonly-array nominal gap only.
+    // BuddyToolSpec mirrors AgentToolSpec by design; the cast bridges the readonly-array nominal gap only.
     buildToolServer: (tools): BuddyToolServer =>
       createAgentToolServer({ tools: tools as readonly AgentToolSpec[] }),
     roleClients,
@@ -1041,11 +867,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         const input: StartWorkloadInput =
           kind === "find-duplicates"
             ? { kind: "find-duplicates", params: {} }
-            : // The buddy's "build search embeddings" chore → the atomic reindex-everything pass (source: all).
-              { kind: "index", params: { source: "all" } };
-        // A TRUSTED internal trigger (the agent-env is a backend principal, not a request) — `caller: null`
-        // bypasses the mode gate. SINGULAR on the agent's OWNING user (no global bulk bypass): the pass scopes
-        // to that owner's own data only (the ruling — the buddy acts for its owner, never across all owners).
+            : { kind: "index", params: { source: "all" } };
+        // A trusted internal trigger — caller:null bypasses the mode gate; singular on the agent's owning
+        // user (never a global bulk bypass).
         const started = await workloads.start({ input, caller: null, mode: "singular", ownerId });
         return { workloadId: started.id };
       },
@@ -1054,10 +878,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform });
 
-  // ── imagery (the P5 free-mode leaf — imagery-design). Binds its narrow ops to the built siblings: the
-  //    generateImage role (connection.resolveRole), the sealed executor (executor.generateImage), the CAS
-  //    write (assets.store, kind always "generated"), and a STANDALONE stats apply (applyStatsDelta pushes
-  //    into a fresh batch this op commits — imagery is a sync verb, not a canon-write co-batch). ───────────
   const imagery = createImageryService({
     db,
     now,
@@ -1079,22 +899,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  // ── chat (built LAST — it injects character/persona/connection/credentials/stats/embeddings/search/
-  //    notifications/settings/roleClients, all built above). The widest DI bundle in the system; its op
-  //    graph + the flagged inert/permissive stubs live in `./chat` (entry-local). `holder` is the per-replica
-  //    lock tag the boot reclaim must match (defaulted for non-turn tests). ───────────────────────────────
-  // D48: the ONE tool registry — composed EMPTY today (registrants arrive with rpg/buddy; the chat ops
-  // are live so the recurse loop is real; a plain chat attaches nothing → byte-identical requests).
+  // Chat is built last — it injects every service built above, the widest DI bundle in the system.
   const toolUse = createToolUseService({ can, clock: now });
 
   const chatCompose = buildChatService({
     toolUse,
     db,
     now,
-    emitChatEvent, // PD-128: the ONE bus, built above — chat no longer constructs its own.
+    emitChatEvent,
     holder: deps.holder ?? "replica-default",
     sessionSecret: deps.sessionSecret,
-    // The PD-73 frozen-host → Principal bridge (sessions is the sanctioned users reader).
     resolveHostPrincipal: createHostPrincipalResolver(sessions),
     audit,
     can,
@@ -1109,22 +923,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     search,
     assets,
     embeddings,
-    // PD-66: sessions' exact handle→userId resolver for targeted invites.
     resolveHandle: (handle) => sessions.resolveHandle(handle),
-    // D60: sessions' lazy agent-principal mint for seatAgent (doc 04 §3).
     provisionAgentPrincipal: (params) => sessions.provisionAgentPrincipal(params),
     runChatTurn: executor.runChatTurn,
-    // PD-70: the read side of the transport presence registry → chat's `presence.read` op (cast-gating drops
-    // an offline human's persona from the present cast for the next round).
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
-    // The imagery leaf's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural
-    // result inside `buildChatService`).
     generatePicture: imagery.generatePicture,
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
-  // ── The cross-feature workload hub (built AFTER chat — the PD-41 memory/group-character sweeps are
-  //    chat-ctx-bound ops off the chat compose product). ─────────────────────────────────────────────────
+  // Built after chat — the memory/group-character sweeps are chat-ctx-bound ops off the chat compose product.
   const runnerEnv = buildWorkloadRunnerEnv({
     db,
     now,
@@ -1135,35 +942,27 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     memoryBackfill: chatCompose.backfill.memory,
     groupCharacterBackfill: chatCompose.backfill.groupCharacters,
-    // LAZY: `portability` is assembled below (after chat/world-info) — the `import-bundle` op derefs it at RUN
-    // time via this thunk, never at build time (the partial-deps construction order; the closure captures the
-    // binding, which is initialized long before any workload dispatches).
+    // Lazy: portability is assembled below (after chat/world-info); this thunk derefs it at run time.
     getPortabilityRegistry: () => portability,
     ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
   });
 
-  // ── world-info (built AFTER chat — its PD-30 chat scope injects chat's membership guards + the chat
-  //    bus emit; world-info itself never reads the roster nor imports chat). ────────────────────────────
+  // Built after chat — world-info's chat scope injects chat's membership guards + the chat bus emit.
   const worldInfo = createWorldInfoService({
     db,
     now,
     newBookId: minter(ID_PREFIX.worldBook),
     newEntryId: minter(ID_PREFIX.worldEntry),
     audit,
-    // Chat's own guards over the shared {db, can} — host for the room-config writes, member for the list.
     requireChatHost: (principal, chatId) =>
       requireHost({ db, can }, principal, chatId).then((): void => undefined),
     requireChatMember: (principal, chatId) =>
       requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
-    // WI attachment changes ride the SAME durable-first chat bus (WiBusEvent ⊂ ChatBusEvent).
     emitWiEvent: emitChatBusEvent,
     emitUserEvent: publishUserEvent,
   });
 
-  // The world-info-OWNED embedded-lorebook bulk-import WRITE op (Option B; W1; PD-77). Wired here so the LIVE
-  // card-import path (entry/http/upload → run-profile-import) ACTUALLY writes an imported card's embedded
-  // `character_book` — previously the upload route passed no world-info port, so embedded lorebooks were
-  // silently dropped on import. A purpose-built context (db + clock + book/entry minters only, D23).
+  // Wired here so the live card-import path actually writes an imported card's embedded character_book.
   const importWorldInfo: ImportWorldInfoPort = {
     importLorebook: createBulkImportLorebook({
       db,
@@ -1173,11 +972,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     }),
   };
 
-  // ── The portability registry (export-import-portability.md §2/§3) — all 10 entity descriptors, assembled
-  //    from the built domain verbs. The chat descriptor un-deads the PD-77 profile lane: `bulkImportChats` /
-  //    `bulkImportPersonas` (the chat/persona Option-B write ops) + the PD-78 backfill/reconcile ops are wired
-  //    HERE once, serving both the bundle chat path and (later) the ST-zip path. `resolveOwnerPrincipal` is the
-  //    PD-73 host-principal seam the character create/update verbs owner-scope off. ────────────────────────
   const bulkImportChats = createBulkImportChats({
     db,
     now,
@@ -1186,9 +980,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newMessageVariantId: minter(ID_PREFIX.messageVariant),
     newMessageAssetId: minter(ID_PREFIX.messageAsset),
     newParticipantId: minter(ID_PREFIX.chatParticipant),
-    // #67 — the bundle's `assets` entity imports FIRST (portability order), so a bundled inline attachment
-    // exists by the time chats import; this filters an imported message's `asset:<id>` refs to the ones that
-    // landed, so `message_assets` retaining rows re-create without a dangling FK (owner-scoped, D21).
+    // The bundle's assets entity imports first, so a bundled inline attachment exists by the time chats
+    // import; this filters an imported message's asset refs to the ones that landed.
     filterExistingAssetIds: async (ownerId, assetIds) =>
       (await assets.resolveOwnedAssetRefs(ownerId, assetIds)).map((r) => r.assetId),
   });
@@ -1221,9 +1014,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importLorebook: importWorldInfo.importLorebook,
     bulkImportChats,
     bulkImportPersonas,
-    // PD-78: one memory-backfill per chat import run (the chat op writes real_conversation canon) + the inline
-    // stats rollup. A TRUSTED internal trigger (caller:null bypasses the mode gate — the import acts for the
-    // owner, SINGULAR on their own data).
     enqueueBackfill: async ({ ownerId }): Promise<void> => {
       await workloads.start({
         input: { kind: "memory-backfill", params: {} },
@@ -1267,8 +1057,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     indexer,
     assets,
     exportService,
-    // The entity-agnostic delivery-core registry (§2/§3) — all 10 entity descriptors, assembled above. The
-    // export/import bundle routes iterate it via createApp.
     portability,
     importWorldInfo,
     eventBus,

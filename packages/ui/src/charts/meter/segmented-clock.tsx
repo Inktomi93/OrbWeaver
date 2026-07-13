@@ -1,33 +1,19 @@
-// <SegmentedClock> — a segmented circle showing filled/segments (D58; rpg-design/11 §2). Lives in
-// the meter group: one home for 1-D magnitude display (a standalone dir was explicitly rejected).
-// Same hand-rolled ARIA mechanism as <Meter> (role="meter" + value semantics).
+// A segmented circle showing filled/segments — same hand-rolled ARIA mechanism as <Meter> (role="meter").
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve ICON_XS/Icon/Lock fine.
 import { ICON_XS, Icon, Lock } from "#primitives/icons";
 import { segmentedClockVariants } from "./variants";
 
-// `filled`/`hidden` are Omitted from the variant props: the tv variants are internal skin
-// switches (`filled` = per-segment boolean, `hidden` = redaction dimming); the public props below
-// are the semantic surface (rpg-design/11 §2 signature + A4's GM-eyes redaction).
 export interface SegmentedClockProps
   extends Omit<VariantProps<typeof segmentedClockVariants>, "filled" | "hidden"> {
-  /** Total segment count — any integer ≥ 2 (4/6/8/12 fit the tabletop clocks, not enforced). */
+  /** Total segment count — any integer ≥ 2. */
   segments: number;
   /** Filled segment count (clamped to 0..segments). */
   filled: number;
-  /**
-   * The completed visual state: every segment renders at full accent plus a center-dot emphasis.
-   * Semantics (what "complete" means) stay with the caller — this knows nothing of fronts.
-   */
+  /** Completed visual state: every segment renders at full accent plus a center-dot emphasis. */
   completed?: boolean;
-  /**
-   * GM-eyes redaction (A4): the clock still renders its true segment/fill count (the GM viewing it
-   * is ALLOWED to see it — this is not content masking) but dims to a distinct "hidden from
-   * players" treatment: reduced opacity plus a lock glyph in the center-emphasis slot (never color
-   * alone). Mutually exclusive with the completed-dot for that slot — hidden wins.
-   * Consumer: the rpg GM-eyes tab (rpg-design/11-client-ui.md §15).
-   */
+  /** GM-eyes redaction: dims to a "hidden from players" treatment with a lock glyph; wins over completed-dot. */
   hidden?: boolean;
   /** Accessible name (aria-label). */
   label?: string;
@@ -65,21 +51,7 @@ function segmentPath(index: number, count: number): string {
   return `M ${start.x} ${start.y} A ${CLOCK_RADIUS} ${CLOCK_RADIUS} 0 0 1 ${end.x} ${end.y}`;
 }
 
-/**
- * Progress-clock display — `filled` of `segments` wedges at the intent accent (currentColor +
- * text-primary; empty segments drop to text-muted). Pure count display: knows nothing of fronts or
- * consequences (rpg-design/11 §2; the D58 spec).
- *
- * @example
- * ```tsx
- * <SegmentedClock segments={6} filled={clock.filled} completed={clock.completed} label="Doom" />
- * ```
- *
- * @example GM-eyes redaction
- * ```tsx
- * <SegmentedClock segments={6} filled={2} hidden label="Twist clock" />
- * ```
- */
+/** Progress-clock display — `filled` of `segments` wedges. Pure count display: knows nothing of fronts. */
 export function SegmentedClock({
   segments,
   filled,
@@ -146,8 +118,6 @@ export function SegmentedClock({
           />
         );
       })}
-      {/* The center-emphasis slot is ONE glyph: hidden (GM-eyes redaction) wins over completed —
-          a lock reads as "the players don't see this" regardless of fill state. */}
       {centerSlot}
     </svg>
   );

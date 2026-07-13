@@ -1,28 +1,6 @@
-// @orb/contracts/preset — generation config (the `PromptConfig` blob, its lift chain, the user-intent
-// generation knobs, the guided-actions config, the flat preset form + mappers, custom parameters, the
-// macro catalog, and the ST/neo preset serde).
-//
-// preset = GENERATION config, NOT the connection (the `{api, source, model}` selection is
-// `contracts/connection`'s axis). A preset is a library of `PromptConfig` blobs — the user's authored,
-// reorderable prompt structure + the provider-agnostic `UserIntent` generation snapshot.
-//
-// Cross-boundary: the tRPC router validates against these schemas AND the client preset editor runs the
-// same schemas, so server and client can never disagree about a bound or a shape.
-//
-// Down-deps (LAWS — down-only):
-//   • `#versioned-config` (`defineVersionedConfig`) — the ONE versioned-blob + lift-loop primitive shared
-//     by AppSettings / UserSettings / PromptConfig (settings-and-config §0/§6).
-//   • `#regex` (`regexScriptSchema`) — `PromptConfig.regexScripts` is `RegexScript[]` (per-preset scripts).
-//   • `@orb/kit/message-role` (`MESSAGE_ROLES`) — the canonical `system|user|assistant` role axis (D32).
-//     EVERY role field here is `z.enum(MESSAGE_ROLES)` — the neo role-array clones (`PROMPT_ROLES`,
-//     `GUIDED_INJECTION_ROLES`, `PRESET_GUIDED_INJECTION_ROLES`) collapse into it (no-inline-union-redecl).
-//   • `@orb/kit/injection` (`MAX_INJECTION_DEPTH`) — a section's absolute-depth placement and an at-depth
-//     injection share ONE depth ceiling (no drift).
-//
-// What does NOT live here (ported elsewhere): `resolveGuidedInstruction` + `neutralizeMacros` →
-// `@orb/kit/guided`; the macro engine → `@orb/kit/macro`; `deepMergeRequestBody` (the Layer-2
-// prototype-pollution defense) → `@orb/server/kit/custom-parameters`; `applyReceivePostProcess` etc. →
-// `@orb/server/kit/post-process`; the 8 assemble types → `@orb/contracts/chat`.
+// @orb/contracts/preset — generation config: the `PromptConfig` blob, its lift chain, user-intent
+// generation knobs, guided-actions config, custom parameters, the macro catalog, and ST/neo preset serde.
+// preset = GENERATION config, NOT the connection (`{api, source, model}` is `contracts/connection`'s axis).
 
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -37,7 +15,6 @@ import {
 import { regexScriptSchema } from "#regex";
 import { defineVersionedConfig } from "#versioned-config";
 
-// ── Shared field caps (named so the literals aren't bare magic numbers) ───────────────────────────
 const MAX_NAME_LENGTH = 200;
 const MIN_ID_LENGTH = 1;
 const MAX_TEXT_LENGTH = 100_000; // literal content + marker template (may carry {{macros}})
@@ -53,37 +30,26 @@ const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
 const MAX_FORMAT_STRING_LENGTH = 10_000;
 const MIN_INJECT_DEPTH = 0;
-// ST `injection_order` — POSITION within a single depth: LOWER lands higher/top, HIGHER lands closer to
-// the tail (the assembler sorts ascending — see injections.ts). Symmetric large bound; ties keep rack order.
 const INJECT_ORDER_MIN = -1_000_000;
 const INJECT_ORDER_MAX = 1_000_000;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // UserIntent — the preset-facing, cross-runner, model-agnostic generation snapshot (PromptConfig.params)
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Three tiers: the ergonomic `quality` dial (95% of presets), explicit power-user knobs, and an
-// `advanced` env/request-body escape hatch (reserved-keys floor enforced at the runner seam).
 
 export const QUALITY_LEVELS = ["fast", "balanced", "deep"] as const;
 export type Quality = (typeof QUALITY_LEVELS)[number];
 
-// The canonical `quality → reasoning-effort` mapping — the ONE home both any display use and the server
-// funnel read. `quality` is the PRIMARY ergonomic dial (~95% of presets); the funnel feeds this effort as
-// the DEFAULT into its effort resolution (an explicit `effort` knob overrides it), then clamps it against
-// the model's real `effortLevels` — so a level the model can't honor is dropped with the existing
-// `effort_dropped` warning (a no-reasoning model gets nothing from quality; no branch on model id). Values
-// are members of connection's `EffortLevel` (NOT the `none`-bearing user-intent vocab) so they clamp
-// cleanly. fast → least reasoning, deep → most; the per-model SAMPLING numbers stay deferred to live tuning.
+// The `quality → reasoning-effort` mapping: the funnel feeds this as the DEFAULT effort (an explicit
+// `effort` knob overrides it), then clamps against the model's real `effortLevels`.
 export const QUALITY_EFFORT: Record<Quality, ModelEffortLevel> = {
   fast: "minimal",
   balanced: "medium",
   deep: "high",
 };
 
-// Effort — the UNION of every effort value any supported runner accepts. DISTINCT from
-// `contracts/connection.EffortLevel` (the model-capability descriptor, which excludes `none`): this is
-// the user-INTENT effort vocabulary, where `none` = thinking-disabled. DERIVED from connection's set
-// (never redeclared) so the two can't diverge — `none` is the only member this tier adds.
+// The user-INTENT effort vocabulary (adds `none` = thinking-disabled) — derived from connection's
+// `EffortLevel` set (never redeclared) so the two can't diverge.
 export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 export const effortLevelSchema = z.enum(EFFORT_LEVELS);
@@ -94,7 +60,6 @@ export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
 export const COMPACTION_MODES = ["auto", "managed", "off"] as const;
 export type CompactionMode = (typeof COMPACTION_MODES)[number];
 
-// Sampling/penalty bounds (named per noMagicNumbers — the shared numeric source).
 const TEMPERATURE_MIN = 0;
 const TEMPERATURE_MAX = 2;
 const TOP_P_MIN = 0;
@@ -108,10 +73,7 @@ const REPETITION_PENALTY_MAX = 2;
 const COMPACTION_THRESHOLD_MIN = 0.5;
 const COMPACTION_THRESHOLD_MAX = 0.99;
 
-// Per-knob bound schemas — ONE place per numeric bound, spread into BOTH `userIntentSchema` and
-// `presetFormValuesSchema`. Pre-lift these bounds were re-typed in two files; loosening one for a new
-// vendor silently left the other rejecting the value (client accepts → server rejects). MUST stay
-// co-located with `userIntentSchema` (the one bounds source — no split). Every chain is `.optional()`.
+// ONE place per numeric bound — no split source between server/client (client accepts → server rejects).
 export const generationKnobSchemas = {
   thinkingBudgetTokens: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
@@ -152,8 +114,6 @@ export const userIntentSchema = z
     temperature: generationKnobSchemas.temperature,
     topP: generationKnobSchemas.topP,
     topK: generationKnobSchemas.topK,
-    // minP (D68-A) — RP-critical; a real knob resolved by the funnel into ResolvedSampling.minP and
-    // emitted on every wire with a slot (OR chat `minP`, vLLM/BYO `min_p`). No consumer reads it until W2.
     minP: generationKnobSchemas.minP,
     frequencyPenalty: generationKnobSchemas.frequencyPenalty,
     presencePenalty: generationKnobSchemas.presencePenalty,
@@ -161,9 +121,7 @@ export const userIntentSchema = z
     seed: generationKnobSchemas.seed,
     logitBias: z.record(z.string(), z.number()).optional(),
     stop: z.array(z.string()).optional(),
-    // verbosity (D68-B) — a model-gated OpenAI control; the funnel drops it with a `verbosity_dropped`
-    // warning on a model that doesn't list it, and applies it on its REAL wire home (responses
-    // `text.verbosity`). Vocab DERIVED from connection's VERBOSITY_LEVELS (never re-spelled). Inert until W2.
+    // Vocab derived from connection's VERBOSITY_LEVELS (never re-spelled).
     verbosity: z.enum(VERBOSITY_LEVELS).optional(),
 
     compaction: z
@@ -174,33 +132,20 @@ export const userIntentSchema = z
       })
       .optional(),
 
-    // Escape hatch — reserved-keys floor enforced at the env-builder / runner-translate seam
-    // (auth / firewall / runner-owned fields can never be overridden).
+    // Escape hatch — reserved-keys floor enforced at the env-builder / runner-translate seam.
     advanced: z
       .object({
         claudeEnv: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
         openrouterCustomParameters: z.record(z.string(), z.unknown()).optional(),
-        // Backend-neutral (D66, W4): where the dynamic (volatile, per-turn) system-prompt half is
-        // delivered. Governs the RESOLVED channel across wire-shapes (the funnel maps it to
-        // `ResolvedChatKnobs.dynamicContextChannel` × the model's `turns.midConversationSystem` gate).
-        //   "system" — joined into the ONE system-prompt string (⇒ `system-block`). Simple, authoritative
-        //     position, but ANY change re-writes the whole cached system block (probe-measured ~12.7k).
-        //   "hook" — a mid-conversation-system channel at the message tail (⇒ `message-tail`; agent-sdk
-        //     UserPromptSubmit hook, anth-direct a hand-placed row). Cache-safe (never touches the cached
-        //     prefix). DEMOTED to `system-block` on a model whose wire-shape has no mid-conv-system
-        //     authority (openai-compat, or a non-honoring model). Absent ⇒ the funnel picks `message-tail`
-        //     iff the model honors mid-conv-system, else `system-block`.
+        // Where the volatile per-turn system-prompt half is delivered: "system" joins it into the cached
+        // system-prompt string; "hook" delivers it at the message tail (cache-safe). Absent ⇒ the funnel
+        // picks "hook" iff the model honors mid-conversation system, else "system".
         dynamicContext: z.enum(["system", "hook"]).optional(),
-        // squashSystemMessages (D66-C, W6) — a PROMPT-panel collapse: merge CONSECUTIVE system-note runs
-        // BEFORE they convert to `user` rows at the SHAPE splice (injections mint system-role notes). An
-        // independent collapse the user may want even with `roleHandling:none` — orthogonal to the
-        // adjacent-same-role (user|assistant) merge below. Absent ⇒ no system-note pre-merge (today's behavior).
+        // Merge CONSECUTIVE system-note runs before they convert to `user` rows — orthogonal to the
+        // adjacent-same-role merge below (roleHandling). Absent ⇒ no pre-merge.
         squashSystemMessages: z.boolean().optional(),
-        // roleHandling (D66-C, W6 REVERSED) — adjacent-same-role (user|assistant) merge strategy. This is USER
-        // INTENT (a prompt-authoring preference), NOT connection/wire config — it moved OFF
-        // `RouteChatAssignment` to live here beside `squashSystemMessages`. The pipeline hands this preset value
-        // to SHAPE, which clamps it against the model's `capability.turns.roleHandlingFloor` (`max(floor, knob)`
-        // at shape.ts) — the user may go STRICTER than the floor, never looser. Unset ⇒ SHAPE falls to the floor.
+        // Adjacent-same-role (user|assistant) merge strategy — user-authoring intent, clamped against the
+        // model's `capability.turns.roleHandlingFloor` at the SHAPE splice (user may go stricter, never looser).
         roleHandling: roleHandlingSchema.optional(),
       })
       .optional(),
@@ -211,9 +156,6 @@ export type UserIntent = z.infer<typeof userIntentSchema>;
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Guided actions — the config half (the resolver + ZWSP neutralization live in `@orb/kit/guided`).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The §7.5 `guidedAction` axis (23 touch / 14 redecls / 4 untyped Records in neo). The canonical KIND
-// union is `GuidedActionKind` (NOT neo's `GuidedAction`); the domain's dispatch is
-// `GUIDED_ACTION_IMPLS: { [K in GuidedActionKind]: Impl<K> }` (a missing arm is a tsc error there).
 
 export const GUIDED_ACTION_KINDS = [
   "response",
@@ -225,10 +167,8 @@ export const GUIDED_ACTION_KINDS = [
 ] as const satisfies readonly string[];
 export type GuidedActionKind = (typeof GUIDED_ACTION_KINDS)[number];
 
-// The `impersonate` action's `{{person}}` word (`@orb/kit/guided`'s `opts.person`, domain `GuidedSteer.
-// person`) — spliced verbatim into "{{person}}-person perspective" templates. Meaningless for every
-// other action (their templates carry no `{{person}}` token). ONE importable union (spine §5.5) so the
-// composer wand's 1st/2nd/3rd-person picker and the domain steer field can never drift apart.
+// The `impersonate` action's `{{person}}` word — spliced verbatim into "{{person}}-person perspective"
+// templates. ONE importable union so the composer picker and the domain steer field can't drift apart.
 export const GUIDED_IMPERSONATE_PERSONS = [
   "first",
   "second",
@@ -237,9 +177,6 @@ export const GUIDED_IMPERSONATE_PERSONS = [
 export type GuidedImpersonatePerson = (typeof GUIDED_IMPERSONATE_PERSONS)[number];
 export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS);
 
-// The default `opening` template mirrors the retired `newChat` sentinel so an unsteered opening reads
-// the same; a trailing {{input}} folds in the composer steer. Const so the schema default +
-// DEFAULT_GUIDED_ACTIONS can't drift.
 const OPENING_DEFAULT_PROMPT =
   "[Open the scene: write your first message to me, in character — set the scene and greet me as {{char}} would. Stay fully in character. {{input}}]";
 const CONTINUE_DEFAULT_PROMPT =
@@ -254,13 +191,10 @@ const REWRITE_DEFAULT_PROMPT =
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
 export const guidedActionConfigSchema = z.object({
-  /** The injection template. `{{input}}` = the user's steering text; standard `{{char}}`/`{{user}}`/`{{persona}}`
-   *  macros also resolve. A missing/empty template falls back to `{{input}}` alone (resolver floor). */
+  /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone. */
   prompt: z.string(),
-  /** Which conversation role this guided action's resolved text is delivered with (D32 — `MessageRole`,
-   *  NOT a re-spelled inline union). `system` renders the `{{guided_instruction}}` marker in the cacheable
-   *  system prompt; `user`/`assistant` push it as an in-chat depth-0 injection (the splice enforces the
-   *  no-prefill / depth-0 wire constraints — not here). */
+  /** Conversation role the resolved text is delivered with; `system` renders in the cacheable system
+   *  prompt, `user`/`assistant` push as an in-chat depth-0 injection. */
   role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
 });
 export type GuidedActionConfig = z.infer<typeof guidedActionConfigSchema>;
@@ -270,8 +204,7 @@ export const guidedActionsSchema = z.object({
   swipe: guidedActionConfigSchema,
   impersonate: guidedActionConfigSchema,
   rewrite: guidedActionConfigSchema,
-  // Defaulted (not required) so a stored blob predating `opening`/`continue` still parses + GAINS the
-  // default rather than failing the schema and wiping the user's other overrides.
+  // Defaulted (not required) so a stored blob predating opening/continue still parses.
   opening: guidedActionConfigSchema.default({
     prompt: OPENING_DEFAULT_PROMPT,
     role: GUIDED_DEFAULT_ROLE,
@@ -293,23 +226,15 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Custom parameters — the Layer-1 boundary guard (schema). The Layer-2 runtime defense
-// (`deepMergeRequestBody`, "the ACTUAL defense") lives in `@orb/server/kit/custom-parameters`.
+// Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,
+// the ACTUAL defense) lives in `@orb/server/kit/custom-parameters`. Zod strips `__proto__` implicitly;
+// `superRefine` here rejects `constructor`/`prototype` (which Zod does NOT strip) at every nested level.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Prototype-pollution defense Layer 1: Zod v4 strips `__proto__` implicitly; our `superRefine` REJECTS
-// `constructor`/`prototype` (which Zod does NOT strip) at EVERY nested level. Unbranded because
-// symbol-keyed brands don't survive JSON/superjson serialization (the brand was a server-only hint,
-// not the real safety contract — Layer 2's runtime check is).
 
 const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
 
-/** A record intended to overlay onto a request body. Recommended habit: parse via
- *  `customParametersSchema.parse()` to strip/reject forbidden keys upfront — but the actual defense is
- *  the merge-time runtime check (`deepMergeRequestBody`, server/kit). */
 export type CustomParameters = Record<string, unknown>;
 
-/** Reject every prototype-pollution key present on `obj`, at the level it appears. Shared by the
- *  top-level schema and the recursive object arm (one rule, both sites). */
 function rejectForbiddenKeys(obj: Record<string, unknown>, ctx: z.RefinementCtx): void {
   for (const key of Object.keys(obj)) {
     if (FORBIDDEN_KEYS.has(key)) {
@@ -322,8 +247,7 @@ function rejectForbiddenKeys(obj: Record<string, unknown>, ctx: z.RefinementCtx)
   }
 }
 
-// Recursive lenient JSON validator: string/number/boolean/null/array/plain-object — the shape any wire
-// request body has. The key check rejects FORBIDDEN_KEYS at every level.
+// Recursive lenient JSON validator; the key check rejects FORBIDDEN_KEYS at every level.
 const jsonValueSchema: z.ZodType<unknown> = z.lazy(
   (): z.ZodType<unknown> =>
     z.union([
@@ -336,7 +260,6 @@ const jsonValueSchema: z.ZodType<unknown> = z.lazy(
     ]),
 );
 
-/** Parse + validate a customParameters input. Rejects any forbidden key or non-JSON-shaped value. */
 export const customParametersSchema: z.ZodType<CustomParameters> = z
   .record(z.string(), jsonValueSchema)
   .superRefine(rejectForbiddenKeys);
@@ -346,11 +269,9 @@ export const customParametersSchema: z.ZodType<CustomParameters> = z
 // knobs + regex/variables/customParameters + the names/postfix/format/guided/postProcess knobs.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** Marker = a SLOT filled from chat data at assembly time (vs a literal text block). The two
- *  character-overridable preset slots (`main_prompt`, `post_history`) follow SillyTavern's model: the
- *  card field REPLACES the slot content in place (`{{original}}` recovers the preset text). `chat_history`
- *  is the PIVOT — sections before build the system block, sections after land after the conversation. */
-// Templated markers carry an editable `template`; plain markers (content owned by the assembler) do not.
+/** Marker = a SLOT filled from chat data at assembly time. `chat_history` is the PIVOT — sections before
+ *  build the system block, sections after land after the conversation. Templated markers carry an
+ *  editable `template`; plain markers (content owned by the assembler) do not. */
 const TEMPLATED_MARKERS = [
   "main_prompt",
   "char_description",
@@ -365,8 +286,6 @@ const TEMPLATED_MARKERS = [
 ] as const satisfies readonly string[];
 type TemplatedMarker = (typeof TEMPLATED_MARKERS)[number];
 
-// PLAIN markers — `chat_history` is the conversation pivot; the two `world_info_*` anchors render the
-// always-scope WI bucket (split by entry metadata.position) at the marker's section position.
 export const PLAIN_MARKERS = [
   "chat_history",
   "world_info_before",
@@ -376,14 +295,13 @@ export const PLAIN_MARKERS = [
 export const MARKER_TYPES = [...TEMPLATED_MARKERS, ...PLAIN_MARKERS] as const;
 export type MarkerType = (typeof MARKER_TYPES)[number];
 
-// Speaker-name handling on outgoing message arrays (#1.5 / `names_behavior`). `none` never includes
-// names; `default` = ST persona-switch prefixing; `content` always prefixes `${name}: `; `completion`
-// populates the OpenAI-spec `name` field.
+// Speaker-name handling on outgoing message arrays (ST `names_behavior`). `none` never includes names;
+// `default` = ST persona-switch prefixing; `content` always prefixes `${name}: `; `completion` populates
+// the OpenAI-spec `name` field.
 export const NAMES_BEHAVIOR = ["none", "default", "content", "completion"] as const;
 export type NamesBehavior = (typeof NAMES_BEHAVIOR)[number];
 
-// Generation types a section's `trigger` can gate on (ST `injection_trigger`). A section with a
-// non-empty `trigger` is included only when the current turn's type is in the list.
+// Generation types a section's `trigger` can gate on (ST `injection_trigger`).
 export const GENERATION_TYPES = [
   "normal",
   "continue",
@@ -394,9 +312,7 @@ export const GENERATION_TYPES = [
 ] as const;
 export type GenerationType = (typeof GENERATION_TYPES)[number];
 
-// Continuation delimiter inserted between existing tip + new chunk on a continue turn. ONE tuple shared
-// by `promptConfigSchema.continuePostfix` AND `presetFormValuesSchema.continuePostfix` (was two
-// inline declarations in neo — no-inline-union-redecl).
+// Continuation delimiter inserted between existing tip + new chunk on a continue turn.
 export const CONTINUE_POSTFIX_TYPES = ["none", "space", "newline", "double-newline"] as const;
 export type ContinuePostfix = (typeof CONTINUE_POSTFIX_TYPES)[number];
 
@@ -404,8 +320,7 @@ export type ContinuePostfix = (typeof CONTINUE_POSTFIX_TYPES)[number];
 const triggerSchema = z.array(z.enum(GENERATION_TYPES)).max(GENERATION_TYPES.length);
 
 /** Absolute-depth placement (ST `injection_position: ABSOLUTE`). Depth 0 = the tail; N = N turns back.
- *  The depth ceiling is the shared `@orb/kit/injection.MAX_INJECTION_DEPTH` (the storage cap == the
- *  injection cap — one source of truth). `order` = ST `injection_order` priority within a depth. */
+ *  Ceiling shared with `@orb/kit/injection.MAX_INJECTION_DEPTH` (one source of truth). */
 const injectSchema = z.object({
   depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH),
   order: z.number().int().min(INJECT_ORDER_MIN).max(INJECT_ORDER_MAX).optional(),
@@ -439,20 +354,17 @@ const templatedMarkerSection = z.object({
   marker: z.enum(TEMPLATED_MARKERS),
   role: z.enum(MESSAGE_ROLES).default("system"),
   enabled: z.boolean().default(true),
-  /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]`. Empty string
-   *  = "render nothing". For the two character-overridable markers this IS the editable preset content
-   *  the card field overrides in place. */
+  /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]`. Empty = render nothing. */
   template: z.string().max(MAX_TEXT_LENGTH).optional(),
   inject: injectSchema.optional(),
   trigger: triggerSchema.optional(),
   /** Block the character-card override for `main_prompt`/`post_history` (ST `forbid_overrides`). */
   forbidCharacterOverride: z.boolean().optional(),
-  /** Block the host ROOM override for `main_prompt`/`post_history`. Independent of the card override. */
+  /** Block the host ROOM override; independent of the card override. */
   forbidRoomOverride: z.boolean().optional(),
 });
 
-// Regular union (not discriminatedUnion): both marker branches share `type: "marker"` and differ only
-// on `marker`, so a single-key discriminator would collide.
+// Regular union (not discriminatedUnion): both marker branches share `type: "marker"`.
 export const promptSectionSchema = z.union([
   literalSection,
   plainMarkerSection,
@@ -479,12 +391,8 @@ export const MANAGED_COMPACT_DEFAULT_PCT = 0.85;
 export const THINK_PREFIX_DEFAULT = "<think>";
 export const THINK_SUFFIX_DEFAULT = "</think>";
 
-// `macro(name)` builds a `{{name}}` placeholder — used so the default templates aren't bare string
-// literals (which `noSecrets` flags as high-entropy for the longer field names).
 const macro = (name: string): string => `{{${name}}}`;
 
-/** The factory framing for each templated marker (pure macro pass-through + the shipped neutral RP
- *  default). Bracketed string-literal keys match the snake_case `MarkerType` members verbatim. */
 export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   ["main_prompt"]: "",
   ["post_history"]: "",
@@ -498,8 +406,8 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   ["guided_instruction"]: macro("guided_instruction"),
 };
 
-// ChoiceBlock — preset-author-declared named variables (POV/tense/style) the user picks per chat; the
-// macro engine exposes them as `{{getvar::<name>}}` / `{{<name>}}`.
+// ChoiceBlock — preset-author-declared named variables (POV/tense/style); the macro engine exposes
+// them as `{{getvar::<name>}}` / `{{<name>}}`.
 const choiceBlockOptionSchema = z.object({
   label: z.string().min(MIN_ID_LENGTH).max(MAX_CHOICE_LABEL_LENGTH),
   value: z.string().max(MAX_CHOICE_VALUE_LENGTH),
@@ -517,18 +425,15 @@ export type ChoiceBlockSpec = z.infer<typeof choiceBlockSchema>;
 
 /** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
 export const PROMPT_CONFIG_SCHEMA_VERSION = 3;
-// Version constants for the lift chain (named so the walk's literals aren't bare numbers).
-const SCHEMA_VERSION_V1 = 1; // the walk floor — a versionless/garbage blob probes as v1.
+const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 
 export const promptConfigSchema = z.object({
   schemaVersion: z.number().int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
   sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
-  // `.catch({})` bounds a malformed params blob to JUST this field (matches the user-settings self-heal
-  // pattern). Without it, `userIntentSchema` is `.strict()`, so a single unknown nested key fails the
-  // OUTER parse and silently degrades the WHOLE preset to DEFAULT_PROMPT_CONFIG — losing the user's
-  // sections, regex, variables. LOAD-BEARING; do not remove for "cleanliness".
+  // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is `.strict()`,
+  // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.
   params: userIntentSchema.catch({}).default({}),
   regexScripts: z.array(regexScriptSchema).max(MAX_REGEX_SCRIPTS).default([]),
   variables: z.array(choiceBlockSchema).max(MAX_VARIABLES).default([]),
@@ -550,10 +455,8 @@ export const promptConfigSchema = z.object({
       singleLine: z.boolean().default(false),
     })
     .optional(),
-  // Inline `<think>` reasoning-tag fallback (D47 #3 / D53). Native reasoning is ALWAYS preferred across every
-  // backend; this only fires when the reply has NO native reasoning AND `autoParse` is on — splitting an inline
-  // `<prefix>…<suffix>` block out of the content into the reasoning channel (@orb/server/kit/reasoning). ONE
-  // tag pair, no registry. `autoParse` defaults OFF (opt-in per preset).
+  // Inline `<think>` reasoning-tag fallback: native reasoning is always preferred; this only fires when
+  // the reply has no native reasoning AND `autoParse` is on. Defaults OFF (opt-in per preset).
   reasoningParse: z
     .object({
       autoParse: z.boolean().default(false),
@@ -568,15 +471,14 @@ export type PromptConfig = z.infer<typeof promptConfigSchema>;
 type RawSection = Record<string, unknown>;
 const isMarker = (s: RawSection, m: string): boolean => s["type"] === "marker" && s["marker"] === m;
 
-/** v1→v2 per-section transform. Returns `null` to DROP the section. (a) `jailbreak` content folds into
- *  `post_history`'s template; the bare `jailbreak`/`char_system` markers are dropped. (b) the literal
- *  `'main'` becomes a `main_prompt` marker carrying its content as the editable template. */
+/** v1→v2 per-section transform. Returns `null` to DROP the section: `jailbreak` content folds into
+ *  `post_history`'s template; the literal `'main'` becomes a `main_prompt` marker. */
 function liftSectionV1(s: RawSection, jailbreakContent: string | undefined): RawSection | null {
   if (isMarker(s, "char_system")) {
-    return null; // folded into main_prompt's in-place override
+    return null;
   }
   if (isMarker(s, "jailbreak")) {
-    return null; // merged into post_history below
+    return null;
   }
   if (s["type"] === "literal" && s["id"] === "main") {
     return {
@@ -596,9 +498,8 @@ function liftSectionV1(s: RawSection, jailbreakContent: string | undefined): Raw
   return s;
 }
 
-/** (c) Insert a `chat_history` pivot immediately before `post_history` ONLY when one exists and no pivot
- *  is present — a config with no post-history needs no boundary (adding one would route all history out
- *  of the prompt). An existing pivot keeps the author's placement. Mutates `lifted`. */
+/** Insert a `chat_history` pivot immediately before `post_history` when one exists and no pivot is
+ *  present yet. Mutates `lifted`. */
 function insertChatHistoryPivot(lifted: RawSection[]): void {
   const hasPivot = lifted.some((s): boolean => isMarker(s, "chat_history"));
   const phIdx = lifted.findIndex((s): boolean => isMarker(s, "post_history"));
@@ -614,7 +515,6 @@ function insertChatHistoryPivot(lifted: RawSection[]): void {
   }
 }
 
-/** Exported so the lift WALK is pinnable (the contract test exercises the three v1→v2 transforms). */
 export const CONFIG_LIFTS: Record<
   number,
   (config: Record<string, unknown>) => Record<string, unknown>
@@ -636,13 +536,12 @@ export const CONFIG_LIFTS: Record<
 
     return { ...c, schemaVersion: SCHEMA_VERSION_V2, sections: lifted };
   },
-  // v2 → v3: purely ADDITIVE (`trigger`, `inject.order` are optional/defaulted). Stamp the version only.
+  // v2 → v3: purely additive (trigger, inject.order optional/defaulted). Stamp the version only.
   2: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V3 }),
 };
 
-/** Walk a raw config blob forward through {@link CONFIG_LIFTS} from `fromVersion` to the current version.
- *  Mirrors `defineVersionedConfig`'s internal lift loop for the STRICT neo-file path (which validates —
- *  and REJECTS — after lifting, rather than degrading to a default). The lifts are total record→record. */
+/** Walk a raw config blob forward through {@link CONFIG_LIFTS} — mirrors `defineVersionedConfig`'s
+ *  internal lift loop for the STRICT file path (validates and REJECTS after lifting, no degrade). */
 function liftConfigForward(
   config: Record<string, unknown>,
   fromVersion: number,
@@ -789,21 +688,8 @@ export function parsePromptConfig(raw: unknown): PromptConfig {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// NO FLAT FORM MAPPER (D66 W10 — preset-form-mapper-elimination.md; deleted 2026-07-11).
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The maintenance-tax `PresetFormValues` + `toPresetFormValues`/`toPromptConfig` flat mappers were
-// DELETED: the client preset editor now binds the nested `PromptConfig` DIRECTLY via TanStack Form's
-// nested-path binding (`name="params.temperature"`, `name="guidedActions.response.prompt"`), so there is
-// no flat key set to keep in sync with every new `PromptConfig` field. The numeric-knob bounds stay
-// sourced from `generationKnobSchemas` (the one bounds object) — the editor spreads them into its own
-// merge-on-submit, never re-typing a bound. Server-only fields the params-panel never edits
-// (`advanced`/`logitBias`/`stop`/`regexScripts`/`variables`/`customParameters`) are preserved by the
-// editor's merge-on-submit against the loaded server `PromptConfig`; the absent-field-round-trips-to-unset
-// discipline (`assignIfDefined`) now lives at that client seam, not in a contract mapper.
-
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
-// PROMPT_MACROS — the canonical macro catalog (client autocomplete + future server linter + docs).
-// When you add a macro to the assembler, add it HERE. The macro ENGINE is `@orb/kit/macro`.
+// PROMPT_MACROS — the canonical macro catalog (client autocomplete + docs). The macro ENGINE is
+// `@orb/kit/macro`; when you add a macro to the assembler, add it HERE too.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 export interface PromptMacroDef {
@@ -1133,8 +1019,7 @@ function mapParams(raw: Record<string, unknown>, dropped: StDroppedField[]): Use
   setNum(out, "frequencyPenalty", readNum(raw, "frequency_penalty"));
   setNum(out, "presencePenalty", readNum(raw, "presence_penalty"));
   setNum(out, "repetitionPenalty", readNum(raw, "repetition_penalty"));
-  // ST `min_p` maps to the real `minP` knob (D68-A) — ST's default (0) means "off", so only carry a
-  // non-default value (matches the top_a/top_k disabled-sentinel discipline). No longer a dropped field.
+  // ST's default (0) means "off", so only carry a non-default value.
   const minP = readNum(raw, "min_p");
   if (minP !== undefined && minP !== ST_MIN_P_DEFAULT) {
     out["minP"] = minP;
@@ -1155,14 +1040,11 @@ function mapParams(raw: Record<string, unknown>, dropped: StDroppedField[]): Use
     out["thinkingDisplay"] = showThoughts ? "summarized" : "omitted";
   }
 
-  // ST `squash_system_messages` maps onto the preset `advanced.squashSystemMessages` intent (D66-C W6, the
-  // REVERSED home): only carry a `true` (ST's default `false` = "no preference", never pinned). No longer a
-  // dropped field.
+  // Only carry a `true` (ST's default `false` = "no preference", never pinned).
   if (raw["squash_system_messages"] === true) {
     out["advanced"] = { squashSystemMessages: true };
   }
 
-  // Sampling knobs with no neo vocabulary. (`min_p` now maps to `minP` above — no longer dropped.)
   const topA = readNum(raw, "top_a");
   if (topA !== undefined && topA !== ST_TOP_A_DEFAULT) {
     dropped.push({ field: "top_a", reason: "no neo sampling vocab" });

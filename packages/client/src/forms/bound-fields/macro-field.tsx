@@ -1,13 +1,7 @@
-// Bound macro-aware textarea — `useFieldContext<string>()` binding `@orb/ui/macro-textarea` inside
-// `<Field>`. The first consumer is the persona editor's description (FINAL-Persona §A.6b — "macro-aware
-// textarea"); the macro catalog is passed in as `suggestions` (ui imports no domain registry). Controlled
-// always (see text-field.tsx — the reseed lifecycle depends on it).
-//
-// `showTokenCount` (C10 rollup): every prompt-bearing card/persona field wants the SAME live below-field
-// "~N tokens" line (FINAL-Character §6.3), computed off the draft via the ONE kit estimator
-// (`@orb/kit/tokens`). Promoted here instead of hand-assembled per call site (`character-main-tab.tsx`,
-// `character-advanced-tab.tsx`, `character-greeting-preview.tsx`, `persona-editor.tsx` all built the same
-// `form.Subscribe` + right-aligned mono row). Fields that never reach the model (creatorNotes) omit it.
+// Bound macro-aware textarea — useFieldContext<string>() binding @orb/ui/macro-textarea inside <Field>.
+// The macro catalog is passed in as `suggestions` (ui imports no domain registry). `showTokenCount`
+// renders a live "~N tokens" line below the field, computed via the one kit estimator — promoted here
+// instead of hand-assembled per call site.
 
 import { estimateTokens } from "@orb/kit/tokens";
 import { Field } from "@orb/ui/field";

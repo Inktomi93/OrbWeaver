@@ -104,13 +104,9 @@ function factoryFileViolations(sf: SourceFile): Violation[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE gate via visitFile) ───────────────────────────────
-// Two arms, per-FILE dispatch: the factory file runs ARM B (the Omit<…, "reset"> strip must be present —
-// a file-level ABSENCE check — and no returned `reset` property), every OTHER client file that IMPORTS the
-// factory runs ARM A (a `.reset(` call on a form-shaped receiver). The absence check (ARM B's OMIT_MISSING)
-// is why this is visitFile not per-node — "no Omit anywhere in the file" can't be a node predicate.
-// scanRoot mirrors the legacy CLIENT_SRC filter. Distinct messages → per-occurrence overrides. Findings
-// byte-identical to the legacy Check.
+// Two arms, per-FILE dispatch: the factory file runs ARM B (the Omit<…, "reset"> strip must be present,
+// and no returned `reset` property), every OTHER client file that imports the factory runs ARM A (a
+// `.reset(` call on a form-shaped receiver).
 function overrideFinding(v: Violation, token: string): Finding {
   return { file: v.file, line: v.line, column: 0, message: v.message, token };
 }

@@ -1,13 +1,7 @@
-// The §6.1 hero band — the editor's visual centerpiece (a face and a voice, pinned above the Main/Advanced
-// tabs). Composition ONLY over built primitives (no new seal). It mixes the two commit models by DESIGN
-// (§2): the NAME is a DRAFT card field (bound to the form → the save-bar), while the portrait, star, and
-// archive are IMMEDIATE identity commits (`character.update` single-key patches, never the save-bar, never
-// the dirty pill). The accent swatch is a READ-ONLY preview of the resolved themeOverride (the theme control
-// itself is single-homed in the Wave-3 CONTEXT Appearance tab — a preview here, not a second editor). The
-// spoiler eye is pure device-local view state. The greeting bubble + tags row are their own components.
-//
-// avatar kind = "avatar" (a raw uploaded image, the persona-panel-row precedent) — a full card PNG is the
-// import path, not a click-to-replace portrait.
+// The hero band — the editor's visual centerpiece. Mixes two commit models by design: the name is a draft
+// card field (bound to the form → save-bar), while the portrait/star/archive are immediate identity
+// commits (`character.update` single-key patches). The accent swatch is a read-only preview of the
+// resolved themeOverride — the theme control itself lives in the CONTEXT Appearance tab.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
@@ -37,8 +31,7 @@ import { CharacterTagSuggestions } from "./character-tag-suggestions";
 import { CharacterTagsRow } from "./character-tags-row";
 import { CharacterTokenCounter } from "./character-token-counter";
 
-/** The identity/preview subset of the owner card the hero renders (the surface passes it from `character.get`
- *  — the DRAFT card fields flow through the `form` instead). */
+/** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
 export interface CharacterHeroDetail {
   readonly id: CharacterId;
   readonly handle: string;
@@ -55,14 +48,13 @@ export interface CharacterHeroBandProps {
   readonly detail: CharacterHeroDetail;
   readonly form: AppFormInstance<CharacterCardFormValues>;
   readonly trpc: Trpc;
-  /** §9c "New chat" — starts a FRESH chat with this character (the surface fires startNewChat + jumps to
-   *  the Chats section). Star/archive/delete no longer live here — they moved to the LIST row (redesign). */
+  /** Starts a fresh chat with this character (the surface fires startNewChat + jumps to Chats). */
   readonly onNewChat: () => void;
-  /** "N chats ›" — jumps to this character's threads in the roomy CHATS section (navigation, not editing). */
+  /** "N chats ›" — jumps to this character's threads in the Chats section. */
   readonly onViewChats: () => void;
-  /** How many chats exist with this character (drives the "N chats ›" affordance; 0 hides it). */
+  /** How many chats exist with this character; 0 hides the "N chats ›" affordance. */
   readonly chatCount: number;
-  /** The greeting the hero is previewing (drives the §6.5 total; lifted to the surface). */
+  /** The greeting the hero is previewing — lifted to the surface. */
   readonly activeGreetingIndex: number;
   readonly onActiveGreetingIndexChange: (index: number) => void;
 }
@@ -121,9 +113,8 @@ export function CharacterHeroBand({
   );
 }
 
-/** The click-to-replace portrait — IMMEDIATE commit (upload-complete = commit, §2/§6.1). A confirmation ring
- *  flashes on the portrait (no toast). `FileTrigger` backs the click (the headless file-picker primitive —
- *  rollup-audit C3/D1). */
+/** The click-to-replace portrait — immediate commit (upload-complete = commit). A confirmation ring
+ *  flashes on the portrait (no toast). */
 function HeroPortrait({
   detail,
   trpc,
@@ -141,8 +132,7 @@ function HeroPortrait({
       const stored = await uploadAsset(file, "avatar");
       update.mutate({ characterId: detail.id, input: { avatarAssetId: stored.assetId } });
       setPreviewHash(stored.hash);
-      // The portrait-ring pulse confirmation (§6.1) — a static ring flash, no keyframe (reduced-motion-safe
-      // by construction); clears itself shortly after.
+      // A static ring flash, no keyframe (reduced-motion-safe by construction); clears itself shortly after.
       setConfirming(true);
       globalThis.setTimeout((): void => setConfirming(false), CONFIRM_MS);
     } catch {
@@ -183,9 +173,7 @@ function HeroPortrait({
 
 const CONFIRM_MS = 1500;
 
-/** Read-only accent preview (§6.1) — painted via `<ThemeScope>` (the gate-enforced path a themeOverride
- *  reaches the DOM; character-card.tsx precedent). The theme CONTROL lives in the Wave-3 CONTEXT Appearance
- *  tab; this is a preview, not a second editing home. */
+/** Read-only accent preview — the theme control itself lives in the CONTEXT Appearance tab. */
 function AccentSwatch({
   themeOverride,
 }: {
@@ -203,8 +191,7 @@ function AccentSwatch({
   );
 }
 
-/** The "New chat" primary · the "N chats ›" jump · the spoiler eye (view state). Star/archive/delete moved
- *  to the LIST row (character-editor redesign — declutter the hero). */
+/** The "New chat" primary · the "N chats ›" jump · the spoiler eye (view state). */
 function HeroActions({
   spoilerBlur,
   onNewChat,

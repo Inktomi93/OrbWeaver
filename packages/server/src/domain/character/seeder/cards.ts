@@ -1,21 +1,9 @@
-// domain/character/seeder/cards — the authored default-card pack.
-//
-// Carried VERBATIM from neo-tavern's `domain/character/seed.ts` (Alex 2026-06-28): the Assistant (the welcome
-// assistant) + Rev + Niko + Mara + JFC — 5 authored cards. The ONLY content edit is the Assistant copy's
-// s/neo-tavern/orbweaver/ rename (description/scenario/creatorNotes that named "neo-tavern"); the other four
-// cards' voice is untouched.
-//
-// neo's `proposedTags` rides as a sibling `tags` array on each `SeedCard` (NOT a `CreateCharacterInput` field
-// — orbweaver tags are the `character_tags` junction, D28, not a card blob). The seeder attaches each
-// card's tags as card/pending suggestions after `create` — the SAME card-native carry as an imported card's
-// `card.tags` (one model, no separate flow). The arrays are restored verbatim from neo's seed.
-//
-// Card voice provenance: mined from `references/card-refinery` (the CardRefinery — "Your waifu is trash.
-// Let's fix that.") and justfuckingcode.com for JFC. See each card's creatorNotes.
+// domain/character/seeder/cards — the authored default-card pack: Assistant + Rev + Niko + Mara + JFC.
+// Each card's tags ride as a sibling `tags` array on SeedCard (not a CreateCharacterInput field — orbweaver
+// tags are the character_tags junction); the seeder attaches them as card/pending suggestions after create.
 
 import type { SeedCard } from "../contract/seeder";
 
-/** The handle of the card that becomes `seeds.welcomeAssistantCharacterId` for a fresh user. */
 export const WELCOME_ASSISTANT_HANDLE = "assistant";
 
 // biome-ignore-start lint/security/noSecrets: authored card example-dialogue / greeting prose, not credentials (the long "<START>…" strings are high-entropy false positives).

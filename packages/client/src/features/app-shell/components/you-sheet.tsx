@@ -1,15 +1,10 @@
-// YouSheet — the body of the mobile "You" bottom sheet (L6/J12 · D62 P3). The mobile bottom bar is a
-// curated four (Chats · Characters · Corpus · You); everything else folds in HERE: the account/settings/
-// theme footer affordances the desktop rail shows directly, plus the OVERFLOW sections (the non-
-// `mobilePrimary` rail sections — derived, never a parallel list). Each row COMPOSES the existing L5
-// surfaces by OPENING them in the shared modal slot (`openModal`) — a single-slot layered handoff (the
-// You sheet closes as settings/theme opens), NOT a nested modal or a re-implementation.
+// YouSheet — the body of the mobile "You" bottom sheet. The mobile bottom bar is a curated four; everything
+// else folds in here: the account/settings/theme footer affordances the desktop rail shows directly, plus
+// the overflow sections (derived, never a parallel list). Each row composes the existing surfaces by
+// opening them in the shared modal slot — a single-slot layered handoff, not a nested modal.
 //
-// SHELL-TIER, DOMAIN-AGNOSTIC (why it's a real in-registry modal body, not route-injected): this surface
-// only calls `#state` writers (`setActiveSection` / `openModal` / `closeModal`) + reads the rail's OWN
-// section registry — zero Chat/Character knowledge. So it lives legitimately in app-shell and renders
-// directly from MODAL_SLOTS (no `placeholder: true` — it's a real body, and the `modal-body-not-
-// placeholder` gate is satisfied because it never returns a SectionPlaceholder).
+// Shell-tier, domain-agnostic: this surface only calls #state writers and reads the rail's own section
+// registry, so it renders directly from MODAL_SLOTS as a real body.
 
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve LucideIcon fine (the settings-shell-surface.tsx precedent).
 import type { LucideIcon } from "@orb/ui/icons";
@@ -23,8 +18,7 @@ import type { ModalSlotId, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useActiveSection } from "#state";
 import { RAIL_SECTIONS } from "../lib/rail-slots";
 
-/** The account/settings/theme rows — the desktop rail's footer affordances, folded into the You sheet.
- *  Each opens its L5 surface in the shared modal slot (the You sheet closes, that modal opens). */
+/** The account/settings/theme rows — the desktop rail's footer affordances, folded into the You sheet. */
 const YOU_MODAL_ROWS: readonly {
   readonly id: ModalSlotId;
   readonly label: string;
@@ -38,13 +32,9 @@ const YOU_MODAL_ROWS: readonly {
 /** The You bottom-sheet body: account/settings/theme + the overflow (non-`mobilePrimary`) sections. */
 export function YouSheet(): ReactElement {
   const activeSection = useActiveSection();
-  // The OVERFLOW sections — every rail section NOT on the mobile bottom bar (derived from the registry, so
-  // a new section shows up here automatically, never silently dropped — the mobilePrimary contract).
   const overflowSections = RAIL_SECTIONS.filter((s) => s.mobilePrimary !== true);
 
   const openYouModal = (id: ModalSlotId): void => {
-    // Single-slot handoff: opening the target modal REPLACES the `you` sheet in the shared `openModal`
-    // slot (not a stacked modal). `openModal` overwrites the open id, so no explicit close is needed.
     openModal(id);
   };
   const goToSection = (id: SectionId): void => {

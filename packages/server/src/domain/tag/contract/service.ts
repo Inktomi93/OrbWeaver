@@ -1,15 +1,6 @@
-// domain/tag/contract/service — the typed API surface (read THIS to know everything the tag domain does).
-// Holds:
-//   • RequireParticipant  the dependency-inversion port the tag domain needs from `domain/chat` (the D30
-//                         chat-tag membership gate). Declared HERE as the slice tag consumes; satisfied
-//                         structurally at the composition root by chat's real participant guard — tag
-//                         sideways-imports NOTHING (domain-no-cross-feature; the type-only edge is sanctioned).
-//   • TagContext          the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
-//   • TagService          the 11-verb authoritative interface (the front door re-exports the type)
-// Tag verbs gate on the `Principal` they are handed — owner-equality scoping (`WHERE ownerId = principal.userId`)
-// for the four target-derived junctions + the tag namespace; the chat-tag junction (D30) additionally routes
-// through the injected `requireParticipant` (its target `chats` has no owner — D18). No admin/owner role gate:
-// tags are personal labels (owner-equality is the whole permission model).
+// The typed API surface: RequireParticipant (the DI port into domain/chat's membership gate), TagContext
+// (the DI bundle), and TagService (the verb interface). Tag verbs gate on owner-equality scoping; the
+// chat-tag junction additionally routes through the injected `requireParticipant` since chats have no owner.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
@@ -36,65 +27,37 @@ import type {
 } from "./params";
 import type { PruneUnusedResult } from "./results";
 
-/**
- * The D30 chat-tag membership gate — the cross-feature op the tag domain injects from `domain/chat`. A
- * `chat_tags` row is a PER-USER overlay on a membership-scoped chat (no `chats.ownerId`, D18), so attach /
- * detach must verify the principal is a participant of the chat. THROWS (rejects) for a non-member; resolves
- * for a member. Wired at the composition root with chat's real guard; never sideways-imported.
- *
- * The port TYPE is homed here (the injecting domain declares the shape). The `entry` root injects chat's real
- * `requireParticipant` into `createTagService`.
- */
+/** The chat-tag membership gate injected from `domain/chat`. Throws for a non-member, resolves for a
+ *  member. Wired at the composition root with chat's real guard; never sideways-imported. */
 export type RequireParticipant = (principal: Principal, chatId: ChatId) => Promise<void>;
 
-/**
- * The DI bundle the tag verbs close over (wired at `service.ts` / the entry root). `newTagId` is the
- * injected id seam (no ambient id — testing §3); `requireParticipant` is chat's membership gate (the only
- * cross-feature dep). `db` is the persistence handle. NO clock: tag rows born-stamp `createdAt` via the
- * schema's SQL default (no JS wall-clock), and no tag view surfaces a timestamp — which is also why `audit`
- * takes NO `at` param: the root pre-binds the write timestamp from ITS injected clock
- * (`(entry) => logAudit(db, entry, now())`), keeping the tag verbs clockless (test-determinism intact).
- */
+/** The DI bundle the tag verbs close over. Tag rows have no clock dependency — `createdAt` is a SQL default
+ *  and `audit` takes no `at` param, keeping the verbs clockless. */
 export interface TagContext {
   readonly db: Db;
   readonly newTagId: () => TagId;
   readonly requireParticipant: RequireParticipant;
-  /** Best-effort audit write (foundation `logAudit` contract — suppress-and-drop, never the primary
-   *  channel), timestamp pre-bound at the composition root. */
   readonly audit: (entry: AuditEntry) => Promise<void>;
-  /** The user-bus live-freshness emit (PD user-bus lane) — every tag mutation (CRUD + junction attach/detach)
-   *  fires `tagsChanged` with the acting owner's `userId` AFTER its durable write, so a second device's tag
-   *  list / usage refetches. Wired to transport's `publishUserEvent` at the entry root; fire-and-forget. */
+  /** Fires `tagsChanged` after every tag mutation's durable write, fire-and-forget. */
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/**
- * The tag taxonomy surface: 5 CRUD + 3 management + the junction trio (11 principal-gated verbs) + the
- * internal by-name attach op. Every verb is
- * owner-scoped on `params.principal.userId`; the junction trio additionally gates the TARGET (target-derived
- * ownership for character/worldBook/persona/preset; injected membership for chat — D30).
- */
+/** The tag taxonomy surface. Every verb is owner-scoped on `params.principal.userId`; the junction trio
+ *  additionally gates the target (target-derived ownership, or injected membership for chat). */
 export interface TagService {
   readonly createTag: (params: CreateTagParams) => Promise<TagView>;
   readonly getTag: (params: GetTagParams) => Promise<TagView>;
   readonly listTags: (params: ListTagsParams) => Promise<TagView[]>;
   readonly updateTag: (params: UpdateTagParams) => Promise<TagView>;
   readonly removeTag: (params: RemoveTagParams) => Promise<void>;
-  /**
-   * Fold `sourceTagId` INTO `targetTagId`: re-point every attachment across all five junctions to the
-   * target (deduping where the target already tags that entity — the STRONGEST character status survives,
-   * `accepted` over `pending`), then delete the source tag. ONE atomic libSQL batch. Owner-scoped (both
-   * tags must be the principal's — a foreign tag reads as `TagNotFoundError`); a self-merge (equal ids) is
-   * a `DomainOperationError`.
-   */
+  /** Fold `sourceTagId` into `targetTagId`: re-point every attachment across all five junctions to the
+   *  target (deduping — the strongest status survives), then delete the source tag. One atomic batch. A
+   *  self-merge (equal ids) is a `DomainOperationError`. */
   readonly mergeTags: (params: MergeTagsParams) => Promise<void>;
   readonly listTagsWithUsage: (params: ListTagsWithUsageParams) => Promise<TagWithUsage[]>;
-  /**
-   * Enumerate the owner's STAGED (`status:'pending'`) character-tag suggestions — the Accept/Reject review
-   * queue (PD-40 distill + import's card-tag carry). `characterId` narrows to one editor's suggestions; absent
-   * = the whole pending inbox. Each row is a {@link TagSuggestionView} (the tag + its `characterId`, so the UI
-   * renders the chip with name/colors). READ-ONLY: Accept = `attachTag(status:'accepted')`, Reject = `detachTag`.
-   */
+  /** Enumerate the owner's staged (`status:'pending'`) character-tag suggestions — the Accept/Reject review
+   *  queue. `characterId` narrows to one editor's suggestions; absent = the whole pending inbox. Read-only:
+   *  Accept = `attachTag(status:'accepted')`, Reject = `detachTag`. */
   readonly listPendingSuggestions: (
     params: ListPendingSuggestionsParams,
   ) => Promise<TagSuggestionView[]>;
@@ -103,23 +66,11 @@ export interface TagService {
   readonly attachTag: (params: AttachTagParams) => Promise<void>;
   readonly detachTag: (params: DetachTagParams) => Promise<void>;
   readonly bulkAttachTag: (params: BulkAttachTagParams) => Promise<void>;
-  /**
-   * Resolve-or-create the owner's tag BY NAME (race-safe on the `(ownerId, name)` unique), then attach it to
-   * the character, idempotently. The ONE by-name attach home shared by character's `bulkAddCardTag`, import's
-   * card-tag carry, and the seeded default cards (no parallel flow). `source`/`status` default to
-   * `manual`/`accepted` (the unchanged manual-add path); import / a seeded card pass `card`/`pending` to stage
-   * a suggestion. `source` is stamped only on first create; a re-attach never downgrades `accepted`→`pending`
-   * (`onConflictDoNothing`). Returns `true` if NEWLY attached, `false` if the character already carried it.
-   * NOT principal-gated — it trusts the caller-resolved `ownerId` (the caller already owner-verified the row).
-   */
+  /** Resolve-or-create the owner's tag by name (race-safe), then attach it to the character, idempotently.
+   *  `source`/`status` default to `manual`/`accepted`; import/seeded cards pass `card`/`pending` to stage a
+   *  suggestion. Not principal-gated — trusts the caller-resolved `ownerId`. */
   readonly attachCardTagByName: (params: AttachCardTagByNameParams) => Promise<boolean>;
-  /**
-   * Resolve the owner's tag BY NAME (case-insensitive, NO create) and detach it from the character — the
-   * mirror of {@link attachCardTagByName} (character's injected `DetachCardTagOp`, the by-name detach home).
-   * Returns `true` if a junction row was removed, `false` if the owner has no such tag OR the character never
-   * carried it (idempotent on absent — a detach never throws, never mints a tag). The tag row itself survives
-   * a detach (an orphaned tag is the prune-unused concern). NOT principal-gated — it trusts the
-   * caller-resolved `ownerId` (`character.bulkRemoveCardTag` already owner-verified the character).
-   */
+  /** Resolve the owner's tag by name (case-insensitive, no create) and detach it from the character.
+   *  Idempotent on absent. The tag row itself survives a detach. Not principal-gated. */
   readonly detachCardTagByName: (params: DetachCardTagByNameParams) => Promise<boolean>;
 }

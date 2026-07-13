@@ -1,10 +1,6 @@
-// The Regex editor Dialog (BUILD-SPEC §8) — binds `regexScripts[i].*` (the `regexScriptSchema`) on the
-// direct-bind form: name · the FIND pattern (via `@orb/ui/code-editor`, per spec) · replaceString ·
-// placement (the multi-toggle over `REGEX_PLACEMENTS`) · enabled + the ST card-format leg flags. Every
-// field round-trips through the editor's Save (the merge flip carries `edited.regexScripts`).
-//
-// The find pattern is the code-editor (mono + diagnostics layer) rather than a plain input — a regex is
-// code. It is controlled (value/onChange), so it's wired through the array-item `form.AppField` by hand.
+// The Regex editor Dialog — binds `regexScripts[i].*` on the direct-bind form: name · the find pattern
+// (via `@orb/ui/code-editor` — a regex is code) · replaceString · placement · enabled + the ST card-format
+// leg flags.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { REGEX_PLACEMENTS } from "@orb/kit/regex";
@@ -17,9 +13,7 @@ import type { ReactElement } from "react";
 import { lazy, Suspense } from "react";
 import type { AppFormInstance } from "#forms";
 
-// Lazy — CodeMirror is heavy and this dialog is modal-only; lazying its editor (matching theme-editor's
-// CssEditorField) is the last static importer to convert so @orb/ui/code-editor splits out of the entry
-// chunk (P1 bundle fix).
+// Lazy — CodeMirror is heavy and this dialog is modal-only.
 const CodeEditor = lazy(() =>
   import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })),
 );

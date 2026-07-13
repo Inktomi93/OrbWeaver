@@ -1,17 +1,9 @@
-// domain/import/substrate/card — the import-domain card ENTRY: pure, bytes/string in → a `ParsedCard`
-// ({ canonical `CharacterCard`, the author-shipped `tags` }) out (or null on unreadable). Composes
-// `@orb/kit/png-card-chunk` (the PNG tEXt decode) + `@orb/server/kit/serde/card` (`cardFromJson`, the tolerant
-// JSON→canonical normalize + `cardContentHash`). Adds the import-specific bits the serde core deliberately
-// does NOT own: the whole-file `importHash` (provenance + dedup oracle, over the raw bytes — NOT the semantic
-// content), the flatten-to-create-input seam that validates the normalized card against the canonical
-// `createCharacterSchema` (serialization-core §7.3 inv 3 — the tolerant IN normalizer's output is gated by the
-// SAME schema the CRUD wire uses), and the card TAG extraction. `cardFromJson` deliberately drops `data.tags`
-// (tags are the `character_tags` junction, not a card column — import writes
-// `status:'pending'` junction rows from `card.tags`), so the tag NAMES are read straight off the raw card
-// here and carried alongside the canonical card for the verb to attach as card/pending suggestions.
+// domain/import/substrate/card — pure bytes/string in → ParsedCard out (or null on unreadable). Composes
+// png-card-chunk (PNG tEXt decode) + #kit/serde/card (cardFromJson). Adds import-specific bits the serde
+// core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
+// the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
 //
-// PURE: no DB, no fs, no logger. A parse failure returns null (the caller treats null as "skip / not a
-// card", same null contract as the kit codec) — no console (noConsole), no throw at the parse boundary.
+// Pure: no DB, no fs, no logger. A parse failure returns null, never throws.
 
 import { createHash } from "node:crypto";
 import type { CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
@@ -32,14 +24,10 @@ import { ImportCardError } from "../contract/errors";
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
 const UTF8_BOM = 0xfe_ff;
 
-// A parsed card: the canonical `CharacterCard` (for create) PLUS the author-shipped tag names (for the
-// card/pending junction carry — `cardFromJson` drops these). File-local: the verb destructures it; the
-// type-only edge stays inside the substrate (not a cross-boundary contract type).
 interface ParsedCard {
   readonly card: CharacterCard;
   readonly tags: readonly string[];
-  /** The embedded ST `character_book` mapped to the canonical bulk-import shape, or null when the card ships
-   *  no book (the import lorebook op writes it keyed on the character; `cardFromJson` drops it). */
+  /** Embedded ST character_book mapped to the canonical bulk-import shape, or null when the card ships none. */
   readonly book: BulkImportLorebookInput | null;
 }
 
@@ -51,10 +39,7 @@ function asRecord(v: unknown): Record<string, unknown> | null {
     : null;
 }
 
-// Extract the embedded ST lorebook off the raw card (V2/V3 `data.character_book`, or a bare top-level
-// `character_book`) → the canonical `BulkImportLorebookInput`. `selectBestCharacterBook` disambiguates a card
-// that embeds a book twice (most-NAMED-entries wins); the per-entry projection reuses the SAME `#kit/serde/
-// card` IN-serde `exportBookEntry` round-trips against. Null when no book carries any entries.
+// selectBestCharacterBook disambiguates a card that embeds a book twice (most-named-entries wins).
 function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null {
   const root = asRecord(raw);
   if (root === null) {
@@ -80,19 +65,12 @@ function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null
   return { name, description, entries };
 }
 
-// `TextDecoder` is a global (no node import) so the substrate stays import-clean.
 function toText(input: Uint8Array | string): string {
   const raw = typeof input === "string" ? input : new TextDecoder("utf-8").decode(input);
   return raw.charCodeAt(0) === UTF8_BOM ? raw.slice(1) : raw;
 }
 
-// Pull the card's author-shipped tag names off the raw card JSON (V2/V3 `data.tags`, or a bare top-level
-// `tags`) — RAW strings, no normalization here. Only non-strings are skipped (tolerant IN). Trim +
-// whitespace-collapse + case-insensitive dedupe are NOT done here on purpose: the tag resolve-or-create
-// chokepoint (`@orb/kit/tag`'s `normalizeTagName` + the `(ownerId, lower(name))` functional unique) owns the
-// one canonicalization, so the import loop attaching each raw name idempotently collapses within-card AND
-// cross-card dupes there — one home, no second normalize knob. Feeds the card/pending junction carry, NOT
-// the canonical card.
+// Raw strings, no normalization here — the tag resolve-or-create chokepoint owns the one canonicalization.
 function extractCardTags(raw: unknown): string[] {
   if (typeof raw !== "object" || raw === null) {
     return [];
@@ -120,12 +98,11 @@ function fromText(text: string, fallbackName: string): ParsedCard | null {
       book: extractBulkImportLorebook(parsed),
     };
   } catch {
-    return null; // undecodable JSON → "not a card", per the null contract
+    return null;
   }
 }
 
-/** Parse a character-card PNG (the JSON rides in a base64 `ccv3` (V3, preferred) or `chara` (V2) tEXt
- *  chunk). Returns null when the bytes carry no card data (no chunk, malformed PNG, or undecodable JSON). */
+/** JSON rides in a base64 ccv3 (V3, preferred) or chara (V2) tEXt chunk. */
 export function parseCardPng(bytes: Uint8Array, fallbackName: string): ParsedCard | null {
   const decoded = readCardChunk(bytes, "ccv3") ?? readCardChunk(bytes, "chara");
   if (decoded === null) {
@@ -134,25 +111,16 @@ export function parseCardPng(bytes: Uint8Array, fallbackName: string): ParsedCar
   return fromText(decoded, fallbackName);
 }
 
-/** Parse a bare V2/V3 character-card JSON (ST "export as JSON" / a `.json` card), bytes or string — the
- *  JSON sibling of `parseCardPng`, same normalize core, no PNG chunk extraction. */
 export function parseCardJson(input: Uint8Array | string, fallbackName: string): ParsedCard | null {
   return fromText(toText(input), fallbackName);
 }
 
-/** sha-256 hex of the whole imported FILE bytes — the per-card provenance (`characters.import_hash`) +
- *  the byte-level re-import dedup oracle. DISTINCT from `cardContentHash` (the semantic-fields hash): a
- *  re-encoded identical card hashes the same content but a different file. */
+/** Distinct from cardContentHash: a re-encoded identical card hashes the same content but a different file. */
 export function importFileHash(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-/**
- * Flatten a canonical card → the `CreateCharacterInput` the create op consumes, deriving the per-owner
- * `handle` from the name and attaching the stored avatar. VALIDATES the result against the canonical
- * `createCharacterSchema` (the tolerant-IN → strict-validate seam, §7.3 inv 3).
- * @throws {@link ImportCardError} `card_invalid` when the normalized card fails the canonical schema.
- */
+/** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */
 export function cardToCreateInput(
   card: CharacterCard,
   avatarAssetId: AssetId | null,
@@ -160,7 +128,6 @@ export function cardToCreateInput(
   const candidate = {
     handle: slugifyHandle(card.name),
     name: card.name,
-    // `description` is the one required (non-nullable) create field; null normalizes to "".
     description: card.description ?? "",
     personality: card.personality,
     scenario: card.scenario,

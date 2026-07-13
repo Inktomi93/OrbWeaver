@@ -5,13 +5,8 @@ import type { BatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 
-// domain/sessions/persistence/users — the `users`-row resolution queries (the table DEFINITION stays in
-// @orb/db; this domain is its only resolution-path writer). Lookups for `ensureUser` (by handle) +
-// `provisionIdentity` (by the stable externalId, then handle). Race-tolerant inserts via
-// `onConflictDoNothing`. Timestamps arrive as PARAMS (the verb's injected clock — determinism).
-//
-// Query SHAPES are file-local (not exported): callers pass literals + read the inferred/annotated return,
-// so no feature type leaks out of `persistence/` (no-inline-types).
+// The `users`-row resolution queries. Lookups for `ensureUser` (by handle) + `provisionIdentity` (by
+// externalId, then handle). Race-tolerant inserts via `onConflictDoNothing`. Timestamps arrive as params.
 
 /** The columns `provisionIdentity` needs to decide preserve-vs-update (incl. live `role`/`enabled`/`email`). */
 interface ProvisionRow {
@@ -69,8 +64,7 @@ export async function selectAuthByHandle(
   return rows.at(0);
 }
 
-/** `loadUserById` lookup: the live row for a bare user id (the entry root's frozen-host → `Principal`
- *  bridge — PD-73). Reuses the provision column set (id/handle/externalId/role/enabled). */
+/** `loadUserById` lookup: the live row for a bare user id. */
 export async function selectForProvisionById(
   db: Db,
   id: UserId,
@@ -89,15 +83,15 @@ export async function selectIdByHandle(db: Db, handle: Handle): Promise<UserId |
   return rows.at(0)?.id;
 }
 
-/** The `kind` of a user row — the `sessions.create` agent-refusal belt (agent-principal-design/01 §3.2): an
- *  agent principal is structurally sessionless, so a session must never be minted for one. FLAG[PD-17]. */
+/** The `kind` of a user row — the `sessions.create` agent-refusal belt: an agent principal is structurally
+ *  sessionless, so a session must never be minted for one. FLAG[PD-17]. */
 export async function selectKindById(db: Db, id: UserId): Promise<UserKind | undefined> {
   const rows = await db.select({ kind: users.kind }).from(users).where(eq(users.id, id)).limit(1);
   return rows.at(0)?.kind;
 }
 
-/** The `provisionAgentPrincipal` owner-gate read (agent-principal-design/01 §4): the prospective owner's kind
- *  + enabled state. A HUMAN may own agents; a non-human (no nested agents) or disabled owner is refused. */
+/** The `provisionAgentPrincipal` owner-gate read: the prospective owner's kind + enabled state. A human may
+ *  own agents; a non-human or disabled owner is refused. */
 export async function selectMintOwner(
   db: Db,
   id: UserId,
@@ -110,12 +104,10 @@ export async function selectMintOwner(
   return rows.at(0);
 }
 
-/** The `provisionAgentPrincipal` mint, as TWO unexecuted statements for ONE `db.batch` (agent-principal-design
- *  /01 §4). Atomic: a crash never leaves an agent `users` row without its satellite. The agent row is
- *  `kind:'agent'`, owned, loginless (`role:'user'`, no password/externalId — the `users_agent_shape` DDL CHECK
- *  enforces the shape). NO `onConflictDoNothing` on the users insert: the `users_handle_unique` violation is
- *  the race arbiter — it THROWS, aborting the whole batch (the satellite never commits), and the verb catches
- *  it to re-read the winner. */
+/** The `provisionAgentPrincipal` mint, as two unexecuted statements for one `db.batch`. Atomic: a crash
+ *  never leaves an agent `users` row without its satellite. No `onConflictDoNothing` on the users insert:
+ *  the unique violation is the race arbiter — it throws, aborting the batch, and the verb re-reads the
+ *  winner. */
 export function agentMintStatements(
   db: Db,
   row: {
@@ -145,10 +137,8 @@ export function agentMintStatements(
   ];
 }
 
-/** The current owner's id, or `undefined` if none exists yet. `provisionIdentity` reads this to enforce
- *  the D17 "exactly one owner" singleton at the mint seam BEFORE a policy-matching second login writes
- *  `role=owner` (which would surface as a raw `users_single_owner_unique` violation). The partial unique
- *  index guarantees at most one owner row, so the `limit(1)` is the whole set. */
+/** The current owner's id, or `undefined` if none exists yet. `provisionIdentity` reads this to enforce the
+ *  "exactly one owner" singleton before a policy-matching second login writes `role=owner`. */
 export async function selectOwnerUserId(db: Db): Promise<UserId | undefined> {
   const rows = await db
     .select({ id: users.id })

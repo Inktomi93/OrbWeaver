@@ -87,13 +87,11 @@ function idColumns(colsObj: Node, tableSqlName: string): IdColumn[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — collect-then-judge ratchet) ────────────────────────
 // STAMP arm (per-node): a `sqliteTable(...)` with an id-shaped column (`*Id`, text/integer, no FK) not on
 // the SOFT_REF_ALLOWLIST → per-site finding at visit. STALE arm (whole-tree): a listed pair whose column
-// gained a FK or vanished → finalize. The stale arm is name-keyed (table.column pairs) against the LIVE
-// allowlist, so a synthetic tree misfires unless guarded — on (a) project scope and (b) the schema BARREL
-// being LOADED (the batch-6 sentinel-file pattern). The barrel is loaded on every real run, so the ratchet
-// is preserved. Per-occurrence.
+// gained a FK or vanished → finalize. The stale arm is name-keyed against the LIVE allowlist, so a
+// synthetic tree misfires unless guarded — on (a) project scope and (b) the schema barrel being loaded.
+// The barrel is loaded on every real run, so the ratchet is preserved.
 const SOFT_REF_SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const seenSoftPairs = new Set<string>();
 

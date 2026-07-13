@@ -1,18 +1,9 @@
 // kit/image-sniff — sniffMime: the pure magic-byte signature sniff shared by the assets domain and the
-// vllm providers backend (PD-123; extends PD-29 + D61/B5a — "a pure `@orb/kit/image-sniff` … the
-// signature tables promote to kit so infra and assets share ONE table"). STRICT semantics: no match →
-// `application/octet-stream`, never a guessed default — a caller that wants a fallback (e.g. vllm's
-// png-default for the data-URI path) applies `?? 'image/png'` at ITS OWN call site, not here.
-//
-// KIT-PURITY: no `node:buffer` (kit is isomorphic — browser + Node, see png-card-chunk's header for the
-// precedent). Hex is hand-packed from raw bytes instead of `Buffer.toString("hex")`.
-//
-// Signatures are compared as HEX PREFIXES (string constants), not byte-array literals — the bytes carry
-// no arithmetic meaning, and the hex form is both linter-clean (noMagicNumbers) and self-documenting.
-//
-// NO BITWISE OPERATORS (repo `noBitwiseOperators` rule): the multi-byte integer + bitfield parsing below
-// composes bytes with multiplication/addition and masks with modulo/division — arithmetic-identical to the
-// `<<`/`|`/`&` a normal parser uses, just spelled the way this codebase mandates.
+// vllm providers backend. Strict semantics: no match → `application/octet-stream`, never a guessed
+// default — a caller wanting a fallback applies `?? 'image/png'` at its own call site.
+// Kit-purity: no `node:buffer` (isomorphic); hex is hand-packed from raw bytes.
+// No bitwise operators (repo rule): multi-byte int/bitfield parsing composes bytes with
+// multiplication/addition and masks with modulo/division instead of `<<`/`|`/`&`.
 
 const HEX_RADIX = 16;
 const BYTE_HEX_WIDTH = 2;
@@ -75,15 +66,9 @@ export function sniffMime(bytes: Uint8Array): SniffedMime {
   return OCTET_STREAM;
 }
 
-// ── Animation detection (gallery-design §3 · G2) ──────────────────────────────────────────────────────
-//
-// Pure chunk-signature inspection — NO decode, NO frame counting. The semantics are deliberately coarse:
-//   • GIF  ⇒ ALWAYS animated (a 1-frame GIF losing its variant-bailout costs nothing; frame-counting the
-//            GIF image blocks costs a parser — gallery-design §3).
-//   • APNG ⇒ the `acTL` animation-control chunk present in the header (it precedes `IDAT` by spec).
-//   • WebP ⇒ the VP8X extended header's animation flag bit, or an `ANIM`/`ANMF` chunk in the header.
-//   • else ⇒ false.
-// FourCC chunk tags are matched as ASCII (`charCodeAt`) so no magic-byte constants are needed.
+// Pure chunk-signature inspection — no decode, no frame counting. GIF is always animated (frame-
+// counting the image blocks costs a parser); APNG checks `acTL`; WebP checks the VP8X animation
+// flag bit or an `ANIM`/`ANMF` chunk.
 
 // A FourCC (four-character-code) chunk tag is 4 bytes — the RIFF/PNG/ISO-BMFF chunk-name width.
 const FOURCC_LEN = 4;
@@ -158,13 +143,9 @@ export function isAnimated(bytes: Uint8Array): boolean {
   return false;
 }
 
-// ── Full byte-facts sniff (`sniffImageBytes`) — signature + parsed dimensions + animated (D61 B5a §3) ───
-//
-// The pure byte-facts the `infra/network/image-guard` policy composes over (magic-sniff + dimension caps
-// on REMOTE bytes) AND the assets domain re-exposes. Dimensions are parsed from each format's header math
-// (NO decode); `null` when the header is present but truncated/unparseable (the caps caller decides whether
-// null dims fail — gallery/hub `requireDimensions` defaults to fail-closed). AVIF is recognized by its
-// `ftyp` brand; its dimensions parse best-effort from the `ispe` box, else `null`.
+// The pure byte-facts `infra/network/image-guard` composes over (magic-sniff + dimension caps on
+// remote bytes). Dimensions parse from each format's header math (no decode); `null` when the
+// header is present but truncated/unparseable.
 
 export interface SniffedImage {
   readonly mime: "image/png" | "image/jpeg" | "image/webp" | "image/gif" | "image/avif";
@@ -320,14 +301,14 @@ function jpegDimensions(b: Uint8Array): Dimensions {
     }
     const marker = b[p + OFF.jpegMarker] ?? 0;
     if (marker === JPEG_MARKER_PREFIX) {
-      p += OFF.jpegMarker; // fill byte — advance one and re-read
+      p += OFF.jpegMarker;
       continue;
     }
     if (isJpegSof(marker)) {
       return { height: u16BE(b, p + OFF.jpegSofHeight), width: u16BE(b, p + OFF.jpegSofWidth) };
     }
     if (isJpegStandalone(marker)) {
-      p += OFF.jpegLenField; // no length segment
+      p += OFF.jpegLenField;
       continue;
     }
     const segLen = u16BE(b, p + OFF.jpegLenField);

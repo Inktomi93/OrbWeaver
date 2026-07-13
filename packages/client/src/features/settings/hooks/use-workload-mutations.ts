@@ -1,10 +1,6 @@
-// The Workloads pane's mutations (Settings → Workloads), one `createEntityMutation` per verb — the
-// module-scope factory pattern (use-admin-mutations.ts). NONE are `busDriven`: the workload verbs emit
-// on the workloads progress bus (SSE `workloads.subscribe`), not on either mapped invalidation bus, so
-// each self-invalidates the `workloads.list` read on settle (path-filtered). TVars are the tRPC-INFERRED
-// inputs (never a hand-restated shape). Server enforcement (singular = any authed caller; bulk =
-// `requireOwner`; cancel/retry IDOR-scoped in the verb) is the floor; these toasts are the honest
-// failure surface.
+// The Workloads pane's mutations, one createEntityMutation per verb. None are busDriven: the workload
+// verbs emit on the workloads progress bus (SSE workloads.subscribe), not either mapped invalidation
+// bus, so each self-invalidates the workloads.list read on settle.
 
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -40,8 +36,6 @@ export const useRetryWorkload = createEntityMutation<
   errorToast: "Couldn't retry the workload — a run of that kind may already be active.",
 });
 
-// ── Schedules (the TIME dimension) — each self-invalidates the `listSchedules` read on settle. ──────────
-
 /** Create a recurring schedule. */
 export const useCreateSchedule = createEntityMutation<
   inferInput<Trpc["workloads"]["createSchedule"]>,
@@ -52,8 +46,7 @@ export const useCreateSchedule = createEntityMutation<
   errorToast: "Couldn't create the schedule.",
 });
 
-/** Retune a schedule in place (kind/params/cadence/mode). `enabled` is NOT here — that stays the Switch's
- *  `setScheduleEnabled`. Owner-scoped + re-gated server-side (a bulk retune requires `requireOwner`). */
+/** Retune a schedule in place (kind/params/cadence/mode). `enabled` is not here — that stays `setScheduleEnabled`. */
 export const useUpdateSchedule = createEntityMutation<
   inferInput<Trpc["workloads"]["updateSchedule"]>,
   unknown

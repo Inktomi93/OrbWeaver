@@ -1,16 +1,6 @@
-// THE character library surface (UI-Arch §2.1 CONSUMER tier · FINAL-Character §4) — the Characters LIST.
-// EXTENDS the working keyset-browse (§12 "don't rebuild"): `createCollectionSurface` over `character.list`
-// (keyset-paged, sliding-window `maxPages`), now with the §4.1 header (title + persistent search + `+`
-// create/import picker), the §4.5 nine-sort select (server `sort` param — a sort change re-keys the query,
-// `keepPreviousData` greys the old rows), the §4.5 filter chips (favorites/archived/tag-AND — CLIENT-side
-// over the loaded pages, same as search; `character.list` has no server filter param), the §4.2 favorites
-// strip, the §4.3 flat⇄categorized view, and §4.6 bulk mode (the collection's own transient id-set +
-// `@orb/ui/selection-bar`). The §4.4 row is `<CharacterCardTile>`.
-//
-// RESUME-OR-NEW (§4.4/§9c): the dual-purpose Chat CTA resumes the most-recent chat with a character or
-// starts a new one. The decision is a RENDER derivation (§5.1 — never an effect on a selection pointer):
-// `resumeTargets` builds characterId → most-recent chatId from the bus-driven `listChats` read; the click
-// fires exactly ONE store action (`selectChat` or `startNewChat`, then `setActiveSection`).
+// The character library surface — the Characters list. `createCollectionSurface` over `character.list`
+// (keyset-paged) with header/search, sort, client-side filter chips, favorites strip, flat/categorized
+// view, and bulk mode. The Chat CTA resumes the most-recent chat with a character or starts a new one.
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import type { CharacterId, TagId } from "@orb/kit/ids";
@@ -75,8 +65,6 @@ const MAX_PAGES = 5;
 type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
 type CharacterLibraryItem = CharacterListPage["items"][number];
 
-/** The one browse machine (§13.1). `params` now carries the §4.5 `sort` — a change re-keys the infinite
- *  query (fresh from `initialCursor: null`; `keepPreviousData` keeps the old rows visible meanwhile). */
 const useCharacterLibraryCollection = createCollectionSurface({
   query: (trpc: Trpc, params: { sort: CharacterListSort }) =>
     trpc.character.list.infiniteQueryOptions(
@@ -116,8 +104,6 @@ export function CharacterLibrarySurface({
   const duplicate = useDuplicateCharacter({ trpc, invalidation });
   const remove = useRemoveCharacter({ trpc, invalidation });
 
-  // §4.4/§9c reverse read — bus-driven `listChats` (staleTime default; `chatsChanged` refreshes it), folded
-  // to characterId → most-recent chatId in render. Degrades to "start new" until it loads (empty map).
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
   const resumeMap = useMemo(() => resumeTargets(chatsQuery.data ?? []), [chatsQuery.data]);
 
@@ -140,16 +126,12 @@ export function CharacterLibrarySurface({
   const toggleArchive = (id: string, next: boolean): void =>
     update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
   const toggleBulk = (id: string): void => collection.selection.toggle(id);
-  // Duplicate → open the fresh copy in the editor (mutateAsync so the selection rides the result — the
-  // CharacterActionsMenu precedent; the .catch keeps a rejected write from leaking an unhandled rejection).
   const duplicateCharacter = (id: string): void => {
     void duplicate
       .mutateAsync({ characterId: castId<CharacterId>(id) })
       .then((created) => selectCharacter(created.id))
       .catch(() => undefined);
   };
-  // Delete → if the deleted card was the one open in CONTENT, clear the selection so the editor doesn't
-  // point at a dropped id (the CharacterActionsMenu precedent).
   const deleteCharacter = (id: string): void => {
     const characterId = castId<CharacterId>(id);
     void remove
@@ -161,7 +143,6 @@ export function CharacterLibrarySurface({
       })
       .catch(() => undefined);
   };
-  // The resume-or-new decision + the ONE sanctioned cross-section jump (§9c) — a writer-only store touch.
   const chatWith = (id: string): void => {
     const characterId = castId<CharacterId>(id);
     const target = resumeMap.get(characterId);
@@ -303,10 +284,6 @@ function CharacterLibraryBody({
     );
   }
   if (filtered.length === 0) {
-    // A search with zero hits gets the search copy. A CHIP-induced empty is different: chips filter
-    // client-side over the loaded sliding window, so a match may live on a not-yet-fetched page — never
-    // show search copy (nor a dead end) for it. When more pages exist, offer Load more (the SAME guarded
-    // fetch the virtual list wires to `onEndApproach`), else say the loaded set holds no match.
     if (query.trim() !== "") {
       return (
         <EmptyState

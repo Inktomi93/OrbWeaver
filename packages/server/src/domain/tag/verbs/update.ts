@@ -1,7 +1,6 @@
-// verb: updateTag — owner-scoped partial patch. `color`/`color2` are tri-state on the wire: `null` clears to
-// the theme default (ST link-to-theme reset), `undefined` leaves the column untouched (the patch omits it).
-// A no-op patch (every field undefined) short-circuits to the current row. A rename into an existing name
-// surfaces the `(ownerId, name)` unique violation, classified into a `DomainConflictError`.
+// verb: updateTag — owner-scoped partial patch. color/color2 are tri-state on the wire: null clears to the
+// theme default, undefined leaves the column untouched. A rename into an existing name surfaces the
+// (ownerId, name) unique violation, classified into a DomainConflictError.
 
 import type { UpdateTagInput } from "@orb/contracts/tag";
 import { isConstraintViolation } from "@orb/db";
@@ -12,17 +11,12 @@ import type { UpdateTagParams } from "../contract/params";
 import type { TagContext, TagService } from "../contract/service";
 import { loadOwnedTag, toTagView, updateOwnedTag } from "../persistence/queries";
 
-// The settable-column patch shape, derived from the persistence writer's signature (no `tags`-table import).
 type TagPatch = Parameters<typeof updateOwnedTag>[3];
 
-/** Build the column patch from the wire input — only keys the caller SET (incl. explicit `null`) are
- *  included; an omitted (`undefined`) key leaves the column unchanged. */
 function buildPatch(input: UpdateTagInput): TagPatch {
   const patch: TagPatch = {};
   if (input.name !== undefined) {
-    // Canonicalize through the ONE normalizer (the create/attach-by-name path) — a rename must land in the
-    // same canonical space or the (ownerId, name) uniqueness silently forks ("a b" vs "a  b"). A
-    // whitespace-only rename normalizes to "" (the wire min(1) passes it) — refuse, never an empty-name row.
+    // A whitespace-only rename normalizes to "" (the wire min(1) passes it) — refuse, never an empty-name row.
     const name = normalizeTagName(input.name);
     if (name.length === 0) {
       throw new DomainOperationError(

@@ -1,37 +1,8 @@
-// Edit-in-place's textarea half (the per-message ACTION cluster's edit affordance; scout brief
-// "edit-in-place"). `message-row.tsx` swaps this in for `<MessageContent>` while
-// `useIsEditingMessage(message.id)` is true — the mode flag + the in-progress TEXT both live in the
-// EXTERNAL `state/message-edit-draft` store, never `useState` (FINAL-Chats §6.3 mandates an external
-// edit-draft store: `@orb/ui/message-list` now ships the PD-119 `keepMounted` predicate, but the chat
-// surface does NOT pin editing rows with it, so a component-local draft would silently drop on a
-// scroll-driven unmount/remount).
-//
-// Keyboard: Enter (no Shift) saves, Esc cancels (discards the draft, reverts to the read-only body),
-// Shift+Enter inserts a newline (the Textarea's native behavior — only plain Enter is intercepted),
-// same contract as the composer's own `onKeyDown` (components/composer.tsx).
-//
-// Save fires `chat.editMessage` directly (module-scope `createEntityMutation`, the swipe-strip.tsx
-// precedent for a mutation living in a `components/` leaf rather than `hooks/`); on success the draft
-// is cleared (exits edit mode) — the bus's `messageEdited` re-fold (already wired,
-// data/bus/apply-chat-bus-event.ts → invalidate) is what refreshes the row's rendered content, this
-// component never patches the query cache itself. A failed save leaves the textarea (and the draft)
-// in place so the user can retry without losing their edit; the mutation's `errorToast` config
-// surfaces the failure through the one global `notify` seam.
-//
-// THE PLUGGABLE SAVE SEAM (decision #3 — the draft greeting): an optional `onSave` OVERRIDES the verb
-// path. A draft greeting has no server row, so `message-row.tsx` passes `onSave={setDraftGreeting}` —
-// the same edit UI, keyboard, and focus behavior, but the text lands in the draft-config store (sync,
-// no mutation) instead of `chat.editMessage`. Empty IS allowed on this path (it clears to the card
-// default at commit, per draft-config-store). Absent `onSave` ⇒ the unchanged committed verb path.
-//
-// SCROLL PRESERVATION (neo precedent, `reference/neo-tavern` message-edit-textarea.tsx): neo manually
-// wrote `el.style.height = "auto"` then `scrollHeight`-remeasured on every keystroke, and had to
-// capture/restore the scroll ancestor's `scrollTop` around that JS-driven collapse-then-regrow (its
-// own "gotcha" — the collapse-to-auto step is what jumped the scroll). `@orb/ui/textarea` grows via
-// native CSS `field-sizing: content` (D54 — deliberately NO JS measuring), which has no collapse step
-// to compensate for; porting neo's scrollTop dance here would be dead code re-solving a problem this
-// primitive doesn't have. What IS ported: autofocus + caret-to-end on entering edit mode (a genuine UX
-// decision, orthogonal to the resize mechanism).
+// Edit-in-place's textarea half — swapped in for MessageContent while a row is editing. The mode flag
+// and in-progress text both live in the external message-edit-draft store, never useState: the chat
+// surface does not keepMounted editing rows, so a component-local draft would silently drop on a
+// scroll-driven unmount/remount. An optional onSave overrides the chat.editMessage verb path (the draft
+// greeting seam, which persists sync to the draft-config store instead).
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -51,9 +22,6 @@ interface EditMessageVars {
   readonly content: string;
 }
 
-// Module-scope factory → a stable hook identity (§13.1). BUS-DRIVEN: `editMessage` emits messageEdited
-// (→ chatReads) on the OPEN chat, delivered by the active subscription → the seam refetches. `busDriven`
-// — re-invalidating those keys was a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
 const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
   options: (trpc) => trpc.chat.editMessage.mutationOptions(),
   busDriven: true,
@@ -62,13 +30,10 @@ const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
 
 export interface MessageEditTextareaProps {
   readonly message: MessageView;
-  /** The pluggable save seam (decision #3): when present, save persists the text HERE (e.g. the draft
-   *  greeting → `setDraftGreeting`) instead of firing the `chat.editMessage` verb. Empty is allowed on
-   *  this path. Absent ⇒ the committed verb path (the default). */
+  /** Overrides the chat.editMessage verb path; empty is allowed on this path. */
   readonly onSave?: ((text: string) => void) | undefined;
 }
 
-/** The in-place edit textarea — replaces a row's read-only body while it is in edit mode. */
 export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -76,7 +41,6 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
   const text = useMessageEditDraftText(message.id);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Autofocus + caret-to-end on entering edit mode (neo precedent, see file header) — mount-only.
   useLayoutEffect(() => {
     const el = textareaRef.current;
     if (el === null) {
@@ -92,17 +56,15 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
 
   const save = async (): Promise<void> => {
     if (onSave !== undefined) {
-      // The pluggable seam (draft greeting): persist locally, exit edit mode. Empty allowed (clears to
-      // the card default at commit). Sync — no mutation, so no pending/error chrome to await.
       onSave(text);
       cancelEditingMessage(message.id);
       return;
     }
     if (editMessage.isPending || text.length === 0) {
-      return; // the server rejects empty content; nothing to save yet
+      return;
     }
     if (text === message.content) {
-      cancel(); // no-op edit — just return to read-only without firing the mutation
+      cancel();
       return;
     }
     try {
@@ -113,8 +75,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
       });
       cancelEditingMessage(message.id);
     } catch {
-      // The sticky mutation error + the global errorToast already surfaced the failure — stay in
-      // edit mode (and keep the draft) so the user can retry without retyping.
+      // Stay in edit mode so the user can retry without retyping.
     }
   };
 
@@ -128,7 +89,6 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
       event.preventDefault();
       void save();
     }
-    // Shift+Enter: the Textarea's native newline insertion, untouched.
   };
 
   return (

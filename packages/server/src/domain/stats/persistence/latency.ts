@@ -1,14 +1,6 @@
-// domain/stats/persistence/latency — the on-read TTFT/gen percentile engine. A percentile isn't additively
-// mergeable, so (unlike everything in rollups.ts) it can't ride the `+=` write path — it's computed HERE on
-// read from canon, scoped to the entity in view (owner / one character / one model). Each scope is a
-// BOUNDED owner-scoped scan; the percentile math is the pure substrate (substrate/percentiles.ts).
-//
-// ORBWEAVER (D26/D28): timing lives on `message_variants`, NOT `messages` (the slot is pure — D26). A
-// message's latency is its SELECTED variant's (`messages.selectedVariantId` — the kept take), mirroring
-// neo's "economics on the active message". Owner-scoping is `messages.characterId → characters.ownerId`
-// (the AI character's owner — D28 keys per-character on `characters.id`; D23 derives owner through it).
-// See the owner-attribution note in rebuild-from-canon.ts (PD-21 confirmed): under v1's enforced
-// host-owned-roster invariant this equals the live StatsDelta builders' D19 host attribution.
+// The on-read TTFT/gen percentile engine. A percentile isn't additively mergeable, so it can't ride the `+=`
+// write path — it's computed here on read from canon, scoped to the entity in view (owner/character/model).
+// Timing lives on `message_variants`, not `messages`; a message's latency is its selected variant's.
 
 import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
@@ -16,8 +8,8 @@ import type { LatencyScope } from "../contract/params";
 import type { LatencyStats } from "../contract/views";
 import { percentiles } from "../substrate/percentiles";
 
-// The `(unknown)` provider sentinel — coalesced at EVERY key site so a null-provider variant matches the
-// model_stats `(unknown)` bucket (invariant #5; mirrors @orb/kit/stats-tally.modelKey + the schema default).
+// The "(unknown)" provider sentinel — coalesced at every key site so a null-provider variant matches the
+// model_stats bucket.
 const UNKNOWN_PROVIDER = "(unknown)";
 
 function assertNever(value: never): never {
@@ -47,10 +39,8 @@ export async function readLatency(
   ownerId: string,
   scope: LatencyScope,
 ): Promise<LatencyStats> {
-  // Narrowing predicate per scope (owner = no extra filter). The model provider coalesces to the sentinel
-  // so a scope provider of '(unknown)'/null matches a null-provider variant (invariant #5).
-  // The dispatch is `assertNever`-exhaustive over `LatencyScope` (§7.5) — a new scope kind fails `tsc`
-  // until its arm exists.
+  // Narrowing predicate per scope (owner = no extra filter). Exhaustive over `LatencyScope` — a new scope
+  // kind fails tsc until its arm exists.
   let narrow = sql``;
   if (scope.kind === "character") {
     narrow = sql`AND m.character_id = ${scope.characterId}`;
@@ -84,16 +74,13 @@ export async function readLatency(
   return statsOf(ttft, gen);
 }
 
-/** Stable Map key for a (model, provider) latency bucket. The provider is coalesced to the sentinel by the
- *  callers BEFORE keying, so this key matches the model_stats `(unknown)` bucket (invariant #5). */
+/** Stable Map key for a (model, provider) latency bucket. */
 export function modelLatencyKey(model: string, provider: string): string {
   return `${model} ${provider}`;
 }
 
-/** Per-(model, provider) latency in ONE owner-scoped scan. `readByModel` previously would call
- *  `readLatency({kind:"model"})` once per row — up to 200 full canon scans under `Promise.all` (O(N×
- *  buckets)). This does a single scan, buckets in JS, and computes percentiles per bucket — O(N). Returns
- *  a Map keyed by `modelLatencyKey`; a missing bucket means no qualifying messages (caller uses null stats). */
+/** Per-(model, provider) latency in one owner-scoped scan: one scan, bucketed in JS, percentiles per bucket
+ *  — O(N) instead of a scan per model. Returns a Map keyed by `modelLatencyKey`. */
 export async function readModelLatencies(
   db: Db,
   ownerId: string,

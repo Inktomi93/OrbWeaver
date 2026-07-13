@@ -16,43 +16,30 @@ import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin";
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;
 
-// Large-block perf guard (#195, UI-Arch §"Large-code-block perf guard"): Streamdown's Shiki
-// re-highlight can freeze the tab on a huge fenced block. Guarding per-block would mean re-parsing
-// markdown ourselves to isolate the fence — re-deriving Streamdown's own parser, the thing this seal
-// exists to avoid — so the guard is on the WHOLE input's length instead (in practice one huge block
-// dominates a message's total length). Above the threshold, skip the Streamdown mount and fall back
-// to a plain, scrollable, un-highlighted `<pre>` (readable, never hangs the tab).
+// Large-block perf guard: Streamdown's Shiki re-highlight can freeze the tab on a huge fenced
+// block. Guarding on the whole input's length (not per-block, which would mean re-parsing markdown
+// ourselves) — above the threshold, fall back to a plain, scrollable, un-highlighted <pre>.
 const MAX_RENDER_LENGTH = 20_000;
 
-// The streaming per-block fade (§6.3.1 credits the reveal fade to Streamdown). Word granularity — NOT
-// char — because `useSmoothText` already paces the reveal by word cut-point in front of this seal;
-// animating per-char here would double-animate the same reveal. `fadeIn` matches the calm cadence.
+// Word granularity, not char — useSmoothText already paces the reveal by word cut-point in front
+// of this seal, so per-char here would double-animate the same reveal.
 const STREAMING_ANIMATION = { animation: "fadeIn", sep: "word" } as const;
 
-// ── prefers-reduced-motion ───────────────────────────────────────────────────────────────────────
-// Streamdown checks reduced-motion for NOBODY (verified in the 2.5 source) — the seal owns it, via
-// the shared `usePrefersReducedMotion` (`#lib`; matchMedia + useSyncExternalStore, one home for the
-// hook this file, charts/chart.tsx, and stream/use-smooth-text.ts all used to fork identically).
+// Streamdown checks reduced-motion for nobody — this seal owns it via the shared usePrefersReducedMotion.
 
 export interface MarkdownProps {
   /**
-   * The render trust tier — **untrusted BY DEFAULT** (D21 / D44 §12.0). `untrusted` = the safe posture
-   * for anything the box owner didn't author: LLM output (indirect prompt-injection can make the model
-   * emit exfil-shaped markup — Claude-Artifacts treats its own model's HTML the same way), imported
-   * cards, and other participants. It applies the Tier-A element allowlist + the url gate (blocks
-   * javascript:/data:/off-allowlist hosts), drops the `<speaker>` custom-tag passthrough, AND withholds
-   * Mermaid (see the render body). `trusted` is the EXPLICIT-OPT-IN escalation — the viewer's OWN input,
-   * or a character/global that opted into rich HTML (the D44 `trustHtml` axis, resolved by the caller) —
-   * and enables Streamdown's permissive defaults + the `<speaker>` literal passthrough. The boundary is
-   * the caller's to resolve; NEVER pick `trusted` for convenience.
+   * The render trust tier — untrusted by default. `untrusted` is the safe posture for anything the
+   * box owner didn't author (LLM output, imported cards, other participants): the Tier-A element
+   * allowlist + url gate, no `<speaker>` passthrough, and Mermaid withheld. `trusted` is the
+   * explicit-opt-in escalation for the viewer's own input or an opted-in character/global — the
+   * boundary is the caller's to resolve; never pick `trusted` for convenience.
    */
   readonly trust: (typeof TRUSTS)[number];
   /**
-   * `static` = a settled message (no incomplete-markdown repair effect, no reveal fade, no caret).
-   * `streaming` = the live/ghost path: Streamdown's `parseIncompleteMarkdown` repair, the per-block
-   * `fadeIn`, and a streaming caret all engage (all still respect reduced-motion). Required — the
-   * caller MUST pick; there is no ambient default (Streamdown's own default is `streaming`, wrong for
-   * settled canon).
+   * `static` = a settled message (no repair effect, no reveal fade, no caret). `streaming` = the
+   * live/ghost path with Streamdown's `parseIncompleteMarkdown` repair, per-block fade, and caret.
+   * Required — there is no ambient default (Streamdown's own default is `streaming`, wrong for settled canon).
    */
   readonly mode: (typeof MODES)[number];
   readonly children: string;
@@ -66,9 +53,8 @@ interface BoundaryState {
   readonly failed: boolean;
 }
 
-// Streamdown's lazy CodeBlock/Mermaid chunks can crash on a stale deploy hash (#343) — a class error
-// boundary converts that white-screen into a graceful fallback (the one place a class is required;
-// React error boundaries have no hook form). Owned inside the seam, not the call site.
+// Streamdown's lazy CodeBlock/Mermaid chunks can crash on a stale deploy hash — a class error
+// boundary converts that white-screen into a graceful fallback (React error boundaries have no hook form).
 class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   override state: BoundaryState = { failed: false };
 
@@ -89,37 +75,22 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 }
 
 /**
- * `@orb/ui/markdown` — the ONE markdown renderer (seals Streamdown 2.5; UI-Gates §6.3/§11.6). It wires
- * Streamdown's FULL useful surface behind a 4-prop API: BOTH `mode`s (settled `static` + live
- * `streaming`), the token-sourced Shiki `code` highlighter plugin (fenced code tracks the app palette in
- * BOTH light/dark slots — the charts-seal lesson; Streamdown 2.5 dropped its bundled Shiki, so this
- * plugin IS the highlighting), the KaTeX `math` + token-styled `mermaid` plugins, `controls` (copy/download/fullscreen —
- * Streamdown's default), `linkSafety` (its default external-link confirm), the streaming `caret`, and
- * the per-block `fadeIn` (reduced-motion-gated). Two trust policies (D44 §12.0/§12.2), **untrusted by
- * default**: `untrusted` (LLM output / imported cards / other users) applies the Tier-A element
- * allowlist + url gate, drops the `<speaker>` passthrough, AND withholds Mermaid (#54 — see the render
- * body); `trusted` (the opt-in escalation) restores Streamdown's permissive defaults + `<speaker>`
- * literal passthrough. Streamdown runs rehype-sanitize + rehype-harden by default, so
- * `<script>`/`on*`/`<style>` are stripped under BOTH policies. GFM is re-pinned `{ singleTilde:false }`
- * so `10~20°C` isn't struck through. The lazy code/mermaid chunks are error-bounded; a pathologically
+ * `@orb/ui/markdown` — the one markdown renderer, sealing Streamdown 2.5 behind a 4-prop API: both
+ * `mode`s, the token-sourced Shiki `code` plugin, the KaTeX `math` + token-styled `mermaid`
+ * plugins, `controls`, `linkSafety`, the streaming caret, and the per-block fade. Two trust
+ * policies, untrusted by default: `untrusted` applies the Tier-A element allowlist + url gate,
+ * drops `<speaker>`, and withholds Mermaid; `trusted` restores Streamdown's permissive defaults.
+ * Streamdown runs rehype-sanitize + rehype-harden by default under both policies. A pathologically
  * large input falls back to a plain `<pre>`.
- *
- * Usage:
- *   `<Markdown trust="untrusted" mode="static">{message.body}</Markdown>`  (settled canon — the default)
- *   `<Markdown trust="trusted" mode="streaming">{repaired}</Markdown>`     (own input / opted-in card)
  */
 export function Markdown({ trust, mode, children, className }: MarkdownProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const untrusted = trust === "untrusted";
-  // GUARDRAIL (#54 / D44 §12.2): withhold Mermaid under `untrusted`. A ```mermaid fence renders arbitrary
-  // diagram DSL through a heavy lazy engine (diagram-label injection + resource-abuse surface), so the
-  // `mermaid` option is passed ONLY for `trusted` content; without it the fence degrades to an inert Shiki
-  // code block. KaTeX (`math`) is kept for BOTH tiers — rehype-katex defaults `trust:false` (no
-  // `\href`/`\includegraphics`, so no network/script vector), math-only and inert (KATEX_OPTIONS sets
-  // only `errorColor`, never `trust`). Verified against Streamdown 2.5's `mermaid?: MermaidOptions` prop.
+  // Withhold Mermaid under untrusted: a ```mermaid fence renders arbitrary diagram DSL through a
+  // heavy lazy engine (a resource-abuse surface), so it's passed only for trusted content. KaTeX
+  // stays for both tiers — rehype-katex defaults trust:false, so it's math-only and inert.
   const mermaidProp = untrusted ? {} : { mermaid: MARKDOWN_MERMAID_OPTIONS };
-  // Animation is structurally inert in `static` mode anyway (Streamdown branches on it), but gate
-  // explicitly so intent is legible and reduced-motion always wins.
+  // Animation is structurally inert in static mode anyway, but gate explicitly so intent is legible.
   const animate = mode === "streaming" && !reducedMotion;
 
   if (children.length > MAX_RENDER_LENGTH) {
@@ -133,10 +104,8 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
     );
   }
 
-  // UIP-304: emphasis/italic (`*text*` → `<em>`) reads as NARRATION in this app's prose voice (ST
-  // EmColor / D44 §12.1 narrationColor) — the base className tints every rendered `<em>` with
-  // `--color-narration`. ONE home for the convention (re-themes for free; a per-speaker ThemeScope that
-  // re-points `--color-narration` overrides it inline for a merged-narrator span).
+  // Emphasis/italic reads as narration in this app's prose voice — the base className tints every
+  // rendered <em> with --color-narration, re-themed for free per palette.
   return (
     <MarkdownErrorBoundary>
       <Streamdown
@@ -145,11 +114,7 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
         remarkPlugins={MARKDOWN_REMARK_PLUGINS}
         plugins={{ code: MARKDOWN_SHIKI_PLUGIN, math: MARKDOWN_MATH_PLUGIN }}
         {...mermaidProp}
-        // Streamdown's incomplete-markdown REPAIR is a STREAMING concern (auto-close a dangling `*`/fence
-        // mid-stream so it doesn't flash); a settled body is complete + must render as-authored. Gate it to
-        // `streaming` explicitly (Streamdown's `mode` already gates the effect, so this is belt-and-braces
-        // + legible intent). The ST-parity "auto-fix a settled body" pref lives at a DIFFERENT layer — the
-        // client `fixMarkdown` pass (lib/message-render), NOT here. `controls`/`linkSafety` stay at defaults.
+        // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
         className={cn("[&_em]:text-narration", className) ?? ""}
         {...(animate ? { isAnimating: true, animated: STREAMING_ANIMATION } : {})}

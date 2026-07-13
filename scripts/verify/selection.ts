@@ -1,12 +1,7 @@
-// The ONE scope-selection resolver (UNIFIED-VERIFICATION-DESIGN.md §3.4) shared by every tier. Promotes
-// check/file.ts's proven path→tool mechanics (the ESLint surface regex, the tsconfigFor algebra, the
-// depcruise guard) into one place so a `verify --changed/--file/--package/--scope` selection derives, ONCE,
-// exactly which files each tool should see. Whole-scope stages ignore it; scoped tiers thread it into each
-// stage's `scopedArgv`.
-//
-// The honest floor per tool (§3.4): biome/eslint/docs = file; tsc = the OWNING package (file-scoped tsc is
-// unsound); depcruise = file (dependents via --affected when git-derived); structure = check:scope's own
-// per-gate scope. A stage a scope can't honestly run is DEFERRED, never silently skipped.
+// The ONE scope-selection resolver (UNIFIED-VERIFICATION-DESIGN.md §3.4) shared by every tier: a
+// `verify --changed/--file/--package/--scope` selection derives, once, exactly which files each tool
+// should see. The honest floor per tool: biome/eslint/docs = file; tsc = the owning package (file-scoped
+// tsc is unsound); depcruise = file. A stage a scope can't honestly run is DEFERRED, never silently skipped.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

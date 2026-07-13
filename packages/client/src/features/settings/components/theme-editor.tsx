@@ -1,11 +1,8 @@
-// The theme EDITOR (D44 §12.1 · §13.4) — edits ONE owned `themes` row. Token-override pickers (the SEED
-// set only; the neutral ramp + all foregrounds DERIVE via <ThemeScope>, never picked), font/radius/style/
-// density selects, the custom-CSS code editor with LIVE `validateThemeCss` diagnostics + a themeable-var
-// reference, a SCOPED live <ThemeScope> preview (authoring NEVER restyles the real app — only a deliberate
-// SELECT applies globally, Tier-3), and non-blocking WCAG AA badges on the picked text colors (Tier-2 —
-// inform, don't block; the customizer's own app, their risk). BUTTON-GATED save through `updateTheme`
-// (`createSavedEntityForm`, §13.4) — the preview above is live off the form's unsaved values; the Save
-// button is the only thing that persists.
+// The theme editor — edits one owned themes row. Token-override pickers, font/radius/style/density
+// selects, a custom-CSS code editor with live validateThemeCss diagnostics + a themeable-var reference, a
+// scoped live <ThemeScope> preview (authoring never restyles the real app), and non-blocking WCAG AA
+// badges on the picked text colors. Button-gated save through updateTheme — the preview is live off the
+// form's unsaved values; Save is the only thing that persists.
 
 import type { Theme, ThemeRadius } from "@orb/contracts/theme";
 import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
@@ -34,8 +31,7 @@ import {
   themeOverrideFromForm,
 } from "../lib/theme-editor-model";
 
-// `@orb/ui/code-editor` pulls in CodeMirror (~5 packages) at module load for a modal-only editor —
-// lazy so CodeMirror never lands in the entry chunk (P1, rollup audit).
+// Lazy so CodeMirror never lands in the entry chunk for a modal-only editor.
 const CodeEditor = lazy(async () => {
   const mod = await import("@orb/ui/code-editor");
   return { default: mod.CodeEditor };
@@ -68,8 +64,6 @@ export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
   const updateTheme = useUpdateTheme({ trpc, invalidation });
   const themeId = theme.id as ThemeId;
 
-  // Resolves to the SAVED row mapped back to form values (createSavedEntityForm's re-baseline source,
-  // obligation 3) — `updateTheme` returns the persisted `Theme` entity, not the flat form shape.
   const save = async (values: ThemeFormValues): Promise<ThemeFormValues> => {
     const saved = await updateTheme.mutateAsync({ id: themeId, input: themeInputFromForm(values) });
     return themeFormFromEntity(saved);
@@ -215,15 +209,13 @@ function CssEditorField({
         value={value}
         onChange={onChange}
         diagnostics={diagnostics}
-        // WS3 — real inline autocomplete of the themeable `--color-*`/etc vars, fed from the SAME
-        // machine-current list the reference chips below render (never a hand-kept second copy).
         completions={THEMEABLE_VARS}
       />
     </Suspense>
   );
 }
 
-/** The themeable-var reference — the machine-current `THEME_SCOPE_EMIT_VARS` set an author can target. */
+/** The themeable-var reference the author can target. */
 function ThemeableVarsReference(): ReactElement {
   return (
     <Stack gap="field">
@@ -247,8 +239,7 @@ function ThemeableVarsReference(): ReactElement {
   );
 }
 
-/** A SCOPED live preview — a sample exchange under the in-progress theme. Authoring never touches the
- *  real app (Tier-3): the <ThemeScope> contains the palette to this box only. */
+/** A scoped live preview — a sample exchange under the in-progress theme, contained to this box only. */
 function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactElement {
   return (
     <Stack gap="block">
@@ -278,7 +269,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
   );
 }
 
-/** Non-blocking WCAG feedback (Tier-2): each picked text color vs the surface it reads against. */
+/** Non-blocking WCAG feedback: each picked text color vs the surface it reads against. */
 function ContrastReport({ values }: { readonly values: ThemeFormValues }): ReactElement {
   const checks: ReadonlyArray<readonly [label: string, color: string, against: string]> = [
     ["Dialogue", values.dialogueColor, values.aiBubbleBg],

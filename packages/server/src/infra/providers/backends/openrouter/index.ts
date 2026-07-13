@@ -2,18 +2,9 @@
 // uses to obtain the backend factory + the diagnostic verbs (catalog-fetch / account / probe), and the
 // surface the family's tests import (deep imports into `backends/openrouter/<file>` are RED for everyone
 // else by the `providers-public-surface-only` cruiser rule). Load-bearing for the encapsulation invariant.
-//
-// infra/providers/backends/openrouter — THE STATELESS REMOTE CHAT BACKEND + the non-chat roles OpenRouter
-// serves (embed / rerank / imageEmbed / generateImage) + the summarize shaper over chat. Sealed: no other
-// backend imports it; it imports only the shared `backends/kit` wire helpers DOWN + the `@openrouter/sdk`.
-// NO `runAgentTurn` (agent mode is the agent-sdk backend's).
-//
-// FLAG SUMMARY (orchestrator):
-//   • account.ts result shapes have no `@orb/contracts` home yet (see that file's FLAG).
-//   • provider-routing maps only the common knobs (snake→camel impedance — see shared.ts toProviderPreferences).
-//   • the Responses input drops the per-participant `name` (SDK `EasyInputMessage` has none — see responses).
-//   • OR `summarize` is a TEXT-only shaper here (images on a SummarizeRequestItem are dropped — OR vision
-//     summarize is out of scope for this slice).
+
+// The stateless remote chat backend + the non-chat roles OpenRouter serves (embed/rerank/imageEmbed/
+// generateImage) + the summarize shaper over chat. No `runAgentTurn` (agent mode is agent-sdk's).
 
 import type { ChatRequest as SdkChatRequest } from "@openrouter/sdk/models";
 import type {
@@ -56,7 +47,6 @@ import { runEmbed } from "./runners/embed/runner";
 import { runGenerateImage, runImageEmbed } from "./runners/image/runner";
 import { runRerank } from "./runners/rerank/runner";
 
-// ── Family-internal surface (entry wiring + diagnostics + the family's OWN tests). NOT domain-reachable. ──
 export { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account";
 export { fetchOrCatalog } from "./catalog";
 export type { OrClient } from "./client";
@@ -88,28 +78,17 @@ export { runRerank } from "./runners/rerank/runner";
 
 const SYSTEM_ROLE = "system";
 const USER_ROLE = "user";
-// Defensive CoT strip: the summary text must never carry `<think>…</think>` scaffolding (mirrors the vllm
-// summarize surface — a 1-line wire quirk, deliberately not abstracted across sealed backends).
+// The summary text must never carry `<think>…</think>` scaffolding.
 const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/g;
 
-/**
- * The deps `entry/` injects to build the backend. `now` is REQUIRED — the composition root owns the clock
- * (the `no-raw-clock` determinism seam). `random` is optional (tests inject a seeded RNG for the pre-commit
- * retry's backoff jitter). `getClient` defaults to the real per-API-key LRU; tests override it with a fake.
- */
 export interface OpenRouterBackendDeps {
   readonly now: () => number;
   readonly random?: (() => number) | undefined;
   readonly getClient?: ((apiKey: string) => OrClient) | undefined;
 }
 
-// The summarize shaper: ONE chat turn per input, run SEQUENTIALLY (OpenRouter enforces per-key rate
-// limits, so a parallel fan-out trips 429s). A thin shaper over chat — it never duplicates chat logic.
-// STRUCTURED OUTPUT (cross-backend parity): `req.jsonSchema` rides the SAME OpenAI `response_format:
-// json_schema` dialect the chat runners emit (buildChatResponseFormat) — so a caller's ONE `jsonSchema`
-// knob is enforced identically whether the swapped `summarize` role resolves to a vLLM box (surfaces/
-// summarize → chat-completion response_format) or a hosted OpenRouter model (here). The schema name is
-// the fixed "result" the vLLM engine also uses (engine/chat-completion.ts) — one wire contract, two backends.
+// ONE chat turn per input, run sequentially — OpenRouter's per-key rate limits make a parallel fan-out
+// trip 429s. The schema name "result" matches the vLLM engine's fixed name (one wire contract, two backends).
 async function runSummarize(client: OrClient, req: SummarizeRequest): Promise<SummarizeResult> {
   const items: SummarizeResult["items"] = [];
   const responseFormat =
@@ -149,13 +128,6 @@ async function runSummarize(client: OrClient, req: SummarizeRequest): Promise<Su
   return { items, model: req.model };
 }
 
-/**
- * Build the sealed openrouter {@link ProviderBackend}. Each role resolves the API key off the request's
- * credential (fail-closed on a wrong source), gets a warm client, and dispatches. `runChatTurn` routes its
- * `responses`/`chat-completions` arms to the two chat runners and rejects an `agent-sdk` request (that api
- * is the agent-sdk backend's). The methods are async so a synchronous guard throw surfaces as a rejected
- * promise (the contract method must always be awaitable).
- */
 export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBackend {
   const getClient = deps.getClient ?? createClientCache();
   const chatDeps: OpenRouterChatDeps = {
@@ -167,11 +139,7 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
 
   return {
     key: "openrouter",
-    // async so a synchronous guard throw (wrong api / wrong credential source) surfaces as a rejected
-    // promise — the contract method must always be awaitable.
     runChatTurn: async (req: ChatRequest): Promise<ChatResult> => {
-      // The OR backend serves only the OpenAI-spec apis (chat-completions/responses). The Anthropic-Messages
-      // wire is anth-direct's charter (agent-sdk over the CLI transport; anth-direct over DIRECT) — never OR.
       if (req.api === "agent-sdk" || req.api === "anthropic-messages") {
         throw new ProviderError({
           kind: "invalid",
@@ -195,8 +163,6 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
       await runSummarize(clientFor(req.credential, "summarize"), req),
     generateImage: async (req: ImageGenerateRequest): Promise<ImageGenerateResult> =>
       await runGenerateImage(clientFor(req.credential, "generateImage"), req),
-    // ── Diagnostics: credit/cost/probe bind the client off the resolved credential (fail-closed on a
-    //    wrong source); fetchCatalog uses a keyless ("") client — the OR `/models` endpoint is public. ──
     probe: async (req: ProbeRequest): Promise<CredentialHealth> =>
       await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now),
     accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> =>

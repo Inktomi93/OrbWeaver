@@ -359,13 +359,8 @@ function scanUiPrimitiveStructure(ctx: CheckContext): Violation[] {
   ];
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST structure gate via `run`, fsBacked) ────────────────
-// ui-primitive-structure reads the real fs (readdirSync of primitives/, existsSync of the trio + CT) in 5
-// clauses AND the AST (variants naming / no-leak / color literals / inline provider / inline svg / overlay
-// anatomy / data-slot) via the shared Project. A `run` descriptor over ctx reuses the exact 9-clause scan,
-// `fsBacked` so conformance materializes the primitive dir + CT fixtures into a real temp dir (the AST
-// clauses read the same temp-dir Project). Distinct per-clause messages → per-occurrence overrides. Ported
-// BYTE-IDENTICAL — the §2.4 comment-range upgrade is a SEPARATE intended change, NOT part of this port.
+// Reads the real fs (readdirSync of primitives/, existsSync of the trio + CT) AND the AST (variants
+// naming / no-leak / color literals / inline provider / inline svg / overlay anatomy / data-slot).
 //
 export const gate: GateDescriptor = {
   name: "ui-primitive-structure",

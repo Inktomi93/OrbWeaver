@@ -1,16 +1,8 @@
-// The /login SURFACE — the per-mode dispatcher (FINAL-Auth-Modes §7 P0; the neo login-surface shape,
-// re-cut over orb's bootstrap seam). Reads `/api/auth/config` (cached, session-immutable) and renders
-// the matching body:
-//   single-user    → "no login needed" explainer + back-to-app (only reachable by direct navigation —
-//                    the reverse-gate normally bounces this mode home before mount)
-//   local          → the credential form (components/login-local-form.tsx)
-//   forward-header → proxy-config explainer (an unauthenticated request here means the proxy did not
-//                    inject the identity headers — an operator issue, not a user form)
-//   oidc           → the IdP redirect button (a WHOLE-WINDOW navigation — the 302 dance must run in the
-//                    browser, never fetch)
-// The route owns the shell anchor; this surface owns the card content + its own mount focus (the
-// surface-a11y-focus contract). Post-login lands on `/` (no `next` carry — the URL-pinned shell,
-// UI-Arch §5.1).
+// The /login surface — the per-mode dispatcher. Reads /api/auth/config and renders the matching body:
+// single-user (only reachable by direct nav), local (credential form), forward-header (proxy-config
+// explainer — an unauthenticated request here means the proxy didn't inject identity headers), oidc
+// (whole-window redirect, never fetch). The route owns the shell anchor; this surface owns the card
+// content + its own mount focus.
 
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -49,10 +41,7 @@ export function LoginSurface(): ReactElement {
   );
 }
 
-/** The per-mode arm dispatcher — pure (config in, arm out; `onDone` is the only side channel, so it is
- *  router-free and CT-mountable directly). Exported for the mode-arm reachability CT (the settings
- *  `SystemSettingsSurface` internal-export precedent). `LoginSurface` wraps it with the config read +
- *  the `useNavigate` home-nav. */
+/** The per-mode arm dispatcher — pure (config in, arm out), router-free and CT-mountable directly. */
 export function LoginBody({
   config,
   onDone,
@@ -116,7 +105,7 @@ export function LoginBody({
   }
 }
 
-/** Exhaustiveness backstop — a new `AUTH_MODES` member fails `tsc` here (spine §5.5 dispatch discipline). */
+/** Exhaustiveness backstop — a new `AUTH_MODES` member fails `tsc` here. */
 function assertNeverMode(mode: never): never {
   throw new Error(`unhandled auth mode: ${String(mode)}`);
 }

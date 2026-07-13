@@ -1,17 +1,11 @@
-// The Mermaid diagram config for `<Streamdown mermaid={…}>`. Mermaid is bundled INSIDE streamdown
-// (its package.json deps), so no new dependency — the seal only supplies a token-styled theme + a
-// graceful, token-styled error component (Streamdown renders diagrams on-complete and hands render
-// failures to `errorComponent`, the #343-class white-screen guard at the diagram granularity, on top
-// of the seal-level `MarkdownErrorBoundary`).
+// Mermaid diagram config for `<Streamdown mermaid={...}>`. Mermaid ships bundled inside streamdown —
+// this only supplies a token-styled theme + a graceful, token-styled error component.
 import type { ReactElement } from "react";
 import type { MermaidErrorComponentProps, MermaidOptions } from "streamdown";
 import { Button } from "#primitives/button";
 import { TOKENS } from "#tokens";
 
-// Mermaid's `theme: "base"` is the ONLY theme whose `themeVariables` are honored — the built-in named
-// themes ignore overrides. Map the diagram surface onto the message/code-block chrome tokens so a
-// rendered flowchart tracks the app palette instead of Mermaid's stock lavender. Static token
-// literals, same rationale as shiki-theme.ts.
+// Mermaid's `theme: "base"` is the ONLY theme whose `themeVariables` are honored — named themes ignore overrides.
 const MERMAID_THEME_VARIABLES = {
   background: TOKENS["color.card"].value,
   primaryColor: TOKENS["color.secondary"].value,
@@ -24,13 +18,7 @@ const MERMAID_THEME_VARIABLES = {
   fontFamily: TOKENS["font.sans"].value,
 } as const;
 
-/**
- * The token-styled diagram-error surface (Streamdown's `MermaidOptions.errorComponent`). Mirrors the
- * `MarkdownErrorBoundary` fallback voice but at diagram granularity, and — unlike the boundary — can
- * offer a retry (Mermaid re-renders are cheap and often fix a transient race) plus the raw source so a
- * broken diagram is still copy-recoverable. Utility classes only (tokens via Tailwind theme; no raw
- * color literals).
- */
+/** Token-styled diagram-error surface, offering retry plus the raw source so a broken diagram stays copy-recoverable. */
 function MermaidError({ error, retry }: MermaidErrorComponentProps): ReactElement {
   return (
     <div

@@ -1,13 +1,7 @@
-// verb: exportUserSettings — project the owner's settings to the SHARE-SAFE allowlist and serialize them to a
-// portable user-settings-backup file (the uniform export/import portability template, §1 part 2). Owner-scoped:
-// reads THIS user's typed/defaulted `UserSettings` (`readUserSettings`), runs `projectShareSafe` (the RUNTIME
-// secrets fence — copies ONLY the allowlisted namespaces, so a credential/connection/auth field is never read),
-// and hands the projection to `#kit/serde/user-settings`'s `buildUserSettingsBackup`. PURE read + serde — no db
-// write, no audit (a read leaves no trace). `import-user-settings.ts` is the round-trip twin.
-//
-// The fence is enforced at BOTH the type level (`projectShareSafe` returns `PortableUserSettings`, from which a
-// secret field is structurally absent) and here at the boundary — the verb literally cannot hand a credential
-// field to `build`.
+// verb: exportUserSettings — project the owner's settings to the share-safe allowlist and serialize to a
+// portable backup file. projectShareSafe is the runtime secrets fence, enforced at the type level too
+// (its return type PortableUserSettings structurally excludes secret fields) — the verb literally cannot
+// hand a credential field to build. Pure read + serde, no write, no audit.
 
 import type { UserId } from "@orb/kit/ids";
 import { buildUserSettingsBackup, projectShareSafe } from "#kit/serde/user-settings";

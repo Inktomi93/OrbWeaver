@@ -525,14 +525,14 @@ module.exports = {
       },
     },
     {
-      // Override the recommended-strict no-orphans (error): the placeholder scaffold tree is ALL orphans
-      // (comment-only stubs with no imports/importers). knip is the dead-code authority (ENFORCEMENT
-      // backlog, post-Phase-1); re-enable this as warn once the tree wires up.
+      // Re-enabled as warn 2026-07-13 (its own stated trigger arrived: the tree is wired; a ts-morph
+      // audit measured ~22 orphan files). knip (`pnpm knip`) is the deeper dead-code authority — this
+      // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "Disabled until code wires up — the Phase-0 placeholder tree is all orphans; knip owns dead-code detection (reports/ENFORCEMENT.md backlog). Re-enable as warn post-Phase-1.",
-      severity: "ignore",
-      from: { orphan: true, pathNot: [] },
+        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority.",
+      severity: "warn",
+      from: { orphan: true, pathNot: ["\\.d\\.ts$", "(^|/)index\\.ts$"] },
       to: {},
     },
   ],

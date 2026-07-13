@@ -1,5 +1,6 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX role-attribute
 // fixture snippets (role="checkbox" etc.), not secrets.
+// A `role={…}` attribute in a features/**.tsx whose value carries a banned widget-role literal.
 // Gate: no-interactive-role-in-features (UI-Gates-and-Lessons.md §8) — closes the layout-kit
 // interactive-role escape hatch. The compose-only biome keystone bans className/style on raw
 // intrinsics in features/**, and no-raw-interactive-intrinsics (planned, D62) bans raw <button>/<input>
@@ -93,11 +94,6 @@ function literalTextsIn(attr: Node): string[] {
   return texts;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — the reference-gate shape: offender arm + finalize stale arm) ─
-// The legacy predicate as a JsxAttribute subscription: a `role={…}` attribute in a features/**.tsx whose
-// value carries a banned widget-role literal. scanRoot mirrors the legacy FEATURES_DIR + `.tsx` filter.
-// The empty BURN_DOWN's stale arm is finalize-guarded to project scope (§4.4). Per-occurrence (each
-// offending role attribute). The offending role rides as the token.
 const GATE_SELF = "scripts/check/gates/no-interactive-role-in-features.ts";
 const passSeenBurnDown = new Set<string>();
 

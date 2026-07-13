@@ -1,14 +1,7 @@
-// The persona CRUD mutations (mirrors settings/hooks/use-theme-mutations.ts) — the ONE mutation factory
-// (`createEntityMutation`) instanced per verb. PD user-bus lane: every persona verb emits `personasChanged`,
-// and `USER_BUS_FILTERS.personasChanged` path-invalidates the whole `persona` router (list + get). That
-// user-bus subscription is ALWAYS on (home-page.tsx), so all four are `busDriven` — the echo reconciles the
-// acting device AND device B (a self-`invalidates` would double-refetch the same keys). star/rename are NOT
-// separate verbs — they ride `persona.update` (a partial patch). TVars are the tRPC-INFERRED inputs.
-//   verb        user-bus event    client filters (USER_BUS_FILTERS.personasChanged)
-//   create      personasChanged   persona.path (list + get)
-//   update      personasChanged   persona.path (list + get)
-//   remove      personasChanged   persona.path (list + get)
-//   duplicate   personasChanged   persona.path (list + get)
+// The persona CRUD mutations — one createEntityMutation instance per verb. Every verb emits
+// personasChanged, invalidated by the always-on user-bus subscription, so all four are busDriven (a
+// self-invalidates would double-refetch). star/rename ride persona.update (a partial patch), not
+// separate verbs.
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -52,6 +45,4 @@ export const useDuplicatePersona = createEntityMutation<
   errorToast: "Couldn't duplicate the persona.",
 });
 
-// `persona.import` (restore-from-backup) moved to features/settings/surfaces/persona-settings-surface.tsx
-// with the rest of "Persona settings" — this feature no longer has a consumer for it (one home per verb;
-// re-add here only if the panel itself grows a restore affordance again).
+// `persona.import` (restore-from-backup) lives in features/settings/surfaces/persona-settings-surface.tsx.

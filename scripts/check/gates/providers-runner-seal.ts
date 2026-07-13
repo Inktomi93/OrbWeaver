@@ -12,10 +12,6 @@ import type { GateDescriptor } from "../contract.ts";
 
 const SEALED = new Set(["deriveRunner", "backendForSource", "BackendKey", "BACKEND_KEYS"]);
 const CONSUMER = /\/packages\/server\/src\/(?:domain|transport|entry)\//u;
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-node import-seal gate) ─────────────────────────────────
-// The legacy predicate as an ImportSpecifier subscription: a sealed runner symbol imported by a
-// domain/transport/entry consumer. scanRoot mirrors the legacy CONSUMER filter. The sealed name rides as
-// the token. Per-occurrence. Not fsBacked. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "providers-runner-seal",
   docRow: "core/Tier-3b-Providers.md inv #3",

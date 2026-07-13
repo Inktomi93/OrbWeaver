@@ -1,19 +1,14 @@
-// infra/providers/vllm/engine/engine-control — the supervisor→admin control bridge.
-//
-// The adoptive supervisor registers its control surface here at boot; the admin domain service reads it
-// (domain → providers points DOWN the layer cake, so tRPC reaches the supervisor through the providers
-// front door without a driver→driver import). Engine identity comes from the ./engines leaf. Process-local,
-// like the status registry next door.
+// Supervisor→admin control bridge. The adoptive supervisor registers its control surface here at boot;
+// the admin domain service reads it through the providers front door (no driver→driver import).
+// Process-local, like the status registry next door.
 
 import type { VLLM_ENGINES } from "./engines";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
-/** The supervisor's manual-control surface — the infra DI seam the admin panel reaches through. */
 export interface VllmEngineController {
-  /** Manual admin restart: RESETS the engine's breaker (a human override IS the half-open probe) and
-   *  bounces the engine — owned engines via the group-kill + respawn path, adopted ones by terminating
-   *  the port owner so the monitor's takeover spawns an owned replacement. Resolves with a status line. */
+  /** Manual admin restart: resets the engine's breaker (a human override IS the half-open probe) and
+   *  bounces the engine. Resolves with a status line. */
   readonly restart: (engine: VllmEngine) => Promise<string>;
 }
 

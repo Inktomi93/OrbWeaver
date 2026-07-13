@@ -87,13 +87,10 @@ function tupleSig(decl: VariableDeclaration): string | undefined {
   return members !== undefined && members.length >= MIN_MEMBERS ? sig(members) : undefined;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — accumulate-then-judge, NO live registry) ───────────
 // Arm A (an inline string-union type-alias ≥3 members) is self-contained per alias → emitted at visit.
 // Arm B (an inline union / z.enum re-spelling a CANONICAL tuple) needs ALL tuples collected before it can
 // judge (a re-spell can reference a tuple declared later in the walk), so re-spell candidates are
-// ACCUMULATED in visit and reconciled against the collected tuples in `finalize` — the same verdicts as
-// the legacy two-pass Check, in one walk. NO allowlist/registry → NO fileLoaded sentinel needed; a
-// synthetic tree with no matching canonical tuple simply produces no arm-B finding. Kept ALONGSIDE the
+// accumulated in visit and reconciled against the collected tuples in `finalize`.
 // legacy Check.
 type RespellCandidate = {
   readonly file: string;

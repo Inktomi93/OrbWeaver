@@ -1,19 +1,9 @@
-// infra/providers/vllm/engine/image — shared image→data-URI helper for the gen + embed engines.
-//
-// WHY ENGINE-LEVEL (not in a surface): three role surfaces need it — chat-completion (vision turns),
-// rerank (multimodal score params), image-embed (the image/multimodal modes). A surface may not import a
-// sibling surface (`vllm-surface-isolation`), so anything shared between surfaces lives DOWN in engine/
-// and every surface reaches it the one legal direction. Pure data shaping — no transport, no engine call.
-//
-// base64 data URIs score/embed IDENTICALLY to remote URLs (measured cosine 1.000000) AND keep the loopback
-// engine off the network, so we always send data URIs rather than passing a URL through.
-//
-// MIME SNIFF (PD-123): the signature table is `@orb/kit/image-sniff`'s `sniffMime` — the SAME table the
-// assets domain uses (PD-29/D61 B5a: "infra and assets share ONE table"). That shared helper is STRICT
-// (unrecognized bytes → `application/octet-stream`, never a guess). This site's own images are NOT
-// necessarily CAS-validated (vision-turn / rerank / image-embed inputs can be arbitrary caller bytes), and
-// an `octet-stream` data URI would silently break the vision model's image decode — so the png default
-// stays HERE, applied locally to kit's strict result, rather than baked into the shared primitive.
+// Shared image→data-URI helper for three role surfaces (chat-completion vision turns, rerank multimodal
+// params, image-embed); engine-level because a surface may not import a sibling surface. base64 data URIs
+// score/embed identically to remote URLs and keep the loopback engine off the network. MIME sniff uses
+// `@orb/kit/image-sniff`'s shared strict table (PD-123), but defaults an unrecognized signature to png
+// HERE rather than octet-stream — these inputs aren't CAS-validated and octet-stream would silently break
+// the vision model's decode.
 
 import { Buffer } from "node:buffer";
 import { readFile } from "node:fs/promises";

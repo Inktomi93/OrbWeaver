@@ -1,9 +1,7 @@
 // verb: add — upsert a credential (ownership-scoped). Seals the raw key with AES-256-GCM bound to
-// `${ownerId}|${provider}` (the AAD belt — the SecretBox CARRIES the value from `aadFor`, never derives
-// it), then either ROTATES the existing `(owner, provider, label)` row in place (clearing revocation — a
-// fresh key voids the "rejected" state) or INSERTS a new one. The first credential in a `(owner, provider)`
-// slot is auto-marked active; later ones default inactive (the user promotes via `setActive`). The TOCTOU
-// loser of two concurrent first-adds collides on the partial active-unique index → `CredentialsConflictError`.
+// `${ownerId}|${provider}`, then either rotates the existing (owner, provider, label) row in place
+// (clearing revocation) or inserts a new one. First credential in a slot auto-marks active; later ones
+// default inactive. TOCTOU loser of two concurrent first-adds -> CredentialsConflictError.
 
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -61,8 +59,6 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
       });
     } catch (err) {
       if (isConstraintViolation(err)?.kind === "unique") {
-        // The raw libSQL error is NOT chained beyond `.cause` (it carries SQL internals); the typed
-        // conflict is the honest client signal — the winner's insert succeeded, so "already exists".
         const conflict = new CredentialsConflictError(
           `A ${provider} credential already exists for this slot — refresh and retry.`,
         );
@@ -76,7 +72,6 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
   };
 }
 
-/** Reload + project a row we just wrote (it always exists under that id); narrows the owner-scoped read. */
 async function reloadView(
   ctx: CredentialContext,
   ownerId: UserId,

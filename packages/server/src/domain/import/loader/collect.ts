@@ -1,16 +1,9 @@
-// domain/import/loader/collect — the profile-dir COLLECTOR (PD-77). Walks a staged ST profile through the
-// INJECTED `ImportFsPort` (no `node:fs` in the domain — `domain-no-node-fs`), reads + hashes + parses the PNG
-// cards + chat JSONL + settings.json personas, and pairs them into per-character bundles ready for the entry
-// driver. PURE over the injected port — fixture-testable with an in-memory tree.
+// domain/import/loader/collect — profile-dir collector. Walks a staged ST profile through the injected
+// ImportFsPort (domain-no-node-fs), reads/hashes/parses PNG cards + chat JSONL + settings.json personas,
+// and pairs them into per-character bundles. Pure over the injected port — fixture-testable.
 //
-// Layout (a single ST user profile):
-//   <profileDir>/characters/*.png
-//   <profileDir>/chats/<charDir>/*.jsonl
-//   <profileDir>/settings.json  +  <profileDir>/User Avatars/*.png
-// Cards and chat dirs pair by `slugifyHandle` (`@orb/kit/slug`) — which collapses ST's case-variant chat
-// dirs ("Block of Cheese" / "Block Of Cheese") onto one character. Every non-happy path (orphan chats,
-// unreadable cards, skip-listed characters, slug collisions, fuzzy pairings) is RECORDED in `CollectResult`
-// (never silent — operator-auditable).
+// Layout: <profileDir>/characters/*.png, /chats/<charDir>/*.jsonl, /settings.json, /User Avatars/*.png.
+// Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
@@ -24,27 +17,21 @@ import type {
 import { importFileHash, parseCardPng } from "../substrate/card";
 import { parseStPersonas } from "../substrate/persona";
 
-// Per-directory entry ceiling: a real ST profile has a few hundred cards / a few thousand chats; a hostile
-// staging dir with a million empty entries would otherwise pin the loop. Past the cap we stop reading that
-// directory (the already-collected entries still flow through).
+// Ceiling so a hostile staging dir with a million empty entries can't pin the loop.
 const MAX_DIR_ENTRIES = 100_000;
-// Per-file ceiling on a chat `.jsonl` — 64 MiB (67_108_864 bytes). Beyond it the file is recorded in
-// `skippedChats` (never silent). A real ST chat at hundreds of messages is well under this.
+// Beyond this a chat file is recorded in skippedChats, never silent.
 const MAX_JSONL_BYTES = 67_108_864;
 const PNG_EXT = /\.png$/i;
 const JSONL_EXT = /\.jsonl$/i;
-// Fuzzy-pairing decorations: a trailing numeric suffix ("eva2" → "eva") and the spec-export wrapper.
 const TRAILING_DIGITS = /\d+$/;
 const TRAILING_HYPHENS = /-+$/;
 const SPEC_WRAPPER = /^main-(.+)-spec-v\d+$/;
 
-/** A working per-handle group during collection. */
 interface Group {
   card?: CollectedCard;
   chats: CollectedChat[];
 }
 
-/** The mutable collection state threaded through the phase helpers. */
 interface CollectState {
   readonly byHandle: Map<string, Group>;
   readonly skip: ReadonlySet<string>;
@@ -65,16 +52,14 @@ function group(state: CollectState, handle: string): Group {
   return fresh;
 }
 
-/** Cap + sort a directory listing by name (deterministic collision disambiguation — `readdir` order is
- *  filesystem-dependent). */
+// Sorted so collision disambiguation is deterministic — readdir order is filesystem-dependent.
 async function listDir(fs: ImportFsPort, dir: string): Promise<{ name: string; kind: string }[]> {
   const ents = await fs.readdir(dir);
   const capped = ents.length > MAX_DIR_ENTRIES ? ents.slice(0, MAX_DIR_ENTRIES) : ents;
   return [...capped].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Disambiguate a slug collision (two cards → one handle, e.g. two fully non-Latin names both slug to
- *  "unnamed") with a numeric suffix instead of silently overwriting the first card. */
+// Numeric suffix instead of silently overwriting the first card on a slug collision.
 function disambiguate(state: CollectState, base: string, file: string): string {
   let handle = base;
   let n = 2;
@@ -107,7 +92,7 @@ async function collectCards(
       continue;
     }
     if (state.skip.has(parsed.card.name.trim().toLowerCase())) {
-      state.skippedHandles.add(slugifyHandle(stem)); // drops its chats too (handle match below)
+      state.skippedHandles.add(slugifyHandle(stem));
       state.skippedCharacters.push(parsed.card.name);
       continue;
     }
@@ -124,7 +109,7 @@ async function collectChatsForDir(
 ): Promise<void> {
   const handle = slugifyHandle(dirName);
   if (state.skippedHandles.has(handle)) {
-    return; // skip-listed character — drop its chats
+    return;
   }
   const dirPath = fs.join(chatsDir, dirName);
   for (const fileEnt of await listDir(fs, dirPath)) {
@@ -145,7 +130,7 @@ async function collectChatsForDir(
       charDirName: dirName,
     });
     if (parsed === null) {
-      continue; // unparseable header — skip this file
+      continue;
     }
     group(state, handle).chats.push({
       parsed,
@@ -155,14 +140,12 @@ async function collectChatsForDir(
   }
 }
 
-/** Second-chance pairing: a chat dir whose slug matched no card but whose slug MINUS an ST folder-name
- *  decoration UNIQUELY matches a card. Merges those chats into the card's group (never silent —
- *  `fuzzyPairedDirs`). First matching candidate wins. */
+// A chat dir whose slug minus an ST folder-name decoration uniquely matches a card. First candidate wins.
 function fuzzyPair(state: CollectState): { chatDir: string; handle: string }[] {
   const fuzzyPairedDirs: { chatDir: string; handle: string }[] = [];
   for (const [handle, g] of state.byHandle) {
     if (g.card !== undefined || g.chats.length === 0) {
-      continue; // has its own card, or nothing to rescue
+      continue;
     }
     const candidates = [
       handle.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""),
@@ -172,7 +155,7 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: string }[] {
       const target = state.byHandle.get(base);
       if (target?.card !== undefined && !state.skippedHandles.has(base)) {
         target.chats.push(...g.chats);
-        g.chats = []; // consumed — no longer an orphan
+        g.chats = [];
         fuzzyPairedDirs.push({ chatDir: handle, handle: base });
         break;
       }
@@ -181,16 +164,14 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: string }[] {
   return fuzzyPairedDirs;
 }
 
-/** Read + parse `<profileDir>/settings.json` → personas, pairing each to its `User Avatars/<file>` bytes when
- *  present. Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less
- *  persona. Never throws — persona import is additive to the character/chat import. */
+// Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona.
 async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<CollectedPersona[]> {
   let settingsRaw: unknown;
   try {
     const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
     settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
-    return []; // no settings.json (or unreadable / !JSON) — nothing to import
+    return [];
   }
   const { personas } = parseStPersonas(settingsRaw);
   const avatarsDir = fs.join(profileDir, "User Avatars");
@@ -201,19 +182,13 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
       // biome-ignore lint/performance/noAwaitInLoops: avatar bytes are read sequentially during the one-time collection scan (a short persona list), not a hot path.
       avatarBytes = await fs.readFile(fs.join(avatarsDir, parsed.avatarFile));
     } catch {
-      avatarBytes = undefined; // avatar file absent — import the persona without an avatar
+      avatarBytes = undefined;
     }
     out.push(avatarBytes !== undefined ? { parsed, avatarBytes } : { parsed });
   }
   return out;
 }
 
-/**
- * Collect a staged ST profile dir into per-character bundles + personas. `skipCharacterNames` is the
- * `IMPORT_SKIP_CHARACTERS` list (a matched card AND all its chats are dropped). Cards are parsed BEFORE chats
- * so the skip set is complete before the chats loop reads it. `parseCardJson` is imported for a future bare-
- * JSON card path but the dir layout is PNG-only today (kept a named import so the surface is one home).
- */
 export async function collectBundlesFromDir(
   fs: ImportFsPort,
   profileDir: string,

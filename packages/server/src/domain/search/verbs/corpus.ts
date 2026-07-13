@@ -1,20 +1,9 @@
-// domain/search/verbs/corpus — cross-chat HYBRID corpus retrieval (knowledge-cluster §6 cross-chat: "where
-// across all my chats did X happen"). The full pipeline: embed `queryText` → owner-wide cosine scan of BOTH
-// lenses (`chat_digests` owner-belted via the producer card + `chat_segments` over the owner's materialized
-// chat set) → `minScore` floor → CSLS hub-adjust → JOINT cross-encoder rerank across both lenses (mode
-// `mixC`) → block-level dedupe (a digest + its segment of the same block collapse to the better-ranked lens)
-// → content-hash collapse (fork/import copies → one representative, AFTER rank, BEFORE any k-cap; inv 6).
-//
-// OWNER-DERIVED, NOT membership-read (knowledge-cluster §6 full-membership model, not "host-only v1"):
-// the digest owner belt is `characters.ownerId` via the `scopedCharacterId` producer card (D20) — NO
-// `chats.ownerId` (D18), NO `chat_participants` (membership is materialized at BUILD by the witnessing
-// horizons; the read-time gate is the owned bucket). The verbatim lens has no character column, so its chat
-// scope is the owner's MATERIALIZED chat set — the distinct chats of the owner's digest hits.
-//
-// SEGMENT KEYING: a segment forms a `BlockKey` only by matching a tier-0 digest of the SAME `(chatId,
-// blockIdx)` (it inherits that digest's `scopedCharacterId` — inv 8 real id, no `''` sentinel). A segment
-// with no matching digest is DROPPED (it cannot key, and a keyless verbatim block is useless to the
-// consumer). FLAG[PD-35]: a segment-only block (no digest yet) is therefore not surfaced by corpus.
+// domain/search/verbs/corpus — cross-chat hybrid corpus retrieval ("where across all my chats did X
+// happen"). Pipeline: embed queryText → owner-wide cosine scan of both lenses → minScore floor → CSLS
+// hub-adjust → joint rerank across lenses (mode mixC) → block-level dedupe → content-hash collapse (after
+// rank, before any k-cap). Owner-derived via characters.ownerId, never chats.ownerId/chat_participants.
+// A segment forms a BlockKey only by matching a tier-0 digest of the same (chatId, blockIdx); unmatched
+// verbatim is dropped. FLAG[PD-35]: a segment-only block (no digest yet) is not surfaced by corpus.
 
 import type { BlockKey } from "@orb/contracts/search";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
@@ -32,13 +21,11 @@ interface CorpusCandidate {
   readonly blockKey: BlockKey;
   readonly sourceText: string;
   readonly contentHash: string;
-  /** The raw cosine distance (the compareCsls tie-break key — the clamp flattens `cos ≥ hub` to 0). */
   readonly distance: number;
   readonly hubScore: number | null;
   readonly score: number;
 }
 
-/** The `(chatId, blockIdx)` slot key — the cross-lens join between a segment and its tier-0 digest(s). */
 function blockSlot(chatId: BlockKey["chatId"], blockIdx: number): string {
   return `${chatId}|${blockIdx}`;
 }
@@ -71,7 +58,6 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
       return [];
     }
 
-    // Digest candidates + the tier-0 `(chatId, blockIdx)` → block-keys map a segment joins on.
     const tier0ByBlock = new Map<string, BlockKey[]>();
     const digestCandidates = digestPool.map((d): CorpusCandidate => {
       const blockKey: BlockKey = {
@@ -95,7 +81,6 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
       };
     });
 
-    // Segment candidates, each keyed by its matching tier-0 digest block(s); unmatched verbatim is dropped.
     const ownerChatIds = [...new Set(digestPool.map((d) => d.chatId))];
     const segmentPool = (
       await nearestSegments(ctx.db, {
@@ -130,7 +115,6 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
             ),
           );
 
-    // Collapse AFTER ranking (inv 6): block-level (digest+segment of one block) then content-hash (copies).
     const collapsed = collapseByContentHash(dedupeRankedBlocks(ranked));
     return collapsed.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
   };

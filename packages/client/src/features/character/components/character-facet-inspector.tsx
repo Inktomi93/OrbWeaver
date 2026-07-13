@@ -1,15 +1,7 @@
-// CharacterFacetInspector — the CONTEXT Field-tab body (character-editor redesign; from
-// preset-section-inspector.tsx, DELIBERATELY THINNER). It reads the live editor form through THE CHARACTER
-// FORM BRIDGE (`useCharacterForm()` — CONTENT + CONTEXT are sibling shell regions, no shared React ancestor)
-// and the drilled facet id off the character-selection store. The guard (`resolveCharacterForm`) gates on
-// handle-present + character-match — no facet-id staleness (the facet set is a static registry) — yielding
-// the EmptyState, never a throw.
-//
-// HARD RULE (owner): big multi-line text NEVER authors here (it authors in CONTENT's drill-in). This tab
-// holds only the SMALL detail of the selected facet:
-//   • depthPrompt → the Depth stepper + Role select (the small knobs; the note TEXT stays in CONTENT).
-//   • provenance  → the editable creator/version pair + the read-only import/refinery tail.
-//   • every other facet → a live char/token count (a text facet's small metadata; the body is in CONTENT).
+// CharacterFacetInspector — the CONTEXT Field-tab body. Reads the live editor form through the character
+// form bridge and the drilled facet id off the character-selection store. Big multi-line text never
+// authors here — this tab holds only the small detail of the selected facet (Depth/Role knobs,
+// creator/version pair, or a char/token count); the body authors in CONTENT.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -32,14 +24,10 @@ import { CharacterProvenanceSection } from "./character-provenance-section";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
-/** The facet-id union — DERIVED from the imported canonical tuple (§7.5). File-local, used for this file's
- *  explicit `switch` param types (an explicit param type is what lets biome's `noUnnecessaryConditions`
- *  follow the union through the switch). */
+/** Explicit (not `Omit<Props>`) so biome's `noUnnecessaryConditions` follows the union through the switch. */
 type CharacterFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
 
 export interface CharacterFacetInspectorProps {
-  /** The selected character — the route passes it (the read-only provenance tail is read off
-   *  `character.get`, cached by the editor). */
   readonly characterId: CharacterId;
 }
 

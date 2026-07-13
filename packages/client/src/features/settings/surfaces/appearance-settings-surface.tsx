@@ -1,33 +1,9 @@
 import { useRef } from "react";
-// The APPEARANCE settings surface (D44 §12.1 — the NON-color display surface; UI-Arch §13.4 form-
-// factory panel). Renders inside the shell's settings modal (mounted by the ROUTE into
-// `AppShellProps.modals`, never imported by app-shell — the domain-agnostic shell renders a ReactNode
-// slot). Reads the synced `UserSettings.appearance` blob via `getUserSettings` (QueryBoundary +
-// useSuspenseQuery — the message-list-surface canonical), and autosaves each change back through
-// `updateUserSettingsSection("appearance")`. That mutation's `invalidates` refetches `getUserSettings`,
-// so the OTHER consumers (chat's `useChatStyle`/`useMessageAppearance`, the shell's density stamp)
-// re-render live — flipping chatStyle here flips the message rendering with no reload (the §12.1 payoff).
-//
-// SCOPE (NO DEAD TOGGLES — the surface's standing law + done-not-equal-rendered): a field is rendered
-// ONLY when its knob is wired end-to-end to a LIVE consumer. Rendered here: chatStyle · density ·
-// elevation (shell.css ramp) · autoFixMarkdown ·
-// showInChatAvatars/avatarSize/avatarShape/avatarAspect/avatarRing (§B.3, `MessageRow` → `<Avatar>`
-// prop chain) · chatWidthPct (the §11.1 --width-shell-content root var) · fontScale (the globals :root
-// font-size floor) ·
-// reducedMotion (the globals [data-reduced-motion] freeze) · (WS3) showTimestamps/showMessageId/
-// showModelIcon/showTokenCount (`MessageMetadataRow`, message-metadata-row.tsx) · messageActions
-// (`messageActionsRevealClass`, message-actions-row.tsx / greeting-actions-row.tsx) · blurSurfaces
-// (root `data-blur-*`, useAppearanceRootEffects → globals.css/shell.css) · shadowEffects (root
-// `data-shadow` → globals.css `--shadow-prose`) · Phase 4b: backgroundBlur (`ThemeBackgroundLayer`'s
-// photo `filter:blur`) · readingLineHeight/readingLetterSpacing/readingParagraphSpacing/
-// readingNameScale/readingBodyScale/justifyBodyText (root vars/attr → globals.css
-// `[data-slot="message-bubble"]`/`[data-slot="message-attribution"]`) · enableThemeColorization (root
-// `data-theme-colorization` → globals.css border retint) · blurStrength (root `--blur-strength`) ·
-// showLLMReasoningIcon (`ReasoningBlock`, threaded via the ghost row). The schema stays COMPLETE (all
-// knobs persist, round-tripped unchanged on every patch); `showGenerationTimer` gets NO control —
-// FLAG[PD-130]: the underlying `gen_started_at`/`gen_finished_at` data is never populated by the turn
-// engine (see message-metadata-row.tsx's header note) — a persisted-but-inert toggle would be a shim,
-// so it stays schema-only until PD-130 lands real timing data.
+// The Appearance settings surface. Reads the synced UserSettings.appearance blob and autosaves each
+// change back through updateUserSettingsSection("appearance"), which refetches getUserSettings so other
+// consumers re-render live. A field is rendered only when its knob is wired end-to-end to a live
+// consumer; the schema stays complete (all knobs persist unchanged) but showGenerationTimer gets no
+// control — FLAG[PD-130]: the underlying timing data is never populated by the turn engine.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
@@ -74,24 +50,17 @@ import {
 import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 
-// The section-patch mutation (module scope, §13.1). PD user-bus lane: `updateUserSettingsSection` emits
-// `settingsChanged`, and `USER_BUS_FILTERS.settingsChanged` refetches `getUserSettings` — the live-flip
-// mechanism for every appearance consumer, now driven by the always-on user bus (home-page.tsx) rather than
-// a self-invalidate, so it is `busDriven` (an echo reconciles this device AND device B; a self-`invalidates`
-// would double-refetch the same key). TVars.patch is the typed section; the router input is a generic
-// `Record<string, unknown>`, hence the one boundary cast below.
 interface UpdateAppearanceVars {
   readonly section: "appearance";
   readonly patch: Record<string, unknown>;
 }
 const useUpdateAppearance = createEntityMutation<UpdateAppearanceVars, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits `settingsChanged` → USER_BUS covers getUserSettings.
+  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your appearance settings.",
 });
 
-/** The DOM anchor id for one appearance subcategory `<Section>` (Task #15 search-to-anchor) — derived
- *  from the shared registry ids so a rename is a `tsc` error, never a stale anchor. */
+/** The DOM anchor id for one appearance subcategory `<Section>`, derived from the shared registry ids. */
 const anchor = (sub: string): string => settingsAnchorId("appearance", sub);
 
 /** The appearance panel body (rendered inside the settings modal's Dialog). */
@@ -108,8 +77,6 @@ export function AppearanceSettingsSurface(): ReactElement {
         )}
       >
         <FieldLayout orientation="horizontal">
-          {/* The pane is its OWN container so the horizontal fields stack on a narrow pane (§4b axis 1)
-              regardless of the modal chrome — the fixed control column can't starve the label. */}
           <Container>
             <AppearanceForm />
           </Container>
@@ -127,9 +94,6 @@ function AppearanceForm(): ReactElement {
   const update = useUpdateAppearance({ trpc, invalidation });
 
   const save = (values: AppearanceSettings): Promise<unknown> =>
-    // The patch is the full appearance section (unshown knobs round-trip unchanged). AppearanceSettings
-    // has no index signature, so the widening to the router's `Record<string, unknown>` input is an
-    // explicit boundary cast (the values are all JSON scalars/enums — safe by construction).
     update.mutateAsync({ section: "appearance", patch: values as Record<string, unknown> });
 
   const { form, mountKey } = useAppearanceForm({
@@ -140,11 +104,6 @@ function AppearanceForm(): ReactElement {
 
   return (
     <Stack key={mountKey} gap="section">
-      {/* SINGLE COLUMN of SECTIONS (owner ruling — Discord grammar): sections stack top-to-bottom in
-          EXACTLY the registry order, so nav order == pane order == reading order and an anchor-jump lands
-          at the top of a section. Fields WITHIN a section may pair up (intra-section @container). The
-          first section stays at the pane TOP so its heading shares a baseline with the nav's group label
-          (owner item 3). */}
       <Stack gap="section">
         <Section
           divider={true}
@@ -378,8 +337,6 @@ function AppearanceForm(): ReactElement {
                       />
                     )}
                   </form.AppField>
-                  {/* Phase 4b §B.5.1 — blurs the PHOTO only (the scrim above stays crisp). Meaningless
-                      without an image, so it lives inside this same kind-gated block. */}
                   <form.AppField name="backgroundBlur">
                     {(field): ReactElement => (
                       <field.SliderField
@@ -400,7 +357,6 @@ function AppearanceForm(): ReactElement {
 
         <AppearanceEffectsSection form={form} />
       </Stack>
-      {/* The autosave note as a muted footnote (UIP-404 — subtle, not a prominent element). */}
       <Text size="micro" tone="muted">
         Changes save automatically and sync across your devices.
       </Text>

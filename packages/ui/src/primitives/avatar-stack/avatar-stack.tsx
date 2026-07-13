@@ -13,11 +13,7 @@ type AvatarSize = NonNullable<AvatarProps["size"]>;
 
 const DEFAULT_MAX = 4;
 
-// Per-item overlap offset by size — geometry keyed off avatar's own size scale, not a styling
-// AXIS, so it rides as inline style rather than a class (the icons/icon.tsx ICON_* px-table
-// precedent: "the token linkage IS this table", not a Tailwind arbitrary-value class).
-// `hero` (64px) is a detail-page display size, not a stack size — but the Record must stay TOTAL over
-// AvatarSize, so it carries a proportional overlap for completeness (a stack would never use it).
+// Per-item overlap offset by size — rides as inline style rather than a class (geometry, not a styling axis).
 const OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28 };
 
 const WORD_SPLIT_RE = /\s+/u;
@@ -37,15 +33,7 @@ export interface AvatarStackProps extends Omit<ComponentProps<"div">, "children"
   readonly size?: AvatarSize;
 }
 
-/**
- * AvatarStack — N overlapping `<Avatar>`s (`@orb/ui/avatar`) plus a "+N" overflow chip, which IS
- * one more Avatar (its fallback renders "+N" — no separate badge/pill primitive needed). The group
- * carries an `aria-label` with the full member count; each avatar keeps its own name as its
- * accessible name via `aria-label` (works whether it renders an image or the initials fallback).
- *
- * Usage: `<AvatarStack items={members} max={5} size="sm" />`
- * Consumer: saved-rosters picker ("name + member-avatar stack + count").
- */
+/** N overlapping `<Avatar>`s plus a "+N" overflow chip, which IS one more Avatar (fallback renders "+N"). */
 export function AvatarStack({
   className,
   items,
@@ -54,8 +42,7 @@ export function AvatarStack({
   ...rest
 }: AvatarStackProps): ReactElement {
   const count = items.length;
-  // max is the TOTAL slot budget (real avatars + the overflow chip, when one is needed) — not the
-  // real-avatar count, so a `+N` chip is never off by the chip's own slot.
+  // `max` is the TOTAL slot budget (real avatars + overflow chip), not the real-avatar count.
   const visibleCount = count > max ? Math.max(max - 1, 0) : count;
   const overflow = count - visibleCount;
   const visible = items.slice(0, visibleCount);

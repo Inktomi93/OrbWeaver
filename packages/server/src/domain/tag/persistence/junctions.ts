@@ -1,23 +1,10 @@
-// domain/tag/persistence/junctions — the polymorphic junction REGISTRY: the ONE insertion / deletion path for
-// the five per-type FK junctions (no junction insert/delete lives anywhere else) + the per-target ownership /
-// membership gate. Each
-// dispatch is a mapped-type Record keyed by `TagTargetType` (a `: Record<TagTargetType, …>` ANNOTATION —
-// §7.5 / exhaustive-dispatch: a 6th target member is a `tsc` error until the Record gains its key). A Record,
-// not a `switch`, because the canonical `TagTargetType` is a `z.infer` union (the biome lint type-checker
-// cannot prove a `switch` over it exhaustive); the Record's type annotation is the proof tsc enforces (it
-// also contextually types each arrow, so the handlers need no explicit return type).
+// The polymorphic junction registry: the one insertion/deletion path for the five per-type FK junctions +
+// the per-target ownership/membership gate. Each dispatch is a `Record<TagTargetType, …>` (a type
+// annotation, not `satisfies`, so a 6th target member is a tsc error until the Record gains its key).
 //
-// TWO scoping flavors (D30):
-//   • target-derived (character / worldBook / persona / preset) — owner reached via the target's KEPT
-//     `ownerId` using `fetchOwned`. The `OwnedTable` constraint on `fetchOwned` is the COMPILE-TIME upgrade of
-//     neo's module-load ownerId assertion: a target table without `ownerId` would not
-//     typecheck as `fetchOwned`'s argument — a misconfigured target-derived entry can't compile, so no runtime
-//     assertion is needed (and no `users` table is read — the `no-direct-users-read` chokepoint holds).
-//   • membership (chat) — `chats` has no owner (D18); access is the INJECTED `requireParticipant` gate, and the
-//     junction carries its own `ownerId` (the tagger) so two members tag a shared chat independently.
-//
-// No `as never` polymorphic cast (the typed alternative to neo's computed-key cast): each Record arm brands
-// `targetId` with the typed `castId` helper for its own junction (type-safe + the `no-loose-id-cast` gate).
+// Two scoping flavors: target-derived (character/worldBook/persona/preset) — owner reached via the target's
+// `ownerId` using `fetchOwned`; membership (chat) — chats have no owner, access is the injected
+// `requireParticipant` gate, and the junction carries its own `ownerId` (the tagger).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagStatus, TagTargetType } from "@orb/contracts/tag";
@@ -71,11 +58,8 @@ async function ensureOwnedTarget(args: {
   }
 }
 
-// A `: Record<TagTargetType, …>` ANNOTATION (not `satisfies`) is the exhaustiveness proof (a missing key is
-// a tsc error) AND gives each arrow a contextual type (so the inline handlers need no explicit return type);
-// indexing a mapped type over the finite union returns the value type, never `| undefined`.
 const TARGET_GUARDS: Record<TagTargetType, TargetGuard> = {
-  // D30: membership IS the scope (chats have no owner, D18). The injected gate rejects a non-member.
+  // membership IS the scope (chats have no owner). The injected gate rejects a non-member.
   chat: ({ principal, requireParticipant, targetId }) =>
     requireParticipant(principal, castId<ChatId>(targetId)),
   character: ({ db, principal, targetId }) =>
@@ -174,14 +158,10 @@ export async function insertJunctionRow(args: {
   await INSERTERS[args.targetType](args);
 }
 
-/** Attach ONE tag to a character at the given `status`, idempotently, REPORTING whether it was newly attached.
- *  `onConflictDoNothing` + RETURNING is the idempotent-with-signal idiom: a returned row ⇒ a NEW junction row
- *  (true, born at `status`); an empty result ⇒ the `(characterId, tagId)` row already existed (false — a true
- *  no-op that does NOT touch the existing row's status). That no-op-on-conflict is also the NO-DOWNGRADE belt:
- *  a `pending` re-attach (a card re-import) leaves an already-`accepted` row accepted — it never un-accepts a
- *  tag the user accepted. Race-safe: the composite PK is the guard. This is the by-name attach path
- *  (`attachCardTagByName`: `accepted` for a manual add, `pending` for an import/seeded card suggestion); the
- *  status-FLIPPING {@link INSERTERS} path (`onConflictDoUpdate`) is the principal-gated `attachTag` "Accept". */
+/** Attach one tag to a character at the given `status`, idempotently, reporting whether it was newly
+ *  attached. A returned row ⇒ new junction row (true); empty result ⇒ already existed (false, status
+ *  untouched — never downgrades an already-`accepted` row to `pending`). This is the by-name attach path;
+ *  the status-flipping {@link INSERTERS} path is the principal-gated `attachTag` "Accept". */
 export async function attachCharacterTag(args: {
   readonly db: Db;
   readonly characterId: CharacterId;
@@ -196,11 +176,8 @@ export async function attachCharacterTag(args: {
   return inserted.length > 0;
 }
 
-/** Detach ONE tag from a character, idempotently, REPORTING whether a row was removed. The mirror of
- *  {@link attachCharacterTag}: `DELETE … RETURNING` is the idempotent-with-signal idiom — a returned row ⇒ the
- *  `(characterId, tagId)` junction existed and is gone (true); an empty result ⇒ the character never carried
- *  the tag (false — a true no-op). The by-name detach path (`detachCardTagByName`) uses this; the tag itself is
- *  left intact (a tag with zero junctions is the prune-unused concern, not a detach's). */
+/** Detach one tag from a character, idempotently, reporting whether a row was removed. The mirror of
+ *  {@link attachCharacterTag}. The tag row itself is left intact. */
 export async function detachCharacterTag(args: {
   readonly db: Db;
   readonly characterId: CharacterId;

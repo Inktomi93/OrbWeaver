@@ -1,20 +1,12 @@
-// Zone derivation for The Assembly rack (BUILD-SPEC §2.1) — PURE, node-safe, DERIVED at render, never
-// stamped on the sections. The `chat_history` marker is the conversation PIVOT: everything above it is
-// the `setup` zone (sent before the conversation), everything below is the `post` zone (sent after the
-// user's latest message). The FIRST `chat_history` (PLAIN_MARKERS) wins — a preset with a duplicate
-// pivot still derives its zones from the first, and the 2nd+ pivots render as inert warning rows
-// (`duplicatePivotIndexes`). A preset with NO pivot ⇒ `missingPivot` (the rack shows an "add chat
-// history" callout) and, having no boundary, every section derives to `setup`.
-//
-// The returned `zoneOf(i)` + `pivotIndex` are the geometry the rack paints from (left-edge accent
-// steel-blue setup / warm-amber post); the per-zone summaries feed the ZoneSummaryStrip chips. Token
-// totals defer to `estimate-tokens` (chars/4) so the strip's `~tok` figures are one seam.
+// Zone derivation for the Assembly rack — pure, node-safe, derived at render, never stamped on the
+// sections. The `chat_history` marker is the conversation pivot: everything above is `setup`, everything
+// below is `post`. The first `chat_history` wins; a preset with no pivot derives every section to `setup`
+// and flags `missingPivot`.
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { estimateSectionTokens } from "./estimate-tokens";
 
-/** The two conversation zones. The union `Zone` is derived inline (`(typeof ZONES)[number]`), never an
- *  exported alias (§7.4 type-home rule — feature files export tuples, not loose type aliases). */
+/** The two conversation zones. `Zone` is derived inline, never an exported alias. */
 export const ZONES = ["setup", "post"] as const;
 type Zone = (typeof ZONES)[number];
 

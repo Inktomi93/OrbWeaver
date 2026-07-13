@@ -1,21 +1,8 @@
-// The edit-in-place draft store (PD-119 — `@orb/ui/message-list` is a pure windowed virtualizer with
-// NO keep-mounted path: a row that scrolls off-screen unmounts, and a component-local `useState` edit
-// draft would silently vanish on scroll-back (neo's virtualizer footgun #3). This store hoists BOTH
-// the edit MODE and the draft TEXT to an EXTERNAL store keyed by message id, so a scroll-driven
-// unmount/remount of `<MessageRow>` never drops an in-progress edit. `createGatedStore` (not
-// `createEntityDraftStore`) is the right door: an edit draft is transient/device-local scroll-survival
-// state, NOT the crash-survival localStorage mirror the persist-shaped factory is for — losing an
-// in-progress edit on a hard reload is acceptable (state-law recap, UI-Architecture-and-Layout.md §5).
-//
-// WRITE OWNERSHIP: unlike chat-stream.ts, no bus event drives this — an edit draft is pure local UI
-// state. `startEditingMessage`/`setMessageEditDraft`/`cancelEditingMessage` are ALL component-callable.
-// The save round-trip goes straight through the `editMessage` verb (message-edit-textarea.tsx); on
-// success the caller calls `cancelEditingMessage` to close the editor — the bus's `messageEdited`
-// re-fold (already wired, data/bus/apply-chat-bus-event.ts) is what updates the RENDERED content via
-// the ordinary invalidate-and-refetch path, this store never touches server data.
-//
-// Presence in the map IS the edit-mode flag: `drafts[id] === undefined` → not editing (the row renders
-// its normal read-only body); a present entry (possibly `""`) → editing, with this exact text.
+// The edit-in-place draft store: `@orb/ui/message-list` is a windowed virtualizer with no keep-mounted
+// path, so a component-local useState edit draft would vanish on scroll-back. This hoists BOTH edit
+// mode and draft text to an external store keyed by message id. Transient/device-local (createGatedStore,
+// not createEntityDraftStore) — losing an in-progress edit on a hard reload is acceptable. No bus event
+// drives this; presence in the map IS the edit-mode flag (undefined = not editing).
 
 import type { MessageId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";

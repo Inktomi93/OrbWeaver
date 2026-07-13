@@ -1,14 +1,8 @@
-// PresetSectionInspector — the CONTEXT Section-tab body (BUILD-SPEC §3.5). It reads the live editor form
-// through THE FORM BRIDGE (`useAssemblyForm()` — CONTENT + CONTEXT are sibling shell regions, no shared
-// React ancestor, so the form crosses via the published handle). The stale-id GUARD (`resolveAssemblySection`)
-// gates on all three conditions (handle present · preset matches the LIST selection · section id resolves) —
-// a stale id after delete/undo yields the EmptyState, NEVER a throw.
-//
-// Anatomy: header (glyph + marker label + one-liner + mono section id) · identity (name Input; role Select
-// EXCEPT chat_history which carries the transcript's own roles) · the placement + triggers + override-lock
-// clusters (section-inspector-controls) · footer (Duplicate · Move-to-zone · Delete). The section BODY is
-// NOT here — it moved to the CENTER `SectionBodyEditor` (the CONTENT drill-in). Every field binds
-// `sections[i].*` on the bridged form, so an edit round-trips through the editor's Save.
+// PresetSectionInspector — the CONTEXT Section-tab body. Reads the live editor form through the form
+// bridge (`useAssemblyForm()` — CONTENT + CONTEXT are sibling shell regions with no shared React
+// ancestor). A stale section id after delete/undo yields the EmptyState, never a throw. Anatomy: header ·
+// identity · placement/triggers/override-lock clusters · footer (Duplicate/Move-to-zone/Delete). The
+// section body lives in the CENTER `SectionBodyEditor`, not here.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
@@ -35,8 +29,7 @@ import {
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
 export interface PresetSectionInspectorProps {
-  /** Dismiss the inspector (the route-built §3.4 choreography: `clearPresetSection` + close the mobile
-   *  CONTEXT sheet). Threaded into the Delete path so a mobile delete never strands a stale sheet. */
+  /** Dismiss the inspector — threaded into the Delete path so a mobile delete never strands a stale sheet. */
   readonly onDismiss: () => void;
 }
 
@@ -142,9 +135,7 @@ function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps):
 /** Duplicate · Move-to-zone (splice across the pivot) · Delete (recoverable — undo toast re-inserts). */
 function InspectorFooter({ form, section, index, onDismiss }: InspectorBodyProps): ReactElement {
   const toast = useToastManager();
-  // Recoverable delete (§3.5): capture the removed section + its index, drop it, dismiss the inspector
-  // (clears the selection → EmptyState, closes the mobile CONTEXT sheet), then offer an Undo that
-  // re-inserts the exact object at its original index (`form.insertFieldValue`).
+  // Recoverable delete: capture the removed section + index, drop it, dismiss, then offer an Undo re-insert.
   const onDelete = (): void => {
     const removed = section;
     const removedIndex = index;

@@ -1,19 +1,7 @@
-// @orb/contracts/providers — the cross-boundary provider RESULT shapes (DAG Layer 0, kit-only).
-//
-// These are the role-result contracts produced by the sealed `infra/providers` runners and consumed
-// by the `@orb/contracts/role-clients` bundle (and, through it, the embeddings / search / discovery /
-// workloads domains). They are what `role-clients` depends on, so they must land first
-// (shared-dissolution §8; core/Tier-3b-Providers.md §"Contract homes").
-//
-// SCOPE (resolved — core/Tier-3b-Providers.md is the authority, contracts-dag §2 providers FLAG): this node
-// holds ONLY the cross-boundary RESULT shapes. The REQUEST shapes (EmbedRequest / ChatRequest /
-// AgentTurnRequest) stay infra-internal behind `infra/providers/contract/` — they carry an
-// `AbortSignal` (no DOM/node lib here) and a branded `ResolvedCredential`, which are not wire shapes.
-// (`EmbedRequest` was once slated for this node; that was reconciled OUT.)
-//
-// Vectors are `Float32Array` — the same binary format libSQL's `vector_idx` consumes, so the local
-// embedder stores them without a copy; the OpenRouter runner wraps its `number[]` response into a
-// `Float32Array` at the runner boundary so the caller-side type is uniform across families.
+// @orb/contracts/providers — the cross-boundary provider RESULT shapes. These are the role-result
+// contracts produced by the sealed `infra/providers` runners and consumed by `role-clients`. Holds
+// ONLY result shapes — request shapes carry an `AbortSignal`/`ResolvedCredential` and stay infra-internal.
+// Vectors are `Float32Array` — the same binary format libSQL's `vector_idx` consumes.
 
 import { z } from "zod";
 
@@ -98,25 +86,16 @@ export const summarizeResultSchema = z.object({
 });
 export type SummarizeResult = z.infer<typeof summarizeResultSchema>;
 
-// --- Diagnostic result shapes (the account / inspect surfaces) ----------------
-// Family-NEUTRAL result shapes for the `infra/providers` diagnostic front door (probe / accountCredits /
-// generationCost / inspect / fetchOrCatalog). Cross-boundary: the `credentials`/`connection` domains
-// consume them through injection, so they land here (not file-local in a backend). `CredentialHealth`
-// (probe's result) + `ModelCatalogEntry` (the catalog fetch's result) already have homes — `probe` →
-// `@orb/contracts/credentials`, the catalog → `@orb/contracts/connection` — so only these three are net-new.
-
-/** A hosted credential's account balance — the `accountCredits` surface returns it. Family-neutral: any
- *  hosted account that meters a balance maps onto `{ total, used }` (OpenRouter reports USD credits;
- *  `total` is the lifetime granted, `used` the cumulative spend). */
+/** A hosted credential's account balance — the `accountCredits` surface returns it. Family-neutral:
+ *  OpenRouter reports USD credits; `total` is the lifetime granted, `used` the cumulative spend. */
 export const accountCreditsSchema = z.object({
   total: z.number(),
   used: z.number(),
 });
 export type AccountCredits = z.infer<typeof accountCreditsSchema>;
 
-/** The settled upstream cost of ONE generation — the `generationCost` surface returns it (the cost lands
- *  a few seconds after the turn, read with the key that billed it). Token counts are `null` when the
- *  provider doesn't break them out. */
+/** The settled upstream cost of ONE generation. Token counts are `null` when the provider doesn't
+ *  break them out. */
 export const generationCostSchema = z.object({
   totalCost: z.number(),
   tokensPrompt: z.number().nullable(),
@@ -150,16 +129,9 @@ export const endpointInspectionSchema = z.object({
 });
 export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
 
-/** The host-Claude auth verify's result — the `verifyAuth` surface returns it (a tiny SDK turn against
- *  the host login; `connection.testClaudeAuth` is the caller). Discriminated on the USER-vocab `source`
- *  (never a backend/runner name — the seal) so future per-source verify arms narrow instead of squishing
- *  into `{ ok, details?: unknown }`. */
-/** The authenticated account's identity/plan metadata — an SDK-FREE projection of the agent-sdk
- *  `accountInfo()` control response (every field the SDK marks optional stays optional here; the SDK
- *  shape never crosses this boundary). Best-effort: the probe enriches the verify result with it when
- *  the control call succeeds in time, and OMITS it on any failure/timeout (the verify turn itself must
- *  never fail or delay on this). `apiProvider` is the active backend — `"firstParty"` is the Anthropic
- *  OAuth login (the healthy Max-sub answer); the 3P values mean external auth (AWS/gcloud/gateway). */
+/** The authenticated account's identity/plan metadata — an SDK-free projection of the agent-sdk
+ *  `accountInfo()` control response. Best-effort: omitted on any failure/timeout (the verify turn must
+ *  never fail or delay on this). `apiProvider: "firstParty"` is the healthy Max-sub answer. */
 export const verifyAuthAccountSchema = z.object({
   email: z.string().optional(),
   organization: z.string().optional(),

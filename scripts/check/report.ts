@@ -1,9 +1,6 @@
-// The structural-gate orchestrator (`pnpm check:structure`). The entrypoint runs the SINGLE-PASS machine
-// (loadGates auto-discovers every scripts/check/gates/*.ts descriptor → runPass → one walk → renderPass) as
-// the LIVE gate authority. Add a gate by DROPPING it in gates/ — the loader IS the registry (no
-// hand-listing). The catalog of every enforcement lives in
-// docs/architecture/core/Core-Enforcement-Active-Gates.md; the deferred backlog in
-// Core-Enforcement-Deferred-Dropped.md.
+// The structural-gate orchestrator (`pnpm check:structure`). The entrypoint runs the single-pass machine
+// (loadGates auto-discovers every scripts/check/gates/*.ts descriptor → runPass → one walk → renderPass).
+// Add a gate by dropping it in gates/ — the loader IS the registry.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,8 +13,7 @@ import type { PassResult } from "./pass.ts";
 import { projectCtx, runPass } from "./pass.ts";
 import { renderPass } from "./render.ts";
 
-/** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact
- *  `scripts/check/show.ts` renders. */
+/** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact show.ts renders. */
 interface StructureReport {
   readonly gates: readonly GateResult[];
   readonly total: number;
@@ -28,11 +24,9 @@ const EXIT_CLEAN = 0;
 const EXIT_VIOLATIONS = 1;
 const EXIT_TOOL_ERROR = 2;
 
-/** Map the single-pass PassResult into the legacy `check-structure.json` shape (show.ts's consumer):
- *  each gate's per-occurrence findings collapse into `{file,line,message}` violations, where the message
- *  is the finding's own override or — the common case — the gate descriptor's `message` (the reason lives
- *  ONCE on the descriptor). A gate that TOOL-ERRORED is reported with a synthetic violation so the JSON +
- *  the total reflect the broken checker. */
+/** Map the single-pass PassResult into the `check-structure.json` shape: each gate's per-occurrence
+ *  findings collapse into `{file,line,message}` violations, where the message is the finding's own
+ *  override or the gate descriptor's `message`. */
 function toStructureReport(
   pass: PassResult,
   gatesByName: ReadonlyMap<string, GateDescriptor>,
@@ -56,8 +50,8 @@ function writeStructureReport(root: string, report: StructureReport): void {
   writeFileSync(join(reportsDir, "check-structure.json"), `${JSON.stringify(report, null, 2)}\n`);
 }
 
-/** The single-pass run entrypoint: load the descriptors, run ONE pass, render, write the JSON, exit on the
- *  0/1/2/3 scheme (2 when any gate threw — the checker is broken; 1 on violations; 0 clean). */
+/** The single-pass run entrypoint: load the descriptors, run one pass, render, write the JSON, exit on
+ *  the 0/1/2 scheme (2 when any gate threw; 1 on violations; 0 clean). */
 async function runSinglePass(root: string): Promise<void> {
   const gates = await loadGates(root);
   const gatesByName = new Map(gates.map((g) => [g.name, g]));
@@ -78,9 +72,7 @@ async function runSinglePass(root: string): Promise<void> {
   process.exitCode = EXIT_CLEAN;
 }
 
-// Direct-run guard: `pnpm check:structure` (tsx runs this file as the entrypoint) runs the single-pass
-// machine; importing this module (e.g. a test) does NOT execute a run (the is-main guard fires only under
-// `tsx scripts/check/report.ts`).
+// Direct-run guard: importing this module (e.g. a test) does NOT execute a run.
 const entry = process.argv[1];
 if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
   await runSinglePass(process.cwd());

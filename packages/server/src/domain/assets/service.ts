@@ -1,18 +1,8 @@
-// domain/assets — COMPOSITION ROOT: wires the verbs over the DI bundle (zero logic). The per-user
-// content-addressed asset store's core path (4c W1): `store` (+ the `asset.created` emit), `getMetadata`
-// (the owner-gated blob-serve gate), `resolveVariant` (the snap → cache → transform pipeline). The
-// `AssetsContext` is assembled at the entry root (db + the injected clock/id determinism seam + the infra
-// `cas`/`variants`/`imageTransform` handles + the `emit` event op) and passed in; assets injects NO guard
-// (every surface is ownership-scoped off `principal.userId`, not admin/owner-gated — D21).
-//
-// The maintenance/DR wave (PD-26 + PD-84) is BUILT: `backfillAvatars`, `collectGarbage`, `reapIfOrphan`,
-// `fsck`, `rebuildFromTree`, over the asset-ref registry (`persistence/asset-refs.ts` — the ONE list of
-// asset-bearing columns, its coverage proven by a schema-introspection test). The seams are wired at the
-// entry root: `reapIfOrphan` → `character.remove`; `backfillAvatars`/`collectGarbage`/`fsck` → the workloads
-// runner-env (`assets-backfill`/`assets-gc`/`assets-fsck` kinds). Registry coverage note (D49 #4/#5): the
-// introspection test enforces "every FK-to-`assets.id` column is classified retain-or-derived", so a new
-// asset-bearing FK (`character_sprites.assetId`, `documents.sourceAssetId`, NPC/imagery art) cannot silently
-// become GC-eligible. Design: docs/architecture/history/assets-maintenance.md.
+// domain/assets — composition root: wires the verbs over the DI bundle (zero logic). Injects no guard
+// (every surface is ownership-scoped off principal.userId, never admin/owner-gated). Maintenance/DR verbs
+// (backfillAvatars, collectGarbage, reapIfOrphan, fsck, rebuildFromTree) run over the asset-ref registry
+// (persistence/asset-refs.ts — the one list of asset-bearing columns, coverage proven by a schema-
+// introspection test) so a new asset-bearing FK cannot silently become GC-eligible.
 
 import type { AssetsContext, AssetsService } from "./contract/service";
 import { createAddToGallery } from "./verbs/add-to-gallery";

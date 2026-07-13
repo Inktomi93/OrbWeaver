@@ -1,12 +1,8 @@
-// The book ACTIVATION panel (World Info CONTEXT) — where the open book is switched ON. A book contributes
-// nothing to a chat until it is attached at one of the four scopes; this panel drives three of them
-// (global / character / persona) from the BOOK's side. The fourth, CHAT scope, is deferred at transport (the
-// world-info router omits `attachToChat` — chats are membership-scoped, P5) so it is not surfaced here.
-//
-// Global is the clean book-centric toggle (a single `listGlobal` membership read). Character + persona
-// attachment is TARGET-scoped in the API (no per-book reverse index), so those rows each own their membership
-// query (attachment-rows.tsx) — the character list is revealed on demand so a large cast doesn't fan out a
-// query per row until asked. A component (owns its queries), rendered by the route in the CONTEXT slot.
+// The book activation panel — where the open book is switched ON. Drives three of the four attach
+// scopes (global/character/persona) from the book's side; chat scope is deferred at transport. Global is
+// a clean book-centric toggle; character/persona attachment is target-scoped in the API, so those rows
+// own their own membership query — the character list reveals on demand so a large cast doesn't fan out
+// a query per row until asked.
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

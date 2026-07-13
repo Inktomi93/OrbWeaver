@@ -1,14 +1,6 @@
-// infra/providers/vllm/surfaces/chat — the vLLM streaming CHAT role surface (the gen engine's chat turn).
-//
-// A stateless OpenAI-style turn (history assembled by the domain, same shaping the remote chat backends
-// get) streamed over SSE from the loopback gen engine, drained through the SHARED kit openai-compat reducer
-// (`backends/kit` — the one OpenAI-wire seam, which vLLM may import DOWN since it speaks OpenAI wire). It
-// registers against engine/ for the byte stream and imports NO sibling surface.
-//
-// Deliberately simpler than the openrouter runner: one provider (us), so no provider routing, no
-// cache_control choreography (vLLM prefix-caches automatically), no reasoning strip-and-replay (the
-// default Instruct checkpoint has no thinking — but `reasoning_content` deltas ARE forwarded if a future
-// Thinking model emits them). DETERMINISM: turn timing is an injected `now()` (no perf/Date clock).
+// The vLLM streaming chat-role surface: a stateless OpenAI-style turn streamed over SSE from the loopback
+// gen engine, drained through the shared kit openai-compat reducer. Simpler than the openrouter runner —
+// one provider, no routing/cache_control choreography, no reasoning strip-and-replay.
 
 import type { ChatContentPart } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
@@ -31,27 +23,19 @@ import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole } from ".
 import { ProviderError } from "../../contract";
 import type { VllmEngineClient } from "../engine";
 
-// Qwen3-VL-8B-Instruct card defaults applied when the preset is silent: presence_penalty 1.5 (the VL-task
-// anti-repetition lever — NOT in generation_config.json, so the engine would otherwise default to 0) and a
-// 16k output cap (the card's conservative VL-task max). temperature/top_p/top_k defaults DO ship in
-// generation_config.json (0.7/0.8/20) and vLLM auto-loads them when we omit the fields.
+// Qwen3-VL-8B-Instruct card defaults applied when the preset is silent (not in generation_config.json).
 const CARD_DEFAULT_PRESENCE_PENALTY = 1.5;
 const CARD_DEFAULT_MAX_TOKENS = 16_384;
 
 const CHAT_PATH = "/v1/chat/completions";
 
-/** Deps the chat surface closes over. `now` is injected (the determinism seam — turn timing). */
 export interface VllmChatDeps {
   readonly client: VllmEngineClient;
   readonly now: () => number;
 }
 
-// The gen engine's history arm (chat-completions/responses both carry `history`; agent-sdk does not).
 type VllmChatTurn = ChatRequest & { readonly api: "chat-completions" | "responses" };
 
-// One wire message (vision is not used on this streaming text path; the domain assembled plain history).
-// `role` is the wire axis (`HistoryRole`, one home) plus the local `system` fold; the D48/T2 tool fields
-// carry a materialized exchange (raw snake wire names, biome-exempted at the build sites).
 interface WireMessage {
   readonly role: HistoryRole | "system";
   readonly content: string;
@@ -62,7 +46,6 @@ interface WireMessage {
   readonly tool_call_id?: string;
 }
 
-// The materialized tool exchange, raw-wire form (D48/T2 — same mapping as custom-byo's).
 function wireToolCalls(content: readonly ChatContentPart[]): Record<string, unknown>[] {
   const calls: Record<string, unknown>[] = [];
   for (const part of content) {
@@ -88,8 +71,7 @@ function wireToolResults(content: readonly ChatContentPart[]): WireMessage[] {
   return out;
 }
 
-// One user/assistant turn → its wire message, or null when empty (a text-less assistant tool-call turn
-// is KEPT — the calls ARE its content).
+// null when empty; a text-less assistant tool-call turn is kept — the calls ARE its content.
 function wireTurnMessage(turn: ChatHistoryMessage): WireMessage | null {
   const text = chatHistoryText(turn.content);
   const toolCalls = turn.role === "assistant" ? wireToolCalls(turn.content) : [];
@@ -144,8 +126,6 @@ function buildBody(req: VllmChatTurn): Record<string, unknown> {
     stream_options: { include_usage: true },
     messages: toMessages(req),
     ...sampling,
-    // D48/T2: absent means ABSENT — a tool-less/format-less body stays byte-identical to pre-D48; the
-    // `auto` toolChoice default is the CALLER's, never hardwired here (04 §3's vLLM json_schema row).
     ...(req.tools !== undefined ? { tools: rawWireTools(req.tools) } : {}),
     // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
     ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
@@ -156,9 +136,7 @@ function buildBody(req: VllmChatTurn): Record<string, unknown> {
   };
 }
 
-// Reshape the raw vLLM SSE payloads into the kit reducer's camelCase chunk shape (the runner's job per the
-// kit stream header). vLLM speaks raw snake_case: delta.content / delta.reasoning_content / finish_reason /
-// usage.{prompt,completion}_tokens.
+// vLLM speaks raw snake_case; reshapes into the kit reducer's camelCase chunk shape.
 interface RawDelta {
   readonly content?: string | null;
   readonly reasoning_content?: string | null;
@@ -201,13 +179,9 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
   }
 }
 
-/** Bind the chat role to the engine client. */
 export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promise<ChatResult> {
   return async (req) => {
     if (req.api === "agent-sdk" || req.api === "anthropic-messages") {
-      // vLLM speaks the stateless OpenAI chat-completions wire only — no agent-sdk (prompt-only) arm and
-      // no Anthropic-Messages arm (that wire is agent-sdk/anth-direct's; anth-direct is OR-skin-only, so a
-      // vLLM anthropic-messages turn never resolves here — this guard keeps the surface's arm honest).
       throw new ProviderError({
         kind: "invalid",
         retryable: false,
@@ -216,9 +190,7 @@ export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promis
     }
     const turn: VllmChatTurn = req;
     const startedAt = deps.now();
-    // Compose caller-cancel + a rolling IDLE timeout so a stalled loopback socket can't pin the chat slot
-    // forever, while a healthy long stream resets the window on every received chunk (idle window armed at
-    // connection-open; reset per chunk; disposed in `finally`).
+    // A rolling idle timeout so a stalled loopback socket can't pin the chat slot forever.
     const { signal, reset, dispose } = turnAbortSignal(req.signal, IDLE_TIMEOUT_MS);
 
     const chatId = castId<ChatId>(req.chatId ?? "");

@@ -1,8 +1,5 @@
-// The typed API surface (read THIS to know everything preset does). Holds:
-//   • PresetContext   the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4 / no-context-returntype)
-//   • PresetService   the 6-verb authoritative interface (the front door re-exports the type)
-// preset is a leaf user-scoped CRUD feature: no cross-feature port, no injected guard (it gates by
-// `ownerId === userId`). The context carries only db + the determinism seam + the bound audit writer.
+// The typed API surface: PresetContext (the DI bundle) and PresetService (the 6-verb interface). preset is a
+// leaf user-scoped CRUD feature: no cross-feature port, no injected guard — it gates by `ownerId === userId`.
 
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -18,34 +15,19 @@ import type {
 } from "./params";
 import type { PresetDetail, PresetSummary } from "./views";
 
-/**
- * The DI bundle the preset verbs close over (wired at `service.ts`/`entry`). Explicit interface (not
- * `ReturnType<typeof createPresetContext>`) per §7.4 + the `no-context-returntype` gate.
- *   - `db` — the libSQL handle (all queries route through `persistence/`).
- *   - `now` — the INJECTED clock (epoch-ms). Production passes the real clock at `entry/`; tests pass the
- *     frozen clock. No ambient `Date.now()` in a verb (determinism — `test-determinism`).
- *   - `newPresetId` — the INJECTED id minter (`mintTypeId(ID_PREFIX.preset)` in prod; seeded in tests).
- *   - `audit` — `foundation/observability`'s `logAudit` pre-bound to `db` (best-effort; never breaks the
- *     primary channel). The caller passes the timestamp from `now` (the same determinism seam).
- */
+/** The DI bundle the preset verbs close over, wired at the composition root. */
 export interface PresetContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newPresetId: () => PresetId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  /** The user-bus live-freshness emit (PD user-bus lane) — every preset mutation fires `presetsChanged`
-   *  with the acting owner's `userId` AFTER its durable write, so a second device's preset list refetches.
-   *  Wired to transport's `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  /** Fires `presetsChanged` with the acting owner's `userId` after every preset mutation's durable write,
+   *  so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/**
- * The generation-config library surface. All verbs are owner-scoped by the
- * `userId` carried in their params (resolved from the request `Principal`): reads return the owner's rows
- * UNION the shared system default; writes touch only the owner's rows (the system default is reached via
- * COW on update and is un-removable). Six verbs:
- *   create · list · get · update (COW on the system default) · remove · resetToDefault.
- */
+/** The generation-config library surface. All verbs are owner-scoped: reads return the owner's rows union
+ *  the shared system default; writes touch only the owner's rows. */
 export interface PresetService {
   /** Write a new owned preset (audits `preset.create`); returns the full detail. */
   readonly create: (params: CreatePresetParams) => Promise<PresetDetail>;

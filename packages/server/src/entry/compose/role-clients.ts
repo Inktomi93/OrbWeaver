@@ -1,19 +1,7 @@
-// entry/compose/role-clients — THE single `RoleClients` binder the composition root mints (core/Tier-5-Entry.md
-// §layout "role-clients.ts"; core/Tier-3b-Providers.md §"boot binder" + Esoteric §2). `RoleClients`
-// (@orb/contracts/role-clients) is the GOLD-STANDARD cross-feature seam: a bundle of PRE-BOUND callables
-// (embed/rerank/imageEmbed/summarize) + their `*Model` provenance tags. Downstream (search / embeddings /
-// discovery / workloads) never sees a credential or picks a model — it calls `clients.embed(text)`.
-//
-// ONE binder (shared-dissolution §6: `createDefaultRoleClients` is DELETED — there is no silent family
-// default; every bundle is explicitly bound here):
-//   • bindRoleClientsForUser — ASYNC, the PD-9 paydown: per-role `connection.resolveRole({role})` resolves
-//     `{credential, model}` (honoring `routing.roleDefaults.<role>` incl. the D39 local-light arm, resolved
-//     ONCE for the user), then each callable dispatches through the bound `ProviderExecutor`. The `*Model`
-//     provenance = the eagerly-resolved `conn.model`. Used for BOTH the boot-global OWNER bundle (embeddings
-//     indexer + discovery summarize + search) AND the workloads per-owner bundle — there is no vLLM-floor
-//     binder: a sync floor silently routed workload roles to vLLM even when the user pinned OpenRouter,
-//     breaking providers.md invariant #6 (the binder honors per-role roleDefaults). Ported from neo's
-//     `bindRoleClientsForUser`, but orbweaver uses `connection.resolveRole` + `executor.<role>`.
+// The single `RoleClients` binder the composition root mints: a bundle of pre-bound callables
+// (embed/rerank/imageEmbed/summarize) + their `*Model` provenance tags. Downstream never sees a credential
+// or picks a model — it calls `clients.embed(text)`. There is no vLLM-floor binder: a sync floor would
+// silently route workload roles to vLLM even when the user pinned OpenRouter.
 
 import type { Principal } from "@orb/contracts/identity";
 import type {
@@ -35,20 +23,14 @@ import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
 import type { ProviderExecutor } from "#infra/providers";
 
-/** The conservative summarizer context fallback (tokens) when the model catalog reports no `contextLength`.
- *  Small enough to be safe on a tiny local main; the token-guard degrades visibly below it (knowledge-cluster
- *  §10 — the soft-warning fires when the resolved context is under the build's floor). */
+/** Conservative summarizer context fallback (tokens) when the model catalog reports no contextLength. */
 const SUMMARIZER_CONTEXT_FALLBACK = 8192;
 
-/** What the async per-user binder needs: the `resolveRole` selector + the bound executor surface. */
 export interface RoleClientsBinderDeps {
   readonly connection: Pick<ConnectionService, "resolveRole">;
   readonly executor: ProviderExecutor;
 }
 
-/** The synthetic OWNER principal `resolveRole` needs (it scopes the user's routing settings + the D17 owner
- *  credential gate). `via:"fallback"` is the SAFE "this IS the owner" discriminator (spine §1); `handle` is
- *  unused by `resolveRole` (it reads `routing.roleDefaults` by `userId`) — derived from the id for parity. */
 function ownerPrincipal(ownerId: UserId): Principal {
   return {
     userId: ownerId,
@@ -60,11 +42,8 @@ function ownerPrincipal(ownerId: UserId): Principal {
 }
 
 /**
- * Bind a `RoleClients` bundle for one user by resolving each derive-role's `{credential, model}` ONCE via
- * `connection.resolveRole` (the PD-9 paydown), then binding a callable per role over the executor. Async —
- * `resolveRole` touches the per-user settings + credential resolution. Call once per binding context (the
- * boot-global owner bundle in compose; the workloads per-owner bundle via the pre-bound `bindRoleClients`
- * thunk on `ServicesResult`). This is the ONLY binder — there is no vLLM floor.
+ * Bind a `RoleClients` bundle for one user by resolving each derive-role's `{credential, model}` once via
+ * `connection.resolveRole`, then binding a callable per role over the executor.
  */
 export async function bindRoleClientsForUser(
   deps: RoleClientsBinderDeps,
@@ -124,8 +103,7 @@ export async function bindRoleClientsForUser(
     rerankModel: rerankConn.model,
     imageEmbedModel: imageEmbedConn.model,
     summarizerModel: summarizeConn.model,
-    // The summarizer's actual context window (the token-guard reads it). A catalog with no real window (0)
-    // falls back to the conservative floor so the guard degrades visibly, never divides by a bogus budget.
+    // A catalog with no real window (0) falls back to the conservative floor.
     summarizerContextTokens: summarizeConn.capability.context.window || SUMMARIZER_CONTEXT_FALLBACK,
   };
 }

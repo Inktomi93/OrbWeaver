@@ -89,12 +89,10 @@ function ownerIdTableOf(node: Node): string | undefined {
   return hasOwner ? nameArg.getLiteralText() : undefined;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — collect-then-judge ratchet) ────────────────────────
 // STAMP arm (per-node): a sqliteTable with an ownerId column not on the allowlist → per-site finding at
 // visit. STALE arm (whole-tree): a listed table with no ownerId column anywhere → finalize. The stale arm
-// is name-keyed against the LIVE OWNERID_ALLOWLIST, so a synthetic conformance/parity tree (which omits
-// the real schema tables) would misfire — guarded on (a) project scope and (b) the schema BARREL being
-// LOADED (the batch-3 fileLoaded pattern, keyed to a sentinel file since the registry is name-keyed). The
+// is name-keyed against the LIVE OWNERID_ALLOWLIST, so a synthetic tree (which omits the real schema
+// tables) would misfire — guarded on (a) project scope and (b) the schema barrel being loaded. The
 // barrel is loaded on every real full-tree run, so the ratchet is preserved.
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const seenOwnerTables = new Set<string>();

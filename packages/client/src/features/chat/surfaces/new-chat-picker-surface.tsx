@@ -1,31 +1,9 @@
-// The NEW-CHAT character picker (ux-flow-revamp J2 · D62 P4) — the modal body the route composes over
-// the app-shell `newChat` slot (home-page.tsx `modals={{newChat: <NewChatPicker/>}}`). Every "new chat"
-// affordance (chat-list "+", landing hero, ⌘K "New chat") opens THIS first: a characterless draft is no
-// longer the default trapdoor — it survives only as an explicit "Blank chat" pick (rule 2).
-//
-// A SURFACE (not an anchor): the ModalHost provides the Dialog container (the shell's ONE dialog seam);
-// this is the injected BODY — a containment CONSUMER that renders `<Command>` (never its own Dialog), so
-// it lives in surfaces/ and stays surface-pure (the CommandPaletteSurface precedent for a modal body).
-//
-// MULTI-SELECT founds a group (J7 pulled forward): `startChat` takes `characterIds[]` and the client
-// `DraftSeed` is already plural, so picking N characters seeds an N-cast draft. cmdk has no native
-// multi-select — so we keep the palette open on select (cmdk is not its own overlay; it never closes
-// itself) and toggle a trailing check per row, with a "Start chat with N" confirm item at the top of the
-// list (enabled once ≥1 is picked) and a "Blank chat" escape hatch always available.
-//
-// PRIMITIVE CHOICE (why `@orb/ui/command`, NOT `createCollectionSurface`): a picker-with-search is the
-// §13.2 `command` row — cmdk owns the search box, client-side filtering, and the roving-listbox keyboard
-// nav for free. It renders every item into the DOM (it is not virtualized), so the infinite/virtualized
-// `createCollectionSurface` machine is the wrong tool here (the same "wrong tool for this data shape"
-// reasoning `chat-list-surface.tsx` gives for not virtualizing a membership list). We read ONE bounded
-// page of `character.list` (a generous limit; cmdk filters within it) via `useSuspenseQuery` in a
-// `<QueryBoundary>`; selection is plain local `Set` state. A larger library than one page is a follow-up
-// (server-side picker search) — flagged, not faked.
-//
-// LEAF-WRITER (§5.1): the picker writes intent straight through the shared `#state` module actions
-// (`startNewChat` + `setActiveSection` + `closeModal`) — the sanctioned "arbitrary leaf triggers a
-// navigation via store writes" shape, never a `#features/*` import. It reads `character.list` via
-// `trpc.*` (the cross-feature contract, not a feature import).
+// The new-chat character picker: the modal body every "new chat" affordance opens first, so a
+// characterless draft survives only as an explicit "Blank chat" pick. Renders @orb/ui/command (not
+// createCollectionSurface — it's not virtualized, and cmdk owns search/filtering/keyboard nav for
+// free). Multi-select keeps the palette open on select and toggles a trailing check per row, with a
+// "Start chat with N" confirm item and a "Blank chat" escape hatch. Writes intent through #state module
+// actions directly (startNewChat/setActiveSection/closeModal).
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
@@ -53,14 +31,12 @@ import { useFocusOnMount } from "#lib";
 import { closeModal, setActiveSection, startNewChat } from "#state";
 import { initialsForAttribution } from "../lib/attribution";
 
-/** One bounded page of the library — cmdk filters within it. A larger library needs server-side picker
- *  search (a follow-up): TODO(server) add a `search` param to `character.list` for full coverage. */
+// A larger library needs server-side picker search (a follow-up) — TODO(server) add a search param.
 const PICKER_PAGE_LIMIT = 100;
 const SKELETON_ROW_COUNT = 6;
 
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
-/** The picker body — a suspense read of the first library page inside the modal's QueryBoundary. */
 export function NewChatPicker(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -79,7 +55,6 @@ export function NewChatPicker(): ReactElement {
   );
 }
 
-/** The suspending body — reads the library page, then the multi-select command list + confirm items. */
 function PickerBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(
@@ -100,8 +75,6 @@ function PickerBody(): ReactElement {
     });
   };
 
-  // Found the chat + land in it (the ONE action path, §4.2 rule 4): seed the draft, flip to Chats,
-  // close the modal. The route's `chats.content` then mounts the seeded draft room.
   const found = (characterIds: readonly CharacterId[]): void => {
     startNewChat(characterIds.length > 0 ? { characterIds } : undefined);
     setActiveSection("chats");
@@ -159,9 +132,7 @@ interface CharacterPickRowProps {
   readonly onToggle: (id: CharacterId) => void;
 }
 
-/** One character row — avatar · name · a trailing check when picked; select TOGGLES (keeps the list open,
- *  the multi-select mechanism). `keywords` carries the display name so cmdk's `value`-based filter still
- *  matches what the user reads (the CommandItem R6 footgun). */
+// keywords carries the display name so cmdk's value-based filter still matches what the user reads.
 function CharacterPickRow({ character, selected, onToggle }: CharacterPickRowProps): ReactElement {
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (

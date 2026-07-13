@@ -1,13 +1,7 @@
-// The framework-devtools mount — ONE dev-only component holding the unified TanStack devtools
-// shell with the Query + Router panels (Form devtools deliberately SKIPPED — 0.2.x, open
-// prod-visibility bug; the T5 plan decision). DEV-ONLY BY CONSTRUCTION: main.tsx mounts this via
-// `import.meta.env.DEV && lazy(import(...))` (literal DEV → the whole chunk constant-folds out of
-// prod), PLUS @tanstack/devtools-vite's `removeDevtoolsOnBuild` belt in vite.config.ts. NEVER
-// re-export this module from the lib barrel (or any barrel that also exports prod code) — the
-// barrel-leak failure mode is exactly how dev-only code lands in prod bundles.
-// The singletons arrive as PROPS from the composition root (main.tsx owns them; lib/ is the floor
-// and imports nothing from data/ or routes/ — the `client-lib-floor` dep-cruiser rule), and the
-// Query panel gets the EXPLICIT `client` prop (required inside the unified shell — plan decision).
+// The framework-devtools mount — one dev-only component holding the unified TanStack devtools shell
+// with the Query + Router panels (Form devtools deliberately skipped — open prod-visibility bug).
+// Dev-only by construction: main.tsx mounts this via `import.meta.env.DEV && lazy(import(...))`. NEVER
+// re-export this module from the lib barrel — that's exactly how dev-only code lands in prod bundles.
 
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";

@@ -1,12 +1,7 @@
-// PivotBand — the `chat_history` marker rendered as a full-width horizon band, a REAL sortable item in
-// the one rack SortableList (BUILD-SPEC §3.3). It is the conversation pivot: everything dragged above it
-// is the `setup` zone, everything below is `post`. Anatomy: a wave glyph + "Chat history" + the enabled
-// Switch, framed by two edge labels — up: "setup · sent before the conversation" / down: "post · sent
-// after your last message". NO cache claim on the band (cache-stability is model-dependent — ruled).
-//
-// Duplicate pivots (a 2nd+ `chat_history`) render as an INERT warning band instead (the caller passes
-// `duplicate`) — the zones still derive from the FIRST pivot (derive-zones), so a second one is a
-// mistake the rack flags, not a second boundary.
+// PivotBand — the `chat_history` marker rendered as a full-width horizon band, a real sortable item in
+// the rack. It is the conversation pivot: everything dragged above is `setup`, below is `post`. Duplicate
+// pivots (a 2nd+ `chat_history`) render as an inert warning band instead — zones still derive from the
+// first.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-library-surface.tsx precedent).

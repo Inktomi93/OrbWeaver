@@ -1,12 +1,7 @@
-// CharacterGalleryDialog (G4, gallery-design §1.3) — the per-character gallery modal, opened from the chat
-// ⋯ menu's "[Character]'s Gallery" entry. Three nested surfaces, all containment PROVIDERS so they live in
-// this anchor (client-structure rule 7): the GRID of the character's curated media (thumbnails via the
-// `?w=` variant ladder, originals for animated so a GIF isn't freeze-framed), a LIGHTBOX (click a cell to
-// enlarge, with a remove-from-gallery action behind an AlertDialog confirm — the chat-delete destructive
-// pattern, never a one-click cascade), and an ADD-PICKER (a multi-select grid of the owner's own assets to
-// curate in). Wires to the tRPC gallery verbs via `use-character-gallery`. Empty state teaches
-// the first add. a11y: every Dialog carries a title, the grids are labeled + keyboard-operable (MediaGrid's
-// roving-tabindex APG grid), and every control is a labeled Button.
+// The per-character gallery modal, opened from the chat options menu. Three nested surfaces: the grid
+// of curated media, a lightbox (remove-from-gallery behind an AlertDialog confirm, never a one-click
+// cascade), and an add-picker (multi-select grid of the owner's own assets). Wires to the tRPC gallery
+// verbs via use-character-gallery.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
@@ -43,18 +38,15 @@ import {
   useRemoveFromGallery,
 } from "../hooks/use-character-gallery";
 
-/** The add-picker's two source modes: the owner's own uploads, or a Tenor gif search (D61). */
 type AddPickerMode = "owned" | "gifs";
 
-// The existing icon-ladder rung the grid thumbnails snap to (a cached webp; `domain/assets` variant-policy
-// `BLOB_WIDTHS` holds 240). Animated items skip this — the original is rendered so animation survives.
 const GALLERY_THUMB_WIDTH = 240;
 
 type GalleryItem = inferOutput<Trpc["assets"]["listGallery"]>[number];
 type OwnedAsset = inferOutput<Trpc["assets"]["listOwned"]>[number];
 
-/** The blob thumbnail URL — `?w=` snaps to a cached variant; an animated source has no variant (it would
- *  freeze-frame), so the grid uses the original via the `animated` flag. */
+// An animated source has no cached variant (it would freeze-frame), so the grid uses the original via
+// the animated flag.
 function thumbUrl(hash: string): string {
   return `${blobUrl(hash)}?w=${GALLERY_THUMB_WIDTH}`;
 }
@@ -88,9 +80,7 @@ interface GalleryGridBodyProps {
   readonly onAddClick: () => void;
 }
 
-/** The grid/empty/loading three-way for the main gallery body — a pure helper (avoids a nested ternary):
- *  a cold cache reads as a skeleton, never the empty state (D62 §4.3 rule 8 — loading/empty/error are
- *  designed states, not `data ?? []` collapsing pending into empty). */
+// Pending reads as a skeleton, never the empty state.
 function GalleryGridBody({
   isPending,
   gridItems,
@@ -135,7 +125,6 @@ export interface CharacterGalleryDialogProps {
   readonly characterName: string;
 }
 
-/** The character-gallery modal (grid + lightbox + add-picker). */
 export function CharacterGalleryDialog({
   open,
   onOpenChange,
@@ -164,8 +153,6 @@ export function CharacterGalleryDialog({
   const openLightbox = (activated: MediaGridItem): void => {
     setLightbox(items.find((i) => i.galleryItemId === activated.id) ?? null);
   };
-  // Destructive: a confirm gate before the removal fires (this file-area's chat-delete rule — never a
-  // one-click cascade). Reads the id BEFORE nulling the lightbox, then tears both surfaces down.
   const removeItem = (galleryItemId: GalleryItemId): void => {
     remove.mutate({ galleryItemId });
     setRemoveConfirmOpen(false);
@@ -207,17 +194,9 @@ export function CharacterGalleryDialog({
       >
         <DialogPopup size="lg">
           {lightbox === null ? null : (
-            // The popup is a capped flex COLUMN (dialog/variants.ts SCROLL OWNERSHIP): pin the title +
-            // action row and let ONLY the image body scroll, so the buttons are ALWAYS on-screen (the
-            // popup is deliberately not itself a scroll container). `min-h-0` lets the body region shrink
-            // below the image's intrinsic height when the viewport is short.
             <Stack gap="block" className="min-h-0">
               <DialogTitle>Gallery image</DialogTitle>
               <Stack className="min-h-0 flex-1 overflow-y-auto">
-                {/* `max-h-96` clamps the image so it can't push the action row past the fold. The box's
-                    natural source aspect isn't on GalleryItemView (no width/height on the wire), so the
-                    reserved box stays square + `fit="contain"` letterboxes rather than crop — the height
-                    clamp, not the aspect, is what keeps the buttons reachable. */}
                 <CrossfadeImage
                   src={blobUrl(lightbox.hash)}
                   alt="Gallery image"
@@ -234,8 +213,6 @@ export function CharacterGalleryDialog({
                 <DialogClose render={<Button intent="ghost">Close</Button>} />
               </Row>
 
-              {/* Removal is destructive → an explicit confirm (the chat-delete pattern). Nested inside the
-                  lightbox Dialog, so `forceRender` is required for the alert's own backdrop to show. */}
               <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
                 <AlertDialogPopup forceRender={true}>
                   <Stack gap="block">
@@ -282,9 +259,6 @@ interface GalleryAddPickerProps {
   readonly existingAssetIds: ReadonlySet<AssetId>;
 }
 
-/** The add-picker: a mode toggle (your uploads · Tenor gif search) over the shared Dialog. "Your uploads"
- *  is a multi-select grid of the owner's own IMAGE assets; "Search GIFs" is a search box → results grid →
- *  one-click import (D61). Both curate into THIS character's gallery. */
 function GalleryAddPicker({
   open,
   onOpenChange,
@@ -340,8 +314,6 @@ interface OwnedAssetPickerProps {
   readonly onDone: () => void;
 }
 
-/** "Your uploads" mode — a multi-select grid; "Add selected" fires one `addToGallery` per selection
- *  (idempotent server-side), then closes the picker. */
 function OwnedAssetPicker({
   characterId,
   existingAssetIds,

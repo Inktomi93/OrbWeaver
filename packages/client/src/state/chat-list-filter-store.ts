@@ -1,17 +1,9 @@
-// The chat-list FILTER store (character-editor redesign · UI-Arch §4.2). Holds an optional "show only this
-// character's chats" filter the Chats LIST honors — the ONE cross-feature seam that lets the character
-// editor's hero "N chats ›" scope the roomy Chats section to a single character WITHOUT the character
-// feature owning any chat state (no-config-bound-to-chats: the Chats domain CONSUMES this filter via an
-// injected seam; the character side WRITES it; neither owns the other). Mirrors the selection-store family
-// (character-selection-store / preset-selection-store): its own per-section concern, held here so the
-// WRITER (the hero, a Characters-section surface) and the READER (`ChatListSurface`, a Chats-section
-// surface) — sibling shell regions with no shared React ancestor — share it through state, not props.
-//
-// Carries the NAME beside the id so the LIST's "filtered by [name] ✕" chip needs no extra lookup (the
-// writer — the editor — already has the resolved name; ChatSummary has no id→name map, only display
-// `participantNames`). `createGatedStore` (not persisted): a transient device-local view scope — a hard
-// reload landing on the unfiltered list is fine (state-law recap, UI-Arch §5). One field, well under the
-// ≤10-field cap; a non-null value IS "the list is filtered".
+// The chat-list FILTER store: an optional "show only this character's chats" filter the Chats list
+// honors — the ONE cross-feature seam letting the character editor's hero scope the Chats section
+// without the character feature owning any chat state. Writer (editor hero) and reader
+// (ChatListSurface) are sibling shell regions with no shared React ancestor, so they share through
+// state, not props. Carries the name beside the id so the clear-chip needs no extra lookup.
+// createGatedStore, not persisted: a hard reload landing on the unfiltered list is fine.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";

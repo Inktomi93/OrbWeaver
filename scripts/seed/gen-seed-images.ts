@@ -8,12 +8,11 @@
 //
 // Visual system — the "woven orb": concentric orbital rings + threaded arcs + orbiting nodes over the app's
 // deep-charcoal surface, lit by each entity's signature accent. Every entity gets a DISTINCT palette + motif
-// variation matched to its card vibe, so the set reads as a family, not clones. Deterministic per-entity seed
-// (a small mulberry32 PRNG keyed by the entity id) → re-running produces byte-identical files. No text/initials
-// baked in (the avatar primitive renders initials; this art replaces that).
+// variation so the set reads as a family, not clones. Deterministic per-entity seed (mulberry32 PRNG keyed
+// by the entity id) → re-running produces byte-identical files.
 //
-// Throwaway tooling (global KISS applies here, not the architecture): a standalone tsx script, not wired into
-// the app graph. Run: `pnpm tsx scripts/seed/gen-seed-images.ts`.
+// Throwaway tooling: a standalone tsx script, not wired into the app graph.
+// Run: `pnpm tsx scripts/seed/gen-seed-images.ts`.
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

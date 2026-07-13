@@ -1,14 +1,7 @@
-// verb: import (W-preset; export-import-portability.md §1) — the orb-NATIVE preset backup import: parse an
-// untrusted `orb.preset` upload via the ONE preset codec (`@orb/contracts/preset` `parsePresetFile`, which
-// STRICTLY validates + lifts an older config forward) → write the preset domain's OWN `presets` table
-// directly (a self-contained backup — no cross-domain Option-B op). Idempotent on `(ownerId, name)`: an
-// existing same-named owned preset is MERGED
-// (its config replaced in place, same id, kind preserved); otherwise a fresh owned preset is created.
-//
-// NEVER throws for a malformed file — a JSON-parse miss or a codec rejection returns `{ ok:false, error }` so
-// one bad file can't abort a bundle import (the delivery-core per-file isolation posture). `export.ts` is the
-// round-trip twin. The portable file carries no `kind` (the codec is name+config only), so a fresh import
-// lands under the neutral `roleplay` label; a merge keeps the target's existing kind.
+// verb: import — the orb-native preset backup import: parse an untrusted orb.preset upload via
+// parsePresetFile, then write the preset domain's own presets table directly. Idempotent on (ownerId, name):
+// an existing same-named preset is merged in place; otherwise a fresh one is created. Never throws for a
+// malformed file — returns { ok:false, error } so one bad file can't abort a bundle import.
 
 import { parsePresetFile } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
@@ -21,8 +14,7 @@ const PRESET_ENTITY = "preset";
 // The portable file carries no `kind`; a freshly-imported preset lands under this neutral label.
 const IMPORTED_PRESET_KIND = "roleplay";
 
-/** Decode + JSON-parse the upload without throwing — a non-UTF-8 / non-JSON blob is a malformed file, not a
- *  crash. `ok:false` on any parse failure (the caller maps it to `{ ok:false, error }`). */
+/** Decode + JSON-parse without throwing — a non-UTF-8/non-JSON blob is a malformed file, not a crash. */
 function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false } {
   try {
     return { ok: true, value: JSON.parse(new TextDecoder().decode(bytes)) };
@@ -47,7 +39,6 @@ export function createImport(ctx: PresetContext): ImportPreset {
     const existingId = await findOwnedPresetByName(ctx.db, ownerId, name);
 
     if (existingId !== null) {
-      // Re-import: merge into the existing owned row (config swap in place, same id, kind untouched).
       await updatePresetRow(ctx.db, existingId, ownerId, {
         config,
         schemaVersion: config.schemaVersion,

@@ -1,16 +1,7 @@
-// <Chart> — the ECharts seal (D52; ui-package-design §9 "charts/" wave). Every @orb/ui chart type
-// (bar-list, stat-figure, histogram, and future corpus-viz additions) renders through this ONE
-// wrapper so the cross-cutting obligations live in exactly one place:
-//   1. reduced-motion — ECharts animates via canvas-internal timers, not CSS transitions, so the
-//      globals.css unlayered reduced-motion floor (crossfade-image's mechanism) can't reach it;
-//      this component reads `prefers-reduced-motion` live (useSyncExternalStore) and forces
-//      `animation: false`, matching log-viewer's JS-side matchMedia precedent for non-CSS motion.
-//   2. resize — free via echarts-for-react's size-sensor (ResizeObserver-backed); no hand-rolled
-//      observer needed here.
-//   3. accessible name — ECharts' native `aria` component (R2/R3: use what the lib ships, never a
-//      hand-rolled visually-hidden label) gives the canvas element `role="img"` + a description.
-// Colors are NEVER decided here — `option` arrives fully built (chart-type components source their
-// palette from `@orb/ui/tokens`); this wrapper is palette-agnostic.
+// The ECharts seal — every @orb/ui chart type renders through this ONE wrapper: reduced-motion
+// (ECharts animates via canvas-internal timers, not CSS, so this reads prefers-reduced-motion live
+// and forces `animation: false`), resize (free via echarts-for-react's size-sensor), and accessible
+// name (ECharts' native `aria` component). Colors are never decided here — `option` arrives fully built.
 import ReactEChartsCore from "echarts-for-react/lib/core";
 import type { ReactElement } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
@@ -22,22 +13,15 @@ import { chartVariants } from "./variants";
 const DEFAULT_HEIGHT = 240;
 
 export interface ChartProps {
-  /** Bar/line series + grid/tooltip/dataset/aria — the v1 chart family. */
   readonly option: OrbChartOption;
-  /** Accessible name for the canvas, rendered via ECharts' `aria` component (see file header). */
+  /** Accessible name for the canvas, rendered via ECharts' `aria` component. */
   readonly label: string;
   readonly height?: number | string;
   readonly className?: string;
-  /** Escape hatch for callers/tests that need the live instance (e.g. reading the merged option). */
+  /** Escape hatch for callers/tests that need the live instance. */
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
-/**
- * @example
- * ```tsx
- * <Chart option={{ xAxis: {}, yAxis: {}, series: [] }} label="Top sources" />
- * ```
- */
 export function Chart({
   option,
   label,
@@ -47,8 +31,6 @@ export function Chart({
 }: ChartProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const slots = chartVariants();
-  // mergeChartOption enforces the binding rule: animation:false is never overridable under
-  // reduced motion (see its TSDoc).
   const merged = mergeChartOption(option, { label, reducedMotion });
 
   return (

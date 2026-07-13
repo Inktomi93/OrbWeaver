@@ -1,18 +1,7 @@
-// domain/world-info/persistence/queries — ALL db access for the books/entries store (queries only, no
-// business logic). Every read is owner-scoped (the predicate is part of the WHERE, never a post-filter), so
-// a non-owner can never receive another user's row. `ownerId` is `principal.userId` (§7.1) — this layer
-// NEVER reads the `users` table (the `no-direct-users-read` chokepoint).
-//
-// OWNERSHIP DERIVES THROUGH THE BOOK (D23): `world_books.ownerId` is the only owner stamp; `world_entries`
-// has no `ownerId`, so an entry is owned iff its `worldBookId` is one of the caller's books. `loadOwnedEntry`
-// joins through `world_books` for reads; the update/remove verbs fold the same gate into their WHERE via
-// `ownedBookIds` (the `inArray(worldEntries.worldBookId, <owned book ids subquery>)` pattern — NEVER a bare
-// `eq(id)`, which would allow a cross-tenant write; invariant #4).
-//
-// `toEntryView` parses the stored `metadata` blob through `entryMetadataSchema` at the read seam (§8.4
-// parse-at-the-DB-seam): drizzle hands back whatever `JSON.parse` produced typed as `EntryMetadata` without
-// validating it, so a corrupt row degrades to `null` here (`.catch(null)`) instead of poisoning the typed
-// view (invariant #5 — `EntryView.metadata: EntryMetadata | null`, not `unknown`).
+// domain/world-info/persistence/queries — all db access for the books/entries store. Every read is
+// owner-scoped in the WHERE. Ownership derives through the book: world_entries has no ownerId, so an
+// entry is owned iff its worldBookId is one of the caller's books (never a bare eq(id) — cross-tenant hole).
+// toEntryView parses the stored metadata blob at the read seam; a corrupt row degrades to null.
 
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -40,7 +29,6 @@ const LIMIT_ONE = 1;
 type BookRow = typeof worldBooks.$inferSelect;
 type EntryRow = typeof worldEntries.$inferSelect;
 
-/** A stored book row → the client view (drops `ownerId`). */
 export function toBookView(row: BookRow): BookView {
   return {
     id: row.id,
@@ -50,8 +38,6 @@ export function toBookView(row: BookRow): BookView {
   };
 }
 
-/** A stored entry row → the client view. `metadata` is narrowed through `entryMetadataSchema` at this read
- *  seam — a corrupt blob degrades to `null` rather than poisoning the typed view (invariant #5). */
 export function toEntryView(row: EntryRow): EntryView {
   return {
     id: row.id,
@@ -67,13 +53,10 @@ export function toEntryView(row: EntryRow): EntryView {
   };
 }
 
-/** A book row + its per-character attachment `role` → the attachment view. `role` is null for the global /
- *  persona scopes (only the character scope carries a role). */
 export function toAttachmentView(row: BookRow, role: WorldBookRole | null): BookAttachmentView {
   return { ...toBookView(row), role };
 }
 
-/** One owned book, or undefined when not found / not the caller's. */
 export async function loadOwnedBook(
   db: Db,
   ownerId: UserId,
@@ -87,8 +70,6 @@ export async function loadOwnedBook(
   return rows[0];
 }
 
-/** One entry owned (via its book) by the caller, or undefined. The owner gate is the JOIN to
- *  `world_books` + the `ownerId` predicate — entries carry no owner of their own (D23). */
 export async function loadOwnedEntry(
   db: Db,
   ownerId: UserId,
@@ -103,12 +84,6 @@ export async function loadOwnedEntry(
   return rows[0]?.entry;
 }
 
-// The entry update/remove ownership gate (the `inArray(worldEntries.worldBookId, <owned book ids subquery>)`
-// pattern — invariant #4) is built inline in those verbs, where the mutation lives: the subquery
-// `db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId))` folds straight
-// into the UPDATE/DELETE WHERE so the gate + the write are one round-trip (no bare `eq(id)` cross-tenant hole).
-
-/** The caller's books, newest first. */
 export async function listOwnedBooks(db: Db, ownerId: UserId): Promise<BookRow[]> {
   const rows = await db
     .select()
@@ -118,8 +93,7 @@ export async function listOwnedBooks(db: Db, ownerId: UserId): Promise<BookRow[]
   return rows;
 }
 
-/** All entries of a book, by descending `priority` (the display + injection order). The CALLER guards book
- *  ownership first (so this can't probe a foreign book's entry set). */
+// The caller guards book ownership first (so this can't probe a foreign book's entry set).
 export async function listBookEntries(db: Db, bookId: WorldBookId): Promise<EntryRow[]> {
   const rows = await db
     .select()
@@ -129,9 +103,6 @@ export async function listBookEntries(db: Db, bookId: WorldBookId): Promise<Entr
   return rows;
 }
 
-// Each list below re-applies the owner predicate as a symmetric belt.
-
-/** Books attached to a character, primary first then newest, owner-scoped via the book. Carries the role. */
 export async function listCharacterBooks(
   db: Db,
   ownerId: UserId,
@@ -146,7 +117,6 @@ export async function listCharacterBooks(
   return rows.map((r) => toAttachmentView(r.book, r.role));
 }
 
-/** The caller's global books, newest first (owner-scoped via the book). Role is null. */
 export async function listGlobalBooks(db: Db, ownerId: UserId): Promise<BookAttachmentView[]> {
   const rows = await db
     .select({ book: worldBooks })
@@ -157,9 +127,7 @@ export async function listGlobalBooks(db: Db, ownerId: UserId): Promise<BookAtta
   return rows.map((r) => toAttachmentView(r.book, null));
 }
 
-/** Books attached to a chat room, newest first. Role is null. NOT owner-filtered — a chat's attached books
- *  are ROOM-PUBLIC prompt content (D18: membership is the caller gate, applied by the verb via the injected
- *  chat guard; the pool builder reads this junction the same un-owned way). */
+// Not owner-filtered — a chat's attached books are room-public prompt content (membership is the caller gate).
 export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachmentView[]> {
   const rows = await db
     .select({ book: worldBooks })
@@ -170,9 +138,7 @@ export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachm
   return rows.map((r) => toAttachmentView(r.book, null));
 }
 
-/** The reverse of `listChatBooks` — every chat a book is attached to (PD-89: the entry-verb fan-out target).
- *  A book attached to zero chats returns `[]` (empty fan-out is correct, not an error — a
- *  character/persona/global-scoped book has no reverse mapping and never reaches here). */
+/** Reverse of listChatBooks. A book attached to zero chats returns []. */
 export async function listChatIdsForBook(db: Db, bookId: WorldBookId): Promise<ChatId[]> {
   const rows = await db
     .select({ chatId: chatBooks.chatId })
@@ -181,7 +147,6 @@ export async function listChatIdsForBook(db: Db, bookId: WorldBookId): Promise<C
   return rows.map((r) => r.chatId);
 }
 
-/** Books attached to a persona, newest first, owner-scoped via the book. Role is null. */
 export async function listPersonaBooks(
   db: Db,
   ownerId: UserId,

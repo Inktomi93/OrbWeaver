@@ -1,17 +1,7 @@
-// domain/import/substrate/persona — the ST persona parser (PD-77). PURE: a profile's `settings.json` object
-// in → `ParsedPersonas` out (never throws — an empty list when there's no persona data), same zero-I/O,
-// tolerant contract as `substrate/card.ts`/`substrate/chat.ts`. No DB, no fs.
-//
-// ST stores personas on `power_user`:
-//   • `personas`             — { [avatarFile]: displayName }   (the avatar PNG filename is the KEY)
-//   • `persona_descriptions` — { [avatarFile]: { description, position, depth, role, … } }
-//   • `default_persona`      — the avatarFile of the active default (or absent)
-// Without this, imported chats carry a `user_name` with no persona behind it — `{{user}}` falls back to the
-// literal "User". This revives them, mapping ST's per-persona description PLACEMENT
-// (`persona_description_position`) onto the persona `metadata` blob (`@orb/kit/persona`'s
-// `PERSONA_DESCRIPTION_POSITIONS` + the shared `{depth, role}` inject directive, D32) so the description
-// lands in the same spot on re-send. The role axis is `MessageRole` (`@orb/kit/message-role` — the ONE
-// numeric bimap); the position normalization is import-local (a distinct axis, not the message-role union).
+// domain/import/substrate/persona — the ST persona parser. Pure: a profile's settings.json object in →
+// ParsedPersonas out, never throws. ST stores personas on power_user (personas/persona_descriptions/
+// default_persona, keyed by avatar filename); this maps their description placement onto our persona
+// metadata blob so the description lands in the same spot on re-send.
 
 import { messageRoleFromSt } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
@@ -29,12 +19,9 @@ function asObj(v: unknown): Record<string, unknown> | null {
     : null;
 }
 
-// ST `persona_description_positions` (public/scripts/personas.js):
-//   IN_PROMPT 0 · AFTER_CHAR 1 (deprecated alias of IN_PROMPT) · TOP_AN 2 · BOTTOM_AN 3 ·
-//   AT_DEPTH 4 · NONE 9.
-// orbweaver keeps three (none / in_prompt / at_depth) — TOP_AN/BOTTOM_AN are "inject at a position", which
-// orbweaver expresses uniformly through depth-injection (persona kit header), so both collapse to at_depth
-// at the default depth/role. AT_DEPTH carries the descriptor's own depth/role.
+// ST persona_description_positions: IN_PROMPT 0 · AFTER_CHAR 1 (alias) · TOP_AN 2 · BOTTOM_AN 3 ·
+// AT_DEPTH 4 · NONE 9. orbweaver keeps three (none/in_prompt/at_depth); TOP_AN/BOTTOM_AN collapse to
+// at_depth defaults, AT_DEPTH carries its own depth/role.
 const ST_IN_PROMPT = 0;
 const ST_AFTER_CHAR = 1;
 const ST_TOP_AN = 2;
@@ -42,8 +29,7 @@ const ST_BOTTOM_AN = 3;
 const ST_AT_DEPTH = 4;
 const ST_NONE = 9;
 
-/** ST numeric `persona_description_position` → the three-value placement (null = unknown/absent → the
- *  caller treats it as the `in_prompt` default). TOP_AN/BOTTOM_AN/AT_DEPTH all collapse to at_depth. */
+/** null = unknown/absent → caller treats as the in_prompt default. */
 function stPositionToPlacement(rawPos: number): PersonaDescriptionPosition | null {
   if (rawPos === ST_NONE) {
     return "none";
@@ -57,9 +43,7 @@ function stPositionToPlacement(rawPos: number): PersonaDescriptionPosition | nul
   return null;
 }
 
-/** Translate one ST persona descriptor (`persona_descriptions[avatar]`) → the persona `metadata` blob.
- *  Returns null when there's no placement to record (absent descriptor or plain in_prompt — the default),
- *  so a vanilla persona stores a null blob rather than a noisy `{descriptionPosition:"in_prompt"}`. */
+/** Returns null when there's no placement to record (absent descriptor or plain in_prompt default). */
 function metadataFromDescriptor(
   descriptor: Record<string, unknown> | null,
 ): Record<string, unknown> | null {
@@ -74,8 +58,7 @@ function metadataFromDescriptor(
   if (position === "none") {
     return { descriptionPosition: "none" };
   }
-  // at_depth — carry the descriptor's depth/role only for ST's real AT_DEPTH; TOP_AN/BOTTOM_AN have no
-  // meaningful depth, so they take the persona at-depth defaults (`resolvePersonaDescriptionPlacement`).
+  // Only ST's real AT_DEPTH carries depth/role; TOP_AN/BOTTOM_AN take the at-depth defaults.
   const meta: Record<string, unknown> = { descriptionPosition: "at_depth" };
   if (rawPos === ST_AT_DEPTH) {
     const depth = Number(descriptor["depth"]);
@@ -87,15 +70,12 @@ function metadataFromDescriptor(
   return meta;
 }
 
-/** Parse a profile's `settings.json` into the personas the user RP'd as. Tolerant of both the full ST
- *  settings object (personas under `power_user`) and a bare `power_user` slice (personas at the root).
- *  Returns an empty list — never throws — when the file has no persona data. */
+/** Tolerant of both a full ST settings object (personas under power_user) and a bare power_user slice. */
 export function parseStPersonas(settingsRaw: unknown): ParsedPersonas {
   const root = asObj(settingsRaw);
   if (root === null) {
     return { personas: [], defaultAvatarFile: null };
   }
-  // personas live under `power_user` in a full export; some tools hand us the slice directly.
   const pu = asObj(root["power_user"]) ?? root;
   const personasMap = asObj(pu["personas"]);
   if (personasMap === null) {

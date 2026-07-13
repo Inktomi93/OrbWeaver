@@ -1,9 +1,6 @@
-// ffmpeg resolution for the probes that post-process pixels (snap --diff SSIM; record's
-// gif/frame-strip renders in T6). The dev container ships WITHOUT ffmpeg until a Dockerfile
-// rebuild lands, so consumers MUST handle null: degrade with a clear skipped-with-reason
-// line, never crash — skip ≠ fail (the RESULT line says SKIPPED, the exit code stays 0).
-// Playwright's bundled ffmpeg (~/.cache/ms-playwright/ffmpeg-*) is NOT a fallback: it is a
-// screencast-only build with no ssim/blend filters (verified 2026-07-04).
+// ffmpeg resolution for the probes that post-process pixels. Not guaranteed on PATH —
+// consumers MUST handle null (skip ≠ fail: exit 0, SKIPPED result line).
+// Playwright's bundled ffmpeg is NOT a fallback: screencast-only build, no ssim/blend filters.
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 

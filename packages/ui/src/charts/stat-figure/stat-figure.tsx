@@ -1,7 +1,4 @@
-// <StatFigure> — big-number + optional sparkline (ui-package-design §9 v1 corpus-viz set): "N
-// documents indexed" with a trend line, or a bare number+delta tile when there's no series to
-// chart. The delta glyph (never color alone) reuses the curated lucide chevrons/Minus — R3: no
-// hand-rolled arrow SVG when the icon seal already ships one.
+// Big-number + optional sparkline, or a bare number+delta tile when there's no series to chart.
 import type { ReactElement } from "react";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve ChevronDown/ChevronUp/Icon/Minus fine (the log-viewer.tsx precedent).
 import { ChevronDown, ChevronUp, Icon, Minus } from "#primitives/icons";
@@ -34,19 +31,7 @@ const DELTA_GLYPH = { up: ChevronUp, down: ChevronDown, flat: Minus } as const;
 const DELTA_GLYPH_LABEL = { up: "Up", down: "Down", flat: "Flat" } as const;
 const DEFAULT_SPARKLINE_HEIGHT_PX = 48;
 
-/**
- * Omit `trend` for a bare number+delta tile (no chart mounts).
- *
- * @example
- * ```tsx
- * <StatFigure
- *   label="Documents indexed"
- *   value="1,204"
- *   trend={last30Days}
- *   delta={{ text: "+12% this week", direction: "up" }}
- * />
- * ```
- */
+/** Omit `trend` for a bare number+delta tile (no chart mounts). */
 export function StatFigure({
   label,
   value,
@@ -58,7 +43,6 @@ export function StatFigure({
 }: StatFigureProps): ReactElement {
   const slots = statFigureVariants({ direction: delta?.direction });
   const DeltaGlyph = delta === undefined ? null : DELTA_GLYPH[delta.direction];
-  // Resolve chart-chrome tokens to concrete canvas colors live, re-reading on theme switch (§11.3).
   // Called unconditionally (the sparkline only mounts with `trend`) to satisfy rules-of-hooks.
   const colors = useChartTheme();
 

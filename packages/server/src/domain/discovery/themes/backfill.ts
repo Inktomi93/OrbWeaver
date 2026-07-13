@@ -1,20 +1,7 @@
-// domain/discovery/themes/backfill — PD-39: the `digest_theme_assignments.msgMidAt` idempotent backfill (the
-// position-median STORY-TIME stamp that powers `themeDrift`). `msgMidAt` = the `createdAt` of the
-// position-MEDIAN message in a digest's seq-span (where the writing happened) — NOT the time-interval
-// midpoint. A digest maps back to canon via its `(chatId, blockIdx)`; the VERBATIM `chat_segments` row at the
-// same `(chatId, blockIdx)` carries the seq-span, and the median message is the middle message (by seq
-// position) within `[seqStart, seqEnd]`.
-//
-// TIER-0 (scene) ONLY — self-contained + EXACT: a tier-0 digest's block maps 1:1 to a verbatim segment, so
-// its span is exact. A tier-k (arc) synthesis has NO 1:1 segment (its `blockIdx` is `floor(childBlockIdx /
-// fanOut)` in the tier-k block space — the memory bridge-coverage math, chat/memory/build/digests.ts), so its
-// span needs the memory `fanOut` seam. DEFER(promotion): the tier-k `msgMidAt` backfill → when a tier-aware
-// span read (the bridge-coverage math) is exposed as an injected seam. `msgMidAt` is nullable, and `themeDrift`
-// filters `msgMidAt IS NOT NULL`, so arc drift simply reads empty until that lands (scene drift is complete).
-//
-// IDEMPOTENT: a re-run recomputes the same stamp (the span + message seq are immutable) — a plain UPDATE. NO
-// id minter, NO clock (the value is the message's own historical createdAt). Owner scope (SINGULAR) derives
-// via the digest's present chat host (D18); bulk (null) stamps every owner's tier-0 assignments.
+// domain/discovery/themes/backfill — FLAG[PD-39]: the `digest_theme_assignments.msgMidAt` idempotent backfill
+// (the position-median story-time stamp that powers `themeDrift`). Tier-0 (scene) only — a tier-0 digest's
+// block maps 1:1 to a verbatim segment so its seq-span is exact; tier-k (arc) needs the memory `fanOut` seam
+// and is deferred (`msgMidAt` stays null, `themeDrift` filters it out). Idempotent plain UPDATE, no id/clock.
 
 import type { BatchStmt, Db } from "@orb/db";
 import { batchMany, digestThemeAssignments, messages } from "@orb/db";
@@ -24,8 +11,6 @@ import { readTier0DigestSpans } from "../persistence/embed-store-reads";
 
 type DigestSpan = Awaited<ReturnType<typeof readTier0DigestSpans>>[number];
 
-// Every (seq, createdAt) message row for the given chats, grouped by chat, seq-ascending — the median lookup
-// material (read once, sliced in-RAM per digest span; no per-digest query).
 async function readMessagesByChat(
   db: Db,
   chatIds: readonly ChatId[],
@@ -50,8 +35,7 @@ async function readMessagesByChat(
   return byChat;
 }
 
-// The position-median message createdAt within [seqStart, seqEnd] (the lower-median at index floor((n-1)/2)
-// by seq order), or null when the span holds no messages. `chatMsgs` is already seq-ascending.
+// `chatMsgs` is already seq-ascending; the lower-median is at index floor((n-1)/2).
 function medianAt(
   chatMsgs: readonly { seq: number; createdAt: number }[] | undefined,
   span: DigestSpan,

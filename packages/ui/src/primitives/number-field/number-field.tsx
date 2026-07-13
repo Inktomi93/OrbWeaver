@@ -11,38 +11,19 @@ const INCREMENT_LABEL = "Increase";
 
 const slots = numberFieldVariants();
 
-// The scrub cursor glyph — a horizontal double-arrow shown during pointer lock while dragging. Base
-// UI ships the ScrubAreaCursor container, not the mark (the lucide seal, not hand-SVG).
 const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />;
 
 export interface NumberFieldProps extends NumberFieldRootProps {
   className?: string;
-  /**
-   * Renders a drag-to-scrub label (Base UI `NumberField.ScrubArea` + `ScrubAreaCursor`) above the
-   * steppers — click-drag the label to change the value (the ST-style numeric ergonomic). Omit to
-   * hide the affordance.
-   */
+  /** Renders a drag-to-scrub label above the steppers — click-drag to change the value. Omit to hide. */
   scrubLabel?: ReactNode;
-  /** Scrub cursor axis. @defaultValue "horizontal" */
+  /** @defaultValue "horizontal" */
   scrubDirection?: "horizontal" | "vertical";
 }
 
 /**
- * The numeric stepper input — Base UI NumberField (Root → optional ScrubArea → Group/Decrement/Input/
- * Increment) sealed behind the token skin, steppers at touch-floor size; controlled-capable via
- * `value`/`onValueChange` passthrough (D42 §2 — Base UI seal).
- *
- * Pass `scrubLabel` to expose the drag-to-scrub label (pointer-lock cursor while dragging); the
- * increment/decrement steppers keep clamping to `min`/`max` regardless.
- *
- * `readOnly` (Base UI passthrough — blocks steppers + typing, sets `data-readonly` on every part)
- * renders DISTINCTLY from `disabled`: the group/steppers keep their normal token colors (never the
- * `data-disabled` grey-out) and the +/− glyphs swap to a Lock glyph as the non-color "you can't
- * touch this" signal (mirrors `Switch`/`Checkbox`'s treatment — ui-package-design work-order A3).
- *
- * Usage: `<NumberField max={10} min={0} value={count} onValueChange={setCount} />`
- * Scrub: `<NumberField scrubLabel="Weight" value={w} onValueChange={setW} />`
- * Read-only: `<NumberField readOnly value={hp} />`
+ * Numeric stepper input. `readOnly` renders distinctly from `disabled`: the group/steppers keep their
+ * normal token colors and the +/− glyphs swap to a Lock glyph as a non-color "you can't touch this" signal.
  */
 export function NumberField(props: NumberFieldProps): ReactElement {
   const { className, scrubLabel, scrubDirection = "horizontal", ...rest } = props;

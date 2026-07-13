@@ -1,106 +1,47 @@
-/* LINT NOTE (biome `noDescendingSpecificity` is scoped OFF for this file in biome.json#overrides): this
- * stylesheet DELIBERATELY descends specificity in source order — the elevation-ramp rules are declared
- * EARLY at higher specificity so the later base rules + the glass/bg-image overrides win by their OWN
- * higher specificity (each such pair is documented inline below with its (a,b,c) count). The cascade
- * OUTCOME is locked by tests/client/features/app-shell/surfaces/app-shell.ct.tsx ("glass beats
- * elevation", "bg-image beats elevation") — the source order is proven, not assumed. Reordering to
- * ascending would scatter the section-organized file for a style preference and is NOT done. */
-
-/* shell.css — the app-shell's layout MECHANICS (UI-Arch §4.1 + §11.1 + §4b axis 2). The shell tier is
- * the ONE place raw layout CSS + the ONE viewport @media live; feature TSX never writes @media, and the
- * clamp-overlay + grid math live HERE, not in JS. Every COLOR + spacing + z + motion + dimension value
- * references a generated token custom property (--color-*, --spacing-*, --z-*, --motion-*, --dimension-*,
- * from @orb/ui globals.css @theme) — including the bg-image legibility halo, whose darkening rides
- * --color-scrim (never a raw rgb()/oklch() literal). The two local layout constants (rail width, panel
- * clamp) are shell-scoped CSS vars — not Tailwind utilities, so they touch no token gate — but their
- * DEFINITIONS reference the DTCG dimension.* tokens (WS0). The ONE deliberate raw literal is the mobile
- * bottom-tab icon/label gap (`0.125rem`, a 2px sub-field spacing intent with no token on the scale) —
- * allowlisted by the css-structure gate (tests/ui/styles/css-structure.suite.test.ts), which asserts the
- * STRUCTURAL geometry (rail/chrome/panel) never hand-writes a number. */
+/* noDescendingSpecificity is scoped off for this file — elevation-ramp rules are deliberately declared
+ * early at higher specificity so later base/glass/bg-image overrides win on their own specificity. */
 
 .shell-grid {
-  /* rail (fixed) | list track | content (fluid) | context track. A collapsed/overlay panel's track is
-   * 0 — leftover width feeds CONTENT, never a wider chat (§4.1). */
-  --rail-w: var(--dimension-rail); /* ~56px */
+  /* rail (fixed) | list track | content (fluid) | context track; a collapsed/overlay track is 0. */
+  --rail-w: var(--dimension-rail);
   --panel-w: var(--dimension-panel);
   --list-track: 0px;
   --context-track: 0px;
 
-  /* CO-MOTION VARS (the never-desync guarantee, motion audit §5 Layer 1) — the shell's grid track, the
-   * panel transform slide, AND the dismiss scrim are ONE visual event: they MUST animate at the same
-   * duration + curve or they shear/pop against each other (the corpus desync bug: the track snapped in
-   * `0s` while the panel slid over `--motion-base`). Declaring the tempo ONCE here and having every
-   * choreography member reference these two vars makes divergence STRUCTURALLY impossible — editing the
-   * shell's motion is now a one-line change that CANNOT half-apply. `--shell-ease` also houses the curve
-   * (was a raw `ease` keyword at 4 sites — audit D3): the whole app animates on `--ease-out-expo`, and a
-   * different curve at the same duration is a visible shear mid-slide. A rendered-parity CT test
-   * (app-shell.ct.tsx) asserts the grid + panel read EQUAL non-zero duration/easing, catching absence too. */
+  /* Co-motion vars: grid track, panel slide, and dismiss scrim must share one duration/curve or they shear. */
   --shell-motion: var(--motion-base);
   --shell-ease: var(--ease-out-expo);
 
   display: grid;
   grid-template-columns: var(--rail-w) var(--list-track) minmax(0, 1fr) var(--context-track);
   grid-template-rows: 100%;
-  /* Animate the track widths IN SYNC with the panel's transform slide (`.shell-panel` below) off the
-   * SHARED co-motion vars above so CONTENT reclaims/yields the space smoothly as a panel docks/collapses
-   * — instead of the track snapping in one frame (an instant content "pop") while the panel slides over
-   * it, the desync that read as jank on a section switch (e.g. → Corpus, both tracks → 0). Modern engines
-   * interpolate grid track sizes; it's a layout animation but trivial for a single-toggle. The global
-   * prefers-reduced-motion killer (ui globals.css) floors this to instant for that preference. */
   transition: grid-template-columns var(--shell-motion) var(--shell-ease);
   height: 100vh; /* fallback for no-dvh */
-  /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback (§4b axis 4) — the vh line above is the floor for browsers without dvh; this line wins where supported. */
+  /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback — the vh line above is the floor for browsers without dvh; this line wins where supported. */
   height: 100dvh;
   position: relative;
-  isolation: isolate; /* Base UI stacking-context guidance (globals.css note) */
-  /* `clip`, NOT `hidden` (UIP-205 fix): a collapsed/overlay panel is `position:absolute` +
-   * translateX off-screen, but a TRANSFORMED box still contributes to its ancestor's SCROLLABLE
-   * OVERFLOW region — so `overflow:hidden` leaves `.shell-grid` a real (if scrollbar-less) scroll
-   * container whose scrollWidth exceeds clientWidth by a panel width. Native "scroll the focused
-   * element into view" then nudges scrollLeft on click/focus, sliding the whole shell (rail off-
-   * screen). `overflow:clip` removes the element as a scroll container entirely — nothing can scroll
-   * it, by wheel, drag, OR programmatic focus-scroll. Diagnosed live: scrollLeft 0→56 on click,
-   * stays 0 with clip. */
+  isolation: isolate;
+  /* overflow:clip (not hidden) — a transformed collapsed/overlay panel still contributes to scrollable
+   * overflow under `hidden`, letting focus-scroll nudge scrollLeft and slide the whole shell; clip removes it as a scroll container entirely. */
   overflow: clip;
   background: var(--color-background);
   color: var(--color-foreground);
   padding-inline-start: env(safe-area-inset-left);
 }
 
-/* D49 §3 background image (WS3) — with a resolved image active, the grid's own opaque paint steps
- * aside so the fixed-position `<ThemeBackgroundLayer>` (painted BEHIND `.shell-grid` in DOM order,
- * app-shell.tsx) shows through every gap and any opted-in glass surface (blurSurfaces). Without an
- * image (the default), `.shell-grid` stays fully opaque — zero visual change from today. */
+/* With a resolved bg image, the grid goes transparent so the fixed ThemeBackgroundLayer behind it shows through. */
 .shell-grid[data-has-bg-image] {
   background: transparent;
 }
-/* ...but the grid going transparent is NOT enough on its own: `.shell-main` paints its own opaque
- * `--color-background` and tiles OVER the fixed layer, burying the image. So the CONTENT thread surface
- * goes transparent too, and the photo shows behind the thread/landing. NOT the `.shell-topbar` — it's
- * chrome carrying the identity header + controls, so it STAYS opaque/legible (a solid bar over the photo,
- * ST-style). The rail + side panels also stay opaque chrome (they FRAME the image) unless the user opts
- * them into glass (`blurSurfaces`), which turns them translucent for the edge-to-edge frosted look.
- * Legibility floor for the thread: the image's own scrim (`backgroundDim`) + the opaque message bubbles. */
 .shell-grid[data-has-bg-image] .shell-main {
   background: transparent;
-  /* Legibility halo for text floating DIRECTLY over the photo (attribution names, empty-state copy —
-   * anything in the transparent column not on an opaque/glass surface). Keeps it readable on ANY image
-   * regardless of the user's scrim (backgroundDim). Reset below on the surfaced elements. The halo's
-   * darkening rides --color-scrim (the theme-aware overlay tone) so no raw color literal lands here. */
+  /* Legibility halo for text floating directly over the photo; rides --color-scrim, not a raw literal. */
   text-shadow: 0 1px 3px var(--color-scrim);
 }
-/* Message bubbles + composer carry their own legible fill — kill the halo there (it would smear body text). */
 .shell-grid[data-has-bg-image] [data-slot="message-bubble"],
 .shell-grid[data-has-bg-image] [data-slot="composer"] {
   text-shadow: none;
 }
-/* WS3 — the IMMERSIVE Chats landing hero over a bg image: Chats keeps NO full backing (the photo is the
- * point), but the empty-state COPY ("Pick up a thread" + guidance) floated on bright cloud regions at
- * ~2.1:1 (the 1px halo can't survive the image's full luminance range). Anchor JUST that hero in a
- * frosted scrim CHIP — a themed translucent backing hugging the content (`width:max-content`, centered),
- * strong enough that light hero text clears AA over ANY region, while the photo still shows all around
- * it (immersion intact). Scoped to the Chats section's CONTENT empty-state so no other surface is boxed;
- * the halo is dropped here (the copy is backed now). */
 .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
   width: max-content;
   max-width: 100%;
@@ -118,26 +59,13 @@
   }
 }
 
-/* WS3 — the READING/DOCUMENT sections (everything EXCEPT the immersive Chats section) must not float
- * their content directly on the photo. Only Chats is immersive-ST (the message thread shows the image
- * behind bubbles that carry their own fill); every OTHER section's CONTENT is a reading/document surface
- * (character detail, world-info entries, preset editor, corpus results, …) with NO bubble backing, so
- * over a bg image it needs the SAME backing the side panels get: a solid reading surface by default,
- * upgraded to glass when the user opts chrome into blur (parity with `.shell-panel`, below). The
- * `[data-section]` presence guard keeps the immersive/transparent path for Chats AND for the bare
- * cascade fixture (which stamps no section). Specificity (0,4,1) beats the transparent rule (0,2,1). */
+/* Every non-Chats section is a reading surface over a bg image, so it gets the same solid/glass backing as the side panels. */
 .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
   background: var(--color-card);
-  /* Backed now — drop the float halo (it would smear body text on the surface, like the bubbles above). */
   text-shadow: none;
 }
 
-/* DENSITY (UI-Arch section 4 — the user-pref axis, distinct from container size). data-density is
- * stamped on the shell root by AppShell from the synced appearance pref (D44 section 12.1). compact
- * tightens the four spacing INTENT tokens for the whole subtree: the gap and padding utilities all
- * resolve var(--spacing-...), so this single override cascades app-wide (spacing shrinks one step)
- * with no per-component branching. comfortable is the default (the token floor in theme.css), so it
- * needs no rule. Control HEIGHTS are separate tokens, so the touch-target floor (axis 3) is untouched. */
+/* Density: compact tightens the four spacing intent tokens app-wide; comfortable is the token-floor default. */
 .shell-grid[data-density="compact"] {
   --spacing-field: 0.25rem;
   --spacing-row: 0.375rem;
@@ -145,19 +73,8 @@
   --spacing-section: 1rem;
 }
 
-/* ELEVATION (D44 §12.1 appearance.elevation — the user-pref axis, parallel to density). data-elevation
- * is stamped on the shell root by AppShell from the synced appearance pref. `flat` (default) is today's
- * composition (rail + panels share --color-sidebar, 1px region hairlines) and needs no rule. `ramp` opts
- * into a 3-tier brightness ladder (proposed/discord-ux-recon §1): rail stays darkest (--color-sidebar),
- * panels lift to --color-surface-raised (the new mid token), content lifts toward --color-card — and the
- * region hairlines DROP (ramp reads depth from value steps, not borders). Repaint via the shell-scoped
- * region vars so no per-component branching is needed. */
-/* :where() around the attribute selector zeroes its specificity contribution: (0,3,0) → (0,2,0). Still
- * beats the base `.shell-panel` rule (0,1,0) below, but now LOSES to the glass rule's
- * `html[data-blur-panels] .shell-panel` (0,2,1) in globals.css — so enabling panel blur correctly wins
- * over the elevation-ramp fill instead of being silently outranked by it (both are unlayered plain CSS,
- * so this was a pure specificity bug, not a staleness/HMR one — verified live: editing the un-:where()'d
- * rule DID reach the browser's CSSOM via HMR every time, it just never won the cascade). */
+/* Elevation=ramp: a 3-tier brightness ladder (rail darkest, panels/content lift) with hairlines dropped. */
+/* :where() zeroes attr specificity so the glass rule (html[data-blur-panels] .shell-panel) still wins over ramp. */
 .shell-grid:where([data-elevation="ramp"]) .shell-panel {
   background: var(--color-surface-raised);
 }
@@ -168,10 +85,7 @@
 .shell-grid[data-elevation="ramp"] .shell-panel-header {
   border-block-end: none;
 }
-/* :where() the elevation attr here too (same reason as the .shell-panel rule above): these must LOSE to
- * the `[data-has-bg-image] .shell-main/.shell-topbar` transparent rules (0,3,0) so a set background photo
- * shows through the content column even under elevation=ramp. `:where()` drops these to (0,2,0) — still
- * beats base `.shell-main` (0,1,0), now loses to has-bg-image (0,3,0). */
+/* :where() here too so a bg image's transparent rule still wins over elevation=ramp. */
 .shell-grid:where([data-elevation="ramp"]) .shell-main {
   background: var(--color-card);
 }
@@ -180,19 +94,13 @@
   border-block-end: none;
 }
 
-/* ELEVATION=glow (D44 §12.1 appearance.elevation third value) — opt-in layered FLOAT depth: the same
- * recipe-2 stack the overlay token carries (a 1px edge-light hairline + an inset top-highlight + a tight
- * contact shadow + the deep ambient drop) applied to the side panels + every card, so chrome reads as
- * lifted glassy planes instead of flat fills. flat/ramp are untouched (this is a separate opt-in value).
- * `:where()` zeroes the attr specificity (the ramp-rule precedent) so a bg image / glass panel still wins
- * where those apply. Static — no motion. Reuses the generated `--shadow-overlay` token (its own edit
- * propagates here too). The inset top-highlight needs a real fill to sit on, which panels/cards carry. */
+/* Elevation=glow: layered float depth (hairline + inset highlight + contact shadow + ambient drop) via --shadow-overlay. */
 .shell-grid:where([data-elevation="glow"]) .shell-panel,
 .shell-grid:where([data-elevation="glow"]) [data-slot="card-root"] {
   box-shadow: var(--shadow-overlay);
 }
 
-/* A DOCKED panel occupies its grid track (pushes CONTENT); overlay/collapsed leave the track at 0. */
+/* A docked panel occupies its grid track; overlay/collapsed leave the track at 0. */
 .shell-grid[data-list-mode="docked"] {
   --list-track: var(--panel-w);
 }
@@ -200,11 +108,7 @@
   --context-track: var(--panel-w);
 }
 
-/* ── RAIL ─────────────────────────────────────────────────────────────────────────────────────── */
-/* The rail is ONE component with TWO layouts (L6/J12): the `.shell-rail-desktop` thin icon column and
- * the `.shell-rail-mobile` bottom tab bar. `.shell-rail` owns only the grid cell + sidebar chrome; the
- * flex layout lives on whichever inner block the breakpoint shows. Desktop hides the mobile bar; the one
- * `@media` below flips it (grid-row 1 → 2, column → row) — no JS viewport branch, no second nav. */
+/* Rail — one component, two layouts: desktop icon column vs mobile bottom tab bar, swapped by the @media below. */
 .shell-rail {
   grid-column: 1;
   grid-row: 1;
@@ -222,7 +126,6 @@
   height: 100%;
   padding-block: var(--spacing-block);
 }
-/* The mobile bottom tab bar — hidden on desktop; the `@media` below shows it + hides `.shell-rail-desktop`. */
 .shell-rail-mobile {
   display: none;
 }
@@ -231,10 +134,8 @@
   align-items: center;
   justify-content: center;
   padding-block-end: var(--spacing-row);
-  /* Brand glyph alone — muted, no box (UIP-201). WeaveGlyph paints in currentColor, so this cascades. */
   color: var(--color-muted-foreground);
 }
-/* Sections: `--spacing-section` BETWEEN groups (the divider), `--spacing-field` within a group. */
 .shell-rail-sections {
   display: flex;
   flex-direction: column;
@@ -253,7 +154,6 @@
   align-items: center;
   gap: var(--spacing-row);
 }
-/* Avatar: extra top margin so it doesn't fuse with the settings icon (UIP-201). */
 .shell-rail-avatar {
   margin-block-start: var(--spacing-row);
 }
@@ -261,10 +161,6 @@
   flex: 1 1 auto;
 }
 
-/* Rail buttons (UIP-201) — fine-pointer 40px (`--spacing-control-lg`; coarse flips to a 56px hit area,
- * §4b axis 3), muted at rest (the ghost default), hover = `--sidebar-accent`, active = a primary-14%
- * tint + primary icon (NOT a solid slab). Scoped under `.shell-rail` so the two-class specificity beats
- * the Button primitive's single-class size/color utilities. Focus rides the Button's own ring. */
 .shell-rail .shell-rail-button {
   width: var(--spacing-control-lg);
   height: var(--spacing-control-lg);
@@ -278,12 +174,7 @@
   color: var(--color-primary);
   position: relative;
 }
-/* The one rationed Ember glow (--shadow-glow, DESIGN.md §5) on the active section — a legitimate "here
- * you are" accent moment. Painted on a `::before` LAYER, NOT the button's own `box-shadow`: the Button
- * primitive's focus-visible ring is a `box-shadow` utility (FOCUS_RING), and setting `box-shadow` here
- * (specificity 0,3,0) would silently overwrite it, leaving the active item with NO visible keyboard
- * focus (WCAG 2.4.7). The layer frees `box-shadow` for the ring. Static; the halo radiates outside the
- * transparent box so it never occludes the icon; z-index below the accent-hairline `::after`. */
+/* Painted on a ::before layer, not box-shadow directly — the Button's focus ring is also a box-shadow utility and would be overwritten. */
 .shell-rail .shell-rail-button[data-active]::before {
   content: "";
   position: absolute;
@@ -293,12 +184,6 @@
   border-radius: inherit;
   box-shadow: var(--shadow-glow);
 }
-/* Accent hairline on the active rail item (effects catalog E applied to chrome / item 7) — a 1px
- * gradient border framing the current section so it reads as a lifted, outlined tile on top of the
- * 14%-tint fill (the glow gives the halo; this gives the crisp accent edge). Same dual background-clip
- * recipe as the CTA/tab ring (globals.css), scoped here because the rail button is a ghost Button (no
- * `data-cta`), so it doesn't inherit that rule. Static; tracks the accent via --color-primary. The
- * `::after` sits over the fill, non-interactive, radius-matched to the button. */
 .shell-rail .shell-rail-button[data-active]::after {
   content: "";
   position: absolute;
@@ -313,10 +198,6 @@
     border-box;
 }
 
-/* Mobile bottom-tab buttons (L6/J12) — a vertical icon+label stack that fills its share of the bar
- * (flex:1). Each is `--rail-w` tall (≥44px coarse-pointer hit floor, §4b axis 3). Muted at rest, primary
- * when active (the current section). Two-class specificity beats the Button primitive's own utilities
- * (the `.shell-rail-button` precedent). */
 .shell-rail .shell-tab-button {
   flex: 1 1 0;
   min-width: 0;
@@ -333,7 +214,7 @@
   line-height: 1;
 }
 
-/* ── SIDE PANELS (the §11.1 clamp-overlay) ────────────────────────────────────────────────────── */
+/* Side panels (the clamp-overlay) */
 .shell-panel {
   grid-row: 1;
   display: flex;
@@ -352,26 +233,19 @@
   border-inline-start: 1px solid var(--color-sidebar-border);
 }
 
-/* DOCKED — in flow, fills its track. */
 .shell-panel[data-panel-mode="docked"] {
   position: relative;
   width: auto;
 }
 
-/* OVERLAY + COLLAPSED — pulled OUT of grid flow, fixed clamp width, transform-animated. The track is
- * already 0, so CONTENT never reflows when a panel toggles (§11.1). */
 .shell-panel[data-panel-mode="overlay"],
 .shell-panel[data-panel-mode="collapsed"] {
   position: absolute;
-  /* Reset the grid placement: an abspos GRID ITEM otherwise uses its grid-AREA as the containing
-   * block, so inset-inline-start would stack on top of column 2's origin. `auto` makes the grid
-   * padding box the containing block, so the inset positions against the shell edge. */
+  /* grid-column:auto resets the abspos containing block off the grid area so inset-inline-start targets the shell edge. */
   grid-column: auto;
   inset-block: 0;
   width: var(--panel-w);
   z-index: var(--z-overlay);
-  /* SAME co-motion vars as the grid track above — this is the other half of the coordinated pair; it
-   * physically cannot read a different tempo than the track it choreographs with. */
   transition: transform var(--shell-motion) var(--shell-ease);
 }
 .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
@@ -385,11 +259,7 @@
 .shell-panel[data-panel-mode="overlay"] {
   transform: translateX(0);
 }
-/* COLLAPSED — translated fully off its own edge: zero visual width, no reflow. The LIST panel opens at
- * inset-inline-start:var(--rail-w) (flush right of the rail in overlay), so -100% alone lands its right
- * edge at the rail's edge — a rail-width overhang whose z-overlay content covers the rail. Clear the rail
- * offset too so it goes fully off-screen (the CONTEXT panel opens at the shell's right edge, so its plain
- * translateX(100%) already clears; only LIST carries the rail offset). */
+/* List panel opens flush against the rail, so its collapsed offset must clear the rail width too. */
 .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
   transform: translateX(calc(-100% - var(--rail-w)));
 }
@@ -412,13 +282,10 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* The consistent LIST/CONTEXT content inset (was 0 — the header, search, and rows all crowded the
-     panel edges). One token-scaled gutter so every panel surface breathes the same, Discord-like. */
   padding-inline: var(--spacing-row);
   padding-block: var(--spacing-row);
 }
 
-/* ── CONTENT column (topbar + hero) ───────────────────────────────────────────────────────────── */
 .shell-main {
   grid-column: 3;
   grid-row: 1;
@@ -453,7 +320,6 @@
   min-width: 0;
   display: flex;
 }
-/* The region containment providers (<RegionAnchor>) fill their cell so the surface inside adapts. */
 .shell-region-fill {
   flex: 1 1 auto;
   min-height: 0;
@@ -462,14 +328,7 @@
   flex-direction: column;
 }
 
-/* ── SCRIM (dismisses an overlay panel / a mobile sheet) ──────────────────────────────────────── */
-/* EXIT-AWARE scrim (motion audit D2) — stays MOUNTED (app-shell.tsx toggles `data-visible`) and fades
- * on an opacity TRANSITION off the shared co-motion vars, NOT an enter-only keyframe + hard unmount. The
- * old keyframe fired only on enter, so a dismiss vanished the scrim in 0ms while the panel it dims slid
- * out over `--shell-motion` — the corpus desync class in miniature. Transitioning opacity off the SAME
- * `--shell-motion`/`--shell-ease` the panel uses fades the scrim WITH the panel, and (per the handbook)
- * a transition is cancellable mid-slide where a keyframe is not. `pointer-events:none` when hidden so the
- * invisible-but-mounted scrim never intercepts clicks meant for the live content. */
+/* Scrim stays mounted and fades via opacity transition off the shared co-motion vars, so it never desyncs from the panel it dims. */
 .shell-scrim {
   position: absolute;
   inset: 0;
@@ -486,31 +345,20 @@
   pointer-events: auto;
 }
 
-/* ── MODAL header (inside the shared <Dialog>) ────────────────────────────────────────────────── */
 .shell-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-row);
-  /* The header edge divider (§4.3 · side-eye P3): ONE full-modal-width hairline HUGGING the title (a
-   * tight `--spacing-field` above it) so it reads as a header edge, not a line floating mid-gap; then a
-   * single `--spacing-block` step to the body — no compounding padding stack. */
   padding-block-end: var(--spacing-field);
   border-block-end: 1px solid var(--color-border);
   margin-block-end: var(--spacing-block);
 }
 
-/* ── THE ONE @media: desktop columns ⇄ mobile BOTTOM tab bar + sheets (§4b axis 2 · L6/J12 · D62 P3) ──
- * Below the breakpoint the rail reflows to a BOTTOM tab bar (thumb ergonomics — ruling P3, supersedes
- * the earlier top-bar shape) and the side panels become sheets that slide in BELOW the topbar and ABOVE
- * the bar. The panel MODE is resolved mobile-aware in use-shell-layout.ts (a transient sheet, never the
- * persisted desktop dock) → here we only place the rendering: overlay = open sheet, collapsed = off-
- * screen. Pure CSS + the `useIsMobileViewport` matchMedia twin (same 48rem literal — they cite each
- * other; a viewport breakpoint is shell-only, distinct from the `--container-cq-*` @container tokens). */
+/* The one @media: desktop columns flip to a mobile bottom tab bar + sliding sheets. */
 @media (max-width: 48rem) {
   .shell-grid {
     grid-template-columns: minmax(0, 1fr);
-    /* Content fills the top; the bar owns the bottom row (its height grows by the home-indicator inset). */
     grid-template-rows: minmax(0, 1fr) calc(var(--rail-w) + env(safe-area-inset-bottom));
   }
   .shell-main {
@@ -523,10 +371,8 @@
     width: auto;
     border-inline-end: none;
     border-block-start: 1px solid var(--color-sidebar-border);
-    /* Safe-area (§4b axis 4): pad the bar above the iOS home indicator; the grid row grew to match. */
     padding-block-end: env(safe-area-inset-bottom);
   }
-  /* Swap which inner block lays out: the desktop column hides, the bottom tab bar shows. */
   .shell-rail-desktop {
     display: none;
   }
@@ -537,11 +383,7 @@
     justify-content: space-around;
     height: var(--rail-w);
   }
-  /* Panels → sheets in the band BETWEEN the topbar (3rem) and the bottom bar, so the topbar's always-
-   * present list/context toggle stays reachable AND doubles as the sheet dismiss (no new close button —
-   * J12). overlay = open (translateX 0), collapsed = slid off its own edge (zero visual width). `docked`
-   * never resolves on mobile (use-shell-layout forces overlay/collapsed) — matched here only so a stray
-   * docked value can't fall through to the DESKTOP grid-track rule and mis-place a broken panel. */
+  /* docked never resolves on mobile; matched only so a stray docked value can't fall through to the desktop grid-track rule. */
   .shell-panel[data-panel-mode="docked"],
   .shell-panel[data-panel-mode="overlay"],
   .shell-panel[data-panel-mode="collapsed"] {
@@ -549,13 +391,8 @@
     inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
     width: 100dvw;
     z-index: var(--z-modal);
-    /* Mobile sheet slide — same co-motion vars (they inherit from `.shell-grid`), so the mobile sheet
-     * choreography shares the desktop tempo by construction. */
     transition: transform var(--shell-motion) var(--shell-ease);
   }
-  /* Reset the DESKTOP side-specific insets (they pin the list overlay to `inset-inline-start:var(--rail-w)`
-   * — specificity (0,3,0), so a generic `inset-inline:0` here loses). Match that specificity per side so
-   * a mobile sheet spans the full width from x=0 (else a "collapsed" panel leaves a rail-width sliver). */
   .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"],
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
@@ -568,16 +405,9 @@
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     transform: translateX(100%);
   }
-  /* The dismiss scrim covers ONLY the sheet's own band — the topbar (dismiss/toggle) and the bottom bar
-   * (tab switch) stay live above it, so a scrim tap dismisses but the chrome never goes dead. */
   .shell-scrim {
     inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
   }
-  /* WS3 D44 §12.1 blur reduction on mobile (glass + a big bg image is the jank combo, researched
-   * recipe's own guard) — this is the ONE legal viewport @media site (§4b axis 2), so the reduction
-   * rides it rather than inventing a second pointer-based media axis. Reverts to each surface's
-   * normal solid token color, same fallback shape as the prefers-reduced-transparency rule in
-   * globals.css (kept here, not there, because it's keyed off THIS breakpoint). */
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
   html[data-blur-modals] [data-slot="dialog-popup"],
@@ -586,10 +416,8 @@
     backdrop-filter: none;
     background-color: revert;
   }
-  /* Same mobile blur-reduction for the reading/document CONTENT backing (globals.css glass upgrade) —
-   * but hold its SOLID `--color-card` (a reader must stay backed on mobile, not fall back onto the
-   * photo), so this sets the color explicitly rather than `revert`ing to transparent. */
-  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"])
+  html[data-blur-panels]
+    .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"])
     .shell-main {
     backdrop-filter: none;
     background-color: var(--color-card);

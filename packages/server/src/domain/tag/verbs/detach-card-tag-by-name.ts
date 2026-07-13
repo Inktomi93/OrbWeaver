@@ -1,15 +1,7 @@
-// verb: detachCardTagByName — the internal resolve-BY-NAME card-tag detach (character's injected
-// `DetachCardTagOp`), the mirror of `attachCardTagByName`. The ONE home for by-name card-tag removal: the
-// editor's tag-chip remove routes here (via character's `bulkRemoveCardTag`). Two steps, both idempotent:
-//   1. RESOLVE the owner's tag by NAME — case-INsensitively (`normalizeTagName` FIRST, then a `lower(name)`
-//      match), NO create (a detach never mints a tag). A missing tag ⇒ nothing to remove → `false`.
-//   2. DELETE the `(characterId, tagId)` junction row, reporting whether one existed (the boolean
-//      `character.bulkRemoveCardTag` counts as removed-vs-skipped). The tag row itself is left intact — an
-//      orphaned tag with zero junctions is the prune-unused concern, not a detach's.
-// NOT principal-gated: `ownerId` is the caller-resolved owner (character has ALREADY owner-verified the row) —
-// the same trusted-system, owner-already-gated posture as `attachCardTagByName`. A blank name is a no-op
-// (returns false). No emit here — the CHARACTER verb fires `charactersChanged` (mirrors the attach path, where
-// the emit also lives in `bulkAddCardTag`, never in the port).
+// verb: detachCardTagByName — resolve-by-name card-tag detach, mirror of attachCardTagByName. Resolves the
+// owner's tag case-insensitively (no create), then deletes the (characterId, tagId) junction; the tag row
+// itself is left intact. Not principal-gated: ownerId is caller-resolved, character has already owner-verified
+// the row. No emit here — the character verb fires charactersChanged.
 
 import { normalizeTagName } from "@orb/kit/tag";
 import type { DetachCardTagByNameParams } from "../contract/params";
@@ -25,13 +17,9 @@ export function createDetachCardTagByName(ctx: TagContext): TagService["detachCa
     }
     const tagId = await findTagIdByName(ctx.db, ownerId, name);
     if (tagId === undefined) {
-      // The owner has no tag folding to this name — nothing to detach (idempotent on absent).
       return false;
     }
     const removed = await detachCharacterTag({ db: ctx.db, characterId, tagId });
-    // Best-effort audit only on an ACTUAL removal — detaching an already-absent junction writes no row, so a
-    // repeated remove doesn't spam the log (mirrors the attach path's new-attach-only audit). Actor = the
-    // caller-resolved owner (trusted/owner-already-gated by its composition-root caller — file header).
     if (removed) {
       await ctx.audit({
         actorUserId: ownerId,

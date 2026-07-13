@@ -1,19 +1,9 @@
-// entry/compose/chat — the chat domain's slice of THE composition root (core/Tier-5-Entry.md §"injection model").
-// Split out of `services.ts` (which only CALLS `buildChatService`) because the chat `ChatContext` is the
-// widest DI bundle in the system (~30 injected cross-feature ops) + the `ChatServiceDeps` collaborators the
-// entry root must CONSTRUCT (the durable-first bus, the active-turns registry, the per-member budget, the
-// invite-token hasher, the routable derivation). This file owns NO business logic — every op is wired to a
-// real lower-tier verb where the shapes line up, OR is a flagged inert/permissive stub where the backing is
-// unbuilt/mismatched (the prompt's inert-stub pattern; see the per-FLAG notes inline + the integration report).
+// Chat domain's slice of the composition root: wires the widest DI bundle in the system (ChatContext +
+// ChatServiceDeps). Owns no business logic.
 //
-// THE IDENTITY IMPEDANCE (systemic): chat's cross-feature ops are keyed by the FROZEN host `UserId` (D19 —
-// the host funds the turn, may be offline, so the path never carries the host's `Principal`). The sibling
-// front doors (`character.getCard`, `credentials.resolve`, `connection.resolveChat`, `persona.get`) are keyed
-// by `Principal`, and there is NO front-door op to resolve a `Principal` from a bare `userId`. TWO bridges:
-//   • role-IRRELEVANT ops (getCard/persona/mint — gated on `userId` only): the cheap synthetic `hostPrincipal`.
-//   • role-SENSITIVE ops (resolveChat/resolveCredential — the D17 max-pro-sub owner-gate, identity §3): the
-//     INJECTED `resolveHostPrincipal` (PD-73 resolved — `entry/auth.createHostPrincipalResolver` over
-//     `sessions.loadUserById`, the sanctioned `users` reader; the seam stays the one Principal mint site).
+// Identity impedance: chat's cross-feature ops are keyed by the frozen host `UserId` (the host may be
+// offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
+// `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
@@ -74,28 +64,18 @@ import { publishNotification } from "../../transport/trpc";
 import { createChatChangedEmitter } from "./emit-chat-changed";
 import { resolveImageRefToUrl } from "./resolve-image-ref";
 
-/** Per-chat turn-lock TTL (ms), sized for one turn — the lock auto-expires so a crashed holder's lock is
- *  takeover-eligible (the steady-state recovery; boot reclaim handles this replica's own orphans). */
+/** Per-chat turn-lock TTL (ms) — auto-expires so a crashed holder's lock is takeover-eligible. */
 const CHAT_LOCK_TTL_MS = 120_000;
-/** The per-member COUNT-budget window (fixed-window). A day: the cap (`nonOwnerLocalComputeBudget`) is the
- *  per-day turn allotment a non-owner member may drive on the host's box (D17). */
 const MEMBER_BUDGET_WINDOW_MS = 86_400_000;
 
-/** Build a production id minter for a TypeID prefix (mirrors `services.ts` — the composition root is the
- *  sanctioned mint site). */
 function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => mintTypeId(prefix);
 }
 
-// ── The agent-sdk turn shape (the PD-7 wiring) ────────────────────────────────────────────────────────
-// The stateful backend wants (a) the SESSION SEED — the model-visible transcript BEFORE this turn — and
-// (b) the PROMPT TAIL — the trailing user rows this turn asks the model to answer. With both, it resumes
-// its cached session while the session transcript still matches the seed and reseeds deterministically on
-// divergence (edit/swipe/window-slide), so history rides the session (prompt-cache survival) instead of
-// being re-sent flattened every turn. When the history has NO clean user tail (continue-mode assistant-
-// final history, or a D48 tool row that can't ride this arm), fall back to the pre-PD-7 flatten — one
-// prompt string, NO chatId/seed (a fresh throwaway session) — never resume a session that already holds
-// the text being continued.
+// Agent-sdk turn shape: the stateful backend wants a session seed (transcript before this turn) + a prompt
+// tail (trailing user rows). With both it resumes its cached session and reseeds on divergence, so history
+// rides the session instead of being re-sent flattened every turn. No clean user tail (continue-mode, or a
+// tool row) falls back to the pre-existing flatten (one prompt string, fresh throwaway session).
 
 /** One rendered row: image parts become a placeholder (no vision on this path); the wire `name` label is
  *  stamped into the text (agent-sdk seed frames carry no `name` field). */
@@ -104,8 +84,8 @@ function agentRowText(m: TurnMessage): string {
   return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
 }
 
-/** The legacy flatten (the no-seed fallback): the WHOLE history as one role-labeled blob. Exported
- *  for the bridge tests only — not a composition surface. */
+/** The legacy flatten (no-seed fallback): the whole history as one role-labeled blob. Exported for bridge
+ *  tests only — not a composition surface. */
 export function flattenAgentHistory(history: readonly TurnMessage[]): string {
   return history
     .map((m) => {
@@ -118,13 +98,10 @@ export function flattenAgentHistory(history: readonly TurnMessage[]): string {
 }
 
 /** Split the shaped history into the session seed + the joined prompt tail; `null` when the history has
- *  no clean user tail (the caller falls back to {@link flattenAgentHistory}). Exported for the
- *  bridge tests only — not a composition surface. */
+ *  no clean user tail (the caller falls back to {@link flattenAgentHistory}). */
 export function splitAgentHistory(
   history: readonly TurnMessage[],
 ): { seed: readonly AgentSeedTurn[]; prompt: string } | null {
-  // A tool row can only mean a mid-migration mixed history (tools never attach on the agent-sdk arm) —
-  // fall back rather than mistranslate a tool exchange into prose.
   if (history.some((m) => m.role === "tool")) {
     return null;
   }
@@ -137,7 +114,7 @@ export function splitAgentHistory(
   }
   const tail = history.slice(lastAssistant + 1);
   if (tail.length === 0) {
-    return null; // continue-mode: assistant-final history has no user turn to send.
+    return null;
   }
   const prompt = tail
     .map(agentRowText)
@@ -155,27 +132,22 @@ export function splitAgentHistory(
   return { seed, prompt };
 }
 
-/** What `buildChatService` needs from the composition root — the boot primitives + the already-built sibling
- *  services chat's injected ops route through (their FRONT DOORS only; chat never sideways-imports them). */
+/** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
+ *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
-  /** The D48 tool-use service (optional — absent wires `ChatContext.tools` to null, the byte-identical
-   *  no-op; tool-use-design/03 §1). Present from services.ts once ANY registrant/consumer exists. */
+  /** Optional — absent wires `ChatContext.tools` to null (byte-identical no-op). */
   readonly toolUse?: ToolUseService | undefined;
   readonly db: Db;
   readonly now: () => number;
-  /** PD-128: the ONE chat bus's durable-first emit (`bus.emit` → transport `publishChatEvent`), built at the
-   *  composition root (`services.ts`) and injected so chat does NOT construct a second `createChatBus`. The
-   *  SAME wrapper backs persona's active-persona write, so persona/chat/world-info all share one bus + ring. */
+  /** The one chat bus's durable-first emit, built at the composition root and injected so chat doesn't
+   *  construct a second bus. The same wrapper backs persona's active-persona write. */
   readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
-  /** The lock-holder tag for this replica (also used by the boot lock reclaim — one source of truth). */
+  /** The lock-holder tag for this replica (also used by the boot lock reclaim). */
   readonly holder: string;
-  /** The invite-token pepper (mirrors sessions). */
   readonly sessionSecret: string | null;
-  /** The frozen-host → `Principal` bridge for the ROLE-SENSITIVE ops (PD-73 —
-   *  `entry/auth.createHostPrincipalResolver`: the host's real `users.role` via `sessions.loadUserById`). */
+  /** The frozen-host → `Principal` bridge for role-sensitive ops. */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  /** The PD-1 privilege-decision seam (admin's `can`, injected DOWN). */
   readonly can: Can;
   readonly roleClients: RoleClients;
   readonly connection: ConnectionService;
@@ -185,9 +157,7 @@ export interface ChatComposeInput {
   readonly preset: PresetService;
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
-  /** sessions' EXACT handle→userId (PD-66 targeted invites) — the sanctioned users reader, injected DOWN. */
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
-  /** sessions' lazy agent-principal mint (D60, seatAgent — doc 04 §3); the sanctioned users writer, injected DOWN. */
   readonly provisionAgentPrincipal: (params: {
     readonly ownerUserId: UserId;
     readonly sourceKind: AgentSourceKind;
@@ -196,21 +166,17 @@ export interface ChatComposeInput {
   readonly embeddings: EmbeddingsService;
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
   readonly assets: AssetsService;
-  /** PD-70: the transport presence registry's read side → chat's `presence.read` op (cast-gating). Built at
-   *  `services.ts` over the injected clock; supersedes the fail-open stub. */
   readonly readPresence: PresenceReadOp;
   /** imagery's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural result below). */
   readonly generatePicture: ImageryService["generatePicture"];
 }
 
-/** The chat compose product: the service + the bus's durable-first emit, surfaced for the OTHER producers
- *  that publish onto the chat bus (world-info's `WiBusEvent`, PD-30). The replay-ring read handle stays
- *  internal until the transport SSE fan-out needs it (B2-1). */
+/** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
+ *  publish onto the chat bus (e.g. world-info). */
 export interface ChatComposeResult {
   readonly service: ChatService;
   readonly emitBusEvent: (event: ChatBusEvent) => Promise<void>;
-  /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx — the workloads runner-env's memory/character
-   *  backfill ops (the env is built AFTER chat at the root so these can be handed straight in). */
+  /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
     readonly memory: (args: {
       signal: AbortSignal;
@@ -225,18 +191,14 @@ export interface ChatComposeResult {
 
 /**
  * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
- * collaborator. Returns the service AND the bus emit (see {@link ChatComposeResult} — world-info publishes
- * its `WiBusEvent` through the SAME durable-first bus so WI attachment changes land in `chat_events`).
+ * collaborator. Returns the service AND the bus emit.
  */
-// The ChatToolOps adapter (tool-use-design/03 §1): chat's opaque `ChatToolSet` IS the `ResolvedToolSet`
-// this seam minted via `resolveTools` (chat never constructs one — the AgentToolServer opacity pattern);
-// the exec frame's `runAsUserId` resolves to the LIVE host `Principal` here (PD-73 — the engine stays
-// Principal-blind; D19: the host funds and authorizes the tool run).
+// chat's opaque ChatToolSet IS the ResolvedToolSet this seam minted; the exec frame's runAsUserId resolves
+// to the live host Principal here (the engine itself stays Principal-blind).
 function buildChatToolOps(
   toolUse: ToolUseService,
   resolveHostPrincipal: (userId: UserId) => Promise<Principal>,
 ): ChatToolOps {
-  // Entry re-narrows what it minted — the ONE contained narrow for the opaque seam.
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
   return {
@@ -256,9 +218,7 @@ function buildChatToolOps(
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent } = input;
 
-  // The frozen-host → `Principal` bridge (see the file header). For the ROLE-IRRELEVANT ops (getCard /
-  // persona.get / mint — gated on `userId` only) the cheap synthetic principal is correct + avoids a per-call
-  // read. `role:"user"` here is never consulted by those ops.
+  // Role-irrelevant ops (getCard/persona.get/mint) use this cheap synthetic principal to avoid a per-call read.
   const hostPrincipal = (userId: UserId): Principal => ({
     userId,
     role: "user",
@@ -267,15 +227,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     via: "fallback",
   });
 
-  // The ROLE-SENSITIVE bridge: the D17 `max-pro-sub` owner-gate keys on the host's REAL role (identity §3 —
-  // an authoritative role read on `runAsUserId`), so a fabricated `role:"user"` would fail-closed-DENY the
-  // OWNER's own Max-sub turn. PD-73 resolved: the read is INJECTED (`entry/auth.createHostPrincipalResolver`
-  // over `sessions.loadUserById`) — no entry-local `users` table reach for the principal fields.
+  // Role-sensitive ops need the host's REAL role — a fabricated `role:"user"` would fail-closed-deny an
+  // owner's own privileged turn, so this read is injected rather than faked.
   const realHostPrincipal = input.resolveHostPrincipal;
 
-  // The per-turn connection resolution funnel (the chat row's routing BEATS the host's UserSettings defaults,
-  // which `connection.resolveChat` overlays internally). The row carries only `metadata.providerRouting`
-  // (no api/source/model columns exist — they fall through to the host's `roleDefaults.chat`) — FLAG[routable-derivation].
   const resolveChatVia = async (
     userId: UserId,
     routable: RoutableChat,
@@ -285,11 +240,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       routableChat: routable,
     });
 
-  // The host's active preset config (its `promptConfig`), given the host's already-loaded default preset id. A
-  // stale/unowned/missing id degrades to the system default (settings/index.ts:317). Shared by
-  // `resolveForeignInputs` (the turn assemble) + `resolvePromptVariables` (the D46 `getVariables` merge) so the
-  // resolution can't drift. Takes the id (not the whole settings read) so a caller that already loaded settings
-  // doesn't double-read.
+  // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
+  // degrades to the system default. Shared by resolveForeignInputs + resolvePromptVariables so resolution
+  // can't drift; takes the id (not the whole settings read) so a caller that already loaded it doesn't double-read.
   const resolvePromptConfigFor = async (
     runAsUserId: UserId,
     defaultPresetId: string | null,
@@ -304,12 +257,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       });
       return detail.config;
     } catch {
-      return DEFAULT_PROMPT_CONFIG; // stale/unowned preset id → the system default.
+      return DEFAULT_PROMPT_CONFIG;
     }
   };
 
-  // D46 config plane: the chat's active preset's ChoiceBlock variables, resolved under the chat's HOST (read off
-  // the roster). `getVariables` merges the stored picks over these. Hostless/stale room ⇒ no declared variables.
+  // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
+  // ⇒ no declared variables.
   const resolvePromptVariables = async (chatId: ChatId): Promise<readonly ChoiceBlockSpec[]> => {
     const hostRows = await db
       .select({ userId: chatParticipants.userId })
@@ -331,16 +284,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return config.variables;
   };
 
-  // The ONE memory-config MERGE (D36 user opt-out): the admin-set `AppSettings.memoryDefaults`, forced to
-  // `mode:"off"` when the host disabled memory. Kept PURE + synchronous so the live turn path (which already
-  // holds the host's `us`) and the sweep resolver below both funnel through it WITHOUT either re-reading
-  // settings — the opt-out can't be honored on the turn and dropped on the corpus sweep (#54 — the sweep bug).
+  // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
+  // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
+  // re-reading settings — the opt-out can't be honored on the turn and dropped on the sweep.
   const withMemoryOptOut = (disabled: boolean, defaults: MemoryConfig): MemoryConfig =>
     disabled ? { ...defaults, mode: "off" } : defaults;
 
-  // The PD-41 sweep's injected resolver (`resolveMemoryConfig(hostUserId) => Promise<MemoryConfig>`): load the
-  // host's settings + the admin floor, then the shared merge. Keyed by the FROZEN host `UserId` (D19); the
-  // sweep skips a `mode:"off"` host's chats entirely.
   const resolveMemoryConfig = async (hostUserId: UserId): Promise<MemoryConfig> => {
     const us = await input.settings.loadUserSettings(hostUserId);
     const defaults = input.settings.getEffectiveConfig().memoryDefaults;
@@ -351,7 +300,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     db,
     now,
     can: input.can,
-    // ── id minters (the in-scope chat tables this slice's verbs create) ──
     newChatId: minter(ID_PREFIX.chat),
     newMessageId: minter(ID_PREFIX.message),
     newMessageVariantId: minter(ID_PREFIX.messageVariant),
@@ -361,22 +309,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newEventId: minter(ID_PREFIX.chatEvent),
     newStreamEventId: minter(ID_PREFIX.chatStreamEvent),
     newInviteId: minter(ID_PREFIX.chatInvite),
-    // The invite-token pepper hasher (the sessions discipline; PD-61 — a ctx crypto op).
     hashToken: createTokenHasher(input.sessionSecret),
     audit: input.audit,
-    // PD user-bus lane: the message-commit terminal path + the chat LIST-level ops fan `chatsChanged` to EVERY
-    // present human member's channel (cross-device + multi-human list recency). The engine passes a bare
-    // `chatId` (PRINCIPAL-BLIND); this composition-root helper enumerates membership — see emit-chat-changed.ts.
+    // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
+    // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createChatChangedEmitter(db),
     applyRegexReplace: createRegexApplyReplace(),
-    // D48: the injected tool ops — null until a registrant/consumer wires the service in services.ts.
     tools:
       input.toolUse === undefined
         ? null
         : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
-    // The chat ROLE expects a STREAMING `(TurnRequest) => AsyncIterable<TurnStreamChunk>`,
-    // but `infra/providers` exposes only `(ChatRequest) => Promise<ChatResult>` (different request shape + a
-    // non-streaming Promise + a callback `onDelta` stream). The bridging slice maps the shapes and yields the stream.
+    // Bridges the chat role's streaming AsyncIterable interface onto infra/providers' Promise+onDelta shape.
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
     async *runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
       const queue: TurnStreamChunk[] = [];
@@ -392,13 +335,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         }
       };
 
-      // PD-7: seed + tail when the history splits cleanly (the backend resumes/reseeds its session);
-      // the flatten fallback keeps continue-mode byte-identical to the pre-PD-7 turn (no chatId ⇒ no
-      // resume — a fresh throwaway session for the one-off shape).
       const agentSplit = req.connection.api === "agent-sdk" ? splitAgentHistory(req.history) : null;
-      // The OR-skin tier→slug map the mode-2 firewall needs (killing the old hardcoded map in env.ts).
-      // DERIVED by connection from its two live catalogs; never throws (cold catalog ⇒ curated shortlist).
-      // Computed for EVERY agent-sdk turn (mode-1/3 ignore it) — the firewall requires it on the request.
+      // The OR-skin tier→slug map the mode-2 firewall needs, derived from connection's live catalogs
+      // (never throws — cold catalog degrades to a curated shortlist).
       const orSkinTierModels =
         req.connection.api === "agent-sdk"
           ? await input.connection.getOrSkinTierModels()
@@ -413,7 +352,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               params: req.intent,
               systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
               orSkinTierModels,
-              // D17: the engine's enforced owner-consent verdict → the firewall's `ownerConsented` re-verify.
               ownerConsented: req.ownerConsented,
               ...(agentSplit !== null
                 ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt }
@@ -428,12 +366,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               capability: req.connection.capability,
               params: req.intent,
               systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-              // D17: the engine's enforced owner-consent verdict → the firewall's `ownerConsented` re-verify.
               ownerConsented: req.ownerConsented,
               // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
               history: req.history as any,
               historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
-              // D48: absent stays ABSENT (byte-identical pre-D48 request without tools).
               ...(req.tools !== undefined ? { tools: req.tools } : {}),
               ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
               onDelta,
@@ -455,15 +391,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               cacheWriteTokens: result.usage.cacheWriteTokens,
               contextWindow: result.usage.contextWindow,
               costUsd: result.usage.costUsd,
-              // D26 provenance: the output cap the backend echoed + the requested reasoning effort (F10 —
-              // previously dropped, so both columns stayed NULL despite the runner knowing them).
               maxOutputTokens: result.usage.maxOutputTokens,
               reasoningEffort: req.intent.effort ?? null,
               ttftMs: result.ttftMs,
               finishReason: result.finishReason,
               stopReason: result.stopReason,
               terminalReason: result.terminalReason,
-              // D48: the reducer-assembled calls ride the final chunk (the loop's pivot input).
               ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
             },
           });
@@ -503,10 +436,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
     resolveCredential: async ({ runAsUserId, source }) =>
-      // The D17 max-pro-sub owner-gate reads the host's REAL role (the injected resolveHostPrincipal —
-      // PD-73), so the owner's own max-pro-sub turn is no longer fail-closed-denied.
       input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
-    // Re-resolve the credential to get its `credentialId` for `credentials.maybeRevokeOnAuthFailed`.
     maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
       try {
         // biome-ignore lint/style/noMagicNumbers: HTTP status codes
@@ -523,15 +453,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           });
         }
       } catch {
-        // Best effort post-turn (the contract says NEVER throw into the turn) → no-op.
+        // Best-effort post-turn — never throw into the turn.
       }
     },
     getCard: ({ ownerId, characterId }) =>
       input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
-    // D44 §12.0 — resolve a roster member's render policy: the deployment floor (`getEffectiveConfig`) with
-    // the character's tri-state overrides layered per `override ?? global`. A human seat (`characterId:
-    // null`) or a card that's gone/unreadable resolves to the global floor alone (fail-closed to the
-    // deployment default, never a throw into roster assembly — mirrors `getCard`'s null-tolerance).
+    // Layers the character's tri-state overrides over the deployment floor; a human seat or an
+    // unreadable card resolves to the global floor alone (fail-closed, never a throw into roster assembly).
     resolveRenderPolicy: async ({ ownerId, characterId }) => {
       const cfg = input.settings.getEffectiveConfig();
       const global = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
@@ -551,10 +479,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         return global;
       }
     },
-    // D44 §12.1/§12.5 — resolve a roster member's RAW theme override: the character's own column, unmerged
-    // (NOT `override ?? global` like `resolveRenderPolicy` above — themes-design.md §1: chat assembly never
-    // reads the `themes` table; `character > global > default` is a client `<ThemeScope>` nesting concern).
-    // A human seat or a card that's gone/unreadable resolves to `null` (mirrors `getCard`'s null-tolerance).
+    // The character's raw theme column, unmerged (client-side ThemeScope nesting decides the merge).
     resolveThemeOverride: async ({ ownerId, characterId }) => {
       if (characterId === null || ownerId === null) {
         return null;
@@ -600,12 +525,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       if (avatarAssetId === null) {
         try {
           const userSettings = await input.settings.loadUserSettings(userId);
-          // The settings blob is the deliberately-LENIENT tier (its avatarAssetId is plain by design —
-          // contracts/settings profile precedent); this compose seam is the sanctioned brand mint.
           const raw = userSettings.profile.avatarAssetId ?? null;
           avatarAssetId = raw === null ? null : castId<AssetId>(raw);
         } catch {
-          // Ignore settings load failures for user publics
+          // ignore
         }
       }
 
@@ -615,10 +538,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         avatarAssetId,
       };
     },
-    // D45 asset→URL resolution → CAS bytes as a data-URI (see `resolve-image-ref` for the by-id resolve +
-    // the D21 chat-scoped reference gate). The gate reader answers "is this asset's owner a PRESENT member of
-    // the referencing chat?" — a scoped `chat_participants` read (never `loadCoParticipantOwner`'s cross-chat
-    // hash→owner oracle, PD-107). Extracted so the gate wiring is unit-tested apart from the compose root.
+    // The gate reader answers "is this asset's owner a present member of the referencing chat?" — a
+    // scoped chat_participants read.
     resolveImageUrl: (params) =>
       resolveImageRefToUrl(
         input.assets,
@@ -636,14 +557,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
             .limit(1);
           return rows.length > 0;
         },
-        // D44 §12.3 send-path gate: an external media ref is dropped when the deployment floor forbids it
-        // (the effective config resolves the born-in-DB `true` floor + any admin override).
         input.settings.getEffectiveConfig().forbidExternalMedia,
         params,
       ),
-    // The `ParticipantView`/`MemberCardView`/persona-avatar-producer bridge — a bare id→hash lookup over
-    // the SAME un-principal `assetCasRefById` `resolveImageUrl` above uses for its by-id half (D20 posture:
-    // a hash is not a secret, the D21 owner-gate lives on the blob route's byte read, not here).
+    // A hash is not a secret; the owner-gate lives on the blob route's byte read, not here.
     resolveAssetHash: async (assetId) => {
       if (assetId === null) {
         return null;
@@ -651,26 +568,19 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const ref = await input.assets.assetCasRefById(assetId);
       return ref?.hash ?? null;
     },
-    // #67 send-attach TRUST BOUNDARY: the owned-id subset among the claimed attachments (owner-scoped off the
-    // acting principal's userId — the assets verb's `ownerId` predicate; a foreign/gone id is simply absent).
+    // Owner-scoped: a foreign/gone id is simply absent from the result.
     filterOwnedAssetIds: async (userId, assetIds) =>
       (await input.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
-    // The producer (chat) passes the canon `BatchStmt[]` + the db + the delta; the chat op type erases the
-    // batch to `unknown` (the contract keeps Batch generic), so the wrapper restores the concrete type.
+    // The chat op type erases the batch to `unknown`; this wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
     summarize: input.roleClients.summarize,
     summarizerContextTokens: input.roleClients.summarizerContextTokens,
-    // emit = durable-FIRST then fan-out (PD-23): `record` INSERTs the row (assigning `seq`), THEN the
-    // persisted view is published onto transport's per-user live bus — a dead bus path never loses an
-    // event (the subscription replays from the table by `seq`; the row is on `list` regardless).
-    // `coStatements` (PD-24): the producer's membership-transition statements commit in ONE batch WITH the
-    // INSERT (record owns the commit); the publish still runs strictly AFTER that commit.
+    // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
+    // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),
-    // D60 agent-principal seam (seatAgent): the mint is sessions' (injected DOWN); the enabled kill-switch read
-    // is inline here (the entry root is the sanctioned `users` reader, exempt from `no-direct-users-read`), the
-    // `resolveUserPublics` precedent. A missing row → disabled (fail-closed containment).
+    // A missing row → disabled (fail-closed containment).
     provisionAgentPrincipal: (params) => input.provisionAgentPrincipal(params),
     resolveAgentEnabled: async (agentUserId) => {
       const rows = await db
@@ -680,14 +590,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         .limit(1);
       return rows[0]?.enabled ?? false;
     },
-    // The startChat anchor default-seed: the starter's user-level active persona (settings
-    // `seeds.defaultPersonaId`), VALIDATED as an owned live persona (persona.get under the synthetic
-    // host principal) -- a stale/unowned id collapses to null so a dead id never lands in the
-    // `chats.anchorPersonaId` FK.
-    // The character-lock hop (D62 — ST/neo parity): a solo-character founding with EXACTLY ONE
-    // `character_personas` connection auto-anchors that persona; 0 or 2+ connections (ambiguity) or a
-    // group founding falls through to the default seed. Owner-scoped via `personas.ownerId` so a
-    // foreign persona can never leak in (the neo `connected-persona.ts` semantics, carried).
+    // A solo-character founding with exactly ONE character_personas connection auto-anchors that persona;
+    // 0 or 2+ connections (ambiguity) or a group founding falls through to the default seed.
     resolveConnectedPersona: async (userId, characterIds) => {
       const [characterId] = characterIds;
       if (characterId === undefined || characterIds.length !== 1) {
@@ -715,13 +619,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         });
         return persona.id;
       } catch {
-        return null; // stale/unowned default -> no seed (the anchor stays unset).
+        return null;
       }
     },
-    // The startChat anchor seed, pointer #2 (FINAL-Persona §A.0/§A.3): the starter's GLOBAL "Current
-    // persona" (settings `seeds.currentPersonaId`), validated owned/alive exactly like
-    // `resolveDefaultPersona` above -- a stale/unowned id collapses to null so a dead id never lands in
-    // the `chats.anchorPersonaId` FK.
     resolveCurrentPersona: async (userId) => {
       const us = await input.settings.loadUserSettings(userId);
       const raw = us.seeds.currentPersonaId;
@@ -735,13 +635,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         });
         return persona.id;
       } catch {
-        return null; // stale/unowned current -> no seed (falls through to Default).
+        return null;
       }
     },
-    // The `reattributePersona` ownership belt (Chat-Macro-Resolution §5): may a line authored by `ownerId` be
-    // re-stamped to `personaId`? A sanctioned one-column `personas` read (the `resolveUserPublics`/world-info
-    // precedent — mirrors persona's `ensurePersonaOwned` shape without a cross-domain persistence import),
-    // returned as a boolean so the chat verb owns its coded refusal. Absent/foreign ⇒ false (leak-free).
+    // Absent/foreign ⇒ false (leak-free).
     verifyPersonaOwned: async ({ ownerId, personaId }) => {
       const rows = await db
         .select({ ownerId: personas.ownerId })
@@ -757,12 +654,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       });
       publishNotification(view);
     },
-    // PD-70: presence is the transport SSE connection ref-count (`presence-registry`, built at `services.ts`
-    // over the injected clock, threaded in here). An offline human's persona drops from the present cast for
-    // the next round; the read is server-derived — never a client-asserted (spoofable) heartbeat.
+    // Server-derived — never a client-asserted (spoofable) heartbeat.
     readPresence: input.readPresence,
-    // The imagery op: call imagery's orchestrator, then map its `GeneratedPicture` → chat's chat-local
-    // structural result (`{images:[{assetId}], warnings}` — chat can't import domain/imagery's types).
+    // Maps imagery's GeneratedPicture → chat's chat-local structural result (chat can't import
+    // domain/imagery's types).
     generatePicture: async (p) => {
       const picture = await input.generatePicture({
         caller: p.caller,
@@ -776,9 +671,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         warnings: picture.warnings.map((w) => ({ code: w.code, detail: w.detail })),
       };
     },
-    // The memory write path: chat's `{lens, key|chatId, …}` → embeddings' flat `chat-block` store params.
-    // model/dim are the embed space tag (the indexer uses the same `env.VLLM_EMBED_DIM`); embeddings embeds
-    // the `text` and tripwires the produced vector against `dim`.
     embeddingsStore: async (params) => {
       if (params.lens === "digest") {
         await input.embeddings.store({
@@ -814,31 +706,19 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     searchDigests: (query) =>
       input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
-    // FLAG[PD-71]: `search.corpus` needs a resolved owner that `MemoryQueryOptions` can't
-    // carry (the op-shape mismatch the search slice flagged). Recall does NOT call this yet → permissive [].
+    // FLAG[PD-71]: search.corpus needs a resolved owner MemoryQueryOptions can't carry; recall doesn't call this yet.
     searchCorpus: () => Promise.resolve([]),
-    // PD-72: the dedicated MemoryLog sink (foundation/observability/memory-log.ts) — a thin `memory: true`-
-    // tagged `getLog().debug` closure, mirroring recordClientError/securityEvent; greppable on the `event`
-    // string (`memory.build`/`memory.recall`). The concrete `MemoryLogEntry` flows into the foundation-local
-    // record shape (the cake forbids foundation importing the domain type).
     log: (entry) => recordMemoryLog(entry),
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     resolvePromptVariables,
   };
 
-  // PD-128: the durable-first emit is the injected `emitChatEvent` (the ONE bus built at services.ts) — chat
-  // no longer constructs its own `createChatBus`. It wraps `bus.emit` → transport `publishChatEvent`: the
-  // domain bus assigns the per-chat `seq` (the `chat_events` INSERT commits first), THEN the cursor-stamped
-  // event goes to the transport per-chat live channel (a dead live path never loses an event — the
-  // subscription replays by `seq`). The SAME wrapper backs the verbs, the world-info ride-along, AND persona.
   const memberBudget = createMemberBudget(db, { windowMs: MEMBER_BUDGET_WINDOW_MS, now });
 
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
     activeTurns: createActiveTurns(),
-    // The PROD seed (D46): the eval path injects a seeded PRNG; at the entry root the real entropy source is
-    // sanctioned (this is the composition root, not determinism-gated domain code).
     prng: () => Math.random(),
     delay: (ms) =>
       new Promise<void>((resolve) => {
@@ -864,14 +744,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const us = await input.settings.loadUserSettings(runAsUserId);
       const principal = hostPrincipal(runAsUserId);
 
-      // The chat's active preset under the host's settings (shared with `resolvePromptVariables` — the D46
-      // config-plane merge); a stale/unowned/missing id degrades to the system-default config.
       const promptConfig = await resolvePromptConfigFor(runAsUserId, us.seeds.defaultPresetId);
 
-      // anchor = the chat-open `{{user}}`; active = the speaking participant's persona (first present).
-      // `placement` (FINAL-Persona §A.6b gap #1) is resolved ONCE here off the persona's OWN metadata —
-      // `assembly/context.ts` reads `active.placement` to decide the `at_depth` injection; `in_prompt`/
-      // `none` need no further wiring (the `{{persona}}` macro already works either way).
+      // anchor = the chat-open {{user}}; active = the speaking participant's persona (first present).
       const loadPersona = async (
         personaId: typeof anchorPersonaId,
       ): Promise<{
@@ -890,18 +765,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
             placement: resolvePersonaDescriptionPlacement(p.metadata),
           };
         } catch {
-          return null; // deleted/unowned → degrade to null (no persona section).
+          return null;
         }
       };
       const anchor = await loadPersona(anchorPersonaId);
-      // active = the TRIGGERING human's persona (whose turn drives this assemble), NOT `personaIds[0]` (the
-      // presence-order-arbitrary first present human) — so prompt-config `{{user}}` is the speaker's own
-      // persona in a multi-human room. Falls back to the first present persona only when the trigger has none.
+      // The triggering human's persona (not personaIds[0], the presence-order-arbitrary first present
+      // human) — so prompt-config {{user}} is the speaker's own persona in a multi-human room.
       const active = await loadPersona(triggerPersonaId ?? personaIds.at(0) ?? null);
 
-      // memoryConfig = the admin-resolved defaults, forced OFF when the host disabled memory (D36 user opt-out).
-      // The SAME `withMemoryOptOut` merge the PD-41 sweep resolver uses (one home — #54), fed the already-loaded
-      // `us` so the hot turn path takes no second settings read.
       const memoryConfig = withMemoryOptOut(
         us.memory.enabled === false,
         input.settings.getEffectiveConfig().memoryDefaults,
@@ -910,9 +781,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return {
         promptConfig,
         personas: { anchor, active },
-        // timezone is NOT a foreign/host input — `{{time}}`/`{{date}}` use the caller's PER-REQUEST browser
-        // zone (client.md epoch-UTC pipeline); the macro engine falls back to server-local until the turn
-        // request carries it (FLAG[timezone-per-request] in assemble-gather). A host setting is the wrong home.
+        // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
+        // macro engine falls back to server-local until the turn request carries it.
         globalRegexScripts: us.regexScripts,
         scanDepth: us.worldInfo.scanDepth,
         injectionTokenBudget: us.worldInfo.tokenBudget,
@@ -920,9 +790,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       };
     },
     debitBudget: memberBudget.debit,
-    // The per-turn host policy (engine §9 belt). These D17 governance facts live on the admin-resolved
-    // EffectiveAppConfig (NOT UserSettings, which carries neither field — the dictated `loadUserSettings`
-    // source was wrong): the per-member COUNT cap + the max-pro-sub owner-consent toggle.
     resolveTurnPolicy: () => {
       const cfg = input.settings.getEffectiveConfig();
       return Promise.resolve({

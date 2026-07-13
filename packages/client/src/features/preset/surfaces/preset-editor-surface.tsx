@@ -1,15 +1,7 @@
-// The preset EDITOR surface — the Presets CONTENT (UI-Arch §4.2 Presets row "tabbed editor"; §13.4 many-
-// field editor → `createSavedEntityForm`). A containment CONSUMER (§2.1). Binds the nested `PromptConfig`
-// DIRECTLY (no flat mapper — preset-form-mapper-elimination.md), so `form.AppField name="params.temperature"`
-// walks the config. BUTTON-GATED save through `preset.update` (the save-bar Save button); the params tabs
-// render the descriptor-driven `ParamsPanel` off the chat-role model's `ModelCapabilityView` (the GATE:
-// render-from-descriptor, never a static knob stack).
-//
-// The capability read: the params panel needs the target model's descriptor. A preset does NOT carry a
-// model (Connections owns `{api, source, model}`, D31/no-config-bound-to-chats); so the editor resolves the
-// capability for the user's configured CHAT-role connection (`routing.roleDefaults.chat`) via
-// `connection.getModelCapability`. When no chat connection is configured, the params tabs show a note (a
-// preset can still be authored — the prompt/templates tabs don't need a model), never a fabricated stack.
+// The preset editor surface — the Presets tabbed editor. Binds the nested `PromptConfig` directly (no
+// flat mapper), button-gated save through `preset.update`. A preset carries no model; the params tabs
+// resolve capability for the user's configured chat-role connection, and show a connect-a-model note
+// when none is configured.
 
 import type { ChatApi } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
@@ -37,15 +29,12 @@ import { PRESET_EDITOR_TABS } from "../lib/preset-nav";
 
 export interface PresetEditorSurfaceProps {
   readonly presetId: PresetId;
-  /** Reveal the CONTEXT section inspector (the route-built choreography, §3.4) — a rack row's name-button
-   *  click calls this AFTER writing the section selection. Threaded to the rack via the Prompt tab. */
+  /** Reveal the CONTEXT section inspector — a rack row's name-button click calls this after selecting the section. */
   readonly onRevealSection?: (() => void) | undefined;
-  /** Dismiss the section drill-in (§3.4: `clearPresetSection` + close the mobile CONTEXT sheet) — the
-   *  CENTER `SectionBodyEditor` back button. Threaded to the Prompt tab. */
+  /** Dismiss the section drill-in — the CENTER `SectionBodyEditor` back button. */
   readonly onDismissSection?: (() => void) | undefined;
 }
 
-/** The tabbed preset editor for the selected preset. */
 export function PresetEditorSurface({
   presetId,
   onRevealSection,
@@ -92,8 +81,6 @@ function PresetEditor({
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const update = useUpdatePreset({ trpc, invalidation });
 
-  // The chat-role connection (the model the params panel describes). A preset is model-agnostic; the panel
-  // borrows the user's configured chat model to know which knobs to show. Unset ⇒ no capability read.
   const chat = settings.config.routing.roleDefaults.chat;
   const chatModel = chat?.model ?? undefined;
   const capabilityKey =
@@ -121,11 +108,8 @@ function PresetEditor({
     save,
   });
 
-  // THE FORM BRIDGE (BUILD-SPEC §2.3) — publish the live handle so the CONTEXT section inspector (a
-  // sibling shell region, no shared React ancestor) can bind `sections[i].*`. Re-publishes when the form
-  // instance changes (a save/reset cycles `mountKey` → a fresh `form`); clears on unmount so a stale handle
-  // never outlives the editor. `presetId`/`form` are the only reactive inputs — this is a genuine external-
-  // store sync, the sanctioned effect shape (not a shared-selection chase; app-shell-exempt gate N/A here).
+  // Publish the live form handle so the CONTEXT section inspector (a sibling shell region, no shared React
+  // ancestor) can bind `sections[i].*`; clears on unmount so a stale handle never outlives the editor.
   useEffect(() => {
     publishAssemblyForm({ presetId, form });
     return (): void => clearAssemblyForm();
@@ -141,9 +125,6 @@ function PresetEditor({
       }}
     >
       <Tabs defaultValue="quality">
-        {/* Fixed header: the preset name + tab strip stay pinned to the top of the surface's ONE scroll
-            region while a long tab body scrolls under them. `sticky top-0` (not a bounded flex region) keeps
-            the raw `<form>` un-classed — a background is required so scrolled content doesn't bleed through. */}
         <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
           <Text size="label" weight="medium">
             {preset.name}
@@ -159,9 +140,6 @@ function PresetEditor({
         </Stack>
 
         <Stack gap="block" padding="block">
-          {/* The four DESCRIPTOR-driven params tabs — each renders the ParamsPanel off the capability.
-              `capability` may be undefined (no chat connection): Quality still renders (it derives nothing
-              from the descriptor), the other three show the connect-a-model note — gated inside ParamsPanel. */}
           <TabsPanel value="quality">
             <ParamsPanel capability={capability} form={form} axis="quality" />
           </TabsPanel>
@@ -175,8 +153,6 @@ function PresetEditor({
             <ParamsPanel capability={capability} form={form} axis="output" />
           </TabsPanel>
 
-          {/* The structural tabs — edit `PromptConfig` fields directly (no model needed). The Prompt tab
-              is The Assembly rack; it receives the route-built reveal callback for the section inspector. */}
           <TabsPanel value="prompt">
             <PresetStructureTabs
               form={form}
@@ -196,8 +172,6 @@ function PresetEditor({
             <PresetStructureTabs form={form} tab="compaction" />
           </TabsPanel>
 
-          {/* The Variables + Regex tabs (BUILD-SPEC §8) — each a ListRow list + an editor Dialog binding
-              `variables[i].*` / `regexScripts[i].*`. The merge flip (mergeOnSubmit → edited.*) carries them. */}
           <TabsPanel value="variables">
             <VariablesTab form={form} />
           </TabsPanel>
@@ -207,8 +181,6 @@ function PresetEditor({
         </Stack>
       </Tabs>
 
-      {/* Pinned footer: the save-bar sticks to the bottom of the same scroll region, so Save is always
-          reachable no matter how long the active tab body runs (SaveBar owns the sticky + bg + z chrome). */}
       <form.AppForm>
         <SaveBar title={preset.name} kind="Preset" sticky="footer">
           <form.DirtyPill />

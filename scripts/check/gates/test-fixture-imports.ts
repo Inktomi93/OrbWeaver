@@ -7,11 +7,8 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as an ImportSpecifier subscription: a `test`/`it`/`expect` named import from
-// `vitest`/`@playwright/test` in a scanned test file. scanRoot mirrors the legacy filter (/tests/ minus
-// e2e, support/, .test-d.ts). The message names the symbol+module (varies), so each finding carries a
-// per-occurrence override. Per-occurrence.
+// A `test`/`it`/`expect` named import from `vitest`/`@playwright/test` in a scanned test file. The
+// message names the symbol+module (varies).
 const BANNED_MODULES = new Set(["vitest", "@playwright/test"]);
 const FIXTURE_NAMES = new Set(["test", "it", "expect"]);
 const FIXTURE_MESSAGE =

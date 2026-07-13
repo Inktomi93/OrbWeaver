@@ -1,9 +1,6 @@
-// verb: markRevoked — the RUNNER-INTERNAL revoke (invariant #6). Takes ONLY a credentialId + reason: the
-// runner discovers a 401 on a turn and reports the id of the credential that authenticated it — the id IS
-// the access token at this layer (the runner proved access by holding it from a completed turn), so there
-// is NO ownership check here. MUST NOT be merged with `markRevokedByUser` (which DOES ownership-check)
-// until `userId` is threaded through the runner revoke path. `reason` is logged (security event), not
-// persisted — orbweaver's schema has only `revoked_at`.
+// verb: markRevoked — the runner-internal revoke. Takes only a credentialId + reason: the runner proved
+// access by holding it from a completed turn, so there is no ownership check here. MUST NOT be merged
+// with markRevokedByUser (which does ownership-check) until userId is threaded through the runner revoke path.
 
 import { securityEvent } from "#foundation/observability";
 import type { MarkRevokedParams } from "../contract/params";

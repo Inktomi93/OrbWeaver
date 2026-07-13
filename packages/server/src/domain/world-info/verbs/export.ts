@@ -1,14 +1,6 @@
-// verb: export (W-worldinfo; export-import-portability.md §1) — the STANDALONE world-info-book export: read
-// the owner's book + its entries, project onto the canonical `BulkImportLorebookInput`, and emit the portable
-// `worlds/*.json` file via the ONE standalone serde core (`#kit/serde/world-info` `buildWorldBookFile`). The
-// RELATIONAL work (the owner-scoped read + the row→canonical projection) lives HERE; the serde stays pure.
-// `import.ts` is the round-trip twin.
-//
-// Owner-scoped: a foreign / absent book returns null (leak-free, matching the owner-scoped book reads —
-// "not yours" and "doesn't exist" are one answer). Entries emit in the `listBookEntries` order (descending
-// priority — deterministic). The filename slugs the book name (`@orb/kit/slug`); the registry descriptor
-// prefixes the bundle `dir`. This is the standalone lone-book file only — the EMBEDDED-in-card book path is
-// the card export verb (`#kit/serde/card` OUT).
+// verb: export — standalone world-info-book export: reads the owner's book + entries, projects onto
+// `BulkImportLorebookInput`, and emits the portable `worlds/*.json` via `buildWorldBookFile`.
+// Foreign/absent book returns null (leak-free — "not yours" and "doesn't exist" are one answer).
 
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import { slugifyHandle } from "@orb/kit/slug";

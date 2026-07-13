@@ -1,10 +1,6 @@
-// entry/compose — FRONT DOOR for the composition root. app/boot/lifecycle (+ tests) import the compose
-// factories from `@orb/server/entry/compose`, never an internal file. `services.ts` is the keystone graph
-// (`createServices` → the 15-key `Services` bundle + the boot handles); the sibling files are the seams it
-// composes (the event bus, the two role-client binders, the workload runner-env hub, the effective-config
-// boot surface). Nothing here owns business logic — this tier only assembles lower tiers (entry invariant #1).
+// Front door for the composition root; app/boot/lifecycle import compose factories from here, never an
+// internal file. `services.ts` is the keystone graph; the sibling files are the seams it composes.
 
-// The agent-sdk turn shaping (the PD-7 seed/tail split) — exported for the bridge tests only.
 export { flattenAgentHistory, splitAgentHistory } from "./chat";
 export type { EffectiveConfigWiring } from "./effective-config";
 export { createEffectiveConfigWiring } from "./effective-config";

@@ -1,29 +1,14 @@
-// @orb/contracts/chat — the largest contracts node: the chat-message role schema, the D26 message/variant
-// wire contract, the ASSEMBLE family, the chat stream-delta + bus union, the (formerly misfiled) room /
-// group / opening shapes, and the D16 unified-roster wire (invites, roster, member-card, group macros).
-//
-// LAYER 2 — depends on the Layer-0/1 contracts it imports DOWN:
-//   • `#world-info` (`WiBusEvent` — embedded in `ChatBusEvent`; `WorldInfoScope` — an assemble-entry field).
-//   • `#preset` (`PromptConfig` — `AssembleContext` builds against it; `GenerationType` — the turn gate;
-//      `UserIntent` — a variant's recorded generation params, D26).
-//   • `#connection` (`ChatApi`/`ChatSource` — the `turnStarted` bus event's protocol + provider-source).
-//   • `@orb/kit/message-role` (the `MESSAGE_ROLES` tuple — `messageRoleSchema = z.enum(MESSAGE_ROLES)`, D32;
-//      the canonical role axis. The tuple lives in kit; THE wire schema lives HERE — the §5 tuple-in-kit rule).
-//   • `@orb/kit/injection` (`InjectionPlacement` — the shared `{depth, role}` at-depth shape, D32).
-//   • `@orb/kit/ids` (the branded ids + the `brandedId`/`typeIdSchema` boundary schemas).
+// @orb/contracts/chat — the chat-message role schema, the D26 message/variant wire contract, the
+// ASSEMBLE family, the chat stream-delta + bus union, and the room/group/opening shapes.
 //
 // LAWS honored here:
 //   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
-//     NEVER `callerUserId` (the caller is `Principal.userId`). The bus events here carry no caller id.
-//   • No `chats.ownerId` (D18): chats are membership-scoped; the host participant is the authority. No wire
-//     shape here stamps a chat owner.
-//   • Bus-payload allowlist: credentials / secrets / baseUrls are TYPE-LEVEL
-//     UNREPRESENTABLE in `ChatBusEvent` — every member is a closed object literal of branded ids, enum
-//     literals, plain scalars, and `MessageView`; there is no `unknown`/`Record`/index field a secret could
-//     ride in. The `.contract.test` pins this at the type level.
+//     NEVER `callerUserId`. No bus event here carries a caller id.
+//   • No `chats.ownerId` (D18): chats are membership-scoped; no wire shape stamps a chat owner.
+//   • Bus-payload allowlist: credentials/secrets/baseUrls are TYPE-LEVEL UNREPRESENTABLE in `ChatBusEvent`
+//     — every member is a closed object literal of branded ids, enums, scalars, and `MessageView`.
 //   • D26: `messages` is a pure SLOT (no content/economics); all generation content lives on
 //     `message_variants`. `MessageView` is the slot joined with its selected variant.
-//   • D22: `memberCardVisibility` is a host-set dial on `groupConfigSchema` (default `sheet`).
 
 import type { ContentSpan } from "@orb/kit/content";
 import type {
@@ -56,29 +41,16 @@ import type { RegexScript } from "#regex";
 import type { ThemeOverride } from "#theme";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
 
-// ── The roster participant kind (the chat-roster discriminator) ───────────────
-// `human`/`character` are the v1 kinds. `agent` (first-class agent principal — userId-backed AND AI-driven)
-// is born at AP0 (D60; agent-principal-design/02 §1): the `chat_participants` XOR CHECK becomes a per-kind
-// SHAPE CHECK to represent it. `observer` stays the reserved seam (the per-chat Narrative Director — watches
-// + proposes, never acts; still un-seatable, no insert path).
-// FLAG[PD-17]: the `agent` MEMBER + its DDL shape are born at AP0; a seat is UN-fillable until `chat.seatAgent`
-// (AP3). The AI-driven/user-backed derived kind-sets (`AI_DRIVEN_KINDS`/`USER_BACKED_KINDS` + `isAiDriven`/
-// `isUserBacked`) are DEFINED below (AP2). `isAiDriven` is LIVE — the arbitration speaker-identity
-// generalization consumes it (`domain/chat/verbs/turn.ts`; `select-speakers`/`round` key on a `SpeakerRef`,
-// not a bare `CharacterId`). `USER_BACKED_KINDS`/`isUserBacked` are defined ahead of their sole consumer (the
-// present-and-contributing principal-`enabled` read, AP3-2, doc 02 §1.1); the seat INSERT path itself
-// (`chat.seatAgent`) stays deferred to AP3.
+// `human`/`character` are the v1 kinds. `agent` is a first-class userId-backed AND AI-driven principal
+// (D60). `observer` is the reserved seam (Narrative Director — watches + proposes, never acts, unseatable).
+// FLAG[PD-17]: a seat is UN-fillable until `chat.seatAgent` (AP3).
 export const PARTICIPANT_KINDS = ["human", "character", "agent", "observer"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
 
-// ── The AI-driven kind-set (D60; agent-principal-design/02 §1.1) ──────────────────────────────────────────
-// `kind` carries TWO facts the old XOR welded together: the identity table (userId vs characterId) AND who
-// DRIVES the seat. `AI_DRIVEN_KINDS` splits out the DRIVE axis — the seats the engine schedules/voices
-// (arbitration ranks them; a turn is generated for them). An agent is AI-driven AND userId-backed — the exact
-// combination the XOR could not represent. The `satisfies readonly ParticipantKind[]` makes a 5th kind fail
-// `tsc` here until it declares its axis. `USER_BACKED_KINDS` is the human/agent shared column shape (both FK
-// `users`) — consumed by the present-and-contributing predicate's principal-`enabled` read (AP3-2, doc 02 §1.1).
+// `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.
+// `AI_DRIVEN_KINDS` splits out the DRIVE axis (the seats arbitration schedules/voices) — an agent is
+// AI-driven AND userId-backed. `USER_BACKED_KINDS` is the human/agent shared column shape (both FK `users`).
 export const AI_DRIVEN_KINDS = ["character", "agent"] as const satisfies readonly ParticipantKind[];
 export const USER_BACKED_KINDS = ["human", "agent"] as const satisfies readonly ParticipantKind[];
 export const isAiDriven = (k: ParticipantKind): boolean =>
@@ -86,63 +58,47 @@ export const isAiDriven = (k: ParticipantKind): boolean =>
 export const isUserBacked = (k: ParticipantKind): boolean =>
   (USER_BACKED_KINDS as readonly ParticipantKind[]).includes(k);
 
-/** The identity of ONE AI-driven speaker (D60) — the cross-cutting speaker reference the arbitration,
- *  assembly (per-speaker card selection), and persist paths all key on. A `character` FKs `characters.id`;
- *  an `agent` FKs its `users` row (self-attributed: `authorUserId` = the agent, `characterId` NULL). An agent
- *  has no characterId, so anything per-speaker keys on THIS ref. NOT a Set/Map key directly — use
- *  {@link speakerKey} (a struct is not value-comparable). */
+/** The identity of ONE AI-driven speaker (D60). A `character` FKs `characters.id`; an `agent` FKs its
+ *  `users` row (self-attributed). NOT a Set/Map key directly — use {@link speakerKey}. */
 export type SpeakerRef =
   | { readonly kind: "character"; readonly characterId: CharacterId }
   | { readonly kind: "agent"; readonly userId: UserId };
 
-/** The stable string key for a {@link SpeakerRef} (Set membership + equality). Kind-prefixed so a characterId
- *  and a userId can never collide. Pure; deterministic. */
+/** The stable string key for a {@link SpeakerRef}. Kind-prefixed so a characterId and a userId can't collide. */
 export function speakerKey(ref: SpeakerRef): string {
   return ref.kind === "character" ? `c:${ref.characterId}` : `a:${ref.userId}`;
 }
 
-/** The RESOLVE-phase product for an AGENT speaker (D60, doc 04 §5) — "the card-shape minus the card." Chat
- *  voices an agent by mapping THIS onto an `AssembleCharacter` (`name`←displayName, `systemPrompt`←the soul
- *  prompt) at RESOLVE, so the agent rides the ONE turn path like any character. The source (buddy's soul) is
- *  resolved through an injected `resolveAgentSpeaker` op — chat stays source-blind. */
+/** The RESOLVE-phase product for an AGENT speaker (D60) — "the card-shape minus the card." Chat voices an
+ *  agent by mapping this onto an `AssembleCharacter` at RESOLVE, so the agent rides the one turn path. */
 export interface AgentSpeakerIdentity {
-  /** The soul's display name → speaker labels, macros, cast lists. */
   readonly displayName: string;
-  /** `buildBuddySystemPrompt` output (the soul prompt) — replaces the character-card system section. */
+  /** `buildBuddySystemPrompt` output — replaces the character-card system section. */
   readonly systemPrompt: string;
-  /** v1: null (sprites are client-side; widens with the D22 agent card view — doc 04 §5). */
+  /** v1: null (sprites are client-side). */
   readonly avatarAssetId: AssetId | null;
 }
 
-// ── The chat-message role wire schema (D32 — THE canonical home) ──────────────
-// `z.enum(MESSAGE_ROLES)`: the tuple is `@orb/kit/message-role` (a pure isomorphic atom kit resolvers +
-// the ST bimap need); the WIRE schema is HERE (the §5 tuple-in-kit rule). Every role field across this node
-// (message slot/view, chat injections, assemble entries via `kit/injection`) goes through this one axis —
-// no inline re-spell of `system|user|assistant`.
+// The tuple is `@orb/kit/message-role`; the WIRE schema lives HERE (§5 tuple-in-kit rule). Every role
+// field across this node goes through this one axis — no inline re-spell.
 export const messageRoleSchema = z.enum(MESSAGE_ROLES);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE ASSEMBLE FAMILY (from neo `shared/prompt/prompt-assemble-types.ts`) — slim assembly projections
-// (DAG §1.3): NOT re-exports of the full card/persona/entry shapes. `db/schema/chat.ts.promptSnapshot`
-// (a `message_variants` column, D26) and chat verb result types consume these without pulling the assembly
-// logic. Types only — the producing engine (`assemblePrompt`/`buildAssembleContext`) is `domain/chat`.
+// THE ASSEMBLE FAMILY — slim assembly projections, NOT re-exports of the full card/persona/entry shapes.
+// Types only — the producing engine (`assemblePrompt`/`buildAssembleContext`) is `domain/chat`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The card's Character's-Note-\@-Depth (`@orb/contracts/character` `CardDepthPrompt`) projected onto the
- *  assemble cast: a recurring per-character snippet spliced into history at a fixed `depth`/`role` (the same
- *  at-depth mechanism WI-at-depth + the persona description use, D32). Re-homed slim HERE (not imported from
- *  `contracts/character`) so `chat` keeps the assemble family cohesive without a `chat → character` DAG edge —
- *  mirroring {@link AssemblePersona}. `role` optional (the assembler defaults `system`); an empty `prompt` is
- *  "no note" at assemble time. */
+/** The card's Character's-Note-\@-Depth projected onto the assemble cast — spliced into history at a
+ *  fixed `depth`/`role`. Re-homed slim HERE (not imported from `contracts/character`) so `chat` avoids a
+ *  `chat → character` DAG edge. An empty `prompt` is "no note" at assemble time. */
 export interface AssembleDepthNote {
   prompt: string;
   depth: number;
   role?: MessageRole | undefined;
 }
 
-/** A roster character projected to the fields the ASSEMBLE stage renders — a slim cast projection, NOT the
- *  full `CharacterCard`. `systemPrompt`/`postHistoryInstructions`, when present, REPLACE the matching preset
- *  section in place (`{{original}}` recovers the preset text). */
+/** A roster character projected to the fields the ASSEMBLE stage renders — NOT the full `CharacterCard`.
+ *  `systemPrompt`/`postHistoryInstructions`, when present, REPLACE the matching preset section in place. */
 export interface AssembleCharacter {
   name: string;
   description: string;
@@ -151,33 +107,23 @@ export interface AssembleCharacter {
   exampleMessages?: string | null;
   systemPrompt?: string | null;
   postHistoryInstructions?: string | null;
-  /** The character's own Character's-Note-\@-Depth (its card `depthPrompt`), or null/absent (no note). The
-   *  assembler splices it at its `depth`/`role` with `{{char}}` bound to THIS character (see
-   *  {@link AssembleDepthNote}). */
   depthPrompt?: AssembleDepthNote | null;
 }
 
-/** The human-side projection for `{{user}}` resolution. Slim (`{name, description}`) — homed HERE, not
- *  `contracts/persona`, so `chat` keeps the assemble family cohesive without a `chat → persona` edge (DAG
- *  CONFLICT resolved: 3 docs to 1). `placement` (FINAL-Persona §A.6b gap #1) is the resolved
- *  `metadata.descriptionPosition`/`inject` — `@orb/kit/persona`'s `resolvePersonaDescriptionPlacement`
- *  output, computed once at the composition root (`entry/compose/chat.ts`). Optional: a fixture/hand-caller
- *  that never sets it degrades to `assembly/context.ts`'s "no at-depth candidate" no-op (`in_prompt`
- *  behavior — the `{{persona}}` macro still works either way, `assembly/macros.ts`). */
+/** The human-side projection for `{{user}}` resolution. Slim, homed HERE (not `contracts/persona`) to
+ *  avoid a `chat → persona` DAG edge. `placement` is the resolved description position/inject, computed
+ *  once at the composition root. */
 export interface AssemblePersona {
   name: string;
   description: string;
   placement?: PersonaDescriptionPlacement;
 }
 
-/** A world-info entry projected onto the assembler contract. `scope` is the `WorldInfoScope` axis
- *  (`#world-info`); `inject` (opt-in WI-at-depth) reuses the SHARED `InjectionPlacement` `{depth, role}`
- *  primitive (`@orb/kit/injection`, D32) — set ⇒ the always-scope entry splices into history instead of
- *  rendering into the system half. */
+/** A world-info entry projected onto the assembler contract. `inject` (opt-in WI-at-depth) reuses the
+ *  SHARED `InjectionPlacement` `{depth, role}` primitive — set ⇒ splices into history instead of the
+ *  system half. */
 export interface AssembleWorldEntry {
-  /** Stable entry id — dedup key + priority tiebreaker (priority DESC, id ASC), and the identity
-   *  `worldInfoActivated` reports as "fired this turn" (D50 pt-2). Always present — every pool source is
-   *  the `worldEntries` PK read (`assembly/world-info/pool.ts`); there is no fixture path that omits it. */
+  /** Stable entry id — dedup key + priority tiebreaker (priority DESC, id ASC). */
   id: WorldEntryId;
   content: string;
   scope: WorldInfoScope;
@@ -324,15 +270,11 @@ export interface AssembleContext {
   compactSummary?: string | null;
   /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
   memory?: string | null;
-  /** Per-chat ChoiceBlock variable values (the `getvar` map). The D46 merged env seed — the resolved config
-   *  picks with the runtime fold cache overlaid — threaded BY REFERENCE so a within-turn `setvar` mutates it in
-   *  place. */
+  /** Per-chat ChoiceBlock variable values (the `getvar` map) — threaded BY REFERENCE so a within-turn
+   *  `setvar` mutates it in place. */
   variableValues?: Record<string, string> | undefined;
-  /** D46 runtime plane — the ORDERED log of variable mutations the macro engine records this turn (setvar /
-   *  incvar / …). Owned per-assembly (one array, threaded BY REFERENCE into every macro context — section
-   *  renders + regex/guided — the `env`-by-reference sibling); after the turn it IS the produced variant's
-   *  `variable_delta`. Absent means mutations are applied to `variableValues` but not recorded (assembly-only
-   *  re-renders / previews / tests). */
+  /** The ORDERED log of variable mutations the macro engine records this turn — after the turn it IS the
+   *  produced variant's `variable_delta`. Absent ⇒ mutations applied but not recorded (previews/tests). */
   opLog?: VarOp[] | undefined;
   /** One-turn ephemeral guidance for the `{{guided_instruction}}` marker. NEVER persisted; ALWAYS dynamic. */
   guidedInstruction?: string | null;
@@ -345,14 +287,11 @@ export interface AssembleContext {
   worldInfoAfter?: string;
   /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
   chatInjections?: ChatInjection[];
-  /** The effective HOST-TIER regex set (D53) — host-global ∪ chat-preset ∪ cast, resolved under the frozen
-   *  `runAsUserId` (D19, never the caller). A RESOLVED cross-domain input (the preset/persona/memory pattern):
-   *  the verb/root supplies it, assembly carries it through. Applied at SEND (USER_INPUT, in `buildAssembleContext`)
-   *  and RECEIVE (AI_OUTPUT/REASONING, in `engine/pipeline`). Absent ⇒ no host-tier regex this turn. */
+  /** The effective HOST-TIER regex set — host-global ∪ chat-preset ∪ cast, resolved under the frozen
+   *  `runAsUserId` (D19, never the caller). Absent ⇒ no host-tier regex this turn. */
   hostTierRegexScripts?: readonly RegexScript[] | undefined;
   /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. `entryIds` is the
-   *  budget-survived, actually-fired WI entries this turn — the engine emits `worldInfoActivated` from it
-   *  (D50 pt-2); it is NOT `matchedKeys` (those are keyword strings, not entry identity). */
+   *  budget-survived, actually-fired WI entries — NOT `matchedKeys` (keyword strings, not entry identity). */
   wiTrace?: {
     included: number;
     dropped: { id: string; reason: "budget" }[];
@@ -515,18 +454,10 @@ export interface MessageView {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE CHAT MACRO NAME PRODUCER (Chat-Macro-Resolution.md §1) — a chat read's member-gated id→name maps,
-// so a client can DERIVE per-row `{{char}}`/`{{user}}`/`{{persona}}` names via `@orb/kit/macro`'s
-// `resolveRowMacros` (§2). Rows stay id-only (`MessageView.characterId`/`personaId` above) — this is the
-// PRODUCER, never a per-row denormalized name (the neo hard-link this doctrine deliberately avoids).
-// Names only, not the full entities: any chat member already sees who authored each line (the attribution
-// chrome), so a co-participant's persona/character NAME is not a secret this needs to gate further.
-//
-// Wire-serializable as ARRAYS, not `Map`s: this transport is raw JSON (no superjson transformer wired on
-// the tRPC link here), and a `Map` doesn't survive a JSON round-trip. `buildCharacterNameMap`/
-// `buildPersonaNameMap` rebuild the `ReadonlyMap` shape `resolveRowMacros` takes, on whichever side reads
-// the wire array (client DISPLAY today; server ASSEMBLE builds its own map straight from its DB join —
-// no wire hop — but may reuse these builders if it ever needs the same array shape).
+// THE CHAT MACRO NAME PRODUCER — a chat read's member-gated id→name maps, so a client can DERIVE per-row
+// `{{char}}`/`{{user}}`/`{{persona}}` names via `resolveRowMacros`. Rows stay id-only — this is the
+// PRODUCER, never a per-row denormalized name. Wire-serializable as ARRAYS (raw JSON, no superjson
+// transformer here — a `Map` doesn't survive a JSON round-trip).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One character name entry (§1) — the array form of a `characterNamesById` producer map. */
@@ -543,17 +474,15 @@ export interface PersonaNameEntry {
   readonly description: string;
 }
 
-/** Rebuild the `characterNamesById` lookup `resolveRowMacros` (`@orb/kit/macro`) takes, from the wire
- *  array. Pure; last-write-wins on a duplicate id (a producer is expected to be pre-deduped — this never
- *  throws on a malformed input, it just lets the later entry win). */
+/** Rebuild the `characterNamesById` lookup `resolveRowMacros` takes, from the wire array. Pure;
+ *  last-write-wins on a duplicate id. */
 export function buildCharacterNameMap(
   entries: readonly CharacterNameEntry[],
 ): ReadonlyMap<CharacterId, RowCharacterName> {
   return new Map(entries.map((e) => [e.id, { name: e.name }]));
 }
 
-/** Rebuild the `personaNamesById` lookup `resolveRowMacros` (`@orb/kit/macro`) takes, from the wire
- *  array. Pure; last-write-wins on a duplicate id (see {@link buildCharacterNameMap}). */
+/** Rebuild the `personaNamesById` lookup `resolveRowMacros` takes, from the wire array. */
 export function buildPersonaNameMap(
   entries: readonly PersonaNameEntry[],
 ): ReadonlyMap<PersonaId, RowPersonaName> {

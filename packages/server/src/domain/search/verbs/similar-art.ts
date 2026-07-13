@@ -1,16 +1,7 @@
-// domain/search/verbs/similar-art — "more like this avatar" (PD-35): seed-vector top-k over the IMAGE space.
-// Reads the seed character's current avatar STORED embedding (at one lens) → scans other owned avatars in the
-// same space excluding the seed → CSLS hub-adjust → returns the visually-nearest characters.
-//
-// ── CSLS APPLIES HERE (the counterpart to the `images` CSLS-SKIP) ─────────────────────────────────────────
-// The cross-modal `images` verb (text→image) SKIPS CSLS because the image↔image `hub_score` sits on a
-// different cosine scale than a cross-modal distance. `similarArt` is IMAGE↔IMAGE — same space, same scale —
-// so `hub_score` is exactly the signal it was reserved for (`schema/embeddings.ts` + `verbs/images.ts`: "a
-// FUTURE image↔image similarity verb (same space, hub applies there)"). This is that verb; CSLS is applied.
-//
-// THE SEED READ IS OWNER-BELTED on BOTH `characters.ownerId` AND `assets.ownerId` (the neo V2-2
-// cross-tenant-seed lesson) — a foreign/unknown seed, or a character with no avatar embedding at the lens,
-// yields an EMPTY result. Default lens = `image-raw` (the pure-visual portrait lens — `@orb/contracts/embeddings`).
+// domain/search/verbs/similar-art — "more like this avatar": seed-vector top-k over the IMAGE space. Unlike
+// the cross-modal `images` verb (which skips CSLS — different cosine scale), this is IMAGE↔IMAGE same-space,
+// so `hub_score` CSLS-adjust applies. Seed read is owner-belted on both `characters.ownerId` and
+// `assets.ownerId`; a foreign/unknown seed yields an empty result.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { SimilarArtParams } from "../contract/params";
@@ -20,7 +11,6 @@ import { nearestAvatarCharacters, readSeedAvatarVector } from "../persistence/im
 import { OWNER_OVERFETCH } from "../substrate/constants";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls";
 
-/** The pure-visual portrait lens — the image↔image similarity default (a card's raw avatar bytes). */
 const DEFAULT_ART_LENS: ImageLens = "image-raw";
 
 export function createSimilarArt(ctx: SearchContext): SearchService["similarArt"] {

@@ -1,9 +1,6 @@
-// domain/buddy/agent/tools — the buddy's curated HANDS as SDK-free tool SPECS. The handlers close over
-// (db, userId), so a tool can NEVER act as another user (owner-scoped reads). READ tools return status +
-// owned-entity counts; PROPOSE tools are read-only — they STASH a proposal (agency/proposals) and ask the
-// user to confirm; only `buddy.confirm` executes (the propose/confirm gate). Buddy returns plain
-// {@link BuddyToolSpec}[]; the entry root's injected `buildToolServer` wires them to the sealed agent-sdk
-// server (buddy imports NO SDK / provider — `domain-no-cross-feature`).
+// domain/buddy/agent/tools — the buddy's curated hands as SDK-free tool specs. Handlers close over
+// (db, userId), so a tool can never act as another user. READ tools return status + owned-entity counts;
+// PROPOSE tools stash a proposal and ask the user to confirm — only buddy.confirm executes.
 
 import type { Db } from "@orb/db";
 import { buddies, characters, chatParticipants } from "@orb/db";
@@ -14,16 +11,12 @@ import type { BuddyWorkloadKind } from "../contract/agent-env";
 import type { BuddyToolResult, BuddyToolSpec } from "../contract/agent-turn";
 import { proposeAction } from "../substrate/gate";
 
-// Per-tool payload ceiling (chars). Every tool result routes through `toolText` so no single tool return
-// can blow the small local window across the agent loop (~8000 chars ≈ ~2000 tokens).
 const TOOL_PAYLOAD_MAX_CHARS = 8000;
 const NAME_MIN = 1;
 const NAME_MAX = 48;
 
 const WORKLOAD_KINDS = ["find-duplicates", "index"] as const;
 
-/** Wrap a tool's text payload in the content shape, truncating past the ceiling with an explicit marker
- *  so the model knows the result was clipped. */
 export function toolText(text: string): BuddyToolResult {
   const clipped =
     text.length > TOOL_PAYLOAD_MAX_CHARS
@@ -40,7 +33,6 @@ function asWorkloadKind(value: unknown): BuddyWorkloadKind {
   return value === "index" ? "index" : "find-duplicates";
 }
 
-/** The deps each tool handler closes over (owner-scoped; the determinism seam threaded from the verb). */
 interface BuddyToolDeps {
   readonly db: Db;
   readonly userId: UserId;
@@ -48,7 +40,6 @@ interface BuddyToolDeps {
   readonly newProposalId: () => string;
 }
 
-/** Build the buddy's tool specs (handed to the injected `buildToolServer`). */
 export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
   const { db, userId, now, newProposalId } = deps;
   return [
@@ -84,8 +75,7 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
             and(
               eq(chatParticipants.userId, userId),
               eq(chatParticipants.role, "host"),
-              // PRESENT host only — a departed ex-host row (handoff-via-leave, D18) would over-count
-              // chats the user no longer hosts.
+              // Present host only — a departed ex-host row would over-count chats no longer hosted.
               isNull(chatParticipants.leftSeq),
             ),
           );
@@ -105,8 +95,6 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
       },
     },
     {
-      // PROPOSE-ONLY: stashes a pending rename + asks the user to confirm. It does NOT rename — only
-      // `buddy.confirm` (on the user's click) executes. The agent can suggest, never act.
       name: "propose_rename",
       description:
         "Propose changing YOUR OWN name. This does NOT rename you — it asks the user to confirm in the UI. Use when the user asks you to go by a new name or nickname.",
@@ -126,7 +114,6 @@ export function createBuddyTools(deps: BuddyToolDeps): BuddyToolSpec[] {
       },
     },
     {
-      // PROPOSE-ONLY: stashes a workload trigger; only `buddy.confirm` queues it.
       name: "propose_workload",
       description:
         "Propose running a maintenance job on the user's data: 'find-duplicates' (scan for near-duplicate characters/chats) or 'index' (build/refresh search embeddings across their whole library). This does NOT run it — it asks the user to confirm. Use when the user asks you to tidy/scan/embed their stuff.",

@@ -1,10 +1,7 @@
-// The world-info EDITOR surface — the World Info CONTENT for the open book (UI-Arch §4.2). A containment
-// CONSUMER (§2.1). Two levels, drilled in one region: the BOOK view (its header + the entry list + New
-// entry) and, when an entry is selected, the full-fidelity ENTRY editor (a back button returns to the list).
-// Reads `worldInfo.getBook` (the header) + `worldInfo.listEntries` (the list — `EntryView[]` carries every
-// field, so the selected entry's editor seeds from the list row with no extra `getEntry`). Selection flows
-// through the world-info-selection store (`selectWorldEntry` / `clearWorldEntrySelection` — the §5.1 seam;
-// the route/surface is the single reader). Book header edits open the shared `BookDetailsDialog`.
+// The World Info CONTENT for the open book. Two levels, drilled in one region: the book view (header +
+// entry list + New entry) and, when an entry is selected, the full-fidelity entry editor. Reads
+// worldInfo.getBook + listEntries (EntryView[] carries every field, so the editor seeds with no extra
+// getEntry). Selection flows through the world-info-selection store.
 
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";

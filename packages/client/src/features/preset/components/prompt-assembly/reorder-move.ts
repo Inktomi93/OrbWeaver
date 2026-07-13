@@ -1,13 +1,9 @@
-// reorder-move — recover the single array move a completed drag produced. @dnd-kit's `onReorder` hands us
-// the already-reordered key array; `form.moveFieldValues("sections", from, to)` needs the (from → to) pair
-// of the equivalent `arrayMove`. Both @dnd-kit and TanStack use identical splice-out/splice-in semantics,
-// so recovering the exact pair reproduces the visible order in the form array. A naive "first divergence →
-// indexOf" diff is only correct for ±1-slot drags (it silently writes the wrong order for any longer move),
-// so this is a real, tested function, not an inline one-liner.
+// reorder-move — recover the single array move a completed drag produced, so `form.moveFieldValues`
+// reproduces the visible reordered array. A naive "first divergence → indexOf" diff is only correct for
+// ±1-slot drags, so this is a real, tested function.
 
-// A section-id key — structurally identical to @orb/ui/sortable's `SortableItemKey`, declared locally so
-// this node-safe lib never deep-imports the DOM-touching sortable barrel (which would drag `matchMedia`
-// into the DOM-less type graph and red the shared type-gate). Same trick sortable.tsx uses for its export.
+// Structurally identical to @orb/ui/sortable's `SortableItemKey`, declared locally so this node-safe lib
+// never deep-imports the DOM-touching sortable barrel.
 type SortableItemKey = string | number;
 
 /** Recover the single `(from → to)` `arrayMove` that maps `before` to `after`. A one-element move leaves

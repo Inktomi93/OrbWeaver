@@ -1,24 +1,7 @@
-// infra/providers/vllm/engine/engine-status — the supervisor↔runner status bridge.
-//
-// The adoptive supervisor WRITES one record per engine; the engine client (client.ts) READS it to turn a
-// bare connection-refused into an ACTIONABLE error ("crash-looped, circuit open" vs "still warming").
-// Engine identity comes from the ./engines leaf, never ./client, so this registry sits below the HTTP
-// client with no cycle. Process-local state, deliberately not persisted.
-//
-// ASSUMES(single-replica): the status registry is a module-scope Map, per-process (core/Tier-2-Foundation.md
-// esoteric #5). It is INTENTIONALLY process-local — each replica supervises only its OWN spawned engines,
-// so a peer replica's lifecycle state is meaningless here. The multi-replica replacement seam is a
-// DB-backed `vllm_engine_status` table (engine × replica-id → status) the supervisor upserts and the admin
-// panel aggregates; until that exists, `/api/healthz` reports the hit replica's view (like the obs rings).
-//
-// TYPE HOMES: the lifecycle-status VOCAB is vLLM-internal (it never crosses the providers boundary — the
-// public surface is the role functions + the lifecycle handle), so it lives here as the canonical `as
-// const` tuple. `EngineStatusRecord` is an infra DI surface (`export interface`, like the sibling
-// backends' deps interfaces). The union TYPE is derived file-locally per consumer — never an exported
-// `type X = union` (the `no-inline-types` gate's one true ban, even in infra).
-//
-// DETERMINISM (no-raw-clock): `updatedAt` is INJECTED by the caller (the supervisor owns the clock), not
-// read from `Date.now()` here — this module never touches a clock.
+// Supervisor↔runner status bridge: the adoptive supervisor WRITES one record per engine; the engine
+// client READS it to turn a bare connection-refused into an actionable error. Process-local state
+// (esoteric #5, single-replica), deliberately not persisted — multi-replica seam is a future DB table.
+// `updatedAt` is injected by the caller (no-raw-clock); this module never touches a clock.
 
 import type { VLLM_ENGINES } from "./engines";
 
@@ -55,6 +38,7 @@ export interface EngineStatusRecord {
   readonly updatedAt: number;
 }
 
+// ASSUMES(single-replica): per-process engine-status registry (the supervisor owns the one engine).
 const registry = new Map<VllmEngine, EngineStatusRecord>();
 
 /** Record the current lifecycle state for an engine. `at` is the injected epoch-ms write time. */

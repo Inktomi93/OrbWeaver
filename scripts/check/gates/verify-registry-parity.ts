@@ -1,16 +1,8 @@
-// Gate: verify-registry-parity (UNIFIED-VERIFICATION-DESIGN.md §3.6) — the structural answer to "we keep
-// dropping the ball": the ball has a ledger. Every package.json script matching the VERIFICATION SHAPE
-// (check*|test*|lint*|typecheck*|depcruise*|e2e*|cpd*|format*) must be reachable from the `pnpm verify`
-// stage registry (scripts/verify/registry.ts) — either it IS a registry stage's `pnpm <script>` argv, or
-// it's on the small ALIAS/WRITER allowlist (the `pnpm verify` alias itself, the format WRITERS, the graph
-// artifact generators — things that aren't verification STAGES). Adding `test:visual-regression` to
-// package.json without placing it in a tier makes a `pnpm check` run RED. The mirror arm: every registry
-// stage's whole-scope `pnpm <script>` argv must name a script that EXISTS in package.json — a registry row
-// pointing at a deleted script is equally RED.
-//
-// This gate IMPORTS the registry (a static array — the single source of truth for the tier assignment) and
-// reads package.json from ctx.root (fsBacked), so conformance varies the package.json against the real
-// registry: a bogus verification script reds, a fully-placed one passes.
+// Gate: verify-registry-parity (UNIFIED-VERIFICATION-DESIGN.md §3.6) — every package.json script
+// matching the verification shape (check*|test*|lint*|typecheck*|depcruise*|e2e*|cpd*|format*) must be
+// reachable from the `pnpm verify` stage registry (scripts/verify/registry.ts) — either it IS a registry
+// stage's `pnpm <script>` argv, or it's on the small alias/writer allowlist. The mirror arm: every
+// registry stage's argv must name a script that exists in package.json.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { REGISTRY } from "../../verify/registry.ts";

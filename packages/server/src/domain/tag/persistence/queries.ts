@@ -1,8 +1,6 @@
-// domain/tag/persistence/queries — ALL tag-namespace db access (queries only; the conflict→DomainConflictError
-// classification + the not-found throws are the verbs' business logic). Owner-scoped on `principal.userId`
-// throughout (§7.1): a foreign-owned tag is never returned/mutated. The junction DISPATCH (insert/delete/
-// target-access) is the sibling `junctions.ts`. The row→view projection lives here (`toTagView`) — the
-// persistence layer owns the read shape.
+// All tag-namespace db access (queries only — the verbs own not-found/conflict classification). Owner-scoped
+// on `ownerId` throughout: a foreign-owned tag is never returned/mutated. Junction dispatch lives in the
+// sibling `junctions.ts`.
 
 import type { TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
@@ -53,12 +51,9 @@ export function listOwnedTags(db: Db, ownerId: UserId): Promise<TagRow[]> {
     .orderBy(sql`${tags.sortOrder} is null`, tags.sortOrder, tags.name);
 }
 
-/** Race-safe create: INSERT a tag, NO-OP on the `(ownerId, lower(name))` functional unique conflict, and
- *  RETURN the new id — or `undefined` if the row already existed (a prior/concurrent OR case-variant create
- *  won the unique). The functional unique is the race guard, so no duplicate tag is ever minted
- *  (one namespace, one owner); the caller falls back to
- *  {@link findTagIdByName} for the existing row. `source` is the provenance stamped ONLY on this first create
- *  (a tag's source is set once); an existing row's source is left untouched by the no-op conflict. */
+/** Race-safe create: insert a tag, no-op on the `(ownerId, lower(name))` functional unique conflict, and
+ *  return the new id, or `undefined` if the row already existed. Caller falls back to {@link findTagIdByName}
+ *  for the existing row. `source` is stamped only on first create. */
 export async function insertTagIfAbsent(args: {
   readonly db: Db;
   readonly ownerId: UserId;
@@ -67,9 +62,8 @@ export async function insertTagIfAbsent(args: {
   readonly source: TagSource;
 }): Promise<TagId | undefined> {
   const { db, ownerId, name, tagId, source } = args;
-  // Conflict target is the `(ownerId, lower(name))` FUNCTIONAL unique — so a case-variant ("Female" vs
-  // "female") no-ops onto the existing row exactly like an exact-name dup. The caller passes an
-  // already-`normalizeTagName`d name; the fold is the case-insensitive half.
+  // Conflict target is the (ownerId, lower(name)) functional unique — a case-variant no-ops onto the
+  // existing row like an exact-name dup.
   const inserted = await db
     .insert(tags)
     .values({ id: tagId, ownerId, name, source })
@@ -78,9 +72,7 @@ export async function insertTagIfAbsent(args: {
   return inserted[0]?.id;
 }
 
-/** The owner's tag id whose name folds to `name` (CASE-INSENSITIVE — `lower(name)` both sides, matching the
- *  functional unique), or `undefined` — owner-scoped (a different owner's same-name tag is never returned; the
- *  `(ownerId, lower(name))` predicate is in the WHERE, never a post-filter). */
+/** The owner's tag id whose name folds to `name` (case-insensitive), or `undefined`. */
 export async function findTagIdByName(
   db: Db,
   ownerId: UserId,
@@ -109,11 +101,8 @@ export async function fetchOwnedTagIds(
   return rows.map((r) => r.id);
 }
 
-/** Bulk-insert a set of prepared tag rows for one owner, IDEMPOTENTLY: each row NO-OPs on the
- *  `(ownerId, lower(name))` functional unique (a name already in the owner's namespace is left untouched — a
- *  library import MERGES, never duplicates). Returns the count actually CREATED (the `RETURNING` rows — a
- *  conflicted row returns nothing). One statement; the caller pre-normalizes each `name` and mints each `id`
- *  (the tag-library import verb). A re-import of the same file inserts zero (the round-trip idempotency guard). */
+/** Bulk-insert prepared tag rows for one owner, idempotently: each row no-ops on the functional unique
+ *  conflict. Returns the count actually created. Caller pre-normalizes each name and mints each id. */
 export async function insertOwnedTagsIfAbsent(
   db: Db,
   values: readonly (typeof tags.$inferInsert)[],
@@ -154,9 +143,8 @@ export async function deleteOwnedTag(db: Db, tagId: TagId, ownerId: UserId): Pro
   return deleted.length;
 }
 
-/** Set the manual sort order: position i → `sortOrder = i`, owner-scoped. ONE libSQL batch (N typed UPDATEs
- *  in a single round-trip — the `db.batch` non-empty tuple via `batchMany`; sequential awaits would serialize
- *  N round-trips). The caller guarantees `orderedIds` is non-empty (batch rejects an empty list). */
+/** Set the manual sort order: position i → `sortOrder = i`, owner-scoped. One libSQL batch. Caller
+ *  guarantees `orderedIds` is non-empty. */
 export async function setTagOrderBatch(
   db: Db,
   ownerId: UserId,
@@ -171,18 +159,11 @@ export async function setTagOrderBatch(
   await db.batch(batchMany(stmts));
 }
 
-/**
- * Merge one owned tag INTO another — re-point every attachment of `sourceTagId` to `targetTagId` across all
- * five junctions, then delete the source tag, in ONE atomic libSQL batch (statements run in order, in a
- * transaction). Dedupe is DELETE-collisions-then-REPOINT: a source junction row whose target entity is
- * ALREADY tagged by `targetTagId` is dropped first, so the subsequent `SET tag_id = target` can never trip a
- * composite-PK conflict. The `character_tags` junction preserves the STRONGEST status — an `accepted` source
- * row upgrades an already-`pending` target row BEFORE the collision-delete (accepted always wins over pending);
- * the four status-less junctions just dedupe on their non-tag PK column. `chat_tags` dedupes on `chatId` alone:
- * its `ownerId` (the tagger) is invariant across both tags' rows — only a tag's OWNER can attach it (attach is
- * owner-scoped) — so a same-`chatId` clash is the only possible PK collision. The verb pre-verifies both ids
- * are owner-owned and distinct; the trailing `owner_id` predicate on the tag delete is the belt.
- */
+/** Merge one owned tag into another — re-point every attachment of `sourceTagId` to `targetTagId` across all
+ *  five junctions, then delete the source tag, in one atomic batch. Dedupe is delete-collisions-then-repoint
+ *  (a source row already covered by the target is dropped first, so the repoint UPDATE never hits a PK
+ *  conflict). `character_tags` preserves the strongest status — an `accepted` source row upgrades a
+ *  `pending` target row before the collision-delete. */
 export async function mergeTagBatch(
   db: Db,
   ownerId: UserId,
@@ -190,8 +171,7 @@ export async function mergeTagBatch(
   targetTagId: TagId,
 ): Promise<void> {
   const stmts = [
-    // character — strongest status: an `accepted` source row upgrades a `pending` target row (must run
-    // BEFORE the collision-delete drops the source rows).
+    // character: accepted source row upgrades pending target row before the collision-delete.
     db
       .update(characterTags)
       .set({ status: "accepted" })
@@ -229,7 +209,7 @@ export async function mergeTagBatch(
       .set({ tagId: targetTagId })
       .where(eq(characterTags.tagId, sourceTagId)),
 
-    // chat (D30) — dedupe on chatId (ownerId is invariant across both tags' rows).
+    // chat: dedupe on chatId (ownerId is invariant across both tags' rows).
     db
       .delete(chatTags)
       .where(
@@ -300,20 +280,15 @@ export async function mergeTagBatch(
       ),
     db.update(presetTags).set({ tagId: targetTagId }).where(eq(presetTags.tagId, sourceTagId)),
 
-    // finally: drop the now-emptied source tag (owner-scoped belt).
+    // drop the now-emptied source tag (owner-scoped belt).
     db.delete(tags).where(and(eq(tags.id, sourceTagId), eq(tags.ownerId, ownerId))),
   ];
   await db.batch(batchMany(stmts));
 }
 
-// ── pending-suggestion read (the Accept/Reject review queue — PD-40 distill + import staged card tags) ──
-
-/** Every `pending` character-tag suggestion for the owner (optionally narrowed to ONE character), joined to
- *  its tag row so the review UI renders the chip WITH name + colors. Owner-scoped on the JUNCTION-OWNER side:
- *  `character_tags` carries no ownerId (D23), so the owner gate is `characters.ownerId` (the authoritative
- *  owner), reached via the innerJoin — a foreign character's suggestion is never returned. `accepted` rows are
- *  excluded (the read is the STAGED queue; accepted tags read through the character's own `canonicalTagsFor`).
- *  Ordered by name for a stable display. */
+/** Every `pending` character-tag suggestion for the owner (optionally narrowed to one character), joined to
+ *  its tag row so the review UI renders the chip with name + colors. `character_tags` carries no ownerId, so
+ *  the owner gate reaches `characters.ownerId` via the innerJoin. */
 export async function listPendingCharacterSuggestions(
   db: Db,
   ownerId: UserId,
@@ -343,11 +318,10 @@ export async function listPendingCharacterSuggestions(
   return rows;
 }
 
-// ── usage rollup (FIVE independent GROUP BY queries merged in-process, NEVER a 5-way
-//    LEFT JOIN — that explodes to N×5 NULL rows and defeats the merge at typical tag counts) ───────────────
+// Usage rollup: five independent GROUP BY queries merged in-process, never a 5-way LEFT JOIN (that explodes
+// to N×5 NULL rows at typical tag counts).
 
-/** Count junction rows per tag for the given tag ids, on ONE junction's tagId column. Returns a plain object
- *  keyed by tag id (NOT a Map — the persistence layer holds no in-memory state; this is a query-local result). */
+/** Count junction rows per tag for the given tag ids, on one junction's tagId column. */
 async function countByTag(
   db: Db,
   table: SQLiteTable,

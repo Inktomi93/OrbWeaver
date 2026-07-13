@@ -1,10 +1,6 @@
-// The "Reading typography" appearance section (Phase 4b §B.5.3), split out of
-// `appearance-settings-surface.tsx` (UI-Arch §2.1 component-size gate, cap 450 lines — same reason
-// `lib/appearance-select-items.ts` was split out earlier). Takes the LIVE autosave form instance as a
-// prop (`AppFormInstance` minus `reset`, matching the exact shape `createAutosaveEntityForm` returns —
-// `withForm`'s render-prop composition doesn't fit here: it binds against the FULL raw TanStack form
-// API, which the autosave factory deliberately narrows/omits `reset` from), so this stays a normal
-// leaf component — no form re-derivation, no `form: any` escape hatch.
+// The "Reading typography" appearance section, split out of appearance-settings-surface.tsx. Takes the
+// live autosave form instance as a prop (AppFormInstance minus `reset`, the exact shape
+// createAutosaveEntityForm returns), so this stays a normal leaf component.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { Section } from "@orb/ui/layout";
@@ -26,10 +22,7 @@ const READING_SCALE_MIN = 0.8;
 const READING_SCALE_MAX = 1.6;
 const READING_SCALE_STEP = 0.05;
 
-/** Message line-height/letter-spacing/paragraph-spacing/name+body scale + the justify toggle — root
- *  vars via `useAppearanceRootEffects`, consumed on `[data-slot="message-bubble"]`/
- *  `[data-slot="message-attribution"]` (globals.css). THE READING-SURFACE RULE: sizing/spacing only,
- *  never blur (that stays chrome-only). */
+/** Message line-height/letter-spacing/paragraph-spacing/name+body scale + the justify toggle. Sizing/spacing only, never blur. */
 export function AppearanceReadingSection({
   form,
 }: {

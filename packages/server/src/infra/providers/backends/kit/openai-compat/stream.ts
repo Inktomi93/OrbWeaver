@@ -1,9 +1,5 @@
-// infra/providers/backends/kit/openai-compat/stream — the SHARED OpenAI chat-completions stream reducer +
-// the view→ChatResult mapper + the raw-SSE line parser. THE ISOLATION SEAM: the openrouter and custom-byo
-// (and any future OpenAI-compatible) backends import these DOWN, so no backend reaches into another's
-// folder (strategy isolation). Pure of transport — driven in tests with a synthetic AsyncIterable.
-//
-// DETERMINISM: the mapper takes the settled-at time as an injected `now` value (no `Date.now()` here).
+// The shared OpenAI chat-completions stream reducer + view→ChatResult mapper + raw-SSE line parser.
+// Isolation seam: openrouter/custom-byo (and any future OpenAI-compatible backend) import these down.
 
 import type { ChatResult, ChatUsage, ToolCallInput } from "../../../contract";
 import { normalizeFinishReason } from "../../../contract";
@@ -21,43 +17,26 @@ import {
   extractChatReply,
 } from "../wire-schemas";
 
-/** A streaming token delta the reducer emits. Minimal by design — NO `chatId` (the runner attaches its
- *  own id when forwarding to the domain's `ChatDeltaEvent` callback), keeping this helper free of the
- *  branded-id / contracts-chat coupling. */
 export interface StreamDelta {
   readonly kind: "text" | "reasoning";
   readonly text: string;
 }
 
-/** Hooks the reducer pumps during the drain. */
 export interface StreamReduceOptions {
-  /** Per text/reasoning delta — drives live streaming to the caller. */
   readonly onDelta?: ((delta: StreamDelta) => void) | undefined;
-  /** Once per received chunk (BEFORE any delta dispatch) so the caller can reset a rolling idle-timeout —
-   *  fires even for chunks carrying no delta (the usage sentinel). */
+  /** Fires once per received chunk, before any delta dispatch — even for a chunk with no delta. */
   readonly onChunk?: (() => void) | undefined;
 }
 
-/** Context the view→ChatResult mapper needs that isn't on the wire view. */
 export interface MapTurnContext {
   readonly model: string;
-  /** Turn-start time (epoch-ms), injected by the runner. */
   readonly startedAt: number;
-  /** Settle time (epoch-ms), injected by the runner — `durationApiMs = now - startedAt`. */
   readonly now: number;
   readonly contextWindow: number | null;
   readonly maxOutputTokens: number | null;
-  /** Accumulated streaming CoT; empty for the one-shot path (which reads `message.reasoning` instead). */
   readonly reasoning?: string | undefined;
 }
 
-/**
- * Drain a chat.completions streaming response into the assembled {@link ChatCompletionResult} view. Each
- * chunk: `delta.content` → reply; `delta.reasoning` / `delta.reasoningDetails` → CoT (structured channel
- * preferred — newer Anthropic routes populate both, and reading both doubles the text); `chunk.error` →
- * an in-band provider error promoted to a throw (so the HTTP classifier handles it); `chunk.usage` +
- * `finishReason` → the terminal sentinel only.
- */
 export async function reduceChatCompletionStream(
   stream: AsyncIterable<ChatCompletionStreamChunk>,
   opts: StreamReduceOptions = {},
@@ -69,8 +48,6 @@ export async function reduceChatCompletionStream(
   for await (const chunk of stream) {
     opts.onChunk?.();
     if (chunk.error !== null && chunk.error !== undefined) {
-      // Promote to a thrown error carrying the code so `providerErrorFromHttp` classifies it via the
-      // shared HTTP path (an OpenAI-compatible stream can embed billing/rate-limit errors mid-stream).
       throw Object.assign(new Error(chunk.error.message), { statusCode: chunk.error.code });
     }
     const delta = chunk.choices[0]?.delta;
@@ -101,10 +78,8 @@ export async function reduceChatCompletionStream(
   };
 }
 
-// ── The D48 tool-call delta accumulator (tool-use-design/02 §6 — ST's proven index-keyed model) ────
-// The JSON `arguments` arrive SLICED MID-TOKEN across fragments; only string concatenation is correct
-// (never an incremental JSON parse). `id`/`name` LATCH on first sight — later fragments repeat or omit
-// them. NO per-fragment delta events reach the caller (03 §5): tool fragments are protocol, not prose.
+// `arguments` arrive sliced mid-token across fragments — only string concatenation is correct (never an
+// incremental JSON parse). `id`/`name` latch on first sight.
 interface ToolCallAccumulator {
   id: string;
   name: string;
@@ -133,7 +108,6 @@ function accumulateToolCallDeltas(
   }
 }
 
-// Emission order = ascending wire index (deterministic — the loop executes in emission order, 02 §7).
 function assembleToolCalls(acc: Map<number, ToolCallAccumulator>): ChatMessageToolCall[] {
   return [...acc.entries()]
     .sort(([a], [b]) => a - b)
@@ -143,10 +117,8 @@ function assembleToolCalls(acc: Map<number, ToolCallAccumulator>): ChatMessageTo
     }));
 }
 
-// Emit the text + reasoning deltas for one chunk and return the reply text it appended (kept separate so
-// the reducer stays under the cognitive-complexity gate). Reasoning channel selection: the structured
-// `reasoningDetails` wins when it carries text (newer Anthropic routes populate both channels for the same
-// CoT — reading both would double it); the legacy `reasoning` string is the fallback.
+// `reasoningDetails` wins when it carries text (some routes populate both channels for the same CoT —
+// reading both would double it); the legacy `reasoning` string is the fallback.
 function dispatchDelta(
   delta: ChatCompletionStreamDelta,
   onDelta: ((delta: StreamDelta) => void) | undefined,
@@ -165,8 +137,7 @@ function dispatchDelta(
   return appended;
 }
 
-// Map the lenient wire usage → the cross-backend `ChatUsage`. The 5m/1h cache split is Anthropic/SDK
-// -internal — the chat-completions path can't report it (→ null).
+// 5m/1h cache split is Anthropic/SDK-internal — chat-completions can't report it.
 function mapUsage(view: ChatCompletionResult, ctx: MapTurnContext): ChatUsage {
   const u = view.usage;
   const cd = u?.costDetails;
@@ -181,7 +152,7 @@ function mapUsage(view: ChatCompletionResult, ctx: MapTurnContext): ChatUsage {
     reasoningTokens: u?.completionTokensDetails?.reasoningTokens ?? null,
     contextWindow: ctx.contextWindow,
     maxOutputTokens: ctx.maxOutputTokens,
-    webSearchRequests: 0, // chat-completions path has no tool-call reporting
+    webSearchRequests: 0,
     costUsd: u?.cost ?? 0,
     costDetails:
       cd !== null && cd !== undefined
@@ -195,12 +166,6 @@ function mapUsage(view: ChatCompletionResult, ctx: MapTurnContext): ChatUsage {
   };
 }
 
-/**
- * Map an assembled chat-completions view → the cross-backend {@link ChatResult}. Pure of IO (the catalog
- * lookups are the caller's job — `contextWindow`/`maxOutputTokens` are passed in). The streaming path
- * supplies accumulated `ctx.reasoning`; the one-shot path leaves it empty and the mapper falls back to the
- * view's `message.reasoning`. No `sessionId` — OpenAI-compatible runners have no SDK session.
- */
 export function mapChatCompletionToTurnResult(
   view: ChatCompletionResult,
   ctx: MapTurnContext,
@@ -230,8 +195,6 @@ export function mapChatCompletionToTurnResult(
   };
 }
 
-// Wire tool-calls → the contract's ToolCallInput (absent, never [], on a tool-less turn — the T4 loop
-// pivots on `finishReason === "tool"` and reads these; 03 §2).
 function mapToolCalls(
   calls: readonly ChatMessageToolCall[] | undefined,
 ): readonly ToolCallInput[] | undefined {
@@ -248,9 +211,6 @@ function mapToolCalls(
 const SSE_DATA_PREFIX = "data:";
 const SSE_DONE = "[DONE]";
 
-// File-local: classify one SSE line. A `data:` line carries a JSON payload (yielded as raw `unknown`);
-// the literal `[DONE]` ends the stream; everything else (comments, `event:`, blanks, non-JSON keepalives)
-// is skipped.
 function parseSseLine(line: string): { kind: "data"; value: unknown } | { kind: "done" | "skip" } {
   if (!line.startsWith(SSE_DATA_PREFIX)) {
     return { kind: "skip" };
@@ -262,16 +222,10 @@ function parseSseLine(line: string): { kind: "data"; value: unknown } | { kind: 
   try {
     return { kind: "data", value: JSON.parse(payload) };
   } catch {
-    return { kind: "skip" }; // partial flush / non-JSON keepalive — never throw
+    return { kind: "skip" };
   }
 }
 
-/**
- * Parse an OpenAI-style `text/event-stream` body into the raw JSON payloads (one per `data:` line). Yields
- * `unknown` — the RUNNER reshapes each payload into a {@link ChatCompletionStreamChunk} (a standard mapper
- * or the custom-byo response-map) before feeding {@link reduceChatCompletionStream}. (The OpenRouter path
- * uses the SDK's own SSE handling; this exists for the raw-fetch backends.)
- */
 export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGenerator<unknown> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -281,9 +235,7 @@ export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGe
       // biome-ignore lint/performance/noAwaitInLoops: a streaming read is inherently sequential — each chunk must be awaited before the next arrives.
       const { done, value } = await reader.read();
       if (done) {
-        // Flush a final `data:` line the server never newline-terminated (a spec-sloppy BYO endpoint can
-        // end its stream with `data: {…usage/finish_reason…}` + EOF) — else the terminal usage/finish is
-        // silently lost. `parseSseLine` skips a blank/partial residue, so this is safe for well-formed SSE.
+        // Flush a final `data:` line the server never newline-terminated (spec-sloppy BYO endpoints).
         const tail = parseSseLine(buffer.trim());
         if (tail.kind === "data") {
           yield tail.value;

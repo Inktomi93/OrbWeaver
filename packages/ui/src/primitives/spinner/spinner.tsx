@@ -4,23 +4,13 @@ import { Icon, Loader2 } from "#primitives/icons";
 import { spinnerVariants } from "./variants";
 
 export interface SpinnerProps {
-  // Inline union (not a named tuple): {sm,md,lg} is the ubiquitous control-size scale — a competing
-  // `as const` tuple would false-collide with every other size union under the no-inline-union gate.
-  // Passes straight to <Icon size> (icons/icon.tsx's `keyof typeof ICON_SIZES` is the same set).
   size?: "sm" | "md" | "lg";
   /** Accessible name announced by `role="status"` — required (a spinner is a live status). */
   label: string;
   className?: string;
 }
 
-/**
- * Spinner — an inline, spinning loading indicator: the lucide `Loader2` glyph (through the
- * `@orb/ui/icons` seal + the `<Icon>` size wrapper — no hand-rolled SVG) in a `role="status"` live
- * region with a visually-hidden label. For inline / button-busy states; design PREFERS skeletons for
- * layout loading (ui-package-design §6.1).
- *
- * Usage: `<Spinner size="sm" label="Saving…" />`.
- */
+/** Inline, spinning loading indicator for inline/button-busy states; design prefers skeletons for layout loading. */
 export function Spinner({ size = "md", label, className }: SpinnerProps): ReactElement {
   const slots = spinnerVariants();
   return (

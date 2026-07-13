@@ -115,10 +115,6 @@ function scanTestLayout(root: string): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
-// test-layout reads the real fs (recursive readdirSync of tests/ + existsSync of the mirrored source) —
-// a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance materializes examples
-// to a real temp dir. File-level findings. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "test-layout",
   docRow: "core/Core-0-Architecture-and-Structure.md §5 (core/Spine-Testing.md)",

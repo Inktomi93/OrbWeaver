@@ -1,18 +1,9 @@
-/* @orb/ui — the one CSS entry a consumer imports (the client's single stylesheet import; the CT
- * harness imports it too). Composition:
- *   1. Tailwind v4 (utilities are generated FROM the @theme block — nothing hand-authored).
- *   2. theme.css — the GENERATED @theme block derived from src/tokens/tokens.json (UI-Arch §3).
- *   3. The unlayered floors below (D43 §11.4e — deliberately OUTSIDE @layer so no later layer can
- *      accidentally out-specificity them).
- *
- * Consumers must also set `isolation: isolate` on the app root (Base UI stacking-context guidance)
- * and `position: relative` on <body> (iOS 26 Safari backdrop coverage) — the client shell owns both.
- */
+/* @orb/ui — the one CSS entry a consumer imports. theme.css is GENERATED from tokens.json; the
+ * floors below are deliberately UNLAYERED so no later @layer can out-specificity them. */
 @import "tailwindcss";
 @import "./theme.css";
 
-/* The reduced-motion floor — UNLAYERED on purpose (D43 §11.4e: one of the three "one edit silently
- * breaks it" globals footguns; a capability @media, legal at the token layer — §4b axis 3). */
+/* Unlayered reduced-motion floor — a capability @media, legal outside @layer. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -24,9 +15,8 @@
   }
 }
 
-/* Manual reduced-motion (D44 §12.1 appearance.reducedMotion) — the SAME freeze as the OS floor above, but
- * gated on the shell-stamped `data-reduced-motion` attribute (a user pref BEYOND the OS prefers-reduced-
- * motion). UNLAYERED, same as the OS floor. */
+/* Manual reduced-motion: same freeze as the OS floor above, gated on the shell-stamped
+ * data-reduced-motion attribute (a user pref beyond the OS setting). Unlayered, same as above. */
 [data-reduced-motion="true"] *,
 [data-reduced-motion="true"] *::before,
 [data-reduced-motion="true"] *::after {
@@ -36,35 +26,24 @@
   scroll-behavior: auto !important;
 }
 
-/* Per-theme color-scheme (the third D43 §11.4e footgun) — Hearth is dark. A future palette
- * value-set overrides both the token values and this declaration together. */
+/* Hearth (the default palette) is dark. */
 :root {
   color-scheme: dark;
 }
 
-/* Global font scale (D44 §12.1 appearance.fontScale) — the client writes `--font-scale` onto the root
- * element from the synced pref; this rescales the root font-size, so every rem-derived size (text AND
- * spacing, proportionally) grows/shrinks together. Default 1 ⇒ a no-op (the 100% floor), so this is
- * inert until a user changes it. UNLAYERED so nothing layered overrides it. */
+/* Client writes --font-scale onto root from the synced pref; rescales every rem-derived size
+ * proportionally. Default 1 = no-op. Unlayered so nothing layered overrides it. */
 :root {
   font-size: calc(100% * var(--font-scale, 1));
 }
 
-/* ── Multi-palette (D44 §12.1) — the seed value-sets that ship as [data-theme=…] ────────────────────
- * Tailwind v4 utilities reference var(--color-*), so redefining a custom property under a [data-theme]
- * scope reflows the whole subtree at runtime — no rebuild, no @theme rewrite. Hearth is the :root
- * default (the @theme block above); Mocha/Light are the additional seed palettes. The client stamps
- * [data-theme] on the shell root ONLY when the active theme is a seed palette (constants map name→attr);
- * a custom (owned) theme uses no [data-theme] and layers its override on the Hearth base via <ThemeScope>.
- * These blocks are UNLAYERED on purpose (like the floors above — footgun #1) so nothing layered can
- * out-specificity them, and each carries its OWN color-scheme (footgun #3: Light MUST flip it or native
- * controls/scrollbars stay dark). Each palette is SELF-COMPLETE (chrome + RP tokens) so it themes the
- * app with or without the root <ThemeScope>. The css-structure test pins the @custom-variant + both
- * blocks + the Light color-scheme flip. */
+/* Multi-palette seed value-sets shipped as [data-theme=...]. Redefining --color-* under a
+ * [data-theme] scope reflows the whole subtree at runtime. Each block is unlayered + carries its
+ * own color-scheme (Light must flip it or native controls/scrollbars stay dark) and is
+ * self-complete so it themes the app with or without the root ThemeScope. */
 
-/* The `dark` variant — enumerated, NOT "default = dark": a `dark:` utility must resolve everywhere
- * EXCEPT under the one light palette (else Light would still get dark-variant styles). Light is the sole
- * light theme, so excluding its subtree is the whole rule. */
+/* dark: enumerated (not "default = dark") so a dark: utility resolves everywhere except the one
+ * light palette. */
 @custom-variant dark (&:not([data-theme="light"], [data-theme="light"] *));
 
 [data-theme="mocha"] {
@@ -143,15 +122,9 @@
   --color-speaker: oklch(0.5 0.17 50);
 }
 
-/* Ambient accent AURA behind the empty-state brand glyph / landing hero (DESIGN.md §5 — the rationed
- * Ember "moment"). A low-alpha radial glow tinted FROM the active palette's `--color-primary` (so it
- * tracks every theme/custom palette, never a fixed color), painted on a `::before` BEHIND the
- * decoration glyph only. Scoped to `[data-slot="empty-state-decoration"]` — the brand/Weave/hero slot,
- * NEVER the muted `[data-slot="empty-state-icon"]` chrome (table/command empties) and NEVER the reading
- * surface (THE READING-SURFACE RULE — this is an empty-state/landing moment, not message prose). STATIC
- * (no animation — the glyph's own optional shimmer is separate). `oklch(from …)` relativizes the
- * primary so only its alpha changes. The decoration slot is inline-flex with its own glyph on top; the
- * `::before` is absolutely centered behind it (`position:relative` on the host, the aura non-interactive). */
+/* Ambient accent aura behind the empty-state brand glyph — a static low-alpha radial glow tinted
+ * from --color-primary. Scoped to the brand/hero decoration slot only, never the muted empty-state
+ * icon chrome or message prose (reading-surface rule). */
 [data-slot="empty-state-decoration"] {
   position: relative;
   isolation: isolate;
@@ -169,18 +142,9 @@
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════════════════════
- * GRADIENT BORDERS / rings (effects catalog E) — a top-lit hairline edge on the accent surfaces
- * (primary CTA · selected media cell · active tab). Radius-safe via the dual background-clip recipe
- * (padding-box fill + border-box gradient) on a `::after` OVERLAY, NOT the element's own background:
- * the button/cell already own their fill (bg-primary / the thumbnail), so an overlay ring composes
- * with it (and with the existing shadow-cta / shadow-glow) instead of clobbering it. The ring's own
- * fill layer is `transparent` (padding-box) so only the 1px border-box gradient paints. Accent-tinted
- * off `--color-primary` (top, brightest) fading to a faint neutral white-alpha (bottom) so the edge
- * reads as light-from-above and tracks every theme/accent for free. STATIC — no motion. THE READING-
- * SURFACE RULE: chrome/CTA/cells only, never message prose. `inherit` border-radius keeps the ring
- * flush with any rounding; `pointer-events:none` so the overlay never eats clicks/hover.
- * ══════════════════════════════════════════════════════════════════════════════════════════════ */
+/* Gradient border ring on accent surfaces (CTA / selected media cell): a ::after overlay (dual
+ * background-clip: transparent padding-box fill + gradient border-box) so it composes over the
+ * element's own fill instead of clobbering it. Chrome/CTA/cells only, never message prose. */
 [data-slot="button"][data-cta]::after,
 [data-slot="media-grid-cell"][data-selected]::after {
   content: "";
@@ -195,17 +159,12 @@
     linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(1 0 0 / 0.04))
     border-box;
 }
-/* The button ring needs a positioning context (Base UI's button is not positioned by default); the
- * media-grid cell is already `relative` (variants.ts). Scoped to the CTA attr so a non-primary button
- * keeps its normal flow. */
+/* Positioning context for the ring above — Base UI's button isn't positioned by default. */
 [data-slot="button"][data-cta] {
   position: relative;
 }
 
-/* ACTIVE-TAB accent gradient border (E applied to chrome). The tabs' own sliding 2px underline stays
- * the primary "you are here" marker; this adds a faint accent hairline framing the ACTIVE tab's box so
- * the selected chip reads as a lifted, outlined surface (not just an underlined label). Same overlay
- * recipe as the CTA, lower alpha (chrome, not a CTA). Static. */
+/* Active-tab accent gradient border, same recipe as the CTA ring above, lower alpha. */
 [data-slot="tabs-tab"][data-active]::after {
   content: "";
   position: absolute;
@@ -220,16 +179,8 @@
     border-box;
 }
 
-/* GRADIENT-FADE dividers (effects catalog E applied to chrome / item 7) — long separators + the
- * Section heading hairline dissolve at their ends via a `mask` gradient instead of terminating in a
- * hard 1px stub. A premium hairline: the rule is fully opaque across its middle and fades to nothing
- * at both ends, so it reads as an integrated edge, not a boxed-in line. DEFAULT (subtle polish, no
- * opt-in) — token-driven off the fade stop already used by the chat-list edge-fade. Applies to the
- * horizontal separator + the divider-mode Section heading border; the vertical separator (toolbar
- * dividers, short) is left alone (a fade on a short rule reads as a rendering bug, not polish). The
- * heading border is a `border-bottom`, which `mask` can't feather per-edge, so its fade rides the same
- * `mask` on the heading box — the mask clips the whole box but the heading is text-over-transparent, so
- * only the border edge visibly feathers. */
+/* Gradient-fade dividers: long separators dissolve at their ends via a mask gradient instead of a
+ * hard 1px stub. Vertical (short) separators are left alone — a fade there reads as a bug. */
 [data-slot="separator"][data-orientation="horizontal"] {
   -webkit-mask-image: linear-gradient(
     to right,
@@ -247,18 +198,9 @@
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════════════════════
- * SPOTLIGHT / hover-follow (effects catalog F) — the one JS-driven effect. media-grid.tsx writes the
- * cell-relative pointer position into `--x`/`--y` (px) on the hovered cell; this paints a soft accent
- * radial spotlight at those coords that FOLLOWS the cursor (the classic spotlight-card effect). LOW
- * ALPHA (0.18) is load-bearing: it's a gentle highlight, NOT a wash — the thumbnail stays fully legible
- * under it (a dual-background-clip "border-only" trick does NOT occlude, since CSS background layers
- * composite rather than clip each other, so a high-alpha radial would brighten a third of the cell —
- * the reason this is a plain low-alpha interior glow). Reveal fades in on hover so a cold cell is
- * untouched. HARD GUARDS (paint-side twins of the JS guards): the whole rule lives under
- * `@media (pointer: fine)` (no touch), and reduced-motion drops it entirely (a static cell). Accent-
- * tinted off --color-primary so it tracks every theme. The `::before` sits over the thumbnail but
- * under the selected-ring `::after`; non-interactive. THE READING-SURFACE RULE: grids only. */
+/* Spotlight hover-follow: media-grid.tsx writes pointer position into --x/--y on the hovered cell;
+ * this paints a low-alpha radial spotlight there. pointer: fine only (no touch); reduced-motion
+ * drops it entirely. */
 @media (pointer: fine) {
   [data-slot="media-grid-cell"]::before {
     content: "";
@@ -278,9 +220,6 @@
   [data-slot="media-grid-cell"]:hover::before {
     opacity: 1;
   }
-  /* Reduced-motion → drop the pointer-follow entirely (no reveal, no transition): the cell keeps its
-   * existing static hover ring (variants.ts `hover:ring`). Matches the JS guard, which also never
-   * installs the listener under reduced-motion. */
   @media (prefers-reduced-motion: reduce) {
     [data-slot="media-grid-cell"]::before,
     [data-slot="media-grid-cell"]:hover::before {
@@ -289,21 +228,13 @@
   }
 }
 
-/* Text SELECTION (D62 §8) — the one rationed accent moment on selected text: primary bg + its
- * contrast-safe foreground. Tracks the active palette for free (both are theme tokens). UNLAYERED so a
- * later utility can't out-specificity it. */
 ::selection {
   background-color: var(--color-primary);
   color: var(--color-primary-foreground);
 }
 
-/* SCROLLBARS (D62 §8 · DESIGN.md §6 "scrollbars → the neutral ramp") — thin, quiet, themed. The standard
- * two-property model (Firefox + Chromium 121+): a low-prominence thumb derived from the foreground so it
- * reads as part of the neutral ramp on ANY palette, an invisible track. `scrollbar-color` IS inherited, so
- * it lives on :root and reaches every scroll region; `scrollbar-width` is NOT inherited (CSS spec), so a
- * :root-only rule left every NESTED scroller at the OS default `auto` (side-eye: the settings pane read
- * `auto`, not thin) — it must be set on all elements. `*` at specificity 0,0,0 still yields to any explicit
- * `scrollbar-width: none` (a deliberately hidden scrollbar wins). One home, no per-surface scrollbar CSS. */
+/* Thin themed scrollbars. scrollbar-color is inherited (lives on :root); scrollbar-width is NOT
+ * inherited, so it must be set on `*` (a nested scroller otherwise falls back to the OS default). */
 :root {
   scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
 }
@@ -311,13 +242,8 @@
   scrollbar-width: thin;
 }
 
-/* The skeleton shimmer sweep (D62 UIP-309, primitives/skeleton) — a 90° muted→accent→muted gradient
- * swept across the box over --motion-shimmer. A keyframe animation Tailwind utilities can't express
- * (token-color gradient stops + a moving background-position), so it lives here as ONE bespoke class
- * the Skeleton primitive composes; it carries no raw color/length literal (token vars only). The muted
- * stops match the primitive's `bg-muted` base so the box reads cohesive. REDUCED-MOTION: the unlayered
- * floor above already freezes the animation; this ALSO drops the gradient so a reduced-motion viewer
- * sees the flat `bg-muted` fill (the intended static look) — never a frozen mid-sweep frame. */
+/* Skeleton shimmer sweep: a keyframe gradient sweep Tailwind utilities can't express. Reduced-motion
+ * also drops the gradient (flat bg-muted fill), not just the animation, to avoid a frozen mid-sweep frame. */
 @keyframes orb-skeleton-shimmer {
   from {
     background-position: 200% 0;

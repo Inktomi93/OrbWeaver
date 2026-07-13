@@ -1,7 +1,5 @@
-// The gate-clean sizing approach (chosen and documented per ui-package-design §6.1): lucide
-// components take a `size` NUMBER prop, so icon sizes are named px consts pinned to the type-scale
-// tokens below — no raw `size-4` classes (gate-RED), no `size-[1em]` arbitrary values, no extra
-// icon-size token. The token linkage IS this table.
+// Lucide components take a `size` NUMBER prop, so icon sizes are named px consts pinned to the
+// type-scale tokens below instead of raw/arbitrary Tailwind classes. The token linkage IS this table.
 import type { LucideIcon } from "lucide-react";
 import type { ReactElement } from "react";
 
@@ -17,7 +15,6 @@ export const ICON_LG = 24;
 const ICON_SIZES = { xs: ICON_XS, sm: ICON_SM, md: ICON_MD, lg: ICON_LG } as const;
 
 export interface IconProps {
-  /** A lucide component from `@orb/ui/icons` — the ONE icon set (gate icons-lucide-only). */
   icon: LucideIcon;
   size?: keyof typeof ICON_SIZES;
   /** Accessible name. Omitted = decorative (`aria-hidden`), the default for icons beside text. */
@@ -25,12 +22,7 @@ export interface IconProps {
   className?: string;
 }
 
-/**
- * Sizing wrapper for the curated lucide set — icons scale with the type scale via the ICON_*
- * consts, decorative by default (ui-package-design §6.1 icons seal).
- *
- * Usage: `<Icon icon={Trash2} size="sm" label="Delete" />`.
- */
+/** Sizing wrapper for the curated lucide set — decorative by default. */
 export function Icon({ icon: Glyph, size = "md", label, className }: IconProps): ReactElement {
   return (
     <Glyph

@@ -19,12 +19,6 @@ function callHasAssertion(call: CallExpression): boolean {
   });
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a CallExpression subscription: a test/it call with no expect/expectTypeOf
-// assertion, in a /tests/ file. scanRoot mirrors the legacy `/tests/` filter. The finding lands on the
-// test call node (node-anchored — the token names the stub test). Per-occurrence. Kept ALONGSIDE the
-// legacy Check. (The legacy emits an ABSOLUTE path; the contract standardizes on repoRel — the parity
-// oracle normalizes both to the canonical form.)
 const STUB_MESSAGE =
   "stub test contains no assertions (expect/expectTypeOf) — tests must assert behavior, not just satisfy presence rules (Spine-Testing.md §5).";
 

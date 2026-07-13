@@ -1,21 +1,10 @@
-// The CONNECTIONS settings surface (Settings → APP → Connections — W10 Panel 1; capability-turn-shaping/04
-// §W10). The NEO role-slot + key-library PORT (owner-ruled 2026-07-10 — the neo model, NOT
-// named-savable-connections). Two anchored sections:
-//   (a) MODEL ROLES — the 7 typed role slots (chat · agent · embed · rerank · imageEmbed · summarize ·
-//       generateImage), each a COMPACT dense row (slot · source · model) so 7 slots + a FUTURE per-agent
-//       list stay compact (owner ruling — space-efficiency is a hard requirement, the agent build reuses
-//       this row). The chat slot carries the protocol `api` knob (adjacent-same-role handling moved to the
-//       preset — authored in the Assembly, not here; D66-C W6 REVERSED).
-//       The two EMBED slots (`embed` text + `imageEmbed` optional) WARN on a dimension mismatch (both feed
-//       one 1024-dim shared vector space). Persists to `UserSettings.routing.roleDefaults` (the blob the
-//       server `resolveRole` reads — the client never calls the internal resolver) via a section-autosave
-//       form ("flip it and it saves", §13.4).
-//   (b) SAVED KEYS — the credential library (`trpc.credentials.*`): add · set-active (one active per
-//       provider) · remove · health probe. The secret is NEVER rendered (the redacted `CredentialView`,
-//       05-observability §5).
-//
-// The route mounts this into the shell's `settings` modal slot (settings-shell-surface.tsx switch). The
-// surface is the containment CONSUMER (§2.1) — its root queries `@container`.
+// The Connections settings surface. Two anchored sections:
+//   (a) Model roles — the 7 typed role slots, each a compact dense row (slot · source · model). The chat
+//       slot carries the protocol `api` knob. The two embed slots warn on a dimension mismatch (both feed
+//       one 1024-dim shared vector space). Persists to UserSettings.routing.roleDefaults via a
+//       section-autosave form.
+//   (b) Saved keys — the credential library: add · set-active (one active per provider) · remove ·
+//       health probe. The secret is never rendered.
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -55,11 +44,6 @@ import { settingsAnchorId } from "../lib/settings-nav-model";
 
 const anchor = (sub: string): string => settingsAnchorId("connections", sub);
 
-// The routing-section patch mutation (module scope, §13.1). `updateUserSettingsSection` emits
-// `settingsChanged` on the always-on user bus, and `USER_BUS_FILTERS.settingsChanged` refetches
-// `getUserSettings` — so it is `busDriven` (the echo reconciles this device AND device B; a
-// self-`invalidates` would double-refetch — the appearance-surface precedent). TVars.patch is the typed
-// section; the router input is a generic `Record<string, unknown>`, hence the one boundary cast at the call.
 interface UpdateRoutingVars {
   readonly section: "routing";
   readonly patch: Record<string, unknown>;
@@ -94,7 +78,7 @@ export function ConnectionsSettingsSurface(): ReactElement {
   );
 }
 
-/** Scroll the Saved keys section into view (the red status-dot action — anchor helper, surface line 47). */
+/** Scroll the Saved keys section into view (the red status-dot action). */
 function scrollToKeys(): void {
   document
     .getElementById(anchor(CONNECTIONS_SUBCATEGORY_IDS.keys))
@@ -106,8 +90,6 @@ function ModelRolesSection(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
-  // `sessions.me` gates the D17 owner-only `max-pro-sub` source option (visible-but-disabled for a
-  // non-owner). `credentials.list` finds the active custom_openai key the picker probes on open.
   const { data: viewer } = useSuspenseQuery(trpc.sessions.me.queryOptions());
   const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
   const isOwner = viewer.globalRole === "owner";
@@ -116,8 +98,6 @@ function ModelRolesSection(): ReactElement {
   const update = useUpdateRouting({ trpc, invalidation });
 
   const save = (values: RoutingForm): Promise<unknown> =>
-    // The whole `routing` section is written (an unset slot round-trips to "no preference"). The router
-    // input is a generic `Record<string, unknown>`, hence the one boundary cast.
     update.mutateAsync({
       section: "routing",
       patch: toRoutingSection(values) as Record<string, unknown>,
@@ -135,8 +115,6 @@ function ModelRolesSection(): ReactElement {
         Pick the provider and model for each role. Leave a row on “Default” to let the app choose.
         Changes save automatically.
       </Text>
-      {/* Horizontal field grammar for any bound fields nested below (the compact rows own their own Row
-          layout; this keeps the ambient orientation consistent with the other settings panes). */}
       <FieldLayout orientation="horizontal">
         <Stack key={mountKey} gap="block">
           {ROLE_SLOTS_ORDERED.map((slot) => (
@@ -149,7 +127,6 @@ function ModelRolesSection(): ReactElement {
               onScrollToKeys={scrollToKeys}
             />
           ))}
-          {/* The embed-dimension mismatch advisory — reads the live embed + imageEmbed selections. */}
           <form.Subscribe
             selector={(state): string | null =>
               embedDimensionWarning(state.values.embed, state.values.imageEmbed)
@@ -158,8 +135,6 @@ function ModelRolesSection(): ReactElement {
             {(warning): ReactElement | null =>
               warning === null ? null : (
                 <Row gap="field" align="center" role="alert">
-                  {/* Badge carries the warning token pair so the lucide glyph (currentColor) + text read
-                      as one warning chip — Icon has no color prop (compose-only; color via context). */}
                   <Badge intent="warning" size="sm">
                     <Icon icon={AlertTriangle} size="xs" />
                     Dimension mismatch

@@ -1,8 +1,5 @@
-// domain/tag/contract/params — every verb's *Params, declared ONCE (§7.4). The wire INPUT shapes
-// (`CreateTagInput`/`UpdateTagInput`) + the wire axes (`TagTargetType`/`TagStatus`) are the cross-boundary
-// concern and live in `@orb/contracts/tag`; the verb params WRAP them with the acting
-// `principal` (resolved at the entry seam — the verb gates on the principal it is handed, spine §1) and the
-// branded ids. Owner scoping is `principal.userId` (§7.1) — tags are personal labels, no resource-role.
+// Every verb's *Params. Wire input shapes and axes live in `@orb/contracts/tag`; these wrap them with the
+// acting `principal` and branded ids. Owner scoping is `principal.userId` — tags are personal labels.
 
 import type { Principal } from "@orb/contracts/identity";
 import type {
@@ -48,9 +45,8 @@ export interface MergeTagsParams extends TagActorParams {
 
 export interface ListTagsWithUsageParams extends TagActorParams {}
 
-/** The pending-suggestion review read (PD-40 distill + import staged card tags). `characterId` narrows to ONE
- *  editor's suggestions; absent = the owner's whole pending inbox. Owner-scoped on `principal.userId` (resolved
- *  via `characters.ownerId` — the junction carries no owner, D23). */
+/** The pending-suggestion review read. `characterId` narrows to one editor's suggestions; absent = the
+ *  owner's whole pending inbox. */
 export interface ListPendingSuggestionsParams extends TagActorParams {
   readonly characterId?: CharacterId;
 }
@@ -89,40 +85,23 @@ export interface BulkAttachTagParams extends TagActorParams {
   readonly status?: TagStatus;
 }
 
-/**
- * The internal resolve-or-create-by-name card-tag attach (the `attachCardTagByName` verb) — character's
- * injected `AttachCardTagOp` (contract/service.ts). Deliberately NOT a {@link TagActorParams}:
- * it carries the already-resolved `ownerId` directly (NOT a `principal`), because the caller
- * (`character.bulkAddCardTag`) has ALREADY owner-verified the character. A trusted SYSTEM by-owner op wired at
- * the composition root — the same "un-principal, by-id, owner already gated" posture as character's
- * `loadCardText` / `mintSyntheticGroupCharacter`.
- */
+/** The internal resolve-or-create-by-name card-tag attach. Deliberately not a {@link TagActorParams}: it
+ *  carries the already-resolved `ownerId` directly, because the caller has already owner-verified the
+ *  character. */
 export interface AttachCardTagByNameParams {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly tagName: string;
-  /**
-   * The provenance stamped on the tag at FIRST create (resolve-or-create: an existing tag KEEPS its source —
-   * a tag's source is set once). Default `manual` (a user-typed add stays manual). Import / a seeded card pass
-   * `card` (author-shipped native tags); corpus distillation (PD-40) passes `auto`.
-   */
+  /** Stamped on the tag at first create only. Default `manual`; import/seeded cards pass `card`;
+   *  corpus distillation passes `auto`. */
   readonly source?: TagSource;
-  /**
-   * The `character_tags` junction surface. Default `accepted` (a manual add is a live tag); import / corpus
-   * distillation pass `pending` to stage a suggestion awaiting the user's "Accept". A re-attach NEVER
-   * downgrades an existing `accepted` row back to `pending` (the attach is `onConflictDoNothing`), so a card
-   * re-import can't un-accept a tag the user already accepted.
-   */
+  /** Default `accepted`; import/distillation pass `pending` to stage a suggestion. Never downgrades an
+   *  already-`accepted` row. */
   readonly status?: TagStatus;
 }
 
-/**
- * The internal resolve-by-name card-tag DETACH (the `detachCardTagByName` verb) — character's injected
- * `DetachCardTagOp` (contract/service.ts), the mirror of {@link AttachCardTagByNameParams}. Same
- * "un-principal, by-id, owner already gated" posture: it carries the already-resolved `ownerId` (NOT a
- * `principal`), because the caller (`character.bulkRemoveCardTag`) has ALREADY owner-verified the character.
- * No `source`/`status` — a detach only needs to NAME the tag (resolve, no create) and drop the junction.
- */
+/** The internal resolve-by-name card-tag detach — the mirror of {@link AttachCardTagByNameParams}. No
+ *  `source`/`status` — a detach only needs to name the tag and drop the junction. */
 export interface DetachCardTagByNameParams {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;

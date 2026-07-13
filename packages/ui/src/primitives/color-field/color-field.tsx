@@ -13,9 +13,8 @@ import { colorFieldVariants } from "./variants";
 
 export interface ColorSwatchProps {
   /**
-   * The color to display. Rendered as inline `background-color` ONLY when it passes the D44
-   * §12.1 clamp (`isSafeColor`, mirrored from `<ThemeScope>` — ui-primitive-carve-out-work-order.md
-   * item 13); an unsafe/unparsable value renders an empty chip rather than risk an injected style.
+   * The color to display. Rendered as inline `background-color` only when it passes `isSafeColor`;
+   * an unsafe/unparsable value renders an empty chip rather than risk an injected style.
    */
   value: string;
   /** Optional text beside the chip (e.g. the raw hex) — omit for a bare swatch. */
@@ -23,12 +22,7 @@ export interface ColorSwatchProps {
   className?: string;
 }
 
-/**
- * The read-only swatch — a plain color chip for list/summary contexts (a themes gallery row, a
- * "current accent" readout) with no popover/edit affordance at all.
- *
- * Usage: `<ColorSwatch value={theme.accent} label={theme.accent} />`
- */
+/** The read-only swatch — a plain color chip for list/summary contexts, no popover/edit affordance. */
 export function ColorSwatch({ value, label, className }: ColorSwatchProps): ReactElement {
   const slots = colorFieldVariants();
   const safe = isSafeColor(value);
@@ -49,14 +43,9 @@ export interface ColorFieldProps {
   value: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
-  /**
-   * Busy state (the 8-state contract, ui-package-design §5): swaps the swatch for a `<Spinner>`
-   * and inerts the trigger, for a caller committing the value asynchronously (e.g. an accent
-   * saved via a mutation). A state, not a variant — caller-driven, same shape as `Button.loading`.
-   */
+  /** Busy state: swaps the swatch for a `<Spinner>` and inerts the trigger. Caller-driven, same shape as `Button.loading`. */
   loading?: boolean;
-  /** Momentary success flash (the 8-state contract): a checkmark over the swatch + the success
-   *  ring token. Caller clears it after its own delay — this primitive holds no timer. */
+  /** Momentary success flash: a checkmark over the swatch. Caller clears it — this primitive holds no timer. */
   success?: boolean;
   className?: string;
   id?: string;
@@ -73,11 +62,7 @@ interface ColorFieldTriggerGlyphProps {
   readonly slots: ReturnType<typeof colorFieldVariants>;
 }
 
-/**
- * The trigger's swatch/spinner/checkmark dispatch, split out from `ColorField` purely to avoid a
- * 3-way nested ternary in the render tree (biome `noNestedTernary`) and keep `ColorField` itself
- * under the cognitive-complexity ceiling — it carries no state of its own.
- */
+/** The trigger's swatch/spinner/checkmark dispatch, split out to avoid a 3-way nested ternary. */
 function ColorFieldTriggerGlyph({
   loading,
   success,
@@ -101,41 +86,17 @@ function ColorFieldTriggerGlyph({
 }
 
 const NATIVE_HEX_RE = /^#[0-9a-f]{6}$/iu;
-// The browser's own <input type="color"> only accepts a strict 6-digit hex — a non-hex committed
-// value (oklch(...), rgba(...), a named color) can't seed its internal swatch, so it falls back to
-// this neutral default. The FALLBACK never overwrites `value`/`draft` — it's the native control's
-// own internal state only, until the user actually interacts with it.
+// The browser's <input type="color"> only accepts a strict 6-digit hex — a non-hex committed value
+// falls back to this neutral default, never overwriting `value`/`draft` itself.
 const FALLBACK_NATIVE_HEX = "#000000";
 
 /**
- * The editable color field — a swatch TRIGGER that opens a popover with a native
- * `<input type="color">` plus a hex text field. No color-picker library (D42/the work order):
- * the native input supplies the OS color-picker UI, and the hex field is the ALWAYS-present
- * keyboard/SR-operable alternative — the native swatch is a convenience shortcut, never the only
- * path to a value.
- *
- * Label association: the swatch trigger button is wrapped in Base UI `Field.Control` (the same
- * registration `Textarea` uses for a plain native element), so `<Field label="Accent">`
- * `<ColorField .../></Field>` gets `htmlFor`/`aria-describedby`/`data-invalid` for free — a button
- * is a labelable HTML element, so a click on the Field label focuses/activates it.
- *
- * Validation mirrors the D44 §12.1 `<ThemeScope>` clamp EXACTLY: `isSafeColor` is imported from
- * `content/theme-scope/clamp` (not re-derived), so a value that fails to parse as a color —
- * including a `url()`/`expression()` injection attempt — is rejected inline (the popover's hex
- * field shows the error) and never reaches `onValueChange`.
- *
- * Per-field clear (FINAL-Character §8.1): a "Reset to default" button in the popover emits the empty
- * `""` sentinel via `onValueChange` — the consumer maps that to ITS clear semantic (a sparse
- * `ThemeOverride` OMITS the field so the token inherits the parent scope; a tag sends `null`). The
- * clear is ONLY this explicit button — deleting the hex field mid-typing never fires it (a transiently
- * empty draft doesn't pass the `isSafeColor` commit gate, so it can't emit). `value===""` renders the
- * neutral/inherit chip (an unset field is a valid clear, not an error — `showError` gates on non-empty).
- *
- * `loading`/`success` (the 8-state contract, ui-package-design §5) swap the swatch for a
- * `<Spinner>` / a checkmark and inert the trigger — caller-driven states, same shape as
- * `Button.loading`; this primitive holds no timer for clearing `success`.
- *
- * Usage: `<Field label="Accent"><ColorField value={theme.accent} onValueChange={setAccent} /></Field>`
+ * The editable color field — a swatch trigger that opens a popover with a native
+ * `<input type="color">` plus a hex text field, the always-present keyboard/SR-operable
+ * alternative. `isSafeColor` (imported from `content/theme-scope/clamp`, not re-derived) rejects
+ * an unparsable/injected value inline before it reaches `onValueChange`. A "Reset to default"
+ * button emits the empty `""` sentinel for the consumer's own clear semantic; deleting the hex
+ * field mid-typing never fires a clear (a transiently-empty draft fails the commit gate).
  */
 export function ColorField({
   value,
@@ -153,20 +114,15 @@ export function ColorField({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const isDraftValid = isSafeColor(draft);
-  // An EMPTY draft is the per-field "clear = inherit" state (FINAL-Character §8.1), a VALID unset —
-  // NOT a validation error. `isSafeColor("")` is correctly false (it's a security predicate; empty is
-  // not a safe COLOR), so the error must be gated on a NON-empty value that fails the clamp, never on
-  // `!isDraftValid` alone — otherwise an unset/inherit field shows "Enter a valid color…" on mount
-  // before any interaction (the first thing seen on the theming money shot + the Settings global
-  // theme editor).
+  // An empty draft is the "clear = inherit" state, not a validation error — isSafeColor("") is
+  // correctly false, so the error must gate on a non-empty value that fails the clamp.
   const showError = draft.trim() !== "" && !isDraftValid;
   const nativeHex = NATIVE_HEX_RE.test(draft) ? draft : FALLBACK_NATIVE_HEX;
 
   const handleOpenChange = (next: boolean): void => {
     setOpen(next);
     if (next) {
-      // Re-seed from the last COMMITTED value on every open — a draft left over from a prior
-      // open/cancel (invalid or not) must never resurface.
+      // Re-seed from the last committed value — a draft left over from a prior open/cancel must never resurface.
       setDraft(value);
     }
   };
@@ -178,11 +134,8 @@ export function ColorField({
     }
   };
 
-  // The EXPLICIT per-field clear (FINAL-Character §8.1): emit the "" sentinel so the consumer maps it to
-  // ITS clear semantic (a sparse override omits the field → inherit; a tag sends null). Deliberately NOT
-  // wired to a transiently-empty hex draft — `commit("")` never emits (isSafeColor("") is false), so
-  // deleting the hex mid-typing can't fire a spurious clear; only this button does. Close so the trigger
-  // re-seeds from the (now empty) committed value on the next open.
+  // The explicit clear: emits "" so the consumer maps it to its own clear semantic. Deliberately not
+  // wired to a transiently-empty hex draft — commit("") never fires since isSafeColor("") is false.
   const handleReset = (): void => {
     setDraft("");
     onValueChange("");
@@ -204,14 +157,9 @@ export function ColorField({
                 // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — `disabled`/`loading` are both plain `boolean` (defaulted above), so `??` (which only falls through on null/undefined) would silently ignore an explicit `false` and isn't equivalent here.
                 disabled={disabled || loading}
                 type="button"
-                // Base UI's render-prop chain (Field.Control → PopoverTrigger → this button) merges
-                // props via `mergeProps`, which treats an EXPLICITLY-declared key on the innermost
-                // element as an override even when its VALUE is `undefined` (a bare `id={id}` here
-                // would silently erase the id Field.Control computes and registers with the Field
-                // context — breaking `<Field>` label association whenever the caller doesn't pass
-                // an id, the common case). Conditionally spreading keeps the key OFF this element's
-                // props so the computed id/aria-labelledby win through instead (verified empirically
-                // — a bare `id={id}` reproduces a `getByLabel` timeout in the CT suite).
+                // mergeProps treats an explicitly-declared key on this innermost element as an
+                // override even when undefined — a bare id={id} would erase Field.Control's own
+                // computed id, breaking label association whenever the caller doesn't pass one.
                 {...(id === undefined ? {} : { id })}
                 {...(ariaLabel === undefined ? {} : { "aria-label": ariaLabel })}
                 {...(ariaLabelledby === undefined ? {} : { "aria-labelledby": ariaLabelledby })}

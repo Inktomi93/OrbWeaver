@@ -1,10 +1,6 @@
-// The Variables tab (BUILD-SPEC §8) — a ListRow list over `variables[i]` (the `choiceBlockSchema`:
-// name/question/options/defaultValue/multiSelect/separator/randomPick) plus an editor Dialog that binds
-// `variables[i].*` on the direct-bind form. A variable is a `{{name}}` choice block the user answers at
-// generation time; the tab is CRUD over the array (`form.pushFieldValue`/`removeFieldValue("variables")`).
-//
-// The LOAD-BEARING merge flip (`mergeOnSubmit` now carries `edited.variables`, preset-editor-model.ts)
-// lands in the same phase — without it every edit here is silently discarded on save.
+// The Variables tab — a ListRow list over `variables[i]` plus an editor Dialog binding `variables[i].*`
+// on the direct-bind form. A variable is a `{{name}}` choice block the user answers at generation time;
+// the tab is CRUD over the array (`form.pushFieldValue`/`removeFieldValue`).
 
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";

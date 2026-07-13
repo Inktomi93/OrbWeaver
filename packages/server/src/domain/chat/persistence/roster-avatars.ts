@@ -1,20 +1,13 @@
-// domain/chat/persistence/roster-avatars — the CHAT ROSTER PERSONA-AVATAR producer loader, the avatar-
-// chrome SIBLING to `macro-names.ts`'s NAME producer (same file-pair split as the wire types —
-// `@orb/contracts/chat`'s `PersonaAvatarEntry` next to `PersonaNameEntry`). Kept in its OWN file/type,
-// never folded into `ChatMacroNameProducer`, because that producer is explicitly NAMES ONLY (Chat-Macro-
-// Resolution.md §1: "never the full character/persona entity") — avatar chrome is a display concern, not
-// a macro-resolution input, and `RowPersonaName`/`RowCharacterName` (`@orb/kit/macro`) must never carry it.
+// domain/chat/persistence/roster-avatars — the chat roster persona-avatar producer loader, the avatar-
+// chrome sibling to macro-names.ts's name producer. Kept in its own file/type, never folded into
+// ChatMacroNameProducer, because that producer is explicitly names-only — avatar chrome is a display
+// concern, not a macro-resolution input.
 //
-// COVERAGE: identical algorithm to `loadChatMacroNameProducer` (every participant's active persona UNION
-// every stored message row's `personaId` stamp, so a since-switched persona's avatar still resolves on
-// older rows) — reuses `collectMacroIds` so the two loaders can never drift on WHICH ids are covered, only
-// WHAT they fetch for each id.
+// Coverage: identical algorithm to loadChatMacroNameProducer (every participant's active persona union
+// every stored message row's personaId stamp) — reuses collectMacroIds so the two loaders can never drift
+// on which ids are covered.
 //
-// CHARACTER avatars are NOT covered here: they already flow through `ParticipantView.avatarHash`
-// (`service.ts` `loadParticipantViews`), which — unlike the persona case — has no separate "producer" to
-// merge because chat/service.ts resolves it inline per roster row. A since-left character's avatar on an
-// old message row is a known gap (mirrors the existing `participants`-only assistant-avatar chrome limit
-// in `features/chat/lib/attribution.ts`), out of this phase's scope.
+// Character avatars are NOT covered here — they already flow through ParticipantView.avatarHash.
 
 import type { PersonaAvatarEntry } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
@@ -23,12 +16,8 @@ import { eq, inArray } from "drizzle-orm";
 import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids";
 import { collectMacroIds } from "./macro-names";
 
-/**
- * Load the persona-avatar producer for a chat: `assets.hash` joined off `personas.avatarAssetId` for
- * every persona id `args.participants`/`args.messages` cover (see the file header). Returned as the wire
- * array (no re-mapping) — `verbs/read.ts` hands this straight to the client, which rebuilds the
- * `ReadonlyMap` via `@orb/contracts/chat`'s `buildPersonaAvatarMap`.
- */
+/** Load the persona-avatar producer for a chat: `assets.hash` joined off `personas.avatarAssetId` for every
+ *  persona id `args.participants`/`args.messages` cover. */
 export async function loadPersonaAvatarProducer(
   db: Db,
   args: {

@@ -1,12 +1,10 @@
-// domain/chat/memory/build/digests — the DIGEST builder (the ST-summarizer replacement, §3a). Block-summarize
-// each COMPLETE, aged-out `blockSize` block via `ctx.summarize` → parse the three-part unit → write the digest
-// THROUGH `ctx.embeddingsStore` (the ONE vector-write path — memory holds NO cosine, NO direct INSERT), then
-// CONSOLIDATE upward (`fanOut` tier-k digests → one tier-(k+1) digest, the bounded "story so far", §5).
+// domain/chat/memory/build/digests — the digest builder. Block-summarize each complete, aged-out `blockSize`
+// block via ctx.summarize, parse the three-part unit, write the digest through ctx.embeddingsStore (the one
+// vector-write path — memory holds no cosine, no direct INSERT), then consolidate upward (fanOut tier-k
+// digests → one tier-(k+1) digest, the bounded "story so far").
 //
-// SELF-HEAL (§3a): a block is (re)digested ONLY if missing or its `content_hash` changed — the protected tip
-// (`maxSeq − verbatimWindow`) never digests, so a swipe/edit at the live tip never touches a settled digest.
-// DETERMINISM (D46): blocks processed in blockIdx order; the embed + summarize are INJECTED; no clock/random.
-// Owner derives via the chat FK (D20 — NO ownerId param/stamp); group-ness is DATA (the `scope`), not a branch.
+// SELF-HEAL: a block is (re)digested only if missing or its content_hash changed — the protected tip
+// (maxSeq − verbatimWindow) never digests, so a swipe/edit at the live tip never touches a settled digest.
 
 import type { CharacterId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
@@ -46,16 +44,8 @@ import {
 } from "./substrate/transcript";
 import { spanWitnessed } from "./substrate/witnessing";
 
-/** What `generateDigests` needs (file-local, NON-exported — the `types-in-contract` gate; callers pass a
- *  structural literal, the `buildAssembleContext` precedent). `config` is the partial `memoryDefaults` (the
- *  composition root threads `AppSettings.memoryDefaults`); `macroNames` is the per-chat name producer
- *  (`characterNamesById`/`personaNamesById`) resolving the summarizer transcript's speaker LABELS + the BODY
- *  `{{char}}`/`{{user}}`/`{{persona}}` macros (live identity — D28 / G1), never the raw typeid/literal macro;
- *  `scope` is the egocentric bucket (a real CharacterId — the synthetic group
- *  char for shared, a cast char for scoped). `witnessing` is the SCOPED-build gate (§4 / inv 12): when present,
- *  only blocks the scope character was present for (its join/leave horizons) are digested into its bucket — a
- *  character genuinely cannot remember a scene it wasn't in, incl. across kick→re-add. ABSENT ⇒ the shared
- *  (merged/narrator) build (no per-character witnessing — the merged room was witnessed by everyone). */
+/** `witnessing`, when present, is the scoped-build gate: only blocks the scope character was present for (its
+ *  join/leave horizons) are digested into its bucket. Absent ⇒ the shared (merged/narrator) build. */
 interface GenerateDigestsArgs {
   readonly scope: MemoryScope;
   readonly config?: MemoryConfig | null | undefined;
@@ -79,12 +69,8 @@ interface PassCounts {
   skippedEmpty: number;
 }
 
-/**
- * Generate (and self-heal) the digests for ONE chat + scope bucket — post-turn fire-and-forget / import
- * backfill (same function, §3a). Returns the written/skipped counts. NEVER blocks a reply (the caller runs it
- * off the hot path). `mode: 'off'` (D36 global disable) → a no-op. Host-only keying is the caller's (the scope
- * is built under `runAsUserId`). Emits the `memory.build` structured trace (knowledge-cluster §3a).
- */
+/** Generate (and self-heal) the digests for ONE chat + scope bucket. Never blocks a reply — the caller runs
+ *  it off the hot path. `mode: 'off'` → a no-op. */
 export async function generateDigests(
   ctx: ChatContext,
   args: GenerateDigestsArgs,
@@ -102,8 +88,6 @@ export async function generateDigests(
     logBuild(ctx, args.scope, { startedAt, counts: emptyCounts, note: "mode off" });
     return { written: 0, skipped: 0 };
   }
-  // §10 config-time soft-warning: a summarizer context below the floor degrades VISIBLY (the token-guard trims/
-  // skips) — never a silent truncation. One greppable line per build pass on a too-small context.
   if (ctx.summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
     logBuild(ctx, args.scope, {
       startedAt,
@@ -115,8 +99,6 @@ export async function generateDigests(
 
   const { maxSeq } = await loadChatMeta(ctx.db, chatId);
   const cutoff = maxSeq - cfg.verbatimWindow;
-  // Not even one COMPLETE aged-out block exists yet — nothing to digest (the tip is protected); ZERO work
-  // (no canon load, no summarize, no embed) — the trigger-discipline invariant (inv 10).
   if (cutoff < cfg.blockSize) {
     logBuild(ctx, args.scope, { startedAt, counts: emptyCounts, note: "no aged-out block" });
     return { written: 0, skipped: 0 };
@@ -124,17 +106,13 @@ export async function generateDigests(
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
   const allBlocks = sliceBlocks(canon, cfg.blockSize);
-  // SCOPED build (witnessing provided): only blocks this character was present for go into its bucket (§4).
   const blocks =
     args.witnessing === undefined
       ? allBlocks
       : allBlocks.filter((b) => spanWitnessed(b.seqStart, b.seqEnd, args.witnessing ?? []));
-  // The pre-pass staleness snapshot (ALL tiers for this bucket) — a parent's check reads its pre-pass hash.
   const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId);
 
   const counts = await buildTier0(ctx, args, { blocks, existing, macroNames });
-
-  // ── tiering: consolidate fanOut tier-k digests → one tier-(k+1) digest (the bounded story-so-far) ──
   const consolidated = await consolidateTiers(ctx, args.scope, {
     cfg,
     existing,
@@ -150,8 +128,7 @@ export async function generateDigests(
   return { written: total.written, skipped: total.skipped };
 }
 
-/** The tier-0 pass: one digest per complete, aged-out, WITNESSED block (self-heal on the content hash;
- *  token-guarded summarizer call). Split out to keep `generateDigests` under the cognitive-complexity cap. */
+/** The tier-0 pass: one digest per complete, aged-out, witnessed block. */
 async function buildTier0(
   ctx: ChatContext,
   args: GenerateDigestsArgs,
@@ -171,8 +148,6 @@ async function buildTier0(
       counts.skipped += 1;
       continue;
     }
-    // TOKEN-GUARD (§3a): fit the block to the summarizer's ACTUAL context — trim oldest-within-block, or
-    // skip-and-flag when even the newest single message overflows. NEVER a silent tail truncation.
     const fitted = fitBlockToBudget(
       block.rows,
       env.macroNames,
@@ -189,9 +164,7 @@ async function buildTier0(
       { systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) },
     ]);
     const raw = res.items.at(0)?.text ?? "";
-    // SKIP-AND-FLAG on empty summarizer output (§3a / D55(8)): storing a blank digest keyed by this block's
-    // content-hash would make the staleness gate skip it FOREVER with empty text (permanently absent from
-    // `{{memory}}`). Don't store — leave the block un-digested so the NEXT build retries it; flag it visibly.
+    // Don't store a blank digest — it'd skip forever under the content-hash staleness gate. Leave un-digested.
     if (raw.trim().length === 0) {
       counts.skippedEmpty += 1;
       continue;
@@ -213,8 +186,7 @@ async function buildTier0(
   return counts;
 }
 
-/** Emit the `memory.build` structured trace (knowledge-cluster §3a). `summarizeCalls`/`embedCalls` === the
- *  written count (each newly-stored digest summarized once + embedded once through the one write path). */
+/** Emit the `memory.build` structured trace. */
 function logBuild(
   ctx: ChatContext,
   scope: MemoryScope,
@@ -242,9 +214,8 @@ function logBuild(
   });
 }
 
-/** Walk tiers 0..maxTier-1, consolidating each COMPLETE `fanOut`-group of tier-k digests into a tier-(k+1)
- *  digest. Reads each tier from the db (so tier-(k+1) consolidates the tier-(k) rows this pass just wrote);
- *  the parent's staleness key folds in the children's content hashes (re-consolidate iff a child changed). */
+/** Walk tiers 0..maxTier-1, consolidating each complete `fanOut`-group of tier-k digests into a tier-(k+1)
+ *  digest; reads each tier from the db so tier-(k+1) consolidates the tier-k rows this pass just wrote. */
 async function consolidateTiers(
   ctx: ChatContext,
   scope: MemoryScope,
@@ -284,9 +255,7 @@ async function consolidateTiers(
   return { written, skipped, skippedEmpty };
 }
 
-/** The per-tier consolidation write loop (split out to keep `consolidateTiers` under the cognitive-complexity
- *  cap). One parent digest per COMPLETE `fanOut`-group; the parent's blockIdx = `floor(childBlockIdx/fanOut)`
- *  (so tier-k block j covers tier-0 range `[j·fanOutᵏ, …]` — the bridge coverage math, `bridge.ts`). */
+/** One parent digest per complete `fanOut`-group; the parent's blockIdx = `floor(childBlockIdx/fanOut)`. */
 async function writeConsolidations(
   ctx: ChatContext,
   scope: MemoryScope,
@@ -306,7 +275,7 @@ async function writeConsolidations(
   for (const [parentBlockIdx, group] of [...env.groups].sort((a, b) => a[0] - b[0])) {
     env.signal?.throwIfAborted();
     if (group.length < cfg.fanOut) {
-      continue; // an incomplete group — defer until it fills (not a skip, just not ready)
+      continue; // incomplete group — defer until it fills
     }
     const ordered = [...group].sort((a, b) => a.blockIdx - b.blockIdx);
     const parentHash = consolidationHash(
@@ -326,8 +295,7 @@ async function writeConsolidations(
       },
     ]);
     const raw = res.items.at(0)?.text ?? "";
-    // SKIP-AND-FLAG on empty consolidation output (mirrors the tier-0 guard, D55(8)): a blank arc digest keyed
-    // by `parentHash` would skip forever with empty text — don't store it, so the next build retries.
+    // Mirrors the tier-0 guard: don't store a blank arc digest — it'd skip forever under parentHash.
     if (raw.trim().length === 0) {
       skippedEmpty += 1;
       continue;

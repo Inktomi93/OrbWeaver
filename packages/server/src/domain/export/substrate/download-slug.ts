@@ -1,7 +1,6 @@
-// domain/export/substrate/download-slug — the filename-safe download slug for an export artifact. Pure,
-// zero I/O. DISTINCT from `@orb/kit/slug`'s `slugifyHandle` (that's the identity-handle policy; this is the
-// looser, human-readable download-filename policy — keeps `.`/`_`/`-`, collapses everything else, caps at
-// 60 chars, falls back to "export" when a name slugs to empty).
+// domain/export/substrate/download-slug — filename-safe download slug for an export artifact. Pure, zero
+// I/O. Distinct from @orb/kit/slug's slugifyHandle (the identity-handle policy) — this is the looser,
+// human-readable download-filename policy.
 
 const MAX_SLUG_LENGTH = 60;
 const FALLBACK = "export";

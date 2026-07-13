@@ -1,14 +1,8 @@
-// verb: updateEntry — patch an entry (whitelisted fields; `undefined` skips, `null` clears). Ownership folds
-// into the WHERE via the owned-book `inArray` subquery (invariant #4 — NEVER a bare `eq(id)`, which would
-// allow a cross-tenant write): the entry must belong to a book the caller owns. `metadata` is coerced through
-// `entryMetadataSchema` when set (the input is a loose write-record; the column is typed) and passed as
-// `null` to clear. The audit logs field NAMES only (content can be 100KB of RP — never the values).
-//
-// PD-89: `wiEntryScopeChanged` fans out over `listChatIdsForBook` ONLY when the edit touched a field that can
-// move the entry's runtime scope/activation — `keys` (the keyword-vs-always heuristic input), `enabled`, or
-// `metadata` (carries `scopeMode`, the explicit override read by `resolveEntryScope`). A `title`/`description`/
-// `content`/`priority`/`ignoreBudget`-only edit does NOT invalidate a chat's WI pool and emits nothing — mirrors
-// the attachment verbs' "only a REAL change emits" discipline.
+// verb: updateEntry — patch an entry (whitelisted fields; `undefined` skips, `null` clears). Ownership
+// folds into the WHERE via the owned-book `inArray` subquery — NEVER a bare `eq(id)`, which would allow
+// a cross-tenant write. The audit logs field NAMES only (content can be 100KB of RP, never the values).
+// `wiEntryScopeChanged` fans out only when a scope-affecting field (keys/enabled/metadata) changed —
+// title/description/content/priority/ignoreBudget-only edits emit nothing.
 
 import type { EntryMetadata } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";

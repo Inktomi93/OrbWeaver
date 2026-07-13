@@ -1,13 +1,7 @@
-// The per-row source-status dot (Settings → Connections → Model roles; CONNECTIONS-BUILD-SPEC §1.7). An 8px
-// dot whose tone reflects whether a role's configured source can actually resolve a model:
-//   • green  ok           — resolvable (catalog + key present, or a keyless-legal source that's healthy)
-//   • red    needs-key    — no active key for the source; CLICK scrolls to the Saved keys anchor
-//   • grey   local        — a local tier (vllm available, local-light always) — no key needed
-//   • amber  owner-only / engine-off / empty-catalog / needs-probe — visible-but-blocked states
-//
-// A11y: never color-alone — the tone carries an `aria-label` + `title` naming the state (§4a WCAG floor).
-// The red state is the ONE interactive dot: it wraps a real `@orb/ui` Button (never an ARIA role forged on
-// a raw element — no-interactive-role-in-features) that scrolls the keys section into view.
+// The per-row source-status dot: an 8px dot whose tone reflects whether a role's configured source can
+// actually resolve a model (green ok / red needs-key / grey local / amber blocked). Never color-alone —
+// the tone carries an aria-label + title naming the state. The red state is the one interactive dot: a
+// real Button that scrolls the keys section into view.
 
 import { Button } from "@orb/ui/button";
 import { Text } from "@orb/ui/text";
@@ -15,12 +9,9 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 
-/** The dot tone axis — declared once, derived (no inline union redecl). */
 const DOT_TONES = ["ok", "needs-key", "local", "blocked"] as const;
-/** The dot tone — derived from the facade `state` + the source (a local tier is grey even when "ok"). */
 type DotTone = (typeof DOT_TONES)[number];
 
-/** The facade `state` as the client receives it (tRPC inference — one home, no re-declared union). */
 type FacadeState = inferOutput<Trpc["connection"]["getModelsForSource"]>["state"];
 
 const TONE_CLASS: Record<DotTone, string> = {
@@ -37,8 +28,7 @@ const TONE_LABEL: Record<DotTone, string> = {
   blocked: "Blocked — this source can't resolve a model yet",
 };
 
-/** Map the facade state + source to a dot tone. Local tiers read grey (they need no key); an unresolved
- *  state that ISN'T a missing key (owner-only / engine-off / empty-catalog / needs-probe) reads amber. */
+/** Map the facade state + source to a dot tone. Local tiers read grey; an unresolved non-key state reads amber. */
 function roleDotTone(state: FacadeState, source: string): DotTone {
   if (source === "vllm" || source === "local-light") {
     return state === "engine-off" ? "blocked" : "local";
@@ -55,7 +45,6 @@ function roleDotTone(state: FacadeState, source: string): DotTone {
 export interface RoleStatusDotProps {
   readonly state: FacadeState;
   readonly source: string;
-  /** Scroll the Saved keys section into view (the red dot's action — the surface owns the anchor id). */
   readonly onScrollToKeys: () => void;
 }
 

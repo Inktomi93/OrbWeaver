@@ -1,13 +1,7 @@
-// The character-editor tag-SUGGESTION strip — a self-contained companion to CharacterTagsRow (mounted beside
-// it under the hero). Renders the STAGED (`status:'pending'`) auto/card tag suggestions DISTINCTLY from the
-// accepted chips (an `info`/accent pill with an Accept ✓ + Reject ✕ per suggestion), plus a "Suggest tags"
-// button that runs the on-demand distill producer and a "Manage tags" deep-link to Settings → Tags.
-//
-// Kept SEPARATE from CharacterTagsRow (not folded in) so the accepted-tag strip stays a clean read of
-// `CharacterDetail.tags` while this owns the whole review/produce lifecycle (its own query + three mutations).
-// The pending read is owner-scoped server-side (tag.listPendingSuggestions); an empty queue collapses to just
-// the two action buttons (no empty-state noise). Deep-link rides the shell store's opaque `openSettingsTo`
-// seam — NO settings feature import (state action only), so #65's Tags-management screen stays decoupled.
+// The character-editor tag-suggestion strip — a self-contained companion to CharacterTagsRow. Renders the
+// staged (pending) auto/card tag suggestions distinctly from the accepted chips, each with Accept/Reject,
+// plus "Suggest tags" (runs the on-demand distill producer) and a "Manage tags" deep-link to Settings →
+// Tags via the shell store's `openSettingsTo` seam (no settings feature import).
 
 import type { TagSuggestionView } from "@orb/contracts/tag";
 import type { CharacterId } from "@orb/kit/ids";
@@ -28,8 +22,6 @@ import {
   useSuggestCharacterTags,
 } from "../hooks/use-tag-suggestion-mutations";
 
-// The settings deep-link target — the Tags category id (opaque to the shell store; the settings shell
-// validates it against its registry). One home for the literal (not scattered across call sites).
 const TAGS_SETTINGS_CATEGORY = "tags";
 
 export interface CharacterTagSuggestionsProps {
@@ -60,8 +52,6 @@ export function CharacterTagSuggestions({
       )}
       {pending.map((suggestion) => (
         <Badge key={suggestion.id} intent="info" size="sm">
-          {/* Leading sparkle — the "staged suggestion" cue that doesn't ride on the accent token, which is
-            near-achromatic in dark themes (info vs neutral badge is otherwise ~indistinguishable). */}
           <Icon icon={Sparkles} size="sm" />
           {suggestion.name}
           <Button

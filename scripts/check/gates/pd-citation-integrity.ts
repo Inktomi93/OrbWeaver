@@ -94,11 +94,6 @@ function reconcilePdCitations(root: string, project: Project): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — an fs+AST whole-project RECONCILIATION via `run`) ────────────
-// pd-citation-integrity reads the PD registry from the .md files (fs) and reconciles it against FLAG[PD-n]
-// citations in the project source — a `run` descriptor over ctx.root + ctx.project reusing the exact
-// reconcile logic, `fsBacked` so conformance materializes the .md registry + source into a real temp dir.
-// Distinct messages (dupe vs orphan) → per-occurrence overrides. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "pd-citation-integrity",
   docRow: "core/Audits-and-Debt.md",

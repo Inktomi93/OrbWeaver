@@ -1,26 +1,8 @@
-// `useGuidedActions` — the composer wand's dispatch (chat-surface-lane task #27, guided generations:
-// the USER's ephemeral steering, distinct from crew's persistent guides). There is NO server-side
-// per-kind registry to consume: `contracts/preset`'s `GUIDED_ACTION_IMPLS` is aspirational prose in a
-// header comment (never actually built — grepped repo-wide before writing this file) — the real
-// dispatch is simply "which already-built domain verb carries this turn's `guided` steer", which is
-// exactly what this hook is. Branches on the `ChatHandle` DISCRIMINANT (never an ambient boolean,
-// UI-Gates §11.3):
-//   • DRAFT   — no committed turn exists yet to steer, so the one action is the degenerate "Guide the
-//     opening": `chat.startChat` with `opening:"generate"` FORCED (the verbatim first-message/greet-all
-//     paths never resolve a guided template — see `runGeneratedOpening`, domain/chat/verbs/start-chat.ts)
-//     + `guided:{action:"opening", input}`. Promotes the handle via `onCommitted` (the useSendMessage
-//     commit-first-message precedent).
-//   • COMMITTED — per-kind:
-//       response    -> chat.generate      (lock-free fresh assistant turn, no new user row)
-//       swipe       -> chat.swipe         (reroll the TAIL assistant slot)
-//       continue    -> chat.continueTurn  (extend the TAIL assistant slot in place)
-//       impersonate -> chat.impersonate   (a role:"user" slot in the active persona's voice; `person`
-//                      picks the {{person}} word — 1st/2nd/3rd — the kit resolver defaults to "first")
-// swipe/continue need the tail ASSISTANT message id (`MessageView` carries only the SELECTED variant per
-// slot, D26 — there is no target without a real read). Resolved via a SEPARATE `useGatedQuery` on the
-// exact same `chat.listMessages` key `ChatRoomSurface`/`MessageListSurface` already read — one shared
-// cache entry, not a second network round-trip (the `chat-room-surface.tsx` `ComposerTailGate`
-// precedent) — rather than threading a new prop through the off-limits `surfaces/` tier for this lane.
+// The composer wand's dispatch: branches on the ChatHandle discriminant. A draft has no committed turn
+// to steer, so its one action is the degenerate "Guide the opening" (chat.startChat with
+// opening:"generate" forced). A committed chat dispatches per-kind to chat.generate/swipe/continueTurn/
+// impersonate. swipe/continue's tail-assistant target is resolved via a separate gated query on the
+// same listMessages key the surface already reads — one shared cache entry, not a second round-trip.
 
 import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
@@ -31,8 +13,6 @@ import { clearDraftConfig, isCommitted } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
 import { resolveDraftCommit } from "../lib/draft-commit";
 
-/** The wire shape every guided verb accepts as its `guided` param (domain `GuidedSteer`, mirrored
- *  client-side — the router validates it as `z.any()`, so this is a type-only contract, not a schema). */
 interface GuidedSteerInput {
   readonly action: GuidedActionKind;
   readonly input: string;
@@ -41,9 +21,6 @@ interface GuidedSteerInput {
 
 interface GuidedTurnVars {
   readonly chatId: ChatId;
-  // OPTIONAL: an empty steer OMITS the object entirely (see `steerFor`). `steer.input ?? ""` on the
-  // server would otherwise resolve the guided TEMPLATE with a dangling scaffold — a plain
-  // continue/regenerate/impersonate must send NO `guided` (FINAL-Chat-Tab-Redesign §6.4, owner-ruled).
   readonly guided?: GuidedSteerInput | undefined;
 }
 
@@ -53,11 +30,6 @@ interface GuidedSlotVars {
   readonly guided?: GuidedSteerInput | undefined;
 }
 
-// Module-scope factories (§13.1 pattern — the returned hooks have a stable identity). BUS-DRIVEN (TData
-// `unknown`, never read back here): every one of these is a turn on the OPEN chat whose verb emits a canon
-// event on it — generate/continue/impersonate → messageCommitted+turnCompleted, swipe → turnCompleted (all
-// → chatReads) — delivered by the active subscription → the seam refetches. So all four are `busDriven`:
-// re-invalidating the bus's own keys just double-refetched (the mutation-vs-bus rule, invalidation.ts).
 const useGuidedGenerateMutation = createEntityMutation<GuidedTurnVars, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
   busDriven: true,
@@ -82,12 +54,8 @@ const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknow
   errorToast: "Couldn't impersonate with that guidance.",
 });
 
-/** Build the `guided` steer for a verb — or `undefined` when the steer is empty, so an EMPTY steer omits
- *  the whole object. `input:""` is not enough: the server coerces `steer.input ?? ""`, so an empty-but-
- *  present steer still resolves the guided template into a dangling scaffold. A plain turn (the header
- *  menu's continue/regenerate/impersonate) supplies no `guided` at all (FINAL-Chat-Tab-Redesign §6.4,
- *  owner-ruled) — for impersonate that also drops `person`, so the kit resolver falls back to its "first"
- *  default (an unsteered impersonate has no `{{person}}` to place). */
+// An empty steer omits the whole `guided` object — `input:""` isn't enough, the server would still
+// resolve the guided template into a dangling scaffold.
 function steerFor(
   action: GuidedActionKind,
   input: string,
@@ -107,18 +75,14 @@ interface GuidedStartChatVars extends DraftCarry {
   guided: GuidedSteerInput;
 }
 
-/** Mirrors `use-send-message.ts`'s own minimal `StartChatResult` read shape (no `@orb/contracts` wire-DTO
- *  home for `ChatDetail` — see that file's header for why a structural local shape is correct here too). */
 interface GuidedStartChatResult {
   readonly chat: { readonly id: ChatId };
 }
 
-// `busDriven` (PD user-bus lane, mirrors use-send-message.ts's `useStartChatMutation`): `startChat` emits
-// `chatsChanged` with the new chat's id → `USER_BUS_FILTERS.chatsChanged` covers listChats + getChat.
 const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, GuidedStartChatResult>(
   {
     options: (trpc) => trpc.chat.startChat.mutationOptions(),
-    busDriven: true, // emits `chatsChanged` → USER_BUS_FILTERS covers listChats + getChat(new chat).
+    busDriven: true,
     errorToast: "Couldn't guide the opening.",
   },
 );
@@ -126,26 +90,17 @@ const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, Gui
 export interface UseGuidedActionsOptions {
   readonly handle: ChatHandle;
   readonly draftSeed?: DraftSeed | undefined;
-  /** Fires once a draft is promoted to a committed chat (the `useSendMessage` commit-first-message
-   *  precedent) — the composing surface's seam to flip its own `ChatHandle`. */
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
 }
 
 export interface UseGuidedActionsResult {
-  /** Any guided mutation in flight — combine with the live turn phase for the wand trigger's overall
-   *  busy gate (a guided action is itself a turn; firing a second one mid-flight would race). */
   readonly isPending: boolean;
-  /** The tail assistant slot's message id — swipe/continue's target. `null` while unknown (a draft, an
-   *  empty transcript, still loading, or the tail isn't an assistant row) — mirrors the swipe strip's
-   *  own "last assistant message only" gate (mirrors `message-row.tsx`'s `showSwipes`, read-only here). */
+  /** Null while unknown (a draft, an empty transcript, still loading, or the tail isn't assistant). */
   readonly tailAssistantMessageId: MessageId | null;
-  /** COMMITTED-only actions — composer-wand only renders/calls these once `isCommitted(handle)` (a call
-   *  while `handle` is a draft is a defensive no-op, chatId being null). */
   readonly fireResponse: (input: string) => void;
   readonly fireSwipe: (input: string) => void;
   readonly fireContinue: (input: string) => void;
   readonly fireImpersonate: (input: string, person: GuidedImpersonatePerson) => void;
-  /** DRAFT-only — the degenerate "Guide the opening" (forces `opening:"generate"`; see the file header). */
   readonly fireOpening: (input: string) => void;
 }
 
@@ -160,31 +115,19 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const impersonate = useGuidedImpersonateMutation({ trpc, invalidation });
   const startChat = useGuidedStartChatMutation({ trpc, invalidation });
 
-  // The tail-read precedent (file header): a separate, gated query on the SAME `listMessages` key —
-  // shared cache entry, no extra round-trip. Non-suspense (`useGatedQuery`/`useQuery`) so the wand
-  // degrades to "swipe/continue disabled" rather than suspending the whole composer while it settles.
   const tailQuery = useGatedQuery(chatId, (id) =>
     trpc.chat.listMessages.queryOptions({ chatId: id }),
   );
   const tailAssistantMessageId = useMemo<MessageId | null>(() => {
-    // `chat.listMessages` returns `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md
-    // §1/§3) — this read only needs the tail message, never the macro-name producer.
     const tail = tailQuery.data?.messages.at(-1);
     return tail !== undefined && tail.role === "assistant" ? tail.id : null;
   }, [tailQuery.data]);
 
-  // The "opening" degenerate path needs the commit-promotion callback `mutateAsync` gives (the
-  // `useSendMessage` precedent) — ONE local pending slot spanning just this path (the other four fire
-  // through `.mutate` directly, matching the swipe-strip/use-stop-turn fire-and-forget convention).
   const [openingPending, setOpeningPending] = useState(false);
 
   const fireOpening = (input: string): void => {
     setOpeningPending(true);
     const run = async (): Promise<void> => {
-      // Carry the draft's pre-send config (roster/group/overrides/injections) into creation (P4). The
-      // typed/swiped greeting (`seedGreetings`) rides too but is inert here — `opening:"generate"` forces
-      // a GENERATED opening (the guided path), so the greeting seed never resolves; the user chose to
-      // generate. `clearDraftConfig` after: the edits now live on the created chat.
       const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
       const result = await startChat.mutateAsync({
         characterIds,
@@ -199,8 +142,6 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         clearDraftConfig(draftKey);
       }
     };
-    // The sticky mutation-level `.error` slot (+ `errorToast`) already surfaces a failure — nothing
-    // further to do here besides releasing the local pending flag.
     run()
       .catch(() => undefined)
       .finally(() => setOpeningPending(false));

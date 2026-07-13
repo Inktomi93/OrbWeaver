@@ -1,12 +1,7 @@
-// entry/import/build-import-context — the ONE place the per-owner `ImportContext` wiring is assembled from the
-// entry-supplied character/assets/tag/(world-info) ports, plus the port interfaces those ops speak. BOTH import
-// routes share it (DRY, task #115 — the two routes stay DISTINCT, only the ImportContext construction is
-// deduped):
-//   • the SYNC multipart card-upload driver (`run-profile-import`) — card-only, no `profile` block
-//   • the bundle-delivery composition seam (`entry/compose/portability` `buildOwnerImport`) — adds the
-//     `importLorebook` op + the PD-77 `profile` wave (chats/personas backfill/reconcile)
-// The acting `Principal` is resolved at the edge (the upload route / the PD-73 host-principal seam) and passed
-// in — identity is resolved ONCE, never re-derived inside the domain (`ImportContext.ownerId` is its id).
+// The one place the per-owner `ImportContext` wiring is assembled from entry-supplied ports. Both import
+// routes share it: the sync multipart card-upload driver (card-only, no profile block) and the
+// bundle-delivery composition seam (adds importLorebook + the profile wave). The acting Principal is
+// resolved at the edge and passed in — identity is resolved once, never re-derived inside the domain.
 
 import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
@@ -31,7 +26,6 @@ export interface ImportCharacterPort {
     readonly ownerId: UserId;
     readonly importHash: string;
   }) => Promise<{ readonly characterId: CharacterId } | null>;
-  /** PD-108 — the ALREADY-BUILT default-card seeder's partial-rerun read, reused for the re-import match. */
   readonly findByHandle: (params: {
     readonly ownerId: UserId;
     readonly handle: string;
@@ -49,8 +43,8 @@ export interface ImportAssetPort {
   }) => Promise<{ readonly assetId: AssetId }>;
 }
 
-/** The `tag` front-door slice the driver wires the import card-tag carry to (`tag.attachCardTagByName`). The
- *  driver binds `source:'card'`, `status:'pending'` so each `card.tags` entry lands as a staged suggestion. */
+/** The `tag` front-door slice the driver wires the import card-tag carry to. The driver binds
+ *  `source:'card'`, `status:'pending'` so each `card.tags` entry lands as a staged suggestion. */
 export interface ImportTagPort {
   readonly attachCardTagByName: (params: {
     readonly ownerId: UserId;
@@ -61,10 +55,8 @@ export interface ImportTagPort {
   }) => Promise<boolean>;
 }
 
-/** The `world-info` front-door slice the driver wires the embedded-lorebook import to
- *  (`createBulkImportLorebook`, W1). OPTIONAL in the deps: a card-only composition may omit it (embedded books
- *  are then skipped); the full-profile / delivery composition constructs the op (it has db + minters) and
- *  passes it here. */
+/** The `world-info` front-door slice the driver wires the embedded-lorebook import to. Optional: a
+ *  card-only composition may omit it (embedded books are then skipped). */
 export interface ImportWorldInfoPort {
   readonly importLorebook: (params: {
     readonly ownerId: UserId;
@@ -73,16 +65,14 @@ export interface ImportWorldInfoPort {
   }) => Promise<BulkImportLorebookResult>;
 }
 
-/** The ports + acting principal the shared `ImportContext` wiring closes over. `importLorebook`/`profile` are
- *  optional — the card-only slice omits both; the delivery composition supplies them. */
+/** The ports + acting principal the shared `ImportContext` wiring closes over. `importLorebook`/`profile`
+ *  are optional — the card-only slice omits both; the delivery composition supplies them. */
 export interface ImportContextWiring {
   readonly principal: Principal;
   readonly character: ImportCharacterPort;
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
-  /** W1 embedded-lorebook write — when present, embedded card books import; else the card verb skips them. */
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
-  /** The PD-77 profile-wave deps — present only on the delivery/bundle path (the card-only slice omits it). */
   readonly profile?: ImportContext["profile"];
 }
 

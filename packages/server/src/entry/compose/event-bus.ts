@@ -1,22 +1,11 @@
-// entry/compose/event-bus — the in-process typed domain-event bus (core/Tier-5-Entry.md §layout "event-bus.ts";
-// the deferred "event system" decision → in-process typed bus, single-replica v1). The payload union +
-// the injected `EmitDomainEvent` op live in `@orb/contracts/events`; THIS file owns the runtime dispatcher
-// the composition root binds: an emitting domain (character/import/assets) receives `bus.emit` as its
-// injected op (domain-no-cross-feature — it never reaches the bus directly), and a subscriber (the
-// embeddings indexer) is wired via `bus.subscribe`. CLOSED union; a handler re-reads canon by id and never
-// trusts event-carried data (@orb/contracts/events).
-//
-// ASSUMES(single-replica): the subscriber set is a per-process closure (the in-process bus does not cross
-// replicas — the durable-outbox upgrade is the multi-replica seam, PRE-SCAFFOLD-CHECKLIST). Emit is
-// FIRE-AND-FORGET + ERROR-ISOLATED: a thrown/rejected handler is logged (never propagated), so a failing
-// subscriber can never break the emitting domain's write path (the emit op is a sync `void`).
+// In-process typed domain-event bus, single-replica v1. An emitting domain receives `bus.emit` as its
+// injected op (never reaches the bus directly); a subscriber wires via `bus.subscribe`. ASSUMES(single-
+// replica) — the subscriber set is a per-process closure. Emit is fire-and-forget + error-isolated: a
+// thrown/rejected handler is logged, never propagated, so a failing subscriber can't break the write path.
 
 import type { DomainEvent, EmitDomainEvent } from "@orb/contracts/events";
 import { getLog } from "#foundation/observability";
 
-/** A subscriber the composition root binds onto the bus — sync or async; its result/rejection is isolated
- *  by `emit`. Kept file-local (no exported type alias outside a contract type-home — the no-inline-types
- *  plugin); consumers pass a compatible callback to {@link DomainEventBus.subscribe}. */
 type DomainEventHandler = (event: DomainEvent) => void | Promise<void>;
 
 /** The in-process bus: the injected `emit` op (handed to emitting domains) + the `subscribe` seam (handed

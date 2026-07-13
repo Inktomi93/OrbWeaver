@@ -20,42 +20,19 @@ const slots = commandVariants();
 export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot>, "className"> {
   className?: string;
   /**
-   * Fires on Escape while focus is inside the root. cmdk has NO built-in close/escape behavior
-   * (it is not its own overlay, R8 — verified against the shipped source: the root's `onKeyDown`
-   * switch only handles Arrow/Home/End/Enter) — this is the seam a caller wires to clear the
-   * query or close an enclosing Dialog/Popover. Deliberately does not call
-   * `preventDefault`/`stopPropagation`, so an ancestor Base UI Dialog's native Escape-to-close
-   * keeps working whether or not this is supplied.
+   * Fires on Escape while focus is inside the root — cmdk has no built-in close/escape behavior.
+   * Does not call preventDefault/stopPropagation, so an ancestor Dialog's own Escape-to-close
+   * still works whether or not this is supplied.
    */
   onEscape?: () => void;
 }
 
 /**
- * The command-palette seal (D42 §2 — cmdk sealed behind `primitives/command/`, dep-cruiser
- * `ui-satellite-seals`). Domain-free: renders whatever `CommandGroup`/`CommandItem` tree the
- * caller supplies — the registry of actual commands/actions is app-level (client/features),
- * never here. Filtering, sorting, `loop`, vim bindings (ctrl+n/j/p/k), and the combobox/listbox
- * ARIA wiring (`role="combobox"` on the input, `role="listbox"` on the list,
- * `aria-activedescendant` roving) are cmdk's own — do not reimplement them (R1/R3).
- *
- * **Deliberate omission (R2 exception, documented):** `cmdk`'s `Command.Dialog` is skipped — it
- * renders through `@radix-ui/react-dialog`, a second modal/focus-trap implementation alongside
- * our own Base-UI-sealed `<Dialog>`/`<Popover>` (D42: Base UI is THE headless primitive). A future
- * omni-bar composes `<Dialog><Command>…</Command></Dialog>` (or `<Popover>`) at the client layer
- * instead — this seal is the list/input engine only, never the overlay chrome.
- *
- * Usage:
- * ```tsx
- * <Command label="Command palette" onEscape={close}>
- *   <CommandInput aria-label="Search commands" placeholder="Type a command…" />
- *   <CommandList>
- *     <CommandEmpty>No matching commands.</CommandEmpty>
- *     <CommandGroup heading="Files">
- *       <CommandItem onSelect={openFile} value="report.md">report.md</CommandItem>
- *     </CommandGroup>
- *   </CommandList>
- * </Command>
- * ```
+ * The command-palette seal. Domain-free: renders whatever CommandGroup/CommandItem tree the
+ * caller supplies — the actual command registry is app-level. Filtering, sorting, vim bindings,
+ * and the combobox/listbox ARIA wiring are cmdk's own — do not reimplement them. cmdk's own
+ * `Command.Dialog` is skipped (a second modal implementation alongside our Base UI Dialog); a
+ * future omni-bar composes `<Dialog><Command>…</Command></Dialog>` instead.
  */
 export function Command({ className, onEscape, onKeyDown, ...rest }: CommandProps): ReactElement {
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -79,12 +56,7 @@ export interface CommandInputProps
   className?: string;
 }
 
-/**
- * The search box — `role="combobox"` + `aria-controls`/`aria-activedescendant` wired by cmdk
- * (R1). The leading glyph is decorative (the input's accessible name comes from `aria-label`/
- * `<Field>` association, not the icon) — the lucide seal, never a hand-rolled `<svg>` (R3).
- * `<CommandInput aria-label="Search commands" placeholder="Type a command…" />`
- */
+/** The search box. The leading glyph is decorative — accessible name comes from aria-label. */
 export function CommandInput({ className, ...rest }: CommandInputProps): ReactElement {
   return (
     <div className={slots.inputWrapper()} data-slot="command-input-wrapper">
@@ -103,12 +75,7 @@ export interface CommandListProps
   className?: string;
 }
 
-/**
- * The scrollable `role="listbox"` containing `CommandGroup`/`CommandItem`/`CommandSeparator`. No
- * height is forced — the caller bounds it via `className` (the virtual-list convention: an
- * unbounded parent is the caller's bug, not this seal's).
- * `<CommandList className="max-h-80"><CommandItem>…</CommandItem></CommandList>`
- */
+/** The scrollable listbox. No height is forced — the caller bounds it via `className`. */
 export function CommandList({ className, ...rest }: CommandListProps): ReactElement {
   return (
     <BaseCommandList className={cn(slots.list(), className)} data-slot="command-list" {...rest} />
@@ -121,11 +88,8 @@ export interface CommandEmptyProps
 }
 
 /**
- * Renders only when the filtered result count is zero (cmdk owns the count check, R1). Defaults
- * to a plain text line for a compact popup; compose `<EmptyState icon title description />` from
- * `@orb/ui/empty-state` as `children` instead when the palette is a full-page surface (an
- * omni-bar) that warrants the illustrated teaching-moment treatment.
- * `<CommandEmpty>No matching commands.</CommandEmpty>`
+ * Renders only when the filtered result count is zero. Defaults to a plain text line; compose
+ * `<EmptyState>` as children instead for a full-page omni-bar surface.
  */
 export function CommandEmpty({ className, children, ...rest }: CommandEmptyProps): ReactElement {
   return (
@@ -141,11 +105,8 @@ export interface CommandGroupProps
 }
 
 /**
- * A labeled section of items — grouped items are always shown/hidden together under a filter
- * (cmdk's grouping semantics, R1). cmdk renders the heading through a plain, unstyled internal
- * `<div>` (no className slot on that part) — the styled treatment is applied by wrapping `heading`
- * in a token-classed `<span>` here, the targeted workaround for the missing slot.
- * `<CommandGroup heading="Files"><CommandItem>…</CommandItem></CommandGroup>`
+ * A labeled section of items. cmdk renders the heading through an unstyled internal div with no
+ * className slot, so the styled treatment wraps `heading` in a token-classed span instead.
  */
 export function CommandGroup({ className, heading, ...rest }: CommandGroupProps): ReactElement {
   const styledHeading: ReactNode =
@@ -170,19 +131,10 @@ export interface CommandItemProps
 }
 
 /**
- * A selectable command row — `role="option"`, active on pointer-enter or arrow-key roving
- * (`data-selected`), never receives real DOM focus (the roving-`aria-activedescendant` combobox
- * pattern, R1). Prefer an explicit `value` over relying on inferred children/textContent when the
- * item tree is built from a filtered/mapped array — cmdk infers `value` from rendered text ONLY
- * when omitted, and a changing textContent at a stable position needs the id-based `value` to
- * keep its identity (the same footgun class as `VirtualList`'s `getItemKey`).
- *
- * **Verified footgun (R6 — caught by a red test, not theorized):** cmdk's default filter scores
- * a query against `value` (and `keywords`), NEVER against the rendered children. An id-based
- * `value` (e.g. `file.id`, not human-readable) means typing the visible label matches NOTHING —
- * pass the display text via `keywords` alongside an id `value` so search still matches what the
- * user reads.
- * `<CommandItem keywords={[file.name]} onSelect={openFile} value={file.id}>{file.name}</CommandItem>`
+ * A selectable command row — active on pointer-enter or arrow-key roving, never receives real DOM
+ * focus. cmdk's default filter scores a query against `value`/`keywords`, NEVER the rendered
+ * children — an id-based `value` needs the display text passed via `keywords` too, or typing the
+ * visible label matches nothing.
  */
 export function CommandItem({ className, ...rest }: CommandItemProps): ReactElement {
   return (
@@ -195,11 +147,7 @@ export interface CommandSeparatorProps
   className?: string;
 }
 
-/**
- * A divider between groups/items (`role="separator"`) — cmdk hides it automatically while a
- * search query is active unless `alwaysRender` is set (R1).
- * `<CommandSeparator />`
- */
+/** A divider between groups/items — cmdk hides it during a search unless `alwaysRender` is set. */
 export function CommandSeparator({ className, ...rest }: CommandSeparatorProps): ReactElement {
   return (
     <BaseCommandSeparator
@@ -215,12 +163,7 @@ export interface CommandLoadingProps
   className?: string;
 }
 
-/**
- * `role="progressbar"` shown while async suggestions load — render conditionally around it per
- * cmdk's contract (R2 full part surface: async command sources are a named consumer, not a
- * hypothetical).
- * `{isLoading && <CommandLoading label="Searching…" />}`
- */
+/** Progressbar shown while async suggestions load — render conditionally around it. */
 export function CommandLoading({ className, ...rest }: CommandLoadingProps): ReactElement {
   return (
     <BaseCommandLoading
@@ -231,13 +174,7 @@ export function CommandLoading({ className, ...rest }: CommandLoadingProps): Rea
   );
 }
 
-/**
- * Announces the live filtered-result count to screen readers (mirrors `AutocompleteResultStatus`
- * — the established `@orb/ui` precedent for a filterable listbox, ui-package-design §6.1). Reads
- * cmdk's OWN `useCommandState` selector so the count always matches the rendered list. Must
- * render under `<Command>`; place anywhere in its tree (context-only, no layout).
- * `<Command><CommandInput /><CommandStatus /><CommandList>…</CommandList></Command>`
- */
+/** Announces the live filtered-result count to screen readers. Must render under `<Command>`. */
 export function CommandStatus(): ReactElement {
   const count = useCommandState((state) => state.filtered.count);
   return (

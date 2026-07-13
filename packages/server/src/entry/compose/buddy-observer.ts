@@ -1,14 +1,6 @@
-// entry/compose/buddy-observer — assembles the `BuddyObserverEnv` for `startBuddyObserver` (PD-45/PD-64).
-// The observer is source-BLIND (it consumes LITE event shapes); this composition-root adapter is the ONE
-// place the real event sources are narrowed onto those shapes:
-//   • onWorkloadEvent — the workloads progress-bus firehose (`subscribeWorkloadEvents`) → LiteWorkloadEvent
-//     (only the three phases the observer reacts to; progress/status/cancelled dropped).
-//   • onChatEvent     — the transport chat firehose (`subscribeAllChatEvents`) → LiteChatEvent. `actingUserId`
-//     is null: the public `ChatBusEvent` deliberately omits turn identity (D19), so the belt is inert at
-//     runtime until the seat wave carries it — the guard + its test land now (agent-principal-design/04 §6).
-//   • readRecentTraces — the foundation observability ring (`recentTraces`) → LiteTrace (the sampler's slice).
-// `summarize`/`emit`/`newQuipId`/timers are wired to the bound role-clients, the transport buddy bus, the
-// mint site, and entry's injected interval. `ownerUserId` is whose buddy reacts to SYSTEM-health traces.
+// Assembles the `BuddyObserverEnv` for `startBuddyObserver`. The observer is source-blind (consumes lite
+// event shapes); this composition-root adapter is the one place the real event sources are narrowed onto
+// those shapes (workloads bus, chat bus, the observability trace ring).
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -26,7 +18,6 @@ import { publishBuddyEvent, subscribeAllChatEvents } from "../../transport/trpc"
 // How many recent traces the sampler scans per 30s poll.
 const TRACE_SCAN_LIMIT = 100;
 
-// The workloads-bus `type` → observer phase map (only the reacted-to phases; the rest are absent → dropped).
 const WORKLOAD_PHASE: Partial<Record<WorkloadEvent["type"], LiteWorkloadEvent["phase"]>> = {
   started: "started",
   succeeded: "completed",
@@ -39,7 +30,6 @@ function toLiteWorkload(event: WorkloadEvent): LiteWorkloadEvent | null {
   return phase === undefined ? null : { workloadId: event.workloadId, phase, at: event.at };
 }
 
-// The chat-bus `type` → observer kind map (only the reacted-to events; the rest are absent → dropped).
 const CHAT_KIND: Partial<Record<ChatBusEvent["type"], LiteChatEvent["kind"]>> = {
   chatCreated: "first-message",
   turnCompleted: "turn-completed",
@@ -49,8 +39,7 @@ const CHAT_KIND: Partial<Record<ChatBusEvent["type"], LiteChatEvent["kind"]>> = 
 /** Map a chat bus event to the observer's lite shape; `null` for events the observer ignores. */
 function toLiteChat(event: ChatBusEvent, at: number): LiteChatEvent | null {
   const kind = CHAT_KIND[event.type];
-  // actingUserId: null — the public ChatBusEvent carries no turn identity (D19); the belt is inert until the
-  // seat wave carries it onto this seam.
+  // actingUserId: null — the public ChatBusEvent carries no turn identity.
   return kind === undefined ? null : { chatId: event.chatId, kind, actingUserId: null, at };
 }
 
@@ -91,9 +80,7 @@ export function createBuddyObserverEnv(args: {
         providerDurationMs: t.totals.providerDurationMs,
         startedAt: t.startedAt,
       })),
-    // THE BELT hop — reads `users` (the entry root is the sanctioned users reader, exempt from
-    // no-direct-users-read; the `resolveUserPublics`/`resolveAgentEnabled` precedent in compose/chat.ts). An
-    // agent principal → its owner; a human / unknown → null.
+    // An agent principal resolves to its owner; a human/unknown resolves to null.
     resolveAgentOwner: async (userId: UserId): Promise<UserId | null> => {
       const rows = await args.db
         .select({ kind: users.kind, ownerUserId: users.ownerUserId })

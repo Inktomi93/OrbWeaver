@@ -1,15 +1,7 @@
-// The live-themed greeting bubble (FINAL-Character §6.1) — "a face saying their first words". `greetings[0]`
-// (or the active alternate) renders through `@orb/ui/markdown` inside a `<ThemeScope>` painted with THIS
-// character's own `themeOverride`, so the preview shows in their resolved aiBubble/dialogue/narration colors
-// and updates live as the first message OR the theme changes. Alternates are IN-BUBBLE pill-tabs
-// ("Opening 1 / 2 / …"), NEVER a dialog (§11 pain-point 1). "Edit" swaps the read-only preview for the raw
-// `MacroTextarea` on the SAME greeting field (the stored string round-trips byte-identical), with a live
-// token counter (§6.3). greetings is an array column, so add/remove/edit go through the TanStack array-field
-// API directly (`form.Field` / `pushFieldValue` / `removeFieldValue`), not a bound macro field.
-//
-// SPOILER-BLUR (§6.1): when the eye toggle is on, the PREVIEW text is CSS-blurred (screen-share hygiene) —
-// the edit textarea is never blurred (you can't author what you can't read). Pure view state, no transition
-// (reduced-motion-safe by construction), never touches data.
+// The live-themed greeting bubble. `greetings[0]` (or the active alternate) renders through
+// `@orb/ui/markdown` inside a `<ThemeScope>` painted with this character's own `themeOverride`. Alternates
+// are in-bubble pill-tabs. "Edit" swaps the read-only preview for a `MacroTextarea` on the same field.
+// The spoiler-blur eye toggle CSS-blurs the preview only — never the edit textarea.
 
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -57,7 +49,7 @@ export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): 
   return (
     <form.Subscribe selector={(s): readonly string[] => s.values.greetings}>
       {(greetings): ReactElement => {
-        // Clamp a stale active index (an alternate was just removed) into range in render — never an effect.
+        // Clamp a stale active index (an alternate was just removed) — a render derivation, never an effect.
         const index = Math.min(activeIndex, Math.max(0, greetings.length - 1));
         return (
           <Stack gap="row" data-slot="character-greeting">
@@ -136,8 +128,6 @@ function GreetingBody({
           {(field): ReactElement => (
             <>
               <MacroTextarea
-                // The textarea plays `combobox` (macro autocomplete) — without a name an SR announces
-                // it as an unlabeled combobox. Name it by the active alternate ("Opening N", §6.1).
                 aria-label={`Opening ${index + 1}`}
                 value={field.state.value}
                 onChange={(next): void => field.handleChange(next)}

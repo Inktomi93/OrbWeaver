@@ -1,21 +1,6 @@
-// The CONTEXT Appearance tab (FINAL-Character §7 / §8.1). TWO immediate-commit clusters, both riding
-// `character.update` on change — NEVER the CONTENT save-bar, never a dirty pill (§2, the #1 way this lane
-// breaks):
-//   • §8.1 per-character THEME override (the cluster ABOVE Trust) — the sanctioned autosave form
-//     (`createAutosaveEntityForm`, D54 §13.4: "≥3 fields OR save semantics → a factory"; a hand-rolled
-//     multi-field form is the drift the factory prevents). "Flip it and it saves" IS §8.1's immediate
-//     commit: a debounced change persists the WHOLE `themeOverride` blob, no Save button, no draft form.
-//     The bound `field.ColorField`/`field.SelectField` mirror the WS2 global theme editor's control cluster
-//     (same @orb/ui primitives + the same `@orb/contracts` allowlists — a runtime cross-feature import is
-//     forbidden, so the shared home is contracts, not a settings export). A field left on its sentinel is
-//     OMITTED → that token inherits (§8.2, pure `<ThemeScope>` cascade); all-sentinel ⇒ `null` (no
-//     override). The decorative background IMAGE is NOT here (D63 — a user `appearance` pref). chatStyle
-//     offers all `THEME_CHAT_STYLES` incl. the 5 immersive modes (the override.ts header sanctions
-//     per-character immersive picks; the §8.1 table predates them).
-//   • Trust — `forbidExternalMedia` + `trustHtml`, both tri-state (inherit / …), `override ?? global`.
-//
-// Tri-state ⇄ boolean|null: the Select speaks strings (inherit/forbid/allow · inherit/trusted/untrusted);
-// the wire is `boolean | null` (null = inherit the deployment default).
+// The Appearance tab — two immediate-commit clusters riding `character.update` (no save bar, no dirty
+// pill): the per-character theme override (an autosave form persisting the whole `themeOverride` blob on
+// change) and Trust (`forbidExternalMedia`/`trustHtml`, tri-state, `override ?? global`).
 
 import type { ThemeChatStyle, ThemeDensity, ThemeRadius } from "@orb/contracts/theme";
 import {
@@ -47,8 +32,6 @@ import {
 export interface CharacterAppearanceTabProps {
   readonly characterId: CharacterId;
 }
-
-// ── Select item sets (the WS2 control cluster's items — same @orb/contracts allowlists, an Inherit head) ──
 
 const INHERIT_ITEM = { value: THEME_INHERIT, label: "Inherit global" } as const;
 const RADIUS_LABELS: Record<ThemeRadius, string> = {
@@ -140,8 +123,6 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
 
   return (
     <Stack gap="section">
-      {/* §8.1 — the per-character theme cluster. Keyed by id so switching character remounts the form
-          (the factory's reseed contract) with the newly-selected character's override as the seed. */}
       <ThemeControls key={characterId} characterId={characterId} serverValue={data.themeOverride} />
 
       <Section heading="Trust">
@@ -190,8 +171,6 @@ function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactE
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
 
-  // The persist seam (call-time save, §13.4): map the flat form back to the sparse override (null when
-  // every field inherits) and ride `character.update` — the same immediate-commit verb Trust uses.
   const save = (values: CharacterThemeFormValues): Promise<unknown> =>
     update.mutateAsync({
       characterId,
@@ -204,9 +183,6 @@ function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactE
     save,
   });
 
-  // "Reset to global" = clear every field to its sentinel; the mapper then reads the whole override as
-  // `null`, and the autosave listener persists it. (The factory removes `form.reset` — reseeding defaults
-  // on a live autosave mirror is the infinite-loop footgun it guards against.)
   const resetToGlobal = (): void => {
     for (const name of THEME_FIELD_NAMES) {
       form.setFieldValue(name, EMPTY_CHARACTER_THEME_FORM[name]);
@@ -314,9 +290,7 @@ function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactE
   );
 }
 
-/** The live preview — truthful because the override IS committed (§8.1). Nesting under the parent global
- *  `<ThemeScope>` resolves character over global over default with no merge code (§8.2); an unset field
- *  simply isn't emitted, so it inherits through. */
+/** Nesting under the parent global `<ThemeScope>` resolves character over global over default. */
 function ThemePreview({
   override,
 }: {

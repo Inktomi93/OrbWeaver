@@ -1,23 +1,8 @@
-// verb: importAsset — the assets-portability IMPORT half (the `PortableEntity.importFile` for the `assets`
-// kind; runs FIRST in `PORTABLE_IMPORT_ORDER`, so every blob is live before any entity re-links to it). It
-// restores ONE blob into the owner's CAS + `assets` index row UNDER ITS ORIGINAL ID (Option-A re-link).
-//
-// SECURITY — three belts, all fail-closed to `{ok:false}` (never throws; the delivery core aggregates the
-// outcome, one bad file cannot abort the bundle):
-//   1. POISON DEFENSE (the load-bearing one): the filename carries the claimed content-hash; we RE-HASH the
-//      bytes and reject unless `sha256(bytes) === <hash>`. CAS is content-addressed — this stops a malicious
-//      bundle from landing content that does not match its address (poisoning a hash another entity trusts).
-//      Parse also re-validates every filename field (hash/id/kind/mime) against boundary primitives.
-//   2. CROSS-OWNER ID CLAIM: `assets.id` is a GLOBAL primary key. If the id already exists under a DIFFERENT
-//      owner, reject — a bundle cannot claim (or overwrite) another user's asset row / id.
-//   3. ID↔CONTENT COLLISION: if the id already exists for THIS owner but bound to DIFFERENT bytes, reject —
-//      astronomically rare for random TypeIDs, but a crafted-bundle signal (and a would-be PK overwrite).
-// Same id + same owner + same bytes ⇒ idempotent no-op (`created:false`): a re-imported bundle adds nothing.
-//
-// The restore goes through `storeBlob` (the ONE CAS+row coherence writer — the `assets-single-writer` gate),
-// passing the ORIGINAL id as the `candidateId` so the row is keyed by it. `enforceMagic:false`: the mime
-// travelled in the (hash-verified) name and blobs include non-sniffable documents (PDF) — the hash belt, not
-// a magic re-sniff, is the integrity guarantee here (the trusted-import posture, as `import-character`).
+// The assets-portability IMPORT half: restores ONE blob into the owner's CAS + `assets` index row under its
+// ORIGINAL id. Three fail-closed belts, never throws (`{ok:false}` instead): (1) poison defense — re-hash the
+// bytes, reject unless they match the filename's claimed content-hash; (2) reject a cross-owner id claim
+// (assets.id is a global PK); (3) reject an id bound to different bytes for the same owner. Same id+owner+
+// bytes ⇒ idempotent no-op.
 
 import type {
   PortableEntity,
@@ -42,8 +27,7 @@ export function createImportAsset(ctx: AssetsPortabilityContext): PortableEntity
       return { ok: false, error: "content hash does not match the claimed asset address" };
     }
 
-    // Belts 2 + 3 — id-collision checks against any existing row for this global id (un-owner-scoped by
-    // design: the id is a global PK, so a foreign owner's row is a real collision, not a miss).
+    // Belts 2 + 3 — id-collision checks (un-owner-scoped: the id is a global PK).
     const existing = await loadAssetCasRefById(ctx.db, id);
     if (existing !== undefined) {
       if (existing.ownerId !== ownerId) {
@@ -52,7 +36,7 @@ export function createImportAsset(ctx: AssetsPortabilityContext): PortableEntity
       if (existing.hash !== hash) {
         return { ok: false, error: "asset id already bound to different content" };
       }
-      return { ok: true, created: false }; // idempotent re-import: already restored under this id.
+      return { ok: true, created: false }; // idempotent re-import
     }
 
     const stored = await storeBlob(ctx.db, ctx.cas, {

@@ -18,13 +18,8 @@ export interface FieldsetLegendProps extends Omit<BaseLegendProps, "className"> 
 }
 
 /**
- * The grouped-controls primitive — Base UI Fieldset.Root sealed behind the token skin. Renders a real
- * `<fieldset>` (role `group`) and wires `aria-labelledby` to its `<FieldsetLegend>`, giving a
- * `RadioGroup`/`CheckboxGroup` (which have no intrinsic label) an accessible group name. This is the
- * sanctioned way to name a control group — do NOT hand-roll an `aria-label` on the group.
- *
- * Usage: `<Fieldset><FieldsetLegend>Difficulty</FieldsetLegend><RadioGroup>…</RadioGroup></Fieldset>`
- * Spec: ui-package-design §13 R2 — full native part surface (Root + Legend).
+ * Renders a real `<fieldset>` and wires `aria-labelledby` to its `<FieldsetLegend>`, giving a
+ * RadioGroup/CheckboxGroup an accessible group name. The sanctioned way to name a control group.
  */
 export function Fieldset(props: FieldsetProps): ReactElement {
   const { className, ...rest } = props;
@@ -37,11 +32,6 @@ export function Fieldset(props: FieldsetProps): ReactElement {
   );
 }
 
-/**
- * The fieldset's accessible label — Base UI auto-associates it with the enclosing `<Fieldset>`
- * (renders a `<div>` that the fieldset points to via `aria-labelledby`, not a native `<legend>`).
- * `<FieldsetLegend>Difficulty</FieldsetLegend>`
- */
 export function FieldsetLegend(props: FieldsetLegendProps): ReactElement {
   const { className, ...rest } = props;
   return (

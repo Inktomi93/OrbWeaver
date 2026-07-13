@@ -2,27 +2,18 @@ import type { CSSProperties, ReactElement } from "react";
 import { useState } from "react";
 import { cn } from "#lib";
 
-// A ui-local discriminated source — the structural twin of D44 `MessageContentBlock.media.src`
-// (ui cannot import @orb/contracts). asset = our own origin (render freely); external = untrusted URL.
-// Exported (C12 rollup) — the ONE home; lightbox.tsx imports this instead of re-declaring it.
+// asset = our own origin (render freely); external = untrusted URL.
 export type MediaSource =
   | { readonly kind: "asset"; readonly url: string }
   | { readonly kind: "external"; readonly url: string };
 
 export interface MessageMediaProps {
   readonly src: MediaSource;
-  // Union inlined on the property (not a named alias/tuple): the canonical media-kind enum is the
-  // wire's @orb/contracts one — ui cannot import it (cake), and a competing ui `as const` tuple would
-  // false-collide with it under the no-inline-union gate. This is the one place the inline union is right.
   readonly media: "image" | "audio" | "video";
   readonly alt: string;
-  /** Intrinsic size — reserves the aspect box so a late-arriving image doesn't shift layout (§12.7). */
+  /** Intrinsic size — reserves the aspect box so a late-arriving image doesn't shift layout. */
   readonly dims?: { readonly w: number; readonly h: number };
-  /**
-   * Whether an EXTERNAL url may load. Default false = D44 `forbidExternalMedia` (the load itself is
-   * the tracking-pixel/exfil — §12.3): an external source renders a click-to-load placeholder and
-   * issues NO network request until the user opts in. Ignored for `asset` sources (own origin).
-   */
+  /** Whether an EXTERNAL url may load; default false gates it behind a click-to-load placeholder (no network request until opt-in). Ignored for `asset` sources. */
   readonly allowExternal?: boolean;
   readonly className?: string;
   /** Click handler (e.g. open a lightbox) — images/video only. */
@@ -32,10 +23,8 @@ export interface MessageMediaProps {
 // A fixed aspect for external media with no known dims — reserves space without a network probe.
 const PLACEHOLDER_ASPECT = "16 / 9";
 
-// D44 §12.3 `allowDataImages:false` — an external `data:` URI carries NO network request to gate (the
-// click-to-load placeholder exists to withhold a FETCH), so the fetch-gate model can't handle it at
-// all: unblocked, it would render immediately and unconditionally the instant `allowExternal`/click
-// bypassed the placeholder. Reject it outright, before it ever reaches `<img src>`/`<source src>`.
+// A data: URI carries NO network request to gate, so the click-to-load placeholder can't withhold
+// anything — reject it outright, before it ever reaches `<img src>`/`<source src>`.
 const DATA_URI = /^data:/iu;
 
 function isDataUri(url: string): boolean {
@@ -51,12 +40,8 @@ function hostOf(url: string): string {
 }
 
 /**
- * `<MessageMedia>` (D44 §12.3) — renders an image / native audio / video with the external-load gate.
- * asset sources render directly (our origin); external sources are gated behind a click-to-load
- * placeholder by default (`allowExternal` defaults false). Untrusted A/V is ALWAYS `controls` +
- * NEVER `autoplay` (non-overridable — an autoplaying untrusted `<audio>` is a tracking beacon).
- *
- * Spec: UI-Theming §12.3 (D44) — the media trust boundary.
+ * Renders an image / native audio / video with the external-load gate. Untrusted A/V is always
+ * `controls` and never `autoplay` (non-overridable — an autoplaying untrusted element is a tracking beacon).
  */
 export function MessageMedia({
   src,
@@ -84,7 +69,7 @@ export function MessageMedia({
     className,
   );
 
-  // Blocked BEFORE the gate: a data: URI never gets a click-to-load chance (§12.3 above).
+  // Blocked before the gate: a data: URI never gets a click-to-load chance.
   if (blockedDataUri) {
     return (
       <div className={fallbackClass} style={aspectStyle} data-slot="message-media-blocked">
@@ -107,8 +92,7 @@ export function MessageMedia({
     );
   }
 
-  // Dead/blocked media (network failure, 404, unsupported codec, …) — a graceful fallback instead of
-  // the browser's native broken-image glyph or a silently-empty <video>/<audio> (§6.1/§12.3).
+  // Graceful fallback instead of the browser's native broken-image glyph or a silently-empty video/audio.
   if (broken) {
     return (
       <div className={fallbackClass} style={aspectStyle} data-slot="message-media-broken">
@@ -148,8 +132,6 @@ export function MessageMedia({
   }
 
   if (media === "video") {
-    // Untrusted external video: controls REQUIRED, autoplay FORBIDDEN (non-overridable). Asset video
-    // keeps controls on + autoplay off uniformly (no surprise playback).
     return (
       <video
         controls={true}
@@ -160,9 +142,7 @@ export function MessageMedia({
         onError={onMediaError}
       >
         <source src={src.url} />
-        {/* WCAG 1.2.2: declare the captions track even though no caption source is available for
-            untrusted external media. An empty WebVTT data-URI satisfies the rule without fabricating
-            content. Caption authoring is a Phase-6 asset-pipeline concern. */}
+        {/* WCAG 1.2.2: declare the track even with no caption source; an empty WebVTT data-URI satisfies the rule. */}
         <track kind="captions" default={true} src="data:text/vtt,WEBVTT" />
       </video>
     );

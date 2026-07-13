@@ -1,17 +1,7 @@
-// `buildClientErrorPayload` — the pure PD-58 wire-payload builder for a caught client error (UI-Arch
-// §2.1 lib/: cross-cutting display/util). Deliberately tRPC-free: `data/trpc.ts` already imports FROM
-// `lib/` (`IS_DEV`/`formatTrpcOp`), so `lib/` sits BELOW `data/` in the one-directional client cake — a
-// module here reaching back into `#data` for the tRPC client would be the exact cycle that discipline
-// forbids. The actual wire call (`trpcClient.clientError.mutate(...)`) is wired at the composition root
-// (main.tsx), which already holds the client; this module only shapes the payload.
-//
-// `url` is INJECTED (not read from `globalThis.location` in here) — same determinism-at-the-edge
-// discipline `Spine-Testing.md §3` applies to the clock/id seams: a function that reaches for an ambient
-// DOM global can't run under the node unit lane (no jsdom — Spine-Testing.md §7 bans Vitest browser
-// mode), so the ONE `location` read lives at the real call site (main.tsx, which nothing imports and so
-// never runs under a test), keeping this builder plain-data-in/plain-data-out and cheaply testable.
-// Path+search only (no origin) — mirrors `long-task-tracer.ts`'s `route()` helper (same same-origin app,
-// so the origin is redundant on every line; smaller log lines besides).
+// The pure wire-payload builder for a caught client error. Deliberately tRPC-free: lib/ sits below
+// data/ in the one-directional client cake, so this never reaches back into #data for the client — the
+// actual wire call is wired at main.tsx. `url` is injected (not read from globalThis.location here) so
+// this stays plain-data-in/plain-data-out and cheaply testable under the node unit lane.
 
 /** The `clientError` procedure's input shape (server: transport/trpc/router.ts). */
 export interface ClientErrorPayload {

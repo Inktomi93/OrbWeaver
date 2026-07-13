@@ -3,36 +3,28 @@
  * pnpm sdk:injection-cache-probe [--scenario d2-user-volatile,g-d2,…] [--mode sub|or] [--model <id>]
  *                                [--verbose] [--dry-run]
  *
- * The injection × caching matrix: does an `in_chat` at-depth injection coexist with the bundled CLI's
- * prefix caching on the agent-sdk arm, and at what depth/role/stability does it go cold? Companion to
- * sdk-cache-probe (raw cache physics) and sdk-behavior-probe (what the model perceives) — this one runs
- * the REAL assembly path (spliceInChatInjections → squashSameRole → the last-assistant seed/prompt split)
- * so the injection lands exactly where production puts it, then measures both caching layers per cell:
+ * The injection × caching matrix: does an `in_chat` at-depth injection coexist with the bundled
+ * CLI's prefix caching on the agent-sdk arm, and at what depth/role/stability does it go cold?
+ * Runs the REAL assembly path (spliceInChatInjections → squashSameRole → the last-assistant
+ * seed/prompt split) so the injection lands exactly where production puts it, then measures both
+ * caching layers per cell:
  *
  *   layer (a) — orbweaver's lineage gate: seedSessionId is a CONTENT HASH over every seed turn
- *       (session/frames.ts:328), so any injection byte that lands in the SEED half of the split changes
- *       the session id → ensureSeededSession forks/reseeds → the CLI resumes a different lineage. The
- *       probe reads the decision's `disposition` (resumed/readopted vs forked/reseeded/seeded) as the
- *       layer-(a) signal — computed deterministically (and for FREE, no spawn) in --dry-run.
- *   layer (b) — Anthropic's content-keyed prefix cache: the first differing byte busts only the SUFFIX;
- *       a forked lineage sharing a byte-prefix with a prior request can still partial-hit. The probe
- *       reads turn-2 cacheRead/cacheWrite (result-frame usage) as the layer-(b) signal and classifies:
- *       prefix-cached (read high, write ≈ tail only) | partial (read high, write > tail) | cold (read≈0).
+ *       (session/frames.ts:328), so an injection byte landing in the SEED half of the split
+ *       changes the session id → fork/reseed. Read from the decision's `disposition`, computed
+ *       deterministically (free, no spawn) in --dry-run.
+ *   layer (b) — Anthropic's content-keyed prefix cache: the first differing byte busts only the
+ *       SUFFIX. Read from turn-2 cacheRead/cacheWrite and classified: prefix-cached (read high,
+ *       write ≈ tail only) | partial (read high, write > tail) | cold (read≈0).
  *
- * MATRIX: depth {0,1,2,4} × role {system,user,assistant} × stability {stable,volatile} — 24 cells, each
- * a 2-turn REPLAY (turn 2 identical to turn 1 except the injection content on volatile cells). Everything
- * else is byte-held: same ~12.6k-token lore system prompt (clears every model's min cacheable-prefix
- * floor), same canon, same tail question, same output cap, same lineage discipline (fresh store per cell
- * so salt state never leaks between cells). Positional sub-check: every canon row carries a codeword and
- * the tail question asks for the earliest→latest codeword order, so a cache win can't secretly be the
- * injection being dropped (the sdk-behavior-probe technique); volatile cells must echo the V2 sigil on
- * turn 2 (proves the changed bytes actually reached the model).
+ * MATRIX: depth {0,1,2,4} × role {system,user,assistant} × stability {stable,volatile} — 24 cells,
+ * each a 2-turn REPLAY (turn 2 identical to turn 1 except the injection content on volatile
+ * cells). Positional sub-check: every canon row carries a codeword and the tail question asks for
+ * the earliest→latest order, so a cache win can't secretly be the injection being dropped.
  *
- * GROW cells (the steady-state confound the replay matrix can't see): tail-relative depth MOVES as canon
- * grows, and a tail-riding injection enters the RECORDED transcript but never canon — so even a byte-
- * STABLE injection is predicted to diverge the stored lineage on the NEXT turn. g-none (control: grown
- * canon must readopt — the s9 machinery), g-d0 (tail note → fork at the user run), g-d2 (mid-seed note
- * moves → fork), g-top (over-deep clamp anchors at the TOP — the one position-stable in_chat placement).
+ * GROW cells (the steady-state confound the replay matrix can't see): tail-relative depth MOVES as
+ * canon grows. g-none (control), g-d0 (tail note → fork), g-d2 (mid-seed note moves → fork), g-top
+ * (over-deep clamp anchors at the TOP — the one position-stable in_chat placement).
  *
  * Predictions + the option space live in reports/agent-sdk/depth-injection-caching.md. Costs pennies
  * (Haiku, capped output) but spends real sub quota / OR credits — HAND-RUN ONLY, never CI.
@@ -587,33 +579,22 @@ async function runGrowCell(g: GrowCell): Promise<void> {
 // ══ FOLLOWUP SCENARIO ════════════════════════════════════════════════════════════════════════════════
 // The first live run (2026-07-10, SDK 0.3.206) proved the content cache is ALL-OR-NOTHING at the
 // system/history boundary — every turn-2 cell was either prefix-cached (system+history) or system-only
-// (system prefix hit, the ENTIRE ~5.8k shared history re-billed). NO partial hit exists. Two mysteries the
-// matrix surfaced and this arm isolates:
-//   ARM A — some byte-STABLE, held-lineage cells STILL came back system-only (d0/d1 user-stable, d2
-//           system-stable, d2/d4 assistant-stable) while OTHER byte-stable held-lineage cells stayed
-//           prefix-cached. Byte-stability + held lineage is necessary but NOT sufficient. Something about
-//           the transcript STRUCTURE around the injected row decides. This arm varies ONE structural thing
-//           at a time (bytes held stable, lineage held) to name the predictor.
-//   ARM B — is the UserPromptSubmit hook (dynamicContextOptions) the cache-safe VOLATILE channel? A 3-turn
-//           resumed sequence with DIFFERENT hook content each turn, seeded history byte-identical: does the
-//           hook content stay OUT of the lineage (disposition unchanged), keep the history cached, AND reach
-//           the model (sigil freshness)? The trifecta that makes it THE dynamic-content spot.
+// (the entire shared history re-billed). NO partial hit exists. Two mysteries this arm isolates:
+//   ARM A — some byte-STABLE, held-lineage cells still came back system-only while others stayed
+//           prefix-cached: byte-stability + held lineage is necessary but NOT sufficient. This arm
+//           varies ONE structural thing at a time (bytes/lineage held) to name the predictor.
+//   ARM B — is the UserPromptSubmit hook (dynamicContextOptions) the cache-safe VOLATILE channel? A
+//           3-turn resumed sequence with different hook content each turn, history byte-identical:
+//           does the hook stay OUT of the lineage, keep history cached, AND reach the model?
 
 // ── ARM A — stable-cell structural isolation ───────────────────────────────────────────────────────────
-// Every A-cell is STABLE (t1 == t2 bytes) and, in isolation, holds its lineage (resumed/readopted expected).
-// The FINDING is the layer-(b) class: which cells keep the history cache (prefix-cached) vs drop it
-// (system-only), with ONLY the named structural variable differing. The three structural axes, each mapped
-// to what the PRODUCTION assembly makes reachable (injections.ts splice + role-squash.ts squash):
-//   • bucket   — SEED (hashed history) vs PROMPT (the tail after the last assistant, never hashed). Per the
-//                first run, depth-0 user/system land in the PROMPT bucket; depth≥2 land in the SEED. Same
-//                byte-stable note, two buckets.
-//   • squash   — a user-effective injection ADJACENT to a same-role canon row MERGES into that one frame
-//                (squashSameRole) — no new role-run; a role that BREAKS the run (assistant note between two
-//                user turns) stays a DISTINCT frame and adds a role boundary. Same depth, merge vs distinct.
-//   • wrap     — a system injection converts to user + gets a `[Note from system: …]` wrap AND (being
-//                user-effective) merges into an adjacent user row; a bare user note merges the same way but
-//                without the wrap text. Isolates whether the wrap bytes / role-conversion matter vs a plain
-//                user note at the identical splice point.
+// Every A-cell is STABLE (t1 == t2 bytes) and, in isolation, holds its lineage. The FINDING is the
+// layer-(b) class with ONLY the named structural variable differing:
+//   • bucket — SEED (hashed history) vs PROMPT (tail after last assistant, never hashed).
+//   • squash — a user-effective injection adjacent to a same-role canon row MERGES (no new role-run)
+//              vs an assistant note that BREAKS the run (distinct frame + role boundary).
+//   • wrap   — a system injection converts to user + `[Note from system: …]` wrap vs a bare user note
+//              at the same splice point — isolates whether wrap bytes matter vs a plain user note.
 interface ACell {
   readonly id: string;
   readonly depth: number;
@@ -623,8 +604,6 @@ interface ACell {
   readonly note: string;
 }
 const A_CELLS: readonly ACell[] = [
-  // bucket axis — the SAME stable user note, prompt bucket (d0) vs seed bucket (d2). If d0 stays
-  // prefix-cached and d2 goes system-only, "landed in the hashed SEED history" is (part of) the predictor.
   {
     id: "a-bucket-prompt",
     depth: 0,
@@ -639,10 +618,6 @@ const A_CELLS: readonly ACell[] = [
     axis: "bucket",
     note: "stable user note in the SEED bucket (d2, mid-history — hashed, inside the cached prefix)",
   },
-  // squash axis — SAME depth (2, seed bucket), user note (merges into the adjacent user canon row → no new
-  // role-run) vs assistant note (breaks the user/assistant run → a DISTINCT frame + a role boundary). If the
-  // merged one stays prefix-cached and the distinct one goes system-only, "added a role boundary / distinct
-  // frame mid-history" is the predictor, not the bytes.
   {
     id: "a-squash-merge",
     depth: 2,
@@ -657,9 +632,6 @@ const A_CELLS: readonly ACell[] = [
     axis: "squash",
     note: "stable note that stays a DISTINCT frame + adds a role boundary (breaks the run)",
   },
-  // wrap axis — SAME seed splice point (d2), plain user note vs system note (→ user + `[Note from system:…]`
-  // wrap). Both merge into the adjacent user row; isolates whether the wrap/conversion bytes alone flip the
-  // class (they should NOT if the predictor is structural role-run shape, not content).
   {
     id: "a-wrap-plain",
     depth: 2,
@@ -793,21 +765,18 @@ function renderArmA(): void {
 }
 
 // ── ARM B — the hook channel (dynamic content spot) ────────────────────────────────────────────────────
-// dynamicContextOptions (agent-sdk barrel) returns the UserPromptSubmit hook wiring whose `additionalContext`
-// the runtime injects adjacent to the user prompt (a mid-conversation operator-context seam). Prove the
-// trifecta: across 3 resumed turns each carrying DIFFERENT hook content (volatile) over a byte-IDENTICAL
-// seeded history —
-//   • lineage-neutral: the seed hash / disposition does NOT change (the hook body stays OUT of the seed).
+// dynamicContextOptions (agent-sdk barrel) returns the UserPromptSubmit hook wiring whose
+// `additionalContext` the runtime injects adjacent to the user prompt. Prove the trifecta across 3
+// resumed turns, each carrying DIFFERENT hook content over a byte-IDENTICAL seeded history:
+//   • lineage-neutral: the seed hash / disposition does NOT change.
 //   • cache-safe:      the history stays prefix-cached despite the volatile hook content each turn.
-//   • content-visible: the model ECHOES each turn's distinct hook sigil (the hook is actually read).
-// Also: does the hook content ENTER the recorded transcript? We compare the stored session frames (via the
-// SessionCache's store) BEFORE and AFTER each turn — if a frame containing the hook sigil appears, the hook
-// is NOT lineage-neutral for the NEXT turn (it has the same mech-2 fork as a d0 in_chat note).
+//   • content-visible: the model ECHOES each turn's distinct hook sigil.
+// Also compares stored session frames before/after each turn — a frame with the hook sigil means the
+// hook is NOT lineage-neutral for the next turn.
 const HOOK_TURNS = 3;
-// IN-WORLD freshness check (NOT "list your codewords" — that reads as prompt-extraction and Haiku REFUSES it,
-// contaminating the content-visible signal; observed live 2026-07-10). The hook injects an in-world gate
-// watchword each turn; the tail asks for it in-character. Byte-IDENTICAL every turn so the ONLY varying input
-// is the hook body — the clean cache isolation. The model restating the word proves it read the hook.
+// IN-WORLD freshness check, not "list your codewords" — that reads as prompt-extraction and Haiku
+// REFUSES it (observed live 2026-07-10). The hook injects an in-world gate watchword each turn; the
+// tail asks for it in-character.
 const HOOK_TAIL_QUESTION =
   "A gate guard stops you and asks for tonight's watchword before letting you pass. " +
   "Answer with only the watchword, nothing else.";

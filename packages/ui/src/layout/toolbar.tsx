@@ -1,7 +1,4 @@
-// Base UI Toolbar (verified against @base-ui/react@1.6.0: parts Root/Button/Group/Link/Input/
-// Separator; Root props orientation/disabled/loopFocus) — roving tabindex + ARIA for free,
-// skinned as a Row (ui-package-design §10.6: D42 lists Toolbar under layout/; D54 adds Base UI
-// Toolbar; merged here).
+// Base UI Toolbar — roving tabindex + ARIA for free, skinned as a Row.
 import { Toolbar as BaseToolbar } from "@base-ui/react/toolbar";
 import type { ComponentProps, ReactElement } from "react";
 import { toolbarButtonVariants, toolbarSeparatorVariants, toolbarVariants } from "./variants";
@@ -10,12 +7,7 @@ export interface ToolbarProps extends Omit<ComponentProps<typeof BaseToolbar.Roo
   className?: string;
 }
 
-/**
- * Horizontal control strip — Base UI Toolbar root dressed as a Row. Put `<ToolbarButton>` items
- * inside so the roving tabindex engages (ui-package-design §6.1 layout row).
- *
- * Usage: `<Toolbar aria-label="formatting"><ToolbarButton>Bold</ToolbarButton></Toolbar>`.
- */
+/** Horizontal control strip — put `<ToolbarButton>` items inside so the roving tabindex engages. */
 export function Toolbar({ className, ...props }: ToolbarProps): ReactElement {
   return <BaseToolbar.Root {...props} className={toolbarVariants({ className })} />;
 }
@@ -25,12 +17,7 @@ export interface ToolbarButtonProps
   className?: string;
 }
 
-/**
- * A toolbar item participating in the roving tabindex. Carries only a minimal touch-floor skin
- * (h-control-sm, POINTER-CONDITIONAL per D62 P1 — 44px at coarse/unknown, 32px at fine — gate
- * touch-target-floor); compose the real button primitive via Base UI's `render` prop:
- * `<ToolbarButton render={<Button intent="ghost" />} />`.
- */
+/** A toolbar item participating in the roving tabindex; compose the real button via Base UI's `render` prop. */
 export function ToolbarButton({ className, ...props }: ToolbarButtonProps): ReactElement {
   return <BaseToolbar.Button {...props} className={toolbarButtonVariants({ className })} />;
 }

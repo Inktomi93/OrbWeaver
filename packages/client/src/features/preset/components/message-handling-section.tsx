@@ -1,15 +1,7 @@
-// Message handling — a collapsed Section in the Prompt tab (BUILD-SPEC §5 / Phase D; REQUIRES P2, which
-// landed: `roleHandling` now lives on `params.advanced`). Two INDEPENDENT collapses that happen between the
-// rack and the wire:
-//   1. Adjacent-role merging — an EDITABLE preset Select (none · merge · semi-strict · strict, +unset =
-//      "Model default") bound to `params.advanced.roleHandling`. This is the FUNNEL made visible: the user
-//      stores INTENT, the model's `capability.turns.roleHandlingFloor` is SHOWN, and the resolver clamps
-//      `max(floor, choice)` at shape.ts — the UI never clamps, it only ANNOTATES (a live floor line + a
-//      clamp Badge when the pick is below the floor).
-//   2. Squash system notes — a Switch bound to `params.advanced.squashSystemMessages`.
-// Both bind via `form.setFieldValue` (the optional `advanced` block materializes on first write — the
-// section-inspector `inject`/`trigger` precedent); a raw Select/Switch (not a bound-field factory) reads
-// `field.state.value` off a Subscribe so an unset value renders cleanly as "Model default" / off.
+// Message handling — a collapsed Section in the Prompt tab. Two independent collapses between the rack
+// and the wire: adjacent-role merging (an editable Select bound to `params.advanced.roleHandling`; the
+// resolver clamps `max(floor, choice)`, the UI only annotates a below-floor pick) and squash system notes
+// (a Switch bound to `params.advanced.squashSystemMessages`).
 
 import type { ModelCapability, RoleHandling } from "@orb/contracts/connection";
 import { ROLE_HANDLING } from "@orb/contracts/connection";
@@ -67,7 +59,6 @@ export function MessageHandlingSection({
         Two independent collapses happen between your rack and the wire.
       </Text>
 
-      {/* 1 · Adjacent-role merging — editable, floor-annotated. */}
       <form.Subscribe
         selector={(state): RoleHandling | undefined => state.values.params.advanced?.roleHandling}
       >
@@ -94,8 +85,6 @@ export function MessageHandlingSection({
                   — stricter always wins.
                 </Text>
                 {isBelowFloor(roleHandling, floor) ? (
-                  // The dropdown still SHOWS the below-floor pick, but the resolver applies the floor — so
-                  // annotate the value that actually takes effect (not just "clamped").
                   <Badge intent="warning" size="sm">
                     Applies as {ROLE_HANDLING_LABELS[floor].split(" — ")[0]}
                   </Badge>
@@ -106,7 +95,6 @@ export function MessageHandlingSection({
         )}
       </form.Subscribe>
 
-      {/* 2 · Squash system notes. */}
       <form.Subscribe
         selector={(state): boolean => state.values.params.advanced?.squashSystemMessages === true}
       >

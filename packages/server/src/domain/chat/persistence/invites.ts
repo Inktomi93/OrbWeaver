@@ -1,9 +1,7 @@
-// domain/chat/persistence/invites — the `chat_invites` reads + the ATOMIC REDEEM (the ONE human participant-
-// insert chokepoint, Part III §2) + the `pending_turns` host-offline deferred-turn reads/writes. QUERIES ONLY:
-// the redeem's `maxUses`/expiry/TARGETING TOCTOU is closed by a single conditional `UPDATE … RETURNING`
-// (redeem/decline enforce `invitedUserId` in the WHERE — atomic with the state change; preview's targeting is
-// the verb's read-side check); AUTH_MODE / host authority are the verbs'. The token is NEVER raw here — lookups key on the peppered
-// `tokenHash` the verb computes (mirror the `sessions` token discipline); this layer never sees the raw token.
+// domain/chat/persistence/invites — the chat_invites reads + the atomic redeem (the one human
+// participant-insert chokepoint) + pending_turns host-offline deferred-turn reads/writes. The redeem's
+// maxUses/expiry/targeting TOCTOU is closed by a single conditional UPDATE … RETURNING. The token is never
+// raw here — lookups key on the peppered `tokenHash` the verb computes.
 
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
@@ -12,8 +10,7 @@ import { and, asc, count, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm"
 import { upsertMemberOnJoin } from "./participant";
 import { loadMaxMessageSeq } from "./queries";
 
-/** Lookup an invite by its peppered token hash (preview / targeting / expiry checks). Returns the raw row or
- *  `undefined`; the validity GATE is the verb's (status/targeting) + the atomic {@link redeemInviteAtomic}. */
+/** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
 export async function findInviteByTokenHash(
   db: Db,
   tokenHash: string,
@@ -26,9 +23,7 @@ export async function findInviteByTokenHash(
   return rows.at(0);
 }
 
-/** Lookup an invite by its PK (the notification-driven accept/decline-by-id paths). Returns the raw row or
- *  `undefined`; the validity + self-authorizing GATE (status/targeting/expiry) is the verb's + the atomic
- *  {@link acceptInviteByIdAtomic}. The row is NEVER surfaced to a caller who isn't the bound target. */
+/** Lookup an invite by its PK. The row is never surfaced to a caller who isn't the bound target. */
 export async function findInviteById(
   db: Db,
   inviteId: ChatInviteId,
@@ -37,8 +32,7 @@ export async function findInviteById(
   return rows.at(0);
 }
 
-/** The host-management invite list (createInvite/revoke surface) — every invite for a chat, newest-first. The
- *  verb maps to `InviteView` (computing `remainingUses`); the token hash never leaves persistence. */
+/** Every invite for a chat, newest-first. The token hash never leaves persistence. */
 export async function listInvitesForChat(
   db: Db,
   chatId: ChatId,
@@ -50,8 +44,7 @@ export async function listInvitesForChat(
     .orderBy(desc(chatInvites.createdAt));
 }
 
-/** Count the PRESENT human members of a chat (the `InvitePreview.memberCount` — Part III §2; humans are the
- *  "members", a character is cast). `leftSeq IS NULL` = present. */
+/** Count the present human members of a chat. `leftSeq IS NULL` = present. */
 export async function countPresentMembers(db: Db, chatId: ChatId): Promise<number> {
   const rows = await db
     .select({ n: count() })
@@ -66,28 +59,15 @@ export async function countPresentMembers(db: Db, chatId: ChatId): Promise<numbe
   return rows.at(0)?.n ?? 0;
 }
 
-/** Insert a host-minted invite (the token already CSPRNG-minted + HASHED by the verb). `status` defaults
- *  `pending`; `uses` defaults 0. */
+/** Insert a host-minted invite (the token already CSPRNG-minted + hashed by the verb). */
 export async function createInvite(db: Db, row: typeof chatInvites.$inferInsert): Promise<void> {
   await db.insert(chatInvites).values(row);
 }
 
-/**
- * The ATOMIC redeem (Part III §2 — the ONE human participant-insert chokepoint). Step 1 is the TOCTOU-closing
- * conditional `UPDATE chat_invites SET uses=uses+1 (… → 'accepted' once exhausted) WHERE tokenHash AND status='pending' AND remaining>0 AND not-expired AND (untargeted OR target=caller) AND caller-not-already-present RETURNING`
- * — a contended/expired/exhausted invite matches
- * nothing (→ `undefined`). TARGETING is enforced HERE, atomic with the use-increment (mirror
- * {@link declineInviteById}; the `previewInvite` target semantics — an untargeted `invitedUserId=null` invite
- * redeems for anyone, a targeted one ONLY for its `invitedUserId`): a non-target's claim matches nothing → it
- * never burns a use nor flips status, and the verb surfaces the same leak-free NOT_FOUND an invalid token
- * gives. The `caller-not-already-present` predicate makes a re-redeem by a PRESENT member idempotent (no burned
- * use, no status flip — the F5 fix): a bookmarked /join re-fire on a finite invite never consumes a remaining
- * use, and the verb's recovery path returns their existing membership. Step 2 stamps the participant via the
- * same {@link upsertMemberOnJoin} re-add upsert (`role` server-forced `member`, `joinSeq`=current canon head —
- * history replays from there AFTER accept); its `undefined` no-op is now reachable ONLY under a concurrent
- * same-user double-redeem race (both UPDATEs pass the not-present check before either upsert lands). Returns the
- * joined chat id + the participant row, or `undefined` if the invite was not redeemable.
- */
+/** The atomic redeem — the one human participant-insert chokepoint. A single conditional UPDATE …
+ *  RETURNING closes the maxUses/expiry/targeting TOCTOU; a contended/expired/exhausted/non-target claim
+ *  matches nothing. The caller-not-already-present predicate makes a re-redeem by a present member
+ *  idempotent (no burned use, no status flip). Returns the joined chat id + participant row, or `undefined`. */
 export async function redeemInviteAtomic(
   db: Db,
   params: {
@@ -112,12 +92,9 @@ export async function redeemInviteAtomic(
         eq(chatInvites.status, "pending"),
         or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
         or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
-        // Targeting: an untargeted invite redeems for anyone; a targeted one ONLY for its `invitedUserId`.
+        // Targeting: an untargeted invite redeems for anyone; a targeted one ONLY for its invitedUserId.
         or(isNull(chatInvites.invitedUserId), eq(chatInvites.invitedUserId, params.userId)),
-        // Idempotent re-redeem: a caller who is ALREADY a PRESENT member of this invite's chat burns no use and
-        // flips no status (mirror `upsertMemberOnJoin`'s `(chatId,userId)` no-op — `leftSeq IS NULL` = present).
-        // A bookmarked /join re-fire on a finite multi-use invite thus never eats a remaining use (the verb's
-        // recovery path re-reads their existing membership); a PREVIOUSLY-LEFT member still re-redeems + re-joins.
+        // Idempotent re-redeem: a caller already present in this invite's chat burns no use, flips no status.
         sql`not exists (select 1 from ${chatParticipants} where ${chatParticipants.chatId} = ${chatInvites.chatId} and ${chatParticipants.userId} = ${params.userId} and ${chatParticipants.leftSeq} is null)`,
       ),
     )
@@ -135,27 +112,16 @@ export async function redeemInviteAtomic(
     now: params.now,
   });
   if (participant === undefined) {
-    // Already a present member (the upsert was an idempotent no-op) — surface as not-redeemable so the verb
-    // reports "already joined" rather than a phantom membership.
+    // Already a present member (idempotent no-op) — surface as not-redeemable, not a phantom membership.
     return;
   }
   return { inviteId: invite.id, chatId: invite.chatId, participant };
 }
 
-/**
- * The ATOMIC accept-BY-ID (the token-free notification→accept sibling of {@link redeemInviteAtomic}). SAME
- * chokepoint physics — one TOCTOU-closing conditional `UPDATE … RETURNING` seats the caller and burns a use
- * inside one statement — but keyed on the invite PK + SELF-AUTHORIZING: the caller's authenticated
- * `invitedUserId` IS the authorization, so the WHERE demands an EXACT target match
- * (`invitedUserId = caller`), NOT the redeem's `(untargeted OR target=caller)`. A share-link invite
- * (`invitedUserId IS NULL`) therefore matches NOTHING here (it is token-only — accept-by-id never seats an
- * untargeted invite), and a FOREIGN targeted invite (bound to someone else) also matches nothing — both
- * collapse to the same leak-free `undefined` an invalid/expired/exhausted/declined/revoked id gives (no oracle
- * distinguishes them). The `status='pending'` + remaining-uses + not-expired + not-already-present predicates,
- * the exhaustion `→ 'accepted'` flip, and the {@link upsertMemberOnJoin} seat (`role` server-forced `member`,
- * `joinSeq`=canon head) are IDENTICAL to redeem — the idempotent already-present member yields `undefined` (the
- * verb recovers their existing membership). Returns the joined chat id + participant row, or `undefined`.
- */
+/** The atomic accept-by-id — the token-free notification→accept sibling of {@link redeemInviteAtomic}. Same
+ *  chokepoint physics, but self-authorizing: the WHERE demands an exact target match (invitedUserId =
+ *  caller), so a share-link (invitedUserId IS NULL) or foreign-targeted invite matches nothing — both
+ *  collapse to the same leak-free `undefined` an invalid id gives. */
 export async function acceptInviteByIdAtomic(
   db: Db,
   params: {
@@ -180,11 +146,8 @@ export async function acceptInviteByIdAtomic(
         eq(chatInvites.status, "pending"),
         or(isNull(chatInvites.maxUses), lt(chatInvites.uses, chatInvites.maxUses)),
         or(isNull(chatInvites.expiresAt), gt(chatInvites.expiresAt, params.now)),
-        // SELF-AUTHORIZING: accept-by-id is ONLY for the exact bound target — an untargeted (share-link,
-        // `invitedUserId IS NULL`) invite is token-only and matches nothing here; a foreign invite likewise.
         eq(chatInvites.invitedUserId, params.userId),
-        // Idempotent re-accept: a caller who is ALREADY a PRESENT member burns no use / flips no status (mirror
-        // the redeem chokepoint; `leftSeq IS NULL` = present). The verb's recovery re-reads their membership.
+        // Idempotent re-accept: a caller who is already a present member burns no use, flips no status.
         sql`not exists (select 1 from ${chatParticipants} where ${chatParticipants.chatId} = ${chatInvites.chatId} and ${chatParticipants.userId} = ${params.userId} and ${chatParticipants.leftSeq} is null)`,
       ),
     )
@@ -202,14 +165,13 @@ export async function acceptInviteByIdAtomic(
     now: params.now,
   });
   if (participant === undefined) {
-    // Already a present member (the upsert was an idempotent no-op — reachable only under a concurrent
-    // same-user double-accept race). Surface as not-seatable so the verb recovers their existing membership.
+    // Already a present member (idempotent no-op) — surface as not-seatable, not a phantom membership.
     return;
   }
   return { inviteId: invite.id, chatId: invite.chatId, participant };
 }
 
-/** Host-revoke a still-pending invite (atomic — `WHERE status='pending'`). Returns true iff it flipped. */
+/** Host-revoke a still-pending invite (atomic). Returns true iff it flipped. */
 export async function revokeInvite(
   db: Db,
   inviteId: ChatInviteId,
@@ -229,8 +191,7 @@ export async function revokeInvite(
   return rows.length > 0;
 }
 
-/** Invitee-decline a still-pending invite by token hash (first-class — Part III §2; targeting is the verb's).
- *  Atomic on `status='pending'`. Returns true iff it flipped. */
+/** Invitee-decline a still-pending invite by token hash. Atomic. Returns true iff it flipped. */
 export async function declineInvite(db: Db, tokenHash: string): Promise<boolean> {
   const rows = await db
     .update(chatInvites)
@@ -240,10 +201,8 @@ export async function declineInvite(db: Db, tokenHash: string): Promise<boolean>
   return rows.length > 0;
 }
 
-/** Invitee-decline a still-pending TARGETED invite by its id (PD-67 — the notification-driven decline path;
- *  the token-hash twin above serves the link path). Atomic + scoped to the caller as the target
- *  (`invitedUserId` must match) — a foreign / non-targeted / already-settled invite never matches
- *  (leak-free, idempotent). Returns true iff it flipped. */
+/** Invitee-decline a still-pending targeted invite by id. Scoped to the caller as the target — a foreign /
+ *  non-targeted / already-settled invite never matches (leak-free, idempotent). */
 export async function declineInviteById(
   db: Db,
   inviteId: ChatInviteId,
@@ -263,11 +222,10 @@ export async function declineInviteById(
   return rows.length > 0;
 }
 
-// ── pending_turns — the host-offline DEFERRED turn (Part III §5; NOT lock-held, boot-reclaimed) ──
+// ── pending_turns — the host-offline deferred turn (not lock-held, boot-reclaimed) ──
 
-/** Record a deferred AI turn (host offline). Carries the D19 identity split: `triggeredBy` (the responsible
- *  human) + `runAsUserId` (the authorized host whose box funds it). NOT lock-held — the 5-min lock TTL would
- *  stale-takeover into a double-run; this drains + re-validates at host return / boot. */
+/** Record a deferred AI turn (host offline). Not lock-held — the lock TTL would stale-takeover into a
+ *  double-run; this drains + re-validates at host return / boot. */
 export async function insertPendingTurn(
   db: Db,
   row: typeof pendingTurns.$inferInsert,
@@ -292,8 +250,7 @@ export async function loadPendingTurns(
     .orderBy(asc(pendingTurns.createdAt));
 }
 
-/** ALL deferred turns across chats — the boot-reclaim drain (`reclaimChatLocksOnBoot`'s sibling: re-validate
- *  consent/budget, then run or drop). Oldest-first. */
+/** All deferred turns across chats — the boot-reclaim drain. Oldest-first. */
 export async function loadPendingTurnsForReclaim(
   db: Db,
 ): Promise<(typeof pendingTurns.$inferSelect)[]> {

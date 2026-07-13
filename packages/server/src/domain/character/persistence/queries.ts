@@ -1,16 +1,6 @@
-// domain/character/persistence/queries — ALL read access for the feature (queries only). Every owner read
-// is scoped in the WHERE (never a post-filter), so a non-owner can never receive another user's row;
-// `ownerId` is `principal.userId` (§7.1) — this layer NEVER reads the `users` table (`no-direct-users-read`).
-//
-// `cardOf` narrows the row's JSON columns through the parse-seam (§8.4 parse-at-the-DB-seam): drizzle hands
-// back whatever `JSON.parse` produced typed as the column type WITHOUT validating it, so a corrupt blob
-// degrades to a safe default here instead of poisoning a view. The null-vs-`[]` asymmetry is load-bearing:
-// `greetings`/`regexScripts` are ALWAYS-A-LIST columns (corrupt ⇒ `[]`); `depthPrompt`/`extensions`/
-// `refinery` are nullable (corrupt ⇒ `null`).
-//
-// The view/card shapes are file-LOCAL where they're intermediate (`CharacterWithAvatar`): the
-// `types-in-contract` gate forbids an EXPORTED type outside `contract/`, and the join bundle is only ever
-// produced + consumed within `persistence/`.
+// domain/character/persistence/queries — all read access for the feature. Every owner read is scoped in
+// the WHERE (never a post-filter). `cardOf` narrows JSON columns through the parse-seam: greetings/
+// regexScripts are always-a-list (corrupt ⇒ []); depthPrompt/extensions/refinery are nullable (corrupt ⇒ null).
 
 import type {
   CharacterCard,
@@ -50,17 +40,12 @@ const refineryParser = refinerySignalsSchema.nullable().catch(null);
 const extensionsParser = z.record(z.string(), z.unknown()).nullable().catch(null);
 const residualDataParser = z.record(z.string(), z.unknown()).nullable().catch(null);
 
-// Row + the joined avatar asset (null when none). The hash lives on `assets` (the CAS key); `characters`
-// carries only `avatarAssetId`. File-local: the verbs chain `load…` → `detailOf` without naming it.
 interface CharacterWithAvatar {
   readonly character: CharacterRow;
   readonly avatar: AssetRow | null;
 }
 
-/** Gate: a supplied avatar asset must belong to the caller (D21 cross-root belt — `characters` and
- *  `assets` are BOTH owner-stamped producers, so the FK alone proves existence, never ownership; an
- *  unchecked link would leak a foreign asset's CAS hash through the detail JOIN). A foreign/absent
- *  asset collapses to {@link AssetNotFoundError} (no existence leak). */
+/** A supplied avatar asset must belong to the caller — FK alone proves existence, never ownership. */
 export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
   const rows = await db
     .select({ ownerId: assets.ownerId })
@@ -101,9 +86,6 @@ export async function loadCharacterWithAvatarById(
   return rows[0];
 }
 
-// The library keyset page args (file-local — types-in-contract forbids an exported shape here; the
-// `list` verb owns the public `ListCharactersParams`/`CharacterListCursor` contract shapes). `cursor` is the
-// FULL sort-discriminated wire cursor — the verb has already checked its `sort` matches `input.sort`.
 interface ListOwnedPageInput {
   readonly ownerId: UserId;
   readonly limit: number;
@@ -111,15 +93,9 @@ interface ListOwnedPageInput {
   readonly cursor: CharacterListCursor | undefined;
 }
 
-// The list-page row bundle: the character + avatar join PLUS the two FIX-#2 denorm LEFT JOINs
-// (`elevatorPitch` from `character_summaries`; `lastChattedAt` from `character_stats.lastActivityAt`). Both
-// source tables are keyed uniquely by characterId (PK / unique index) → no row fan-out. File-local (the
-// list verb consumes it via `summaryOf`; `types-in-contract` forbids exporting it).
 interface CharacterListRow extends CharacterWithAvatar {
   readonly elevatorPitch: string | null;
   readonly lastChattedAt: number | null;
-  // `character_stats.chats` via the same LEFT JOIN — null when the card has no stats row (never chatted). The
-  // `most/fewestChats` sorts derive the next cursor's `chatCount` from it; the summary view does not carry it.
   readonly chatCount: number | null;
 }
 
@@ -127,10 +103,7 @@ const assertNever = (value: never): never => {
   throw new Error(`unhandled character list sort: ${String(value)}`);
 };
 
-// The per-sort ORDER BY (§4.5). `recent` sinks never-chatted (null `lastActivityAt`) to the tail via the
-// `… is null` leading term (the `domain/tag` NULLS-LAST precedent), then DESC within each group; `alpha`/
-// `starred` order by `name` under the DB's default (binary) collation — the keyset comparisons below use the
-// SAME collation so paging is consistent (`name` is not unique → `id` tiebreaks).
+// `recent` sinks never-chatted (null lastActivityAt) to the tail via the `is null` leading term, then DESC.
 function orderFor(sort: CharacterListSort): SQL[] {
   switch (sort) {
     case "recent":
@@ -149,18 +122,15 @@ function orderFor(sort: CharacterListSort): SQL[] {
     case "oldest":
       return [asc(characters.createdAt), asc(characters.id)];
     case "mostChats":
-      // `chats` is join-nullable (no stats row = never chatted) → the leading `is null` term sinks that group
-      // to the tail (NULLS-LAST), same construction as `recent`; then chat-count DESC, `id` DESC tiebreak.
       return [
         sql`${characterStats.chats} is null`,
         desc(characterStats.chats),
         desc(characters.id),
       ];
     case "fewestChats":
-      // ASC twin: fewest chats first, but the never-chatted null group STILL sinks to the tail (never "fewest").
+      // never-chatted null group still sinks to the tail (never "fewest").
       return [sql`${characterStats.chats} is null`, asc(characterStats.chats), asc(characters.id)];
     case "largestCards":
-      // `token_size` is notNull (default 0) → NO null handling; heftiest first, `id` DESC tiebreak.
       return [desc(characters.tokenSize), desc(characters.id)];
     case "smallestCards":
       return [asc(characters.tokenSize), asc(characters.id)];
@@ -169,9 +139,7 @@ function orderFor(sort: CharacterListSort): SQL[] {
   }
 }
 
-// The `(createdAt, id)` keyset — rows strictly after the boundary. DESC form serves BOTH `recent`'s
-// createdAt-DESC tiebreak AND the `newest` primary sort; the ASC form is `oldest`'s direction-flipped twin
-// (an own predicate, never a negated copy). `createdAt` is not unique → `id` is the deterministic tiebreak.
+// DESC serves both recent's createdAt tiebreak and newest; ASC is oldest's direction-flipped twin.
 function createdAtKeysetDesc(createdAt: number, id: CharacterId): SQL | undefined {
   return or(
     lt(characters.createdAt, createdAt),
@@ -185,10 +153,8 @@ function createdAtKeysetAsc(createdAt: number, id: CharacterId): SQL | undefined
   );
 }
 
-// The keyset predicate for the `recent` order `(lastActivityAt DESC NULLS-LAST, createdAt DESC, id DESC)`:
-// rows strictly AFTER the boundary. Null-boundary handling is explicit — when the boundary row is itself in
-// the null tail (`lastChattedAt === null`), ONLY further null rows remain (every non-null row already ranked
-// above it); otherwise the whole null tail plus the lower/equal-`lastActivityAt` non-null rows follow.
+// A null-boundary cursor stays within the null tail; a non-null boundary is followed by the whole null
+// tail plus the lower/equal-lastActivityAt non-null rows.
 function recentKeyset(cursor: Extract<CharacterListCursor, { sort: "recent" }>): SQL | undefined {
   const olderTiebreak = createdAtKeysetDesc(cursor.createdAt, cursor.id);
   if (cursor.lastChattedAt === null) {
@@ -201,10 +167,7 @@ function recentKeyset(cursor: Extract<CharacterListCursor, { sort: "recent" }>):
   );
 }
 
-// The keyset predicate for the `mostChats` order `(chats DESC NULLS-LAST, id DESC)` — rows strictly AFTER the
-// boundary. Same null-boundary shape as `recent` (nulls = no stats row): a null-boundary cursor stays within
-// the null tail (`id` DESC); a non-null boundary is followed by the whole null tail plus the lower/equal-count
-// non-null rows. `chats` is not unique → `id` DESC tiebreaks.
+// Same null-boundary shape as recentKeyset (nulls = no stats row).
 function mostChatsKeyset(
   cursor: Extract<CharacterListCursor, { sort: "mostChats" }>,
 ): SQL | undefined {
@@ -218,10 +181,7 @@ function mostChatsKeyset(
   );
 }
 
-// The `fewestChats` twin `(chats ASC NULLS-LAST, id ASC)` — direction-flipped, NOT a negated copy. The null
-// tail STILL trails every non-null row (never-chatted is never "fewest"), so a non-null boundary is followed by
-// higher-count non-null rows, the equal-count `id`-ASC remainder, AND the whole null tail; a null boundary
-// stays within the tail (`id` ASC).
+// Direction-flipped, not a negated copy — the null tail still trails every non-null row.
 function fewestChatsKeyset(
   cursor: Extract<CharacterListCursor, { sort: "fewestChats" }>,
 ): SQL | undefined {
@@ -235,9 +195,6 @@ function fewestChatsKeyset(
   );
 }
 
-// The `(token_size, id)` keyset — rows strictly after the boundary. `token_size` is notNull (no null tail);
-// DESC serves `largestCards`, the ASC twin serves `smallestCards` (direction-flipped, not a negated copy).
-// `token_size` is not unique → `id` is the deterministic tiebreak.
 function tokenSizeKeysetDesc(tokenSize: number, id: CharacterId): SQL | undefined {
   return or(
     lt(characters.tokenSize, tokenSize),
@@ -251,14 +208,11 @@ function tokenSizeKeysetAsc(tokenSize: number, id: CharacterId): SQL | undefined
   );
 }
 
-// The keyset predicate for the `alpha` order `(name ASC, id ASC)` — rows strictly after the boundary.
 function alphaKeyset(name: string, id: CharacterId): SQL | undefined {
   return or(gt(characters.name, name), and(eq(characters.name, name), gt(characters.id, id)));
 }
 
-// The keyset predicate per sort. Built off the cursor's OWN discriminant (== `input.sort`, verb-checked).
-// `if`-chained (not `switch`) so the exhaustiveness `assertNever` guard holds — the `latency.ts` precedent
-// (a `z.infer` discriminated union the switch-reachability lint mis-reads, but the `if`-form doesn't).
+// if-chained (not switch) so the exhaustiveness assertNever guard holds against this discriminated union.
 function keysetFor(cursor: CharacterListCursor): SQL | undefined {
   if (cursor.sort === "recent") {
     return recentKeyset(cursor);
@@ -267,8 +221,6 @@ function keysetFor(cursor: CharacterListCursor): SQL | undefined {
     return alphaKeyset(cursor.name, cursor.id);
   }
   if (cursor.sort === "starred") {
-    // starred-first: a row follows if it's in a LOWER starred group (false after true) OR the same group and
-    // after in the alpha keyset. `starred < :starred` is only satisfiable when the boundary is starred.
     return or(
       lt(characters.starred, cursor.starred),
       and(eq(characters.starred, cursor.starred), alphaKeyset(cursor.name, cursor.id)),
@@ -295,10 +247,7 @@ function keysetFor(cursor: CharacterListCursor): SQL | undefined {
   return assertNever(cursor);
 }
 
-/** The owner's NON-synthetic characters + avatars + the FIX-#2 denorms, sorted per `input.sort` and
- *  keyset-paged (synthetic group buckets excluded — every user-facing query filters `synthetic = false`).
- *  No offset (which skips/dupes rows under concurrent writes). Fetches exactly `limit` rows; the caller (the
- *  `list` verb) derives `nextCursor` from whether a full page came back. */
+/** Owner's non-synthetic characters, sorted + keyset-paged. No offset (skips/dupes under concurrent writes). */
 export async function listOwnedCharactersWithAvatar(
   db: Db,
   input: ListOwnedPageInput,
@@ -337,10 +286,7 @@ export async function loadOwnedCharacterRow(
   return rows[0];
 }
 
-/** One character row by id ALONE — NO owner scope (D20). The embeddings indexer is a trusted SYSTEM consumer:
- *  vectors carry no `ownerId`, so the card-text re-read happens un-principal, keyed only by the branded id the
- *  `character.updated` event carried. This is NOT a user-facing surface — it is never routed through `can()`/
- *  owner-gating; the only caller is `loadCardText` (the indexer's canon re-reader). Undefined when absent. */
+/** No owner scope — the embeddings indexer is a trusted system consumer; not a user-facing surface. */
 export async function loadCharacterRowById(
   db: Db,
   characterId: CharacterId,
@@ -353,17 +299,12 @@ export async function loadCharacterRowById(
   return rows[0];
 }
 
-/** Every NON-synthetic character id, ALL owners — NO owner scope (D20). The embeddings BULK embed pass
- *  (PD-53) is a trusted SYSTEM sweep over the whole corpus: vectors carry no `ownerId`, so the enumeration
- *  happens un-principal, exactly like `loadCharacterRowById` above. Synthetic group buckets are excluded at
- *  the source (they have no card text and are never embedded). NOT a user-facing
- *  surface; the only caller is `listEmbeddableCharacterIds` (the bulk pass's enumeration read). */
+/** No owner scope — the embeddings bulk pass sweeps the whole corpus; synthetic buckets excluded at source. */
 export async function listEmbeddableCharacterIdRows(
   db: Db,
   ownerId?: UserId | null,
 ): Promise<CharacterId[]> {
-  // `ownerId` scopes the sweep to ONE owner (the workloads SINGULAR mode — embed MY corpus); omitted/null =
-  // every owner (the BULK dev sweep, D20 un-principal). Owner-scoping stays in the WHERE, never a post-filter.
+  // ownerId scopes the sweep to one owner; omitted/null = every owner (the bulk dev sweep).
   const scope =
     ownerId === undefined || ownerId === null
       ? eq(characters.synthetic, false)
@@ -372,8 +313,7 @@ export async function listEmbeddableCharacterIdRows(
   return rows.map((r) => r.id);
 }
 
-/** Find a character by (ownerId, handle) — the synthetic-group find-or-mint + the duplicate handle dedup
- *  rely on the per-owner handle unique index. Undefined when absent. */
+/** Find a character by (ownerId, handle) — relies on the per-owner handle unique index. */
 export async function findByOwnerHandle(
   db: Db,
   ownerId: UserId,
@@ -387,9 +327,7 @@ export async function findByOwnerHandle(
   return rows[0];
 }
 
-/** The id of the owner's character that already carries `importHash` (the re-import dedup oracle), or
- *  undefined when none. Owner-scoped in the WHERE (a different owner's same-hash card is never returned).
- *  Selects only the id — the dedup caller wants the identity, not the row. */
+/** Re-import dedup oracle: the id of the owner's character already carrying importHash, or undefined. */
 export async function findByOwnerImportHash(
   db: Db,
   ownerId: UserId,
@@ -403,8 +341,7 @@ export async function findByOwnerImportHash(
   return rows[0]?.id;
 }
 
-/** Every handle the owner already uses — the duplicate verb derives a free `<handle>-copy[-n]` from this
- *  (small per-owner set; computed in JS to avoid LIKE-wildcard handling on user-controlled handles). */
+/** Every handle the owner already uses — the duplicate verb derives a free `<handle>-copy[-n]` from this. */
 export async function listOwnerHandles(db: Db, ownerId: UserId): Promise<string[]> {
   const rows = await db
     .select({ handle: characters.handle })
@@ -447,9 +384,7 @@ export async function loadSnapshotContent(
   return row === undefined ? undefined : cardOf(row.content);
 }
 
-/** The live card for a row OR a stored snapshot blob (the card IS the row) — JSON columns narrowed
- *  through the parse-seam (corrupt → safe defaults). Accepts either source: a `CharacterRow` has every
- *  card field (structural superset), so verbs pass the row and `loadSnapshotContent` passes the blob. */
+/** Live card for a row or a stored snapshot blob — JSON columns narrowed through the parse-seam. */
 export function cardOf(src: CharacterCard): CharacterCard {
   return {
     name: src.name,
@@ -472,16 +407,7 @@ export function cardOf(src: CharacterCard): CharacterCard {
   };
 }
 
-// ── canonical tags (a deliberate db-layer junction consumer read) ───────────────────────────────────────
-// The character views carry the ACCEPTED `character_tags ⋈ tags` labels (the library tag filter + editor
-// chips). This is the sanctioned "pool.ts pattern" (a db-layer consumer, not a violation to route): a
-// read-only join over the junction-owner's schema via `@orb/db`, NEVER an import of `domain/tag` (the
-// front door exposes no per-entity read; routing through it would be a sideways runtime dep). Pending
-// (staged-suggestion) rows are excluded — the views show canon, the suggestion UI reads tag's own surface.
-// The row→TagView projection is the same column pick tag's `toTagView` makes (the columns ARE the wire
-// shape); ordering mirrors tag's list contract (sortOrder ASC nulls-last, then name).
-
-/** The accepted canonical tags per character — `Map` keyed by character id (absent = no tags). */
+// Read-only join over tag's schema via @orb/db, never an import of domain/tag. Pending rows excluded.
 export async function canonicalTagsFor(
   db: Db,
   characterIds: readonly CharacterId[],
@@ -519,7 +445,7 @@ export async function canonicalTagsFor(
   return map;
 }
 
-/** One character's accepted canonical tags (the single-detail convenience over {@link canonicalTagsFor}). */
+/** One character's accepted canonical tags. */
 export async function canonicalTagsOf(
   db: Db,
   characterId: CharacterId,
@@ -527,8 +453,7 @@ export async function canonicalTagsOf(
   return (await canonicalTagsFor(db, [characterId])).get(characterId) ?? [];
 }
 
-/** Row + joined avatar + accepted tags → the full owner detail view (the live card + identity/provenance +
- *  avatar hash + the canonical tag chips). */
+/** Row + joined avatar + accepted tags → the full owner detail view. */
 export function detailOf(
   { character: row, avatar }: CharacterWithAvatar,
   canonicalTags: readonly TagView[],
@@ -552,9 +477,7 @@ export function detailOf(
   };
 }
 
-/** Row + joined avatar + the FIX-#2 denorms + accepted tags → the light library-list summary (with the
- *  advisory token estimate). `elevatorPitch`/`lastChattedAt` ride the {@link CharacterListRow} bundle (the
- *  two LEFT JOINs), so this projection is only meaningful over a `listOwnedCharactersWithAvatar` row. */
+/** Row + joined avatar + denorms + accepted tags → the light library-list summary. */
 export function summaryOf(
   { character: row, avatar, elevatorPitch, lastChattedAt }: CharacterListRow,
   canonicalTags: readonly TagView[],
@@ -572,8 +495,6 @@ export function summaryOf(
     avatarHash: avatar?.hash ?? null,
     contentHash: row.contentHash,
     createdAt: row.createdAt,
-    // Reads the DENORM column (the write path stamps it via `cardTokenSize`; one home). NOT re-estimated
-    // per page — the `largestCards`/`smallestCards` keyset sorts on this same column.
     tokenSize: row.tokenSize,
     tags: canonicalTags,
     elevatorPitch,

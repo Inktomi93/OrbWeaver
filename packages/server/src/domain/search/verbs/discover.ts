@@ -1,15 +1,8 @@
-// domain/search/verbs/discover — character discovery by best-segment neighbourhood (PD-35, the THIRD
-// retrieval lens). The pipeline: embed `queryText` → the owner's MATERIALIZED chat set (derived from the
-// owner's tier-0 digests — the verbatim lens has no owner column, D20) → owner-wide cosine scan of
-// `chat_segments` (the LIVED-SCENE space) → CSLS hub-adjust → optional cross-encoder rerank of the SEGMENTS
-// BEFORE grouping → credit each segment to its character(s) via `resolveSegmentDisplay` (the tier-0 digest
-// join; a GROUP block credits every co-star) → group by character in ranked order (first appearance = best
-// segment) → cap `DISCOVER_SEGMENTS_PER_CHAR` evidence/char + slice `topN` characters.
-//
-// Distinct from `findCharacters` ("whose CARD reads like X") and `corpus` ("which BLOCKS match, keyed for
-// memory"): `discover` answers "WHO has lived scenes like X — with the scenes as evidence". The query is
-// embedded `inputType: "query"` only (the house pattern — no `SCOPE_INSTRUCTIONS`; nothing built consumes
-// per-scope instruction strings). Rerank rejections PROPAGATE (PD-11 — search owns no fallback).
+// domain/search/verbs/discover — character discovery by best-segment neighbourhood. Pipeline: embed
+// queryText → owner's materialized chat set → owner-wide cosine scan of chat_segments → CSLS hub-adjust
+// → optional rerank of segments BEFORE grouping → credit each segment to its character(s) → group by
+// character in ranked order, capped. Answers "who has lived scenes like X" (distinct from findCharacters'
+// card match and corpus' block match). Rerank rejections propagate — search owns no fallback.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
@@ -27,7 +20,6 @@ import {
 import { compareCslsBy, cslsAdjust } from "../substrate/csls";
 import { applyRerank } from "../substrate/rerank";
 
-/** One ranked verbatim-segment candidate (rerankable by `id`/`sourceText`; carries the CSLS `score`). */
 interface DiscoverCandidate {
   readonly id: string;
   readonly chatId: DiscoverSegment["chatId"];
@@ -38,12 +30,10 @@ interface DiscoverCandidate {
   readonly score: number;
 }
 
-/** The `(chatId, blockIdx)` slot key — the join between a ranked segment and its credited characters. */
 function blockSlot(chatId: DiscoverSegment["chatId"], blockIdx: number): string {
   return `${chatId}|${blockIdx}`;
 }
 
-/** Mutable grouping accumulator (the result fields are readonly; we build then freeze into a `DiscoverCharacter`). */
 interface CharacterGroup {
   readonly characterId: CharacterId;
   readonly score: number;
@@ -56,12 +46,10 @@ interface CharacterGroup {
   readonly segments: DiscoverSegment[];
 }
 
-/** One segment→character credit (the `resolveSegmentDisplay` row shape, by inference). */
 type SegmentCredit = Awaited<ReturnType<typeof resolveSegmentDisplay>>[number];
 
-/** Fold ONE ranked segment's evidence into every character it credits (a group scene credits each co-star:
- *  first appearance seeds the group at that segment's score; later ones bump `matchCount` + append evidence
- *  up to the per-character cap). Mutates `byChar` in ranked order (insertion order = character rank). */
+/** A group scene credits each co-star: first appearance seeds the group, later ones bump matchCount +
+ *  append evidence up to the per-character cap. Mutates byChar in ranked order. */
 function creditSegment(
   byChar: Map<CharacterId, CharacterGroup>,
   seg: DiscoverCandidate,
@@ -96,7 +84,6 @@ function creditSegment(
   }
 }
 
-/** Credit every ranked segment (co-star aware) then group by character in ranked order, capped to `topN`. */
 async function groupByCharacter(
   ctx: SearchContext,
   ownerId: DiscoverParams["ownerId"],
@@ -113,7 +100,6 @@ async function groupByCharacter(
     const slot = blockSlot(cr.chatId, cr.blockIdx);
     creditsBySlot.set(slot, [...(creditsBySlot.get(slot) ?? []), cr]);
   }
-  // The Map preserves insertion order, so first appearance = best segment → characters emerge ranked.
   const byChar = new Map<CharacterId, CharacterGroup>();
   for (const seg of ranked) {
     creditSegment(byChar, seg, creditsBySlot.get(blockSlot(seg.chatId, seg.blockIdx)) ?? []);
@@ -137,7 +123,6 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
     }
     const model = ctx.roleClients.embedModel;
 
-    // The owner's materialized chat set bounds the ownerless verbatim scan (D20 derive via digests).
     const chatIds = await ownedChatIds(ctx.db, ownerId, model);
     if (chatIds.length === 0) {
       return [];
@@ -166,8 +151,7 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
         ),
       );
 
-    // Rerank the SEGMENTS before grouping (a promoted segment can pull in a low-CSLS character). The whole
-    // pool is reranked (topN = the pool size) so grouping still yields enough distinct characters.
+    // Rerank segments before grouping so a promoted segment can pull in a low-CSLS character.
     const ranked =
       params.rerank === true
         ? await applyRerank(queryText, sorted, ctx.roleClients.rerank, sorted.length)

@@ -1,13 +1,7 @@
 // domain/export/substrate/placeholder-png — the 256×256 base PNG embedded into a card when the character
-// has no avatar (the placeholder half of `basePng`). Pure / zero I/O: a precomputed
-// solid-color PNG decoded ONCE from a base64 constant at module load. Deterministic (fixed bytes — no
-// clock, no random, no per-call work).
-//
-// Why a constant rather than generating it: the only PNG encoder in the stack is `sharp` (sealed in
-// `infra/image`, D6), and the injected `imageTransform` op transcodes an EXISTING image — it cannot
-// synthesize one from raw pixels. Rather than re-import `sharp` into the domain (the infra seal) just to
-// emit a fixed placeholder, the bytes are baked here. The blob was produced once via the infra adapter:
-// `sharp({ create: { width: 256, height: 256, channels: 3, background: { r: 40, g: 40, b: 50 } } }).png()`.
+// has no avatar. Pure/zero I/O: decoded once from a base64 constant at module load. Baked here rather than
+// generated because the only PNG encoder in the stack (sharp) is sealed in infra/image and only transcodes
+// existing images.
 
 import { Buffer } from "node:buffer";
 

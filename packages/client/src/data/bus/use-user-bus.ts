@@ -1,16 +1,8 @@
-// The per-USER bus TRANSPORT adapter (PD user-bus lane) — the twin of `use-chat-bus.ts`, but SIMPLER:
-// subscribes `sessions.streamUserEvents` (one SSE stream per device, always on — no chatId, no skipToken, no
-// replay cursor) and forwards every `UserBusEvent` into the invalidation seam's SECOND map
-// (`invalidation.invalidateUser`). LIVE-ONLY: the server keeps no durable log, so there is no `lastEventId`
-// resume — instead, on EVERY (re)connect the hook GAP-HEALS with a blanket invalidate
-// (`invalidation.invalidateAllUserRoots`): while the stream was down, a device-B write was missed, and a
-// blanket re-invalidate of every filter the user map covers closes that gap (invalidation is idempotent — a
-// covered-but-unchanged read just refetches once).
-//
-// Mount ONCE, at the authed composition reader (`routes/home-page.tsx`) — NOT in a feature (a feature could
-// mount/unmount and drop the always-on freshness driver). The subscription body does NOTHING else (mirrors
-// the chat bus's `no-inline-cache-surgery-in-stream` discipline): no cache writes, no store writes — routing
-// is all the invalidation map's job.
+// The per-user bus transport adapter — twin of use-chat-bus.ts, simpler: subscribes
+// sessions.streamUserEvents (one always-on SSE stream per device, no chatId/cursor) and forwards every
+// event into invalidation.invalidateUser. Live-only, no durable log: on every (re)connect the hook
+// gap-heals with a blanket invalidate (invalidateAllUserRoots) since a missed write during downtime
+// needs closing. Mount ONCE at the authed composition root (routes/home-page.tsx), never in a feature.
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { useSubscription } from "@trpc/tanstack-react-query";
@@ -39,8 +31,7 @@ export function useUserBus(deps: UserBusDeps): void {
         deps.invalidateUser(event);
       },
       onConnectionStateChange: (connection) => {
-        // `pending` = the stream is live (idle → connecting → pending). Heal on each arrival at `pending`
-        // (first connect AND reconnect); a redundant heal is cheap + idempotent, a missed one is not.
+        // `pending` = the stream is live; heal on every arrival (first connect AND reconnect).
         if (connection.state === "pending") {
           deps.invalidateAllUserRoots();
         }

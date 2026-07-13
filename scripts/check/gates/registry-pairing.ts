@@ -1,18 +1,7 @@
-// Gate: registry-pairing (docs/architecture/core/UI-Gates-and-Lessons.md §11.5 + design-enforcement.md
-// §3.1 — "check:registry-pairing"; promotes the behavioral rail-slots test to a Tier-A structural gate).
-// The RAIL registry (features/**/lib/rail-slots.ts) and its sibling MODAL_SLOTS bodies
-// (features/**/lib/modal-slots.tsx) must be a BIJECTION on modal ids: every rail/topbar/avatar modal
-// TRIGGER has a body, and every body has a reachable trigger. A missing body = "the panel won't open"
-// (shipped green in neo, §11.5); an orphan body = a modal no affordance can reach. The type layer forces
-// most of this (`Record<ModalSlotId, ModalDef>` + SectionId-typed ids), but an entry MISSING from the
-// runtime array is NOT a tsc error — this gate pins that runtime coverage. The companion vitest test
-// (tests/client/features/app-shell/lib/rail-slots.test.ts) keeps the checks an AST can't do (SectionId
-// full-coverage of RAIL_SECTIONS; that each body's `render` is actually callable).
-//
-// SHAPE (fixture-able per feature-dir pair, the `__g_*` self-test pattern): for every `**/lib/rail-slots.ts`
-// it reads the sibling `**/lib/modal-slots.tsx`, extracts modal TRIGGER ids (object literals with
-// `kind: "modal"` → their `id` string — RAIL_ACTIONS/ACCOUNT_ACTION/COMMAND_ACTION all match) and BODY ids
-// (the `MODAL_SLOTS` object's keys), and asserts the two sets are equal.
+// Gate: registry-pairing — the RAIL registry (features/**/lib/rail-slots.ts) and its sibling
+// MODAL_SLOTS bodies (features/**/lib/modal-slots.tsx) must be a BIJECTION on modal ids: every
+// rail/topbar/avatar modal TRIGGER has a body, and every body has a reachable trigger. A missing body
+// means the panel won't open; an orphan body is a modal no affordance can reach.
 import type { ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -21,13 +10,11 @@ import type { Violation } from "../harness.ts";
 const RAIL_SUFFIX = "/lib/rail-slots.ts";
 const MODAL_BASENAME = "/lib/modal-slots.tsx";
 
-/** `packages/...`-relative path for a violation location. */
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-/** The string value of a named string-literal property (`id: "theme"` → "theme"), or undefined. */
 function stringProp(obj: ObjectLiteralExpression, name: string): string | undefined {
   const prop = obj.getProperty(name);
   if (prop === undefined || !Node.isPropertyAssignment(prop)) {
@@ -37,7 +24,6 @@ function stringProp(obj: ObjectLiteralExpression, name: string): string | undefi
   return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : undefined;
 }
 
-/** Every `{ kind: "modal", id: "…" }` literal in rail-slots.ts — the modal triggers (rail + topbar + avatar). */
 function modalTriggerIds(sf: SourceFile): Array<{ id: string; line: number }> {
   const out: Array<{ id: string; line: number }> = [];
   for (const obj of sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)) {
@@ -52,7 +38,6 @@ function modalTriggerIds(sf: SourceFile): Array<{ id: string; line: number }> {
   return out;
 }
 
-/** The keys of the `MODAL_SLOTS` object in modal-slots.tsx — the modal bodies. */
 function modalBodyIds(sf: SourceFile): Array<{ id: string; line: number }> {
   const decl = sf.getVariableDeclaration("MODAL_SLOTS");
   const init = decl?.getInitializer();
@@ -123,12 +108,6 @@ function scanRegistryPairing(project: Project): Violation[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a cross-FILE PAIRING scan via `run`) ───────────────
-// registry-pairing is a cross-file bijection check (each rail-slots.ts vs its SIBLING modal-slots.tsx,
-// looked up by path) — not a per-node predicate — so it ports as a `run` descriptor reusing the exact
-// pairing logic over the SAME shared project. No begin/finalize (each pair is judged inside `run`). A
-// synthetic tree with no rail-slots.ts is naturally vacuous. Distinct per-id messages → per-occurrence
-// overrides. Findings byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "registry-pairing",
   docRow: "UI-Gates-and-Lessons.md §11.5 (design-enforcement.md §3.1)",

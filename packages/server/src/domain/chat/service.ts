@@ -1,7 +1,6 @@
-// domain/chat — COMPOSITION ROOT: wires verbs + injected deps (zero logic). Mirrors `domain/search/service.ts`:
-// it builds the engine + the chat-internal `loadParticipantViews` ONCE, then calls the 10 verb/engine factories
-// with their deps and assembles the `ChatService` (the return is typed `ChatService`, so a missing/renamed verb
-// fails `tsc`). NO business logic lives here — every verb body is in its `verbs/*` factory.
+// domain/chat — composition root: wires verbs + injected deps (zero logic). Builds the engine + the
+// chat-internal `loadParticipantViews` once, then calls the verb/engine factories and assembles the typed
+// `ChatService` (so a missing/renamed verb fails tsc). Every verb body lives in its `verbs/*` factory.
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, ChatId } from "@orb/kit/ids";
@@ -22,13 +21,8 @@ import { createRoster } from "./verbs/roster";
 import { createStartChat } from "./verbs/start-chat";
 import { createTurn } from "./verbs/turn";
 
-/**
- * Assemble the full {@link ChatService} from the injected {@link ChatContext} (the DI bundle) + the
- * {@link ChatServiceDeps} the entry root supplies (the collaborators not on ctx). The engine and
- * `loadParticipantViews` are built HERE (chat-internal) and threaded into the factories that need them.
- */
+/** Assemble the full {@link ChatService} from the injected {@link ChatContext} + {@link ChatServiceDeps}. */
 export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): ChatService {
-  // The turn lifecycle shell — built ONCE; threaded into the round-driving (`turn`) + opening (`start-chat`) paths.
   const engine = createTurnEngine(ctx, {
     emit: deps.emit,
     debitBudget: deps.debitBudget,
@@ -39,13 +33,8 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     generateDigests,
   });
 
-  // The chat-INTERNAL roster read-model (the returned `ChatDetail`/`listParticipants` shape). Reads the present
-  // roster via `persistence/roster.loadRoster` and resolves CHARACTER name/avatar from `ctx.getCard`
-  // (owner-scoped to the room host — characters in a room belong to the host; D16/D28). Built ONCE + shared
-  // across fork/invites/read/start-chat (one instance, no per-factory re-spell).
-  //
-  // A human participant's `displayName`/`handle`/`avatarAssetId` are
-  // resolved via `ctx.resolveUserPublics` (wired in the entry composition root).
+  // Reads the present roster and resolves CHARACTER name/avatar from ctx.getCard (owner-scoped to the room
+  // host); a human's displayName/handle/avatarAssetId resolve via ctx.resolveUserPublics.
   const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
     const rows = await loadRoster(ctx.db, chatId);
     const hostUserId = rows.find((r) => r.role === "host")?.userId ?? null;
@@ -61,23 +50,18 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
             ? await ctx.resolveUserPublics(r.userId, r.activePersonaId)
             : null;
 
-        // D44 §12.0 — the RESOLVED per-participant render policy (`override ?? global`). Keyed on the
-        // character override for AI seats; the global floor for humans (`characterId: null` → the op
-        // returns global; whose OWN messages are trusted via the client's own-user rule, a separate axis).
-        // Resolved server-side once (the one home).
+        // The resolved per-participant render policy (override ?? global); keyed on the character override
+        // for AI seats, the global floor for humans.
         const renderPolicy = await ctx.resolveRenderPolicy({
           ownerId: hostUserId,
           characterId: r.characterId,
         });
-        // D44 §12.1/§12.5 — the RAW per-character theme override (unmerged; `null` for a human seat or a
-        // character with none set). The client nests a `<ThemeScope>` for it inside the root scope.
+        // The raw per-character theme override (unmerged; null for a human seat or none set).
         const themeOverride = await ctx.resolveThemeOverride({
           ownerId: hostUserId,
           characterId: r.characterId,
         });
 
-        // Both sources are BRANDED at their contracts (ResolveUserPublicsOp / characterCardSchema) —
-        // the pre-2026-07-09 castId+as-string laundering here died with the string-type audit.
         const avatarAssetId: AssetId | null = publics?.avatarAssetId ?? card?.avatarAssetId ?? null;
         const avatarHash = await ctx.resolveAssetHash(avatarAssetId);
 
@@ -115,7 +99,6 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     resolveConnection: deps.resolveConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
-  // `resolveForeignInputs` backs the PD-110 runOnEdit re-apply on `editMessage` (the same seam the turn uses).
   const edit = createEdit(ctx, {
     emit: deps.emit,
     resolveForeignInputs: deps.resolveForeignInputs,
@@ -137,7 +120,6 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
   });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit });
   const roster = createRoster(ctx, { emit: deps.emit });
-  // `runCompaction` is the lock-free core (a future engine-injected seam); only `compact` is on `ChatService`.
   const { compact } = createCompaction(ctx, { emit: deps.emit });
 
   return {

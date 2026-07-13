@@ -1,56 +1,28 @@
-// infra/providers/backends/agent-sdk/session/frames — SEED-FRAME SYNTHESIS (the load-bearing shape) +
-// the reseed-when-stale comparator. Synthesizes SDK `SessionStore` frames from plain canon (role + text)
-// so a FRESH session resumes coherently — for the canon-seeding paths (raw→sdk continuation, import,
-// cold-cache recovery) where we hold the transcript but none of the SDK's runtime bookkeeping.
-//
-// THE SHAPE IS EMPIRICALLY VALIDATED (providers.md Esoteric §3; neo `seed-probe` against the live sub):
-//   • bare frames (type/uuid/parentUuid/message) → SDK rejects: "No conversation found".
-//   • + per-frame metadata (sessionId/isSidechain/cwd/version/userType + promptId/requestId/timestamp)
-//     → RESUMES + recalls a seeded fact ✓  ← the load-bearing bundle.
-//   • an ASSISTANT-FIRST seed (a greeting with no preceding user turn) does NOT resume (the model won't
-//     own a message it has no memory of generating) → a synthetic user stub is prefixed so the session
-//     always starts user-first.
-// Determinism: ids + timestamps derive from `sessionId` + frame index (NOT randomUUID / Date.now), so the
-// SAME canon under the SAME sessionId yields BYTE-IDENTICAL frames → the agent-sdk prompt cache survives a
-// reseed (random per-seed values were a cache-buster). If the SDK is upgraded, re-run the probe.
-//
-// NOTE (orbweaver vs neo): neo also stamped `authorName` + ran a `prefixNames` load-time pass to label
-// multi-character turns. Orbweaver does NOT — each participant owns an egocentric view the view-builder
-// renders BEFORE the prompt reaches this backend (participants-agents-identity.md §0/§5), so seed frames
-// carry plain pre-rendered text. The name-stamping quartet is deliberately gone, not forgotten.
+// Seed-frame synthesis + the reseed-when-stale comparator. Synthesizes SDK SessionStore frames from plain
+// canon (role + text) so a fresh session resumes coherently; bare frames get SDK-rejected, the full
+// metadata bundle resumes. Ids + timestamps derive from sessionId + frame index (never randomUUID/Date.now).
 
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract";
 
-/** One canon turn to seed (already macro-resolved + view-rendered by the domain). */
 export interface SeedTurn {
   readonly role: "user" | "assistant";
   readonly content: string;
-  /** The model that produced an assistant turn (provenance only — not load-bearing for resume). */
   readonly model?: string | null;
 }
 
-/**
- * The "invisible user" stub. A greeting is an assistant opening with NO preceding user turn, but a
- * session must start user-first to resume cleanly, so this SESSION-ONLY stub is prefixed → the validated
- * user→assistant shape. It is NEVER persisted to canon (the UI never shows it); it only frames the
- * greeting so the model owns it on resume.
- */
+// Session-only stub, never persisted to canon: a greeting has no preceding user turn, but a session must
+// start user-first to resume cleanly.
 export const GREETING_USER_STUB = "*The scene begins.*";
 
 const SEED_VERSION = "2.0.0";
 const SEED_CWD = "/";
-// Fixed base for deterministic frame timestamps (epoch ms). The SDK needs only a present, monotonically
-// ordered ISO timestamp per frame to resume — not a real wall-clock time. `new Date(ms)` parses a known
-// value (allowed by the clock gate); the constant base + per-frame offset keeps reseeds byte-identical.
+// The SDK needs only a present, monotonically ordered ISO timestamp per frame — not real wall-clock time.
 const SEED_TS_BASE_MS = 1_704_067_200_000; // 2024-01-01T00:00:00.000Z
 const SEED_TS_STEP_MS = 1000;
-/** Provenance placeholder on an assistant seed frame when the canon turn carries no model (resume does
- *  not depend on this value — only the validated metadata bundle does). */
 const SEED_FALLBACK_MODEL = "claude";
 
-// Hash-slice offsets for the uuid-v4-shaped deterministic id (named per noMagicNumbers).
 const HEX_8 = 8;
 const HEX_12 = 12;
 const HEX_13 = 13;
@@ -59,19 +31,11 @@ const HEX_17 = 17;
 const HEX_20 = 20;
 const HEX_32 = 32;
 
-/** Deterministic uuid-v4-SHAPED id from a stable seed string (replaces randomUUID so rebuilds are
- *  reproducible). Not cryptographically meaningful — just a stable, valid-shaped id. */
 function deterministicId(seed: string): string {
   const h = createHash("sha256").update(seed).digest("hex");
   return `${h.slice(0, HEX_8)}-${h.slice(HEX_8, HEX_12)}-4${h.slice(HEX_13, HEX_16)}-8${h.slice(HEX_17, HEX_20)}-${h.slice(HEX_20, HEX_32)}`;
 }
 
-/**
- * Convert canon rows → the `SeedTurn[]` {@link buildSeedFrames} consumes: keep user/assistant turns (a
- * system row rides in the assembled system prompt, not the transcript), then prefix a {@link
- * GREETING_USER_STUB} user turn when the first kept turn is an assistant (the SDK's resume needs the
- * user→assistant pairing). Empty when no user/assistant rows survive.
- */
 export function toSeedTurns(
   canon: readonly { role: string; content: string; model?: string | null }[],
 ): SeedTurn[] {
@@ -89,7 +53,6 @@ export function toSeedTurns(
     : kept;
 }
 
-/** Inputs to a single seed-frame build (one object so the param count stays in bounds). */
 interface FrameArgs {
   readonly turn: SeedTurn;
   readonly index: number;
@@ -98,7 +61,6 @@ interface FrameArgs {
   readonly common: Record<string, unknown>;
 }
 
-/** Build a single seed frame (user or assistant) — the validated content-block shape. */
 function buildFrame(args: FrameArgs): SessionStoreEntry {
   const { turn, index, sessionId, parentUuid, common } = args;
   const uuid = deterministicId(`${sessionId}:frame:${index}`);
@@ -132,11 +94,7 @@ function buildFrame(args: FrameArgs): SessionStoreEntry {
   };
 }
 
-/**
- * Build the SDK session frames for `canon` under `sessionId` (which MUST be a valid uuidv4 — the SDK
- * rejects arbitrary resume ids). Frames chain via `parentUuid`; every frame carries `sessionId` + the
- * validated metadata bundle. The caller persists them (`SessionStore.append`) under the same sessionId.
- */
+// sessionId must be a valid uuidv4 — the SDK rejects arbitrary resume ids.
 export function buildSeedFrames(
   canon: readonly SeedTurn[],
   sessionId: string,
@@ -158,11 +116,8 @@ export function buildSeedFrames(
   return frames;
 }
 
-/** Extract a frame's text content (the comparison key for the transcript↔seed match). Handles BOTH
- *  content shapes a stored frame can carry: our synthesized block arrays AND the SDK's own appended
- *  frames, whose `message.content` may be a plain string. Joins every text block (an assistant frame
- *  can carry [thinking, text] — thinking is excluded from the comparison on purpose: seeds never have
- *  it, and the model-visible transcript identity is the prose). */
+// Handles both content shapes a stored frame can carry: our synthesized block arrays and the SDK's own
+// appended frames, whose message.content may be a plain string. Thinking blocks are excluded on purpose.
 function frameText(entry: SessionStoreEntry): string {
   const message = (
     entry as { message?: { content?: string | Array<{ type?: string; text?: string }> } }
@@ -180,18 +135,13 @@ function frameText(entry: SessionStoreEntry): string {
     .join("");
 }
 
-/** One merged role-run of a transcript — the comparison unit for {@link sessionMatchesSeed}. */
 interface TranscriptRun {
   readonly role: "user" | "assistant";
   readonly text: string;
 }
 
-/** Reduce transcript-shaped rows (role + text) into merged role-RUNS: consecutive same-role rows fold
- *  into one. This is what makes the comparator robust to (a) the SDK splitting ONE logical assistant
- *  reply across several stored frames (per content block — contiguous text, joined with "") and (b) a
- *  multi-row prompt tail stored as ONE joined user frame (joined with the contract's
- *  {@link AGENT_PROMPT_TAIL_JOINER} — the same joiner the entry bridge sends). Empty texts are dropped
- *  before joining so they can't skew separators. */
+// Consecutive same-role rows fold into one run — robust to the SDK splitting one assistant reply across
+// several stored frames, and to a multi-row prompt tail stored as one joined user frame.
 function mergeRuns(rows: readonly { role: "user" | "assistant"; text: string }[]): TranscriptRun[] {
   const runs: { role: "user" | "assistant"; parts: string[] }[] = [];
   for (const row of rows) {
@@ -204,9 +154,7 @@ function mergeRuns(rows: readonly { role: "user" | "assistant"; text: string }[]
   }
   return runs.map((r) => ({
     role: r.role,
-    // TRIMMED: the runner trims the reply before it reaches canon, while the session's mirrored frame
-    // keeps the model's raw trailing whitespace — an untrimmed compare would false-diverge (and reseed)
-    // on every turn the model emits a trailing newline.
+    // Trimmed: the runner trims the reply before canon, but the session's mirrored frame keeps raw trailing whitespace.
     text: r.parts
       .filter((p) => p.length > 0)
       .join(r.role === "user" ? AGENT_PROMPT_TAIL_JOINER : "")
@@ -214,22 +162,17 @@ function mergeRuns(rows: readonly { role: "user" | "assistant"; text: string }[]
   }));
 }
 
-/** A stored entry's transcript row, or null for non-transcript frames (system/summary/meta — the SDK
- *  appends bookkeeping frames our seed never contains; they are identity-neutral). */
 function entryRow(entry: SessionStoreEntry): { role: "user" | "assistant"; text: string } | null {
   const kind = (entry as { type?: unknown }).type;
   if (kind !== "user" && kind !== "assistant") {
     return null;
   }
-  // Meta frames (caveats, command echoes) are runtime bookkeeping, not conversation identity.
   if ((entry as { isMeta?: boolean }).isMeta === true) {
     return null;
   }
   return { role: kind, text: frameText(entry) };
 }
 
-/** Reduce a stored session's entries to merged transcript role-runs (the shared normalization the resume
- *  gate + the branch detector compare on). Non-transcript / meta frames drop out. */
 function sessionRuns(entries: readonly SessionStoreEntry[]): TranscriptRun[] {
   const rows: { role: "user" | "assistant"; text: string }[] = [];
   for (const entry of entries) {
@@ -241,14 +184,7 @@ function sessionRuns(entries: readonly SessionStoreEntry[]): TranscriptRun[] {
   return mergeRuns(rows);
 }
 
-/**
- * Does the stored session transcript still MATCH the freshly-rendered seed? The resume gate: a match
- * means the session's model-visible history equals what the domain says the model should see, so the
- * runner resumes it (prompt-cache survival); a mismatch (edit/swipe/window-slide/injection shift) means
- * the caller must reseed a FRESH session. Compared as merged role-runs of text (robust to the SDK's
- * per-block frame splits and its non-transcript bookkeeping frames). EXACT match required — a session
- * holding MORE than the seed (e.g. the rejected reply of a swipe) must NOT be resumed. Pure — no I/O.
- */
+// The resume gate: exact match required — a session holding MORE than the seed (e.g. a swipe's rejected reply) must NOT be resumed.
 export function sessionMatchesSeed(
   entries: readonly SessionStoreEntry[],
   seed: readonly SeedTurn[],
@@ -264,17 +200,9 @@ export function sessionMatchesSeed(
   });
 }
 
-/**
- * Is the freshly-rendered seed a full LEADING PREFIX of the stored session's transcript — i.e. does the
- * stored lineage hold EXACTLY the seed (the {@link sessionMatchesSeed} case) OR the seed followed by MORE
- * turns the SDK appended live (a grown superset)? Compared on the same merged role-runs. This is the
- * re-adoption gate the deterministic candidate-id probe uses: after a turn runs, the live subprocess
- * APPENDS its own user+assistant frames to the lineage, so a swipe-back that re-derives that lineage's id
- * finds it GROWN past the pre-turn seed — an exact-only compare would false-diverge and re-fork (probe s9,
- * 2026-07-10: A→B→A re-forked instead of re-adopting). A seed that is a clean leading prefix means the
- * lineage is the same conversation the seed describes; adopting it is safe (the extra tail is that same
- * conversation's own continuation, which the next turn will resume against). Pure — no I/O.
- */
+// Is the seed a leading prefix of the stored transcript (exact match, or the seed plus turns the SDK
+// appended live)? The re-adoption gate: after a turn runs the subprocess appends its own frames, so a
+// swipe-back finds the lineage grown past the pre-turn seed — an exact-only compare would false-diverge and re-fork.
 export function sessionContainsSeedPrefix(
   entries: readonly SessionStoreEntry[],
   seed: readonly SeedTurn[],
@@ -290,18 +218,8 @@ export function sessionContainsSeedPrefix(
   });
 }
 
-/**
- * Is the DIVERGENCE between a stored session and the new seed a BRANCH — i.e. do they share a non-trivial
- * common prefix and THEN diverge (a swipe / edit), as opposed to an unrelated / window-slid transcript
- * that shares nothing to preserve? Compared on the same merged role-runs as {@link sessionMatchesSeed}.
- *
- * "Non-trivial" = at least one FULLY-equal leading role-run in common — so an assistant-first greeting's
- * lone user stub, or a coincidental first-word match, does not by itself class as a branch. The caller uses
- * this to choose FORK (preserve the stored lineage; seed the branch under its own deterministic id so a
- * later swipe-back re-adopts the original) over destructive in-place reseed. Assumes the two already
- * diverged (the caller checks {@link sessionMatchesSeed} first); an exact match still reports its shared
- * prefix truthfully but is not a divergence.
- */
+// A branch shares a non-trivial common prefix then diverges (swipe/edit), vs. an unrelated/window-slid
+// transcript sharing nothing. "Non-trivial" = at least one fully-equal leading role-run in common.
 export function isBranchDivergence(
   entries: readonly SessionStoreEntry[],
   seed: readonly SeedTurn[],
@@ -321,10 +239,6 @@ export function isBranchDivergence(
   return shared >= 1;
 }
 
-/** Deterministic, uuid-v4-shaped session id for a chat's seed state (+ a collision `salt` — the caller
- *  bumps it when the store already holds a DIVERGED transcript under the unsalted id, e.g. a reverted
- *  edit landing back on a previously-used canon state). Same chat + same seed + same salt → the same id,
- *  so a reseed of unchanged canon yields byte-identical frames under the same session (cache survival). */
 export function seedSessionId(chatId: string, seed: readonly SeedTurn[], salt = 0): string {
   const body = seed.map((t) => `${t.role}\u0001${t.content}`).join("\u0002");
   return deterministicId(`${chatId}\u0000${salt}\u0000${body}`);

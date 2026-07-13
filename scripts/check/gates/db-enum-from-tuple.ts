@@ -1,12 +1,9 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are drizzle schema
 // fixture snippets (sqliteTable(...) calls), not secrets.
-// Gate: db-enum-from-tuple (D34 — a db enum column derives from a CONTRACTS tuple; db never re-spells a
-// union). A drizzle column enum config (`text("x", { enum: … })`) must reference an IDENTIFIER — an
-// imported `@orb/contracts`/`@orb/kit` tuple, or a local `as const satisfies readonly <ContractsType>[]`
-// tuple (the sanctioned db idiom where no z-schema runtime mirror home exists — chat.ts STREAM_DELTA_KINDS/
-// INJECTION_POSITIONS). It must NEVER be an INLINE ARRAY LITERAL (`{ enum: ["a","b"] }`) — an inline
-// re-spelling drifts from the union's one home the moment a member is added. AST-scoped to the schema dir;
-// the `enum:` key inside a schema-file object literal is unambiguously the drizzle column config.
+// An `enum:` key with an inline-array-literal initializer, in the db schema dir.
+// Gate: db-enum-from-tuple — a db enum column must derive from a CONTRACTS tuple (an imported
+// @orb/contracts / @orb/kit tuple, or a local `as const satisfies readonly <ContractsType>[]`), never
+// an inline array literal (`{ enum: ["a","b"] }`) — inline re-spelling drifts from the union's one home.
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
@@ -17,10 +14,6 @@ const MESSAGE =
   "drizzle column enum config is an INLINE ARRAY LITERAL — a db enum must derive from an imported " +
   "contracts/kit tuple (or a local `as const satisfies` tuple), never a re-spelled array (D34: db never " +
   "re-spells a union). See Core-Path-Registry.md D34.";
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a PropertyAssignment subscription: an `enum:` key with an inline-array-literal
-// initializer, in the db schema dir. scanRoot mirrors the legacy SCHEMA_DIR filter. Per-occurrence (each
-// inline-array enum config).
 export const gate: GateDescriptor = {
   name: "db-enum-from-tuple",
   docRow: "Core-Path-Registry.md D34",

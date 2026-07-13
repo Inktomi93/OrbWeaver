@@ -45,11 +45,8 @@ function hasPlaceholderFlag(entry: ObjectLiteralExpression): boolean {
   return prop.getInitializer()?.getKind() === SyntaxKind.TrueKeyword;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a VariableDeclaration subscription: the `MODAL_SLOTS` object's entries whose
-// `render` returns a <SectionPlaceholder> without a `placeholder: true` flag. scanRoot mirrors the legacy
-// `**/lib/modal-slots.tsx` filter. The message names the offending entry (varies per entry), so each
-// finding carries a per-occurrence message override. Per-occurrence.
+// The `MODAL_SLOTS` object's entries whose `render` returns a <SectionPlaceholder> without a
+// `placeholder: true` flag. The message names the offending entry.
 export const gate: GateDescriptor = {
   name: "modal-body-not-placeholder",
   docRow: "design-enforcement.md §3.2",

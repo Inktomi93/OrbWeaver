@@ -1,13 +1,7 @@
-// The local-mode credential form (FINAL-Auth-Modes §7 P0 — the only mode where the client collects a
-// credential). Deliberately PLAIN CONTROLLED state, not a form factory: the §13.4 factories bake
-// entity-editor obligations (server seed / reset-re-baseline / dirty pill / autosave) — none exist for a
-// submit-once credential form with two required fields; this is the sanctioned trivial-input carve-out
-// (UI-Arch §6.1 threshold note). A real `<form>` element (attribute-free — the compose-only rule bans
-// styling raw intrinsics, not semantics) so password managers + Enter-to-submit work natively.
-//
-// Error posture: the server answers a GENERIC "invalid credentials" (constant-time dummy-hash floor —
-// no user enumeration); we surface it verbatim and add nothing. Under discreet login `defaultHandle`
-// arrives null → the form starts blank (ST `enableDiscreetLogin` parity).
+// The local-mode credential form. Deliberately plain controlled state, not a form factory: the editor
+// factories bake obligations (server seed/dirty pill/autosave) none of which exist for a submit-once
+// credential form — the sanctioned trivial-input carve-out. A real `<form>` element so password
+// managers + Enter-to-submit work natively.
 
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";

@@ -1,23 +1,7 @@
-// entry/boot/seed-default-persona — the idempotent default-USER-PERSONA seeder (mirrors the default-character
-// seeder, PD-32). Every fresh user gets ONE ready-to-use "You" persona (with a bundled on-brand avatar) so a
-// new install has a working `{{user}}` identity instead of an empty persona drawer.
-//
-// TWO call sites, one instance (the SAME shape as `characterSeeder`):
-//   1. BOOT — the deployment owner is seeded once at startup (single-user "it just works").
-//   2. FIRST AUTHED REQUEST — the app auth middleware fires `ensureSeeded(principal)` after the Principal
-//      resolves, so a NEW user (SSO first login, admin-created account) gets the persona on first touch.
-//
-// IDEMPOTENCY — the persisted latch `UserSettings.onboarding.defaultPersonaSeeded` (read via `isSeeded`,
-// written via `markSeeded`). Once true the seed NEVER re-runs, which is also the deletion-respect guard: a user
-// who deletes the default persona doesn't get it resurrected on the next boot. An in-process memo makes the
-// steady-state cost a Set lookup. `markSeeded` also points `seeds.defaultPersonaId` + `seeds.currentPersonaId`
-// at the seeded persona ONLY when the user hasn't already picked one (never clobbers an explicit choice) — the
-// exact mirror of `welcomeAssistantCharacterId`.
-//
-// Persona has no seeder subsystem (unlike character): this is a THIN entry-composition seeder over injected ops
-// (persona.create + the settings latch + the bundled-avatar store), which keeps the persona domain unaware of
-// both settings (a sibling domain) and the bundled-bytes fs concern (an entry concern). `ensureSeeded` never
-// throws — a seed failure logs + retries on the next touch, never aborts boot or a request.
+// Idempotent default-user-persona seeder (mirrors the default-character seeder). Called both at boot (the
+// deployment owner) and on first authed request (a new user). Idempotency is the persisted latch
+// `UserSettings.onboarding.defaultPersonaSeeded` — once true it never re-runs, which is also the
+// deletion-respect guard (a deleted default persona isn't resurrected). `ensureSeeded` never throws.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
@@ -36,35 +20,26 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
 };
 
 export interface DefaultPersonaSeederDeps {
-  /** Create the persona (the real verb — audit + the emit + ownership gate; requires the Principal). */
   readonly createPersona: (args: {
     readonly principal: Principal;
     readonly input: CreatePersonaInput;
   }) => Promise<{ readonly id: PersonaId }>;
-  /** Store the bundled "You" avatar art → its asset id (or `null` when the pack ships none / the store
-   *  fails). Threaded into the persona's `avatarAssetId` at create so it's born with art. Injected — assets is
-   *  a sibling domain + the bundled bytes are an entry/fs concern (`domain-no-cross-feature`). */
+  /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
   readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
-  /** Reads `UserSettings.onboarding.defaultPersonaSeeded` for the acting principal. Injected (settings is a
-   *  sibling domain); the composition root wires the settings read. */
   readonly isSeeded: (principal: Principal) => Promise<boolean>;
-  /** Persists the latch + (when the user has none yet) points `seeds.defaultPersonaId`/`currentPersonaId` at
-   *  the seeded persona. Never clobbers an explicit existing pick (the composition root enforces that). */
+  /** Persists the latch + (when the user has none yet) points seeds.defaultPersonaId/currentPersonaId at
+   *  the seeded persona. Never clobbers an explicit existing pick. */
   readonly markSeeded: (principal: Principal, seededPersonaId: PersonaId | null) => Promise<void>;
 }
 
 export interface DefaultPersonaSeeder {
-  /** Idempotent + never throws: seed the default "You" persona for `principal` if the persisted latch isn't
-   *  set. Safe on every request — an in-process memo makes the steady-state a Set lookup. */
   readonly ensureSeeded: (principal: Principal) => Promise<void>;
 }
 
 export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): DefaultPersonaSeeder {
   const log = getLog();
-  // In-process fast path: users this process already verified-or-seeded. Populated only on SUCCESS (a
-  // transient failure retries on the next touch instead of being latched out). ASSUMES(single-replica).
+  // Populated only on success — a transient failure retries on the next touch. ASSUMES(single-replica).
   const settled = new Set<UserId>();
-  // Same-user concurrency guard: two parallel first requests share one in-flight run instead of double-seeding.
   const inFlight = new Map<UserId, Promise<void>>();
 
   async function seed(principal: Principal): Promise<void> {
@@ -96,7 +71,6 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
           settled.add(principal.userId);
         })
         .catch((err: unknown): void => {
-          // Never let a failed seed break request handling or boot — log and retry on the next touch.
           log.error(
             { userId: principal.userId, err: errorMessage(err) },
             "persona: default persona seed failed",

@@ -1,12 +1,7 @@
-// `regexScriptSchema` / `RegexScript` — the persisted script-library wire shape (the find/replace
-// rules a character card, a preset, or user settings carries). The PURE EXECUTOR for these scripts
-// lives in `@orb/kit/regex` (`executeRegexScripts`); it reads a kit-local STRUCTURAL `RegexScriptInput`
-// rather than this schema because kit may NOT import contracts (contracts depends on kit, never the
-// reverse — core/Legacy-Migration-and-Gaps.md §1/§6). The alignment between the two is asserted FROM HERE:
-// `RegexScript satisfies RegexScriptInput` (the satisfies-seam, pinned in the contract test). The
-// `findRegex` length cap is `MAX_FIND_REGEX_LENGTH` imported from kit — the SAME number the executor
-// rejects at compile time, so the storage-boundary cap and the execution cap can never drift (kit/regex
-// header). Ported from neo-tavern `shared/_kit/regex.ts` (the zod half — kit took only the engine vocab).
+// `regexScriptSchema` / `RegexScript` — the persisted script-library wire shape (the find/replace rules
+// a character card, preset, or user settings carries). The pure executor lives in `@orb/kit/regex`,
+// reading a kit-local structural `RegexScriptInput` since kit may not import contracts; the alignment is
+// asserted via `RegexScript satisfies RegexScriptInput`, pinned in the contract test.
 
 import { MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { z } from "zod";

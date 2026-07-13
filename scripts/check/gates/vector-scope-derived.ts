@@ -1,5 +1,5 @@
 // biome-ignore-all lint/security/noSecrets: mustFlag/mustPass fixture source strings (vector-table write/import snippets) are documentation-with-teeth, not secrets.
-// Gate: vector-scope-derived (ledger D20; Knowledge-Cluster.md invariants 1–2) — the no-cross-user-leak
+// Gate: vector-scope-derived (ledger D20; Knowledge-Cluster.md invariants 1-2) — the no-cross-user-leak
 // chokepoints on the vector substrate, as physics:
 //   • WRITE chokepoint (inv 1): every `.insert/.update/.delete` on the five vector tables lives in
 //     `domain/embeddings/persistence/` — producers are lens arms of `embeddings.store`, never inserters
@@ -66,13 +66,6 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b) — multi-arm, per-arm SCOPE) ────────────────────
-// Three arms, three sanctioned scopes, three messages — ONE gate. The IMPORT arm (a vector-table symbol
-// imported from @orb/db in an import-unsanctioned file), the WRITE arm (a `.insert/.update/.delete(table)`
-// in a write-unsanctioned file), and the COSINE arm (`vector_distance_cos` in a string/template literal in
-// a cosine-unsanctioned file). All arms require server-src (the scanRoot); the per-arm sanctioned zones
-// are re-checked inside visit. Each finding carries its arm's message. Per-occurrence. Kept ALONGSIDE the
-// legacy Check. (One of the audit's top-cost gates: this port collapses its 3 kind-sweeps into the walk.)
 const STRING_KINDS: readonly SyntaxKind[] = [...LITERAL_KINDS];
 
 function reportAt(ctx: GateRunCtx, node: Node, message: string, token: string): void {

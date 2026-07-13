@@ -9,8 +9,7 @@ export interface SettingRowProps {
   /** The id shared with the caller's control — wires the `<label htmlFor>` to it. */
   id: string;
   label: ReactNode;
-  /** Always-visible muted copy under the label (the Discord/VS-Code settings-row grammar — a title
-   *  plus a one-line description). For copy that should stay visible; use `hint` for a hover tooltip. */
+  /** Always-visible muted copy under the label; use `hint` instead for copy behind a hover tooltip. */
   description?: ReactNode;
   /** Hint copy behind an info-glyph tooltip; also becomes the glyph's accessible name. */
   hint?: string;
@@ -21,21 +20,7 @@ export interface SettingRowProps {
   className?: string;
 }
 
-/**
- * SettingRow — the settings-surface row: label left (htmlFor-wired to the caller's control),
- * control docked right, an optional info-glyph tooltip hint, and an optional
- * disabled-with-reason note (ui-package-design §6.1; work-order item 20). The control is a
- * plain slot — SettingRow only wires the label association via a shared `id`, so it stays
- * domain-agnostic across every settings surface (themes, automation budget, crew knobs,
- * plugin/admin).
- *
- * Usage:
- * ```tsx
- * <SettingRow id="auto-save" label="Auto-save" hint="Saves drafts every 30s">
- *   <Switch id="auto-save" checked={enabled} onCheckedChange={setEnabled} />
- * </SettingRow>
- * ```
- */
+/** Settings-surface row: label left (htmlFor-wired to the caller's control), control docked right. */
 export function SettingRow({
   id,
   label,

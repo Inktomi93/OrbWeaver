@@ -1,20 +1,6 @@
-// The `[perf]` channel's main-thread half — dev-only render-jank ATTRIBUTION (UI-Arch §2.1 lib/).
-// Chrome's "[Violation] 'setTimeout' handler took Nms" lines point at React's scheduler, not at OUR
-// code — useless for finding which surface is slow. This tracer turns the same signals into
-// attributable console lines:
-//   [perf] long task 612ms · route /chats/abc123
-//   [perf] slow click 1583ms · <button data-testid="top-nav-characters"> · route /
-// Two observers:
-//   • `longtask` — any main-thread task > LONG_TASK_MS. Catches render passes, index builds, big
-//     mounts. Attribution is the route (long tasks carry no target) — usually enough to know WHAT
-//     just mounted.
-//   • `event`    — Event Timing API, entries with duration > SLOW_EVENT_MS. Carries the event type
-//     + target element, so slow click/input handlers name the element that owns them.
-// DEV-ONLY BY CONSTRUCTION: dynamically imported from main.tsx behind the LITERAL
-// `import.meta.env.DEV` (constant-folded → this module never ships in the prod bundle). NEVER
-// re-export it from the lib barrel — that is the barrel-leak failure mode that would drag it into
-// prod (and into the node types-lane program: this module needs lib.dom). Console is the right
-// sink: a dev loupe, not telemetry. The component half of the loupe is render-profiler.tsx.
+// Dev-only render-jank attribution: two PerformanceObservers (longtask, event) turn Chrome's generic
+// scheduler violations into console lines naming the route/element. Dynamically imported behind
+// import.meta.env.DEV — never re-export from the lib barrel, that would drag it into the prod bundle.
 
 import { logClock } from "./log-clock";
 
@@ -75,8 +61,7 @@ export function installLongTaskTracer(): void {
         if (entry.duration < SLOW_EVENT_MS) {
           continue;
         }
-        // PerformanceEventTiming — narrowed structurally (lib.dom types the entries of a mixed
-        // observer as the base PerformanceEntry).
+        // PerformanceEventTiming, narrowed structurally: lib.dom types mixed-observer entries as base PerformanceEntry.
         const timing = entry as PerformanceEntry & {
           readonly name: string;
           readonly target?: Node | null;
@@ -90,9 +75,7 @@ export function installLongTaskTracer(): void {
         );
       }
     });
-    // durationThreshold floors at 16ms in the spec; the loop filters again above. (Cast: lib.dom's
-    // PerformanceObserverInit hasn't picked up the Event Timing API field yet — Chrome has shipped
-    // it since M76.)
+    // Cast: lib.dom's PerformanceObserverInit hasn't picked up the Event Timing API's durationThreshold field.
     ev.observe({
       type: "event",
       buffered: true,

@@ -82,11 +82,8 @@ function factoryOptionViolations(sf: SourceFile, rel: string): Violation[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a per-FILE dispatch gate via visitFile) ──────────────────────
 // Two arms, per-FILE dispatch: a factory file runs ARM B (its persist options must carry version +
-// partialize + migrate), every other client file runs ARM A (a bare `persist(` is RED). scanRoot mirrors
-// the legacy CLIENT_SRC filter. Distinct messages (raw-persist vs missing-key) → per-occurrence overrides.
-// Not fsBacked. Byte-identical to the legacy Check.
+// partialize + migrate), every other client file runs ARM A (a bare `persist(` is RED).
 export const gate: GateDescriptor = {
   name: "persist-partialize-and-total-migrate",
   docRow: "UI-Gates-and-Lessons.md §11.5 (UI-Primitives-and-Reuse.md §13.1/§13.3)",

@@ -1,18 +1,7 @@
-// The ModelPicker (Settings → Connections → Model roles — the source-driven model cell;
-// CONNECTIONS-BUILD-SPEC §3). The ONE net-new client component of this build — a FEATURE component, NOT an
-// @orb/ui primitive (the Command seal's own header directs overlay composition to the client layer,
-// command.tsx §"A future omni-bar composes <Popover><Command>"). Composition:
-//
-//   <Popover> → <PopoverTrigger render={the model cell}/> → <PopoverPopup>
-//     <Command shouldFilter={false} onEscape={close}>   (manual filtering — useFuzzySearch, not cmdk's)
-//       <CommandInput/> · [Vision/Tools ToggleGroup chips — openrouter only]
-//       <CommandList>  [Recent group] [All models — capped] [+N more] [free-text row — custom only]
-//       [footer: synced {relative} · {n} models]
-//
-// The SURFACE owns the tRPC `getModelsForSource` query (shared with the status dot) and passes the result
-// down, so this stays a controlled dumb-ish component. Manual filtering (`shouldFilter={false}`) because the
-// approved fuzzy engine is `@orb/ui/fuzzy-search` (minisearch, sealed) — cmdk's own filter is NOT used
-// (never import minisearch/cmdk here — dep-cruiser ui-satellite-seals).
+// The ModelPicker (Settings → Connections → Model roles — the source-driven model cell). A feature
+// component, not an @orb/ui primitive: <Popover><Command shouldFilter={false}> with manual filtering via
+// @orb/ui/fuzzy-search (never minisearch/cmdk directly — dep-cruiser ui-satellite-seals). The surface owns
+// the tRPC getModelsForSource query and passes the result down, so this stays a controlled component.
 
 import type { CredentialSource } from "@orb/contracts/credentials";
 import { Badge } from "@orb/ui/badge";
@@ -51,30 +40,23 @@ import {
   resolveRecentEntries,
 } from "../lib/model-picker-model";
 
-/** The facade result as the client receives it (tRPC inference — the `CredentialView` pattern; kept LOCAL,
- *  never an exported feature `type`, per no-inline-types.grit §7.4). */
 type SourceModelsResult = inferOutput<Trpc["connection"]["getModelsForSource"]>;
 type SourceModelEntry = SourceModelsResult["models"][number];
 
 export interface ModelPickerProps {
-  /** The picker's source (drives the per-source affordances — chips, free-text, footer). */
   readonly source: CredentialSource;
-  /** The row's aria-label — the slot label plus "model" (the trigger + input naming). */
   readonly ariaLabel: string;
   /** The form's current model ("" = unset — the trigger ghosts the resolver default via `ghostLabel`). */
   readonly value: string;
-  /** Writes the form field. */
   readonly onValueChange: (id: string) => void;
   /** The facade read (the surface owns the query so the status dot shares it). */
   readonly result: SourceModelsResult | undefined;
   readonly isLoading: boolean;
-  /** The muted label shown on the trigger when `value` is "" (the resolver-default ghost). */
   readonly ghostLabel: string;
-  /** custom_openai only: the endpoint `/models` ids (the caller fires `credentials.fetchModels` on open). */
+  /** custom_openai only: the endpoint `/models` ids. */
   readonly customModels?: readonly string[] | undefined;
   readonly customModelsPending?: boolean | undefined;
-  /** Fires once when the popover OPENS — the custom_openai arm uses it to lazily probe the endpoint's
-   *  `/models` (the fetch is a mutation, kept off the picker; a `[]` result leaves free-text usable). */
+  /** Fires once when the popover opens — the custom_openai arm uses it to lazily probe the endpoint. */
   readonly onOpen?: (() => void) | undefined;
 }
 
@@ -87,8 +69,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [chips, setChips] = useState<readonly string[]>([]);
-  // The Recent MRU is device-local (the persisted recent-models store) — never synced routing truth. Reading
-  // it via the store hook keeps the group live across picks without a manual re-read on open.
+  // Device-local recent-models MRU — never synced routing truth.
   const recentIds = useRecentModels(source);
 
   const view = usePickerView(props, query, chips, recentIds);
@@ -244,9 +225,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
   );
 }
 
-/** The picker's derived render view — pool → chip-filter → fuzzy-search → cap, plus the Recent group. Split
- *  out of the component body so the render stays a flat compose (the cognitive-complexity gate) and the one
- *  `useFuzzySearch` call site stays UNCONDITIONAL (useHookAtTopLevel — hooks run every render). */
+/** The picker's derived render view — pool → chip-filter → fuzzy-search → cap, plus the Recent group. */
 function usePickerView(
   props: ModelPickerProps,
   query: string,
@@ -266,8 +245,7 @@ function usePickerView(
   const showChips = source === "openrouter";
   const allowsFreeText = result?.allowsFreeText ?? false;
 
-  // custom_openai: the fetched /models ids arrive as bare strings — lift them to entries so the one render
-  // path covers every source (the facade returns [] for custom; the endpoint probe fills the list).
+  // custom_openai's fetched /models ids arrive as bare strings — lift them to entries so one render path covers every source.
   const pool = useMemo<readonly SourceModelEntry[]>(
     () =>
       allowsFreeText
@@ -280,9 +258,7 @@ function usePickerView(
   const poolById = useMemo(() => new Map(pool.map((entry) => [entry.id, entry] as const)), [pool]);
 
   const chipFiltered = showChips ? filterByChips(pool, chips) : pool;
-  // useDeferredValue keeps the input responsive while the filtered list lags a frame (§13.2). The hook runs
-  // every render (unconditional); when the query is empty we ignore its result and show the chip-filtered
-  // pool directly, so an empty search shows everything (minisearch returns nothing for "").
+  // An empty query bypasses the fuzzy result (minisearch returns nothing for "") and shows the chip-filtered pool directly.
   const deferredQuery = useDeferredValue(query);
   const matched = useFuzzySearch(chipFiltered, deferredQuery, { fields: ["label", "id"] });
   const searched = deferredQuery.trim() === "" ? chipFiltered : matched;
@@ -300,9 +276,7 @@ function usePickerView(
   };
 }
 
-/** One model row inside the popover list (mockup .pitem): name + chips over the mono id · context/price
- *  meta. An id-based `value` with `keywords` so cmdk's activedescendant roving keeps identity even though
- *  filtering is manual (the CommandItem footgun note). */
+/** One model row inside the popover list: name + chips over the mono id, context/price meta. */
 function ModelItem({
   entry,
   active,

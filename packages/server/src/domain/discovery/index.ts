@@ -1,12 +1,5 @@
-// domain/discovery — FRONT DOOR: the only legal external import; re-exports the public surface of the slice —
-// duplicate character + chat near-dup detection, theme/hub discovery, distill (write + browse/facets reads),
-// archetypes + projection, cooccurrence, insights (themeDrift/unusedCharacters), catalog/compare, composed
-// views (home/themeDetail), image-analytics (duplicates/archetypes/portraitAlignment/facets), and the
-// economics-composed insights (forgottenGems/modelRouting — the stats↔discovery seam Tier 3), and the
-// DISCOVERY-NATIVE similarity wave (similarityGraph + similarChats — all-pairs / segment-centroid in-RAM
-// cosine, ZERO search). Still DEFERRED (contract/service.ts ledger — blocked on other surfaces): similarArt +
-// characterDossier.similar (search), characterDossier.portrait (image cross-modal), analyze/swipes (the
-// semantic messages/message_variants read).
+// domain/discovery — front door: the only legal external import; re-exports the slice's public surface.
+// Still deferred (see contract/service.ts ledger): similarArt, characterDossier.similar/.portrait, analyze/swipes.
 
 export { DiscoveryError } from "./contract/errors";
 export type {
@@ -26,8 +19,7 @@ export type {
   TopKeywordsOptions,
 } from "./contract/params";
 export { BROWSE_SORTS, IMAGE_FACET_KEYS, THEME_LEVELS } from "./contract/params";
-// Consumed via service-method-signature inference at the tRPC routers + tests, not direct imports —
-// don't flag these as unused exports.
+// Consumed via service-method-signature inference at the tRPC routers + tests, not direct imports.
 export type {
   Archetype,
   ArchetypeMember,
@@ -74,7 +66,6 @@ export type {
   DiscoveryService,
   DiscoveryServiceDeps,
 } from "./contract/service";
-// Driven directly by the transport/jobs runners, not via tRPC.
 export {
   computeCooccurrence,
   DEFAULT_HUB_FRACTION,
@@ -95,6 +86,3 @@ export {
   computeImageHubScores,
   computeSegmentHubScores,
 } from "./verbs/compute-hub-scores";
-
-// (No delete-time sweep export — duplicate_character_pairs uses real FK + CASCADE; stale pairs die with
-// their character, D24. The chat near-dup arm + the `relation` axis are deferred — see service.ts.)

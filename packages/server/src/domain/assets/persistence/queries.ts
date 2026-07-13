@@ -1,16 +1,7 @@
-// domain/assets/persistence/queries — ALL db access for the slice (queries only). The CAS+row coherence
-// lives here too: `storeBlob` is the ONE site that calls `cas.putBytes` AND `db.insert(assets)`, so the
-// blob↔row pair has exactly one writer (the `assets-single-writer` gate — no `cas.putBytes`/
-// `db.insert(assets)` outside this file). The CAS handle is INJECTED (a function call, not a node:* import),
-// so `persistence-no-io` holds: this file does no direct fetch/http/node I/O.
-//
-// Every USER-FACING read is owner-scoped (the `ownerId` predicate is part of the WHERE, never a post-filter),
-// so a non-owner can never receive another user's row. The roster-avatar exception (PD-28 / D21) departs from
-// this only at the `metadataForOwnerAndHash` call — the VERB has already resolved the avatar's owner via the
-// injected `loadCoParticipantOwner` reference-check (the hash must be a rostered character's `avatarAssetId`
-// in a chat the caller is present in — NOT a bare co-participant hash oracle, PD-107) and passes that
-// confirmed owner, so this is a trusted lookup, not an ownership bypass. `ownerId` is `principal.userId`
-// (§7.1) on the normal path; the `no-direct-users-read` chokepoint holds throughout.
+// domain/assets/persistence/queries — all db access for the slice. `storeBlob` is the ONE site that calls
+// both `cas.putBytes` and `db.insert(assets)` (the blob↔row pair has exactly one writer). Every user-facing
+// read is owner-scoped in the WHERE, never a post-filter; `metadataForOwnerAndHash` is the sole exception,
+// trusted only because the verb already resolved the owner via `loadCoParticipantOwner`.
 
 import type {
   AssetBlobRef,
@@ -29,39 +20,28 @@ import type { Cas } from "#infra/storage";
 const LIMIT_ONE = 1;
 const OCTET_STREAM = "application/octet-stream";
 
-// File-local (not exported — types-in-contract): the persistence-internal arg bundle for `storeBlob`.
 interface StoreBlobInput {
   readonly ownerId: UserId;
   readonly bytes: Uint8Array;
   readonly kind: AssetKind;
   readonly mime: string;
-  /** The candidate id minted by the verb (injected `newAssetId`); used only on a fresh insert — on a
-   *  dedup conflict the EXISTING row's id is returned instead. */
   readonly candidateId: AssetId;
-  /** Epoch-ms from the injected clock — stamps both the CAS mtime touch and `assets.uploadedAt`. */
   readonly now: number;
-  /** Verify the claimed mime against the byte signature before anything reaches CAS (the upload boundary). */
   readonly enforceMagic: boolean;
 }
 
-// File-local read shape (not exported): the blob-serve gate's columns.
 interface AssetMetadataRow {
   readonly mime: string;
   readonly size: number;
 }
 
-// File-local read shape (not exported): owner + CAS hash + mime for an un-principal by-id lookup.
 interface AssetCasRef {
   readonly ownerId: UserId;
   readonly hash: string;
   readonly mime: string;
 }
 
-/** An asset's `(ownerId, hash, mime)` by id ALONE — NO owner scope (D20). Un-principal: keyed only by the
- *  branded id, the owner derived FROM the row (to key the per-user CAS), never a `getMetadata` owner gate.
- *  Two trusted callers: `loadAssetBytes` (the embeddings indexer's canon re-reader — uses owner+hash) and
- *  `assetCasRefById` (the chat image-resolution verb — uses owner for the chat-scoped reference gate + mime
- *  for the data-URI). NOT a user-facing surface. Undefined when absent. */
+/** An asset's `(ownerId, hash, mime)` by id alone — no owner scope, un-principal. Not a user-facing surface. */
 export async function loadAssetCasRefById(
   db: Db,
   assetId: AssetId,
@@ -74,10 +54,7 @@ export async function loadAssetCasRefById(
   return rows[0];
 }
 
-/** The `(assetId, hash)` pairs OWNED by `ownerId` among `assetIds` (#67 — the inline-image render resolver +
- *  the send-verb attach trust boundary). OWNER-SCOPED: the `ownerId` predicate is in the WHERE, so a foreign
- *  id (or a gone one) is simply absent from the result — never a leak, never a hash oracle for another owner's
- *  blob. Empty input ⇒ empty result (no query). */
+/** The `(assetId, hash)` pairs owned by `ownerId` among `assetIds` — foreign/gone ids are simply absent. */
 export async function selectOwnedAssetRefs(
   db: Db,
   ownerId: UserId,
@@ -93,14 +70,8 @@ export async function selectOwnedAssetRefs(
   return rows;
 }
 
-/** Every IMAGE asset id (`mime LIKE 'image/%'`), ALL owners — NO owner scope (D20). The embeddings BULK
- *  embed pass (PD-53) is a trusted SYSTEM sweep over the whole store: vectors carry no `ownerId`, so the
- *  enumeration happens un-principal, exactly like `loadAssetCasRefById` above. The mime filter is the
- *  "can the imageEmbed role handle it" gate — non-image assets (export zips) are never embedded. NOT a
- *  user-facing surface; the only caller is `listImageAssetIds` (the bulk pass's enumeration read). */
+/** Every image asset id, all owners when `ownerId` omitted — a trusted system sweep, not user-facing. */
 export async function listImageAssetIdRows(db: Db, ownerId?: UserId | null): Promise<AssetId[]> {
-  // `ownerId` scopes the sweep to ONE owner (the workloads SINGULAR mode — embed MY assets); omitted/null =
-  // every owner (the BULK dev sweep, D20 un-principal). The mime filter always applies (image-only).
   const scope =
     ownerId === undefined || ownerId === null
       ? like(assets.mime, "image/%")
@@ -123,8 +94,7 @@ export async function assetIdForHash(
   return rows[0]?.id;
 }
 
-/** The `{mime,size}` of the caller's asset with this hash, or undefined (→ 404) when not found / not
- *  theirs. The blob-serve gate read — owner-scoped, no foreign-existence leak. */
+/** The `{mime,size}` of the caller's asset with this hash, or undefined (404) when not found / not theirs. */
 export async function metadataForOwnedHash(
   db: Db,
   ownerId: UserId,
@@ -138,10 +108,8 @@ export async function metadataForOwnedHash(
   return rows[0];
 }
 
-/** The `{mime,size}` of a SPECIFIC OWNER'S asset with this hash (the PD-28 / D21 roster-avatar path: the
- *  hash has already been confirmed as a rostered character's `avatarAssetId` in a chat the caller is
- *  present in, and `ownerId` is that avatar asset's owner; we just read its metadata). The verb resolves
- *  the avatar owner via the `loadCoParticipantOwner` reference-check BEFORE calling this. */
+/** The `{mime,size}` of a specific owner's asset with this hash — the roster-avatar path; the verb
+ *  resolves the avatar owner via `loadCoParticipantOwner` before calling this. */
 export async function metadataForOwnerAndHash(
   db: Db,
   ownerId: UserId,
@@ -155,21 +123,9 @@ export async function metadataForOwnerAndHash(
   return rows[0];
 }
 
-/**
- * The CAS+row coherence primitive: put bytes to the owner's CAS, then upsert the index row by
- * `(ownerId, hash)`. The ONE writer of the blob↔row pair (shared by `store` and — when it lands —
- * `backfillAvatars`).
- *
- * `enforceMagic` (the upload boundary) verifies the claimed mime against the byte signature — two distinct
- * rejections kept legible (esoterica #7): `octet-stream` is the "unrecognized signature" sentinel (never a
- * valid claimed mime, we only serve PNG/JPEG/GIF/WebP), and a claimed-vs-sniffed mismatch is a renamed file.
- *
- * The upsert uses `onConflictDoNothing(target: [ownerId, hash]).returning({ id })`: one round-trip hands a
- * fresh insert's id back; on a dedup conflict RETURNING yields no row and we fall through to
- * `assetIdForHash` (the same lookup, scoped). A row missing after the upsert is an integrity fault (throws).
- * `created` reflects the CAS-level write (`put.created`) — within-user dedup ⇒ `false` (esoterica #4); in
- * the coherent slice flow this equals "a new row was inserted" (blob + row are written together here).
- */
+/** The CAS+row coherence primitive: put bytes to the owner's CAS, then upsert the index row by
+ *  `(ownerId, hash)`. The one writer of the blob↔row pair. `enforceMagic` verifies claimed mime against
+ *  the byte signature; a dedup conflict falls through to `assetIdForHash`. */
 export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promise<StoredAsset> {
   if (input.enforceMagic) {
     const sniffed = sniffMime(input.bytes);
@@ -195,9 +151,7 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
       mime: input.mime,
       size: put.size,
       hash: put.hash,
-      // G2: the animated byte-fact, computed ONCE here (the one CAS+row writer) so the grid + variant
-      // pipeline never re-sniff. Pure inspection (`@orb/kit/image-sniff`), no decode. On a dedup conflict
-      // the existing row keeps its own (byte-identical → identical) value.
+      // Computed once here so the grid + variant pipeline never re-sniff.
       animated: isAnimated(input.bytes),
       uploadedAt: input.now,
     })
@@ -211,21 +165,15 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
   return { assetId, hash: put.hash, size: put.size, created: put.created };
 }
 
-// File-local (not exported — types-in-contract): the keyset-paged owned-asset list args.
 interface ListOwnedInput {
   readonly ownerId: UserId;
   readonly kind: AssetKind | undefined;
   readonly limit: number;
-  /** `uploadedAt` of the previous page's last row (the keyset cursor); paired with `cursorId`. */
   readonly cursor: number | undefined;
-  /** `id` of that same row — the deterministic tiebreak (bulk import stamps one `uploadedAt` on many rows). */
   readonly cursorId: AssetId | undefined;
 }
 
-/** Gallery v1 (§1.2): the caller's own assets, `ORDER BY uploadedAt DESC, id DESC`, keyset-paged. The
- *  cursor predicate is `uploadedAt < :cursor OR (uploadedAt = :cursor AND id < :cursorId)` — no offset (which
- *  skips/dupes rows under concurrent writes/GC). Owner-scoped in the WHERE (never a post-filter); optional
- *  `kind` filter. Returns `AssetListItem[]` verbatim (the client derives the next cursor from the last row). */
+/** Gallery v1: the caller's own assets, newest-first, keyset-paged (no offset, avoids skips/dupes). */
 export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise<AssetListItem[]> {
   const keyset =
     input.cursor !== undefined && input.cursorId !== undefined
@@ -257,15 +205,12 @@ export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise
   return rows;
 }
 
-// File-local (not exported): the `{hash,mime}` of an owned asset by id — the addToGallery owner gate (the
-// assetId-keyed sibling of `metadataForOwnedHash`).
 interface OwnedAssetRow {
   readonly hash: string;
   readonly mime: string;
 }
 
-/** The `{hash,mime}` of the caller's asset by id, or undefined when not found / not theirs. The owner gate
- *  `addToGallery` runs before curating (a gallery row must never reference another user's asset — §1.3). */
+/** The `{hash,mime}` of the caller's asset by id, or undefined when not found / not theirs. */
 export async function ownedAssetForGallery(
   db: Db,
   ownerId: UserId,
@@ -279,19 +224,15 @@ export async function ownedAssetForGallery(
   return rows[0];
 }
 
-// File-local (not exported): the upsert-guarded gallery-item insert args.
 interface InsertGalleryItemInput {
   readonly id: GalleryItemId;
   readonly assetId: AssetId;
   readonly subjectCharacterId: CharacterId | undefined;
-  /** Epoch-ms from the injected clock — stamps `gallery_items.createdAt` (the DB default is a fallback). */
   readonly now: number;
 }
 
-/** Insert a gallery item, upsert-guarded on `(assetId, subjectCharacterId)`. On a conflict (only fires for a
- *  NON-null subject — SQLite treats NULL subjects as distinct under the unique index, so un-charactered adds
- *  always insert; harmless per §1.3) the existing row's id is returned instead → the add is idempotent.
- *  Returns the effective `GalleryItemId`. */
+/** Insert a gallery item, upsert-guarded on `(assetId, subjectCharacterId)`; idempotent on conflict.
+ *  SQLite treats NULL subjects as distinct under the unique index, so un-charactered adds always insert. */
 export async function insertGalleryItem(
   db: Db,
   input: InsertGalleryItemInput,
@@ -328,9 +269,7 @@ export async function insertGalleryItem(
   return existingId;
 }
 
-/** The full `GalleryItemView` for one item (joins `assets` for `hash`/`mime`), or undefined when gone. Built
- *  after an insert/upsert so the returned view is authoritative (the conflict path resolves to the existing
- *  row's createdAt/id, not the just-minted candidate). */
+/** The full `GalleryItemView` for one item, or undefined when gone. */
 export async function galleryItemViewById(
   db: Db,
   galleryItemId: GalleryItemId,
@@ -352,9 +291,7 @@ export async function galleryItemViewById(
   return rows[0];
 }
 
-/** The owner of a gallery item, resolved THROUGH the asset join (`gallery_items → assets.ownerId`) — there
- *  is no stamped owner column (§1.3). Undefined when the item is gone. `removeFromGallery` compares this to
- *  the actor and rejects a non-owner (leak-free). */
+/** The owner of a gallery item, resolved through the asset join (no stamped owner column). Undefined if gone. */
 export async function galleryItemOwner(
   db: Db,
   galleryItemId: GalleryItemId,
@@ -368,13 +305,11 @@ export async function galleryItemOwner(
   return rows[0]?.ownerId;
 }
 
-/** Delete a gallery item by id. The caller (`removeFromGallery`) has already gated ownership via
- *  {@link galleryItemOwner}; this is the unconditional delete of the confirmed-owned row. */
+/** Delete a gallery item by id. The caller has already gated ownership via {@link galleryItemOwner}. */
 export async function deleteGalleryItemRow(db: Db, galleryItemId: GalleryItemId): Promise<void> {
   await db.delete(galleryItems).where(eq(galleryItems.id, galleryItemId));
 }
 
-// File-local (not exported): the keyset-paged gallery list args.
 interface ListGalleryInput {
   readonly ownerId: UserId;
   readonly subjectCharacterId: CharacterId | undefined;
@@ -383,17 +318,13 @@ interface ListGalleryInput {
   readonly cursorId: GalleryItemId | undefined;
 }
 
-// File-local (not exported — types-in-contract): one owner's curation row projected for portability export.
 interface GalleryExportRow {
   readonly assetId: AssetId;
   readonly subjectCharacterId: CharacterId | null;
   readonly createdAt: number;
 }
 
-/** Every curation row the owner holds, for a portability export. Owner-scoped THROUGH the asset join
- *  (`gallery_items → assets.ownerId`; no stamped owner column, §1.3). Ordered `(createdAt, id)` ASC for a
- *  DETERMINISTIC export (stable bytes across runs); the serde carries the handle, this carries the raw ids the
- *  verb resolves before build. */
+/** Every curation row the owner holds, for a portability export. Ordered `(createdAt, id)` for deterministic bytes. */
 export async function listGalleryItemsForExport(
   db: Db,
   ownerId: UserId,
@@ -411,21 +342,15 @@ export async function listGalleryItemsForExport(
   return rows;
 }
 
-// File-local (not exported — types-in-contract): the import-restore args for one curation row.
 interface ImportGalleryItemInput {
   readonly id: GalleryItemId;
   readonly assetId: AssetId;
   readonly subjectCharacterId: CharacterId | null;
-  /** The carried curation timestamp (epoch-ms) — preserved across restore for stable gallery ORDER. */
   readonly createdAt: number;
 }
 
-/** Restore ONE curation row, IDEMPOTENTLY, keyed on `(assetId, subjectCharacterId)` — the same dedup axis as
- *  the `gallery_items_asset_subject_unique` index. Explicit existence check first (NOT `onConflictDoNothing`)
- *  because SQLite treats NULL `subjectCharacterId` as distinct under the unique index, so an un-charactered
- *  re-import would otherwise duplicate; the `isNull` branch closes that gap. Returns `{created}` — false when
- *  the row already existed (a re-import writes zero dupes). The caller has already verified the asset is owned
- *  by the importer (the FK never violates). */
+/** Restore one curation row, idempotently, keyed on `(assetId, subjectCharacterId)`. An explicit existence
+ *  check (not `onConflictDoNothing`) because SQLite treats NULL subjects as distinct under the unique index. */
 export async function importGalleryItem(
   db: Db,
   input: ImportGalleryItemInput,
@@ -454,9 +379,7 @@ export async function importGalleryItem(
   return { created: true };
 }
 
-/** Gallery v2 (§1.3): the caller's gallery via the asset join filtered on `assets.ownerId = actor` (no
- *  stamped owner column to scope on), `ORDER BY createdAt DESC, id DESC`, keyset-paged by `(createdAt, id)`.
- *  Optional `subjectCharacterId` filter. */
+/** Gallery v2: the caller's gallery via the asset join, newest-first, keyset-paged by `(createdAt, id)`. */
 export async function listGalleryViewRows(
   db: Db,
   input: ListGalleryInput,

@@ -1,18 +1,12 @@
-// THE FORM BRIDGE (BUILD-SPEC §2.3) — ⚠ the ONE net-new piece of machinery in the whole Assembly build.
-// A hand-rolled module-scope external store that publishes the live preset EDITOR form handle so a
-// SIBLING shell region can subscribe to it.
+// A hand-rolled module-scope external store that publishes the live preset editor form handle so a
+// sibling shell region can subscribe to it. Content (the rack, which owns the form) and Context (the
+// section inspector) have no shared React ancestor below the route, so lexical form context can't
+// cross the boundary — publishing the live handle lets the inspector bind fields from outside the
+// form's provider tree. The editor publishes on mount and clears on unmount.
 //
-// Why it exists: CONTENT (the rack, which owns the form) and CONTEXT (the section inspector) are sibling
-// shell regions with no shared React ancestor below the route, so lexical form context cannot cross the
-// boundary. TanStack Form instances ARE external stores, so publishing the live handle lets the inspector
-// bind fields (`form.AppField name="sections[i].name"`) from outside the form's provider tree. The route
-// mounts both; the editor PUBLISHES on mount (keyed to its `mountKey` remount) and CLEARS on unmount, and
-// the inspector SUBSCRIBES via `useAssemblyForm()`.
-//
-// GUARDS (the reason this is the highest-risk piece): a section id can go stale (delete / undo) while the
-// inspector still holds it, and the published preset can differ from the LIST-selected preset mid-swap.
-// `resolveAssemblySection` gates on all three conditions and returns `null` cleanly — the inspector then
-// renders its EmptyState, never a throw.
+// A section id can go stale (delete/undo) while the inspector still holds it, and the published
+// preset can differ from the list-selected preset mid-swap. `resolveAssemblySection` gates on all
+// three conditions and returns `null` cleanly — the inspector renders its EmptyState, never a throw.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -36,10 +30,7 @@ function emit(): void {
   }
 }
 
-/**
- * Publish the live form handle — called from the editor's mount effect (keyed to its `mountKey`
- * remount, so a save/reset cycle republishes the fresh instance). Replaces any prior handle.
- */
+/** Publish the live form handle — called from the editor's mount effect. Replaces any prior handle. */
 export function publishAssemblyForm(next: AssemblyFormHandle): void {
   handle = next;
   emit();
@@ -67,24 +58,13 @@ function getSnapshot(): AssemblyFormHandle | null {
   return handle;
 }
 
-/**
- * Reactive: the currently-published handle (`null` = no editor mounted). The inspector's subscription —
- * `useSyncExternalStore` so a publish/clear tears the tree free.
- */
+/** Reactive: the currently-published handle (`null` = no editor mounted). */
 export function useAssemblyForm(): AssemblyFormHandle | null {
-  // getServerSnapshot === getSnapshot: the module singleton is identical on server + client (no DOM
-  // read), so one snapshot fn serves both and SSR/hydration can't tear.
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
-/**
- * The stale-handle GUARD (BUILD-SPEC §2.3) — resolve the section the inspector should render, or `null`.
- * Returns a section ONLY when ALL hold:
- *   1. a handle is published (`handle !== null`),
- *   2. the published preset matches the LIST-selected preset (`presetId` match — no mid-swap mismatch),
- *   3. `sectionId` resolves against the form's live `sections` (a stale id after delete/undo ⇒ `null`).
- * The inspector renders its EmptyState on any `null` — never a throw.
- */
+/** Resolve the section the inspector should render, or `null` when the handle is unpublished, the
+ *  preset mismatches the list-selected one, or the section id is stale. */
 export function resolveAssemblySection(
   currentHandle: AssemblyFormHandle | null,
   expectedPresetId: PresetId | null,

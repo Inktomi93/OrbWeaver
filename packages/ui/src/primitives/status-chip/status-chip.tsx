@@ -11,9 +11,6 @@ import { AlertTriangle, Check, Icon } from "#primitives/icons";
 import { Spinner } from "#primitives/spinner";
 import { statusChipVariants } from "./variants";
 
-// The status AXIS declared once as a tuple + derived (§7.5 no-inline-union-redecl) — mirrors
-// log-viewer's LOG_LEVELS precedent. Not exported (component-export-only-modules): the type below
-// is the public surface.
 const STATUS_CHIP_STATUSES = ["idle", "running", "succeeded", "failed"] as const;
 export type StatusChipStatus = (typeof STATUS_CHIP_STATUSES)[number];
 
@@ -29,8 +26,7 @@ const STATUS_META: Record<StatusChipStatus, StatusMeta> = {
   failed: { label: "Failed", intent: "danger" },
 };
 
-// Only failed/succeeded carry a glyph — failed's is the contract's MANDATORY non-color signal;
-// idle/running already read fine from the label/spinner alone (no icon invented just to have one).
+// Only failed/succeeded carry a glyph; idle/running already read fine from the label/spinner alone.
 const STATUS_ICON: Partial<Record<StatusChipStatus, LucideIcon>> = {
   succeeded: Check,
   failed: AlertTriangle,
@@ -42,7 +38,7 @@ export interface StatusChipProps
   status: StatusChipStatus;
   /** Optional detail text, e.g. "3 of 5 files". */
   summary?: string;
-  /** Pre-formatted display string — ui takes a string, never a Date/epoch (no Intl/time logic in ui). */
+  /** Pre-formatted display string — ui takes a string, never a Date/epoch. */
   timestamp?: string;
   /** Renders a real `<Button>` retry affordance on the failed state. Omit for no retry affordance. */
   onRetry?: () => void;
@@ -50,15 +46,7 @@ export interface StatusChipProps
   retryLabel?: string;
 }
 
-/**
- * StatusChip — a background-job state chip (idle/running/succeeded/failed): composes `<Badge>` +
- * `<Spinner>` (never a hand-rolled spinner/glyph — R3). The root is a `role="status"`
- * `aria-live="polite"` region so a status TRANSITION is announced to assistive tech; `failed`
- * additionally carries an icon (never color alone) and an optional real `<Button>` retry slot.
- *
- * Usage: `<StatusChip status="failed" summary="2 of 5 files" timestamp="2m ago" onRetry={retry} />`
- * Consumers: chat-crew member/guide chips, expressions generation progress, plugin status.
- */
+/** Background-job state chip. The root is `role="status"`/`aria-live="polite"` so a transition is announced. */
 export function StatusChip({
   className,
   status,

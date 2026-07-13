@@ -1,11 +1,5 @@
-// domain/settings/contract/service — the typed API surface (read THIS to know everything settings does).
-// Holds the explicit `SettingsContext` DI bundle (NOT a `ReturnType<>` of the builder — §7.4 /
-// `no-context-returntype`) and the `SettingsService` interface (the front door re-exports the type).
-//
-// Cross-feature deps arrive INJECTED (settings sideways-imports no sibling at runtime): the admin guard
-// ops (`requireAdmin`/`requireOwner`) are TYPE-ONLY imports of admin's contract seam — the runtime ops are
-// wired at the entry composition root (`domain-no-cross-feature` permits the type-only edge; admin's
-// `guard.ts` impl is never imported). `audit` is `foundation/observability`'s `logAudit` pre-bound to db.
+// The typed API surface: the `SettingsContext` DI bundle and the `SettingsService` interface. Cross-feature
+// deps arrive injected — admin's guard ops are type-only imports; the runtime ops wire at the entry root.
 
 import type { EffectiveAppConfig, UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -13,8 +7,6 @@ import type { Db } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { AuditEntry } from "#foundation/observability";
-// Type-only cross-feature edge (sanctioned — `domain-no-cross-feature` exempts type-only): the guard op
-// SHAPES admin owns; the runtime ops are injected at the root. Admin's `guard.ts` impl is NOT imported.
 import type { RequireAdmin, RequireOwner } from "../../admin/contract/guard";
 import type {
   CreateThemeParams,
@@ -31,19 +23,7 @@ import type {
 } from "./params";
 import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views";
 
-/**
- * The DI bundle every verb closes over, wired at the composition root (`service.ts` / `context.ts`).
- * Explicit interface per §7.4 + the `no-context-returntype` gate.
- *   - `db` — the libSQL handle (all queries route through `persistence/`).
- *   - `now` — the INJECTED clock (epoch-ms). No ambient wall-clock in a verb/query (determinism).
- *   - `audit` — `foundation/observability`'s `logAudit` pre-bound to `db` (best-effort; never breaks the
- *     primary channel). The caller supplies the timestamp from `now` (the same determinism seam).
- *   - `requireAdmin` / `requireOwner` — the INJECTED guard ops (admin domain). `requireAdmin` gates BOTH
- *     AppSettings verbs (owner ∪ admin); `requireOwner` additionally gates an AppSettings PATCH that
- *     touches a D17 owner-box governance field (owner-only — the box-governance split).
- *   - `serializeUserWrite` — the per-user write serializer (one instance shared by BOTH user-settings
- *     write verbs → it lives here, not in a verb). ASSUMES(single-replica).
- */
+/** The DI bundle every verb closes over, wired at the composition root. */
 export interface SettingsContext {
   readonly db: Db;
   readonly now: () => number;
@@ -51,28 +31,17 @@ export interface SettingsContext {
   readonly requireAdmin: RequireAdmin;
   readonly requireOwner: RequireOwner;
   readonly serializeUserWrite: <T>(ownerId: UserId, run: () => Promise<T>) => Promise<T>;
-  /** The INJECTED id minter for the themes library (`mintTypeId(ID_PREFIX.theme)` in prod; seeded in
-   *  tests) — the preset/character/tag `newXId` precedent. */
   readonly newThemeId: () => ThemeId;
-  /** The floor-merge read side, bound from the `effective-config/` subsystem at the composition root
-   *  (context.ts is a composition surface — the one place allowed to reach the subsystem).
-   *  `getEffectiveConfig` is the SYNC cache read; `reloadEffectiveConfig` rebuilds the cache (called by
-   *  `updateAppSettings` after a write, and by entry boot). */
+  /** The floor-merge read side, bound from the `effective-config/` subsystem at the composition root.
+   *  `getEffectiveConfig` is the sync cache read; `reloadEffectiveConfig` rebuilds it. */
   readonly getEffectiveConfig: () => EffectiveAppConfig;
   readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;
-  /** The user-bus live-freshness emit (PD user-bus lane) — user-settings writes fire `settingsChanged` and
-   *  the theme verbs fire `themesChanged` (two client read surfaces), with the acting owner's `userId`
-   *  AFTER the durable write. AppSettings/GlobalSettings are GLOBAL/admin (not per-user) → no user-bus emit.
-   *  Wired to transport's `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  /** User-bus live-freshness emit: user-settings writes fire `settingsChanged`, theme verbs fire
+   *  `themesChanged`, after the durable write. AppSettings/GlobalSettings are global/admin — no emit. */
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/**
- * What the entry composition root supplies to stand up the domain (`createSettingsService` builds the
- * `SettingsContext` from this — the serializer + the effective-config bindings are assembled internally).
- * The cross-feature/foundation ops arrive INJECTED: `audit` is `logAudit` pre-bound to db;
- * `requireAdmin`/`requireOwner` are admin's guard ops; `now` is the determinism clock.
- */
+/** What the entry composition root supplies to stand up the domain. */
 export interface SettingsServiceDeps {
   readonly db: Db;
   readonly now: () => number;
@@ -83,49 +52,38 @@ export interface SettingsServiceDeps {
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/**
- * The settings API surface. UserSettings verbs scope by `principal.userId`;
- * AppSettings verbs gate on the injected guard; the raw KV pair is admin-gated at the router. The
- * floor-merge read side (`getEffectiveConfig` SYNC / `reloadEffectiveConfig`) is surfaced here so hot
- * paths inject the sync getter and the entry boot warms the cache.
- */
+/** The settings API surface. UserSettings verbs scope by `principal.userId`; AppSettings verbs gate on the
+ *  injected guard; the raw KV pair is admin-gated at the router. */
 export interface SettingsService {
-  /** Read this user's typed/defaulted UserSettings. A never-touched account reads the parsed defaults
-   *  synthesized from `{}` with NO write (`updatedAt: 0`). Scoped to `principal.userId`. */
+  /** Read this user's typed/defaulted UserSettings. A never-touched account reads parsed defaults with no
+   *  write (`updatedAt: 0`). */
   readonly getUserSettings: (params: GetUserSettingsParams) => Promise<UserSettingsView>;
-  /** Whole-blob replace (first-touch-seeds the row, stamps the service-owned `schemaVersion`). Serialized
-   *  per user; the post-write view is read INSIDE the serializer. */
+  /** Whole-blob replace (first-touch seeds the row). Serialized per user. */
   readonly updateUserSettings: (params: UpdateUserSettingsParams) => Promise<UserSettingsView>;
-  /** Deep-merge ONE namespace + re-validate the whole blob. Serialized per user (read-merge-write atomic
-   *  w.r.t. other same-user writes). */
+  /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. */
   readonly updateUserSettingsSection: (
     params: UpdateUserSettingsSectionParams,
   ) => Promise<UserSettingsView>;
-  /** The lenient typed-blob loader chat + workloads inject cross-feature (raw `userId` — the triggering
-   *  user resolved upstream; not a gated user-facing verb). Returns the parsed `UserSettings`. */
+  /** The lenient typed-blob loader for cross-feature callers (raw `userId`, not a gated user-facing verb). */
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 
   /** Read one raw global-KV row; `null` if absent. Admin-gated at the router. */
   readonly getGlobalSetting: (key: string) => Promise<GlobalSettingView | null>;
-  /** Upsert one raw global-KV row. Admin-gated at the router. Throws `DomainOperationError(reserved_key)`
-   *  for `APP_SETTINGS_KEY` (use `updateAppSettings`). */
+  /** Upsert one raw global-KV row. Throws `DomainOperationError(reserved_key)` for `APP_SETTINGS_KEY`. */
   readonly setGlobalSetting: (key: string, value: JsonValue) => Promise<GlobalSettingView>;
 
-  /** Admin-only (injected `requireAdmin`). The resolved runtime config (env floor ⊕ stored override). */
+  /** Admin-only. The resolved runtime config (env floor ⊕ stored override). */
   readonly getAppSettings: (params: GetAppSettingsParams) => Promise<EffectiveAppConfig>;
-  /** Admin-only (`requireAdmin`); a PATCH touching a D17 governance field additionally requires
-   *  `requireOwner`. Read-merge-writes the override blob through the process-wide chain, then reloads the
-   *  cache (so `getEffectiveConfig` + `logger.level` reflect the write before returning). */
+  /** Admin-only; a PATCH touching an owner-box governance field additionally requires `requireOwner`.
+   *  Read-merge-writes the override, then reloads the cache. */
   readonly updateAppSettings: (params: UpdateAppSettingsParams) => Promise<EffectiveAppConfig>;
 
-  /** SYNC hot-path read of the in-memory resolved cache (engine/embedder/runners). Before the first
-   *  reload it is the env-only floor (the safe default). ASSUMES(single-replica). */
+  /** Sync hot-path read of the in-memory resolved cache. Before the first reload it is the env-only floor. */
   readonly getEffectiveConfig: () => EffectiveAppConfig;
-  /** Rebuild the cache from the stored override (boot + after every admin write); rebinds `logger.level`. */
+  /** Rebuild the cache from the stored override (boot + after every admin write). */
   readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;
 
-  // ── Themes library (themes-design.md §4) ──
-  /** The caller's own themes PLUS every seed palette, as views. */
+  /** The caller's own themes plus every seed palette, as views. */
   readonly listThemes: (params: ListThemesParams) => Promise<ThemeView[]>;
   /** One theme readable by this owner (their own OR any seed); throws `ThemeNotFoundError`. */
   readonly getTheme: (params: GetThemeParams) => Promise<ThemeView>;

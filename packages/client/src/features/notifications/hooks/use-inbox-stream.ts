@@ -1,13 +1,7 @@
-// The live inbox stream adapter (PD-23) — subscribes `notifications.notifications` (the durable-first
-// per-user SSE stream; every yield is `tracked(seq)`, so tRPC's own Last-Event-ID resume replays any
-// gap server-side) and keeps the `notifications.list` read fresh: a new arrival → one path-invalidate
-// through the central seam (never inline cache surgery — the `use-user-bus.ts` discipline). On every
-// transition INTO the live state it gap-heals with the same invalidate (first connect AND reconnect —
-// a redundant refetch is cheap + idempotent; a missed one is a stale badge until the next arrival).
-//
-// Mounted by the bell (which itself mounts only while the deployment is multi-human capable — the
-// `multiHumanProcedure` belt would leak-free NOT_FOUND this subscription otherwise). The bell is
-// always-present topbar chrome, so the driver never drops while the surface it feeds exists.
+// The live inbox stream adapter — subscribes notifications.notifications (durable-first per-user SSE,
+// tRPC's Last-Event-ID resume replays any gap server-side) and keeps notifications.list fresh: a new
+// arrival triggers one path-invalidate through the central seam. Gap-heals with the same invalidate on
+// every transition into the live state (first connect and reconnect).
 
 import { useSubscription } from "@trpc/tanstack-react-query";
 import type { Invalidation } from "#data";
@@ -27,12 +21,10 @@ export function useInboxStream({ invalidation }: InboxStreamDeps): void {
   useSubscription(
     trpc.notifications.notifications.subscriptionOptions(undefined, {
       onData: () => {
-        // The envelope's payload is the pushed InboxView; v1 deliberately refetches instead of merging
-        // it (targeted-invalidate + background refetch — the documented model, UI-Lib-TanStack-Query §F-3).
         refetchInbox();
       },
       onConnectionStateChange: (connection) => {
-        // `pending` = live (idle → connecting → pending) — heal on each arrival (connect + reconnect).
+        // `pending` = live; heal on each arrival (connect + reconnect).
         if (connection.state === "pending") {
           refetchInbox();
         }

@@ -1,14 +1,7 @@
-// domain/chat — FRONT DOOR: the only legal external import; re-exports the public surface. Three groups:
-//   • createChatService — the composition root the entry seam wires + the service contract / DI bundle / deps
-//     types (transport + tests reference them).
-//   • the chat-OWNED collaborators the entry root must CONSTRUCT to supply `ChatServiceDeps`: the durable-first
-//     chat bus (`createChatBus` → `.emit`) and the in-memory turn registry (`createActiveTurns` → `activeTurns`).
-//   • the `@public` memory/persistence helpers wired by workload runners + bootstrap (NOT on the tRPC surface).
-// The cross-boundary wire types (ChatBusEvent, GroupConfig, RoomOverrides, ParticipantView, …) live in
-// `@orb/contracts/chat`; callers import them from there directly, NOT through this door (§7.4 — contracts is the
-// cross-boundary node).
+// domain/chat — front door: the only legal external import; re-exports the public surface. The
+// cross-boundary wire types (ChatBusEvent, GroupConfig, RoomOverrides, ParticipantView, …) live in
+// @orb/contracts/chat; callers import them from there directly, not through this door.
 
-// The composition root + the chat-owned collaborators the entry root constructs for `ChatServiceDeps`
 export { createActiveTurns } from "./active-turns";
 export { createChatBus } from "./bus";
 export type {
@@ -23,16 +16,8 @@ export type {
 } from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors";
-// The chat-OWNED bulk-import WRITE op's DI bundle + op type (Option B; PD-77) — the entry root constructs
-// `ChatImportContext` and wires `createBulkImportChats` (below) into `import`'s `profile.bulkImportChats`.
 export type { BulkImportChats, ChatImportContext } from "./contract/import";
-// The memory tuning shape + the PD-41 backfill config-resolver op (the composition root types its shared
-// `resolveMemoryConfig` closure against these — one home for the turn/sweep memory-config merge).
 export type { MemoryConfig, ResolveBackfillMemoryConfig } from "./contract/memory";
-// The `chats.metadata` parse-seam the composition root binds onto `ChatContext.getGroupConfig`/
-// `getRoomOverrides` (a thin convenience so chat verbs don't re-import the parser — see contract/context.ts).
-// `parseChatMetadata` additionally backs the entry root's chat-row → `RoutableChat` provider-routing
-// derivation (the `resolveConnection` dep). Surfaced here so `entry/` binds them without a deep import.
 export {
   getGroupConfig,
   getRoomOverrides,
@@ -43,17 +28,11 @@ export {
 export type { TurnMessage, TurnRequest, TurnStreamChunk } from "./contract/results";
 export type { ChatService } from "./contract/service";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard";
-// The `@public` composition-root helpers (workload runners + bootstrap):
 export { generateDigests } from "./memory/build/digests";
 export { generateSegments } from "./memory/build/segments";
 export { loadChatMeta } from "./memory/persistence/queries";
-// The chat-OWNED bulk-import WRITE op (Option B; PD-77) — `import` injects it as `profile.bulkImportChats`.
 export { createBulkImportChats } from "./persistence/import-write";
 export { reclaimChatLocksOnBoot } from "./persistence/lock";
 export { createChatService } from "./service";
-// The PD-41 corpus sweeps (the workloads runner-env's memory/group-character backfill ops).
 export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill";
-// PD-120: the chat-domain roster write persona's `setActivePersona` calls directly (persona composes
-// BEFORE chat at the entry root — see `entry/compose/services.ts` — so this is a plain function, not a
-// `ChatService` verb; the `requireAuthorOrHost` precedent above).
 export { setParticipantActivePersona } from "./verbs/roster";

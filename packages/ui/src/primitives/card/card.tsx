@@ -14,18 +14,8 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
   }
 }
 
-/**
- * Card — the base surface container features compose (character cards, config panels). A styled
- * panel, NOT a domain card: `bg-card` + `border-border` + `rounded-card`. `padding` rides the
- * spacing-intent scale; `interactive` adds the hover + focus-ring affordance for clickable cards
- * (ui-package-design §6.1). The caller owns the semantics (add `onClick` for a click target).
- *
- * When `interactive`, the div also gets keyboard operability (`role="button"` + `tabIndex={0}` +
- * Enter/Space activation) so the focus ring is not a lie — the caller can override any of
- * `role`/`tabIndex`/`onKeyDown` to take back the semantics (e.g. `role="link"`, a real anchor child).
- *
- * Usage: `<Card padding="section" interactive onClick={open}>…</Card>`.
- */
+// When `interactive`, the div gets keyboard operability (role="button" + tabIndex + Enter/Space
+// activation) so the focus ring is not a lie; caller can override role/tabIndex/onKeyDown.
 export function Card({ className, padding, interactive, ...props }: CardProps): ReactElement {
   const a11y =
     interactive === true

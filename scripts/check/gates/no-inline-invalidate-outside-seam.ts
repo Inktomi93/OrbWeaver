@@ -26,10 +26,6 @@ const MESSAGE =
   "inline invalidateQueries outside the central seam — route invalidation through data/invalidation.ts " +
   "(invalidate(event)/invalidateUser(event)), or pass `invalidates` filters to createEntityMutation. A " +
   "loose call recreates neo's 81-site invalidation sprawl (UI-Gates-and-Lessons.md §11.3).";
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// The legacy predicate as a PropertyAccessExpression subscription: a `.invalidateQueries(` CALL in
-// client-src outside the ONE seam file. scanRoot mirrors the legacy clientRel filter minus the seam file
-// (the parity oracle). Per-occurrence (each loose invalidateQueries call).
 export const gate: GateDescriptor = {
   name: "no-inline-invalidate-outside-seam",
   docRow: "UI-Gates-and-Lessons.md §11.3",

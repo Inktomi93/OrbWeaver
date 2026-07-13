@@ -1,17 +1,7 @@
-// infra/providers/vllm/engine/client — the family's ONE loopback HTTP seam.
-//
-// The engines are supervised children (the dev stack, or this server's own supervisor): OpenAI-compatible,
-// loopback-only. This module owns the base URLs (derived from the same `foundation/env` vars the supervisor
-// reads — one .env line moves both) and the error translation: a connection-refused while an engine is
-// still warming is the EXPECTED first-minutes state, so it maps to a retryable {@link ProviderError} whose
-// message says WHAT to check instead of a bare ECONNREFUSED — enriched with the supervisor's known status
-// when one exists (`failed` is the one non-retryable lifecycle state — backing off won't fix a crash loop).
-//
-// The engine-identity type is the ./engines leaf so the status registry can name an engine without importing
-// this HTTP client back (that was neo's client ⇄ status cycle).
-//
-// TWO seams: `enginePost` (JSON in → typed JSON out) for the non-streaming roles, and `engineStream` (JSON
-// in → the raw SSE byte stream) for the chat surface. Both share the connection/non-ok error mapping.
+// The family's ONE loopback HTTP seam. Engines are supervised children, loopback-only, OpenAI-compatible.
+// A connection-refused while an engine is still warming is the EXPECTED first-minutes state, so it maps
+// to a retryable {@link ProviderError} enriched with the supervisor's known status (`failed` is the one
+// non-retryable lifecycle state). Two seams: `enginePost` (typed JSON) and `engineStream` (raw SSE bytes).
 
 import { env } from "#foundation/env";
 import { ProviderError } from "../../contract";

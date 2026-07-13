@@ -1,12 +1,6 @@
-// The per-character THEME autosave form (FINAL-Character §8.1 · D54 §13.4 — "≥3 fields OR save semantics →
-// a factory"; `createAutosaveEntityForm` is the "flip it and it saves" editor). This is the IMMEDIATE-commit
-// mechanism §8.1 asks for: no draft form, no Save button, no dirty pill, never the CONTENT save-bar (§2) —
-// a debounced change persists the WHOLE `themeOverride` blob on its own. `save` is supplied at CALL time
-// (character-appearance-tab.tsx) so it can close over the live `character.update` mutation + the id; the
-// mount seed is the character's current override mapped to flat form values (`characterThemeFormFromOverride`).
-//
-// No `draft` mirror: a per-character token tweak is a low-stakes, sub-second-autosave surface, not a long
-// unsaved composition worth a crash-survival slot (the factory permits omitting it).
+// The per-character theme autosave form — the immediate-commit mechanism: no draft form, no Save button,
+// no dirty pill; a debounced change persists the whole `themeOverride` blob. `save` is supplied at call
+// time (character-appearance-tab.tsx). No `draft` mirror — a low-stakes tweak, not worth a crash-survival slot.
 
 import { createAutosaveEntityForm } from "#forms";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model";

@@ -1,12 +1,7 @@
-// One user row in the Admin → Users list (a COMPONENT so its destructive-disable <AlertDialog> is legal —
-// client-structure rule 7; the theme-row-menu precedent). Mirrors the server verbs' guards as honest UX
-// (the verb remains the floor):
-//   • role select — owner-only (`setRole` is `requireOwner`; the D17 `ownerOnly` disable pattern), and
-//     only for non-owner HUMAN rows (the owner is immutable; an agent's role is fixed to `user`, D60).
-//   • enabled switch — never for the owner row (owner-immutability) or the actor's own row
-//     (cannot_disable_self); disabling is confirm-gated (it revokes the target's live sessions).
-//   • the ⋯ menu — Sessions… and Reset password… (the dialogs mount in admin-users-section, once, not
-//     per-row).
+// One user row in the Admin → Users list. Mirrors the server verbs' guards as honest UX (the verb
+// remains the floor): role select is owner-only and non-owner-human-only; the enabled switch is never
+// for the owner row or the actor's own row, and disabling is confirm-gated (revokes live sessions); the
+// ⋯ menu offers Sessions… and Reset password….
 
 import type { UserRole } from "@orb/contracts/identity";
 import {
@@ -37,9 +32,9 @@ type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 export interface AdminUserRowProps {
   readonly user: AdminUser;
-  /** The viewing admin IS this row (mirrors `cannot_disable_self`). */
+  /** The viewing admin is this row. */
   readonly isSelf: boolean;
-  /** Only the box owner may change roles (`setRole` is `requireOwner` — the D17 ownerOnly pattern). */
+  /** Only the box owner may change roles. */
   readonly viewerIsOwner: boolean;
   readonly onSetRole: (role: UserRole) => void;
   readonly onSetEnabled: (enabled: boolean) => void;
@@ -47,7 +42,6 @@ export interface AdminUserRowProps {
   readonly onResetPassword: () => void;
 }
 
-/** One account row: identity + status chips, then role / enabled / actions controls. */
 export function AdminUserRow(props: AdminUserRowProps): ReactElement {
   const { user } = props;
   const [confirmDisable, setConfirmDisable] = useState(false);

@@ -37,11 +37,6 @@ function unwrap(node: Node): Node {
   return n;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// The legacy predicate as a PropertyAssignment subscription: a `queryKey:` property whose (unwrapped)
-// initializer is an inline array literal, in packages/client/src/**. scanRoot mirrors the legacy
-// clientRel filter (the parity oracle). Per-occurrence (each inline-array queryKey property). Kept
-// ALONGSIDE the legacy Check. The offending token is `queryKey` (the property name that violated).
 export const gate: GateDescriptor = {
   name: "no-array-literal-querykey",
   docRow: "UI-Gates-and-Lessons.md §11.1",

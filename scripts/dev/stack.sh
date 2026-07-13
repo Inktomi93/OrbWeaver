@@ -103,8 +103,6 @@ env_pin_report() {
 }
 
 # ── the leader body — ONE source of truth for both start (setsid) and start-fg.
-# Boots the server (dev.sh: engines owned outside the tsx watch loop), polls
-# healthz bounded, THEN vite. Runs in the foreground of whoever called it.
 run_leader() {
   local server_pid="" client_pid=""
   # shellcheck disable=SC2064

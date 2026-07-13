@@ -1,12 +1,7 @@
-// Rail — the persistent nav (UI-Arch §4.1). ONE component, TWO layouts chosen by shell.css `@media`
-// (§4b axis 2 — the reflow is CSS, not a second nav component): the DESKTOP thin icon column (`.shell-
-// rail-desktop`) renders top-to-bottom the Weave brand → the section buttons (RAIL_SECTIONS) → a flex
-// spacer → the footer modal triggers (theme · settings) → the avatar (account). The MOBILE bottom tab
-// bar (`.shell-rail-mobile`, L6/J12 · D62 P3) renders a curated FOUR: the `mobilePrimary` sections
-// (Chats · Characters · Corpus) + the "You" tab (`YOU_ACTION` → the `you` bottom sheet holding
-// account/settings/theme + the overflow sections). Both blocks are always in the DOM; shell.css shows
-// exactly one (`display:none` on the other per breakpoint) — no JS viewport branch, no duplicated nav.
-// Pure registry render: a new section is a RAIL_SECTIONS row (rail-slots.ts), never bespoke JSX here.
+// Rail — the persistent nav. One component, two layouts chosen by shell.css @media: the desktop thin
+// icon column (brand → section buttons → spacer → footer triggers → avatar), and the mobile bottom tab
+// bar (a curated four: mobilePrimary sections + "You"). Both blocks are always in the DOM; shell.css
+// shows exactly one per breakpoint. Pure registry render: a new section is a RAIL_SECTIONS row.
 
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
@@ -39,15 +34,11 @@ export function Rail({
 }: RailProps): ReactElement {
   return (
     <nav className="shell-rail" aria-label="Primary">
-      {/* DESKTOP — the thin icon column (shell.css hides this at the mobile breakpoint). */}
       <div className="shell-rail-desktop">
-        {/* Brand: the Weave glyph ALONE — no active/hover box, muted color from shell.css (UIP-201). */}
         <div className="shell-rail-brand" aria-hidden="true">
           <WeaveGlyph size={26} />
         </div>
 
-        {/* Sections grouped by SECTION_GROUPS (primary · authoring · insight) — the `--spacing-section`
-            gap between groups is the divider (UIP-201 / §4.1); `--spacing-field` within a group. */}
         <div className="shell-rail-sections">
           {SECTION_GROUPS.map((group) => (
             <div className="shell-rail-group" key={group}>
@@ -75,11 +66,6 @@ export function Rail({
               onClick={(): void => onOpenModal(a.id)}
             />
           ))}
-          {/* Avatar last — a `--spacing-row` top margin (shell.css) so it doesn't fuse with Settings.
-              The persona switcher (route-composed via `railFoot`) OWNS this slot when present — a
-              Discord-style account-switcher avatar+popover — replacing the static account button
-              (FINAL-Persona §A.6). The `account` registry entry stays paired (reachable via the You
-              sheet); undefined ⇒ the account button, so the shell degrades cleanly. */}
           <div className="shell-rail-avatar">
             {railFoot ?? (
               <RailButton
@@ -92,9 +78,6 @@ export function Rail({
         </div>
       </div>
 
-      {/* MOBILE — the curated bottom tab bar (shell.css hides this above the mobile breakpoint). The
-          three `mobilePrimary` sections + "You"; theme/settings/avatar + the overflow sections all live
-          in the You sheet (never the bar — 10 thumb targets is unusable, P3). */}
       <div className="shell-rail-mobile">
         {MOBILE_PRIMARY_SECTIONS.map((s) => (
           <RailTabButton

@@ -1,13 +1,9 @@
-// transport/trpc/error-mapping — the pure `DomainError → tRPC code` classifier (core/Tier-4-Transport.md
-// §"error-mapping.ts" + Esoteric #3). NO `t`, NO middleware context, NO router state, so it is tested in
-// isolation against every `@orb/kit/errors` subclass without standing up the ladder (Invariant #5: one
-// case per subclass; a new subclass = one branch HERE + one test).
+// The pure DomainError → tRPC code classifier. No t, no middleware context, no router state, so it is
+// tested in isolation against every @orb/kit/errors subclass.
 //
-// It walks the `.cause` chain (not a single deref): the day a tx-wrapper or any re-wrap layers over the
-// original throw, a single deref would turn a `DomainError` into a 500 — the cause-walk survives
-// arbitrarily deep wrapping. ORDER is load-bearing: `DomainNoCredentialError` (→ PRECONDITION_FAILED) is
-// checked BEFORE `DomainOperationError` (→ BAD_REQUEST) so a NoCredential never falls into the generic
-// 400 bucket; the typed `cause` is preserved so the client banner can read `provider`/`msBeforeNext`.
+// Walks the .cause chain (not a single deref): a re-wrap layer over the original throw would otherwise
+// turn a DomainError into a 500. Order is load-bearing: DomainNoCredentialError is checked before
+// DomainOperationError so it never falls into the generic 400 bucket.
 
 import {
   DomainConflictError,
@@ -27,8 +23,6 @@ import { TRPCError } from "@trpc/server";
  * (tRPC surfaces it as `INTERNAL_SERVER_ERROR`, the correct outcome for a genuine bug).
  */
 export function classifyDomainError(err: unknown): TRPCError | null {
-  // Step into the chain: `err` is typically a `TRPCError` whose `.cause` is the original throw; if `err`
-  // is already a `DomainError` (no wrap), the `?? err` falls through to it.
   let cause: unknown = (err as { cause?: unknown })?.cause ?? err;
   const seen = new Set<unknown>();
   while (
@@ -49,7 +43,6 @@ export function classifyDomainError(err: unknown): TRPCError | null {
   if (cause instanceof DomainForbiddenError) {
     return new TRPCError({ code: "FORBIDDEN", message: cause.message, cause });
   }
-  // BEFORE DomainOperationError — a NoCredential must not collapse into the generic BAD_REQUEST bucket.
   if (cause instanceof DomainNoCredentialError) {
     return new TRPCError({ code: "PRECONDITION_FAILED", message: cause.message, cause });
   }

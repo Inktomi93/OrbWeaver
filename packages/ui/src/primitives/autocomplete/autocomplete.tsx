@@ -10,7 +10,7 @@ import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#li
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants";
 
-// Breathing room between the input and the popup — the input-hug gap (§13.0 C19 rollup, `#lib`).
+// Breathing room between the input and the popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
 const slots = autocompleteVariants();
@@ -23,23 +23,19 @@ export interface AutocompleteGroup {
   items: readonly string[];
 }
 
-// The async/fuzzy-search seam — forwarded straight to Base UI Root. `filter` swaps the match
-// predicate (custom fuzzy/async filtering), `autoHighlight` auto-selects the first result, `limit`
-// caps the rendered matches. Picked (not re-declared) so their live Base UI types flow through.
+// Forwarded straight to Base UI Root: `filter` swaps the match predicate, `autoHighlight`
+// auto-selects the first result, `limit` caps the rendered matches.
 type AutocompletePassthrough = Pick<BaseRootProps<string>, "filter" | "autoHighlight" | "limit">;
 
 export interface AutocompleteProps extends AutocompletePassthrough {
   /**
-   * The candidate suggestions — the display strings themselves, filtered against the input value
-   * automatically (Base UI `mode="list"`). May be a render-derived array (filtered/mapped from
-   * props/state, a fresh reference each render) — verified by the acceptance test; no referential
-   * stability is required. Ignored when `groups` is provided.
+   * The candidate suggestions — display strings filtered against the input value automatically.
+   * May be a render-derived array (fresh reference each render). Ignored when `groups` is provided.
    */
   items?: readonly string[];
   /**
-   * Grouped suggestions — each group renders a `GroupLabel` header over its items (categorised
-   * pickers). Values are still plain strings; this is the flat `items` API split into labelled
-   * sections, NOT object-items/multi-select (those belong to the Combobox seal — R4). Takes
+   * Grouped suggestions — each group renders a `GroupLabel` header over its items. Values are
+   * still plain strings, not object-items/multi-select (that's the Combobox seal's job). Takes
    * precedence over `items` when set.
    */
   groups?: readonly AutocompleteGroup[];
@@ -73,17 +69,13 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   align?: BasePositionerProps["align"];
   /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: BasePositionerProps["sideOffset"];
-  /** Portal target — defaults to the themed portal root from {@link usePortalContainer} (D44 §12.1);
-   *  pass an explicit node/ref to override; unset keeps Base UI's `body` default. */
+  /** Portal target — defaults to the themed portal root; pass a node/ref to override. */
   container?: PortalContainer;
 }
 
 /**
- * Announces the live result count to screen readers via Base UI's `Autocomplete.Status` (a polite
- * `role="status"` region). Reads the library's OWN filtered-item set (`useFilteredItems`), so the
- * count always matches the rendered list; flattens grouped entries to count leaf suggestions.
- * Must render under `<Autocomplete.Root>`; the Status element itself stays mounted (only its text
- * changes) per Base UI's live-region rule.
+ * Announces the live result count to screen readers via `Autocomplete.Status`. Reads the
+ * library's own filtered-item set, flattening grouped entries to count leaf suggestions.
  */
 function AutocompleteResultStatus(): ReactElement {
   const filtered = BaseAutocomplete.useFilteredItems<unknown>();
@@ -100,32 +92,11 @@ function AutocompleteResultStatus(): ReactElement {
 
 /**
  * The autocomplete — Base UI Autocomplete sealed with the full explicit anatomy (InputGroup[Input +
- * Clear] → Portal → Positioner → Popup → List/Group/Item + Status), so features never hand-assemble
- * parts. A text input with a filtered popup list; keyboard-navigable (D42 §2 — Base UI seal).
- * `onValueChange` reports the input string; selecting a suggestion writes it into the input.
- *
- * API choice: item VALUES are `string` — the near-term consumers are string sets (tags, labels,
- * keyword triggers), so the wrapper takes the display strings directly and keeps the surface small.
- * Base UI 1.6 also supports object items with a value/label mapper and multi-select chips; those are
- * the Combobox seal's job (R4 — pick by value type), a deliberate omission here, not a workaround.
- * The async/fuzzy seam (`filter`/`autoHighlight`/`limit`) plus any other Root prop forward straight
- * through to Base UI Root (R5 — no hand-picked prop subset that drops the rest).
- * `groups` splits the same string values into labelled sections. The array may be render-derived —
- * the acceptance test drives a parent re-render passing a freshly filtered/mapped array and the
- * filter stays correct.
- *
- * Base UI deltas (R8): the native `Clear` button unmounts itself when the input is empty (its
- * `visible` state, `keepMounted={false}` default) AND ships `aria-hidden` by default (decorative — the
- * input stays clearable by keyboard), so it's a pointer affordance, not an AT target. `Status` must
- * remain mounted (only its children change) or screen readers miss updates; note Base UI's `Empty`
- * part ALSO renders `role="status"`, so address the count region by its `data-slot`.
- *
- * `arrow` mounts `Autocomplete.Arrow`; `side`/`align`/`sideOffset` override the Positioner's
- * placement. Inside a `<Field>`, the input auto-registers (label association + `aria-describedby`)
- * because `Autocomplete.Input` is the same field-aware `Combobox.Input` used package-wide;
- * `aria-describedby` is also exposed directly for standalone (non-`<Field>`) composition.
- *
- * Usage: `<Autocomplete aria-label="Tag" items={tagNames} onValueChange={setQuery} />`
+ * Clear] → Portal → Positioner → Popup → List/Group/Item + Status). A text input with a filtered
+ * popup list; `onValueChange` reports the input string, selecting a suggestion writes it into the
+ * input. Item values are `string` — object items/multi-select belong to the Combobox seal instead.
+ * The native `Clear` button unmounts itself when the input is empty and ships `aria-hidden` by
+ * default (a pointer affordance, not an AT target).
  */
 export function Autocomplete({
   items,

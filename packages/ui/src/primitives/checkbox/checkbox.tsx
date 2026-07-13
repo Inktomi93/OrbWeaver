@@ -10,19 +10,8 @@ export interface CheckboxProps extends CheckboxRootProps {
   className?: string;
 }
 
-/**
- * The checkbox — Base UI Checkbox (Root + Indicator) sealed behind the token skin; checked and
- * indeterminate both flip to the primary token with a glyph, and the hit area meets the ≥44px touch
- * floor. Controlled-capable via `checked`/`onCheckedChange` passthrough (D42 §2 — Base UI seal).
- *
- * `readOnly` (Base UI passthrough — sets `data-readonly`, blocks pointer/keyboard toggling) renders
- * DISTINCTLY from `disabled`: the border/fill keep their normal token colors (never the
- * `data-disabled` grey-out) and a Lock glyph replaces the check/dash mark as the non-color
- * "you can't touch this" signal (mirrors `Switch`'s treatment — ui-package-design work-order A3).
- *
- * Usage: `<Checkbox aria-label="Remember me" checked={on} onCheckedChange={setOn} />`
- * Read-only: `<Checkbox aria-label="Archived" checked readOnly />`
- */
+// `readOnly` renders distinctly from `disabled`: border/fill keep their normal token colors and a
+// Lock glyph replaces the check/dash mark as the non-color "you can't touch this" signal.
 export function Checkbox({ className, ...rest }: CheckboxProps): ReactElement {
   const slots = checkboxVariants();
   return (

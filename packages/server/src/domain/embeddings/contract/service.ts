@@ -1,29 +1,6 @@
-// domain/embeddings/contract/service — the typed API surface (read THIS to know everything the slice does).
-// Holds the two DI bundles (explicit interfaces — §7.4 / no-context-returntype), the verb interface, the
-// injected cross-feature op types, and the indexer interface.
-//
-// WHY the indexer interface lives HERE (not in `indexer/types.ts` as the domain doc sketched): the
-// `no-inline-types` grit flags ANY exported `interface`/`type` inside `domain/**` outside `contract/`. The
-// gate wins over the doc's illustrative layout — every exported type homes in `contract/`; `indexer/` ships
-// only the factory (a function) + its handlers (functions). The front door re-exports `EmbeddingsIndexer`
-// from here.
-//
-// BOUNDARIES (domain-no-cross-feature): embeddings sideways-imports NO sibling runtime. Every cross-feature
-// capability arrives as an INJECTED op, type-only on the bundles, wired at the entry composition root:
-//   - `roleClients` — the `@orb/contracts/role-clients` bundle (embed/imageEmbed/summarize PRE-BOUND with
-//     the credential+model the boot binder resolved via `connection.resolveRole(<role>)` per role; the
-//     RESOLVED "keep the bundle" seam, core/Tier-3b-Providers.md). The `(model)` space tag is read off
-//     `roleClients.embedModel` / `imageEmbedModel` (role-clients: "stored on every embedding row's model
-//     column"). No raw `providers.embed` + `connection.resolveRole` scatter; no runner/family ever named
-//     (providers-runner-seal).
-//   - `loadCardText` / `loadAssetBytes` — the indexer + the PD-53 bulk passes re-read CANON by id (the event
-//     carries only a branded id; the subscriber never trusts event-carried data — @orb/contracts/events).
-//     `character` / `assets` provide these projections at the root; embeddings imports neither.
-//   - `listCharacterIds` / `listImageAssetIds` — the PD-53 bulk passes' UN-PRINCIPAL enumeration reads
-//     (`character.listEmbeddableCharacterIds` / `assets.listImageAssetIds` at the root; D20 — the sweep is
-//     a trusted SYSTEM consumer over the whole store, never a user-facing surface).
-// There is NO `principal`/guard on any bundle — the vector substrate carries no `ownerId` (D20); the store
-// is a pure producer-FK mechanism and reads no `users` row (no-direct-users-read is trivially satisfied).
+// The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
+// indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
+// no principal/guard on any bundle — the vector substrate carries no ownerId.
 
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -45,41 +22,19 @@ import type {
 } from "./params";
 import type { BulkEmbedResult, StoreResult, WriteHubScoresResult } from "./results";
 
-// ── injected cross-feature ops (type-only; wired at the root) ─────────────────
-/** Re-read a character card's embeddable text by id (canon, not event payload). `undefined` when the card
- *  was deleted between the emit and the handler. Provided by `character` at the composition root. */
+/** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
 
-/** Re-read an avatar asset's (resized) bytes by id. `undefined` when the asset was deleted between the emit
- *  and the handler. Provided by `assets` at the composition root. */
+/** Re-read an avatar asset's (resized) bytes by id. `undefined` when deleted between emit and handler. */
 export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
 
-/** Enumerate NON-synthetic character ids — `ownerId` scopes to ONE owner (the SINGULAR sweep), omitted/null =
- *  all owners (the BULK sweep universe). Provided by `character` (`listEmbeddableCharacterIds`) at the
- *  composition root — un-principal, D20. */
+/** Enumerate non-synthetic character ids; `ownerId` scopes to one owner, omitted/null = all owners. */
 export type ListCharacterIds = (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
 
-/** Enumerate image asset ids (`mime LIKE 'image/%'`) — `ownerId` scopes to ONE owner (the SINGULAR sweep),
- *  omitted/null = all owners (the BULK sweep universe). Provided by `assets` (`listImageAssetIds`) at the
- *  composition root — un-principal, D20. */
+/** Enumerate image asset ids; `ownerId` scopes to one owner, omitted/null = all owners. */
 export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly AssetId[]>;
 
-// ── the store/maintenance DI bundle (the `store` / `writeHubScores` / `clearTable` verbs close over) ──
-/**
- * The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`).
- *   - `db` — the libSQL handle; all access routes through `persistence/`.
- *   - `roleClients` — the bound inference bundle (`store` calls `embed` / `imageEmbed`; the model tag is its
- *     `embedModel` / `imageEmbedModel`).
- *   - `now` — the injected clock (epoch-ms); no ambient `Date.now()` (test-determinism).
- *   - `newCharacterEmbeddingId` / `newImageEmbeddingId` / `newChatDigestId` / `newChatSegmentId` — injected
- *     id minters (no ambient `mintTypeId()`). The chat-digest/segment minters back the `digest` / `segment`
- *     store arms (domains/memory.md §1/§2); wired at the entry root (`compose/services.ts`).
- *   - `listCharacterIds` / `loadCardText` / `listImageAssetIds` / `loadAssetBytes` — the PD-53 bulk passes'
- *     enumeration + canon re-reads (injected cross-feature ops; the indexer bundle carries its own copies of
- *     the re-readers because it is built later, over the bound store verb).
- *   - `embedDim` / `imageEmbedDim` — the active embed/imageEmbed space `dim` the root declares (the bulk
- *     passes stamp it into the store params; embeddings stays space-agnostic).
- */
+/** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
   readonly db: Db;
   readonly roleClients: RoleClients;
@@ -96,44 +51,25 @@ export interface EmbeddingsContext {
   readonly imageEmbedDim: number;
 }
 
-/** What `createEmbeddingsService` receives from the entry root. Identical to {@link EmbeddingsContext} — no
- *  deps→context transform; the name is kept for front-door symmetry with the other domains. */
 export type EmbeddingsServiceDeps = EmbeddingsContext;
 
-// ── the verb interface (the front door re-exports the type) ───────────────────
 export interface EmbeddingsService {
-  /** The ONLY vector inserter (§the defining invariant). Hash-gates on `(key, model)` — a matched
-   *  `content_hash` is a `noop` (no re-embed, no write) — else embeds via the injected role op, asserts the
-   *  produced vector matches the declared space `dim` ({@link SpaceMismatchError}), and upserts the row.
-   *  NEVER touches `hub_score` (§invariant 2 — the advisory-stale column is `discovery`'s alone). */
+  /** The only vector inserter. Hash-gates on `(key, model)` — a matched `content_hash` is a noop; else embeds,
+   *  asserts the vector matches the declared space `dim`, and upserts. Never touches `hub_score`. */
   readonly store: (params: StoreParams) => Promise<StoreResult>;
-  /** The ONLY path that writes `hub_score` (§invariant 3) — the `discovery` → embeddings seam. Takes
-   *  pre-computed scores as data (no CSLS math) and batch-UPDATEs them keyed `(id, model)`. */
+  /** The only path that writes `hub_score` — the discovery → embeddings seam. Takes pre-computed scores. */
   readonly writeHubScores: (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
-  /** Maintenance: wipe a primary vector table (a plain `DELETE FROM`; safe — no ANN/DiskANN shadow index). */
+  /** Maintenance: wipe a primary vector table (plain `DELETE FROM`). */
   readonly clearTable: (params: ClearTableParams) => Promise<void>;
-  /** The PD-53 bulk TEXT catch-up sweep: enumerate every non-synthetic character → re-read the card text →
-   *  `store(card-text)`. Resumable: the `content_hash` gate skips already-embedded cards (unless `force`);
-   *  cooperative abort between items; an embed failure propagates (the workload records it; a rerun resumes
-   *  the remainder — never a swallowed error). */
+  /** Bulk text catch-up sweep: enumerate every non-synthetic character → re-read card text → `store`.
+   *  Resumable (hash gate skips already-embedded), cooperative abort, failures propagate. */
   readonly embedCorpus: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
-  /** The PD-53 bulk IMAGE catch-up sweep: enumerate every image asset → re-read the bytes → `store` BOTH
-   *  lenses (`image-raw`, then caption + `image-captioned`). The caption (the expensive summarize call) is
-   *  only generated when at least one lens row is stale/missing (or `force`) — a fully-embedded asset is a
-   *  pure hash-check skip. Same resume/abort/failure contract as {@link embedCorpus}. */
+  /** Bulk image catch-up sweep: enumerate every image asset → re-read bytes → `store` both lenses. Caption
+   *  generation only runs when a lens row is stale/missing (or `force`). Same resume/abort contract. */
   readonly embedAssets: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
 }
 
-// ── the indexer DI bundle + interface (the event-driven subscriber) ───────────
-/**
- * The DI bundle the indexer handlers close over (assembled at `entry/`).
- *   - `store` — the bound store verb (the indexer dispatches re-embeds through the one write path).
- *   - `loadCardText` / `loadAssetBytes` — the canon re-readers (re-read by id; skip when the source is gone).
- *   - `roleClients` — for the inline `image-captioned` caption (`summarize`) + the `(model)` tags
- *     (`embedModel` / `imageEmbedModel`).
- *   - `embedDim` / `imageEmbedDim` — the active embed/imageEmbed space `dim` the root declares (the store
- *     verb asserts the produced vector matches it). Injected, not baked — embeddings stays space-agnostic.
- */
+/** The DI bundle the indexer handlers close over (assembled at `entry/`). */
 export interface EmbeddingsIndexerContext {
   readonly store: EmbeddingsService["store"];
   readonly loadCardText: LoadCardText;
@@ -143,10 +79,8 @@ export interface EmbeddingsIndexerContext {
   readonly imageEmbedDim: number;
 }
 
-/** The event subscription shape `entry/` binds onto the in-process bus: `character.updated` →
- *  `onCharacterUpdated` (re-embed the card), `asset.created` → `onAssetCreated` (embed BOTH image lenses).
- *  Handlers take the typed `@orb/contracts/events` payload; each re-reads canon by id and dispatches to
- *  `store`. (Debounce/coalesce is an entry/bus concern — the open "event system" decision — not baked here.) */
+/** The event subscription shape `entry/` binds onto the bus: `character.updated` re-embeds the card,
+ *  `asset.created` embeds both image lenses. Each handler re-reads canon by id and dispatches to `store`. */
 export interface EmbeddingsIndexer {
   readonly onCharacterUpdated: (event: CharacterUpdatedEvent) => Promise<void>;
   readonly onAssetCreated: (event: AssetCreatedEvent) => Promise<void>;

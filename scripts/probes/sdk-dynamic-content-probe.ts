@@ -4,52 +4,42 @@
  *                        [--verbose] [--dry-run]
  *
  * THE BEHAVIORAL QUESTION — for each candidate "dynamic-content spot", can we (1) put content there and have
- * the model USE it this turn, and (2) CHANGE it next turn and have the model use the NEW value? The pass/fail
- * is read off the REPLY TEXT, never off cache tokens. This REPLACES sdk-injection-cache-probe's flawed
- * approach (which drowned this simple question in cache-token accounting, used adversarial "list the codeword"
- * prompts the model REFUSES as prompt-extraction, and never isolated Anthropic's global content cache — so
- * cells and re-runs contaminated each other's results across the 5-minute cache TTL). This probe keeps the
- * question benign and behavioral, and makes every run cache-isolated.
+ * the model USE it this turn, and (2) CHANGE it next turn and have the model use the NEW value? The
+ * pass/fail is read off the REPLY TEXT, never off cache tokens (cache-token accounting drowned this
+ * question in sdk-injection-cache-probe; that approach also used adversarial "list the codeword" prompts
+ * the model REFUSES as prompt-extraction).
  *
  * THE SPOTS (each gets the same 3-turn behavioral battery):
  *   A = the UserPromptSubmit HOOK (dynamicContextOptions additionalContext) — our current live "dynamic
  *       content" channel (translate.ts). Volatile content rides the message tail each turn.
- *   B = a DEPTH in_chat injection into the SEEDED history (the production splice path: spliceInChatInjections
- *       → squashSameRole → seed/prompt split). Depth-2, user role — lands mid-seed (the hashed history).
- *   C = TOP-ANCHOR — an over-deep in_chat injection that the splice CLAMPS to position 0 (the tail-independent,
- *       lineage-safe placement). Same production splice path as B, depth = TOP_ANCHOR_DEPTH.
+ *   B = a DEPTH in_chat injection into the SEEDED history (the production splice path). Depth-2, user
+ *       role — lands mid-seed (the hashed history).
+ *   C = TOP-ANCHOR — an over-deep in_chat injection that the splice CLAMPS to position 0 (the
+ *       tail-independent, lineage-safe placement). Same splice path as B, depth = TOP_ANCHOR_DEPTH.
  *
- * THE BATTERY per spot — a 3-turn RESUMED sequence, all content BENIGN (no "list codewords" / "tell the
- * secret" — those trip the model's injection-defense and it refuses, contaminating the signal):
- *   RECALL — the spot carries "The balloon in the corner is RED." (turns 1-2). Each turn the user asks
- *            "What colour is the balloon in the corner?" → PASS if the reply names the CURRENT colour.
- *   STEER  — the spot ALSO carries "For your very next reply, speak like a pirate." (turns 1-2) → PASS if the
- *            reply is recognisably piratey (tolerant contains-any over a few markers; reply printed to eyeball).
- *   FRESHNESS (the headline turn) — on turn 3 the spot content CHANGES to "The balloon … is BLUE. … speak like
- *            a formal butler." and the same balloon question is asked → PASS if the reply flips to BLUE (not
- *            RED) AND is butler-ish / NOT piratey. A turn-3 reply still saying RED or still piratey = the spot
- *            served STALE content (cached-but-stale) ⇒ the channel is BROKEN for dynamic use. This is the
- *            headline signal; recall+steer landing on turns 1-2 but freshness failing on turn 3 = STALE/DEAD.
+ * THE BATTERY per spot — a 3-turn RESUMED sequence, all content BENIGN:
+ *   RECALL — the spot carries "The balloon in the corner is RED." (turns 1-2); PASS if the reply names
+ *            the CURRENT colour.
+ *   STEER  — the spot ALSO carries "For your very next reply, speak like a pirate." (turns 1-2); PASS if
+ *            the reply is recognisably piratey.
+ *   FRESHNESS (the headline turn) — on turn 3 the spot content CHANGES to BLUE + a butler voice; PASS if
+ *            the reply flips accordingly. A turn-3 reply still saying RED or still piratey means the spot
+ *            served STALE content ⇒ the channel is BROKEN for dynamic use.
  *
- * VERDICT per spot: LIVE (recall+steer land turns 1-2 AND turn-3 freshness flips to BLUE + butler) vs
- * STALE/DEAD (freshness fails — the new content did not reach the model).
+ * VERDICT per spot: LIVE (recall+steer land turns 1-2 AND turn-3 freshness flips) vs STALE/DEAD.
  *
- * ISOLATION — WHY the nonce: Anthropic's content-keyed prefix cache has a ~5-minute TTL and is GLOBAL across
- * runs. The old probe's results flipped between runs because a fresh run could read a PRIOR run's cached lore
- * (a stale cache hit masqueraded as a live answer, or vice-versa). Here the big system-prompt LORE AND the
- * balloon sentence both mix in a per-run --nonce, so a fresh run's bytes cannot match any prior run's cached
- * prefix — every live run starts cold and its behavioral reads are its own. The nonce MUST come from --nonce
- * (or a fixed default so --dry-run is deterministic); Date.now()/Math.random() are unavailable in this runtime
- * per the constitution, so the orchestrator passes a fresh --nonce on each live run.
+ * ISOLATION — WHY the nonce: Anthropic's content-keyed prefix cache has a ~5-minute TTL and is GLOBAL
+ * across runs, so a fresh run could read a PRIOR run's cached lore. The system-prompt lore AND the
+ * balloon sentence both mix in a per-run --nonce so no run's bytes can match a prior run's cached
+ * prefix. Date.now()/Math.random() are unavailable in this runtime per the constitution, so the
+ * orchestrator passes a fresh --nonce on each live run.
  *
- * cacheRead/cacheWrite ARE captured, but only as a SECONDARY diagnostic column clearly labelled
- * "contaminated by the global 5-min content cache across runs; do not gate on it". The verdict is 100% the
- * reply text.
+ * cacheRead/cacheWrite ARE captured but only as a SECONDARY diagnostic column ("contaminated by the
+ * global 5-min content cache across runs; do not gate on it") — the verdict is 100% the reply text.
  *
- * SAFETY: OUTPUT_CAP tokens (~200); a per-turn watchdog that ABORTS the whole query (AbortController) and an
- * `interrupt()` in `finally`; --dry-run prints the planned spots×battery and spawns NOTHING; --verbose prints
- * every reply. Mode-1 (Max sub) default; --mode or supported like the sibling probes. Costs pennies (Haiku,
- * capped output) but spends REAL sub quota / OR credits — HAND-RUN ONLY, never CI.
+ * SAFETY: OUTPUT_CAP tokens (~200); a per-turn watchdog that ABORTS the whole query (AbortController) and
+ * an `interrupt()` in `finally`. Mode-1 (Max sub) default; --mode or supported like the sibling probes.
+ * Costs pennies but spends REAL sub quota / OR credits — HAND-RUN ONLY, never CI.
  */
 
 import process from "node:process";
@@ -91,10 +81,8 @@ const VERBOSE = args.includes("--verbose");
 const DRY_RUN = args.includes("--dry-run");
 /** --mode sub (default: the Max-sub mode-1 firewall env) | or (mode-2: the OpenRouter Anthropic skin). */
 const MODE = argValue("--mode") ?? "sub";
-/** The per-run cache-isolation nonce. Woven into the LORE + the balloon sentence so a fresh live run cannot
- *  read a prior run's global content cache (the ~5-min-TTL contamination that flipped the old probe's results
- *  between runs). Fixed default keeps --dry-run deterministic; the orchestrator passes a fresh one per live
- *  run. MUST come from argv — Date.now()/Math.random() are unavailable in this runtime (constitution). */
+/** The per-run cache-isolation nonce, woven into the LORE + the balloon sentence. Fixed default keeps
+ *  --dry-run deterministic. MUST come from argv — Date.now()/Math.random() are unavailable here (constitution). */
 const NONCE = argValue("--nonce") ?? "FIXED0";
 // biome-ignore lint/style/noProcessEnv: OPENROUTER_PROBE_KEY is probe-run plumbing (scoped test key), not app config — probes run outside the foundation/env perimeter.
 const OR_PROBE_KEY = process.env["OPENROUTER_PROBE_KEY"] ?? "";
@@ -116,10 +104,9 @@ function probeEnv(
     ? buildClaudeOpenRouterEnv(OR_PROBE_KEY, OR_PROBE_TIER_MODELS, overrides)
     : buildClaudeSdkEnv(overrides);
 }
-/** Default = claude-opus-4-8. The UserPromptSubmit hook delivers a MID-CONVERSATION SYSTEM MESSAGE, and per
- *  the official docs that feature is "Claude Opus 4.8 ONLY" — on Haiku the injected hook context carries no
- *  system authority, which is why earlier Haiku runs saw refusals / stale answers (the channel wasn't the
- *  problem, the model was). Overridable via --model, but opus-4-8 is the intended run target for a real read. */
+/** Default = claude-opus-4-8. The UserPromptSubmit hook delivers a MID-CONVERSATION SYSTEM MESSAGE, and
+ *  per the docs that feature is "Claude Opus 4.8 ONLY" — on Haiku it carries no system authority.
+ *  Overridable via --model. */
 const MODEL = MODEL_FLAG ?? (MODE === "or" ? "anthropic/claude-opus-4.8" : "claude-opus-4-8");
 
 // ── Tuning constants ───────────────────────────────────────────────────────────────────────────────────

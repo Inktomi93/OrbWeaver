@@ -1,24 +1,14 @@
 import { useRef } from "react";
-// The SYSTEM settings surface (Task #37 — the APP-tier AppSettings home; UI-Arch §13.4 form-factory
-// panel). Renders inside the shell's settings modal, mounted by SettingsShell for the `system` category.
-// Reads the RESOLVED effective config via `getAppSettings` (env floor ⊕ DB override; QueryBoundary +
-// useSuspenseQueries alongside `sessions.me` for the viewer's role) and autosaves each change back through
-// `updateAppSettings` — but as a DELTA against the mount baseline (system-settings-model.ts `diffSystemPatch`),
-// so ONLY a field the admin actually moved becomes a stored override and an untouched env-mirrored field
-// (`corpusAutoindex`/`logLevel`) keeps showing its environment value (the write-pinning trap the appearance
-// surface's whole-section write would hit here — appearance has no env floor; AppSettings does).
+// The System settings surface. Reads the resolved effective config via getAppSettings and autosaves each
+// change back through updateAppSettings as a delta against the mount baseline (diffSystemPatch), so only
+// a field the admin actually moved becomes a stored override.
 //
-// AUTHORITY (Spine-Identity §5.1): `getAppSettings`/`updateAppSettings` are admin-gated at the transport
-// (`adminProcedure`) AND re-checked in the verb (`requireAdmin` = owner ∪ admin). The single-user OWNER
-// sails through. The D17 owner-box GOVERNANCE toggles (Shared access) additionally require the box OWNER
-// server-side (`requireOwner`), so a delegated (non-owner) admin sees them DISABLED — a members-never-see-
-// host-affordances read of the box-governance split; the enforcement floor is the verb, this is just honest
-// UX so a non-owner can't flip a control that would only bounce off the server.
+// getAppSettings/updateAppSettings are admin-gated at the transport and re-checked in the verb. The D17
+// owner-box governance toggles additionally require the box owner server-side, so a delegated (non-owner)
+// admin sees them disabled rather than able to trip a bounce-off-the-server save.
 //
-// ENV-FLOOR HONESTY (cheap version — Task #37 §3): `getAppSettings` returns ONLY the resolved effective
-// config, never the stored-vs-floor split, so a per-field "set by environment" annotation is NOT cheaply
-// available (it would need a new server read exposing the raw override) — deferred. The pane shows the
-// effective values with a footnote that overrides layer over environment defaults.
+// getAppSettings returns only the resolved effective config, never the stored-vs-floor split, so a
+// per-field "set by environment" annotation is deferred — the pane shows a footnote instead.
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
@@ -52,8 +42,7 @@ import {
   projectSystemForm,
 } from "../lib/system-settings-model";
 
-// The AppSettings override write (module scope, §13.1). NOT bus-driven — AppSettings emits no per-chat bus
-// event, so it self-invalidates `getAppSettings` on settle (the required non-bus freshness source).
+// Not bus-driven — AppSettings emits no per-chat bus event, so it self-invalidates on settle.
 interface UpdateSystemVars {
   readonly partial: AppSettings;
 }
@@ -63,8 +52,6 @@ const useUpdateSystem = createEntityMutation<UpdateSystemVars, EffectiveAppConfi
   errorToast: "Couldn't save the system settings.",
 });
 
-/** The DOM anchor id for one System subcategory `<Section>` — derived from the shared registry ids so a
- *  rename is a `tsc` error, never a stale anchor. */
 const anchor = (sub: string): string => settingsAnchorId("system", sub);
 
 /** The System panel body (rendered inside the settings modal's category column). */
@@ -102,11 +89,7 @@ function SystemForm(): ReactElement {
   });
   const update = useUpdateSystem({ trpc, invalidation });
 
-  // Two baselines (system-settings-model.ts `diffSystemPatch`): `original` is the MOUNT effective config —
-  // the inherited/default a reverted control clears back to; `lastSaved` tracks the last PERSISTED state
-  // and is refreshed from every save RESULT (the fresh effective config `updateAppSettings` returns), so a
-  // toggle-back genuinely CLEARS its server-side override instead of being silently omitted (the F2 stuck-
-  // override bug — the server merges patches, so an unsent revert leaves the away value pinned).
+  // Two baselines (see system-settings-model.ts diffSystemPatch): `lastSaved` is refreshed from every save result so a toggle-back genuinely clears its server-side override.
   const serverForm = projectSystemForm(config);
   const originalRef = useRef(serverForm);
   const lastSavedRef = useRef(serverForm);
@@ -127,8 +110,6 @@ function SystemForm(): ReactElement {
     save,
   });
 
-  // The D17 owner-box governance toggles are `requireOwner` server-side — a delegated (non-owner) admin
-  // sees them read-only rather than able to trip a bounce-off-the-server save.
   const ownerOnly = viewer?.globalRole !== "owner";
 
   return (
@@ -264,8 +245,6 @@ function SystemForm(): ReactElement {
           </form.AppField>
         </Section>
       </Stack>
-      {/* Env-floor honesty footnote (see the file header — the per-field "set by environment" annotation is
-          deferred; the read verb exposes only the resolved effective value). */}
       <Text size="micro" tone="muted">
         Values reflect the effective configuration — environment defaults with any saved overrides
         applied. Only the fields you change are saved as overrides.

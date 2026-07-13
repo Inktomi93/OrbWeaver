@@ -1,9 +1,6 @@
-// domain/settings/effective-config/layer — the FLOOR-MERGE resolver. `layer(overrides)`
-// resolves each field "stored override (if present) ?? the floor". Two floor ORIGINS, kept legible
-// ("env is the floor" is only half-true): env-mirrored fields read `foundation/env` (the operator's boot
-// floor); born-in-DB fields read a code floor only an admin override moves. Reads DOWN into `foundation/env`
-// (legal — domain → foundation) + the contract's `DEFAULT_ALLOW_NON_OWNER_*` governance floors (one-home,
-// derive). Pure (no I/O, no cache) — the cache + reload live in `cache.ts`.
+// domain/settings/effective-config/layer — the floor-merge resolver: each field is "stored override ?? floor".
+// Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
+// admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
 import type {
   AppSettings,
@@ -22,21 +19,12 @@ import {
 } from "@orb/contracts/settings";
 import { env } from "#foundation/env";
 
-// ── Born-in-DB floors (no env var; only an admin override moves them; named — `noMagicNumbers`) ───────
-// D44 §12.3 — external media FORBIDDEN by default (the load itself is the tracking-pixel/exfil): the
-// no-override default is `true` (no auto-load → click-to-load placeholder). This is an OVERRIDABLE default,
-// NOT a hard clamp — an admin AppSettings override moves it, and a per-character `forbidExternalMedia`
-// override resolves against it (`override ?? global`), so opting a character IN to allow (false) still works.
+// Born-in-DB floors (no env var; only an admin override moves them).
 const FORBID_EXTERNAL_MEDIA_FLOOR = true;
-// D44 §12.0 — render-trust floor is UNTRUSTED (false): rich HTML/Mermaid are NOT trusted by default; an
-// admin override (or a per-character `trustHtml`) opts in. The safe default is the whole point of D21.
 const TRUST_HTML_FLOOR = false;
-// vLLM client-side batch concurrency — the promoted `VLLM_*_CONCURRENCY` knobs have NO env var (the env
-// only carries the CHUNK size); these are the born-in-DB code floors the runners read per-batch.
 const VLLM_EMBED_CONCURRENCY_FLOOR = 4;
 const VLLM_SUMMARIZE_CONCURRENCY_FLOOR = 32;
-// D17 per-member local-compute budget floor: `null` = unbounded (supervisor-limited). An admin override
-// (a positive int) caps it.
+// null = unbounded (supervisor-limited); an admin override (positive int) caps it.
 const NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR: number | null = null;
 
 function splitCsv(raw: string): string[] {
@@ -46,7 +34,6 @@ function splitCsv(raw: string): string[] {
     .filter(Boolean);
 }
 
-// Env floor KEPT here (rate limits stay boot-env; the limiter reads these), admin override layers on top.
 function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits {
   return {
     general: o?.general ?? env.RATE_LIMIT_GENERAL,
@@ -56,7 +43,6 @@ function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits
   };
 }
 
-// Born-in-DB code floor (no env var), admin override layers on top.
 function resolveVllmConcurrency(o: VllmConcurrency | null | undefined): ResolvedVllmConcurrency {
   return {
     embed: o?.embed ?? VLLM_EMBED_CONCURRENCY_FLOOR,

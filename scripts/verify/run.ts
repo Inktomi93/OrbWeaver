@@ -1,7 +1,5 @@
-// `pnpm verify` — the ONE verification entry (UNIFIED-VERIFICATION-DESIGN.md §3). Built on the proven bones
-// of the retired `pnpm check` orchestrator (sequential spawn, stream + tee, JSON artifact, max-severity
-// exit), generalized over the self-describing stage REGISTRY. Four tiers, one scope convention, one exit
-// contract, one summary/artifact.
+// `pnpm verify` — the ONE verification entry (UNIFIED-VERIFICATION-DESIGN.md §3). Four tiers, one scope
+// convention, one exit contract, one summary/artifact, generalized over the self-describing stage registry.
 //
 //   pnpm verify              → --static  (today's `pnpm check`, byte-compatible)
 //   pnpm verify --changed    → the inner loop (scoped, related tests)
@@ -17,19 +15,15 @@
 //                              line only; full output goes to the logs + json, so the console survives any
 //                              head/tail truncation; a TTY auto-enables verbose for humans)
 //
-// ARGV is parsed by node:util `parseArgs` under a STRICT schema (OPTIONS): an unknown flag, a value option
-// with no value (or a flag as its value), >1 scope selector, or >1 tier are all MISUSE (exit 3) — never a
-// silent-ignore. Both `--flag value` and `--flag=value` are handled.
+// ARGV is parsed by node:util `parseArgs` under a strict schema: an unknown flag, a value option with no
+// value, >1 scope selector, or >1 tier are all misuse (exit 3), never a silent-ignore.
 //
-// TRUNCATION-ROBUST OUTPUT (the load-bearing property): a reader who sees ONLY the first ~15 lines (the HEAD
-// banner) OR ONLY the last ~15 lines (the TAIL block) can determine PASS/FAIL, which stages failed, and that
-// reports/verify.json is the authoritative machine-readable result (verdict + per-stage status + a failure
-// excerpt) alongside reports/verify/<stage>.log. The reports pointer prints at BOTH head and tail on BOTH
-// pass and fail.
+// TRUNCATION-ROBUST OUTPUT: a reader who sees only the first ~15 lines (the head banner) OR only the last
+// ~15 lines (the tail block) can determine PASS/FAIL and that reports/verify.json is authoritative.
 //
 // EXIT CONTRACT (§3.3): 0 clean · 1 violations · 2 tool error · 3 misuse. Run exit = max severity over
-// stages (2 > 3 > 1 > 0). A whole-only stage the scope can't run is DEFERRED with a printed + recorded
-// notice — a scoped green is visibly a scoped green — unless --strict-scope makes it a refusal.
+// stages. A whole-only stage the scope can't run is DEFERRED with a printed notice, unless --strict-scope
+// makes it a refusal.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

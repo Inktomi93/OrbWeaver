@@ -1,7 +1,6 @@
-// verb: resetPassword — set a user's local password. admin-gated (owner ∪ admin). Guards:
-// weak_password (below the auth floor), existence-before-audit (loadUser throws DomainNotFoundError BEFORE
-// the write, so a reset on a missing id leaves no phantom audit row, invariant #4). A successful reset
-// revokes all of the target's live sessions (a credential change invalidates outstanding logins).
+// verb: resetPassword — set a user's local password. admin-gated. loadUser throws before the write, so
+// a reset on a missing id leaves no phantom audit row. A successful reset revokes all of the target's
+// live sessions.
 
 import { users } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
@@ -25,13 +24,11 @@ export function createResetPassword(ctx: AdminContext): AdminService["resetPassw
       );
     }
 
-    // Existence-before-write: a reset on a missing id throws and writes NO audit row.
     const target = await loadUser(ctx.db, userId);
     if (target === undefined) {
       throw new DomainNotFoundError("user", userId);
     }
-    // An agent principal is loginless — there is no password to reset (D60). The `users_agent_shape` CHECK
-    // (`password_hash IS NULL`) would refuse the write anyway; this gives the honest error first.
+    // An agent principal is loginless — there is no password to reset.
     if (target.kind === "agent") {
       throw new DomainOperationError(
         ADMIN_OP_CODES.cannotModifyAgent,

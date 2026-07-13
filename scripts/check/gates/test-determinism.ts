@@ -73,11 +73,6 @@ function scanTestDeterminism(root: string): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
-// test-determinism reads the real fs (recursive readdirSync of tests/ + readFileSync line-scan for ambient
-// clock/random) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
-// materializes examples to a real temp dir. Distinct per-source messages (which banned call) → per-
-// occurrence overrides. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "test-determinism",
   docRow: "core/Spine-Testing.md §3 (core/Core-0-Architecture-and-Structure.md §7)",

@@ -1,13 +1,7 @@
-// domain/search/verbs/fields — the lexical BM25 engine (PD-37): `fields` (full lexical card search) +
-// `suggest` (autocomplete). TWO engines, ONE domain — vector + lexical are complementary retrieval
-// surfaces on the same `SearchService`; a caller picks the surface by verb, never a backend. Both verbs
-// resolve the owner's per-owner MiniSearch index (built + TTL-cached in `substrate/field-index.ts` over the
-// `persistence/cards.ts` corpus read) and query it. The index BUILD is the only I/O (a cache miss loads the
-// owner's cards); on a cache hit neither verb touches the db.
-//
-// Owner-scope is the corpus itself: the loaded index holds ONLY `characters.ownerId = ownerId` cards (D20),
-// so a lexical hit can never cross owners. `ctx.now()` is the injected clock the cache reads for TTL
-// freshness (`no-raw-clock`).
+// domain/search/verbs/fields — the lexical BM25 engine: `fields` (full lexical card search) + `suggest`
+// (autocomplete). Both resolve the owner's per-owner MiniSearch index (built + TTL-cached in
+// `substrate/field-index.ts`); a cache miss loads the owner's cards, a hit touches no db. Owner-scope is
+// the corpus itself — the index holds only that owner's cards, so a hit can never cross owners.
 
 import type { FieldSearchParams, SuggestParams } from "../contract/params";
 import type { FieldSearchHit, SearchSuggestion } from "../contract/results";

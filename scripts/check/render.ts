@@ -1,12 +1,7 @@
-// The grouped, per-occurrence reporter (TSMORPH-SINGLE-PASS-AUDIT.md §9.3 + owner rulings 1/2). The
-// dispatcher (pass.ts) emits EXHAUSTIVE per-occurrence findings — one per offending TOKEN — carrying only
-// `{file,line,column,token}`. The reason (what's wrong + WHY + HOW to fix) lives ONCE on the gate
-// descriptor. This reporter GROUPS by gate → prints the reason once as the group header → lists ALL
-// occurrences beneath it as clickable `path.ts:line:col` jump-links (the shape editors + Claude Code
-// linkify). Like grouped eslint/tsc output.
-//
-// Read-side foundation running ALONGSIDE the legacy harness reporter — nothing here changes the legacy
-// verdict; it renders the NEW dispatcher's findings for the ported gates only.
+// The grouped, per-occurrence reporter. The dispatcher (pass.ts) emits per-occurrence findings carrying
+// only `{file,line,column,token}`; the reason lives once on the gate descriptor. This reporter groups by
+// gate, prints the reason once as the group header, then lists all occurrences beneath it as clickable
+// `path.ts:line:col` jump-links — like grouped eslint/tsc output.
 import type { Finding, GateDescriptor } from "./contract.ts";
 import type { PassResult, ToolError } from "./pass.ts";
 
@@ -16,8 +11,7 @@ function locRef(f: Finding): string {
   return f.line > 0 ? `${f.file}:${f.line}:${f.column}` : f.file;
 }
 
-/** The per-occurrence suffix: the offending token, or a per-occurrence message override for the rare
- *  finding whose text varies (a stale-registry arm naming the dead entry), or nothing. */
+/** The per-occurrence suffix: the offending token, or a per-occurrence message override, or nothing. */
 function occurrenceSuffix(f: Finding): string {
   if (f.token !== undefined) {
     return `  ${f.token}`;
@@ -33,8 +27,7 @@ function occurrenceLine(f: Finding): string {
   return `      ${locRef(f)}${occurrenceSuffix(f)}`;
 }
 
-/** Render ONE failing gate as a group: the ✗ header with the count, the reason (message + fix) printed
- *  ONCE, then every occurrence beneath. */
+/** Render ONE failing gate as a group: the header, the reason printed once, then every occurrence. */
 function renderGroup(gate: GateDescriptor, findings: readonly Finding[]): string {
   const lines: string[] = [`  ✗ ${gate.name} (${findings.length})`];
   lines.push(`      ${gate.message}`);
@@ -47,7 +40,7 @@ function renderGroup(gate: GateDescriptor, findings: readonly Finding[]): string
   return lines.join("\n");
 }
 
-/** A tool error (a gate that threw) — the checker itself is broken (§9.4), distinct from a violation. */
+/** A tool error (a gate that threw) — the checker itself is broken, distinct from a violation. */
 function renderToolError(e: ToolError): string {
   return `  ⚠ ${e.gate} [${e.phase}]: ${e.message}`;
 }
@@ -68,7 +61,6 @@ export function renderPass(
     violationTotal += g.findings.length;
     const gate = gatesByName.get(g.name);
     if (gate === undefined) {
-      // Defensive: a result without its descriptor still prints its occurrences (no reason header).
       out.push(`  ✗ ${g.name} (${g.findings.length})`);
       for (const f of g.findings) {
         out.push(occurrenceLine(f));

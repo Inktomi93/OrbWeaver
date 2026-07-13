@@ -1,16 +1,7 @@
-// Gate: no-raw-egress (D61 B5a — the hardened-egress guard). A bare `fetch(` in `packages/server/src`
-// must go through `safeFetch` (the self-enforcing per-request resolve→validate→pin SSRF guard,
-// `infra/network`) — a raw `fetch` against a user-influenced URL is the SSRF/exfil hole B5a closes. Raw
-// `fetch` is sanctioned ONLY in the credentialed/loopback PROVIDER-egress tier + safeFetch's own home
-// (each a configured-endpoint or localhost call, a different trust class than untrusted user content):
-//   • infra/network/** — safeFetch's impl home + the `/models` catalog probe.
-//   • infra/providers/** — the sealed runner tier (vLLM loopback engine · custom-BYO configured endpoint).
-// Imagery's generated-image download was DE-SANCTIONED (2026-07-09): the URL is provider-response-controlled
-// (an OpenRouter-marketplace model provider populates it), so a raw fetch there is an SSRF hole — it now
-// routes through the `fetchImage` port → `infra/network` `fetchImageBytes` → `safeFetch` (its first consumer).
-// Untrusted-content egress (hub browse, databank scrapers, server-side D44 external media) lives OUTSIDE
-// these zones, so a raw `fetch` there is RED — route it through `safeFetch`. PLUS a literal ban on
-// `corsproxy.io` (the NAMED-REJECTED third-party proxy fallback, D61) anywhere in server source.
+// Gate: no-raw-egress — a bare `fetch(` in packages/server/src must go through `safeFetch` (the
+// self-enforcing resolve→validate→pin SSRF guard, infra/network). Raw fetch is sanctioned ONLY in
+// infra/network/** and infra/providers/** (configured-endpoint/loopback provider egress); untrusted
+// content egress elsewhere is RED. PLUS a literal ban on `corsproxy.io` anywhere in server source.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -37,13 +28,6 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (a)) ──────────────────────────────────────────────
-// Two node populations, ONE gate: a bare `fetch(` CallExpression (the SSRF arm), and a `corsproxy.io`
-// string/template literal (the named-reject arm). The descriptor's reason is the fetch arm; a corsproxy
-// finding carries its own per-occurrence message (owner ruling 2 — the two arms are distinct violation
-// types). scanRoot mirrors the legacy SERVER_SRC filter; the fetch-sanctioned zones are checked in
-// `visit` per the legacy path filter (corsproxy is banned server-wide, so it isn't scanRoot-gated).
-// Per-occurrence: each bare fetch + each corsproxy literal.
 const STRING_KINDS: readonly SyntaxKind[] = [
   SyntaxKind.StringLiteral,
   SyntaxKind.NoSubstitutionTemplateLiteral,
@@ -52,12 +36,10 @@ const STRING_KINDS: readonly SyntaxKind[] = [
   SyntaxKind.TemplateTail,
 ];
 
-/** Is `abs`-path (leading-slash form of a repoRel) in a fetch-sanctioned provider-egress zone? */
 function isFetchSanctioned(rel: string): boolean {
   return FETCH_SANCTIONED.some((re) => re.test(`/${rel}`));
 }
 
-/** A bare `fetch(...)` call node (callee is the identifier `fetch`)? */
 function isBareFetchCall(node: Node): boolean {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return false;

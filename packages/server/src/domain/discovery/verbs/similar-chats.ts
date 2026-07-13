@@ -1,18 +1,7 @@
 // domain/discovery/verbs/similar-chats — "more like THIS chat" (owner-scoped read; live compute, IN-RAM).
-// The k nearest chats by segment-centroid cosine — a "similar vibe" browse. Was neo-tavern
-// `corpus/verbs/similarity.ts` (chat arm). Re-spec: orb chats are multi-participant (no `characterVersionId`,
-// D28), so a hit is TITLE-only (`{ chatId, title, similarity }`).
-//
-// DISCOVERY-NATIVE, ZERO SEARCH, LEDGER-PINNED IN-RAM: `Core-Laws-and-Precedents.md` pins "similarChats
-// stays in-RAM (centroid NOT in the store)" — the per-chat centroid is derived from raw segment embeddings at
-// request time, never persisted, and the cosine is a pure-JS `@orb/kit/vector-math` pass (`mean` + one
-// `cosineToMany`), NOT a `vector_distance_cos` SQL (that is `search`, the two-cosine-access-patterns rule).
-// The candidate set is BOUNDED at the read (`readOwnedSegmentVectorsByChat`: target-chat-first + a
-// SIMILAR_CHATS_SEG_CAP recency cap) so a heavy user never loads their whole segment corpus into RAM.
-//
-// SPACE GATE: discovery has no active-embedder handle, so — like the near-dup/graph verbs — the comparison is
-// restricted to ONE embedding space: the TARGET chat's dominant `model`. A centroid cosine across embedder
-// spaces is meaningless; segments in a stray secondary space are ignored for this call.
+// The k nearest chats by segment-centroid cosine. Per-chat centroid is derived from raw segment embeddings
+// at request time, never persisted (pure-JS cosine, not a `vector_distance_cos` SQL — that's `search`).
+// Restricted to the target chat's dominant embedding `model` (a cross-space centroid cosine is meaningless).
 
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -29,8 +18,6 @@ export function createSimilarChats(ctx: DiscoveryContext): Pick<DiscoveryService
   return { similarChats: (userId, chatId, limit) => similarChats(ctx.db, userId, chatId, limit) };
 }
 
-// The most-frequent `model` among the target chat's segments (normally its only space) — the space the
-// centroid comparison runs in.
 function dominantModel(rows: readonly { readonly model: string }[]): string | null {
   const counts = new Map<string, number>();
   for (const r of rows) {
@@ -53,14 +40,12 @@ export async function similarChats(
 ): Promise<SimilarChat[]> {
   const segs = await readOwnedSegmentVectorsByChat(db, ownerId, chatId);
 
-  // Restrict to the target chat's dominant embedding space (never mix spaces in a centroid cosine).
   const targetRows = segs.filter((s) => s.chatId === chatId);
   const targetModel = dominantModel(targetRows);
   if (targetModel === null) {
     return [];
   }
 
-  // Bucket the in-space segments by chat (one centroid per chat), carrying each chat's title for the enrich.
   const bucket = new Map<string, Float32Array[]>();
   const titleByChat = new Map<string, string | null>();
   for (const s of segs) {
@@ -82,8 +67,6 @@ export async function similarChats(
   }
   const targetCentroid = mean(targetVecs);
 
-  // One centroid per OTHER chat, then a single `cosineToMany` pass (parallel arrays — Map iteration is
-  // insertion order, so the id/centroid indices line up).
   const otherIds: string[] = [];
   const otherCentroids: Float32Array[] = [];
   for (const [id, vecs] of bucket) {

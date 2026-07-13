@@ -1,14 +1,7 @@
-// domain/discovery/image-analytics/retrieve — the image-side EMBEDDING analytics (owner-scoped reads; in-RAM).
-// `imageDuplicates` (cards sharing near-identical ART — reused avatars the text dedup can't see) +
-// `visualArchetypes` (art-style clusters, k-means over avatar vectors, labelled by caption artStyle/mood).
-// Was neo-tavern `corpus/image-analytics/retrieve.ts`.
-//
-// IN-RAM, per the design that must survive: image↔image cosine is ALL-PAIRS ANALYTICS over the loaded avatar
-// vectors (`substrate/pair-cosine`, `substrate/kmeans`) — NOT a `vector_distance_cos` SQL (that is search's).
-// Per (owner, embedding-space): grouped by `model` — an image↔image cosine / k-means is only meaningful within
-// ONE unified space. Shared/default avatars (≥ SHARED_AVATAR_MIN_REFS refs) are excluded at the read.
-// DEFER(PD-40): `similarArt` ("more like THIS avatar" — image→image top-k) stays deferred — top-k retrieval is
-// `search`'s image kNN (`search-deferred-verbs.md`), NOT a discovery all-pairs scan.
+// domain/discovery/image-analytics/retrieve — image-side embedding analytics (owner-scoped, in-RAM):
+// imageDuplicates (cards sharing near-identical art) + visualArchetypes (art-style clusters, k-means over
+// avatar vectors). All-pairs analytics, not vector_distance_cos SQL (that's search's). Grouped by model —
+// meaningful only within one unified embedding space.
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -19,7 +12,6 @@ import { readOwnedCardFacets } from "../persistence/summary-reads";
 import { kmeans } from "../substrate/kmeans";
 import { pairsAboveThreshold } from "../substrate/pair-cosine";
 
-/** The raw image-cosine floor a card pair must clear to be recorded as sharing art. */
 export const DEFAULT_IMAGE_DUP_THRESHOLD = 0.92;
 const DEFAULT_VISUAL_K = 8;
 const VISUAL_SEED = 1;
@@ -40,7 +32,6 @@ function groupByModel<T extends { readonly model: string }>(rows: readonly T[]):
   return groups;
 }
 
-/** Bind the image embedding-analytics reads over the DI bundle (the subsystem's service seam). */
 export function createImageAnalyticsRetrieve(
   ctx: DiscoveryContext,
 ): Pick<DiscoveryService, "imageDuplicates" | "visualArchetypes"> {
@@ -50,10 +41,6 @@ export function createImageAnalyticsRetrieve(
   };
 }
 
-/**
- * Cards sharing near-identical ART (reused/duplicate avatars) — exact all-pairs image cosine per space,
- * similarity-ranked. Standalone `(db, ownerId, threshold?)`.
- */
 export async function imageDuplicates(
   db: Db,
   ownerId: UserId,
@@ -88,7 +75,6 @@ export async function imageDuplicates(
   return out.sort((x, y) => y.similarity - x.similarity);
 }
 
-// One accumulating visual cluster before it becomes a VisualArchetype.
 interface VisualClusterAcc {
   readonly members: ArchetypeMember[];
   readonly genre: Map<string, number>;
@@ -108,8 +94,6 @@ function mode(m: Map<string, number>): string | null {
   return [...m.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0] ?? null;
 }
 
-// One (owner, space) group of avatars → its visual archetypes (below k+1 ⇒ none). `labels` maps a characterId
-// to its distilled genre/tone + caption artStyle/palette/mood.
 function visualArchetypesForGroup(
   group: readonly AvatarVector[],
   labels: Map<CharacterId, VisualLabels>,
@@ -188,10 +172,6 @@ interface VisualLabels {
 const metaStr = (m: Record<string, unknown> | null, key: string): string | null =>
   m !== null && typeof m[key] === "string" ? (m[key] as string) : null;
 
-/**
- * Art-style clusters — k-means over avatar vectors per space, labelled by dominant caption artStyle/mood
- * (grounded by distilled genre/tone), largest first. Standalone `(db, ownerId, k?)`.
- */
 export async function visualArchetypes(
   db: Db,
   ownerId: UserId,

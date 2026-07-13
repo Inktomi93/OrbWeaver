@@ -1,10 +1,6 @@
-// domain/settings/persistence/theme-queries — ALL db access for the `themes` table (queries only; the
-// verbs hold the business logic). Reads resolve the two-armed "owned ∪ seed" union (`ownerId = caller OR
-// ownerId IS NULL`, the `presets.listReadable`/`readablePreset` precedent); ALL mutations route through
-// `fetchOwned` (`@orb/db`) scoped on `ownerId = caller`, so a seed row (`ownerId IS NULL`) can never match
-// and a foreign owner's row 404s — seeds are un-mutable BY CONSTRUCTION (themes-design.md §2.1), no verb
-// guard to forget. Every timestamp arrives as a param (the verb's injected clock) — no ambient
-// `Date.now()` here (determinism).
+// All db access for the `themes` table. Reads resolve the two-armed "owned ∪ seed" union (`ownerId = caller
+// OR ownerId IS NULL`); all mutations scope on `ownerId = caller`, so a seed row can never match — seeds are
+// un-mutable by construction. Timestamps arrive as params.
 
 import type { Db } from "@orb/db";
 import { fetchOwned, isConstraintViolation, themes } from "@orb/db";
@@ -54,8 +50,8 @@ export async function readableTheme(
   return rows.at(0);
 }
 
-/** The caller's OWNED theme rows ONLY (never a seed — `ownerId = caller`, so a NULL-owner seed can't match),
- *  oldest-first. The portable theme-backup export reads THIS (seeds are code-authored and never travel). */
+/** The caller's owned theme rows only (never a seed), oldest-first. The portable theme-backup export reads
+ *  this — seeds are code-authored and never travel. */
 export async function listOwnedThemes(db: Db, ownerId: UserId): Promise<ThemeRow[]> {
   return await db
     .select()
@@ -64,7 +60,7 @@ export async function listOwnedThemes(db: Db, ownerId: UserId): Promise<ThemeRow
     .orderBy(asc(themes.createdAt));
 }
 
-/** Load an OWNED theme row (never a seed — `fetchOwned`'s predicate can't match a NULL owner). */
+/** Load an owned theme row (never a seed). */
 export function loadOwnedTheme(
   db: Db,
   id: ThemeId,
@@ -88,10 +84,9 @@ export async function insertTheme(db: Db, row: ThemeInsert): Promise<void> {
   await db.insert(themes).values(row);
 }
 
-/** Idempotent batch insert for the portable theme-backup import: insert the given owned rows, SKIPPING any
- *  whose `(ownerId, name)` already exists (the `themes_owner_name_uq` index target — case-sensitive, matching
- *  the manual-create conflict). Returns how many rows were NEWLY inserted (the rest deduped) — so a re-import
- *  of the same backup creates zero. Mirrors `tag.insertOwnedTagsIfAbsent`. */
+/** Idempotent batch insert for the portable theme-backup import: skip any row whose `(ownerId, name)`
+ *  already exists. Returns how many rows were newly inserted — a re-import of the same backup creates
+ *  zero. */
 export async function insertOwnedThemesIfAbsent(
   db: Db,
   values: readonly (typeof themes.$inferInsert)[],
@@ -107,8 +102,7 @@ export async function insertOwnedThemesIfAbsent(
   return inserted.length;
 }
 
-/** Patch an OWNED row (scoped `id + ownerId` — a seed's NULL owner never matches). Returns the updated
- *  row, or `undefined` when nothing matched (missing / foreign / a seed). */
+/** Patch an owned row. Returns the updated row, or `undefined` when nothing matched. */
 export async function updateOwnedTheme(
   db: Db,
   id: ThemeId,
@@ -123,7 +117,7 @@ export async function updateOwnedTheme(
   return updated.at(0);
 }
 
-/** Delete an OWNED row (scoped `id + ownerId`). Returns `true` iff a row was actually removed. */
+/** Delete an owned row. Returns `true` iff a row was actually removed. */
 export async function deleteOwnedTheme(db: Db, id: ThemeId, ownerId: UserId): Promise<boolean> {
   const removed = await db
     .delete(themes)
@@ -132,15 +126,13 @@ export async function deleteOwnedTheme(db: Db, id: ThemeId, ownerId: UserId): Pr
   return removed.length > 0;
 }
 
-/** `true` iff `err` is the `(ownerId, name)` unique-constraint violation (re-exported here so verbs never
- *  import the db-kit classifier directly — one call site per concern). */
+/** `true` iff `err` is the `(ownerId, name)` unique-constraint violation. */
 export function isThemeNameConflict(err: unknown): boolean {
   return isConstraintViolation(err)?.kind === "unique";
 }
 
-/** Overwrite (or first-insert) ONE seed row by its fixed sentinel id — the boot-reseed write (§5): seeds
- *  are overwritten on every boot, never version-gated (un-editable, so an overwrite can't clobber user
- *  data). `onConflictDoUpdate` on the PK makes this idempotent in one round trip. */
+/** Overwrite (or first-insert) one seed row by its fixed sentinel id — the boot-reseed write. Idempotent in
+ *  one round trip. */
 export async function upsertSeedTheme(
   db: Db,
   row: Omit<ThemeInsert, "ownerId"> & { readonly ownerId: null },

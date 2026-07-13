@@ -3,29 +3,15 @@ import type { UserRole } from "@orb/contracts/identity";
 import { env } from "#foundation/env";
 import type { IdentityAccess } from "../contract/results";
 
-// domain/sessions/substrate/role-policy — the app's IdP-group → role governance (D17). Pure derivation
-// policy + the SANCTIONED call-time `process.env` reads: `OWNER_HANDLES` / `OWNER_GROUP` /
-// `OIDC_ADMIN_GROUPS` / `OIDC_ALLOWED_GROUPS` / `RE_DERIVE_ROLE_ON_LOGIN` are read at CALL time — NOT via
-// the frozen parsed `env` — so per-test `vi.stubEnv` drives the role/access matrix. This is the documented
-// EXCEPTION to "foundation/env is the only process.env reader," isolated to THIS ONE file (the biome
-// `noProcessEnv` override for this file + the `sole-env-reader` gate allowlist scope the exception to
-// exactly these keys here). The deploy-pinned vars (AUTH_MODE, SESSION_SECRET, …) still flow through `env`.
+// The app's IdP-group → role governance: pure derivation policy + the sanctioned call-time `process.env`
+// reads (OWNER_HANDLES/OWNER_GROUP/OIDC_ADMIN_GROUPS/OIDC_ALLOWED_GROUPS/RE_DERIVE_ROLE_ON_LOGIN), read at
+// call time (not via the frozen `env`) so per-test `vi.stubEnv` drives the role/access matrix. Documented
+// exception to "foundation/env is the only process.env reader," scoped to this file's biome override.
 //
-// The group→role model (owner-confirmed; OpenWebUI OAUTH ALLOWED_ROLES/ADMIN_ROLES is the mental model,
-// mapped onto orb's EXISTING owner|admin|user enum — NOT a new group subsystem):
-//   • OWNER — `OWNER_GROUP` membership OR handle ∈ `OWNER_HANDLES`. The immutable bootstrap singleton
-//     (D17); exempt from the allowed-groups gate; never denied, never re-derived downward.
-//   • ADMIN — membership in any `OIDC_ADMIN_GROUPS` group. This is the owner granting admin THROUGH the
-//     IdP (their authentik config) rather than the in-app `setRole` — the D17 "admin is granted by the
-//     owner" intent, now sourced from the IdP group. Admins are IMPLICITLY allowed to log in.
-//   • USER — an authenticated identity that passes the allowed-groups gate but is in no admin group.
-//   • DENY — `OIDC_ALLOWED_GROUPS` set AND the identity is in NONE of those groups (and is not owner/admin)
-//     ⇒ login refused (the seam/route 401s; no JIT row is created). Unset ⇒ all authenticated users allowed
-//     (backward-compat).
-//
-// All five vars ARE declared in `foundation/env` (schema/docs = source of truth); the READ is call-time
-// here for `vi.stubEnv` ergonomics the frozen object cannot give. `DEFAULT_USER_HANDLE` (the single-user
-// owner) is read from frozen `env`.
+// Roles: OWNER (OWNER_GROUP membership or handle in OWNER_HANDLES; immutable bootstrap singleton, exempt
+// from the allowed-groups gate). ADMIN (membership in any OIDC_ADMIN_GROUPS group; implicitly allowed to log
+// in). USER (passes the allowed-groups gate, no admin group). DENY (OIDC_ALLOWED_GROUPS set and the identity
+// is in none of those groups and not owner/admin — login refused).
 
 // The var names are inlined at each `process.env["…"]` read (NOT hoisted to a const) so the
 // `sole-env-reader` gate can statically verify the EXACT allowlisted keys at the access site — exactly the

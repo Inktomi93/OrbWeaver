@@ -1,20 +1,7 @@
 // domain/discovery/themes/generate — the emergent-theme pass (the `compute-themes` workload). Per
-// (owner, level, embedding-space) k-means over SOLO digest embeddings (k-means++ seeded, content-collapsed),
-// every digest assigned (full coverage), each name-worthy cluster LLM-named via the injected `summarize`
-// thunk → `theme_clusters` + `digest_theme_assignments`.
-//
-// LOAD-BEARING:
-//   • SOLO only (#13): group-room digests (`is_group=1`) belong to the synthetic group character, not the
-//     host's personal theme space — clustering them skews an owner's solo centroids. They are filtered out.
-//   • content-collapse before clustering (#3): centroids are computed on the collapsed REP set, but `size`
-//     (the name-worthiness gate + the stored count) is the FULL-space member count — a fork-of-50 collapsing
-//     to one rep should still be a named theme.
-//   • centroids are k-means-normalized (#6) and stored as the `vector32` rollup (a MEAN, not an embed call).
-//
-// PD-39 (BUILT — tier-0/scene): after the atomic assignment replace, `backfillMsgMidAt` stamps
-// `digest_theme_assignments.msgMidAt` (the position-median story-time stamp that powers `themeDrift`). Written
-// null in the replace batch, then stamped in a second pass (the stamp is advisory + nullable). Tier-k (arc)
-// stamping still DEFERS (needs the memory bridge-coverage `fanOut` seam — themes/backfill.ts header).
+// (owner, level, embedding-space) k-means over SOLO digest embeddings (content-collapsed, full coverage),
+// each name-worthy cluster LLM-named → `theme_clusters` + `digest_theme_assignments`. Group-room digests
+// are excluded (they belong to the synthetic group character, not an owner's solo theme space).
 
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
@@ -36,16 +23,11 @@ import { kmeans } from "../substrate/kmeans";
 import { backfillMsgMidAt } from "./backfill";
 import { parseThemeName } from "./utils";
 
-// The default k-means++ seeding seed (overridable via opts.seed) — pins the clustering for reproducibility.
 const DEFAULT_SEED = 1;
 // A cluster must have at least this many FULL-space members to be worth naming (else stored with name null).
-// Small singleton clusters are not handed to the (costly) summarize pass.
 const MIN_NAME_SIZE = 2;
-// How many of a cluster's most-frequent keywords feed the naming prompt.
 const NAME_KEYWORDS = 12;
-// theme_clusters insert column count (id, ownerId, level, clusterIdx, name, centroid, size, model, at).
 const CLUSTER_COLS = 9;
-// digest_theme_assignments insert column count (digestId, themeClusterId, msgMidAt, computedAt).
 const ASSIGN_COLS = 4;
 
 const NAME_SYSTEM =
@@ -55,8 +37,7 @@ type OwnedDigest = Awaited<ReturnType<typeof readOwnedDigestVectors>>[number];
 type ClusterRow = typeof themeClusters.$inferInsert;
 type AssignRow = typeof digestThemeAssignments.$inferInsert;
 
-// A built cluster before persistence — its owner/level/space address, the normalized centroid rollup, the
-// full-space member digest ids, and the member rows (for keyword-based naming).
+/** A built cluster before persistence. */
 interface ClusterDraft {
   readonly ownerId: OwnedDigest["ownerId"];
   readonly level: ThemeLevel;
@@ -67,12 +48,10 @@ interface ClusterDraft {
   readonly memberRows: OwnedDigest[];
 }
 
-// scene = tier-0 single-block digests; arc = tier-1+ cross-block syntheses.
 function levelOf(tier: number): ThemeLevel {
   return tier === 0 ? "scene" : "arc";
 }
 
-// The cluster count heuristic √(n/2), clamped to ≥1 (overridable via opts.k).
 function heuristicK(n: number): number {
   return Math.max(1, Math.round(Math.sqrt(n / 2)));
 }
@@ -91,7 +70,6 @@ function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, 
   return groups;
 }
 
-// The most-frequent keywords across a cluster's member digests (for the naming prompt).
 function topKeywords(rows: readonly OwnedDigest[]): string[] {
   const counts = new Map<string, number>();
   for (const row of rows) {
@@ -105,8 +83,6 @@ function topKeywords(rows: readonly OwnedDigest[]): string[] {
     .map(([kw]) => kw);
 }
 
-// Cluster ONE (owner, level, space) subgroup → its non-empty clusters (no clusterIdx yet — the caller
-// assigns a running index within the (owner, level) partition).
 function clusterSubgroup(
   rows: readonly OwnedDigest[],
   k: number,
@@ -146,7 +122,6 @@ function clusterSubgroup(
   return builds.filter((b) => b.memberDigestIds.length > 0);
 }
 
-// Build every cluster draft across all (owner, level, space) partitions (clusterIdx running per owner+level).
 function buildDrafts(
   solo: readonly OwnedDigest[],
   opts: ComputeThemesOptions,
@@ -173,8 +148,6 @@ function buildDrafts(
   return { drafts, owners };
 }
 
-// Name the name-worthy drafts (≥ MIN_NAME_SIZE members) in ONE batched summarize call; return a name (or
-// null) index-aligned to drafts.
 async function nameDrafts(
   drafts: readonly ClusterDraft[],
   summarize: Summarize,
@@ -248,8 +221,7 @@ export async function computeThemes(
   }
 
   await replaceAll(db, clusterRows, assignRows, opts.ownerId);
-  // PD-39: stamp the position-median story-time (`msgMidAt`) on the freshly-written tier-0 assignments so
-  // `themeDrift` reads them (idempotent; the replace wrote them null). Same owner scope as the recompute.
+  // FLAG[PD-39]: stamps `msgMidAt` on tier-0 assignments (written null in the replace batch).
   await backfillMsgMidAt(db, opts.ownerId);
   return {
     ownersProcessed: owners.size,
@@ -258,10 +230,7 @@ export async function computeThemes(
   };
 }
 
-// Atomic replace: ONE db.batch of [delete clusters (CASCADE clears assignments), ...chunked cluster inserts,
-// ...chunked assignment inserts] — clusters before assignments (the FK order). `ownerId` scopes the DELETE to
-// that owner's clusters (the SINGULAR pass — never wipes another owner's themes); omitted/null = delete-ALL
-// (the BULK global rebuild).
+// Delete before insert, clusters before assignments (FK order); `ownerId` scopes the delete, omitted/null = delete-ALL.
 async function replaceAll(
   db: Db,
   clusterRows: readonly ClusterRow[],

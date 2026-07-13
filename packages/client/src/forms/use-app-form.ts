@@ -1,11 +1,6 @@
-// THE single `createFormHook` instance (UI-Gates §11.3; gate `tanstack-form-only-in-shared` — the
-// grit `no-direct-useform` bans raw `useForm`/`createFormHook` outside forms/). Every multi-field
-// form in the app builds from `useAppForm` (or, almost always, from the two editor FACTORIES that
-// wrap it — §13.4: the factory trigger is ≥3 fields OR validation OR save/draft semantics; only a
-// genuinely trivial input stays plain controlled + Zod). Bound field set: Text/Textarea/Number/
-// Slider/Select/Switch + the save chrome; a new bound control registers HERE, nowhere else. (The Macro
-// bound field joins when a feature first composes `@orb/ui/macro-textarea` into an editor.)
-// NOTE: biome.json carries a useNamingConvention override for THIS file only — the registry keys
+// THE single `createFormHook` instance — every multi-field form builds from `useAppForm` (or, almost
+// always, one of the two editor factories that wrap it). A new bound control registers HERE, nowhere
+// else. NOTE: biome.json carries a useNamingConvention override for this file only — the registry keys
 // are PascalCase by necessity (createFormHook exposes them as JSX components: `<field.TextField>`).
 
 import { createFormHook } from "@tanstack/react-form";
@@ -44,12 +39,10 @@ export const { useAppForm, withForm, withFieldGroup } = createFormHook({
   },
 });
 
-// The REAL `useAppForm` options type, pinned to a concrete `TValues` — a type-extraction-only "fake
-// call" instantiation (the trailing 11 validator/listener generics widened to `any`, TanStack's own
-// idiom for these deeply-generic escape hatches — see form-core's `AnyFieldApi`/`AnyFormApi`). Plain
-// `Parameters<typeof useAppForm>[0]` collapses every generic to `unknown` (no call site to infer
-// from), which is NOT assignable back into a real `useAppForm<TValues, ...>({...})` call once spread
-// — this is the derivation the two editor factories actually need for their `config.options` type.
+// The real `useAppForm` options type, pinned to a concrete `TValues` — a type-extraction-only "fake
+// call" instantiation (trailing 11 validator/listener generics widened to `any`, TanStack's own idiom
+// for these escape hatches). Plain `Parameters<typeof useAppForm>[0]` collapses every generic to
+// `unknown`, which isn't assignable back into a real call — this is what the two editor factories need.
 // biome-ignore lint/suspicious/noExplicitAny: type-extraction-only instantiation of TanStack's own generic escape hatch (see comment above) — never a runtime value, never flows into app logic.
 type Wildcard = any;
 

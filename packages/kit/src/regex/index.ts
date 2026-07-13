@@ -1,26 +1,16 @@
 import type { ProcessMacroOptions } from "#macro";
 import { processMacros } from "#macro";
 
-// ── Pure regex-script executor — usable from both client and server ──────────
-// Ported from neo-tavern (shared/_kit/regex-execute.ts). The same find/replace
-// pipeline runs on the client for DISPLAY-placement scripts and on the server
-// for the prompt-side placements. The server keeps a thin wrapper that adds its
-// own onScriptFailure (logger + disabled-script tally) AND injects a node:vm-
-// sandboxed `applyReplace` with a per-call timeout (the ReDoS watchdog — node:vm
-// can't live here: @orb/kit is browser-safe / kit-purity forbids node:*). The
-// client just consumes this executor directly with the default native replace.
+// Pure regex-script executor — usable from both client and server. The same find/replace pipeline
+// runs client-side for DISPLAY-placement scripts and server-side for prompt-side placements; the
+// server wraps in its own onScriptFailure + a node:vm-sandboxed `applyReplace` with a per-call
+// timeout (node:vm can't live here — kit is browser-safe).
+// The executor reads a kit-local structural `RegexScriptInput` (below) rather than the persisted
+// `@orb/contracts` schema, since kit must not import contracts; `RegexScript satisfies
+// RegexScriptInput` keeps them aligned from the contracts side.
 
-// ── Engine vocab (ported from neo shared/_kit/regex.ts — the SHAPE only) ──────
-// The zod `regexScriptSchema` / `RegexScript` it also defined are NOT ported:
-// the persisted shape lives in @orb/contracts, and kit MUST NOT import contracts
-// (core/Legacy-Migration-and-Gaps.md §1/§6 — contracts depends on kit, never the
-// reverse). The executor instead reads a kit-local STRUCTURAL `RegexScriptInput`
-// (below); `contracts/regex.RegexScript satisfies RegexScriptInput` keeps them
-// aligned from the contracts side.
-
-/** Where in the pipeline a script runs. `DISPLAY` is frontend-only (render-time);
- *  the rest are prompt-side legs. Exported as an `as const` tuple so callers can
- *  iterate the set and the union below derives from it (single source of truth). */
+/** Where in the pipeline a script runs. `DISPLAY` is frontend-only (render-time); the rest are
+ *  prompt-side legs. */
 export const REGEX_PLACEMENTS = [
   "USER_INPUT",
   "AI_OUTPUT",
@@ -32,11 +22,9 @@ export const REGEX_PLACEMENTS = [
 
 export type RegexPlacement = (typeof REGEX_PLACEMENTS)[number];
 
-/** Whether (and how) macros run on the FIND pattern before it is compiled:
- *  `none` = pattern used verbatim; `raw` = macros substituted into the pattern
- *  as-is; `escaped` = macros substituted with their output regex-escaped (so a
- *  value like `a.b` matches literally instead of as a wildcard). The numeric
- *  values are the persisted/wire form (legacy ST card-format compat). */
+/** Whether (and how) macros run on the FIND pattern before it is compiled: `none` = verbatim; `raw` =
+ *  macros substituted as-is; `escaped` = substituted output regex-escaped (so `a.b` matches literally).
+ *  The numeric values are the persisted/wire form (legacy ST card-format compat). */
 export const SubstituteFindRegex = {
   none: 0,
   raw: 1,
@@ -45,11 +33,8 @@ export const SubstituteFindRegex = {
 
 export type SubstituteFindRegex = (typeof SubstituteFindRegex)[keyof typeof SubstituteFindRegex];
 
-// Hard cap on a user-authored regex pattern. SINGLE SOURCE OF TRUTH — the executor rejects any
-// pattern longer than this before `new RegExp`, and the contracts schema rejects it at the
-// API/storage boundary (so an over-long pattern can't even be persisted). Keep them equal. 2048 is
-// generous for a real find/replace rule; combined with the quantifier-stack heuristic + the
-// server's node:vm per-call timeout, it bounds the ReDoS surface from a stored preset.
+// Single source of truth: the executor rejects a pattern longer than this before `new RegExp`, and
+// the contracts schema rejects it at the storage boundary — keep them equal.
 export const MAX_FIND_REGEX_LENGTH = 2048;
 
 /** The minimal structural shape the executor reads off a regex script. The persisted
@@ -61,9 +46,8 @@ export interface RegexScriptInput {
   readonly placement: readonly RegexPlacement[];
   readonly findRegex: string;
   readonly replaceString: string;
-  // NOTE: optional fields are `?: T | undefined` (NOT bare `?: T`) so a zod-`.optional()`-inferred
-  // shape (`contracts/regex.RegexScript`, which is `T | undefined`) still `satisfies` this under
-  // `exactOptionalPropertyTypes` — that satisfies-seam is the kit↔contracts contract (§1/§6).
+  // Optional fields are `?: T | undefined` (not bare `?: T`) so a zod-`.optional()`-inferred shape
+  // still `satisfies` this under `exactOptionalPropertyTypes`.
   /** Macro-substitution mode for the FIND pattern (default-equivalent: `none`). */
   readonly substituteRegex?: SubstituteFindRegex | undefined;
   /** ST card-format leg flags. `markdownOnly` = display-only (skip on any non-DISPLAY
@@ -74,21 +58,14 @@ export interface RegexScriptInput {
   readonly trimStrings?: readonly string[] | undefined;
 }
 
-// ── ReDoS pre-compile heuristic (DEFENSE-IN-DEPTH, not a guarantee) ───────────
-// Counts quantifier-stack OCCURRENCES across the pattern, not nesting depth, so the canonical ReDoS
-// shape `(a+)+` (one stack) passes it. Real safety against catastrophic backtracking comes from the
-// `applyReplace` seam: the server injects a node:vm-sandboxed replace with a hard per-call timeout.
-// The browser has NO runtime timeout; it relies on this heuristic plus the per-script try/catch
-// keeping one bad pattern from poisoning the whole list. Coarse on purpose: three+ consecutive
-// quantifier-end markers anywhere → reject before `new RegExp`.
+// ReDoS pre-compile heuristic (defense-in-depth, not a guarantee): counts quantifier-stack
+// OCCURRENCES, not nesting depth, so the canonical ReDoS shape `(a+)+` (one stack) passes it. Real
+// safety comes from the server's node:vm-sandboxed `applyReplace` per-call timeout; the browser has
+// no runtime timeout and relies on this heuristic + the per-script try/catch.
 const MAX_STACKED_QUANTIFIERS = 3;
-// Shared with the contracts schema cap so the storage-boundary cap and the execution cap are the
-// SAME number and can't drift.
 const MAX_PATTERN_LENGTH = MAX_FIND_REGEX_LENGTH;
-// Default flags when the pattern is not in `/body/flags` form: global + multiline.
 const DEFAULT_REGEX_FLAGS = "gm";
 const DECIMAL_RADIX = 10;
-// A native String.replace callback receives `[match, p1..pn, offset, subject, groups?]`.
 // captureCount = total args − (match + offset + subject) − (named-groups object present ? 1 : 0).
 const REPLACE_FIXED_ARGS = 3;
 
@@ -103,8 +80,7 @@ function tooComplex(pattern: string): string | null {
   return null;
 }
 
-// Regex metacharacters + the control chars ST escapes, mapped to their backslash form. Used as the
-// macro `postProcess` hook in `escaped` mode so a substituted value is matched literally.
+// Used as the macro `postProcess` hook in `escaped` mode so a substituted value is matched literally.
 const REGEX_MACRO_ESCAPES: Readonly<Record<string, string>> = {
   "\n": "\\n",
   "\r": "\\r",
@@ -143,8 +119,7 @@ interface ParsedPattern {
   flags: string;
 }
 
-// Split a `/body/flags` pattern into its body + flags; otherwise use DEFAULT_REGEX_FLAGS. `g` is
-// always forced on (the executor relies on replace-all semantics).
+// `g` is always forced on (the executor relies on replace-all semantics).
 function parsePatternFlags(raw: string): ParsedPattern {
   if (raw.startsWith("/") && raw.lastIndexOf("/") > 0) {
     const lastSlash = raw.lastIndexOf("/");
@@ -157,9 +132,8 @@ function parsePatternFlags(raw: string): ParsedPattern {
   return { pattern: raw, flags: DEFAULT_REGEX_FLAGS };
 }
 
-// Macro-substitute the find pattern (per substituteRegex mode), parse flags, run the ReDoS
-// heuristic, and compile. Throws on over-complex patterns or invalid regex syntax — the caller's
-// per-script try/catch turns either into an `onScriptFailure` and moves on.
+// Throws on over-complex patterns or invalid regex syntax — the caller's per-script try/catch turns
+// either into an `onScriptFailure` and moves on.
 function compilePattern(script: RegexScriptInput, ctx: ProcessMacroOptions): RegExp {
   let pattern = script.findRegex;
   if (script.substituteRegex === SubstituteFindRegex.raw) {
@@ -175,8 +149,7 @@ function compilePattern(script: RegexScriptInput, ctx: ProcessMacroOptions): Reg
   return new RegExp(parsed.pattern, parsed.flags);
 }
 
-// Narrow the native replace callback's trailing arg (the named-groups object) without an `as`
-// launder. Values are `string | undefined` — an unmatched optional named group is undefined.
+// Values are `string | undefined` — an unmatched optional named group is undefined.
 function isNamedGroups(value: unknown): value is Record<string, string | undefined> {
   return typeof value === "object" && value !== null;
 }
@@ -194,12 +167,10 @@ interface SpliceContext {
   ctx: ProcessMacroOptions;
 }
 
-// Resolve one `$$` / `$N` / `$<name>` token against the match captures. LOAD-BEARING: this runs
-// AFTER the replacement template has already been macro-evaluated; the captured text it splices in
-// is inserted VERBATIM and is never macro-evaluated (see `buildReplacement`).
+// LOAD-BEARING: runs AFTER the replacement template has already been macro-evaluated; the captured
+// text it splices in is inserted verbatim and never macro-evaluated (see `buildReplacement`).
 function resolveDollarToken(token: DollarToken, splice: SpliceContext): string {
-  // `$$` is the literal-dollar escape (native String.replace semantics): `$$1` emits the literal
-  // text `$1`. The only way to author a literal `$N` in a replacement.
+  // `$$` is the literal-dollar escape: `$$1` emits the literal text `$1`.
   if (token.full === "$$") {
     return "$";
   }
@@ -208,8 +179,7 @@ function resolveDollarToken(token: DollarToken, splice: SpliceContext): string {
   if (token.num !== undefined) {
     const index = Number.parseInt(token.num, DECIMAL_RADIX);
     // Bound to the real capture-group count — the raw callback args continue with offset + subject
-    // after the groups, so an out-of-range `$N` used to leak the offset / whole subject into the
-    // output. Native JS leaves an out-of-range `$N` as a literal; match that.
+    // after the groups, so an out-of-range `$N` would leak them into the output.
     if (index > splice.captureCount) {
       return token.full;
     }
@@ -227,15 +197,13 @@ function resolveDollarToken(token: DollarToken, splice: SpliceContext): string {
     matchText = filterString(matchText, splice.script.trimStrings, splice.ctx);
   }
 
-  // Captured model text is inserted VERBATIM — never macro-evaluated.
+  // Captured model text is inserted verbatim — never macro-evaluated.
   return matchText;
 }
 
-// Build the replacement for one match. ORDERING IS LOAD-BEARING (shared-dissolution §9): macros run
-// on the replacement TEMPLATE *first*, THEN `$N`/`$<name>`/{{match}} are spliced with the RAW
-// captured text. So an AI_OUTPUT script re-emitting a `$N` capture of the model's own reply cannot
-// have that captured text macro-evaluated — a reply containing `{{setvar::x::y}}` must NOT mutate
-// persisted chat vars on the way through. (ST semantics + chat-resolution-pipeline.md §RECEIVE.)
+// ORDERING IS LOAD-BEARING: macros run on the replacement template FIRST, then `$N`/`$<name>`/
+// {{match}} are spliced with the raw captured text — so an AI_OUTPUT script re-emitting a model
+// reply containing `{{setvar::x::y}}` can never mutate persisted chat vars on the way through.
 function buildReplacement(
   args: readonly unknown[],
   script: RegexScriptInput,
@@ -245,14 +213,13 @@ function buildReplacement(
   const namedGroups = isNamedGroups(lastArg) ? lastArg : undefined;
   const captureCount = args.length - REPLACE_FIXED_ARGS - (namedGroups ? 1 : 0);
 
-  // Macro pass on the template — BEFORE any capture is spliced in.
+  // Macro pass on the template — before any capture is spliced in.
   let replacement = processMacros(script.replaceString, ctx);
 
-  // `{{match}}` → `$0` is resolved AFTER the macro pass so its `$0` expansion isn't itself macro-
-  // evaluated (and an author can't smuggle a macro in via the captured whole-match).
+  // `{{match}}` → `$0` resolves AFTER the macro pass so its expansion isn't itself macro-evaluated.
   replacement = replacement.replace(/{{match}}/gi, "$0");
 
-  // `$$` matched FIRST so the `$(\d+)` alternative can't consume the second `$` of an escape.
+  // `$$` matched first so `$(\d+)` can't consume the second `$` of an escape.
   return replacement.replace(
     /\$\$|\$(\d+)|\$<([^>]+)>/g,
     (full: string, num: string | undefined, name: string | undefined): string =>
@@ -275,8 +242,7 @@ export interface RegexExecuteOptions {
   applyReplace?: (text: string, regex: RegExp, replacer: RegexReplacer) => string;
 }
 
-// Top-level factory (not an inline closure in the loop below — that would trip noLoopFunc) producing
-// the per-script native-replace callback.
+// Top-level factory (not an inline closure in the loop below — that would trip noLoopFunc).
 function makeReplacer(script: RegexScriptInput, ctx: ProcessMacroOptions): RegexReplacer {
   return (...args: unknown[]): string => buildReplacement(args, script, ctx);
 }
@@ -311,8 +277,7 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
     if (!script.placement.includes(placement)) {
       continue;
     }
-    // `markdownOnly`/`promptOnly` gate the prompt-vs-display LEG within the placements the array
-    // already allows: markdownOnly is display-only (skip non-DISPLAY); promptOnly skips DISPLAY.
+    // markdownOnly is display-only (skip non-DISPLAY); promptOnly skips DISPLAY.
     if (script.markdownOnly && placement !== "DISPLAY") {
       continue;
     }

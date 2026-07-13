@@ -99,9 +99,8 @@ function reconcileUserBusCoverage(project: Project): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 (c) — a whole-project RECONCILIATION via `run`) ──────────
 // The twin of bus-coverage: a pure whole-tree reconciliation (USER_BUS_EVENT_TYPES keys vs the server
-// literal corpus), ported as a `run` descriptor reusing the exact reconcile logic. The vacuous guards
+// literal corpus). The vacuous guards
 // (no contracts file / empty union → []) are the synthetic-tree protection. Findings byte-identical to
 // the legacy Check.
 export const gate: GateDescriptor = {

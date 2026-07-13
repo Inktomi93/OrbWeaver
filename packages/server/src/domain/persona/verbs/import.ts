@@ -1,15 +1,7 @@
-// verb: import — restore an owned persona from a backup blob (FINAL-Persona §A.6b gap #3, the `export.ts`
-// round-trip twin). Runs the untrusted blob through the ONE persona-backup serde core (`#kit/serde/persona`
-// `parsePersonaBackup`) which owns the backup grammar — the `create`-parity field defaults + the metadata
-// narrowing — then writes like `create.ts` minus the avatar branch: the backup shape never carries
-// `avatarAssetId` (`@orb/contracts/persona` `personaBackupSchema` excludes it), so there is no asset-ownership
-// belt to run here.
-//
-// IDEMPOTENT / MERGE (audit gap G-7): dedups on `(ownerId, name)` — the preset/world-info backup-import
-// reuse-or-merge precedent. A same-named owned persona is MERGED IN PLACE (its visible fields swapped, same
-// id, `merged:true` in the audit); otherwise a fresh owned row is minted (`merged:false`). Re-importing the
-// same backup creates ZERO duplicate rows. Returns the resolved `PersonaDetail` either way (the client shows
-// the restored persona); the created-vs-merged signal rides the audit `merged` flag.
+// verb: import — restore an owned persona from a backup blob, the export.ts round-trip twin. The backup
+// shape never carries avatarAssetId, so there is no asset-ownership belt to run here. Idempotent: dedups on
+// (ownerId, name) — a same-named persona is merged in place (merged:true in the audit); otherwise a fresh
+// row is minted.
 
 import { personas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
@@ -31,8 +23,6 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
 
     const existingId = await findOwnedPersonaByName(ctx.db, ownerId, backup.name);
 
-    // Merge into the existing same-named persona (visible fields swapped in place, same id, avatar untouched
-    // — the backup carries none). The name is the match key, so it is left as-is.
     const personaId = existingId ?? ctx.newPersonaId();
     if (existingId !== null) {
       await ctx.db

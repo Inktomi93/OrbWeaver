@@ -1,15 +1,5 @@
-// infra/providers/backends/agent-sdk/log — the agent-sdk backend's `provider.*` event WRAPPERS. The thin
-// tagged-`getLog()` sink core (`providerLog`, `PROVIDER_LOG_LEVELS`, `ProviderTurnUsage`) now lives in the
-// shared `backends/kit/provider-log` (hoisted for the second backend — anth-direct — per part 05 §2); this
-// file holds the agent-sdk-SPECIFIC event shapes + wrappers, each passing this backend's `BACKEND` tag to
-// the kit core. Every call still emits ONE pino line tagged `provider: true` + `backend: "agent-sdk"` + an
-// `event` string, greppable as `provider:true`, filterable per-backend + per-event. The pino ring +
-// `/api/_debug/logs` pick these up for free.
-//
-// DOCTRINE (Tier-2-Foundation esoteric #12): logs are METADATA — ids, counts, classifications, model
-// names, timings, CLI runtime diagnostics. NEVER prompt / RP / system-prompt content on a log line. Every
-// field below is metadata; the one string that carries subprocess output (`stderrTail`) is CLI runtime
-// diagnostics (spawn/auth failures), bounded + truncated at the call site, never model-generated text.
+// agent-sdk `provider.*` event wrappers over the shared kit sink (`providerLog`). Doctrine: logs are
+// METADATA only — never prompt/RP/system-prompt content (Tier-2-Foundation esoteric #12).
 
 import type {
   ProviderCapabilityLog,
@@ -22,26 +12,19 @@ import {
 import type { ContextUsage, DynamicContextChannel, ProviderError } from "../../contract";
 import type { SeededSessionDecision } from "./session";
 
-// Re-exported so the agent-sdk barrel + its consumers keep the same import surface after the kit hoist.
 export type { ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
 
 /** This backend's tag on every taxonomy line, passed to the shared kit sink per-call. */
 const BACKEND = "agent-sdk";
 
-/** The one-line-per-turn anchor (`provider.turn`, info) — success OR failure. Carries the turn's identity
- *  (chat/session/model), the resume disposition, the terminal classification, timings, and the usage
- *  economics. This is the debug anchor an operator greps first. `undefined` fields are dropped by pino. */
+/** One-line-per-turn anchor (`provider.turn`, info) — success or failure. */
 export interface ProviderTurnLog {
-  /** the per-turn correlation id (part 05 §4) — the same `resolveChat` id this turn's `provider.channel`
-   *  line carries; absent only for a hand-built test context (no live `resolveChat` call). */
   readonly turnId?: string;
   readonly chatId?: string;
   readonly sessionId?: string;
-  /** The init frame's `apiKeySource` (oauth/user/… — the sub-vs-key canary). */
   readonly apiKeySource?: string;
-  /** The model the request asked for. */
   readonly requestedModel: string;
-  /** The model the init/result frame reported serving (drift shows as requested ≠ served). */
+  /** Model the init/result frame reported serving (drift ⇒ requested ≠ served). */
   readonly servedModel?: string;
   readonly disposition?: SeededSessionDecision["disposition"];
   readonly terminalReason?: string | null;
@@ -49,18 +32,14 @@ export interface ProviderTurnLog {
   readonly ttftMs?: number | null;
   readonly ok: boolean;
   readonly usage?: ProviderTurnUsage;
-  /** The post-turn context-window fill (agent-sdk `getContextUsage()`), when the best-effort probe
-   *  returned. Absent otherwise (probe failure/timeout / no control channel). */
   readonly contextUsage?: ContextUsage;
 }
 
-/** ONE line per completed turn (success or failure) — the debug anchor. */
 export function logProviderTurn(entry: ProviderTurnLog): void {
   providerLog(BACKEND, "info", "provider.turn", { ...entry });
 }
 
-/** The session-decision line (`provider.session`, debug) — emitted only when the decision was NOT a plain
- *  resume (cold-seed / reseed-in-place / re-adopt / fresh-fallback), so the hot path stays quiet. */
+/** `provider.session` (debug) — only when the decision was NOT a plain resume. */
 export function logProviderSession(entry: {
   readonly chatId: string;
   readonly sessionId: string | null;
@@ -69,8 +48,7 @@ export function logProviderSession(entry: {
   providerLog(BACKEND, "debug", "provider.session", { ...entry });
 }
 
-/** A classified `ProviderError` (`provider.error`, error) via its full provenance (`toLog()`). On a
- *  spawn/CLI death (kind server/unknown) the runner attaches a bounded `stderrTail` (CLI diagnostics). */
+/** `provider.error` via `toLog()`; on spawn/CLI death the runner attaches a bounded `stderrTail`. */
 export function logProviderError(
   err: ProviderError,
   extra?: { readonly stderrTail?: string },
@@ -81,20 +59,16 @@ export function logProviderError(
   });
 }
 
-/** A rate-limit snapshot (`provider.rate_limit`) — warn when overage is in play or the window is exhausted
- *  (the ban-risk canary), debug when healthy. Carries the snapshot fields (all metadata). */
+/** `provider.rate_limit` — warn on ban-risk overage/exhaustion, debug when healthy. */
 export function logProviderRateLimit(banRisk: boolean, fields: Record<string, unknown>): void {
   providerLog(BACKEND, banRisk ? "warn" : "debug", "provider.rate_limit", fields);
 }
 
-/** An api-retry (`provider.retry`, warn) — the runtime backed off + retried; carries the attempt fields +
- *  the classified kind so a retry storm is greppable by classification. */
 export function logProviderRetry(fields: Record<string, unknown>): void {
   providerLog(BACKEND, "warn", "provider.retry", fields);
 }
 
-/** Model drift (`provider.drift`, warn) — the served/billed model differs from the requested one (overage
- *  / rate-limit fallback). Emitted from the result-frame billed-model check. */
+/** `provider.drift` — served/billed model differs from requested (overage/rate-limit fallback). */
 export function logProviderDrift(entry: {
   readonly requested: string;
   readonly billed: readonly string[];
@@ -102,8 +76,7 @@ export function logProviderDrift(entry: {
   providerLog(BACKEND, "warn", "provider.drift", { ...entry });
 }
 
-/** A safety-classifier refusal (`provider.refusal`, warn) — the category + whether a fallback retried.
- *  NEVER the refusal banner text (RP-adjacent content stays off logs). */
+/** `provider.refusal` — category + retried flag only, never the refusal banner text. */
 export function logProviderRefusal(entry: {
   readonly category: string | null;
   readonly retried: boolean;
@@ -111,8 +84,7 @@ export function logProviderRefusal(entry: {
   providerLog(BACKEND, "warn", "provider.refusal", { ...entry });
 }
 
-/** A firewall breach (`provider.leak`, error) — a tool leaked past the locked tool-less config. Only the
- *  tool NAMES ride the line (never the tool_input, which could carry content). */
+/** `provider.leak` — a tool leaked past the locked tool-less config; only tool NAMES ride the line. */
 export function logProviderLeak(entry: {
   readonly model: string;
   readonly toolNames: readonly string[];
@@ -120,18 +92,13 @@ export function logProviderLeak(entry: {
   providerLog(BACKEND, "error", "provider.leak", { ...entry });
 }
 
-/** A compaction outcome (`provider.compaction`, warn) — emitted when the runtime's context compaction
- *  FAILED (the healthy compact-boundary stays on the existing info line). */
+/** `provider.compaction` — emitted only when context compaction FAILED. */
 export function logProviderCompaction(fields: Record<string, unknown>): void {
   providerLog(BACKEND, "warn", "provider.compaction", fields);
 }
 
-/** An interactive-dialog fail-close (`provider.dialog`, warn) — the SDK asked the host to answer an MCP
- *  elicitation or a `request_user_dialog`, and the non-interactive agent turn DECLINED it deterministically
- *  (there is no human on this turn). `kind` is the elicitation mode / dialogKind — a METADATA classifier
- *  ONLY; the dialog `message`/`payload` (which can carry model- or tool-derived content) NEVER rides the
- *  line. Warn because a fired dialog means a tool wanted input the turn structurally cannot provide — an
- *  ops signal worth seeing. `source` distinguishes the two SDK channels (elicitation vs user-dialog). */
+/** `provider.dialog` — the non-interactive turn declined an MCP elicitation/user-dialog; `kind` is a
+ *  metadata classifier only, never the dialog message/payload. */
 export function logProviderDialog(entry: {
   readonly source: "elicitation" | "user-dialog";
   readonly kind: string;
@@ -139,9 +106,7 @@ export function logProviderDialog(entry: {
   providerLog(BACKEND, "warn", "provider.dialog", { ...entry });
 }
 
-/** A summarize-batch outcome (`provider.summarize`, info) — ONE line per batch. METADATA only: the input
- *  count, the ok/fail split, and the wall duration. NEVER the prompt/summary text (RP-adjacent content stays
- *  off logs). `fail > 0` means the batch rejected on an item failure (whole-batch semantics). */
+/** `provider.summarize` — one line per batch, metadata only (never prompt/summary text). */
 export function logProviderSummarize(entry: {
   readonly items: number;
   readonly ok: number;
@@ -151,19 +116,14 @@ export function logProviderSummarize(entry: {
   providerLog(BACKEND, "info", "provider.summarize", { ...entry });
 }
 
-/** The volatile-content channel decision (`provider.channel`, debug — part 05 §3b). A DECOUPLED emitter:
- *  it reads RESOLVED facts (the funnel's `dynamicContextChannel` + the gating `turns.midConversationSystem`
- *  + whether the user knob was demoted) and writes them — NO model-id / wire branch at the emit site (the
- *  §1 decoupling rule). Answers "which channel, and why" — the gating-flag value IS the why. `demoted:true`
- *  mirrors the `dynamic_context_demoted` funnel warning (a `message-tail` request an incapable model got). */
-/** Emit `provider.capability` for this backend (part 05 §3c) — a thin per-backend wrapper over the shared
- *  kit emitter, mirroring `logProviderCache`/`logProviderSampling`'s hoisted-taxonomy shape. */
+/** `provider.capability` wrapper over the shared kit emitter. */
 export function logProviderCapability(entry: ProviderCapabilityLog): void {
   kitLogProviderCapability(BACKEND, entry);
 }
 
+/** `provider.channel` — the volatile-content channel decision (debug); `demoted:true` mirrors the
+ *  `dynamic_context_demoted` funnel warning. */
 export function logProviderChannel(entry: {
-  /** the per-turn correlation id (part 05 §4) — the caller's `resolveChat` id, never re-minted here. */
   readonly turnId: string;
   readonly channel: DynamicContextChannel;
   readonly midConvCapable: boolean;
@@ -172,10 +132,7 @@ export function logProviderChannel(entry: {
   providerLog(BACKEND, "debug", "provider.channel", { ...entry });
 }
 
-/** An MCP-server health snapshot (`provider.mcp`) — warn when a configured server is NOT healthy
- *  (`failed`/`needs-auth`/`disabled`/`pending`: the agent turn may be running with its tools silently
- *  absent), debug when every server is `connected`. Carries server NAME + status + the (bounded) error
- *  string the SDK surfaces on a failed server (CLI runtime diagnostics, never model/tool content). */
+/** `provider.mcp` — warn when a configured server isn't healthy, debug otherwise. */
 export interface ProviderMcpServerHealth {
   readonly name: string;
   readonly status: string;

@@ -1,14 +1,6 @@
-// User Timing seam (UI-Arch §2.1 lib/ — cross-cutting util) — named `performance.mark`/`measure` for the
-// app's critical path, so attributable operation timing shows up in THREE places the generic long-task /
-// input observers can't reach: Chrome DevTools' User Timing track, the `perf-meter` probe (it already
-// reads PerformanceEntries), and `window.__orb.perf()` (agent-bridge.ts). Near-free and prod-safe (User
-// Timing is a no-op-cost browser primitive), so this SHIPS unguarded — the numbers are worth having in
-// prod field traces too. Everything is namespaced `orb:*` so names stay greppable + collision-free with
-// framework marks (React/TanStack emit their own).
-//
-// Intended consumers (place marks at the source): the chat turn chain (send → first token → complete —
-// TTFT + turn latency), section switches, and app-ready (agent-bridge). A missing start mark (HMR drop,
-// an aborted turn) must NEVER throw into app code, so `measure` is defensively wrapped.
+// User Timing seam: named performance.mark/measure for the app's critical path, surfaced in Chrome
+// DevTools' User Timing track, the perf-meter probe, and window.__orb.perf(). Ships unguarded (near-free,
+// prod-safe). Names are namespaced `orb:*` to stay collision-free with framework marks.
 
 const NS = "orb:";
 
@@ -22,8 +14,7 @@ export function perfMeasure(name: string, startMark: string): void {
   try {
     performance.measure(`${NS}${name}`, `${NS}${startMark}`);
   } catch {
-    // A missing start mark (HMR dropped it, or an out-of-order lifecycle) must never surface as an
-    // app-code throw — the measurement is best-effort instrumentation, not a correctness path.
+    // A missing start mark must never surface as an app-code throw — best-effort instrumentation only.
   }
 }
 

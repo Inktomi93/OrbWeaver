@@ -3,17 +3,14 @@
  * pnpm trace:tail [--token=…]
  *
  * Polls `/api/_debug/traces` every N seconds and prints each NEW trace as a colored
- * waterfall — the "watch what the server is doing live" loop (sse-tap's sibling for the
- * trace ring). Exits on Ctrl-C.
+ * waterfall. Exits on Ctrl-C.
  *
  * AUTH (two-tier gate, foundation/observability/debug/routes.ts): an admin session
- * short-circuits first, then the x-debug-token fallback. Under the dev stack
- * (AUTH_MODE=single-user) the owner-fallback principal IS admin-grade, so NO token is
- * needed — this tool sends the header only when a token is provided (--token=… or env
- * DEBUG_TOKEN), for token-gated deploys. A 401/404 prints the fix, not a stack trace.
+ * short-circuits first, then the x-debug-token fallback. Single-user dev needs no token;
+ * this tool sends the header only when one is provided (--token=… or env DEBUG_TOKEN).
  *
  * Connection: hits the server DIRECTLY on PORT (default 8788), not through the vite dev
- * proxy — bisects "is the trace captured" vs "is the UI showing it".
+ * proxy.
  *
  * FLAG(wiring): the trace ring only fills once entry/ mounts the foundation
  * `observability` middleware + calls `initTracing()` (specced in core/Tier-2-Foundation.md
@@ -79,7 +76,6 @@ async function poll(): Promise<void> {
     return;
   }
   const { traces } = (await listRes.json()) as { traces: TraceSummary[] };
-  // First poll: seed `seen` with the existing backlog — only NEW traces print.
   if (firstPoll) {
     for (const t of traces) {
       seen.add(t.requestId);
@@ -88,8 +84,7 @@ async function poll(): Promise<void> {
     process.stderr.write(`trace-tail: tailing ${HOST} (seeded ${traces.length} existing)\n`);
     return;
   }
-  // The list is most-recent-first; render oldest-of-the-new first so output reads
-  // chronologically. The list rows are SUMMARIES (no spans) — fetch each detail.
+  // Render oldest-of-the-new first so output reads chronologically.
   const fresh = traces.filter((t) => !seen.has(t.requestId)).reverse();
   for (const summary of fresh) {
     seen.add(summary.requestId);

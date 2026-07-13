@@ -73,12 +73,8 @@ function clientRel(path: string): string {
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — per-token, reference-gate shape: offender arm + finalize stale) ─
-// The legacy predicate as a String/NoSubstitutionTemplate subscription (interpolated template parts are
-// deliberately skipped — className strings never carry them). PER-TOKEN: each banned arbitrary token in a
-// class string is its own finding at its real column (owner ruling 1). scanRoot mirrors the legacy
-// scanSrc filter (client|ui src); the live non-empty ALLOWLIST's stale arm is finalize-guarded to project
-// scope (§4.4).
+// Per-token: each banned arbitrary token in a class string is its own finding at its real column. The
+// live non-empty ALLOWLIST's stale arm is finalize-guarded to project scope.
 const GATE_SELF = "scripts/check/gates/no-arbitrary-tw-values.ts";
 const passSeenAllowlisted = new Set<string>();
 

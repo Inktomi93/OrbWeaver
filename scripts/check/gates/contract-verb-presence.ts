@@ -124,12 +124,6 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
   return violations;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a whole-project RECONCILIATION via `run`) ────────────────────
-// contract-verb-presence reconciles each domain's *Service interface verbs against its test-tree
-// invocation corpus (grep-style over the loaded test files) — a whole-tree cross-file check, ported as a
-// `run` descriptor reusing the exact reconcile logic. The DEFERRED map suppresses tracked gaps (no stale
-// arm — a covered deferred verb just passes, so no synthetic-tree misfire). A tree with no service.ts is
-// vacuous. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "contract-verb-presence",
   docRow: "core/Spine-Testing.md §5",

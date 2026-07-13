@@ -7,18 +7,15 @@ import type { SessionsContext, SessionsService } from "../contract/service";
 import { insertUser, selectIdByHandle } from "../persistence/users";
 import { determineRole } from "../substrate/role-policy";
 
-// Resolve a handle → `UserId`, JIT-creating the row on first sight: the single-user / owner-fallback path
-// (keys on `handle`; `externalId` stays NULL — `provisionIdentity` owns the SSO/externalId path). Trim
-// before lookup/insert — local login trims the submitted handle, so a row stored with surrounding
-// whitespace would never match (silent duplicate user). Race-tolerant: `insertUser` does
-// `onConflictDoNothing` on the unique handle, then we re-read to absorb a concurrent first-login winner.
+// Resolve a handle → UserId, JIT-creating the row on first sight (single-user/owner-fallback path;
+// externalId stays null — provisionIdentity owns the SSO path). Race-tolerant: insertUser does
+// onConflictDoNothing, then we re-read to absorb a concurrent first-login winner.
 
 export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "ensureUser"> {
   async function ensureUser(rawHandle: string): Promise<UserId> {
     const handle = castId<Handle>(rawHandle.trim());
-    // FLAG[PD-17] / agent-principal-design/01 §3.2: refuse the reserved `__agent__` namespace. A forward-header
-    // deployment forwarding `X-User: __agent__buddy__<id>` must get a HARD refusal — never a JIT-create, never a
-    // match against an agent's row. The impersonation hole the `kind` column would otherwise open.
+    // FLAG[PD-17]: refuse the reserved __agent__ namespace — a forward-header deployment must get a hard
+    // refusal, never a JIT-create or match against an agent's row.
     if (isReservedAgentHandle(handle)) {
       throw new DomainForbiddenError(
         "the __agent__ handle namespace is reserved for agent principals",
@@ -30,14 +27,11 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
     }
     const id = newId<UserId>();
     const now = ctx.now();
-    // No groups on this path; `determineRole` yields `owner` for the owner handle, else `user` (D17 —
-    // `admin` is never env-derived).
     const role = determineRole(handle, []);
     await insertUser(ctx.db, {
       id,
       handle,
       externalId: null,
-      // The owner-fallback / single-user path carries no claims — no email (SSO `provisionIdentity` owns it).
       email: null,
       role,
       enabled: true,

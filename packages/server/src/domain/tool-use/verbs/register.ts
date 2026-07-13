@@ -1,10 +1,7 @@
-// verb: register — compose-time ONLY insertion into the ONE process-lifetime registry Map
-// (tool-use-design/01 §4; "in-memory per request" was corrected — rpg-design/05 §3's "registered once
-// at compose" is the committed posture). Collision or a bad name THROWS (boot-fatal — the env-spine
-// superRefine precedent; never last-write-wins). The JSON-schema projection is computed HERE, once,
-// and cached on the entry (the wire schema can never drift from the parse schema). The typed def is
-// ERASED into a `RegisteredTool` whose fused run-closure keeps `parsed.data: A` inside the generic
-// scope (contract/results.ts erasure note — zero casts).
+// verb: register — compose-time only insertion into the one process-lifetime registry Map. Collision or
+// a bad name throws (boot-fatal, never last-write-wins). The JSON-schema projection is computed here,
+// once, and cached on the entry. The typed def is erased into a RegisteredTool whose fused run-closure
+// keeps parsed.data: A inside the generic scope (zero casts).
 
 import { errorMessage } from "@orb/kit/error-message";
 import { DomainForbiddenError } from "@orb/kit/errors";
@@ -14,7 +11,7 @@ import { TOOL_NAME_RE } from "../contract/params";
 import type { RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results";
 import { projectArgSchema } from "../substrate/json-schema";
 
-// The 01 §5 steps 2/3/4, fused so the typed pair never escapes: parse → gate → invoke.
+// Fused so the typed pair never escapes: parse → gate → invoke.
 function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {
   return {
     name: def.name,

@@ -1,17 +1,8 @@
-// domain/workloads/substrate/dispatch — `RUNNERS: { [K in WorkloadKind]: Runner<K> }`, the §7.5 GOLD
-// STANDARD exhaustiveness pin (the WorkloadKind mapped-type Record). The mapped type forces
-// an entry for EVERY kind: add a member to `WORKLOAD_KINDS` without its runner here and `tsc` goes RED at
-// this object. Do NOT change its shape. It depends on `contract/runner` for the TYPE and on each `runners/*`
-// for the VALUE — no edge from a runner back to the engine, so no cycle.
+// domain/workloads/substrate/dispatch — RUNNERS: { [K in WorkloadKind]: Runner<K> }, the exhaustiveness
+// pin. Add a kind without its runner here and tsc goes red at this object; do not change its shape.
 //
-// HOME NOTE: `domain-no-cross-subsystem` (dep-cruiser) forbids one named
-// subsystem (`engine/`) importing another (`runners/`) by VALUE — the
-// sanctioned seam for cross-subsystem coordination is `substrate/` (a fixed slot, exempt as the FROM side).
-// So the dispatch table homes HERE (not `engine/`); `engine/runner.ts` imports `RUNNERS` from substrate
-// (engine→substrate is allowed; substrate→runners is allowed).
-//
-// The index-through-the-union call (a `RUNNERS[kind]` whose `kind` is a widened union) cannot narrow — that
-// two-cast bridge is `dispatchAndRun` in `engine/runner.ts` (the single sanctioned escape); it is NOT here.
+// Homes here (not engine/) because dep-cruiser forbids one named subsystem (engine/) importing another
+// (runners/) by value — substrate/ is the sanctioned cross-subsystem seam.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import type { Runner } from "../contract/runner";
@@ -49,8 +40,6 @@ import { rpgScenePlanRunner } from "../runners/rpg-scene-plan";
 import { rpgSessionDistillRunner } from "../runners/rpg-session-distill";
 import { rpgWorldGenRunner } from "../runners/rpg-world-gen";
 
-/** The exhaustive kind → runner dispatch table. The `{ [K in WorkloadKind]: Runner<K> }` mapped type is the
- *  compile-time checklist for adding a kind (§7.5). The engine treats every kind uniformly. */
 export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {
   index: indexRunner,
   "distill-characters": distillCharactersRunner,

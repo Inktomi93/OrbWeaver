@@ -1,18 +1,6 @@
-// verb: start — enqueue a `queued` row in a given MODE. RE-PARSES the `StartWorkloadInput` union (defense in
-// depth — the wire validated, but mocked-procedure tests bypass that validator).
-//
-// MODE authz (layer 2 — the verb re-gates even off a non-tRPC path):
-//   1. MODE SUPPORT: the kind must support the requested mode (`WORKLOAD_KIND_MODES`) — else a BAD_REQUEST.
-//   2. AUTHORITY: a `bulk` run requires the BOX OWNER (`requireOwner`); a `singular` run is any authed caller.
-//      A `null` caller is a TRUSTED system/scheduler/agent trigger (no gate).
-//   3. ROW OWNER (= the runner's enumeration scope): singular → the caller's own id (server-authoritative — a
-//      request can't stamp a foreign owner); bulk SWEEP-kind → `null` (all owners); bulk CREATE-kind → the
-//      designated `targetOwnerId` (required — you can't mint ownerless rows). A bad target trips the owner FK
-//      on INSERT → a leak-free NOT_FOUND.
-// It catches the single-active collision (`isActiveKindUniqueViolation`) → `DomainConflictError`. `dependsOn`
-// is PERSISTED here and ENFORCED at dispatch (the §2 DAG scheduler in `persistence/nextRunnableWorkload`): the
-// row waits until every dep succeeds, or fails with `dependency_failed` if a dep does not — `start` just
-// records the edges.
+// verb: start — enqueue a `queued` row in a given MODE. Re-parses the `StartWorkloadInput` union (defense in
+// depth — mocked-procedure tests bypass the wire validator). `dependsOn` is persisted here and enforced at
+// dispatch (the DAG scheduler in `persistence/nextRunnableWorkload`) — start just records the edges.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
@@ -52,7 +40,7 @@ function authorizeAndResolveOwner(
     ctx.requireOwner(params.caller);
   }
   if (!policy.bulkRequiresTarget) {
-    return null; // sweep-kind: every owner
+    return null;
   }
   if (params.targetOwnerId === undefined || params.targetOwnerId === null) {
     throw new DomainOperationError(
@@ -83,15 +71,11 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
       });
     } catch (err) {
       if (isActiveKindUniqueViolation(err)) {
-        // The raw libSQL error carries SQL internals; the typed conflict is the honest signal (the
-        // single-active slot is already taken). Chain the cause for diagnostics, don't surface it.
         const conflict = new DomainConflictError(`a "${input.kind}" workload is already active`);
         conflict.cause = err;
         throw conflict;
       }
       if (isOwnerForeignKeyViolation(err)) {
-        // The ONLY way the owner FK fails is a bulk-create `targetOwnerId` that isn't a real user (a real
-        // caller's own id always exists) — surface it leak-free as "that user isn't found".
         const notFound = new DomainNotFoundError("user", String(ownerId));
         notFound.cause = err;
         throw notFound;

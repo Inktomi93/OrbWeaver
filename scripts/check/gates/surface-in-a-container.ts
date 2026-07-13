@@ -89,10 +89,6 @@ function scanSurfaceInAContainer(root: string): Violation[] {
   return out;
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a pure-FS `run` gate, fsBacked conformance) ──────────────────
-// surface-in-a-container reads the real fs (readdirSync of feature dirs + readFileSync of each surface +
-// its anchors/) — a `run` descriptor over ctx.root reusing the scan, with `fsBacked` so conformance
-// materializes examples to a real temp dir. File-level findings. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "surface-in-a-container",
   docRow: "UI-Architecture-and-Layout.md §4",

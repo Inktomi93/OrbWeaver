@@ -1,34 +1,13 @@
-// Motion / animation introspection store (UI-Arch §2.1 lib/ — cross-cutting util) — the DATA behind
-// "is this surface actually janky", read via `window.__orb.motion()` / `.animations()` (agent-bridge.ts).
-// The `renders` heatmap answers "what re-renders"; this answers the peer question "what BLOCKS the frame
-// and what's ANIMATING" — the two signals a smoothness review needs but the eye can't reliably read.
+// Motion/animation introspection, read via window.__orb.motion()/.animations(). Two observers feed a
+// bounded ring: long-animation-frame (blockingDuration, styleAndLayoutStart, attributed scripts) and
+// layout-shift (accumulated CLS + worst single shift). animations() classifies each active animation
+// compositor-clean (transform/translate/scale/rotate/opacity/filter) or not.
 //
-// Two observers, each feeding a bounded ring (mirror render-stats / bus-devlog ring style — a capped
-// array, newest last):
-//   • `long-animation-frame` (LoAF) — the successor to `longtask`, but with WHERE the frame's time went:
-//     `blockingDuration`, `styleAndLayoutStart` (>0 ⇒ style/layout ran INSIDE the frame — a forced reflow
-//     / non-compositor animation, the jank signature), and the attributed scripts (sourceURL + duration).
-//   • `layout-shift` — accumulates CLS (excluding recent-input shifts, per the CWV definition) + the worst
-//     single shift, so a review has the layout-instability number without a probe.
-//
-// `animations()` walks `document.getAnimations()` and classifies each active animation as compositor-CLEAN
-// (only transform/translate/scale/rotate/opacity/filter — the GPU-composited props that never touch
-// main-thread layout) or not
-// (animating width/height/top/margin/… = a per-frame layout pass = jank risk). Best-effort surface
-// attribution mirrors the render heatmap's intent: resolve the animated Element up to the nearest stable
-// surface marker (testid / slot / aria-label / role / landmark) so a finding names the COMPONENT, not a
-// bare <div> (falls back to tag when there's no clean marker — don't over-reach).
-//
-// DEV-ONLY BY CONSTRUCTION: installed from agent-bridge.ts's `installAgentDebugHandle`, which early-returns
-// when `!IS_DEV`. Never re-export from the lib barrel (this module needs lib.dom types + is a dev loupe,
-// not prod telemetry) — same discipline as long-task-tracer.
+// Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never
+// re-export from the lib barrel.
 
-// The animated props that stay on the compositor (GPU) and never trigger a main-thread style/layout pass.
-// An animation touching ONLY these is smooth by construction; anything else risks per-frame layout.
-// `translate`/`scale`/`rotate` are the CSS Transforms L2 INDIVIDUAL transform properties — Tailwind v4
-// compiles its scale-*/translate-* utilities to them, and they composite exactly like `transform`
-// (without them the house's own button `active:scale-95` and the message-list enter `translate`
-// false-positived as compositor-dirty — caught live 2026-07-12).
+// translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
+// scale-*/translate-* utilities to, and composite exactly like transform.
 const COMPOSITOR_SAFE_PROPS = new Set([
   "transform",
   "opacity",
@@ -38,9 +17,9 @@ const COMPOSITOR_SAFE_PROPS = new Set([
   "rotate",
 ]);
 
-// Ring caps — a long session must not grow these unbounded (same reasoning as bus-devlog's BUS_RING_CAP).
+// Ring cap — a long session must not grow this unbounded.
 const LOAF_RING_CAP = 64;
-// CLS/shift scores are reported to 4 decimals — the CWV convention (a 0.001 shift is meaningful).
+// CLS/shift scores are reported to 4 decimals — the CWV convention.
 const SHIFT_DECIMALS = 4;
 
 interface LoafScript {
@@ -77,9 +56,8 @@ export interface AnimationRecord {
   readonly compositorClean: boolean;
 }
 
-// LoAF/layout-shift PerformanceEntry fields aren't all in lib.dom yet (LoAF shipped Chrome M123); narrow
-// them structurally rather than depend on a newer @types/web. Same pattern long-task-tracer uses for the
-// Event Timing target field.
+// LoAF/layout-shift PerformanceEntry fields aren't all in lib.dom yet; narrow them structurally rather
+// than depend on a newer @types/web.
 interface LoafScriptEntry {
   readonly name?: string;
   readonly sourceURL?: string;
@@ -152,14 +130,13 @@ export function motionSnapshot(): MotionSnapshot {
   };
 }
 
-// Attributes an animated Element to the nearest stable surface marker — testid > slot > aria-label > role
-// > landmark tag — walking up the ancestor chain, so a finding names the COMPONENT rather than a bare
-// <div>. Mirrors long-task-tracer's describeTarget, but climbs (a keyframe target is often a deep leaf).
+// Attributes an animated Element to the nearest stable surface marker — testid > slot > aria-label >
+// role > landmark tag — walking up the ancestor chain.
 const LANDMARK_TAGS = new Set(["MAIN", "NAV", "ASIDE", "HEADER", "FOOTER", "DIALOG", "SECTION"]);
 const SURFACE_WALK_MAX = 8;
 
-/** The stable surface marker on ONE node (null ⇒ walk to the parent). Priority: testid \> slot \> label \>
- *  role \> landmark tag. Split out of the walk so the loop stays under the cognitive-complexity cap. */
+/** The stable surface marker on one node (null ⇒ walk to the parent). Priority: testid \> slot \> label \>
+ *  role \> landmark tag. */
 function nodeSurfaceMarker(node: Element): string | null {
   const tag = node.tagName.toLowerCase();
   const testId = node.getAttribute("data-testid");
@@ -182,7 +159,7 @@ function nodeSurfaceMarker(node: Element): string | null {
 }
 
 function resolveSurfaceLabel(target: Animation["effect"]): string {
-  // Only KeyframeEffect carries a DOM target; other effect kinds (null / future) have none.
+  // Only KeyframeEffect carries a DOM target.
   const el = target instanceof KeyframeEffect ? target.target : null;
   if (!(el instanceof Element)) {
     return "(no-element)";
@@ -195,22 +172,18 @@ function resolveSurfaceLabel(target: Animation["effect"]): string {
     }
     node = node.parentElement;
   }
-  // No stable marker on the chain — fall back to the leaf's own tag + first class (don't over-reach).
+  // No stable marker on the chain — fall back to the leaf's own tag + first class.
   const cls = el.classList.item(0);
   return cls === null ? `<${el.tagName.toLowerCase()}>` : `<${el.tagName.toLowerCase()} .${cls}>`;
 }
 
-// The keyframe object fields that control the frame itself, not a CSS property being animated — excluded
-// from the animated-property set. `getKeyframes()` (unlike the authoring input) ALSO injects the resolved
-// `computedOffset` on every frame, so it must be dropped too or every animation reads as "dirty".
+// getKeyframes() injects computedOffset on every frame in addition to the authoring fields, so it must
+// be dropped too or every animation reads as "dirty".
 const FRAME_CONTROL_KEYS = new Set(["offset", "computedOffset", "easing", "composite"]);
 
-/** The animated CSS-property set (union across keyframes, minus the frame-control fields). Split out of
- *  activeAnimations so the nested-loop extraction doesn't blow the caller's complexity cap. */
+/** The animated CSS-property set (union across keyframes, minus the frame-control fields). */
 function animatedProperties(effect: Animation["effect"]): string[] {
   const props = new Set<string>();
-  // Only KeyframeEffect exposes getKeyframes() (the base AnimationEffect doesn't); other effect kinds
-  // (null / a future effect) carry no per-property keyframes to read.
   if (!(effect instanceof KeyframeEffect)) {
     return [];
   }

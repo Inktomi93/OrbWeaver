@@ -1,16 +1,7 @@
-// `@orb/contracts/rpg` — the MINIMAL contract surface the 14 rpg tables' DDL requires (D58;
-// rpg-design/03). This is the R1-subset baseline rider: ONLY the enum tuples the column CHECKs derive
-// and the `$type<>` JSON-column schemas the tables reference. NO service contracts, NO verb param/view
-// types, NO RpgBusEvent — those are R1-proper's work (rpg-design/10 R1).
-//
-// `@orb/db` derives its rpg enum columns + JSON `$type<>`s from here (the D34 pattern: db deps are kit +
-// contracts + drizzle only). Every JSON column is parse-on-read/serialize-on-write against these schemas
-// in domain/rpg (R2); here they exist so the column types are honest from birth.
-//
-// TRANSCRIPTION NOTE: shapes are transcribed from rpg-design/03 verbatim where it specs them. Where 03
-// defers a JSON column's shape to a later doc/chunk (lootTable → 04 §5; widget custom config → 11-ui;
-// checkResult → 04 §2; encounter state/summary → 07/R8), a DOCUMENTED CONSERVATIVE schema is used (a
-// permissive typed blob, never an invented structure) — flagged inline and in the design doc.
+// `@orb/contracts/rpg` — the MINIMAL contract surface the 14 rpg tables' DDL requires. Only the enum
+// tuples the column CHECKs derive and the `$type<>` JSON-column schemas the tables reference — no
+// service contracts, no verb param/view types. Where a JSON column's shape isn't pinned yet, a
+// documented CONSERVATIVE schema is used (a permissive typed blob, never an invented structure).
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";

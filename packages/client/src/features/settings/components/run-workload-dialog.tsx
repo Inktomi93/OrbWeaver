@@ -1,18 +1,11 @@
-// The Run-workload dialog (Settings → Workloads). A COMPONENT so the Dialog root is legal
-// (client-structure rule 7; the admin-create-user-dialog precedent). The body is the §13.4 factory
-// (`useRunWorkloadForm` — ≥3 fields + validation), button-gated: Run submits `form.handleSubmit()`
-// whose `save` fires the `workloads.start` mutation and closes on success; a failure keeps the dialog
-// open (errorToast + the sticky inline error). Base UI unmounts the popup while closed, so every open
-// mounts a FRESH form — a reopened dialog never carries the previous pick.
+// The Run-workload dialog. Button-gated: Run submits form.handleSubmit(), whose save fires the
+// workloads.start mutation and closes on success. Base UI unmounts the popup while closed, so every open
+// mounts a fresh form.
 //
-// The kind picker is DRIVEN OFF THE CONTRACT: `RUNNABLE_WORKLOAD_KINDS` = the singular-capable kinds
-// per `WORKLOAD_KIND_MODES` (workloads-model.ts) — the unbuilt stubs are absent by construction, and a
-// kind flipping stub→built appears with zero edits here. Default mode = SINGULAR (runs on the caller's
-// own data; any authed user). The BULK affordances are OWNER-ONLY UX honesty over the server floor
-// (`start` gates bulk on `requireOwner` regardless): a non-owner never renders the Bulk switch or the
-// target picker. A bulk CREATE-kind (`bulkRequiresTarget`, e.g. import-st) must designate its mint
-// target — submit is validation-blocked until one is picked; the target list is the admin user table
-// filtered to enabled humans (a mint destination is a person's library, never an agent/disabled row).
+// The kind picker is driven off the contract (RUNNABLE_WORKLOAD_KINDS), so a kind flipping stub→built
+// appears with zero edits here. The bulk affordances are owner-only UX honesty over the server floor
+// (start gates bulk on requireOwner regardless). A bulk create-kind must designate its mint target from
+// the admin user table filtered to enabled humans.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
@@ -55,15 +48,14 @@ export interface DependencyCandidate {
 export interface RunWorkloadDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  /** Only the box owner gets the bulk switch + target picker (`start` bulk = `requireOwner`). */
+  /** Only the box owner gets the bulk switch + target picker. */
   readonly viewerIsOwner: boolean;
   /** The target-picker candidates (the admin user table) — `[]` for a non-owner viewer. */
   readonly users: readonly AdminUser[];
-  /** The viewer's in-flight runs offered as `dependsOn` candidates (queued/running). `[]` hides the gate. */
+  /** The viewer's in-flight runs offered as `dependsOn` candidates. `[]` hides the gate. */
   readonly dependencyCandidates: readonly DependencyCandidate[];
 }
 
-/** The dialog shell — the form body mounts fresh per open (Base UI unmounts closed popups). */
 export function RunWorkloadDialog({
   open,
   onOpenChange,
@@ -107,12 +99,10 @@ function RunWorkloadFormBody({
   const invalidation = useInvalidation();
   const start = useStartWorkload({ trpc, invalidation });
 
-  // A mint destination is a person's live library — enabled humans only, never an agent/disabled row.
   const targetItems = users
     .filter((user) => user.kind === "human" && user.enabled)
     .map((user) => ({ value: user.id as string, label: user.handle as string }));
 
-  // The DAG-gate candidates — the viewer's in-flight runs, labelled by kind + when they were queued.
   const dependencyItems: readonly SelectOption<string>[] = dependencyCandidates.map(
     (candidate) => ({
       value: candidate.id,
@@ -122,18 +112,13 @@ function RunWorkloadFormBody({
 
   const save = async (values: RunWorkloadFormValues): Promise<RunWorkloadFormValues> => {
     if (!isStartableWorkloadKind(values.kind)) {
-      // Unreachable through the picker (its items derive from the same startable lists) — refuse quietly.
       return values;
     }
-    // A maintenance (built bulk-only) kind is bulk BY FORCE — no singular mode, no target (a global
-    // sweep). A singular-capable kind rides the owner's Bulk toggle (and a create-kind's target).
     const isMaintenance = isMaintenanceWorkloadKind(values.kind);
     const bulkToggleOn = viewerIsOwner && values.bulk && WORKLOAD_KIND_MODES[values.kind].bulk;
     const bulkOn = isMaintenance || bulkToggleOn;
     const needsTarget =
       !isMaintenance && bulkToggleOn && WORKLOAD_KIND_MODES[values.kind].bulkRequiresTarget;
-    // Deferral + DAG gate ride on top of the run — omitted when unset (run-now, no gate). `scheduledAt` +
-    // `dependsOn` inferInput are plain number/string[] (branded ids parse from the wire), so no cast here.
     const scheduledAt = parseRunAt(values.runAt);
     await start.mutateAsync({
       input: buildStartInput(values.kind, values),
@@ -158,9 +143,6 @@ function RunWorkloadFormBody({
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
           {(kind): ReactElement | null => {
-            // A maintenance (built bulk-only) kind is bulk by force — a NOTE, not a toggle. A
-            // singular-capable bulk-capable kind gets the owner's Bulk toggle; a singular-only kind
-            // (no bulk mode) gets neither.
             if (isMaintenanceWorkloadKind(kind)) {
               return (
                 <Text size="label" tone="muted">
@@ -205,8 +187,6 @@ function RunWorkloadFormBody({
           }
         </form.Subscribe>
       ) : null}
-      {/* Deferral + DAG gate — offered for the singular-capable (runnable) kinds; a maintenance-only kind
-          is a global sweep with neither. "Run after" only renders when there are in-flight candidates. */}
       <form.Subscribe selector={(state): string => state.values.kind}>
         {(kind): ReactElement | null =>
           isRunnableWorkloadKind(kind) ? (

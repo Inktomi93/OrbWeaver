@@ -1,9 +1,5 @@
-// <Histogram> — a distribution chart over PRE-BINNED buckets (ui-package-design §9 v1 corpus-viz
-// set: chunk-size distribution, score distribution, etc). Binning is generic math but it's still
-// the CALLER's domain-shaped decision (bucket width, edge handling) — this component only renders
-// already-bucketed counts, matching bar-list's dumb-data-in contract. Bars sit flush
-// (`barCategoryGap: "0%"`) — the one visual cue that distinguishes a distribution from an ordinary
-// bar chart with gapped bars.
+// A distribution chart over pre-binned buckets — binning is the caller's decision, this only renders
+// already-bucketed counts. Bars sit flush (barCategoryGap: "0%"), distinguishing it from an ordinary bar chart.
 import type { ReactElement } from "react";
 import { EmptyState } from "#primitives/empty-state";
 import type { OrbEChartsInstance } from "../chart";
@@ -26,15 +22,6 @@ export interface HistogramProps {
 
 const DEFAULT_HEIGHT_PX = 200;
 
-/**
- * @example
- * ```tsx
- * <Histogram
- *   label="Chunk size distribution"
- *   buckets={[{ label: "0–99", count: 12 }, { label: "100–199", count: 40 }]}
- * />
- * ```
- */
 export function Histogram({
   buckets,
   label,
@@ -43,7 +30,6 @@ export function Histogram({
   onChartReady,
 }: HistogramProps): ReactElement {
   const slots = histogramVariants();
-  // Resolve chart-chrome tokens to concrete canvas colors live, re-reading on theme switch (§11.3).
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
 

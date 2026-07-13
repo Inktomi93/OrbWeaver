@@ -1,15 +1,8 @@
-// Guided actions — a collapsed Section in the Prompt tab (BUILD-SPEC §6 / Phase E). A pure CLIENT
-// recomposition (server fully shipped: `guidedActionsSchema` / `DEFAULT_GUIDED_ACTIONS` / the `@orb/kit/
-// guided` resolver) replacing the flat guided fields. When you steer a generation, the matching template
-// wraps your text — `{{input}}` is where the steer lands. Anatomy:
-//   • Header — the framing copy + a live CROSS-LINK chip to the `guided_instruction` marker in the rack:
-//     healthy (present + enabled) / off (present, disabled) / absent (no marker). Clicking selects the
-//     marker row (the same reveal choreography the rack uses) — a POINTER, the marker's rack Switch is the
-//     on/off gate (there is NO per-action enabled field — the actions are user-invoked, ruled §6).
-//   • A grid of ALL SIX cards (`GUIDED_ACTION_KINDS`) — each a kind title + fires-on line · role `Select`
-//     (→ `.role`) · template `MacroField` (→ `.prompt`, ghosting the default) · Default/Customized state ·
-//     a missing-`{{input}}` lint. `impersonate` additionally shows a `{{person}}` chip; assistant-role
-//     cards carry a prefill-honesty note (assistant delivery is depth-normalized on non-prefill wires).
+// Guided actions — a collapsed Section in the Prompt tab. When you steer a generation, the matching
+// template wraps your text — `{{input}}` is where the steer lands. Header: framing copy + a cross-link
+// chip to the `guided_instruction` marker (healthy/off/absent), clicking selects the marker row. A grid
+// of all six cards (`GUIDED_ACTION_KINDS`) — role Select · template MacroField (ghosting the default) ·
+// Default/Customized state · a missing-`{{input}}` lint.
 
 import type { GuidedActionKind, PromptConfig } from "@orb/contracts/preset";
 import {

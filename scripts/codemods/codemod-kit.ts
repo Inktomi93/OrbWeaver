@@ -218,8 +218,11 @@ export interface OperationOptions {
  * test that imports from src finds the typed source files, not a stale d.ts.
  */
 export const DEFAULT_GLOBS = [
-  "src/**/*.ts",
-  "src/**/*.tsx",
+  // Monorepo layout: package source lives under packages/*/src — a bare src/** here
+  // silently loads ZERO package files from the repo root (the zero-file guard doesn't
+  // fire because tests/ + scripts/ still match).
+  "packages/*/src/**/*.ts",
+  "packages/*/src/**/*.tsx",
   "tests/**/*.ts",
   "tests/**/*.tsx",
   "scripts/**/*.ts",

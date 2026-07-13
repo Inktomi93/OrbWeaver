@@ -28,10 +28,6 @@ function isRoleCompare(leftText: string, rightText: string): boolean {
   return ROLE_LITERALS.has(leftText) && ROLE_REF.test(rightText);
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2, §8.1 batch (b)) ──────────────────────────────────────────────
-// The legacy predicate as a BinaryExpression subscription: a global-role literal compared (either side)
-// in server-src outside the ONE allowlisted guard file. scanRoot mirrors the legacy SERVER_SRC ∧ ¬ALLOWLIST
-// filter. Per-occurrence (each role comparison).
 export const gate: GateDescriptor = {
   name: "owner-role-split",
   docRow: "ledger D17 (Spine-Identity inv #6)",

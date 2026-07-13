@@ -1,26 +1,8 @@
-// entry/compose/runner-env — builds THE one true cross-feature hub, the `WorkloadRunnerEnv`
-// (domain/workloads/contract/runner-env; core/Tier-5-Entry.md §layout "runner-env.ts"). It is the TYPED bundle of
-// every cross-feature op the workload runners depend on; the runtime VALUE is assembled HERE (the only tier
-// above `domain-no-cross-feature`) and threaded by the worker into every dispatch. Each op is wired to the
-// real backing domain verb where it EXISTS; ops whose backing verb is DEFERRED are typed INERT seams that
-// reject with a clear "not built (PD-xx)" message — never a fake success (the prompt's inert-stub pattern).
-//
-// WIRED (real backing verbs):
-//   • embeddings.embedCorpus / embedAssets → the PD-53 bulk catch-up sweeps on EmbeddingsService (resumable,
-//     content_hash-gated; result reshaped into the workload-owned EmbedPassResult — the adapter discipline).
-//   • discovery.computeThemes / findDuplicates / computeHubScores → DiscoveryService verbs (result reshaped
-//     into the workload-owned AnalyticsResult — the adapter discipline; the workload contract never imports
-//     a sibling's result type).
-//   • stats.reconcileStats → the standalone `reconcileStats(db, {now, signal})` write substrate.
-//   • connection.refreshCatalogSnapshot → `connection.refreshCatalog` (counts only — no provider shapes leak).
-//   • assets.* (backfillAvatars / collectGarbage / fsck) → the PD-26 maintenance/DR verbs on AssetsService,
-//     projected into the workload-owned counts/report (backfill GATHERS staged cards at the root).
-//   • cas → the injected infra/storage blob store (the image-embed pass reads originals through it).
-// INERT (DEFERRED — no backing verb in the current slices; named precisely so a run fails loud, not silent):
-//   • import.importAll — built by the `entry/import/run-profile-import` driver (a later entry slice).
-// WIRED (PD-41 cleared): memory.backfill + character.backfillGroupCharacters — chat's corpus sweeps,
-//   handed in as BOUND ops from the chat compose product (the sweeps need the full ChatContext, so the
-//   env is built AFTER chat at the root).
+// Builds the one true cross-feature hub, the `WorkloadRunnerEnv` — the typed bundle of every cross-feature
+// op the workload runners depend on, assembled here (the only tier above domain-no-cross-feature) and
+// threaded by the worker into every dispatch. Each op wires to the real backing domain verb where it
+// exists; a deferred op is a typed inert seam that rejects with a clear "not built" message — never a fake
+// success. `import.importAll` is the one still-deferred op (built by the run-profile-import driver).
 
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -47,8 +29,6 @@ import type {
 import type { Cas } from "#infra/storage";
 import { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES, runBundleImport } from "../import";
 
-// Workload-owned result shapes derived from the front-door-exported sub-env interfaces (no deep import of
-// the internal `workload-result` contract — which would breach `domain-feature-front-door`; no re-spell).
 type DiscoveryOut = Awaited<ReturnType<WorkloadDiscoveryEnv["computeThemes"]>>;
 type StatsOut = Awaited<ReturnType<WorkloadStatsEnv["reconcileStats"]>>;
 type CatalogOut = Awaited<ReturnType<WorkloadConnectionEnv["refreshCatalogSnapshot"]>>;
@@ -56,8 +36,7 @@ type EmbedOut = Awaited<ReturnType<WorkloadEmbeddingsEnv["embedCorpus"]>>;
 type MaintCountsOut = Awaited<ReturnType<WorkloadRunnerEnv["assets"]["collectGarbage"]>>;
 type FsckOut = Awaited<ReturnType<WorkloadRunnerEnv["assets"]["fsck"]>>;
 
-/** What the runner-env builder needs from the composition root — the db + clock + the cas handle + the
- *  slices of the real services whose verbs back a wired op. */
+/** What the runner-env builder needs from the composition root. */
 export interface RunnerEnvDeps {
   readonly db: Db;
   readonly now: () => number;
@@ -72,34 +51,26 @@ export interface RunnerEnvDeps {
     | "computeCooccurrence"
   >;
   readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
-  /** The PD-53 bulk embed passes (resumable, content_hash-gated catch-up sweeps). */
   readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
-  /** The PD-26 maintenance verbs backing the `assets-backfill`/`assets-gc`/`assets-fsck` workloads. */
   readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
-  /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx at the root (built after chat). */
+  /** Chat's corpus sweeps, bound over the chat ctx at the root (built after chat). */
   readonly memoryBackfill: WorkloadMemoryEnv["backfill"];
   readonly groupCharacterBackfill: WorkloadCharacterEnv["backfillGroupCharacters"];
-  /** The portability registry, accessed LAZILY — the registry is assembled AFTER this env is built (the
-   *  partial-deps construction order in services.ts), so the `import-bundle` op derefs it at RUN time, never
-   *  at build time. Do NOT eager-capture `deps.registry` (it does not exist yet when this runs). */
+  /** Accessed lazily — the registry is assembled after this env is built, so this derefs at run time.
+   *  Do NOT eager-capture the registry (it doesn't exist yet when this runs). */
   readonly getPortabilityRegistry: () => PortabilityRegistry;
-  /** The controlled staging root the `POST /api/import/bundle` route wrote the uploaded zip under (the
-   *  `IMPORT_STAGING_DIR` boot-env; absent ⇒ the OS temp dir — the SAME default the route resolves, so the op
-   *  reads exactly where the route wrote). */
+  /** The staging root the upload route wrote the zip under; absent ⇒ the OS temp dir (same default the
+   *  route resolves, so the op reads exactly where the route wrote). */
   readonly importStagingDir?: string;
 }
 
-/** A typed inert seam for a DEFERRED op — rejects loudly (never fakes a success). The arg is ignored; the
- *  `() => Promise<never>` shape is assignable to any `(args) => Promise<X>` env op. */
+/** A typed inert seam for a deferred op — rejects loudly, never fakes a success. */
 function notBuilt(label: string): () => Promise<never> {
   return (): Promise<never> => Promise.reject(new Error(`workloads runner-env: ${label}`));
 }
 
-/** Bind the `assets-backfill` workload op to `assets.backfillAvatars`. The workload seam is count-only, so the
- *  root GATHERS the staged cards: characters with a recorded card (`importHash` present) but NO linked avatar
- *  (`avatarAssetId IS NULL`) whose card blob is still in the CAS — read those bytes and hand them to the verb,
- *  which re-stores them through the coherence writer and (re)links the avatar only on a hash match. `ownerId`
- *  scopes the scan (null = every owner); the verb is per-owner, so a bulk pass fans out per owner group. */
+/** Bind the `assets-backfill` op. The workload seam is count-only, so the root gathers the staged cards:
+ *  characters with a recorded card but no linked avatar whose card blob is still in the CAS. */
 function bindBackfillAvatars(
   db: Db,
   cas: Cas,
@@ -119,7 +90,6 @@ function bindBackfillAvatars(
       .from(characters)
       .where(scope);
 
-    // Group by owner (the verb is per-owner); read each card's bytes from the CAS at its `importHash`.
     const byOwner = new Map<
       UserId,
       { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]
@@ -128,7 +98,7 @@ function bindBackfillAvatars(
       const importHash = row.importHash;
       // biome-ignore lint/performance/noAwaitInLoops: per-character CAS probe during a maintenance-time gather — not a hot path.
       if (importHash === null || !(await cas.exists(row.ownerId, importHash))) {
-        continue; // no card, or its blob is gone — nothing to relink here.
+        continue;
       }
       // biome-ignore lint/performance/noAwaitInLoops: per-character CAS byte read (same maintenance-time gather).
       const bytes = await cas.read(row.ownerId, importHash);
@@ -149,11 +119,9 @@ function bindBackfillAvatars(
   };
 }
 
-/** Bind the `import-bundle` workload op: read the staged zip the route wrote under `<stagingRoot>/<token>`
- *  (`basename` strips any path-traversal — a `token` can only ever name a file INSIDE the staging root), run
- *  the entity-agnostic `runBundleImport` over the LAZILY-resolved registry, project the report into the
- *  workload-owned counts, and remove the staged zip in a `finally` (success AND error). The extract caps are
- *  the ONE shared PD-94 posture (`entry/import`). */
+/** Bind the `import-bundle` workload op: read the staged zip (`basename` strips any path-traversal), run
+ *  `runBundleImport` over the lazily-resolved registry, project the report into workload counts, and remove
+ *  the staged zip in a `finally` (success and error). */
 function bindImportBundle(
   getRegistry: () => PortabilityRegistry,
   stagingRoot: string,
@@ -180,15 +148,11 @@ function bindImportBundle(
   };
 }
 
-/** Assemble the cross-feature `WorkloadRunnerEnv` ONCE at boot (the worker threads it into every dispatch). */
+/** Assemble the cross-feature `WorkloadRunnerEnv` once at boot. */
 export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
   const stagingRoot = deps.importStagingDir ?? tmpdir();
   return {
-    // PD-53 cleared: the bulk catch-up sweeps (resumable, content_hash-gated) back the embed workloads.
-    // The domain's BulkEmbedResult is projected field-for-field into the workload-owned EmbedPassResult
-    // (the adapter discipline — structurally identical today, decoupled by design).
     embeddings: {
-      // `ownerId` scopes the enumeration (SINGULAR = one owner; null = the BULK all-owners sweep).
       embedCorpus: async ({ ownerId, force, signal }): Promise<EmbedOut> => {
         const r = await deps.embeddings.embedCorpus({ ownerId, force, signal });
         return { embedded: r.embedded, skipped: r.skipped };
@@ -203,9 +167,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         const stats = await deps.discovery.computeThemes({ k, ownerId });
         return { scanned: stats.digestsAssigned, written: stats.clustersWritten };
       },
-      // PD-40 write-half: the distill pass (character summaries + staged `pending` tag suggestions). `ownerId`
-      // scopes to one owner (SINGULAR); null = the whole-library batch (BULK — distill takes an optional
-      // owner, so null maps to "no owner filter"). DistillStats → the workload-owned AnalyticsResult.
       distillCharacters: async ({ ownerId, signal }): Promise<DiscoveryOut> => {
         const stats = await deps.discovery.distillCharacters({
           signal,
@@ -213,14 +174,11 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         });
         return { scanned: stats.scanned, written: stats.distilled };
       },
-      // PD-40 cleared: keyword×keyword cooccurrence + per-character keyword profiles over tier-0 digests
-      // (bulk-only — no per-owner concept in the workload env). CooccurrenceStats → the AnalyticsResult.
       computeCooccurrence: async ({ signal }): Promise<DiscoveryOut> => {
         const stats = await deps.discovery.computeCooccurrence({ signal });
         return { scanned: stats.charKeywordsWritten, written: stats.pairsWritten };
       },
-      // Both dedup arms run in the ONE `find-duplicates` workload: the character arm (all-pairs cosine) + the
-      // chat near-dup arm (Jaccard of segment content-hashes + fork lineage). Counts are summed.
+      // Both dedup arms run in the one find-duplicates workload; counts are summed.
       findDuplicates: async ({ ownerId }): Promise<DiscoveryOut> => {
         const [chars, chatPairs] = await Promise.all([
           deps.discovery.computeDuplicatePairs({ ownerId }),
@@ -231,9 +189,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
           written: chars.pairsWritten + chatPairs.pairsWritten,
         };
       },
-      // Character hub scores are the meaningful CSLS pass in this slice; the digest/segment/image hub passes
-      // join when their embeddings land (they read chat/image vector tables that are empty pre-P5). `ownerId`
-      // scopes to owner-local hubness (SINGULAR); null = the cross-tenant whole-space hubness (BULK).
       computeHubScores: async ({ ownerId }): Promise<DiscoveryOut> => {
         const stats = await deps.discovery.computeCharacterHubScores({ ownerId });
         return { scanned: stats.rowsScored, written: stats.rowsScored };
@@ -243,13 +198,8 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       importAll: notBuilt(
         "import.importAll not built — the entry/import run-profile-import driver owns it",
       ),
-      // The workload-backed bundle import (#113): reads the staged zip → runBundleImport over the lazily
-      // resolved registry (built AFTER this env) → the summary counts, staging cleaned up in the op's finally.
       importBundle: bindImportBundle(deps.getPortabilityRegistry, stagingRoot),
     },
-    // PD-26 cleared: the maintenance/DR verbs back the assets workloads. Each op PROJECTS the domain's richer
-    // result into the workload-owned shape (the adapter discipline). `backfillAvatars` GATHERS staged cards at
-    // the root (the workload seam is count-only); GC/fsck are whole-store passes.
     assets: {
       backfillAvatars: bindBackfillAvatars(deps.db, deps.cas, deps.assets),
       collectGarbage: async ({ dryRun, signal }): Promise<MaintCountsOut> => {
@@ -267,7 +217,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
     },
     stats: {
       reconcileStats: async ({ ownerId, signal }): Promise<StatsOut> => {
-        // The standalone pass is per-owner-native: `ownerId` set → rebuild that owner; null → every owner.
         const r = await reconcileStats(deps.db, {
           now: deps.now,
           signal,
@@ -277,12 +226,8 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       },
     },
     connection: {
-      // The daily catalog refresh runs BOTH provider catalogs — OpenRouter `/models` + the agent-sdk
-      // daemon `supportedModels()` map (the family→version fix's auto-population). Each lane is best-effort
-      // AND INDEPENDENT: the two run under `allSettled` so one lane's failure (no OR key, or a cold agent-sdk
-      // snapshot + unreachable daemon) never discards the other lane's refresh. A refreshed lane reports its
-      // snapshot size; a FAILED lane reports `null` (distinct from `0` = a real empty catalog). The run only
-      // fails — rethrowing the first rejection — when BOTH lanes failed (nothing was accomplished).
+      // Both lanes run under allSettled so one lane's failure never discards the other's refresh; a failed
+      // lane reports null (distinct from 0 = a real empty catalog). Only rethrows when BOTH lanes failed.
       refreshCatalogSnapshot: async ({ signal }): Promise<CatalogOut> => {
         const [or, agentSdk] = await Promise.allSettled([
           deps.connection.refreshCatalog({ signal }),
@@ -297,7 +242,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         };
       },
     },
-    // PD-41 cleared: chat's corpus sweeps (substrate/backfill.ts), bound over the chat ctx at the root.
     memory: { backfill: deps.memoryBackfill },
     character: { backfillGroupCharacters: deps.groupCharacterBackfill },
     cas: deps.cas,

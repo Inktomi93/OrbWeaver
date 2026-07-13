@@ -2,11 +2,10 @@
 /**
  * pnpm motion-audit <route> [flags]        (tsx scripts/probes/motion-audit.ts)
  *
- * The smoothness ground-truth harness — snap tells you what a surface LOOKS like, this tells you whether
- * it MOVES smoothly. Boots headless chromium against the running dev stack (`pnpm stack start` first),
- * throttles the CPU 4× (so the frame budget is meaningful, not masked by dev-machine headroom), drives an
- * interaction window (a --selector click, or just sits on the route while entry animations run), and reads
- * two kinds of signal:
+ * Smoothness ground-truth harness. Boots headless chromium against the running dev stack
+ * (`pnpm stack start` first), throttles the CPU 4× (so the frame budget is meaningful, not
+ * masked by dev-machine headroom), drives an interaction window (a --selector click, or just
+ * sits on the route while entry animations run), and reads two kinds of signal:
  *
  *   • __orb.motion() / __orb.animations() — the IN-PAGE observers (motion-stats.ts): LoAF ring
  *     (blockingDuration, styleAndLayoutStart), CLS, and any animation that isn't compositor-clean.
@@ -156,9 +155,8 @@ async function readAnimations(page: Page): Promise<readonly AnimationRecord[]> {
 }
 
 // ── CDP performance trace → Percent Dropped Frames ────────────────────────────────────────────────
-// PipelineReporter events carry the frame's lifecycle; the ground-truth "smooth?" number is the fraction
-// whose args.state=STATE_DROPPED and args.frame_sequence smoothness bit is set (affects_smoothness=true).
-// We don't pull in a Perfetto lib — we filter the raw traceEvents ourselves (the events are plain JSON).
+// PipelineReporter events carry the frame's lifecycle; the fraction with args.state=STATE_DROPPED
+// and args.affects_smoothness=true is the ground-truth "smooth?" number.
 type TraceEvent = {
   readonly name?: string;
   readonly args?: {
@@ -181,7 +179,6 @@ function droppedFramePct(events: readonly TraceEvent[]): {
   return { total, dropped, pct };
 }
 
-// The captured facts for one audit window — everything the report + verdict need, gathered by runAudit.
 type AuditData = {
   readonly motion: MotionSnapshot | null;
   readonly animations: readonly AnimationRecord[];
@@ -190,8 +187,6 @@ type AuditData = {
   readonly stepFailed: boolean;
 };
 
-// Click the target (if any), sit out the observation window under an active CDP trace, and gather the
-// in-page motion facts + the trace's dropped-frame accounting. Split from main so main stays flat.
 async function runAudit(
   page: Page,
   cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>,
@@ -202,8 +197,6 @@ async function runAudit(
     traceEvents.push(...e.value);
   });
   await cdp.send("Tracing.start", {
-    // The frame-timeline + smoothness categories carry PipelineReporter; the disabled-by-default timeline
-    // is where the dropped-frame accounting lives.
     categories:
       "benchmark,disabled-by-default-devtools.timeline.frame,disabled-by-default-devtools.timeline",
     transferMode: "ReportEvents",
@@ -237,7 +230,7 @@ async function runAudit(
   };
 }
 
-/** Print the human report + the RESULT line, return the exit code. Split from main to keep it flat. */
+/** Print the human report + the RESULT line, return the exit code. */
 function report(url: string, opts: Args, data: AuditData): number {
   const { motion, animations, frames, pageErrors, stepFailed } = data;
   const worstBlocking = motion === null ? 0 : motion.worstBlocking;

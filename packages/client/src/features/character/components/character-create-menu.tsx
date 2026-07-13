@@ -1,13 +1,7 @@
-// §4.1 the `+` create/import picker — a `@orb/ui/menu` on the header's `+` button offering the two
-// mutually-exclusive entry choices ("New character" · "Import card"), each opening its own picker Dialog
-// (legal per pain-point 1 rule 5 — a picker, never section content in a modal). "New" is a minimal create
-// (handle auto-derived from the name via `@orb/kit/slug`; create requires handle + name + description);
-// "Import card" is the PNG/JSON dropzone over the shipped `POST /api/import` multipart route
-// (`data/importCharacters`). Both refresh the LIST via the user-bus `charactersChanged` path-invalidate
-// (create is `busDriven`; import fires it explicitly since it is a raw POST, not a tRPC mutation).
-//
-// A COMPONENT, not a surface — so the inline picker Dialogs are legal (surface-purity §A.7b; the
-// persona-panel-row precedent).
+// The `+` create/import picker — a `@orb/ui/menu` offering "New character" / "Import card", each opening
+// its own picker Dialog. "New" is a minimal create (handle auto-derived from the name); "Import card" is
+// a PNG/JSON dropzone over the multipart import route. Both refresh the LIST via the user-bus
+// `charactersChanged` path-invalidate.
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { Button } from "@orb/ui/button";
@@ -70,8 +64,7 @@ export function CharacterCreateMenu(): ReactElement {
     void (async (): Promise<void> => {
       try {
         await importCharacters(accepted);
-        // Import is a raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate the
-        // character verbs emit, so the LIST refreshes through the ONE invalidation map.
+        // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "charactersChanged" });
         notify.success("Card imported.");
         setImportOpen(false);
@@ -101,7 +94,6 @@ export function CharacterCreateMenu(): ReactElement {
         <DialogPopup>
           <Stack gap="block">
             <DialogTitle>New character</DialogTitle>
-            {/* Plain children — DialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
             <DialogDescription>
               Give them a name and a one-line description — you can flesh out the rest in the
               editor.
@@ -126,8 +118,6 @@ export function CharacterCreateMenu(): ReactElement {
                 value={description}
               />
             </Stack>
-            {/* §4.1: create requires handle + name + description (handle auto-derives from the name). Gate
-                on BOTH authored fields, and say why while incomplete. */}
             {incomplete ? (
               <Text size="label" tone="muted">
                 A name and a description are both required.

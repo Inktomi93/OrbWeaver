@@ -7,12 +7,7 @@ import { revealGateVariants } from "./variants";
 export interface RevealGateProps extends Omit<ComponentProps<"div">, "children"> {
   /** The reveal trigger's label. Default `"Reveal"`. */
   label?: string;
-  /**
-   * The gated content. NOT rendered until revealed — a CSS-hidden secret is still present in the
-   * DOM (readable via devtools or a screen reader), which defeats the shared-screen privacy
-   * contract this primitive exists for. So this is conditionally MOUNTED, never `hidden`/
-   * `display:none` (ui-package-design work-order #17, dictated decision).
-   */
+  /** The gated content. Conditionally MOUNTED, never `hidden`/`display:none` — a CSS-hidden secret is still in the DOM. */
   children: ReactNode;
   /** Controlled reveal state. Omit to run uncontrolled off `defaultRevealed`. */
   revealed?: boolean;
@@ -27,20 +22,8 @@ export interface RevealGateProps extends Omit<ComponentProps<"div">, "children">
 }
 
 /**
- * RevealGate — a shared-screen PRIVACY primitive: content stays entirely unmounted until an
- * explicit Reveal click, then (optionally) can be re-hidden. This is NOT a disclosure/density
- * control (`@orb/ui/collapsible` is that job) — the point is that a CSS-hidden secret is still
- * present in the DOM, so pre-reveal the children are conditionally mounted behind a neutral masked
- * placeholder, never CSS-hidden.
- *
- * On reveal, focus moves INTO the revealed content — the Hide trigger when `hideable`, otherwise
- * the content wrapper itself (`tabIndex={-1}`) — so a keyboard/AT user isn't left focused on a
- * button that just unmounted out from under them. An `aria-live="polite"` sr-only region announces
- * every reveal/hide transition, and the currently-rendered trigger carries `aria-expanded`
- * (`false` on Reveal, `true` on Hide) since the two buttons are one logical disclosure control.
- *
- * Usage: `<RevealGate label="API key">{secretValue}</RevealGate>` — controlled via
- * `revealed`/`onReveal`, uncontrolled via `defaultRevealed`.
+ * Shared-screen PRIVACY primitive: content stays entirely unmounted until an explicit Reveal click,
+ * then (optionally) can be re-hidden. NOT a disclosure/density control (`@orb/ui/collapsible` is that job).
  */
 export function RevealGate({
   className,

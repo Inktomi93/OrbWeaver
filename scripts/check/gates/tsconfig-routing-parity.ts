@@ -1,24 +1,9 @@
 // Gate: tsconfig-routing-parity (TSC-INCREMENTAL-PERFILE.md §2.2 parity gate) — keeps the file→tsconfig
-// routing algebra (scripts/verify/selection.ts `staticPrograms`, rules 1–4) HONEST against the compilers'
-// ground truth. That algebra is string matching mirroring the configs' disjoint-by-directory include sets;
-// it drives `verify --file/--changed` type-lane scoping, so a wrong route = a file type-checked against the
-// WRONG program (or skipped) = a FALSE GREEN. The four shipped bugs (tests/client tsx → graph not client;
-// ct-data-providers → ui not client; vite.config → "no program"; tests/ui tsx → graph not ui) are exactly
-// what this gate catches.
-//
-// MECHANISM: each program's ROOT set is the config's resolved `files` (from `tsgo --showConfig` — the
-// include/files expansion, BEFORE import-closure). That root set is precisely what rules 1–4 model (an
-// import-PULLED file belongs to many programs but is ROOTED by one — the import-pull overlay is rule 5, a
-// separate program-fact validated by construction, not by this gate). For every root file R of program P we
-// assert `staticPrograms(R)` CONTAINS P (forward), and for every file `staticPrograms` routes to a PRESENT
-// program P we assert P actually roots it (mirror). A divergence reds. `--showConfig`, not
-// `--listFilesOnly`: the latter is the import-closure (ui pulled into client, node CT plumbing pulled into
-// client) which rules 1–4 deliberately don't model — comparing against it would false-red on every
-// cross-package import.
-//
-// fsBacked + run-based (mirrors verify-registry-parity): the real run reads the ctx.root tree's configs;
-// conformance materializes a tiny multi-config tree and runs the SAME comparison over IT, so the "it bites /
-// it doesn't over-bite" proof exercises the real gate path — no parallel harness.
+// routing algebra (scripts/verify/selection.ts `staticPrograms`) honest against the compilers' ground
+// truth, so `verify --file/--changed` never type-checks a file against the wrong program (or skips it).
+// Each program's root set is the config's resolved `files` (`tsgo --showConfig`, pre-import-closure). For
+// every root file R of program P we assert `staticPrograms(R)` contains P (forward), and for every file
+// `staticPrograms` routes to a present program P we assert P actually roots it (mirror).
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";

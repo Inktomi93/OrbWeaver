@@ -21,7 +21,6 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
     requireAdmin(params.principal);
     const { userId, enabled } = params;
 
-    // Protects the ACTOR (distinct from owner-immutability, which protects the owner ROW).
     if (!enabled && userId === params.principal.userId) {
       throw new DomainOperationError(
         ADMIN_OP_CODES.cannotDisableSelf,
@@ -33,7 +32,6 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
     if (target === undefined) {
       throw new DomainNotFoundError("user", userId);
     }
-    // The owner is immutable — never disabled (nor otherwise modified through this surface).
     if (target.role === OWNER_ROLE) {
       throw new DomainOperationError(
         ADMIN_OP_CODES.cannotModifyOwner,
@@ -55,7 +53,6 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
       );
     }
 
-    // The kick tail: a disabled account's live sessions are revoked immediately (don't wait for expiry).
     if (!enabled) {
       await ctx.sessions.revokeAllForUser(userId);
     }
@@ -70,10 +67,8 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
       },
       at,
     );
-    // `setEnabled` deliberately ACCEPTS agent targets — it IS the containment verb (D60/doc-03 §5): disabling
-    // an agent principal drops it from every cast/arbitration and makes every `canAgent` throw. `ownerHandle`
-    // (the agent's owner, when the target is an agent) is unchanged by an enable flip — carry it from the
-    // pre-loaded view. `cannot_disable_self` can never fire for an agent (an agent is never the actor).
+    // setEnabled deliberately accepts agent targets — it is the containment verb; disabling an agent
+    // principal drops it from every cast/arbitration and makes every canAgent throw.
     return { ...row, ownerHandle: target.ownerHandle };
   };
 }

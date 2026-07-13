@@ -1,23 +1,7 @@
-// Gate: motion-token-purity (BASEUI-MOTION-AUDIT.md §5 Layer 3 — the source arm of the never-desync
-// guarantee). The audit found the entire drift surface for coordinated motion is raw-CSS files: a bare
-// duration (`220ms`, `3s`) or a raw easing keyword (`ease`/`ease-in`/`ease-out`/`ease-in-out`/
-// `cubic-bezier(...)`) written straight into a `transition`/`animation` shorthand (or a
-// `transition-duration`/`transition-timing-function`/`animation-duration` longhand) instead of the DTCG
-// motion tokens. The Tailwind class lane is already 100% on-token (`duration-(--motion-*) ease-out-expo`
-// everywhere); the leak is CSS. A raw value can't be caught by review (it looks fine) and produces no
-// dropped frame, but it is the slow leak that eventually re-creates the divergence class — a panel and
-// its grid track animating at different tempos. This gate keeps the CSS motion monoculture that Layers 1
-// (co-motion vars in shell.css) and 2 (the rendered-parity CT) assume.
-//
-// SCOPE: `packages/{ui,client}/src/**/*.css` — the CSS surfaces the drift lives in (the two globals.css +
-// shell.css), matching the packages the sibling `no-off-token-radius-shadow` / `no-arbitrary-tw-values`
-// gates cover. It reads the four MOTION properties only (`transition`, `animation`, and the duration/
-// timing longhands) — so the token DEFINITIONS (`--motion-fast: 130ms` in theme.css, `--shell-motion:
-// var(--motion-base)` in shell.css) pass straight through: a custom-property declaration is not one of
-// the scanned properties. `linear` easing is ALLOWED (continuous loops legitimately use it — the skeleton
-// shimmer), as is any `var(--…)` (a token OR a co-motion `--shell-*` var). A `var(...)` duration/easing,
-// a `0`/`0s` (a deliberate no-transition), and `steps(...)`/`step-*` (a discrete timing function with no
-// token home) all pass.
+// Gate: motion-token-purity — bans a raw duration (`220ms`) or easing keyword/cubic-bezier written
+// straight into a `transition`/`animation` shorthand or duration/timing longhand in
+// packages/{ui,client}/src/**/*.css, instead of the DTCG motion tokens. `linear` and any `var(--…)` are
+// allowed; token DEFINITIONS, `0`/`0s`, and `steps(...)`/`step-*` all pass.
 //
 // ALLOWLIST (file-level, the no-off-token-radius-shadow BURN_DOWN precedent): a file lands here with the
 // value + reason when the raw motion value is real pre-existing debt (the weave shimmer's `3s`, the
@@ -136,13 +120,9 @@ function scanCss(
   return { violations, seenAllowlisted };
 }
 
-// ── SINGLE-PASS CONTRACT FORM (§1.2 — a CSS-glob fs `run` gate with a ratchet, fsBacked conformance) ─
-// motion-token-purity reads the real fs (globSync of packages/{ui,client}/src/**/*.css + readFileSync) —
-// CSS isn't in the ts-morph Project — so it ports as a `run` descriptor over ctx.root, `fsBacked` for
-// conformance. The offender arm reuses scanCss against the LIVE ALLOWLIST. The stale arm (an allowlisted
-// .css that went clean) is name-keyed to CSS FILES; the batch-6 fileLoaded sentinel is Project-based and
-// can't see a .css, so the fs-analog is used: the stale arm only judges an allowlisted file that EXISTS on
-// disk (existsSync) — a synthetic tree lacking the real allowlisted .css files won't misfire. On the real
+// CSS isn't in the ts-morph Project, so this reads the real fs (globSync + readFileSync). The stale arm
+// (an allowlisted .css that went clean) only judges an allowlisted file that EXISTS on disk (existsSync)
+// — a synthetic tree lacking the real allowlisted .css files won't misfire. On the real
 // run every allowlisted .css exists, so the ratchet is preserved. Byte-identical to the legacy Check.
 export const gate: GateDescriptor = {
   name: "motion-token-purity",

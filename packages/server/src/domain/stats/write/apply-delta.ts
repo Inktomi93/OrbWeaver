@@ -1,27 +1,17 @@
-// domain/stats/write/apply-delta — the LIVE write path (the write half of the read/write CQRS split).
-// Turns one per-canon-write `StatsDelta` (the chat↔stats wire, @orb/contracts/stats — chat PRODUCES it,
-// this CONSUMES it) into UPSERT-increment statements for the four rollup tables (db/schema/stats.ts),
-// PUSHED into the caller's existing batch so the rollups commit ATOMICALLY in the SAME db.batch() as the
-// canon write — the rollups stay fresh with no rebuild. NOT a service verb; injected into chat's
-// composition root as `ChatServiceDeps.applyStatsDelta` (typed `ApplyStatsDelta`); the default is a no-op.
+// The live write path: turns one per-canon-write `StatsDelta` into UPSERT-increment statements for the four
+// rollup tables, pushed into the caller's existing batch so the rollups commit atomically with the canon
+// write. Not a service verb; injected into chat's composition root.
 //
-// CORRECTNESS CONTRACT (invariant #3 — the drift gate): `applyStatsDelta` over a turn's canon change MUST
-// equal a fresh `reconcileStats` rebuild over the same canon, column-for-column. Each chat call site
-// computes the delta as the CHANGE its write makes — append (a new message) emits the new contribution;
-// mutate (swipe/edit/delete) emits `(new − old)`. NEGATIVE increments are legal (a delete) — the additive
-// `col += excluded.col` handles them; the extrema (MIN/MAX) never go negative.
+// Correctness contract: `applyStatsDelta` over a turn's canon change must equal a fresh `reconcileStats`
+// rebuild over the same canon, column-for-column. Each call site computes the delta as the change its write
+// makes; negative increments are legal (a delete).
 //
-// TWO MERGE MODES (the load-bearing distinction, esoteric #6):
-//   • ADDITIVE `col = col + excluded.col` — every monotonic counter/sum.
-//   • EXTREMA MIN/MAX — `firstChatAt` (MIN), `lastActivityAt`/`maxContextTokens`/`computedAt` (MAX). An
-//     extremum is NOT additive; it merges by MIN/MAX so a re-rolled turn doesn't double-count it.
-// The `messageDatesApprox` flag is OR-merged (once a day is flagged migrated-approx it stays — esoteric #7).
+// Two merge modes: additive `col = col + excluded.col` for every monotonic counter/sum; extrema MIN/MAX for
+// `firstChatAt`/`lastActivityAt`/`maxContextTokens`/`computedAt` (not additive — merges so a re-rolled turn
+// doesn't double-count). `messageDatesApprox` is OR-merged.
 //
-// ORBWEAVER SCHEMA DELTAS vs neo: character_stats DROPS `ownerId` (D23 — owner derives via
-// characterId→characters.ownerId), so its conflict target is the `characterId` unique index and the row
-// omits ownerId. The gen-time column is `genTimeMs` (delta `genTimeMs`); cache/maxContextTokens are
-// owner+model grain only (character_stats omits them — esoteric #5). The ONE batch cast is centralized in
-// `@orb/db/kit` (`batchStmt`), not the ~59 inline `as BatchItem` casts neo carried.
+// character_stats has no ownerId (owner derives via characterId→characters.ownerId), so its conflict
+// target is the `characterId` unique index.
 
 import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt, Db } from "@orb/db";
@@ -29,20 +19,15 @@ import { batchStmt, characterStats, dailyStats, modelStats, ownerStats } from "@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 
-// The model_stats `(unknown)` provider sentinel — see schema/stats.ts header + invariant #5. NOT NULL so
-// the (owner, model, provider) unique never splits on a NULL; coalesced HERE to match `@orb/kit/stats-tally
-// .modelKey` and the read-side keys (all three sites must agree).
+// The model_stats "(unknown)" provider sentinel. Not null so the (owner, model, provider) unique never
+// splits on a null; must match `@orb/kit/stats-tally.modelKey` and the read-side keys.
 const UNKNOWN_PROVIDER = "(unknown)";
 
 /** Coalesce an absent increment to 0 (the delta is a sparse patch — an omitted field is "no change"). */
 const n = (v: number | undefined): number => v ?? 0;
 
-/**
- * Push the four UPSERT-increment statements into the caller's batch array (appends; returns nothing — the
- * caller commits the batch atomically with its canon write). Typed `ApplyStatsDelta<BatchStmt, Db>` (the
- * contract op signature bound to the concrete db types here). A site touching two model buckets (a swipe
- * whose model differs from the original) calls this once per single-model delta into the same batch.
- */
+/** Push the four UPSERT-increment statements into the caller's batch array (appends; returns nothing — the
+ *  caller commits the batch atomically with its canon write). */
 export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
   batch: BatchStmt[],
   db: Db,
@@ -52,8 +37,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
   const firstAt = delta.firstAt ?? null;
   const maxCtx = delta.maxContextTokens ?? null;
 
-  // ── character_stats (skipped for a null character) — NO ownerId (D23); conflict on the characterId
-  //    unique index. Owner derives via characterId→characters.ownerId at read time. ──
+  // character_stats (skipped for a null character): no ownerId, conflict on the characterId unique index.
   if (delta.characterId !== null) {
     batch.push(
       batchStmt(
@@ -107,7 +91,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
               variantMessages: sql`${characterStats.variantMessages} + excluded.variant_messages`,
               forkedChats: sql`${characterStats.forkedChats} + excluded.forked_chats`,
               contentBytes: sql`${characterStats.contentBytes} + excluded.content_bytes`,
-              // MIN(firstChatAt) / MAX(lastActivityAt) — keep the extreme non-null (esoteric #6).
+              // MIN(firstChatAt) / MAX(lastActivityAt) — keep the extreme non-null.
               firstChatAt: sql`MIN(COALESCE(${characterStats.firstChatAt}, excluded.first_chat_at), COALESCE(excluded.first_chat_at, ${characterStats.firstChatAt}))`,
               lastActivityAt: sql`MAX(COALESCE(${characterStats.lastActivityAt}, excluded.last_activity_at), COALESCE(excluded.last_activity_at, ${characterStats.lastActivityAt}))`,
               computedAt: sql`MAX(${characterStats.computedAt}, excluded.computed_at)`,
@@ -117,8 +101,8 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
     );
   }
 
-  // ── owner_stats (ALWAYS — even an all-zeros touch keeps the row present for freshness). NATURAL PK on
-  //    ownerId. `characters` bumps only on the FIRST chat for a character (newCharacter — esoteric #10). ──
+  // owner_stats always writes (even all-zeros, so the row stays present for freshness). Natural PK on
+  // ownerId; `characters` bumps only on the first chat for a character.
   batch.push(
     batchStmt(
       db
@@ -186,9 +170,8 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
     ),
   );
 
-  // ── daily_stats (ALWAYS — the per-day timeseries point). Daily tokens credit the MESSAGE stream only:
-  //    `dailyTokensIn/Out` are DECOUPLED from the scalar tokens, so a swipe bumps day.swipes/genTimeMs but
-  //    NOT day.tokens (esoteric #1 — a variant delta omits dailyTokensIn/Out). ──
+  // daily_stats always writes. Daily tokens credit the message stream only — a swipe bumps
+  // day.swipes/genTimeMs but not day.tokens.
   batch.push(
     batchStmt(
       db
@@ -225,7 +208,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
             tokensOut: sql`${dailyStats.tokensOut} + excluded.tokens_out`,
             costUsd: sql`${dailyStats.costUsd} + excluded.cost_usd`,
             genTimeMs: sql`${dailyStats.genTimeMs} + excluded.gen_time_ms`,
-            // OR the approx flag — once a day is flagged migrated-approx it stays so (esoteric #7).
+            // OR the approx flag — once a day is flagged migrated-approx it stays so.
             messageDatesApprox: sql`(${dailyStats.messageDatesApprox} OR excluded.message_dates_approx)`,
             computedAt: sql`MAX(${dailyStats.computedAt}, excluded.computed_at)`,
           },
@@ -233,8 +216,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (
     ),
   );
 
-  // ── model_stats (skipped for a null model). provider coalesces to the `(unknown)` sentinel so the
-  //    (owner, model, provider) unique never splits on a NULL (invariant #5). ──
+  // model_stats (skipped for a null model). provider coalesces to the "(unknown)" sentinel.
   if (delta.model !== null) {
     batch.push(
       batchStmt(

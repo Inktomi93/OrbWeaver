@@ -1,12 +1,7 @@
-// domain/discovery/verbs/insights — the PURE-SEMANTICS insights (owner-scoped reads; live SQL). `themeDrift`
-// (how the owner's themes shift over STORY time — per-month prevalence, PD-39's `msgMidAt`) + `unusedCharacters`
-// (collected but never played — no `chat_participants` character seat). Was neo-tavern `corpus/verbs/insights.ts`.
-//
-// The ECONOMICS-composed insights — `forgottenGems` (invested-but-quiet: real message volume + tokensOut +
-// lastActive) + `modelRouting` (which model per genre) — are BUILT in the SIBLING `verbs/economics-insights.ts`
-// (PD-22/PD-40 cleared). They compose the injected `stats` economics op (per-message tokens/cost live on
-// `message_variants`, D26 — NOT a discovery read); the design is `../proposed/stats-discovery-seam.md` tier 3.
-// This file stays the PURE-semantics half — discovery does semantics; economics is stats' fence.
+// domain/discovery/verbs/insights — pure-semantics insights (owner-scoped reads; live SQL): themeDrift
+// (per-month theme prevalence over story time) + unusedCharacters (collected but never played). The
+// economics-composed insights (forgottenGems, modelRouting) live in the sibling economics-insights.ts,
+// composing the injected stats economics op — this file stays the pure-semantics half.
 
 import type { Db } from "@orb/db";
 import {
@@ -22,10 +17,8 @@ import type { ThemeLevel } from "../contract/params";
 import type { ThemeDriftBucket, ThemeDriftTheme, UnusedCharacter } from "../contract/results";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service";
 
-// How many top themes are kept per story-time bucket (the long tail below is noise).
 const THEME_DRIFT_TOP = 6;
 
-/** Bind the pure-semantics insights over the DI bundle (the verb-naming factory the service composes). */
 export function createInsights(
   ctx: DiscoveryContext,
 ): Pick<DiscoveryService, "themeDrift" | "unusedCharacters"> {
@@ -35,12 +28,7 @@ export function createInsights(
   };
 }
 
-/**
- * How the owner's themes shift over STORY time — per-month theme prevalence (drift), bucket-ascending. The
- * month bucket derives from the digest's `msgMidAt` (PD-39 position-median message time; assignments without a
- * stamp — e.g. tier-k/arc until the bridge-coverage backfill lands — are skipped). Owner scope via
- * `theme_clusters.ownerId` (KEEPS ownerId, D23). `level` defaults to `scene` (matches the `themes` surface).
- */
+/** Month bucket derives from the digest's msgMidAt; assignments without a stamp are skipped. */
 export async function themeDrift(
   db: Db,
   ownerId: UserId,
@@ -83,11 +71,6 @@ export async function themeDrift(
   }));
 }
 
-/**
- * The owner's characters that were NEVER played — no `chat_participants` character seat anywhere. Synthetic
- * group characters are excluded (they have no card). Name + avatar for display, name-ascending. Owner scope via
- * `characters.ownerId` (audit #1).
- */
 export async function unusedCharacters(db: Db, ownerId: UserId): Promise<UnusedCharacter[]> {
   const rows = await db
     .select({

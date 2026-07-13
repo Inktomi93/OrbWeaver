@@ -1,15 +1,9 @@
-// One row of the Settings → Tags management list — every per-tag control the tag domain exposes: rename
-// (updateTag, name-conflict-aware), background/text color pickers (updateTag color/color2 — the WS2
-// ColorField, empty = neutral/theme-default), the folder-type Select (NONE/OPEN/CLOSED), the
-// hide-on-card Switch, "Merge into…" (a picker Dialog → mergeTags), and Delete (an AlertDialog confirm
-// stating the cascade + usage). The drag GRIP is supplied by the parent SortableList (handle mode), so this
-// renders only the row body.
+// One row of the Settings → Tags management list — every per-tag control: rename, background/text color
+// pickers, the folder-type Select, the hide-on-card Switch, "Merge into…", and Delete. The drag grip is
+// supplied by the parent SortableList, so this renders only the row body.
 //
-// IMMEDIATE-COMMIT, NOT A DRAFT FORM (the character-tags-row.tsx precedent): each control is an INDEPENDENT
-// tag-domain mutation fired on change — there is no seed/submit/reset lifecycle a form factory would bake, so
-// the controls are grouped into small cohesive sub-components (colors · behavior · merge) rather than one
-// hand-rolled multi-field form. Each mutation is `busDriven`, so the `tagsChanged` echo refetches
-// `tag.listTagsWithUsage` for the acting + other devices.
+// Immediate-commit, not a draft form: each control is an independent tag-domain mutation fired on
+// change, grouped into small cohesive sub-components (colors · behavior · merge).
 
 import type { TagWithUsage, UpdateTagInput } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
@@ -117,7 +111,6 @@ export function TagSettingsRow({
         <AlertDialogPopup>
           <Stack gap="block">
             <AlertDialogTitle>{`Delete "${tag.name}"?`}</AlertDialogTitle>
-            {/* Plain children — AlertDialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
             <AlertDialogDescription>
               {`This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`}
             </AlertDialogDescription>
@@ -141,10 +134,7 @@ export function TagSettingsRow({
   );
 }
 
-/** The two color pickers (chip background + text). The ColorField per-field clear (FINAL-Character §8.1)
- *  emits "" — mapped HERE to the `updateTag` tri-state `null` (clear the column to theme-default; the
- *  server's `undefined`="leave untouched" is never sent from a change event). A non-empty value is the
- *  literal color. `null` (theme default) reads back as "" so the swatch shows the neutral/inherit chip. */
+/** The two color pickers (chip background + text). An empty value maps to `null` (clear to theme-default). */
 function TagColorControls({
   tag,
   patchStyle,
@@ -234,7 +224,6 @@ function TagMergeControl({ tag, others, trpc, invalidation }: TagSettingsRowProp
         <DialogPopup>
           <Stack gap="block">
             <DialogTitle>{`Merge "${tag.name}" into another tag`}</DialogTitle>
-            {/* Plain children — DialogDescription IS the <p>; a nested <Text> (also <p>) is invalid HTML. */}
             <DialogDescription>
               Every attachment moves to the tag you pick, then this tag is deleted. This can't be
               undone.

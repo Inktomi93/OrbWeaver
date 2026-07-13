@@ -1,22 +1,7 @@
-// The invite MINT dialog (FINAL-Chats §8.2 / FINAL-Chat-Tab-Redesign §8 — Wave 3). A COMPONENT so the
-// Dialog root is legal (client-structure rule 7; the AddCredentialDialog precedent). Host-only openers
-// (the Members People header + the ⋯ options menu row); the verbs are `multiHumanProcedure`-belted and
-// host-gated server-side.
-//
-// Two mint modes on ONE §13.4 form factory (`useInviteForm` — mode/handle/expiry/max-uses + validation):
-//   • Share link — untargeted `createInvite({ chatId, input: {} + limits })`: the RAW token returns
-//     exactly ONCE and is immediately composed into the `/join/<token>` URL — auto-copied AND rendered
-//     once with a copy button + "you won't see this again" copy (it is never re-derivable).
-//   • Invite by handle — targeted: the exact public handle (no user directory — the enumeration-free
-//     contract); delivered as a durable `invite` notification. An unknown handle is the coded
-//     `invite_target_unknown` refusal rendered INLINE on the field — never silently degraded to a
-//     share link (§8.2). The wire carries only the BAD_REQUEST class (DomainOperationError→BAD_REQUEST,
-//     transport error-mapping), which createInvite's handle path emits only for target-unknown.
-//
-// Below the mint form: the OUTSTANDING-INVITES list (FIX #4 `invites.listInvites` — host-only
-// `InviteView`s, no tokens): status badge · targeting · uses/expiry (mono) · per-row Revoke on pending.
-// Mount-gated for free (Base UI unmounts the closed popup), refreshed by the create/revoke mutations'
-// own `listInvites` invalidation.
+// The invite mint dialog. Two modes: share link (untargeted, the raw token returns exactly once and is
+// rendered with a copy button, never re-derivable) and invite by handle (targeted, delivered as a
+// notification; an unknown handle renders its refusal inline, never silently degraded to a share link).
+// Below the mint form: the outstanding-invites list, host-only, with per-row Revoke on pending.
 
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -47,7 +32,6 @@ export interface InviteDialogProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-/** The mint dialog shell — the form body mounts fresh per open (Base UI unmounts closed popups). */
 export function InviteDialog({ chatId, open, onOpenChange }: InviteDialogProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,8 +53,7 @@ export function InviteDialog({ chatId, open, onOpenChange }: InviteDialogProps):
   );
 }
 
-/** `BAD_REQUEST` classifier for the handle path (see header — the one BAD_REQUEST createInvite's
- *  handle path emits is `invite_target_unknown`; the op code itself doesn't ride the tRPC wire). */
+// The one BAD_REQUEST createInvite's handle path emits is invite_target_unknown.
 function isBadRequest(error: unknown): boolean {
   if (typeof error !== "object" || error === null || !("data" in error)) {
     return false;
@@ -83,15 +66,12 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const createInvite = useCreateInvite({ trpc, invalidation });
-  // The raw link, shown ONCE post-mint (never re-derivable — §8.2). Cleared on the next mint.
   const [mintedLink, setMintedLink] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
 
   const save = async (values: InviteFormValues): Promise<InviteFormValues> => {
     setHandleError(null);
     setMintedLink(null);
-    // Submit-time wall clock (an event handler, not render output) — the sanctioned no-injected-clock
-    // source (`performance.timeOrigin + performance.now()`, the lib/log-clock.ts precedent).
     const input = toCreateInviteInput(values, performance.timeOrigin + performance.now());
     try {
       const { token } = await createInvite.mutateAsync({ chatId, input });
@@ -105,7 +85,6 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
       return values;
     } catch (error) {
       if (values.mode === "handle" && isBadRequest(error)) {
-        // The enumeration-inherent exact-handle answer (§8.2) — inline, never a silent share link.
         setHandleError("No invitable user with that exact handle.");
       } else {
         notify.error("Couldn't create the invite.");
@@ -118,8 +97,6 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
 
   return (
     <form.AppForm>
-      {/* A real <form> so the submit button runs handleSubmit (the add-credential-dialog precedent).
-          The raw <form> carries no className (compose-only). */}
       <form
         onSubmit={(event): void => {
           event.preventDefault();
@@ -220,7 +197,6 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
   );
 }
 
-/** Clipboard write with its own failure line (a mint success must not read as a copy success). */
 async function copyLink(link: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(link);
@@ -230,11 +206,9 @@ async function copyLink(link: string): Promise<void> {
   }
 }
 
-/** The FIX #4 outstanding-invites list — host-only read; per-row Revoke on pending invites. */
 function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  // Mount-gated by the dialog (closed popups unmount) — a plain read, no suspense inside a dialog.
   const { data: invites, isError } = useQuery(trpc.invites.listInvites.queryOptions({ chatId }));
   const revoke = useRevokeInvite({ trpc, invalidation });
 
@@ -242,7 +216,7 @@ function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactEleme
     return <Text tone="muted">Couldn't load the outstanding invites.</Text>;
   }
   if (invites === undefined || invites.length === 0) {
-    return null; // nothing outstanding — the mint form is the whole dialog (never a dead list).
+    return null;
   }
   return (
     <Stack gap="row" data-testid={testId("inviteOutstandingList")}>

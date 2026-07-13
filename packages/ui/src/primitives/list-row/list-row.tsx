@@ -6,45 +6,35 @@ export interface ListRowProps {
   /** Leading slot — avatar/icon, rendered before the title/subtitle stack. */
   leading?: ReactNode;
   /**
-   * The row's primary label. Typed as a plain string (not `ReactNode`) because it does double
-   * duty: it backs the native `title=` attribute that recovers the ellipsized text on hover, and
-   * — when `clickable` — it is the row's accessible name (computed from the body's text content).
-   * A `ReactNode` could satisfy neither reliably.
+   * The row's primary label. Typed as a plain string (not `ReactNode`) because it backs the
+   * native `title=` attribute and — when `clickable` — the row's accessible name.
    */
   title: string;
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
   /**
-   * Optional hover/:focus-within reveal that DISPLAY-SWAPS the `subtitle` on the same content-column line
-   * (progressive disclosure of secondary metadata — e.g. a handle · token-size line). Lives in the content
-   * column (never `actions`), so a wide reveal never contends with the trailing buttons for width; it
-   * truncates within the column. Requires `subtitle` to swap against. Mono (data accent).
+   * Optional hover/:focus-within reveal that display-swaps the `subtitle` on the same content-
+   * column line. Lives in the content column (never `actions`), so it truncates within the
+   * column rather than contending with trailing buttons for width. Requires `subtitle` to swap against.
    */
   subtitleReveal?: string;
   /**
-   * Trailing actions (typically `@orb/ui/button` `<Button>`s). Rendered as a SIBLING of the
-   * clickable body, never nested inside it — see the component doc-comment for why. Ignored when
-   * `renderActions` is supplied (the collapse-aware form below).
+   * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it. Ignored
+   * when `renderActions` is supplied.
    */
   actions?: ReactNode;
   /**
-   * The collapse-aware actions form: a render fn given `collapsed` — `true` once the row's own width drops
-   * below `collapseBelow` (a ResizeObserver on the root, so it tracks the LIST panel's width, not the
-   * viewport). The consumer folds its SECONDARY actions into a kebab when `collapsed` (keeping the visible
-   * targets at their intrinsic ≥32px width instead of clipping) and shows them inline when not — the
-   * overflow→kebab mechanism (owner spec), measured here so the DOM stays a single source of truth. Wins
-   * over `actions` when both are set. No-op collapse (always `false`) when `collapseBelow` is omitted.
+   * The collapse-aware actions form: a render fn given `collapsed` — true once the row's own
+   * width drops below `collapseBelow` (a ResizeObserver on the root). Wins over `actions` when
+   * both are set. No-op collapse (always false) when `collapseBelow` is omitted.
    */
   renderActions?: (collapsed: boolean) => ReactNode;
-  /** The row width (px) at/below which `renderActions` receives `collapsed=true`. Required to arm the
-   *  measured collapse; without it `renderActions` always gets `false` (renders its expanded form). */
+  /** The row width (px) at/below which `renderActions` receives `collapsed=true`. */
   collapseBelow?: number;
   /**
-   * Renders the row's body as a native `<button>` (a real button, not a `role="button"` div — the
-   * side-eye item-13 ruling): free Enter/Space activation + form-control semantics, with the `actions`
-   * slot kept a SIBLING so nothing interactive nests inside it. The body's children are all phrasing
-   * content (span wrappers + span title/subtitle, a span-based `<Avatar>`) so a native `<button>` is
-   * valid.
+   * Renders the row's body as a native `<button>`, with the `actions` slot kept a sibling so
+   * nothing interactive nests inside it. The body's children are all phrasing content, so a
+   * native `<button>` is valid.
    */
   clickable?: boolean;
   /** Marks the row as the current selection (`data-selected` skin + `aria-current`). */
@@ -58,28 +48,17 @@ export interface ListRowProps {
 }
 
 /**
- * ListRow — the slot-based entity row every list surface composes (library, presets, rules,
- * plugins, databank docs, rosters): leading slot → title/subtitle stack → trailing actions.
- * Domain-agnostic — slots + props only, no domain knowledge (ui-package-design §12).
+ * ListRow — the slot-based entity row every list surface composes: leading slot → title/subtitle
+ * stack → trailing actions. Domain-agnostic — slots + props only.
  *
- * **A11y-critical:** when `clickable`, the row's BODY (leading + title/subtitle) is ONE native
- * `<button>` element — `actions` renders as a SIBLING outside that body, never nested inside it.
- * Nested interactive content inside a button is invalid (unreachable/inconsistent for assistive
- * tech), so keeping `actions` a sibling makes every action its own independent tab stop with its own
- * accessible name, outside the row's accessible name (which is computed from the body's text content
- * alone). The body's own children are strictly phrasing content — `<span>` wrappers, `<span>`
- * title/subtitle, and a span-based `<Avatar>` — so the native `<button>` is valid HTML.
- *
- * Usage:
- * ```tsx
- * <ListRow leading={<Avatar .../>} title="Elara" subtitle="Last used 2h ago" clickable
- *   selected={activeId === id} onClick={() => select(id)} actions={<Button size="sm">Edit</Button>} />
- * ```
+ * A11y-critical: when `clickable`, the row's body (leading + title/subtitle) is one native
+ * `<button>` element — `actions` renders as a sibling outside that body, never nested inside it
+ * (nested interactive content inside a button is invalid for assistive tech). The body's own
+ * children are strictly phrasing content, so the native `<button>` is valid HTML.
  */
 type Slots = ReturnType<typeof listRowVariants>;
 
-/** The body's inner content — strictly phrasing content (spans + a span-based `<Avatar>`) so it is
- *  valid inside the native `<button>` the clickable branch renders. */
+/** The body's inner content — strictly phrasing content so it's valid inside the clickable button. */
 function ListRowContent({
   slots,
   leading,
@@ -93,18 +72,14 @@ function ListRowContent({
   subtitle: string | undefined;
   subtitleReveal: string | undefined;
 }): ReactElement {
-  // When a reveal is present the subtitle HIDES on hover/focus so the reveal takes its exact line — the
-  // swap is applied only then, so a plain subtitle row still shows its subtitle on hover.
+  // The subtitle hides on hover/focus only when a reveal is present, so it takes the exact line.
   const subtitleSwap =
     subtitleReveal === undefined ? "" : "group-hover:hidden group-focus-within:hidden";
   return (
     <>
       {leading === undefined ? null : (
-        // The leading slot (avatar/icon) is DECORATIVE in the row contract — the title/subtitle are
-        // the row's accessible name. `aria-hidden` keeps a fallback avatar's initials (or an image's
-        // alt) from leaking into the name (a chat row was announcing "UC Untitled chat owner, Niko"
-        // instead of "Untitled chat, owner Niko"). Leading never holds its own interactive content
-        // (that would nest inside the <button> body — the a11y footgun this seal avoids).
+        // Decorative — title/subtitle are the row's accessible name. aria-hidden keeps a fallback
+        // avatar's initials (or an image's alt) from leaking into the name.
         <span className={slots.leading()} data-slot="list-row-leading" aria-hidden={true}>
           {leading}
         </span>
@@ -137,9 +112,8 @@ function ListRowContent({
   );
 }
 
-/** The body wrapper: a native `<button>` when `clickable` (the side-eye item-13 ruling — free
- *  keyboard + form-control semantics), else a static `<div>`. Split out of `ListRow` so the
- *  clickable/selected/disabled branching does not stack onto the composition root's complexity. */
+/** The body wrapper: a native `<button>` when `clickable`, else a static `<div>`. Split out to keep
+ *  the clickable/selected/disabled branching off the composition root's complexity. */
 function ListRowBody({
   slots,
   clickable,
@@ -157,9 +131,8 @@ function ListRowBody({
 }): ReactElement {
   const ariaCurrent = selected ? "true" : undefined;
   if (!clickable) {
-    // Non-clickable rows are a static <div> body — no role, no tab stop. A static row wired to a click
-    // handler without button semantics is exactly the a11y footgun `clickable` exists to prevent
-    // (biome's noStaticElementInteractions catches it too), so `onClick` is honored only when clickable.
+    // Non-clickable rows are a static <div> body — no role, no tab stop; onClick is honored only
+    // when clickable.
     return (
       <div
         aria-current={ariaCurrent}
@@ -171,9 +144,8 @@ function ListRowBody({
       </div>
     );
   }
-  // `aria-disabled` (not the native `disabled` attribute) keeps a disabled row focusable + announced;
-  // dropping the `onClick` handler is what actually neutralizes activation (Enter/Space still dispatch a
-  // click, but with no handler it is a no-op), so no pointer-events CSS trick is needed.
+  // aria-disabled (not the native disabled attribute) keeps a disabled row focusable + announced;
+  // dropping onClick neutralizes activation with no pointer-events CSS trick needed.
   return (
     <button
       aria-current={ariaCurrent}
@@ -191,9 +163,8 @@ function ListRowBody({
   );
 }
 
-/** Track whether the observed element's width has dropped at/below `threshold` — the row's measured
- *  collapse signal (`renderActions`). Disarmed (`null` threshold) ⇒ never collapses. `useLayoutEffect` +
- *  ResizeObserver so the collapse settles before paint (no flash of the un-collapsed cluster). */
+/** Tracks whether the observed element's width dropped at/below `threshold`. useLayoutEffect +
+ *  ResizeObserver so the collapse settles before paint. */
 function useCollapsedBelow(
   ref: RefObject<HTMLElement | null>,
   threshold: number | undefined,

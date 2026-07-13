@@ -1,16 +1,11 @@
-// transport/trpc/trpc — the single `initTRPC` init + the procedure ladder (core/Tier-4-Transport.md
-// §"trpc.ts"). Lives apart from `router.ts` so sub-routers import `t`/the procedures without a cycle
-// through the root router. The ladder is built ONCE: `publicProcedure → authedProcedure → adminProcedure`,
-// each rung adding a stricter gate (plus the `multiHumanProcedure` side-rung — the PD-106 single-user
-// capability belt). Middleware stack order (Esoteric #8 — tracing FIRST so a 401/429 from
-// a gate below still shows the procedure name + outcome):
-//   tracing span → domain-error map → rate-limit gate → [multi-human belt] → auth + CSRF gate → admin gate.
+// The single initTRPC init + the procedure ladder. Lives apart from router.ts so sub-routers import
+// t/the procedures without a cycle through the root router. Built once: publicProcedure →
+// authedProcedure → adminProcedure, each rung adding a stricter gate (plus the multiHumanProcedure
+// side-rung). Middleware order: tracing span (first, so a 401/429 below still shows the procedure name)
+// → domain-error map → rate-limit gate → [multi-human belt] → auth + CSRF gate → admin gate.
 //
-// The gates read the seam-resolved `ctx.auth` (`Principal`) and gate on plain fields — NO db round-trip
-// (the role was resolved ONCE at `entry/auth/seam.ts`; spine §1). `adminMiddleware` is transport's
-// LAYER-1 authority gate; the domain verb's `requireAdmin` is LAYER-2 (defense in depth — a verb reached
-// from a non-tRPC path is still gated). BOTH route through the one `can()` seam (`#domain/admin`), the
-// sole `role`-comparison site (spine Invariant #6).
+// The gates read the seam-resolved ctx.auth and gate on plain fields — no db round-trip. adminMiddleware
+// is transport's layer-1 authority gate; the domain verb's requireAdmin is layer-2 (defense in depth).
 
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { initTRPC, TRPCError } from "@trpc/server";
@@ -21,9 +16,8 @@ import { classifyDomainError } from "./error-mapping";
 
 export const t = initTRPC.context<Context>().create();
 
-// One span per procedure — the trace root every downstream db/provider span nests into. A typed domain
-// error resolves the span to OK (the procedure ran; the error is data, badged as an attribute); only an
-// uncaught mid-handler throw marks the span error.
+// One span per procedure. A typed domain error resolves the span to OK (the error is data, badged as an
+// attribute); only an uncaught mid-handler throw marks the span error.
 const tracingMiddleware = t.middleware(({ path, type, next }) =>
   span(
     `trpc.${path}`,
@@ -39,9 +33,8 @@ const tracingMiddleware = t.middleware(({ path, type, next }) =>
   ),
 );
 
-// Domain-error → tRPC-code mapping. The classifier (`./error-mapping`) walks `.cause` and is tested in
-// isolation. NOTE (Esoteric #5): a subscription generator throws AFTER this middleware has returned, so
-// it bypasses this map — subscriptions wrap their source in `withSubscriptionErrors` instead.
+// A subscription generator throws after this middleware has returned, so it bypasses this map —
+// subscriptions wrap their source in withSubscriptionErrors instead.
 const domainErrorMiddleware = t.middleware(async ({ next }) => {
   const result = await next();
   if (!result.ok) {
@@ -53,11 +46,8 @@ const domainErrorMiddleware = t.middleware(async ({ next }) => {
   return result;
 });
 
-// The rate-limit gate — the INJECTED seam (`ctx.rateLimit`, wired at `entry/` from the
-// `transport/rate-limit` primitive). Transport hands the gate the request facts; the gate owns the bucket
-// policy (anonymous per-IP vs authed per-user vs the $/GPU `aiTurn` bucket vs the per-member COUNT
-// budget). `ctx.auth` is populated at the seam regardless of the auth gate below, so the gate can key the
-// authed bucket here. A `DomainRateLimitError` is audited then re-thrown → mapped to TOO_MANY_REQUESTS.
+// The injected rate-limit gate; transport hands it the request facts, it owns the bucket policy. A
+// DomainRateLimitError is audited then re-thrown → mapped to TOO_MANY_REQUESTS.
 const rateLimitMiddleware = t.middleware(async ({ ctx, path, type, next }) => {
   try {
     await ctx.rateLimit.enforce({ path, type, principal: ctx.auth, clientIp: ctx.clientIp });
@@ -75,12 +65,9 @@ export const publicProcedure = t.procedure
   .use(domainErrorMiddleware)
   .use(rateLimitMiddleware);
 
-// authedProcedure: a resolved identity is required (`ctx.auth === null` → 401). PLUS the CSRF mitigation:
-// a COOKIE-authenticated MUTATION must carry the custom header (`csrfHeaderPresent`, read off the request
-// at the entry mount — transport does no header parsing). The gate keys on `Principal.via` — a
-// header/fallback request (no cross-site surface) and ALL queries/subscriptions (incl. the SSE stream)
-// are exempt, so the zero-infra default and the stream are untouched. Narrows `auth` to non-null
-// downstream.
+// authedProcedure: a resolved identity is required (ctx.auth === null → 401), plus the CSRF mitigation —
+// a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a
+// header/fallback request and all queries/subscriptions are exempt.
 const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
   if (ctx.auth === null) {
     securityEvent("auth_required", { path }, "security: unauthenticated request rejected");
@@ -99,17 +86,9 @@ const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
 
 export const authedProcedure = publicProcedure.use(authMiddleware);
 
-// multiHumanProcedure: the multi-human capability belt (PD-106; Tier-4 §"multi-human surface"; the B4
-// gating axis per FINAL-Auth-Modes §9). Every multi-human procedure (the invites/roster/notifications
-// surfaces + the notifications subscription) rides this rung: while the deployment cannot seat a second
-// HUMAN (`ctx.multiHumanCapable === false` — single-user, or local with `LOCAL_MULTI_USER` off) the
-// surface is refused AS NONEXISTENT — a uniform NOT_FOUND, never a FORBIDDEN/coded 400 that would
-// advertise the capability. The belt fires BEFORE the auth gate so even an anonymous probe sees the same
-// shape tRPC gives an unmounted procedure. `ctx.multiHumanCapable` is derived PER-REQUEST at the entry
-// mount (the local arm reads a runtime AppSetting — transport reads no env/settings itself). The chat
-// `single_user_mode` op-code (CHAT_OP_CODES) stays the DOMAIN-side discriminator for verb-level refusals
-// inside chat; the transport shape is deliberately the leak-free 404. Multi-CHARACTER rooms are NEVER
-// gated here — `chat.startChat` rides `authedProcedure` (§9 ruling 3).
+// multiHumanProcedure: while the deployment cannot seat a second human, the surface is refused as
+// nonexistent — a uniform NOT_FOUND, never a FORBIDDEN that would advertise the capability. Fires before
+// the auth gate so even an anonymous probe sees the same shape tRPC gives an unmounted procedure.
 const multiHumanMiddleware = t.middleware(({ ctx, path, next }) => {
   if (!ctx.multiHumanCapable) {
     securityEvent(
@@ -124,9 +103,8 @@ const multiHumanMiddleware = t.middleware(({ ctx, path, next }) => {
 
 export const multiHumanProcedure = publicProcedure.use(multiHumanMiddleware).use(authMiddleware);
 
-// adminProcedure (LAYER-1): authed + the global-role gate. `requireAdmin` (the `can()` seam, owner ∪
-// admin — D17) reads the seam-resolved `Principal.role`; NO db round-trip. A deny is audited then surfaced
-// as 403 (the matching `requireAdmin` inside the admin verbs is LAYER-2).
+// adminProcedure (layer 1): authed + the global-role gate. requireAdmin reads the seam-resolved
+// Principal.role; no db round-trip. A deny is audited then surfaced as 403.
 const adminMiddleware = t.middleware(({ ctx, path, next }) => {
   if (ctx.auth === null) {
     securityEvent("auth_required", { path }, "security: unauthenticated request rejected");
@@ -135,8 +113,6 @@ const adminMiddleware = t.middleware(({ ctx, path, next }) => {
   try {
     requireAdmin(ctx.auth);
   } catch (denial) {
-    // Audit the denial, then re-throw the original `DomainForbiddenError` — `domainErrorMiddleware`
-    // (upstream in the stack) maps it to a 403. Re-throwing the original keeps the typed cause intact.
     securityEvent(
       "admin_required",
       { path, handle: ctx.auth.handle, role: ctx.auth.role },

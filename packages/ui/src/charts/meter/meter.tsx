@@ -1,14 +1,7 @@
-// <Meter> — the ONE 1-D magnitude display (D52/D58; rpg-design/11 §2). HYBRID (ui-package-design
-// §10.4): Base UI Meter.Root supplies the a11y shell — role="meter" + aria-valuemin/max/now +
-// locale-aware aria-valuetext — while the custom SVG/div geometry (arc/bipolar/milestone) rides as
-// its CHILDREN. Base UI's MeterIndicator hardcodes `width:%` (linear-only), so the arc/bipolar
-// geometry stays hand-rolled; only the ARIA + the optional label/value readout are delegated.
-//
-// NOTE (verified against the shipped MeterRoot source, R6/R8): we nest geometry as `children` of the
-// default Root <div> rather than use the `render` prop to REPLACE the element. Meter.Root always
-// appends a visually-hidden <span> into `children` and defaults to a <div>; replacing the root with
-// the arc's <svg> would inject that HTML span inside an <svg> (invalid). Nesting keeps every kind's
-// geometry valid and the ARIA on the one Root.
+// Base UI Meter.Root supplies the a11y shell (role="meter", aria-valuemin/max/now, aria-valuetext)
+// while custom SVG/div geometry (arc/bipolar/milestone) rides as its CHILDREN, not via `render` —
+// Meter.Root always appends a visually-hidden span into `children`, and replacing the root with an
+// `<svg>` would inject that span inside it (invalid).
 import { Meter as BaseMeter } from "@base-ui/react/meter";
 import type { ReactElement, ReactNode } from "react";
 import {
@@ -19,31 +12,24 @@ import {
 } from "./variants";
 
 export interface MeterProps {
-  /** Presentation of the magnitude — same data, different dress (rpg-design/11 §2). */
+  /** Presentation of the magnitude — same data, different dress. */
   kind: "linear" | "arc" | "bipolar";
   value: number;
   /** @defaultValue 100 */
   max?: number;
-  /** @defaultValue 0 (bipolar: `-max`, the -100..100 domain style — taken generically) */
+  /** @defaultValue 0 (bipolar: `-max`) */
   min?: number;
-  /** Tick positions in value space (rendered on linear/bipolar; arc has no tick geometry in v1). */
+  /** Tick positions in value space (rendered on linear/bipolar; arc has no tick geometry). */
   milestones?: number[];
-  /** When `value < dangerBelow` the fill swaps to the danger INTENT token — never a color calc. */
+  /** When `value < dangerBelow` the fill swaps to the danger INTENT token. */
   dangerBelow?: number;
   /** Accessible name — names the meter (aria); also the visible label text when `showValue`. */
   label: string;
-  /**
-   * Render the visible label + value readout row above the geometry (mirrors Progress).
-   * @defaultValue false
-   */
+  /** Render the visible label + value readout row above the geometry. @defaultValue false */
   showValue?: boolean;
-  /** Custom formatter for the visible `Meter.Value` readout. */
   formatValue?: (formattedValue: string, value: number) => ReactNode;
-  /** Intl options for the value formatting behind `aria-valuetext` + the readout (Base UI Meter). */
   format?: Intl.NumberFormatOptions;
-  /** @defaultValue the runtime locale */
   locale?: Intl.LocalesArgument;
-  /** Human-readable override for `aria-valuetext`. */
   getAriaValueText?: (formattedValue: string, value: number) => string;
   className?: string;
 }
@@ -130,7 +116,7 @@ function ArcGeometry({ fraction, danger }: GeometryProps): ReactElement {
 }
 
 interface BipolarGeometryProps extends GeometryProps {
-  /** The zero point of the value domain, as a track fraction — the fill's origin. */
+  /** The zero point of the value domain, as a track fraction. */
   readonly origin: number;
 }
 
@@ -167,19 +153,7 @@ function renderGeometry(
   return <LinearGeometry {...geo} />;
 }
 
-/**
- * Pure magnitude display — knows NOTHING of HP/reputation (rpg-design/11 §2; the D58 spec).
- *
- * @example
- * ```tsx
- * <Meter kind="linear" value={hp} max={maxHp} dangerBelow={maxHp / 4} label="HP" />
- * ```
- *
- * @example With the label/value readout row (renders "HP … 50%")
- * ```tsx
- * <Meter kind="linear" value={hp} max={maxHp} label="HP" showValue />
- * ```
- */
+/** Pure magnitude display — knows nothing of HP/reputation. */
 export function Meter({
   kind,
   value,
@@ -204,8 +178,7 @@ export function Meter({
 
   return (
     <BaseMeter.Root
-      // With the visible label shown, Meter.Label names the meter (aria-labelledby); otherwise the
-      // name rides aria-label. Avoids double-naming.
+      // With the visible label shown, Meter.Label names the meter; otherwise the name rides aria-label.
       aria-label={showValue ? undefined : label}
       className={wrap.root({ className })}
       data-slot="meter"

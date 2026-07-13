@@ -20,13 +20,6 @@ export interface RadioGroupItemProps extends RadioRootProps {
   children?: ReactNode;
 }
 
-/**
- * The radio group — Base UI RadioGroup providing single-select state to its `RadioGroupItem`
- * children (arrow-key roving + one-of-many selection come free). Controlled-capable via
- * `value`/`onValueChange` passthrough (D42 §2 — Base UI seal).
- *
- * Usage: `<RadioGroup value={gm} onValueChange={setGm}><RadioGroupItem value="ai">AI</RadioGroupItem></RadioGroup>`
- */
 export function RadioGroup({ className, ...rest }: RadioGroupProps): ReactElement {
   return (
     <BaseRadioGroup
@@ -37,17 +30,8 @@ export function RadioGroup({ className, ...rest }: RadioGroupProps): ReactElemen
   );
 }
 
-/**
- * One labeled option — Base UI Radio (Root + Indicator) wrapped in a `<label>` so the text toggles
- * the control. `value` identifies it within the group.
- *
- * `readOnly` (set on the enclosing `RadioGroup`, or per-item — Base UI passthrough) renders
- * DISTINCTLY from `disabled`: the circle keeps its normal token colors (never the `data-disabled`
- * grey-out) and a Lock glyph replaces the selected dot as the non-color "you can't touch this"
- * signal (mirrors `Switch`/`Checkbox`'s treatment — ui-package-design work-order A3).
- *
- * Usage: `<RadioGroupItem value="human">A human GM</RadioGroupItem>`
- */
+// `readOnly` renders distinctly from `disabled`: the circle keeps its normal token colors and a Lock
+// glyph replaces the selected dot as the non-color "you can't touch this" signal.
 export function RadioGroupItem({
   className,
   children,

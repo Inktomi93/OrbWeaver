@@ -1,12 +1,7 @@
 import { FOCUS_RING, FOCUS_RING_WITHIN, OVERLAY_MOTION, tv } from "#lib";
 
-// The multi-select combobox skin — chips render as pills flowing inline with the draft input
-// inside ONE wrapping box (`chips` rides `contents` so its children become direct flex items of
-// `inputGroup`, letting them wrap line-by-line together). Popup/list/item/empty/status mirror the
-// autocomplete seal's tokens (bg-popover + z-(--z-popover) stacking contract, bg-accent highlight)
-// so the two seals read as one family. The chip remove glyph is sized to the pill (not the 44px
-// control floor — a chip's dismiss is a secondary affordance nested in a compact tag, the same call
-// the cited neo reference makes for its keyword-chip `X`).
+// Chips render as pills flowing inline with the draft input inside ONE wrapping box (`chips` rides
+// `contents` so its children become direct flex items of `inputGroup`, wrapping line-by-line together).
 export const comboboxVariants = tv({
   slots: {
     inputGroup: [
@@ -33,12 +28,8 @@ export const comboboxVariants = tv({
     positioner: "z-(--z-popover) outline-none",
     popup: [
       "z-(--z-popover) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
-      // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip/select (the shared
-      // overlay animation contract). `--transform-origin` is Base UI Positioner-provided.
       OVERLAY_MOTION.anchoredPopup,
     ],
-    // Base UI positions the arrow against the anchor and sets data-side; skinned as a `bg-popover`
-    // diamond that continues the popup edge (mirrors PopoverArrow/MenuArrow/SelectArrow).
     arrow: "size-row rotate-45 border border-border bg-popover",
     list: "flex flex-col gap-field",
     item: [
@@ -47,8 +38,7 @@ export const comboboxVariants = tv({
       "data-disabled:pointer-events-none data-disabled:opacity-50",
     ],
     empty: "px-block py-field text-body leading-body text-muted-foreground",
-    // The SR live region is visually collapsed — announces the result count politely; must stay
-    // mounted (Base UI: never `hidden`/`display:none` the Status element).
+    // Visually collapsed; must stay mounted — never hidden/display:none the Status element.
     status: "sr-only",
   },
 });

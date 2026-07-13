@@ -1,14 +1,8 @@
 // biome-ignore-all lint/suspicious/noBitwiseOperators: mulberry32 + FNV-1a are byte-defined PRNG/hash
-// codecs — the `>>>`/`^`/`|`/`|=`/`^=` ops ARE the algorithm. Rewriting them re-rolls every user's
-// preview (the byte-stable invariant). Suppressed file-wide (kit/png-card-chunk precedent).
-// domain/buddy/substrate/roll — the deterministic gacha. A user's bones are a PURE function of their id
-// (+ SALT), so the pre-hatch preview is stable and "your id → your creature" holds; at hatch the bones
-// snapshot to the row (then mutable as stats grow). Ported byte-stable from neo-tavern (mulberry32 +
-// FNV-1a).
-//
-// BYTE-STABLE (load-bearing): the `tavern-buddy-2026-01` SALT + the FROZEN draw
-// order (`rarity → species → eye → hat → shiny → stats`) NEVER change once buddies exist — rotating the
-// salt or reordering the draws RE-ROLLS every user's preview. A golden test pins `roll(knownId)`.
+// codecs — the ops ARE the algorithm; rewriting them re-rolls every user's preview.
+// domain/buddy/substrate/roll — the deterministic gacha: a user's bones are a pure function of their id
+// (+ SALT). The SALT + the frozen draw order (rarity → species → eye → hat → shiny → stats) must never
+// change once buddies exist — either would re-roll every user's preview. A golden test pins roll(knownId).
 
 import type { CompanionBones, CompanionStats, Rarity } from "@orb/contracts/buddy";
 import {
@@ -22,10 +16,8 @@ import {
 } from "@orb/contracts/buddy";
 import type { UserId } from "@orb/kit/ids";
 
-// Rotating this re-rolls the whole population — treat as FROZEN once buddies exist (byte-stable).
 const SALT = "tavern-buddy-2026-01";
 
-// --- Pinned numeric constants (the gacha curve; byte-stable with the salt) ----
 const MULBERRY_INC = 0x6d_2b_79_f5;
 const FNV_OFFSET = 2_166_136_261;
 const FNV_PRIME = 16_777_619;
@@ -99,14 +91,11 @@ function rollStats(rng: () => number, rarity: Rarity): CompanionStats {
   return stats;
 }
 
-/** The rolled body + a per-roll inspiration seed handed to the soul-author prompt (so two same-bones
- *  buddies still differ). Module-local (not exported — `no-inline-types`); callers infer it. */
 interface Roll {
   readonly bones: CompanionBones;
   readonly inspirationSeed: number;
 }
 
-// FROZEN draw order: rarity → species → eye → hat → shiny → stats (byte-stable).
 function rollFrom(rng: () => number): Roll {
   const rarity = rollRarity(rng);
   const bones: CompanionBones = {
@@ -120,8 +109,6 @@ function rollFrom(rng: () => number): Roll {
   return { bones, inspirationSeed: Math.floor(rng() * INSPIRATION_RANGE) };
 }
 
-/** A user's roll — a pure function of their id (+ SALT). Recompute is a hash + a few RNG draws (no
- *  cache; the single-slot cache only helped same-user sequential calls). */
 export function roll(userId: UserId): Roll {
   return rollFrom(mulberry32(hashString(userId + SALT)));
 }

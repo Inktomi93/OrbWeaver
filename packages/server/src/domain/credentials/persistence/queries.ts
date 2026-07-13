@@ -1,10 +1,6 @@
-// domain/credentials/persistence/queries — ALL db access for `user_credentials` (queries only; no crypto,
-// no I/O, no in-memory state — `persistence-no-io` / `persistence-no-in-memory-state`). The SecretBox
-// seal/open happens in the VERBS (business logic); this slot stores/reads the sealed bytes. `fetchOwned`
-// (@orb/db/kit) is the owner-scoped single-row read shared by every single-owned table — a non-owner gets
-// `undefined`, never another user's row (the ownership belt is the WHERE, not a post-filter). `toCredentialView`
-// is the ONLY projection to the wire shape — it DROPS `ciphertext`/`iv`/`tag` (the plaintext-never-leaks
-// belt, invariant #4). `CredentialRow` is file-local (drizzle `$inferSelect`) — never exported (no-inline-types).
+// All db access for `user_credentials` (queries only). SecretBox seal/open happens in the verbs; this slot
+// stores/reads the sealed bytes. `toCredentialView` is the only projection to the wire shape — it drops
+// `ciphertext`/`iv`/`tag`.
 
 import type { CredentialProvider, ProviderMetadata } from "@orb/contracts/credentials";
 import type { Db } from "@orb/db";
@@ -190,9 +186,7 @@ export function deleteOwnedCredential(
     .where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
 }
 
-/** Mark a credential revoked by id — the RUNNER path (NO owner scope; the runner proved access by holding
- *  the id from a completed turn). Sets `revokedAt` only (orbweaver's schema has no `revoked_reason` column;
- *  the reason is logged, never persisted). Idempotent. */
+/** Mark a credential revoked by id — the runner path (no owner scope). Sets `revokedAt` only. Idempotent. */
 export function setRevokedById(
   db: Db,
   credentialId: UserCredentialId,
@@ -217,8 +211,7 @@ export function clearRevokedOwned(
     .where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
 }
 
-/** Project a row to the wire-shape `CredentialView` — DROPS every secret field (ciphertext/iv/tag). The
- *  plaintext-never-leaks belt lives HERE (invariant #4), so no verb can return a raw row by accident. */
+/** Project a row to the wire-shape `CredentialView` — drops every secret field. */
 export function toCredentialView(row: CredentialRow): CredentialView {
   return {
     id: row.id,

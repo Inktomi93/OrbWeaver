@@ -1,18 +1,10 @@
-// character-editor-surface — the Characters CONTENT when a row is selected (FINAL-Character §6). SUPERSEDES
-// the J9 read-only detail card (character-detail-surface/character-detail-card, now deleted): a read-only
-// card left mounted beside an editor would be TWO CONTENT homes for one artifact (a one-home violation). The
-// route mounts this in the `characters` CONTENT slot when `selectedCharacterId` is set (home-page.tsx); a
-// null selection falls back to CharacterLibraryWelcome.
+// The Characters CONTENT when a row is selected. One always-editing bound form over the draft
+// card-content fields, with a key={mountKey} full remount on character switch. The hero name is a
+// draft field; the hero portrait/star/archive + the tags row are immediate identity commits outside
+// the form. The save-bar carries the token split, the dirty pill, Discard, and Save.
 //
-// ONE always-editing bound form (`createSavedEntityForm`, §13.4) over the DRAFT card-content fields, with a
-// `key={mountKey}` full remount on character switch. The hero NAME is a draft field; the hero portrait/star/
-// archive + the tags row are IMMEDIATE identity commits OUTSIDE the form (§2). The save-bar (sticky at the
-// TOP of CONTENT) carries the §6.5 token split (N total · M permanent), the dirty pill, Discard, and Save.
-//
-// The hero chat affordances (§9c): "New chat" ALWAYS starts a fresh thread with this character; "N chats ›"
-// scopes the roomy Chats LIST to this character (state/chat-list-filter-store) and switches sections — the
-// per-character chat view is the filtered Chats list, not a parallel list here. `chatCount` is a RENDER
-// derivation over the bus-driven `listChats` (§5.1 — never an effect on a selection pointer).
+// Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›"
+// scopes the Chats list to this character and switches sections.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -50,12 +42,10 @@ import { clearCharacterForm, publishCharacterForm } from "../lib/character-edito
 
 export interface CharacterEditorSurfaceProps {
   readonly characterId: CharacterId;
-  /** Reveal the CONTEXT Field inspector (the route-built choreography) — a facet-row click calls this AFTER
-   *  writing the facet selection. Mirrors the preset editor's `onRevealSection`. */
+  /** Reveal the CONTEXT Field inspector — a facet-row click calls this after writing the selection. */
   readonly onRevealField?: (() => void) | undefined;
 }
 
-/** The character editor, over `character.get` (suspense + error/loading via QueryBoundary). */
 export function CharacterEditorSurface({
   characterId,
   onRevealField,
@@ -72,7 +62,6 @@ export function CharacterEditorSurface({
         </Text>
       )}
     >
-      {/* key={characterId} remounts the body on a character switch (F17 — render-only remount, §5.1). */}
       <CharacterEditorBody
         characterId={characterId}
         onRevealField={onRevealField}
@@ -94,23 +83,17 @@ function CharacterEditorBody({
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   const selectedFacetId = useSelectedCharacterFacetId();
-  // The drill-in ← Back focus-restore target (side-eye P3): activating a facet drops `activeElement` to
-  // `<body>`, so on Back we tell the re-mounting facet list WHICH row should reclaim focus (app-owned, not
-  // the browser's DOM-position heuristic). State, not a ref — the facet list reads it as a prop, and the
-  // row focuses itself once on mount; a lingering value is harmless (a row re-focuses only if it remounts,
-  // i.e. another drill-in→Back cycle, which sets a fresh target).
+  // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list
+  // which row should reclaim focus.
   const [backFocusFacetId, setBackFocusFacetId] = useState<CharacterCardFacet["id"] | null>(null);
 
-  // The greeting the hero is previewing (drives the §6.5 total) — lifted here so the save-bar total agrees.
+  // The greeting the hero is previewing — lifted here so the save-bar total agrees.
   const [activeGreetingIndex, setActiveGreetingIndex] = useState(0);
 
-  // Save = the whole-card `character.update`, re-mapped back to form values (the re-baseline source,
-  // obligation 3). Only the DRAFT card fields flow through here; identity fields patch elsewhere (§2).
   const save = async (values: CharacterCardFormValues): Promise<CharacterCardFormValues> => {
     const saved = await update.mutateAsync({
       characterId,
-      // §2: send only the keys the user CHANGED (diffed against the server row `data`), never a full-object
-      // PUT — that would silently revert a concurrent edit to an untouched field (F3).
+      // Send only the keys the user changed, never a full-object PUT that could revert a concurrent edit.
       input: characterUpdateDiff(values, data),
     });
     return characterCardFormFromDetail(saved);
@@ -122,8 +105,7 @@ function CharacterEditorBody({
     save,
   });
 
-  // The bus-driven chat list — the hero's chat count ("N chats ›") + the "New chat" seam derive from it in
-  // render (§5.1 — never an effect on a selection pointer). `chatCount` counts THIS character's threads.
+  // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
   const chats = useMemo(() => chatsQuery.data ?? [], [chatsQuery.data]);
   const chatCount = useMemo(
@@ -131,35 +113,29 @@ function CharacterEditorBody({
     [chats, data.id],
   );
 
-  // Hero "New chat" — ALWAYS a fresh chat with this character (not resume-or-new; the hero's job is to start
-  // a new thread, per the redesign), then jump to the roomy Chats section. Clear any per-character LIST
-  // filter so the fresh draft isn't shown behind a stale scope chip.
+  // Always a fresh chat with this character. Clear any per-character filter so the fresh draft isn't
+  // shown behind a stale scope chip.
   const onNewChat = (): void => {
     clearChatListCharacterFilter();
     startNewChat({ characterIds: [data.id] });
     setActiveSection("chats");
   };
-  // Hero "N chats ›" — scope the roomy Chats LIST to THIS character's threads (state/chat-list-filter-store)
-  // AND switch to the Chats section. The Chats LIST reads the filter, shows a "filtered by [name] ✕" chip,
-  // and the user opens a past thread or starts a new one from there (the redesign's real per-character view).
-  // We set the filter but DON'T pre-select a thread: the filtered list IS the landing (§4.2 rule 1).
+  // Scope the Chats list to this character's threads and switch sections. We set the filter but don't
+  // pre-select a thread: the filtered list is the landing.
   const onViewChats = (): void => {
     setChatListCharacterFilter({ id: data.id, name: data.name });
     setActiveSection("chats");
   };
 
-  // THE CHARACTER FORM BRIDGE — publish the live handle so the CONTEXT Field inspector (a sibling shell
-  // region, no shared React ancestor) can bind the facet's small fields (depth/role, provenance). Re-
-  // publishes when the form instance changes (a save/reset cycles `mountKey` → a fresh `form`); clears on
-  // unmount so a stale handle never outlives the editor (mirrors the preset editor's bridge effect).
+  // Publish the live handle so the CONTEXT Field inspector (a sibling shell region, no shared React
+  // ancestor) can bind the facet's small fields. Clears on unmount so a stale handle never outlives
+  // the editor.
   useEffect(() => {
     publishCharacterForm({ characterId: data.id, form });
     return (): void => clearCharacterForm();
   }, [data.id, form]);
 
-  // A facet-row click does BOTH: write the facet selection (drills CONTENT into the facet body AND drives
-  // the CONTEXT Field tab) + reveal the CONTEXT inspector (the route builds the reveal). Mirrors the preset
-  // rack's `onSelectSection` two-things-at-once.
+  // Write the facet selection and reveal the CONTEXT inspector.
   const onSelectFacet = (id: CharacterCardFacet["id"]): void => {
     selectCharacterFacet(id);
     onRevealField?.();
@@ -191,10 +167,8 @@ function CharacterEditorBody({
             <Button type="button" intent="ghost" onClick={discard}>
               Discard changes
             </Button>
-            {/* Save is `primary` ONLY while dirty (not `isDefaultValue`): at rest the hero "Start chat" is
-                the region's ONE primary (§6.1 / UI-Arch §4.3 rule 3 — "one primary visible per region at
-                rest"). A local bound Button (not the shared `form.SubmitButton`, which is always-primary)
-                keeps the intent-by-dirtiness confined to this surface. F8. */}
+            {/* Save is primary only while dirty — at rest the hero "Start chat" is the region's one
+                primary. */}
             <form.Subscribe
               selector={(s): readonly [boolean, boolean, boolean] =>
                 [s.canSubmit, s.isSubmitting, s.isDefaultValue] as const
@@ -224,10 +198,8 @@ function CharacterEditorBody({
             onActiveGreetingIndexChange={setActiveGreetingIndex}
           />
 
-          {/* CONTENT = a master FACET LIST (tiered Voice/Extras/Advanced) → click a row → the list is
-              REPLACED by the full-width facet BODY editor (← Back to return). This one calm master→drill-in
-              REPLACES the old flat Main/Advanced two-tab scroll (side-eye P0 #1 SaveBar z-fight + P0 #3
-              tab-click-no-scroll both DISSOLVE — there is no second `Tabs` and no off-screen tab body). */}
+          {/* A master facet list; click a row and the list is replaced by the full-width facet body
+              editor (← Back to return). */}
           {selectedFacetId === null ? (
             <CharacterFacetList
               form={form}
@@ -248,7 +220,6 @@ function CharacterEditorBody({
                 refinery: data.refinery,
               }}
               onBack={(): void => {
-                // Remember the facet we're leaving so the re-mounting list restores focus to its row.
                 setBackFocusFacetId(selectedFacetId as CharacterCardFacet["id"]);
                 clearCharacterFacet();
               }}

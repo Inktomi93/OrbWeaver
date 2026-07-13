@@ -1,20 +1,12 @@
-// domain/discovery/substrate/pair-cosine — all-pairs near-duplicate detection (pure; zero I/O). Returns every
-// vector pair whose RAW cosine clears a threshold, each carrying its CSLS-adjusted rank key. Used ONLY by the
-// near-duplicate + similarity-graph features (discovery concerns) — it is all-pairs ANALYTICS, NOT top-k
-// retrieval (that is `search`, via `vector_distance_cos` — the two-cosine-access-patterns rule). Was
-// neo-tavern `corpus/substrate/pair-cosine.ts`; its `normalizeFlat` is DELETED (→ @orb/kit/vector-math's one
-// `l2Normalize`, used inside `pairwiseCosine`), and the all-pairs scan now reuses `pairwiseCosine`.
+// domain/discovery/substrate/pair-cosine — all-pairs near-duplicate detection (pure; zero I/O). Returns
+// every vector pair whose raw cosine clears a threshold, each carrying its CSLS-adjusted rank key. All-pairs
+// analytics, not top-k retrieval (that's search via vector_distance_cos).
 //
-// CSLS rank key (esoteric: "CSLS-ranked"): `csls(a,b) = 2·cos(a,b) − hub(a) − hub(b)`. A pair of two GENERIC
-// (high-hub) cards — each close to everything — is deflated below a pair of two DISTINCTIVE cards at the same
-// raw cosine, so the ranking surfaces "these two are uniquely alike", not "both are bland". The THRESHOLD
-// gates on RAW cosine (a genuine near-dup must clear it regardless of hubness); `cslsScore` only RANKS.
+// csls(a,b) = 2·cos(a,b) − hub(a) − hub(b): deflates two generic (high-hub) cards below two distinctive
+// cards at the same raw cosine. Threshold gates on raw cosine; cslsScore only ranks.
 
 import { pairwiseCosine } from "@orb/kit/vector-math";
 
-// One above-threshold pair: the two INDICES into the input arrays + the raw cosine + the CSLS rank key.
-// File-local (no exported persistence/contract type — consumers infer it from the function return; the
-// no-inline-types gate flags only EXPORTED type leaks, mirroring search/persistence/nearest.ts).
 interface DuplicatePair {
   readonly i: number;
   readonly j: number;
@@ -22,12 +14,7 @@ interface DuplicatePair {
   readonly cslsScore: number;
 }
 
-/**
- * Every pair `(i, j)` with `i < j` whose raw cosine ≥ `threshold`, each scored by the CSLS rank key
- * (`2·sim − hub_i − hub_j`). `hubs` is index-aligned to `vecs` (a vector's mean cosine to its K nearest
- * neighbours — `hub-math.computeGroupHubs`); pass all-zero hubs for a pure-cosine ranking. The returned
- * pairs are NOT sorted — the caller ranks (the recompute orders by `cslsScore` desc). Empty input ⇒ `[]`.
- */
+/** hubs is index-aligned to vecs; pass all-zero hubs for a pure-cosine ranking. Returned pairs are unsorted. */
 export function pairsAboveThreshold(
   vecs: readonly Float32Array[],
   hubs: readonly number[],

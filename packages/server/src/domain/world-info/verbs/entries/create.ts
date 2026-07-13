@@ -1,14 +1,6 @@
-// verb: createEntry — mint an entry in an owned book (book ownership gated first; entries carry no owner of
-// their own — they inherit via the book, D23). The injected `newEntryId`/`now` keep it deterministic. The
-// `metadata` write-record is coerced through `entryMetadataSchema` at the WRITE seam (the input arrives as a
-// loose record validated at transport; the column is typed `EntryMetadata`) so a non-transport caller can't
-// smuggle an unvalidated blob past the type — `null` clears. Column defaults are applied explicitly so the
-// returned view matches the stored row without a re-read.
-//
-// PD-89: a new entry joins the WI pool of every chat the book is attached to — fan out `wiEntryAttached` over
-// `listChatIdsForBook` (empty fan-out when the book is attached to zero chats is correct, not an error; the
-// chat-scope-only rule — book attached at character/persona/global has no reverse mapping and never reaches
-// this fan-out, per the `WiBusEvent` doc comment in contracts/world-info).
+// verb: createEntry — mint an entry in an owned book; entries carry no owner of their own, they inherit
+// via the book (D23). Fans `wiEntryAttached` out over every chat the book is attached to (empty fan-out
+// is correct when the book has zero chat attachments).
 
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";

@@ -1,8 +1,4 @@
-// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react
-// re-export chain behind the #primitives/icons subpath (the checkbox/select/log-viewer precedent);
-// tsc + vite resolve every symbol below fine. File-wide (not per-statement) because this file's
-// icon import wraps across lines — a per-statement biome-ignore only covers the line directly
-// beneath it, not each wrapped specifier.
+// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind #primitives/icons; tsc + vite resolve every symbol fine. File-wide since the import wraps across lines.
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { cn } from "#lib";
@@ -21,8 +17,7 @@ import {
 import { tableVariants } from "./variants";
 
 const DEFAULT_PAGE_SIZE = 10;
-// A frozen stable default (the createEntityDraftStore "frozen EMPTY" precedent, ui-package-design
-// §6.2) — a fresh `new Set()` every render would break referential equality for no reason.
+// A frozen stable default — a fresh new Set() every render would break referential equality for no reason.
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 export interface TableColumn<TData> {
@@ -31,10 +26,8 @@ export interface TableColumn<TData> {
   readonly header: ReactNode;
   /**
    * Reads this column's value off a row — used for sorting and the default cell renderer. Typed
-   * `unknown` deliberately (not a per-column generic): `cell` always also receives the fully-typed
-   * `row`, so a custom renderer that wants a typed value reads it off `row` directly instead of
-   * narrowing `value` — this keeps `columns` a single concrete `TableColumn<TData>[]` instead of a
-   * union of per-column generics (the `any` TanStack itself is forced into for the same reason).
+   * `unknown` deliberately: `cell` also receives the fully-typed `row`, so a custom renderer reads
+   * a typed value off `row` directly instead of narrowing `value`.
    */
   readonly accessor: (row: TData) => unknown;
   /** Custom cell renderer. Omit for the default (the raw value, booleans as Yes/No, null as blank). */
@@ -42,9 +35,7 @@ export interface TableColumn<TData> {
   /** Enables the click-to-sort header button + `aria-sort`. @defaultValue false */
   readonly sortable?: boolean;
   readonly align?: "start" | "center" | "end";
-  /** A CSS length (`"8rem"`, `"20%"`) applied to the header cell's `width` — a data-driven layout
-   * value, not a design token (the container.tsx `container-name` precedent for the inline-style
-   * exception). */
+  /** A CSS length (`"8rem"`, `"20%"`) applied to the header cell's `width` — a data-driven layout value. */
   readonly width?: string;
 }
 
@@ -62,9 +53,8 @@ export interface TableProps<TData> {
   readonly columns: readonly TableColumn<TData>[];
   readonly data: readonly TData[];
   /**
-   * Stable per-row id — MUST be id-based, never the array index (the VirtualList `getItemKey`
-   * precedent: sorting reorders rows, so an index key would silently reassign a row's React
-   * identity — and selection state is keyed by this id).
+   * Stable per-row id — must be id-based, never the array index: sorting reorders rows, so an
+   * index key would silently reassign a row's React identity, and selection state is keyed by it.
    */
   readonly getRowId: (row: TData, index: number) => string;
   /** Builds a row's accessible name for its selection checkbox (`"Select {label}"`). Falls back to
@@ -79,8 +69,7 @@ export interface TableProps<TData> {
 
   /** Controlled pagination state. Omit to run uncontrolled off `defaultPagination`. Pagination is
    * always applied client-side over `data`; the footer controls self-suppress when everything
-   * fits on one page (the Select `scrollArrows` self-suppress precedent). To opt out entirely,
-   * pass a `pageSize` \>= `data.length`. */
+   * fits on one page. To opt out entirely, pass a `pageSize` \>= `data.length`. */
   readonly pagination?: TablePagination;
   readonly defaultPagination?: TablePagination;
   readonly onPaginationChange?: (pagination: TablePagination) => void;
@@ -117,12 +106,8 @@ function comparePrimitive(a: unknown, b: unknown): number | null {
   return null;
 }
 
-// Nulls sort last regardless of direction: the direction `sign` is applied ONLY to the primitive
-// comparison, never to the null branches (which always return +1/-1 to push blanks to the END) —
-// the hand-rolled equivalent of TanStack's own `sortUndefined` default. Multiplying `sign` over the
-// whole result (the old bug) flipped the null ordering under `desc`, clustering blanks at the TOP.
-// Split into two small functions (rather than one long if-chain) to stay under the
-// cognitive-complexity ceiling.
+// Nulls sort last regardless of direction: `sign` applies only to the primitive comparison, never
+// to the null branches (which always return +1/-1 to push blanks to the end).
 function compareValues(a: unknown, b: unknown, sign: number): number {
   if (a === b) {
     return 0;
@@ -137,8 +122,7 @@ function compareValues(a: unknown, b: unknown, sign: number): number {
 }
 
 /** A row paired with its stable id + original position — computed once so sorting never needs to
- * re-derive a row's identity (the `data.indexOf(row)` footgun: O(n) per row, and ambiguous if two
- * rows are `===`-equal). */
+ * re-derive a row's identity via an O(n), possibly-ambiguous `data.indexOf(row)`. */
 interface TableEntry<TData> {
   readonly row: TData;
   readonly id: string;
@@ -209,29 +193,10 @@ function ariaSortFor(
 
 /**
  * Table — the general-purpose data-grid: sortable/paginated/selectable columns over `data`, dressed
- * in the token skin. Hand-rolled (no `@tanstack/react-table` — see variants.ts for why): sorting,
- * pagination, and selection are pure derivations over the `data` array plus a controlled-or-
- * uncontrolled state triple, so the React Compiler memoizes for free — no interior-mutable table
- * instance, no `"use no memo"` escape hatch.
- *
+ * in the token skin. Hand-rolled (no `@tanstack/react-table`): sorting, pagination, and selection
+ * are pure derivations over the `data` array plus a controlled-or-uncontrolled state triple.
  * Semantic markup throughout: `<table>`/`<thead>`/`<tbody>`/`<th scope="col">`, `aria-sort` on
- * sortable header cells (the WAI-ARIA sortable-table pattern), a real `<button>` per sort trigger,
- * and the `Checkbox` primitive (never hand-rolled) for the optional selection column.
- *
- * Usage:
- * ```tsx
- * <Table
- *   columns={[
- *     { id: "name", header: "Name", accessor: (u) => u.name, sortable: true },
- *     { id: "role", header: "Role", accessor: (u) => u.role, sortable: true },
- *   ]}
- *   data={users}
- *   getRowId={(u) => u.id}
- *   selectable
- *   selectedRowIds={selected}
- *   onSelectedRowIdsChange={setSelected}
- * />
- * ```
+ * sortable header cells, and the `Checkbox` primitive for the optional selection column.
  */
 export function Table<TData>({
   columns,
@@ -315,9 +280,7 @@ export function Table<TData>({
   const entries = toEntries(data, getRowId);
   const sorted = sortEntries(entries, columns, sorting);
 
-  // The freshly-derived-array footgun (ui-primitive-contract §13 R7): if `data` shrinks while the
-  // caller sits on a later page, clamp rather than render a blank page — a pure derivation, no
-  // state write.
+  // If `data` shrinks while the caller sits on a later page, clamp rather than render a blank page.
   const pageSize = requestedPagination.pageSize;
   const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
   const pageIndex = Math.min(Math.max(requestedPagination.pageIndex, 0), pageCount - 1);

@@ -1,13 +1,9 @@
-// The loader-driven conformance runner (TSMORPH-SINGLE-PASS-AUDIT.md §1.6): every descriptor's
-// mustFlag/mustPass examples are run through the SAME dispatcher (pass.ts) over an example project — the
-// standing "it bites / it doesn't over-bite" proof, replacing the per-gate int test's break-RED-restore
-// ritual. A mis-proven gate means the CHECKER is wrong → a conformance failure is a TOOL error (exit 2),
-// not a violation (§9.4).
+// Runs every gate's mustFlag/mustPass examples through the same dispatcher (pass.ts) over an example
+// project. A mis-proven gate means the CHECKER is wrong → a conformance failure is a TOOL error (exit 2),
+// not a violation.
 //
-// TWO substrates: a pure-AST gate's example is an IN-MEMORY Project (no disk, ~ms). An `fsBacked` gate's
-// hooks read the real filesystem (readdirSync/existsSync/readFileSync), so its example is MATERIALIZED
-// into a real auto-cleaned temp dir and loaded as a real-fs Project rooted there (the `withTree` mechanics
-// from _support.ts, promoted into the runner) — the runner picks the substrate off the descriptor.
+// TWO substrates: a pure-AST gate's example is an IN-MEMORY Project. An `fsBacked` gate's hooks read the
+// real filesystem, so its example is materialized into a real auto-cleaned temp dir instead.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -25,8 +21,7 @@ export type ConformanceFailure = {
   readonly detail: string;
 };
 
-/** The default virtual path a single-snippet example lands at when the gate doesn't specify `at`.
- *  Picks a path the gate's scanRoot accepts, so the snippet is actually in-scope. */
+/** The default virtual path a single-snippet example lands at when the gate doesn't specify `at`. */
 const DEFAULT_EXAMPLE_PATH = "packages/ui/src/x/x.tsx";
 const EXAMPLE_PATH_CANDIDATES: readonly string[] = [
   DEFAULT_EXAMPLE_PATH,
@@ -59,10 +54,9 @@ function inMemoryExampleProject(ex: GateExample, gate: GateDescriptor): Project 
   return project;
 }
 
-/** Run ONE gate standalone over an example project at `root` — the same begin→walk→run→finalize path as
- *  the real run, so an example proves the gate under the real plumbing, not a parallel harness. A DORMANT
- *  gate is run as-active here (runPass skips dormant gates in the real run) so its proofs still hold — a
- *  dormant gate must be correct so it can be activated. */
+/** Run ONE gate standalone over an example project — the same begin→walk→run→finalize path as the real
+ *  run. A dormant gate is run as-active here (runPass skips dormant gates in the real run) so its proof
+ *  still holds. */
 function runGateStandalone(
   gate: GateDescriptor,
   project: Project,
@@ -80,10 +74,8 @@ function runGateStandalone(
   return gateResult?.findings ?? [];
 }
 
-/** Run an `fsBacked` gate's example by MATERIALIZING its files into a real auto-cleaned temp dir and
- *  loading a real-fs Project rooted there — so the gate's readdirSync/existsSync/readFileSync calls see a
- *  real disk tree. The temp dir IS the root, so the gate's own path filters (which look for
- *  `/packages/...`) match the same way they do on the real repo. */
+/** Run an `fsBacked` gate's example by materializing its files into a real auto-cleaned temp dir and
+ *  loading a real-fs Project rooted there, so its readdirSync/existsSync/readFileSync calls see real disk. */
 function runFsBackedExample(gate: GateDescriptor, ex: GateExample): readonly Finding[] {
   const root = mkdtempSync(join(tmpdir(), "orb-conformance-"));
   try {
@@ -100,8 +92,7 @@ function runFsBackedExample(gate: GateDescriptor, ex: GateExample): readonly Fin
   }
 }
 
-/** Run one example on the substrate the descriptor declares: a real temp-dir tree for `fsBacked` gates
- *  (their hooks read disk), else an in-memory Project. */
+/** Run one example on the substrate the descriptor declares. */
 function runExample(gate: GateDescriptor, ex: GateExample): readonly Finding[] {
   return gate.fsBacked === true
     ? runFsBackedExample(gate, ex)
@@ -109,8 +100,7 @@ function runExample(gate: GateDescriptor, ex: GateExample): readonly Finding[] {
 }
 
 /** Did the findings satisfy a mustFlag example's precision expectations (count/line/messageIncludes)?
- *  The reason lives on the gate descriptor (owner ruling 2), so `messageIncludes` matches against the
- *  gate's `message` (or a per-occurrence override, when a finding carries one). */
+ *  `messageIncludes` matches against the gate's `message` (or a finding's own override). */
 function matchesExpect(
   findings: readonly Finding[],
   ex: GateExample,
@@ -145,7 +135,6 @@ function checkArm(
   const wantBite = arm === "mustFlag";
   for (const ex of examples) {
     const findings = runExample(gate, ex);
-    // mustFlag → the example must bite (with its precision); mustPass → it must stay clean.
     const ok = wantBite ? matchesExpect(findings, ex, gate.message) : findings.length === 0;
     if (!ok) {
       out.push({

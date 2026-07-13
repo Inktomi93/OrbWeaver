@@ -1,10 +1,6 @@
-// import-library-section — the Backup & Restore pane's IMPORT half: a dropzone that accepts a `.zip`
-// portability backup (a full SillyTavern/Orbweaver export) or a bare character card (`.png`/`.json`).
-// A `.zip` uploads then runs as a background workload — the busy dropzone + a live progress bar reflect
-// `workloads.subscribe` (via <BundleWorkloadTracker>, mounted only while running) until the terminal
-// summary; a bare card imports synchronously. On success the hook already blanket-invalidated the library,
-// so imported entities appear across the app; the per-file report (cards) / count summary (bundle) renders
-// below, with a reset.
+// import-library-section — the Backup & Restore pane's import half: a dropzone that accepts a .zip
+// portability backup or a bare character card. A .zip uploads then runs as a background workload; a bare
+// card imports synchronously. On success the library is already blanket-invalidated; the report renders below.
 
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
@@ -17,8 +13,7 @@ import { useLibraryImport } from "../hooks/use-library-import";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker";
 import { ImportReportSummary } from "./import-report-summary";
 
-// The client pre-check ceiling — mirrors the server's per-request body cap so an over-cap file is
-// rejected inline before the upload, not after a wasted round-trip / a 413 (the entry/http/import.ts caps).
+// Mirrors the server's per-request body cap so an over-cap file is rejected inline, not after a wasted round-trip.
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 const IMPORT_MAX_MIB = 256;
@@ -29,9 +24,6 @@ export function ImportLibrarySection(): ReactElement {
   const { state, importFiles, reset, track } = useLibraryImport();
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
-  // The dropzone's green ✓ is CLEAN-ONLY — a completed import that failed (or partly failed) keeps the
-  // idle glyph, so the chrome can't fabricate a success the per-file summary below then contradicts. The
-  // honest summary + reset still render for any finished import (`done`).
   const succeeded = done && state.summary.failed === 0;
 
   return (

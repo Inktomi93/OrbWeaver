@@ -1,74 +1,31 @@
-// infra/auth — the cross-mode CONTRACT (read before adding a 5th mode). `auth/` is the sealed, db-free
-// VERIFICATION executor (core/Tier-3-Infra.md + spine Spine-Identity-and-Auth.md §1/§3): it turns a request's
-// headers into a pre-row `ResolvedIdentity` (+ the per-request signals) — and NOTHING more. It does NOT
-// resolve a `userId`, does NOT read/derive a role, does NOT upsert, does NOT mint a `Principal`. Those
-// are LOWER tiers:
-//   • RESOLUTION + the users-row upsert + `determineRole` → `domain/sessions` (Phase 4c).
-//   • CONSTRUCTION (the ONE `Principal` mint) → `entry/auth/seam.ts` (Phase 4e, invariant #1).
-//
-// This file holds the infra-INTERNAL cross-mode types: the parsed `AuthConfig`, the injected
-// VERIFICATION steps (`ResolveDeps` — the proof the sealed executor never imports `@orb/db`/domain), the
-// JWT/JWKS + OIDC-PKCE ports, and the verification OUTPUT (`IdentityResolution`).
-//
-// LAYER RULE (core/Core-0-Architecture-and-Structure.md §3): `infra` reaches DOWN (foundation, kit) only — NEVER `@orb/db`, NEVER a
-// domain. Every db-dependent VERIFICATION step (the JWT/JWKS crypto; the OIDC PKCE store) arrives INJECTED
-// via `ResolveDeps`, wired at `entry/auth/seam.ts`. (Post-D40 the cookie→user read is NOT an infra step —
-// the seam calls `sessions.validate` directly; see `modes/cookie-session.ts`.)
-//
-// NEW MODE CHECKLIST (adding a 5th mode — SAML, token-introspection, …):
-//   1. Add the mode to `AUTH_MODES` in `@orb/contracts/identity` (AuthConfig.mode + MODE_RESOLVERS derive).
-//   2. Add `modes/<mode>.ts` exporting the resolver (`(headers, config, deps) => ResolvedIdentity|null`).
-//   3. Add the entry to `dispatch.ts:MODE_RESOLVERS` — the `Record<AuthConfig["mode"], ModeResolver>`
-//      mapped type makes the omission a `tsc` error (invariant #4, exhaustive dispatch).
-//   4. If the mode adds env config: extend `config.ts:authConfigFromEnv` + this `AuthConfig`.
-//   5. The brand cast seam lives in the resolver — every raw header/claim value becomes
-//      `castId<Handle>(…)` / `castId<ExternalId>(…)` BEFORE constructing a `ResolvedIdentity`.
+// The cross-mode auth contract. auth/ is the sealed, db-free VERIFICATION executor: it turns a request's
+// headers into a pre-row ResolvedIdentity — it does NOT resolve a userId, derive a role, upsert, or mint
+// a Principal (those are domain/sessions + entry/auth/seam.ts). Reaches down only — never @orb/db, never a domain.
 
 import type { AuthMode, ResolvedIdentity } from "@orb/contracts/identity";
 
-/**
- * The parsed auth config the resolver needs, passed explicitly so unit tests can vary mode/fallback
- * without re-parsing env. `config.ts:authConfigFromEnv()` builds the live one (the SOLE place that reads
- * `foundation/env` for this slice). NOTE: there is NO owner-handle / owner-group config here — the
- * owner-ROLE decision (`determineRole`) is the RESOLUTION tier's (`domain/sessions`), not verification's.
- */
+/** Parsed auth config, passed explicitly so unit tests can vary mode/fallback without re-parsing env. */
 export interface AuthConfig {
   mode: AuthMode;
   fallback: "owner" | "deny";
-  /** The single-user identity + the owner-fallback handle (env `DEFAULT_USER_HANDLE`). The seam mints
-   *  the owner from the `via:"fallback"` discriminant — this is just the handle that fallback stamps. */
   defaultHandle: string;
   verifyForwardJwt: boolean;
-  /** Extra hostnames trusted as a LOCAL origin for the owner fallback in SSO modes. The public FQDN must
-   *  NEVER appear here (a proxy can only REMOVE trust, never grant it). */
+  /** Extra hostnames trusted as a local origin for the owner fallback; the public FQDN must never appear here. */
   trustedLocalHosts: readonly string[];
-  /** Extra CIDR ranges (env `TRUSTED_PRIVATE_RANGES`) added to the built-in private set for the
-   *  local-origin gate. Absent ⇒ just `DEFAULT_TRUSTED_RANGES`. */
   trustedPrivateRanges: readonly string[];
-  /** Custom UNSIGNED forward-header NAMES (override the authentik/authelia families). */
   forwardUserHeader?: string;
   forwardGroupsHeader?: string;
   forwardUidHeader?: string;
-  /** Custom UNSIGNED email header (env `FORWARD_AUTH_EMAIL_HEADER`). Read on the custom-header path; the
-   *  known proxy families read their own email header. A mutable attribute — never an identity key. */
   forwardEmailHeader?: string;
-  /** MANDATORY source gate for the unsigned path: CIDRs the forwarded client IP must match. Empty ⇒
-   *  the unsigned trusted-header path is FAIL-CLOSED (rejected) — an operator must declare the trusted
-   *  source before raw identity headers are honored. The signed-JWT path never consults this. */
+  /** Mandatory source gate for the unsigned path: empty means fail-closed. */
   forwardTrustedProxies: readonly string[];
-  /** JWKS-URL host allowlist for the `X-Authentik-Meta-Jwks` header. Empty ⇒ FAIL-CLOSED at the
-   *  resolver: with verify on but no trusted key source, the signed path is refused. */
+  /** JWKS-URL host allowlist; empty means fail-closed at the resolver. */
   jwksAllowlist: readonly string[];
-  /** Optional expected iss/aud enforced on the forwarded JWT. */
   jwtIssuer?: string;
   jwtAudience?: string;
 }
 
-/**
- * One OIDC PKCE/state transaction (minted at the authorize redirect, consumed single-use at the
- * callback). Stored db-backed in `domain/sessions/persistence/oidc-store.ts` (it imports `@orb/db`, so
- * it CANNOT live in sealed infra) and injected here as the port below.
- */
+/** One OIDC PKCE/state transaction, minted at authorize and consumed single-use at the callback. */
 export interface OidcTransaction {
   state: string;
   codeVerifier: string;
@@ -77,17 +34,11 @@ export interface OidcTransaction {
   createdAt: number;
 }
 
-/**
- * The injected, db-backed OIDC transaction store. `consume` is ATOMIC + single-use (take-and-delete) —
- * a replayed `state` finds nothing the second time, so a stolen callback URL can't be re-driven.
- */
+// consume is atomic + single-use — a replayed state finds nothing the second time.
 export interface OidcTransactionStore {
   consume: (state: string) => Promise<OidcTransaction | null>;
 }
 
-/** The structured claims a verified forward-header JWT yields. `handle` is the `preferred_username`
- *  claim — `undefined` when the JWT verified but carries none (the mode rejects rather than fall through
- *  to the unsigned path — fail-closed point #4). `email` is a mutable attribute (null when absent). */
 export interface ForwardJwtClaims {
   handle: string | undefined;
   externalId: string | null;
@@ -95,7 +46,6 @@ export interface ForwardJwtClaims {
   email: string | null;
 }
 
-/** Args for the injected forward-header JWT verifier. */
 export interface ForwardJwtVerifyArgs {
   jwt: string;
   metaJwks: string;
@@ -104,64 +54,31 @@ export interface ForwardJwtVerifyArgs {
   audience?: string;
 }
 
-/**
- * The injected forward-header JWT verifier (jose-backed; wired at `entry/` in 4e — `jose` is NOT yet a
- * catalog dep, so the crypto is deferred behind this port, db/crypto-free here). `verify` builds the
- * JWKS keyset from `metaJwks` (literal or https-allowlisted URL) and verifies the JWT, returning the
- * extracted claims or `null` on ANY JWKS-build / signature / shape failure (fail-closed points #3 + #5).
- * The framing policy (no-jwks, empty-allowlist, no-username) stays in `modes/forward-header.ts`.
- */
+// Returns null on any JWKS-build/signature/shape failure (fail-closed).
 export interface ForwardJwtVerifier {
   verify: (args: ForwardJwtVerifyArgs) => Promise<ForwardJwtClaims | null>;
 }
 
-/**
- * The db-dependent VERIFICATION steps, injected at `entry/auth/seam.ts` so this infra module stays free
- * of `@orb/db` + domain imports. ALL optional — each absent dep makes its layer inert (db-free fallback).
- *
- * There is deliberately NO `upsertUser`, NO `determineRole`, and NO `validateCookie` here: those are
- * RESOLUTION-tier reads (`domain/sessions`). Per D40 the cookie→user read is `sessions.validate`, called
- * DIRECTLY by the seam BEFORE `resolve` (it returns the `userId`); infra never reads the cookie. The seam
- * turns a `ResolvedIdentity` into the one row-backed `Principal` AFTER verification (invariant #1).
- */
+/** Db-dependent VERIFICATION steps, injected at entry/auth/seam.ts. All optional — each absent dep makes
+ *  its layer inert. No upsertUser/determineRole/validateCookie here — those are resolution-tier reads. */
 export interface ResolveDeps {
-  /** forward-header signed path: the jose-backed JWT/JWKS verifier (deferred to 4e — see the port). */
   verifyForwardJwt?: ForwardJwtVerifier;
-  /** OIDC callback: the db-backed PKCE/state store (consumed by `verifyPkceState`, not by `resolve`). */
   oidcStore?: OidcTransactionStore;
-  /** The RAW TCP peer socket address, threaded per-request from `entry` (via the seam → `infra/network.peerIp`)
-   *  for the forward-header UNSIGNED trusted-proxy gate: the `forwardTrustedProxies` allowlist matches THIS
-   *  (the immediate connection's remote address), NEVER a spoofable `X-Forwarded-For`/`X-Real-IP` header a
-   *  direct-socket attacker controls. Absent ⇒ the unsigned path fails closed (an unverifiable source is
-   *  untrusted). Only `forward-header` reads it; the signed-JWT path carries its own proof and ignores it. */
+  /** Raw TCP peer socket address for the forward-header unsigned trusted-proxy gate — never a spoofable
+   *  X-Forwarded-For/X-Real-IP header. Absent means the unsigned path fails closed. */
   peerIp?: string;
-  /** Test/override seam: the parsed `AuthConfig`. Production omits it → `authConfigFromEnv()`. */
   config?: AuthConfig;
 }
 
-/**
- * The uniform shape every mode strategy implements: headers + parsed config + the injected verification
- * deps → a pre-row `ResolvedIdentity` (or `null` when the mode resolves nothing). `dispatch.ts` keys the
- * dispatcher `Record<AuthConfig["mode"], ModeResolver>` — exhaustive over the modes (invariant #4). The
- * one cross-mode shape, homed here with the rest of the contract (core/Tier-3-Infra.md), not file-local.
- */
 export type ModeResolver = (
   headers: Headers,
   config: AuthConfig,
   deps: ResolveDeps,
 ) => Promise<ResolvedIdentity | null>;
 
-/**
- * The VERIFICATION-tier OUTPUT (spine §1): the pre-row identity PLUS the per-request signals the seam
- * needs. Carries NO `userId` and NO `role` (invariant #3) — the seam (`entry/auth/seam.ts`) resolves the
- * row + mints the `Principal` from this.
- *   - `identity` — the resolved `ResolvedIdentity`, or `null` when the caller is unauthenticated (→ 401).
- *   - `via` — how it resolved; the seam maps it to `Principal.via` and mints the OWNER on `"fallback"`
- *     (invariant #7 — the SAFE "this IS the owner" discriminator, never `externalId === null`). Infra
- *     NEVER resolves a cookie post-D40 (the seam does, via `sessions.validate`), so infra only ever yields
- *     `"header"` (forward-header) or `"fallback"` (owner belt) — `"cookie"` is the SEAM's own `Principal.via`.
- *   - `hasCsrfHeader` — whether the custom CSRF header was present; the seam GATES on it (invariant #9).
- */
+/** Verification-tier output: the pre-row identity plus per-request signals. Carries no userId/role — the
+ *  seam resolves the row and mints the Principal from this. Infra never resolves a cookie (the seam does
+ *  via sessions.validate), so infra only yields "header" or "fallback" — "cookie" is the seam's own via. */
 export interface IdentityResolution {
   identity: ResolvedIdentity | null;
   via: "header" | "fallback";

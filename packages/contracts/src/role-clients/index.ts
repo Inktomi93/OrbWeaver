@@ -1,39 +1,12 @@
 // `@orb/contracts/role-clients` — the `RoleClients` composition seam: the bundle of BOUND-CALLABLE
 // inference role functions the composition root mints ONCE at boot and threads through every
 // consumer's deps. Downstream code never sees a credential literal or picks a model — it calls
-// `clients.embed(text)` and gets a result. The GOLD-STANDARD cross-feature hub (the 19 type-only
-// importers — corpus / search / chat-memory / buddy / workloads — name it WITHOUT a domain↔domain or
-// domain→infra import; core/Tier-3b-Providers.md "keep the bundle"). Ported from neo-tavern
-// `domain/_shared/role-clients.ts`.
-//
-// TYPE-ONLY by nature: a bundle of FUNCTIONS is not wire-serializable, so there are NO zod schemas
-// here — only the interface + its credential-free call-argument shapes. The cross-boundary RESULT
-// shapes (`EmbedResult` / `RerankResult` / `ImageEmbedResult` / `SummarizeResult`) are imported DOWN
-// from `@orb/contracts/providers` (DAG: providers MUST land first — shared-dissolution §8,
-// core/Tier-3b-Providers.md §"Contract homes"). This node stays Layer 1: the callables are PRE-BOUND THUNKS
-// (no `ResolvedCredential` / `ResolvedConnection` in any signature), so role-clients does NOT pick up
-// a `contracts/credentials` or `contracts/connection` edge (contracts-dag role-clients FLAG → resolves
-// to L1). The boot binder FILLS the bundle via `connection.resolveRole(role)` per role (Esoteric §2).
-//
-// D-DEVIATION (shared-dissolution §6): `createDefaultRoleClients` is DELETED — there is no
-// family-aware silent default. Every context receives `roleClients` as a REQUIRED `entry/`-wired dep;
-// a missing wire is a `tsc` error, not a fallback. Only the TYPE lives here.
-//
-// CALL-ARGUMENT shapes (`RerankQuery` / `RerankDocument` / `ImageEmbedInput` / `SummarizeInput`) are
-// defined HERE, not imported from `contracts/providers`: that node deliberately holds ONLY result
-// shapes — the infra REQUEST shapes (which carry `ResolvedCredential` / model id / `AbortSignal`) stay
-// infra-internal (`infra/providers/contract/`). The credential-free, model-free portion a consumer
-// actually passes IS part of this composition seam, so it is canonical here. `ImageInput` is kept
-// lib-clean (`Uint8Array | string`, no node `Buffer`) — `Buffer` is assignable to `Uint8Array`, so no
-// caller is lost, and contracts must not assume the node lib (mirrors the providers header).
-//
-// FLAG (chat / agent / generateImage): contracts-dag describes the EVENTUAL seam as
-// `chat/agent/embed/rerank/imageEmbed/summarize/generateImage`, but neo's `RoleClients` artifact (the
-// 19-importer surface) carries only the four DERIVE roles, and `@orb/contracts/providers` exposes no
-// `ChatResult`/`AgentTurnResult`/`GenerateImageResult` to depend on. A `chat` member cannot be grounded
-// at Layer 1 today (its result contract has not landed). The four derive roles below are the
-// buildable-now bundle; chat/agent/generateImage join when their result contracts exist. (Lead: confirm
-// before wiring a chat member here.)
+// `clients.embed(text)` and gets a result.
+// Type-only: a bundle of functions isn't wire-serializable, so no zod schemas here. Call-argument
+// shapes (`RerankQuery`/`ImageEmbedInput`/`SummarizeInput`) live here rather than `contracts/providers`
+// because that node holds only result shapes; the infra request shapes stay infra-internal.
+// FLAG: only the four DERIVE roles below are buildable — chat/agent/generateImage join when their
+// result contracts land (confirm with lead before wiring a chat member here).
 
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
 
@@ -103,18 +76,8 @@ export interface SummarizeOptions {
   repetitionDetection?: RepetitionDetection | undefined;
 }
 
-/**
- * Bound-callable role clients — the composition root binds credential + model id ONCE at boot, then
- * threads the callable through every deps bundle. Downstream code never sees a credential literal or
- * picks a model; it calls `clients.embed(text)` and gets a result.
- *
- * One bound callable per role (rather than vendor-by-vendor port objects): tests inject a stub
- * `RoleClients` instead of mocking separate factories, and a future migration to per-user role
- * credentials is a one-site rebind — consumers don't move.
- *
- * The `*Model` fields carry the model id baked into each callable; consumers that store provenance on
- * DB rows (`character_embeddings.model`, `chat_digests.summarizerModel`, …) read it from here.
- */
+/** Bound-callable role clients — the composition root binds credential + model id ONCE at boot. The
+ *  `*Model` fields carry the model id baked into each callable, for DB provenance columns. */
 export interface RoleClients {
   /** Text-embedding. Single string or array — result vectors are index-aligned. `inputType` is the
    *  asymmetric-retrieval hint ("query" vs "document"); symmetric embedders ignore it. */
@@ -142,9 +105,7 @@ export interface RoleClients {
   imageEmbedModel: string;
   /** Model id baked into `summarize` — stored on `chat_digests.summarizerModel`. */
   summarizerModel: string;
-  /** The summarizer model's resolved context window in tokens (`ModelCapability.contextLength`, or a floor
-   *  when the catalog reports none). The memory build's TOKEN-GUARD reads this to fit each summarizer call to
-   *  the user's ACTUAL context — trim-to-fit / skip-and-flag, never silent truncation (knowledge-cluster §3a/
-   *  §10). A summarizer is a `chat`-turn on the user's own backend, so the context is the user's, not a pin. */
+  /** The summarizer model's resolved context window in tokens. The memory build's token-guard reads
+   *  this to fit each summarizer call to the user's actual context — trim-to-fit, never silent truncation. */
   summarizerContextTokens: number;
 }

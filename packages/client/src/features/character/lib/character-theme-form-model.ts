@@ -1,15 +1,7 @@
-// The per-character THEME form MODEL (FINAL-Character §8.1 · D44 §12.1). The flat, ALL-STRING value shape
-// the Appearance tab's autosave form binds, plus the ⇄ mappers to the sparse `ThemeOverride` blob and the
-// Select item sets. This is the character twin of `features/settings` `theme-editor-model.ts` (the global
-// theme editor's model) — the two share their ONE home in `@orb/contracts` (the `THEME_*` allowlists a
-// Select is built from) but NOT this flat shape: a cross-feature runtime import is forbidden (client
-// feature front-door), and the two differ anyway — the per-character form is SPARSE.
-//
-// SPARSE semantics (the whole point): a field left on its sentinel (an empty colour string, or `INHERIT`
-// for an enum) is OMITTED from the built `ThemeOverride` → that token INHERITS the parent scope (§8.2, pure
-// `<ThemeScope>` cascade, no merge code). When EVERY field is a sentinel the override collapses to `null`
-// (no override → inherit the user's global theme) — so "Reset to global" is just "clear every field", and
-// the autosave write carries `null`, never an empty `{}`.
+// The per-character theme form model — the flat, all-string value shape the Appearance tab's autosave
+// form binds, plus the mappers to/from the sparse `ThemeOverride` blob. A field left on its sentinel (an
+// empty colour string, or `INHERIT` for an enum) is omitted from the built override, so that token
+// inherits the parent scope; all-sentinel collapses the override to `null`.
 
 import type {
   ThemeChatStyle,
@@ -65,9 +57,7 @@ export const EMPTY_CHARACTER_THEME_FORM: CharacterThemeFormValues = {
   density: THEME_INHERIT,
 };
 
-// ── Seed: ThemeOverride → flat form (sparse fields fall back to their sentinel) ───────────────────────
-// Split in two to keep either function's `??` count under the cognitive-complexity gate (the
-// theme-editor-model precedent) — pure `?? sentinel` repetition, no branching.
+// Split in two to keep either function's `??` count under the cognitive-complexity gate.
 
 function colorFieldsFromOverride(
   o: ThemeOverride,
@@ -120,8 +110,6 @@ export function characterThemeFormFromOverride(
   };
 }
 
-// ── Commit: flat form → sparse ThemeOverride | null (a sentinel field is OMITTED → it inherits) ───────
-
 const COLOR_KEYS = [
   "background",
   "accent",
@@ -143,14 +131,7 @@ function bubbleFromForm(bg: string, fg: string): { bg?: string; fg?: string } | 
   return next.bg === undefined && next.fg === undefined ? undefined : next;
 }
 
-/**
- * Build the sparse `ThemeOverride` the wire carries — every sentinel field omitted so the token inherits.
- * Returns `null` when NOTHING is set (an empty override is meaningless: null and `{}` both inherit
- * everything, and null is the canonical "no override" the schema + hero swatch read).
- *
- * The four enum casts are honest: each Select's items ARE that field's `@orb/contracts` allowlist, so a
- * non-sentinel value is a valid member — and the wire schema re-validates leniently (`.catch`) regardless.
- */
+/** Build the sparse `ThemeOverride` the wire carries — every sentinel field omitted; `null` when nothing is set. */
 export function overrideFromCharacterThemeForm(v: CharacterThemeFormValues): ThemeOverride | null {
   const o: ThemeOverride = {};
   for (const key of COLOR_KEYS) {

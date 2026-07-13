@@ -1,14 +1,6 @@
-// verb: resolveRole — the ONE resolver for all 7 inference roles (PD-9). Reads the
-// principal's `routing.roleDefaults.<role>`, applies the optional per-agent override, validates `(api,
-// source)` coherence, heals the model id, and returns the resolved `{api, model, credential, capability}`.
-// NO per-role hard-pin — every role reads its roleDefault, so a role can resolve to ANY source it supports
-// incl. `local-light` (PD-9: the old vllm-hard-pin is GONE). The dispatch is a `{ [K in RoutingRoleKey]:
-// … }` mapped Record (exhaustive — a new role missing its selector is a `tsc` error; invariant 5).
-//
-// The catalog subsystem is reached ONLY through `substrate/` (domain-substrate-mediates-subsystems):
-// `healToChatDefault` / `pickOrModel` / `resolveCapability` / `getCachedOrModels` are the substrate seams.
-// `runner`/`family` never appear (sealed in infra). `agentOverride` BEATS the role
-// default (participants-agents-identity.md §2 — a character/buddy on its own backend/model).
+// The ONE resolver for all inference roles: reads the principal's `routing.roleDefaults.<role>`, applies the
+// optional per-agent override, validates `(api, source)` coherence, heals the model id, and returns
+// `{api, model, credential, capability}`. No per-role hard-pin — any role may resolve to any source it supports.
 
 import type { ChatApi, ChatSource, ResolvedConnection } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
@@ -36,17 +28,12 @@ interface RouteSelection {
   readonly chatModel: boolean;
 }
 
-// Defaults (named — no magic strings). agent → the owner's sub; summarize/embed/rerank/imageEmbed → the
-// local engine; generateImage → hosted (openrouter); chat is OWNER-CONDITIONAL (owner → sub, else local —
-// see the selector). A role with NO roleDefault entry reads these.
 const DEFAULT_CHAT_API: ChatApi = "chat-completions";
 const DEFAULT_LOCAL_SOURCE: ChatSource = "vllm";
 const DEFAULT_AGENT_SOURCE: ChatSource = "max-pro-sub";
 const DEFAULT_IMAGE_SOURCE: ChatSource = "openrouter";
 
-/** The per-role selectors — exhaustive over `RoutingRoleKey` (invariant 5). `agentOverride` fields beat the
- *  role default. There is no `roleDefaults.agent` (the schema has 6 role keys); the `agent` role falls back
- *  to the chat default beneath the override. */
+/** Exhaustive over `RoutingRoleKey`; `agentOverride` fields beat the role default. */
 const ROLE_SELECTORS: {
   readonly [K in ResolveRoleParams["role"]]: (
     roleDefaults: RoleDefaults,
@@ -54,11 +41,8 @@ const ROLE_SELECTORS: {
     isOwner: boolean,
   ) => RouteSelection;
 } = {
-  // The UNCONFIGURED chat default is owner-conditional (2026-07-06): the box owner falls back to their
-  // `max-pro-sub` (agent-sdk) — the premium user-facing model — while everyone else falls to the local
-  // vllm box model (`max-pro-sub` is owner-only, D17, and would throw for a non-owner). A configured
-  // `roleDefaults.chat` or a per-agent override still wins per-field; on a fresh/reset box both fields
-  // fall together to the coherent owner pair (agent-sdk + max-pro-sub) or (chat-completions + vllm).
+  // The unconfigured chat default is owner-conditional: owner falls back to max-pro-sub (agent-sdk),
+  // everyone else to local vllm (max-pro-sub is owner-only and would throw for a non-owner).
   chat: (rd, ov, isOwner) => ({
     api: ov?.api ?? rd.chat?.api ?? (isOwner ? "agent-sdk" : DEFAULT_CHAT_API),
     source:
@@ -90,11 +74,8 @@ const ROLE_SELECTORS: {
     model: ov?.model ?? rd.imageEmbed?.model ?? env.VLLM_EMBED_MODEL,
     chatModel: false,
   }),
-  // summarize DEFAULTS to the local vLLM gen model, but a user override MAY select the Max sub
-  // (max-pro-sub) — the agent-sdk backend serves it as a schema-validated summarizer on sub quota. A
-  // max-pro-sub source pairs with `api:"agent-sdk"` (the only coherent api for the sub, `assertCoherent`)
-  // and heals its model through the tier-preserving agent-sdk heal (`healToChatDefault`, like chat). Any
-  // other source stays on the chat-completions api against the concrete engine/model string.
+  // A max-pro-sub source pairs with api:"agent-sdk" (the only coherent api for the sub) and heals its
+  // model through healToChatDefault like chat; any other source stays on chat-completions.
   summarize: (rd, ov) => {
     const source = ov?.source ?? rd.summarize?.source ?? DEFAULT_LOCAL_SOURCE;
     const isSub = source === "max-pro-sub";
@@ -113,21 +94,15 @@ const ROLE_SELECTORS: {
   }),
 };
 
-// The DERIVE roles — the only roles that may fall back to the in-process `local-light` tier when vLLM is
-// unavailable (no GPU). `local-light` runs jina-clip-v2 (text embed / image embed) + a cross-encoder rerank,
-// all 1024-dim — coherent with the `F32_BLOB(1024)` columns. The GENERATION roles (chat/agent/summarize/
-// generateImage) NEVER fall back: local-light cannot generate; a no-GPU user configures a hosted source via
-// their `roleDefaults` instead. Kept as a Set (one home; mirrored by the resolver test).
+// The only roles that may fall back to the in-process local-light tier when vLLM is unavailable; generation
+// roles (chat/agent/summarize/generateImage) never fall back — local-light cannot generate.
 const DERIVE_ROLES: ReadonlySet<ResolveRoleParams["role"]> = new Set<ResolveRoleParams["role"]>([
   "embed",
   "rerank",
   "imageEmbed",
 ]);
 
-/** The no-GPU derive fallback. When a DERIVE role resolved to `vllm` but the boot GPU-detect found no engine
- *  (`vllmAvailable === false`), reroute it to `local-light` with NO model id (empty) so the local-light
- *  backend self-defaults to jina-clip-v2 (1024-dim). A NON-derive role, a non-`vllm` selection, or an
- *  available engine passes through untouched. This is the ONE home for every role's response to the fact. */
+/** Reroutes a DERIVE role from `vllm` to `local-light` (empty model, self-defaults to jina-clip-v2) when no GPU. */
 function applyVllmFallback(
   role: ResolveRoleParams["role"],
   selection: RouteSelection,
@@ -136,15 +111,10 @@ function applyVllmFallback(
   if (vllmAvailable || selection.source !== "vllm" || !DERIVE_ROLES.has(role)) {
     return selection;
   }
-  // Empty model → `healModel` carries it through verbatim (`"" ?? …` keeps `""`) and the local-light embed/
-  // rerank/imageEmbed surfaces self-default to their jina-clip-v2 / cross-encoder model.
   return { ...selection, source: "local-light", model: "" };
 }
 
-/** Reject an incoherent `(api, source)` selection (the only thrown-error path). `agent-sdk` serves only the
- *  sub + the OR-skin; `anthropic-messages` (anth-direct, D67) is OR-skin-only in v1 — the `max-pro-sub`
- *  SUB-EXCLUSION (§3d) is the load-bearing case; `chat-completions`/`responses` cannot run on the
- *  agent-sdk-only `max-pro-sub`. */
+/** Reject an incoherent `(api, source)` selection — the only thrown-error path. */
 function assertCoherent(api: ChatApi, source: ChatSource): void {
   if (api === "agent-sdk") {
     if (source !== "max-pro-sub" && source !== "openrouter") {
@@ -153,8 +123,7 @@ function assertCoherent(api: ChatApi, source: ChatSource): void {
     return;
   }
   if (api === "anthropic-messages") {
-    // v1 rides the existing `openrouter` credential ONLY (part 02 §3a). The sub can NEVER reach the direct
-    // paid endpoint (§3d); every non-openrouter source is likewise invalid until the first-party source (W11).
+    // v1 rides the existing openrouter credential only; the sub can never reach the direct paid endpoint.
     if (source !== "openrouter") {
       throw new ConnectionRoutingError(api, source);
     }
@@ -165,9 +134,7 @@ function assertCoherent(api: ChatApi, source: ChatSource): void {
   }
 }
 
-/** Heal the selection's model id to a branded `ModelId`. Chat-family roles heal per api/source (agent-sdk →
- *  curated default; openrouter → the dual-guard pick); non-chat roles + local sources carry their concrete
- *  engine/model string through. `now` feeds the (injected-clock) catalog cache the OR guard reads. */
+/** Heal the selection's model id to a branded `ModelId`; non-chat roles carry their concrete string through. */
 function healModel(selection: RouteSelection, now: number): ModelId {
   if (selection.chatModel) {
     if (selection.api === "agent-sdk") {
