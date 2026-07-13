@@ -1,18 +1,6 @@
-// infra/providers/vllm/surfaces/rerank — the vLLM rerank role surface (Qwen3-VL-Reranker).
-//
-// A THIN shaper over the engine: POST /v1/rerank (Jina/Cohere-compatible). The engine returns
-// results[{index, relevance_score}] where `index` is the REQUEST document order — we map back to CALLER
-// ids (stable across reorderings). Registers against engine/ ONLY (the injected client + the shared image
-// helper) — it imports no sibling surface.
-//
-// MODES (neo-grounded against the live engine): text-only (query + docs as plain strings) reproduces the
-// card's reference ordering; any side carrying an image switches THAT side to vLLM's ScoreMultiModalParam
-// `{ content: [parts] }` (one param = ONE document; a list = batched docs with request-order indexes). We
-// always send data URIs (base64 ≡ URL, ≤ batch jitter) so the engine never needs network access.
-//
-// Long-doc truncation is delegated to the ENGINE (`truncate_prompt_tokens: -1`, `truncation_side: "right"`
-// keeps query + doc-head, drops the doc tail where the relevance signal isn't) — vLLM 400s on an
-// over-context pair otherwise, taking the whole call down.
+// vLLM rerank surface: thin shaper over POST /v1/rerank; engine `index` = request order, mapped back
+// to CALLER ids. Image sides use ScoreMultiModalParam with data URIs (engine needs no network).
+// Truncation is delegated to the engine (`truncate_prompt_tokens: -1`) — it 400s on over-context pairs.
 
 import type { RerankDocument } from "@orb/contracts/role-clients";
 import type { RerankHit, RerankRequest, RerankResult } from "../../contract";

@@ -1,18 +1,6 @@
-// infra/providers/contract/backend — THE SEALED-BACKEND CONTRACT. The interface every sealed backend
-// (openrouter / agent-sdk / vllm / custom-byo) implements, the two infra-internal dispatch axes, the
-// registry the composition root fills, and the bound role surface (`ProviderExecutor`) connection/chat/
-// buddy call. This is the seam the three backend agents fulfill WITHOUT touching the role firewall.
-//
-// THE TWO SEALED AXES (infra-internal, never leak to a domain — providers.md §7.5):
-//   • BackendKey (BACKEND_KEYS) — the `runner` axis: `agent-sdk | anth-direct | openrouter | vllm |
-//     local-light | custom-openai`. Derived inside providers from {api, source} via `deriveRunner` /
-//     `backendForSource`;
-//     a domain never names it. NOT a `@orb/contracts` union (the runner axis stays infra-sealed entirely).
-//   • ProviderRole (PROVIDER_ROLES) — the 7 inference roles. A providers-local axis used by the
-//     firewall policy table + the registry key checks; the public surface is the role FUNCTIONS.
-//
-// The `credential.source` axis is NOT redeclared here — it is `CredentialSource` from
-// `@orb/contracts/credentials` (D31), imported by the dispatch + firewall.
+// The sealed-backend contract: every backend (openrouter/agent-sdk/anth-direct/local-light/vllm/
+// custom-byo) implements this. BackendKey + ProviderRole are infra-SEALED axes — a domain never names
+// them; `credential.source` is `CredentialSource` from @orb/contracts/credentials, never redeclared.
 
 import type { AgentSdkModel, ChatApi, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth, CredentialSource } from "@orb/contracts/credentials";

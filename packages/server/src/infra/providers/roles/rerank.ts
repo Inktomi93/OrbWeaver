@@ -1,7 +1,6 @@
 // infra/providers/roles/rerank — the `rerank` role dispatcher. Switches on `credential.source`. The
-// hosted (openrouter) arm is permitted at the firewall, but OpenRouter has no generic rerank endpoint —
-// the openrouter rerank backend itself throws a typed not-supported `ProviderError` (rerank-hosted is a
-// flagged gap, not a silent fallback — providers.md). Local (vLLM / ONNX cross-encoder) is the path.
+// hosted (openrouter) arm is wired (PD-11) — `@openrouter/sdk`'s `client.rerank.rerank` gives hosted
+// rerank. Local (vLLM / ONNX cross-encoder) stays the default keyless path.
 
 import type { RerankResult } from "@orb/contracts/providers";
 import type { ProviderDeps, RerankRequest } from "../contract";

@@ -1,15 +1,6 @@
-// domain/search/substrate/rerank — `applyRerank`, the cross-verb rerank orchestration. PURE
-// orchestration: the actual
-// `RoleClients.rerank` call is passed in as a function ARG (no I/O of its own), so it is substrate, not an
-// injected dep — each verb imports it DOWN directly.
-//
-// Three pinned behaviours:
-//   1. UNSCORABLE PASSTHROUGH — a candidate with no `sourceText` (a card with no searchable text) can't be
-//      cross-encoded; it is kept and placed AFTER the ranked ones (preserving recall, never dropped).
-//   2. STABLE IDS — documents carry the caller's id (not an array index), so the reorder maps back by id
-//      and is robust to the runner returning a budget-capped / reordered subset.
-//   3. NO SILENT FALLBACK — a rerank rejection (incl. the PD-11 hosted not-supported throw) PROPAGATES;
-//      search owns no catch-and-fall-back-to-CSLS policy (flag-don't-fake). The caller decides.
+// Cross-verb rerank orchestration (pure — the runner arrives as an ARG). Pinned: unscorable
+// candidates pass through AFTER ranked ones (never dropped); reorder maps by caller id, not index;
+// rerank rejections PROPAGATE — no silent CSLS fallback.
 
 import type { RoleClients } from "@orb/contracts/role-clients";
 
