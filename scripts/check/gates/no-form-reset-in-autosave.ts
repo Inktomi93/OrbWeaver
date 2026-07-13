@@ -149,6 +149,19 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/persona/x.ts",
       why: "a .reset( on a form receiver in a file importing the autosave factory — the isDirty-loop escape",
     },
+    {
+      files: "export function createAutosaveEntityForm() {\n  return { field: 1 };\n}\n",
+      at: "packages/client/src/forms/create-autosave-entity-form.ts",
+      why: 'ARM B OMIT_MISSING — the factory file with no Omit<…,"reset"> strip on its surface',
+      expect: { messageIncludes: "type-strip" },
+    },
+    {
+      files:
+        'export function createAutosaveEntityForm(): Omit<{ reset: () => void; x: 1 }, "reset"> {\n  return { reset: () => {}, x: 1 };\n}\n',
+      at: "packages/client/src/forms/create-autosave-entity-form.ts",
+      why: "ARM B RESET_PROP — the factory file hands a `reset` property back through its returned object",
+      expect: { messageIncludes: "re-exposes `reset`" },
+    },
   ],
   mustPass: [
     {

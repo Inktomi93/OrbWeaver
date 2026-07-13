@@ -72,5 +72,15 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/a/data2.ts",
       why: "an identifier passthrough (proxy-shaped mint) — never resolved to its declaration, so it passes",
     },
+    {
+      files: "export const ok = { queryKey: GATED_OFF_KEY as unknown as TKey };\n",
+      at: "packages/client/src/features/a/data3.ts",
+      why: "a queryKey wrapped in `as` over a NON-array identifier — unwrap strips casts but never resolves the identifier, passes",
+    },
+    {
+      files: "export const ok = trpc.users.list.queryKey();\n",
+      at: "packages/client/src/features/a/data4.ts",
+      why: "a `.queryKey()` proxy CALL (not a `queryKey:` property) — the sanctioned mint, passes",
+    },
   ],
 };

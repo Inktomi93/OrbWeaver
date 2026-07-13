@@ -180,6 +180,23 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "NOT re-exported" },
       why: "a schema file not re-exported from the barrel — its tables vanish from `typeof schema` (Tier-1)",
     },
+    {
+      files: {
+        "packages/db/src/schema/thing.ts": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "the schema barrel index.ts is missing" },
+      why: "a schema file present with NO barrel index.ts at all — the barrel-absent arm",
+    },
+    {
+      files: {
+        "packages/db/src/schema/nowhere.ts": "export const t = 1;\n",
+        "packages/db/src/schema/index.ts": 'export * from "./nowhere";\n',
+        // domain/ must EXIST for the mirror arm to run; a sibling feature makes existsSync(domainRoot) true.
+        "packages/server/src/domain/other/index.ts": "export const x = 1;\n",
+      },
+      expect: { messageIncludes: "has NO producer" },
+      why: "a re-exported schema file named for no domain producer (no domain/nowhere/) — the PD-92 producer-mirror arm",
+    },
   ],
   mustPass: [
     {

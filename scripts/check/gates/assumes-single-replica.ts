@@ -91,5 +91,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/hub/y.ts",
       why: "the same Map WITH the ASSUMES(single-replica) annotation — declared, so it passes",
     },
+    {
+      files: 'export const CONFIG = new Map([["a", 1], ["b", 2]]);\n',
+      at: "packages/server/src/domain/hub/z.ts",
+      why: "a Map seeded PURELY from an array literal — immutable config seed (the literalSeed branch), not a mutable accumulator, passes",
+    },
   ],
 };

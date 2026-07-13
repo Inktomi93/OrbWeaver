@@ -85,5 +85,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/chat/verbs/z.ts",
       why: "a participant-role literal (role === 'host') is host-LOOKUP (D18-sanctioned), not owner-equality",
     },
+    {
+      files: 'import { fetchOwned } from "@orb/db";\nexport const f = fetchOwned;\n',
+      at: "packages/server/src/domain/billing/z.ts",
+      why: "a fetchOwned import OUTSIDE the chat scope (a single-owned domain) — legitimate, scanRoot excludes it, passes",
+    },
   ],
 };

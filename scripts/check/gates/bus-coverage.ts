@@ -133,6 +133,10 @@ export const gate: GateDescriptor = {
       why: "a CHAT_BUS_EVENT_TYPES member with no server emit site + no DEFERRED entry — silent dead wire",
     },
   ],
+  // The STALE arm (a DEFERRED member that GAINS an emit site — `emitted && deferred`) is LIVE-RUN-COVERED:
+  // it has no tree-scope guard but reproducing it synthetically would brittle-couple a fixture to today's
+  // DEFERRED map contents; the accepted-delta rule applies (see FLOOR-GATE-EXHAUSTIVE-MAP.md). Only the
+  // pure MISSING (flag) and EMITTED/DEFERRED-covered (pass) arms are ported as examples.
   mustPass: [
     {
       files: {
@@ -141,6 +145,14 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/x.ts": 'export const q = "emitted";\n',
       },
       why: "the member's discriminator appears as a server emit literal — covered, passes",
+    },
+    {
+      files: {
+        "packages/contracts/src/chat/index.ts":
+          'export const CHAT_BUS_EVENT_TYPES = { chatOpened: "chatOpened" } as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
+      },
+      why: "a member with NO emit site but a DEFERRED entry present (chatOpened) — the deferred-covers-it branch, passes",
     },
   ],
 };

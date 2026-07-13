@@ -148,5 +148,11 @@ export const gate: GateDescriptor = {
       },
       why: "a test whose path prefix-swaps to a real source module — a valid mirror, passes",
     },
+    {
+      files: {
+        "tests/server/security/containment.suite.int.test.ts": "export const x = 1;\n",
+      },
+      why: "a cross-cutting .suite.int.test.ts under a valid pkg with NO single-source mirror — the property-suite exemption, passes",
+    },
   ],
 };

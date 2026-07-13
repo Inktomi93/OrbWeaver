@@ -61,12 +61,22 @@ export const gate: GateDescriptor = {
       at: "tests/support/factories/user.ts",
       why: "a `make*` pure builder accepting a db — it must stay db-free (§4)",
     },
+    {
+      files: "export function seedUser() {\n  return {};\n}\n",
+      at: "tests/support/factories/seed-user.ts",
+      why: "a `seed*` persisted builder with NO db param — the persisted-must-have-db arm (distinct message)",
+    },
   ],
   mustPass: [
     {
       files: "export function makeUser() {\n  return {};\n}\n",
       at: "tests/support/factories/user2.ts",
       why: "a `make*` pure builder with no db param — the sanctioned pure shape, passes",
+    },
+    {
+      files: "export function seedUser(db: unknown) {\n  return db;\n}\n",
+      at: "tests/support/factories/seed-user2.ts",
+      why: "a `seed*` persisted builder WITH a db param — the sanctioned persisted shape, passes",
     },
   ],
 };

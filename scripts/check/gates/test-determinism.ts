@@ -98,11 +98,39 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "Date.now" },
       why: "an ambient Date.now() in a test — inject the frozen clock (§3)",
     },
+    {
+      files: { "tests/server/newdate.test.ts": "export const t = new Date();\n" },
+      expect: { messageIncludes: "new Date()" },
+      why: "a no-arg new Date() — its own BANNED entry, distinct message + regex arm",
+    },
+    {
+      files: { "tests/server/rand.test.ts": "export const r = Math.random();\n" },
+      expect: { messageIncludes: "Math.random" },
+      why: "Math.random() — its own BANNED entry (member call biome can't ban)",
+    },
+    {
+      files: { "tests/server/uuid.test.ts": "export const id = crypto.randomUUID();\n" },
+      expect: { messageIncludes: "randomUUID" },
+      why: "a .randomUUID() call — its own BANNED entry (unseeded id)",
+    },
+    {
+      files: { "tests/server/perf.test.ts": "export const p = performance.now();\n" },
+      expect: { messageIncludes: "performance.now" },
+      why: "performance.now() — its own BANNED entry (ambient clock)",
+    },
   ],
   mustPass: [
     {
       files: { "tests/server/y.test.ts": "export const t = clock.now();\n" },
       why: "the injected clock (clock.now()) — no ambient nondeterminism, passes",
+    },
+    {
+      files: { "tests/support/clock.test.ts": "export const t = Date.now();\n" },
+      why: "a banned call under support/ — the determinism seam itself is top-dir-excluded (inScope false), passes",
+    },
+    {
+      files: { "tests/e2e/flow.test.ts": "export const t = Date.now();\n" },
+      why: "a banned call under e2e/ — real-browser full-stack is top-dir-excluded, passes",
     },
   ],
 };

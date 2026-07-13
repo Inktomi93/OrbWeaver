@@ -65,5 +65,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/hub/y.ts",
       why: "a NON-global role (host) comparison — only owner/admin are the confined privilege lattice",
     },
+    {
+      files: 'export const isOwner = (r: { role: string }) => r.role === "owner";\n',
+      at: "packages/server/src/domain/admin/guard.ts",
+      why: "the SAME owner comparison INSIDE the allowlisted domain/admin/guard.ts — the one privilege seam, passes (scanRoot exclusion)",
+    },
   ],
 };

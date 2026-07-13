@@ -124,6 +124,15 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "not a `pnpm verify` stage" },
       why: "a verification-shaped script (test:*) with no registry tier — the forgotten-script failure the gate exists to make impossible",
     },
+    {
+      files: {
+        // A `verify` script (arm-2's real-package.json guard) but NONE of the registry's stage scripts —
+        // every registered `pnpm <script>` argv is then a DEAD_ROW. `verify` is allowlisted so arm 1 stays clean.
+        "package.json": '{ "scripts": { "verify": "tsx scripts/verify/run.ts" } }\n',
+      },
+      expect: { messageIncludes: "but package.json has no" },
+      why: "arm 2 DEAD_ROW: the `verify` guard is present so arm 2 activates, but the registry names stages absent from this package.json — a registry row pointing at a missing script",
+    },
   ],
   mustPass: [
     {

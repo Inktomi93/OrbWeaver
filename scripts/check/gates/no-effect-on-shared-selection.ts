@@ -182,6 +182,12 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/chat/hooks/x.ts",
       why: "an effect keyed on a shared-selection pointer — the neo this_chid chase (§5.1)",
     },
+    {
+      files:
+        "declare function useActiveChatId(): string | null;\ndeclare function useEffect(f: () => void, d: unknown[]): void;\nexport function C() {\n  const chatId = useActiveChatId();\n  const gated = chatId !== null;\n  useEffect(() => {}, [gated]);\n}\n",
+      at: "packages/client/src/features/chat/hooks/transitive.ts",
+      why: "TRANSITIVE taint — `gated` derives from the tainted `chatId`; the name-level fixpoint still chases (§5.1)",
+    },
   ],
   mustPass: [
     {
@@ -189,6 +195,12 @@ export const gate: GateDescriptor = {
         "declare function useEffect(f: () => void, d: unknown[]): void;\nexport function C(props: { chatId: string }) {\n  useEffect(() => {}, [props.chatId]);\n}\n",
       at: "packages/client/src/features/chat/hooks/ok.ts",
       why: "an effect depping a PROP (selection threaded by the route) is the composition shape — passes",
+    },
+    {
+      files:
+        "declare function useActiveChatId(): string;\ndeclare function useEffect(f: () => void): void;\nexport function C() {\n  const chatId = useActiveChatId();\n  useEffect(() => {\n    void chatId;\n  });\n}\n",
+      at: "packages/client/src/features/chat/hooks/no-deps.ts",
+      why: "an effect with NO dep array — effectDepsOf returns undefined (exhaustive-deps owns it), passes",
     },
   ],
 };

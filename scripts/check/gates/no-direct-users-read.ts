@@ -57,5 +57,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/billing/y.ts",
       why: "a DIFFERENT table from @orb/db passes — only `users` is the identity-root chokepoint",
     },
+    {
+      files: 'import { users } from "@orb/db";\nexport const u = users;\n',
+      at: "packages/server/src/domain/sessions/x.ts",
+      why: "the `users` import in an EXEMPT domain (sessions — the resolution-path writer) — the MSG_EXEMPT carve-out, passes",
+    },
   ],
 };

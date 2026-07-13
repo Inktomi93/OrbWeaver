@@ -63,5 +63,15 @@ export const gate: GateDescriptor = {
       at: "tests/tooling/y.test.ts",
       why: "imported from support/fixtures — the sanctioned composed fixture, passes",
     },
+    {
+      files: 'import { test, expect } from "vitest";\n',
+      at: "tests/tooling/types.test-d.ts",
+      why: "a direct vitest import in a .test-d.ts — the tsc-only typecheck project is scanRoot-excluded, passes",
+    },
+    {
+      files: 'import { test, expect } from "@playwright/test";\n',
+      at: "tests/e2e/flow.test.ts",
+      why: "a @playwright/test import in tests/e2e/ — its own Playwright lane is scanRoot-excluded, passes",
+    },
   ],
 };

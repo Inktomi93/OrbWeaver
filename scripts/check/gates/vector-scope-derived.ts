@@ -1,3 +1,4 @@
+// biome-ignore-all lint/security/noSecrets: mustFlag/mustPass fixture source strings (vector-table write/import snippets) are documentation-with-teeth, not secrets.
 // Gate: vector-scope-derived (ledger D20; Knowledge-Cluster.md invariants 1–2) — the no-cross-user-leak
 // chokepoints on the vector substrate, as physics:
 //   • WRITE chokepoint (inv 1): every `.insert/.update/.delete` on the five vector tables lives in
@@ -160,12 +161,23 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "top-k retrieval is search" },
       why: "vector_distance_cos in code outside search/persistence — top-k retrieval is search's alone (inv 2)",
     },
+    {
+      files: "export const w = (db: { insert: (t: unknown) => void }) => db.insert(chatDigests);\n",
+      at: "packages/server/src/domain/hub/w.ts",
+      expect: { messageIncludes: "WRITE outside domain/embeddings/persistence" },
+      why: "a `.insert(vectorTable)` write outside embeddings/persistence — writes are embeddings.store lens arms (inv 1)",
+    },
   ],
   mustPass: [
     {
       files: 'import { chatDigests } from "@orb/db";\nexport const t = chatDigests;\n',
       at: "packages/server/src/domain/embeddings/persistence/store.ts",
       why: "the embeddings owner importing the table symbol — a sanctioned importer, passes",
+    },
+    {
+      files: "export const w = (db: { insert: (t: unknown) => void }) => db.insert(chatDigests);\n",
+      at: "packages/server/src/domain/embeddings/persistence/store.ts",
+      why: "the same vector-table write INSIDE embeddings/persistence (WRITE_SANCTIONED) — a lens arm, passes",
     },
     {
       files: "// vector_distance_cos is search's — cited in a comment\nexport const x = 1;\n",

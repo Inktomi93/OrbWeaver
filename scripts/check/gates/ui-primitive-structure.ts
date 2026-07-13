@@ -384,12 +384,94 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        // A styled primitive dir missing its variants.ts + index.ts (only the .tsx) AND no co-located CT.
+        // Clause 1 — a styled primitive dir missing its variants.ts + index.ts (only the .tsx) AND no CT.
         "packages/ui/src/primitives/thing/thing.tsx":
           'export const Thing = () => <div data-slot="thing" />;\n',
       },
-      expect: { messageIncludes: "missing" },
-      why: "a primitive dir missing its trio (no index.ts / variants.ts) and no co-located CT — §13.7 violations",
+      expect: { messageIncludes: "missing index.ts" },
+      why: "clause 1 — a primitive dir missing its trio (no index.ts / variants.ts) — §13.7",
+    },
+    {
+      files: {
+        // Clause 2 — variants.ts exports a tv() with the WRONG name (`thingVariants` expected).
+        "packages/ui/src/primitives/thing/thing.tsx":
+          'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
+        "packages/ui/src/primitives/thing/variants.ts":
+          'import { tv } from "#lib";\nexport const wrongVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "tv export is 'wrongVariants'" },
+      why: "clause 2 — a mis-named tv() export (must be {camelName}Variants) — §13.7",
+    },
+    {
+      files: {
+        // Clause 3 — a ui index.ts re-exports the internal ./variants module.
+        "packages/ui/src/primitives/thing/index.ts":
+          'export { Thing } from "./thing";\nexport * from "./variants";\n',
+        "packages/ui/src/primitives/thing/thing.tsx":
+          'export const Thing = () => <div data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/variants.ts":
+          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "re-exports './variants'" },
+      why: "clause 3 — index.ts leaks the internal ./variants module — §13.7",
+    },
+    {
+      files: {
+        // Clause 5 — a hardcoded color literal in a non-exempt .ct.tsx.
+        "tests/ui/primitives/thing/thing.ct.tsx": 'export const c = "oklch(0.5 0.1 200)";\n',
+      },
+      expect: { messageIncludes: "hardcoded color literal" },
+      why: "clause 5 — a token-color literal in a .ct.tsx (assert via TOKENS) — §13.7",
+    },
+    {
+      files: {
+        // Clause 6 — an inline non-allowlisted <*Provider> in a .ct.tsx.
+        "tests/ui/primitives/thing/thing.ct.tsx":
+          "export const T = () => <ThemeProvider><div /></ThemeProvider>;\n",
+      },
+      expect: { messageIncludes: "<ThemeProvider>" },
+      why: "clause 6 — an inline provider in a test (global providers live in CtProviders) — §13.7",
+    },
+    {
+      files: {
+        // Clause 7 — an inline glyph <svg> in a ui component outside charts/**.
+        "packages/ui/src/primitives/thing/thing.tsx":
+          'export const Thing = () => <svg data-slot="thing" />;\n',
+        "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
+        "packages/ui/src/primitives/thing/variants.ts":
+          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "inline <svg> glyph" },
+      why: "clause 7 — a raw <svg> glyph in a ui component (use the lucide seal) — §13.7",
+    },
+    {
+      files: {
+        // Clause 8 — a MODAL overlay (dialog) with a wrong anatomy: a .Positioner (anchored-only part).
+        "packages/ui/src/primitives/dialog/dialog.tsx":
+          'export const Dialog = () => <div data-slot="dialog">{Root.Backdrop}{Root.Popup}{Root.Positioner}</div>;\ndeclare const Root: Record<string, unknown>;\n',
+        "packages/ui/src/primitives/dialog/index.ts": 'export { Dialog } from "./dialog";\n',
+        "packages/ui/src/primitives/dialog/variants.ts":
+          'import { tv } from "#lib";\nexport const dialogVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/dialog/dialog.ct.tsx": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "must NOT have a .Positioner" },
+      why: "clause 8 — a modal overlay carrying an anchored-only .Positioner — §13.7",
+    },
+    {
+      files: {
+        // Clause 9 — a styled primitive .tsx with NO data-slot locator.
+        "packages/ui/src/primitives/thing/thing.tsx": "export const Thing = () => <div />;\n",
+        "packages/ui/src/primitives/thing/index.ts": 'export { Thing } from "./thing";\n',
+        "packages/ui/src/primitives/thing/variants.ts":
+          'import { tv } from "#lib";\nexport const thingVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/thing/thing.ct.tsx": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "no data-slot locator" },
+      why: "clause 9 — a primitive part with no data-slot locator (the CT locator surface) — §13.7",
     },
   ],
   mustPass: [

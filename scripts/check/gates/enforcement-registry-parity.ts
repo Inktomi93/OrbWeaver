@@ -198,6 +198,46 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "ACTIVE table" },
       why: "an active descriptor `x` with no ACTIVE-table row (and a count that ignores it) — the doc lies about the registry",
     },
+    {
+      files: {
+        // No active descriptors, but the ACTIVE table names `ghost` — a doc row for a gate that doesn't exist.
+        "scripts/check/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+          "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n| `ghost` | names no descriptor |\n\n### Layer 3 — DORMANT structural gates\n\n| `x` | dormant x |\n",
+      },
+      expect: { messageIncludes: "no active descriptor of that name exists" },
+      why: "the ACTIVE table names `ghost` with no matching active descriptor — the DOC_ACTIVE_ORPHAN arm",
+    },
+    {
+      files: {
+        // A dormant descriptor `x` absent from the DORMANT table — DOC_DORMANT_MISSING.
+        "scripts/check/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+          "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n",
+      },
+      expect: { messageIncludes: "DORMANT table" },
+      why: "a dormant descriptor `x` with no DORMANT-table row — the DOC_DORMANT_MISSING arm (distinct message)",
+    },
+    {
+      files: {
+        // The DORMANT table names `phantom` with no dormant descriptor — DOC_DORMANT_ORPHAN.
+        "scripts/check/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+          "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n\n| `x` | dormant x |\n| `phantom` | names no descriptor |\n",
+      },
+      expect: { messageIncludes: "no dormant descriptor of that name exists" },
+      why: "the DORMANT table names `phantom` with no matching dormant descriptor — the DOC_DORMANT_ORPHAN arm",
+    },
+    {
+      files: {
+        // The ACTIVE table + descriptor agree, but the count line is wrong (says 0, one active) — COUNT mismatch.
+        "scripts/check/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+          "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
+      },
+      expect: { messageIncludes: "registered gates" },
+      why: "the ACTIVE table matches but the count says 0 for one active descriptor — the COUNT_CONTRACT_MISMATCH arm",
+    },
   ],
   mustPass: [
     {

@@ -61,5 +61,10 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/chat/verbs/start-chat.ts",
       why: "the verb file exports create<Pascal(base)> = createStartChat — the sanctioned shape, passes",
     },
+    {
+      files: 'export { createStartChat } from "./start-chat";\n',
+      at: "packages/server/src/domain/chat/verbs/index.ts",
+      why: "an index.ts barrel in a verbs/ dir is exempt (base === 'index') — passes without a create<Pascal> export",
+    },
   ],
 };
