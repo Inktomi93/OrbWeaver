@@ -8,6 +8,7 @@
 
 import type { PresetId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";
+import { setMobileSheet } from "./shell-store";
 
 interface PresetSelectionState {
   /** The preset whose editor the Presets CONTENT shows — `null` = the section's welcome state. */
@@ -31,6 +32,14 @@ export function selectPreset(id: PresetId): void {
     false,
     "preset-selection/select",
   );
+}
+
+/** Open a preset from the LIST (a library-row click) AND close any open mobile LIST sheet — the
+ *  viewport-unaware intent form of the old route-closure `selectPresetFromList`: `mobileSheet` is
+ *  read only in the mobile regime (`useShellLayout`), so the unconditional write is a no-op on desktop. */
+export function selectPresetFromList(id: PresetId): void {
+  selectPreset(id);
+  setMobileSheet(null);
 }
 
 /** Clear the selection (back to the Presets welcome state — e.g. after deleting the open preset). Clears
@@ -59,6 +68,14 @@ export function clearPresetSection(): void {
     false,
     "preset-selection/clear-section",
   );
+}
+
+/** Dismiss the CONTEXT section inspector AND close any open mobile CONTEXT sheet — the viewport-unaware
+ *  intent form of the old route-closure `dismissSectionInspector`: `setMobileSheet(null)` is a no-op on
+ *  desktop (mirrors `selectPresetFromList` / worldInfo's `selectWorldBookFromList`). */
+export function dismissPresetSection(): void {
+  clearPresetSection();
+  setMobileSheet(null);
 }
 
 /** Reactive: the currently-open preset id (`null` = none). A primitive selector (no fresh object). */

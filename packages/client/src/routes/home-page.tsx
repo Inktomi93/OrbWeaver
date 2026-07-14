@@ -1,4 +1,4 @@
-import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -9,7 +9,6 @@ import {
   AppShell,
   ContextTabsPanel,
   RAIL_SECTIONS,
-  useIsMobileViewport,
   useShellLayout,
   YouSheet,
 } from "#features/app-shell";
@@ -50,14 +49,7 @@ import {
 } from "#features/discovery";
 import { NotificationBell } from "#features/notifications";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
-import {
-  PresetEditorSurface,
-  PresetLibraryAnchor,
-  PresetLibrarySurface,
-  PresetLibraryWelcome,
-  PresetSectionInspector,
-  PresetUsageContext,
-} from "#features/preset";
+import { PresetSectionInspector, PresetUsageContext, presetsSection } from "#features/preset";
 import { ImportOnboardingCard, SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   AnalyticsModelsTab,
@@ -69,18 +61,15 @@ import { worldInfoSection } from "#features/world-info";
 import {
   chatStream,
   clearCorpusSelection,
-  clearPresetSection,
   commitDraft,
+  dismissPresetSection,
   goToLanding,
   isCommitted,
   isLanding,
   openModal,
   selectChat,
-  selectPreset,
   setActiveSection,
-  setContextTab,
   setMobileSheet,
-  setPanelMode,
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
@@ -130,27 +119,6 @@ export function HomePage(): ReactElement {
   const selectedCharacterId = useSelectedCharacterId();
   const selectedCorpusCharacterId = useSelectedCorpusCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
-  const isMobile = useIsMobileViewport();
-  const revealSectionInspector = (): void => {
-    setContextTab("section");
-    if (isMobile) {
-      setMobileSheet("context");
-    } else {
-      setPanelMode("context", "docked");
-    }
-  };
-  // Clear the section selection and, on mobile, close the CONTEXT sheet (no-op on desktop).
-  const dismissSectionInspector = (): void => {
-    clearPresetSection();
-    if (isMobile) {
-      setMobileSheet(null);
-    }
-  };
-  // Closes any open mobile LIST sheet so it doesn't stay over the editor after a selection.
-  const selectPresetFromList = (id: PresetId): void => {
-    selectPreset(id);
-    setMobileSheet(null);
-  };
   // After a host deletes the chat the CONTENT is showing, return to the landing surface so the room
   // never points at a dropped chat.
   const onDeletedChat = (deletedChatId: ChatId): void => {
@@ -335,28 +303,20 @@ export function HomePage(): ReactElement {
               />
             ),
           },
+          // presets is the fourth section migrated to the co-located SectionDefinition (M1.4): the LIST +
+          // CONTENT render from `presetsSection`, which reads its own selection and folds the LIST's
+          // mobile-sheet-close and the section-inspector reveal/dismiss into #state intents (no isMobile
+          // closures here). The CONTEXT still rides the shell's ContextTabsPanel until the M1 cutover
+          // consumes `presetsSection.context`.
           presets: {
-            list: (
-              <PresetLibraryAnchor>
-                <PresetLibrarySurface onSelectPreset={selectPresetFromList} />
-              </PresetLibraryAnchor>
-            ),
-            content:
-              selectedPresetId === null ? (
-                <PresetLibraryWelcome />
-              ) : (
-                <PresetEditorSurface
-                  presetId={selectedPresetId}
-                  onRevealSection={revealSectionInspector}
-                  onDismissSection={dismissSectionInspector}
-                />
-              ),
+            list: presetsSection.list?.(),
+            content: typeof presetsSection.content === "function" ? presetsSection.content() : null,
             context:
               selectedPresetId === null ? undefined : (
                 <ContextTabsPanel
                   section="presets"
                   bodies={{
-                    section: <PresetSectionInspector onDismiss={dismissSectionInspector} />,
+                    section: <PresetSectionInspector onDismiss={dismissPresetSection} />,
                     usage: <PresetUsageContext presetId={selectedPresetId} />,
                   }}
                 />
