@@ -11,7 +11,7 @@ import { z } from "zod";
 const MIN_NON_EMPTY = 1;
 
 // Dispatch axis: every member needs a resolver arm + an infra/providers runner (tsc's assertNever
-// red-flags a gap). `@orb/contracts/connection` re-exports this as `ChatSource`.
+// red-flags a gap). `@orb/contracts/connection` re-exports this verbatim (under its own name).
 export const CRED_SOURCES = [
   "max-pro-sub",
   "openrouter",

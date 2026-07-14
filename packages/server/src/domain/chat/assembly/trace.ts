@@ -5,6 +5,8 @@
 // Distinct consumers from shape()'s content-bearing `stages`: those feed the engine (the wire history)
 // and the differential oracle (byte-diff). THIS is the content-FREE projection safe to log / show in the
 // inspector — counts, roles, the squash-merge count, and the breakpoint decision + abort reason.
+//
+// FLAG[PD-132]: built, unwired — no consumer until the admin/devtools assembly-inspector panel lands.
 
 /** The content-free SHAPE stage shape `buildShapeTrace` reads (structurally compatible with shape()'s
  *  `stages`). File-local: the cross-boundary trace shape, if ever wired to a client view, lands in

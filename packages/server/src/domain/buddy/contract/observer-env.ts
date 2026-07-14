@@ -72,8 +72,8 @@ export interface BuddyObserverReads {
   readonly resolveChatHost: (chatId: string) => Promise<UserId | null>;
 }
 
-export type SubscribeWorkloadEvents = (listener: (event: LiteWorkloadEvent) => void) => () => void;
-export type SubscribeChatEvents = (listener: (event: LiteChatEvent) => void) => () => void;
+type SubscribeWorkloadEvents = (listener: (event: LiteWorkloadEvent) => void) => () => void;
+type SubscribeChatEvents = (listener: (event: LiteChatEvent) => void) => () => void;
 
 /** Environment the observer subsystem closes over. ownerUserId is whose buddy reacts to system-health traces. */
 export interface BuddyObserverEnv {

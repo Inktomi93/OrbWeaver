@@ -3,7 +3,7 @@
 // deriveRunner/BackendKey (that infra vocab never leaves infra/providers). No consumer sees a wire-shape
 // string outside the resolver.
 
-import type { ChatApi, ChatSource } from "@orb/contracts/connection";
+import type { ChatApi, CredentialSource } from "@orb/contracts/connection";
 
 export const WIRE_SHAPES = [
   "openai-compat",
@@ -18,7 +18,7 @@ function assertNever(value: never): never {
 }
 
 /** Keys on api (protocol axis) — one source can serve several apis; source is carried for future refinement. */
-export function deriveWireShape(api: ChatApi, _source: ChatSource): WireShape {
+export function deriveWireShape(api: ChatApi, _source: CredentialSource): WireShape {
   switch (api) {
     case "chat-completions":
       return "openai-compat";

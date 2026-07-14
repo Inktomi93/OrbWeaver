@@ -368,6 +368,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newEventId: mint<ChatEventId>("chat_event"),
     newStreamEventId: mint<ChatStreamEventId>("stream_event"),
     newInviteId: mint<ChatInviteId>("chat_invite"),
+    newPendingTurnId: mint<PendingTurnId>("pending_turn"),
     hashToken: (token) => `h:${token}`,
     audit: () => Promise.resolve(),
     // PD user-bus lane: no-op default (the terminal path + LIST-level ops fan `chatsChanged` to members; a

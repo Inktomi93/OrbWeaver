@@ -11,7 +11,7 @@ import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 
-export interface VariantKey {
+interface VariantKey {
   readonly kind: VariantKind;
   readonly width: number;
 }

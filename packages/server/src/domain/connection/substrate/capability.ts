@@ -7,7 +7,7 @@
 import type {
   AgentSdkModel,
   ChatApi,
-  ChatSource,
+  CredentialSource,
   ModelCapability,
   ModelCatalogEntry,
 } from "@orb/contracts/connection";
@@ -21,7 +21,7 @@ import { resolveModelCapability } from "../catalog/resolve-model-capability";
  *  the capability descriptor (no direct `catalog/` reach). */
 export function resolveCapability(
   model: ModelId | string,
-  source: ChatSource,
+  source: CredentialSource,
   api: ChatApi,
   caches: {
     readonly cached: readonly ModelCatalogEntry[] | null;

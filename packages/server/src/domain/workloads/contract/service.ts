@@ -21,16 +21,16 @@ import type { WorkloadScheduleService } from "./schedule";
 import type { WorkloadRowAnyKind } from "./workload-row";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
-export type NewWorkloadId = () => WorkloadId;
+type NewWorkloadId = () => WorkloadId;
 
 /** Mint a fresh `WorkloadScheduleId` — the injected determinism seam for the schedule verbs. */
-export type NewWorkloadScheduleId = () => WorkloadScheduleId;
+type NewWorkloadScheduleId = () => WorkloadScheduleId;
 
 /** Bind a `RoleClients` bundle for a specific acting user. REQUIRED — no default-role fallback. */
-export type BindRoleClients = (ownerId: UserId) => Promise<RoleClients>;
+type BindRoleClients = (ownerId: UserId) => Promise<RoleClients>;
 
 /** Read a user's parsed `UserSettings`, injected from `settings`. */
-export type LoadUserSettings = (userId: UserId) => Promise<UserSettings>;
+type LoadUserSettings = (userId: UserId) => Promise<UserSettings>;
 
 /** The bundle the `WorkloadService` verbs close over (built by `context.ts`, wired at `service.ts`). */
 export interface WorkloadServiceContext {

@@ -6,9 +6,7 @@
 export type {
   BlockSpan,
   DigestRow,
-  MemoryBuildTrace,
   MemoryConfig,
-  MemoryLog,
   MemoryLogEntry,
   MemoryPassCounts,
   MemoryRecallTrace,

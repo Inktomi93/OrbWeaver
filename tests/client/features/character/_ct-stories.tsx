@@ -24,7 +24,7 @@ import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────
 
-export interface CharacterCardTileStoryTag {
+interface CharacterCardTileStoryTag {
   readonly id: string;
   readonly name: string;
   readonly isHiddenOnCard: boolean;

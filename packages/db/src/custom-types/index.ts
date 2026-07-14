@@ -1,7 +1,7 @@
 // custom-types — the native vector column codec (reserved cross-cutting db artifact).
 //
 // `vector32` is libSQL's `F32_BLOB(dim)`: a raw little-endian Float32 blob, NOT a JSON array. It is a
-// drizzle `customType` so the four vector tables (`schema/embeddings.ts`) and the k-means `centroid`
+// drizzle `customType` so the five vector tables (`schema/embeddings.ts`) and the k-means `centroid`
 // rollup (`schema/discovery.ts`) read/write `Float32Array` directly while the SQL column is a blob.
 //
 // Two load-bearing facts (Tier-1-DB.md "Esoteric" #1/#2 — must survive):

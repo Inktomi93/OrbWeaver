@@ -18,7 +18,7 @@ import { useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
 import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets";
 import { facetById } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { useCharacterForm } from "../lib/character-editor-bridge";
+import { resolveCharacterForm, useCharacterForm } from "../lib/character-editor-bridge";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
 import { CharacterProvenanceSection } from "./character-provenance-section";
 
@@ -39,12 +39,8 @@ export function CharacterFacetInspector({
   const selectedCharacterId = useSelectedCharacterId();
   const selectedFacetId = useSelectedCharacterFacetId();
 
-  if (
-    handle === null ||
-    selectedCharacterId === null ||
-    handle.characterId !== selectedCharacterId ||
-    selectedFacetId === null
-  ) {
+  const resolved = resolveCharacterForm(handle, selectedCharacterId);
+  if (resolved === null || selectedFacetId === null) {
     return <SelectFacet />;
   }
   return (
@@ -60,7 +56,7 @@ export function CharacterFacetInspector({
       )}
     >
       <InspectorLoader
-        form={handle.form}
+        form={resolved.form}
         facetId={selectedFacetId as CharacterFacetId}
         characterId={characterId}
       />

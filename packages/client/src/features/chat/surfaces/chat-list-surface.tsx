@@ -5,6 +5,7 @@
 // writes the choice out via onSelect/onNewChat/onDeletedChat; it holds no active-chat state.
 
 import type { ChatId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -26,7 +27,6 @@ import { timeLib } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
-import { initialsForAttribution } from "../lib/attribution";
 import { filterChats } from "../lib/filter-chats";
 
 const SKELETON_ROW_COUNT = 5;
@@ -247,7 +247,7 @@ function ChatListRow({ chat, selected, onSelect, onDeletedChat }: ChatListRowPro
       clickable={true}
       leading={
         <Avatar fallbackDelay={0} hueSeed={chat.id} size="sm">
-          {initialsForAttribution(title)}
+          {initialsFor(title)}
         </Avatar>
       }
       onClick={(): void => onSelect(chat.id)}

@@ -1,14 +1,8 @@
 // Gate: motion-token-purity — bans a raw duration (`220ms`) or easing keyword/cubic-bezier written
 // straight into a `transition`/`animation` shorthand or duration/timing longhand in
 // packages/{ui,client}/src/**/*.css, instead of the DTCG motion tokens. `linear` and any `var(--…)` are
-// allowed; token DEFINITIONS, `0`/`0s`, and `steps(...)`/`step-*` all pass.
-//
-// ALLOWLIST (file-level, the no-off-token-radius-shadow BURN_DOWN precedent): a file lands here with the
-// value + reason when the raw motion value is real pre-existing debt (the weave shimmer's `3s`, the
-// spotlight's `ease-out`, the reduced-motion floor's `0.01ms !important` killer — all continuous/isolated,
-// nothing to desync from). An allowlisted file gone CLEAN is RED ("stale entry — remove it"); a NEW
-// offender not in the allowlist is RED immediately. `shell.css` is deliberately NOT allowlisted — it is
-// the coordination surface, now fully on the co-motion vars, and MUST stay raw-value-free.
+// allowed; token DEFINITIONS, `0`/`0s`, and `steps(...)`/`step-*` all pass. ALLOWLIST is a
+// both-directions ratchet (no-off-token-radius-shadow precedent); `shell.css` is deliberately NOT allowlisted — it must stay raw-value-free.
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";

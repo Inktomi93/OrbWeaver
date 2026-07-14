@@ -1,22 +1,21 @@
 // The chat-LIST row kebab (J5 · UIP-301) — the per-row overflow menu wiring the four host-only lifecycle
-// verbs (Rename · Star · Archive · Delete) exposed by J5's router pass-throughs. A leaf component: it owns
-// its own overlay state (rename Dialog + delete AlertDialog) and drives the mutation hooks; the row select
-// never fires when the kebab is clicked (ListRow renders `actions` as a SIBLING outside the clickable
-// body — a11y + no accidental navigation).
+// verbs (Rename · Star · Archive · Delete) exposed by J5's router pass-throughs, over the shared
+// `RowActionsMenu` composite (⋯ trigger → items → the ConfirmDialog-wired destructive Delete). A leaf
+// component: it owns the rename Dialog state + drives the mutation hooks; the row select never fires when
+// the kebab is clicked (ListRow renders `actions` as a SIBLING outside the clickable body).
 //
 // REVERSIBILITY (DESIGN.md §9): rename/star/archive are quiet in-place edits; DELETE cascades hard
-// (messages/roster/events, FK) — NOT reversible — so it sits behind an `@orb/ui/alert-dialog` confirm
+// (messages/roster/events, FK) — NOT reversible — so it sits behind RowActionsMenu's ConfirmDialog
 // (never an undo-toast). Rename is a single controlled `Input` in a `Dialog` (the §13.4 "single rename
 // stays controlled + Zod" carve-out — NOT a form factory).
 
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
-import { Archive, Icon, MoreVertical, Pencil, Star, Trash2 } from "@orb/ui/icons";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
+import { Archive, Icon, Pencil, Star } from "@orb/ui/icons";
+import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import {
   useArchiveChat,
@@ -53,7 +52,6 @@ export function ChatListRowMenu({
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const openRename = (): void => {
     setRenameValue(title ?? "");
@@ -77,34 +75,28 @@ export function ChatListRowMenu({
 
   return (
     <>
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button intent="ghost" size="icon" aria-label="Chat actions">
-              <Icon icon={MoreVertical} size="sm" />
-            </Button>
-          }
-        />
-        <MenuPopup align="end">
-          <MenuItem onClick={openRename}>
-            <Icon icon={Pencil} size="sm" />
-            Rename
-          </MenuItem>
-          <MenuItem onClick={(): void => starChat.mutate({ chatId, star: !starred })}>
-            <Icon icon={Star} size="sm" />
-            {starred ? "Unstar" : "Star"}
-          </MenuItem>
-          <MenuItem onClick={(): void => archiveChat.mutate({ chatId, archived: !archived })}>
-            <Icon icon={Archive} size="sm" />
-            {archived ? "Unarchive" : "Archive"}
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem onClick={(): void => setDeleteOpen(true)}>
-            <Icon icon={Trash2} size="sm" />
-            Delete
-          </MenuItem>
-        </MenuPopup>
-      </Menu>
+      <RowActionsMenu
+        label="Chat actions"
+        destructive={{
+          title: "Delete this chat?",
+          description:
+            "This permanently deletes the chat and its messages for everyone. This can't be undone.",
+          onConfirm: confirmDelete,
+        }}
+      >
+        <MenuItem onClick={openRename}>
+          <Icon icon={Pencil} size="sm" />
+          Rename
+        </MenuItem>
+        <MenuItem onClick={(): void => starChat.mutate({ chatId, star: !starred })}>
+          <Icon icon={Star} size="sm" />
+          {starred ? "Unstar" : "Star"}
+        </MenuItem>
+        <MenuItem onClick={(): void => archiveChat.mutate({ chatId, archived: !archived })}>
+          <Icon icon={Archive} size="sm" />
+          {archived ? "Unarchive" : "Archive"}
+        </MenuItem>
+      </RowActionsMenu>
 
       {/* Rename — a single controlled input (the §13.4 single-rename carve-out, not a form factory). */}
       <RenameChatDialog
@@ -113,16 +105,6 @@ export function ChatListRowMenu({
         value={renameValue}
         onValueChange={setRenameValue}
         onSave={saveRename}
-      />
-
-      {/* Delete — a hard, non-reversible cascade → an explicit confirm (never an undo-toast). */}
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete this chat?"
-        description="This permanently deletes the chat and its messages for everyone. This can't be undone."
-        confirmLabel="Delete"
-        onConfirm={confirmDelete}
       />
     </>
   );

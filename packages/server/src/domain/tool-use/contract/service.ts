@@ -4,7 +4,7 @@
 
 import type { Can } from "@orb/contracts/identity";
 import type { WireTool } from "#infra/providers";
-import type { ToolCallInput, ToolDefinition, ToolExecutionContext } from "./params";
+import type { ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params";
 import type { ResolvedToolSet, ToolCallRecord } from "./results";
 
 export interface ToolUseContext {
@@ -20,7 +20,7 @@ export interface ToolUseService {
   /** Run model-emitted calls sequentially, in array order; never throws for a per-call failure. */
   readonly executeToolCalls: (
     set: ResolvedToolSet,
-    calls: readonly ToolCallInput[],
+    calls: ToolCallBatch,
     exec: ToolExecutionContext,
   ) => Promise<readonly ToolCallRecord[]>;
   readonly toWireTools: (set: ResolvedToolSet) => readonly WireTool[];

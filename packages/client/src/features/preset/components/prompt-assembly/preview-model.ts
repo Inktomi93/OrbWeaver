@@ -57,7 +57,7 @@ export interface PreviewBlock {
 }
 
 /** A splice entry in the conversation band — a spliced (`inject`) section at its depth/order. */
-export interface SpliceEntry extends PreviewBlock {
+interface SpliceEntry extends PreviewBlock {
   readonly depth: number;
   readonly order: number;
 }

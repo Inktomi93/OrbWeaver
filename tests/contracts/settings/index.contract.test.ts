@@ -18,6 +18,7 @@ import { expect, test } from "../../support/fixtures";
 
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
+const SCHEMA_VERSION_V3 = 3;
 const LOCAL_COMPUTE_BUDGET = 50;
 const SAMPLE_SCAN_DEPTH = 12;
 
@@ -206,8 +207,8 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   expect(parsed.appearance.blurSurfaces).toEqual([]);
   expect(parsed.appearance.shadowEffects).toBe(false);
   expect(parsed.appearance.reducedMotion).toBe(false);
-  // Additive: an empty blob still parses as the pinned v2 (no bump for the new namespace).
-  expect(parsed.schemaVersion).toBe(SCHEMA_VERSION_V2);
+  // An empty blob parses as the pinned current version (v3 — the regex-section move).
+  expect(parsed.schemaVersion).toBe(SCHEMA_VERSION_V3);
 });
 
 test("UserSettings.appearance self-heals per-field: a garbage knob degrades to its default (.catch)", () => {
@@ -270,13 +271,42 @@ test("LOG_LEVELS is the canonical tuple and userSettingsSchema round-trips the d
   expect(roundTripped).toEqual(DEFAULT_USER_SETTINGS);
 });
 
-test("USER_SETTINGS_SECTIONS excludes the whole-value tiers (regexScripts, schemaVersion)", () => {
+test("USER_SETTINGS_SECTIONS includes the regex section and excludes schemaVersion", () => {
+  // regex became a real object section (`config.regex.scripts`) so it's section-patchable; the retired
+  // top-level `regexScripts` array is gone.
+  expect(USER_SETTINGS_SECTIONS).toContain("regex");
   expect(USER_SETTINGS_SECTIONS).not.toContain("regexScripts");
   expect(USER_SETTINGS_SECTIONS).not.toContain("schemaVersion");
   expect(USER_SETTINGS_SECTIONS).toContain("groupDefaults");
 });
 
-test("the schema versions are the pinned v2 (both tiers)", () => {
+test("UserSettings v2→v3 lift moves the top-level regexScripts array into the regex section", () => {
+  const script = {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "strip ooc",
+    findRegex: "\\(ooc\\)",
+    replaceString: "",
+    placement: [],
+    enabled: true,
+    markdownOnly: false,
+    promptOnly: false,
+    runOnEdit: false,
+    trimStrings: [],
+    substituteRegex: 0,
+    minDepth: null,
+    maxDepth: null,
+  };
+  // A stored v2 row (column = 2) with the OLD top-level array + a sibling namespace to prove it survives.
+  const storedV2 = { regexScripts: [script], worldInfo: { scanDepth: SAMPLE_SCAN_DEPTH } };
+  const parsed = parseUserSettings(storedV2, SCHEMA_VERSION_V2);
+  expect(parsed.regex.scripts).toHaveLength(1);
+  expect(parsed.regex.scripts[0]?.id).toBe(script.id);
+  expect(parsed.worldInfo.scanDepth).toBe(SAMPLE_SCAN_DEPTH);
+  // The retired top-level key is gone from the parsed shape.
+  expect(parsed).not.toHaveProperty("regexScripts");
+});
+
+test("the pinned schema versions: AppSettings v2, UserSettings v3 (the regex-section move)", () => {
   expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V2);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V2);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V3);
 });

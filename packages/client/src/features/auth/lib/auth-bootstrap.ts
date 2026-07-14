@@ -36,7 +36,7 @@ export const AUTH_ME_KEY = ["auth", "me"] as const;
 
 /** Thrown by `login` with the server's user-safe message (generic "invalid credentials" — the server
  *  never enumerates, and neither do we). */
-export class LoginFailedError extends Error {
+class LoginFailedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "LoginFailedError";

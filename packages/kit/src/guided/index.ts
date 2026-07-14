@@ -18,16 +18,14 @@ import { processMacros } from "#macro";
 // macro args containing `{{`, so a template like `{{x::{{input}}}}` would re-evaluate substituted
 // user text. Defense-in-depth floor that's cheaper than reasoning about every future template shape.
 //
-// IMPORTANT: U+200B goes BETWEEN the two braces, not before/after the pair. The macro parser
-// scans with `text.indexOf("{{", pos)`/`text.startsWith("{{", j)` — placing the zero-width-space
-// OUTSIDE the pair (the previous implementation) left the `{{` token intact and indexOf still
-// found it, so the defense was a no-op. Inserting U+200B BETWEEN the braces gives `{<ZWSP>{`,
-// which the indexOf scan can no longer match. Output looks identical to a human (U+200B is
-// invisible) and round-trips through every storage layer that preserves Unicode (libSQL TEXT
-// columns, JSON values, the wire format).
-// Exported (alongside `resolveGuidedInstruction`) because the ZWSP macro-re-injection defense is
-// reusable: any other untrusted-text→macro splice (e.g. Phase 5 group macros) needs exactly this
-// transform. The U+200B codepoint is load-bearing (the §9 between-brace invariant) — keep it exact.
+// IMPORTANT: U+200B goes BETWEEN the two braces, not before/after the pair. The macro parser scans
+// with `text.indexOf("{{", pos)` — placing the zero-width-space outside the pair leaves the `{{`
+// token intact and indexOf still finds it, so the defense would be a no-op. Inserting U+200B
+// between the braces gives `{<ZWSP>{`, which the indexOf scan can no longer match. Output looks
+// identical to a human (U+200B is invisible) and round-trips through every storage layer that
+// preserves Unicode.
+// Exported because the ZWSP macro-re-injection defense is reusable: any other untrusted-text→macro
+// splice needs exactly this transform. The U+200B codepoint is load-bearing — keep it exact.
 export const ZWSP = "​";
 export function neutralizeMacros(s: string): string {
   return s.replace(/\{\{/g, `{${ZWSP}{`).replace(/\}\}/g, `}${ZWSP}}`);

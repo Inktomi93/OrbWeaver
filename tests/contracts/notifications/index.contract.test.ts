@@ -42,16 +42,22 @@ const FIXTURES: Record<NotificationType, NotificationEvent> = {
     chatId: SAMPLE_CHAT_ID,
     newHostHandle: SAMPLE_NOMINEE_HANDLE,
   },
+  "deferred-turn-dropped": {
+    type: "deferred-turn-dropped",
+    recipientUserId: SAMPLE_RECIPIENT,
+    chatId: SAMPLE_CHAT_ID,
+    reason: "consent",
+  },
 };
 
-const EXPECTED_VARIANT_COUNT = 4;
+const EXPECTED_VARIANT_COUNT = 5;
 
-// CLOSED PIN: the union has EXACTLY the four delivery reasons and no more. `.options.length` catches a
+// CLOSED PIN: the union has EXACTLY the five delivery reasons and no more. `.options.length` catches a
 // stray added member; the FIXTURES Record key set is the type-checked mirror.
-test("NotificationEvent is the closed 4-member delivery union", () => {
+test("NotificationEvent is the closed 5-member delivery union", () => {
   expect(notificationEventSchema.options).toHaveLength(EXPECTED_VARIANT_COUNT);
   expect(Object.keys(FIXTURES).sort()).toEqual(
-    ["handoff-accepted", "handoff-nominated", "invite", "kicked"].sort(),
+    ["deferred-turn-dropped", "handoff-accepted", "handoff-nominated", "invite", "kicked"].sort(),
   );
 });
 

@@ -1,13 +1,8 @@
-// Gate: test-presence (core/Spine-Testing.md §5) — required tests on the surfaces where an untested change
-// silently breaks behavior:
-//   • every domain verbs/*.ts            → .test or .int.test
-//   • every domain persistence/*.ts      → .int.test
-//   • every domain contract/*.ts w/ zod  → .contract.test
-//   • every infra/ or foundation/ file with RUNTIME LOGIC (an exported function/class/arrow-const — the
-//     security belts, adapters, dispatchers, the credential firewall, the debug-auth gate) → .test or
-//     .int.test. This tier WAS a blind spot: agent-sdk's env firewall + the debug-auth gate shipped with
-//     zero tests because the gate only scanned domain/. Pure-type files + index.ts barrels are exempt.
-// Tests live at the mirror path (tests/server/<rest>).
+// Gate: test-presence (core/Spine-Testing.md §5) — required tests on the surfaces where an untested
+// change silently breaks behavior: every domain verbs/*.ts → .test/.int.test; every domain
+// persistence/*.ts → .int.test; every domain contract/*.ts w/ zod → .contract.test; every infra/ or
+// foundation/ file with runtime logic (exported function/class/arrow-const) → .test/.int.test (pure-type
+// files + index.ts barrels exempt). Tests live at the mirror path (tests/server/<rest>).
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";

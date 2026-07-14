@@ -4,6 +4,7 @@
 import { blobPortraitUrl, blobUrl } from "@orb/contracts/assets";
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
 import { Row, Stack } from "@orb/ui/layout";
@@ -16,7 +17,6 @@ import type { MessageRenderContext } from "#lib";
 import { cn } from "#lib";
 import { setDraftGreeting } from "#state";
 import type { RowAttribution } from "../lib/attribution";
-import { initialsForAttribution } from "../lib/attribution";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants";
 import type { RowRenderPolicy } from "../lib/render-trust";
 import type { GreetingBinding } from "../lib/synth-greeting-row";
@@ -194,7 +194,7 @@ export function renderRowAvatar(args: {
         }
         {...avatarPortraitSrcProp(args.attribution.avatarHash)}
       >
-        {initialsForAttribution(args.attribution.name)}
+        {initialsFor(args.attribution.name)}
       </Avatar>
     );
   }
@@ -208,7 +208,7 @@ export function renderRowAvatar(args: {
       hueSeed={args.attribution.hueSeed}
       {...avatarSrcProp(args.attribution.avatarHash)}
     >
-      {initialsForAttribution(args.attribution.name)}
+      {initialsFor(args.attribution.name)}
     </Avatar>
   );
 }

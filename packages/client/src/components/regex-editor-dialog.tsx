@@ -1,8 +1,13 @@
-// The Regex editor Dialog — binds `regexScripts[i].*` on the direct-bind form: name · the find pattern
+// The shared Regex-script editor Dialog (clone-audit item 4 / item 10) — binds `regexScripts[index].*` on
+// ANY direct-bind form whose values carry a `regexScripts: RegexScript[]` array: name · the find pattern
 // (via `@orb/ui/code-editor` — a regex is code) · replaceString · placement · enabled + the ST card-format
-// leg flags.
+// leg flags. ONE home so preset's Regex tab and the owner-global settings Regex pane consume the same dialog.
+//
+// OWNER RULING: lives client-shared (NOT @orb/ui — it composes the form factory's bound fields). Generic
+// over the form value shape: both consumers (`PromptConfig`, the settings `{ regexScripts }` form) hold the
+// array at `regexScripts`, so the field paths are identical.
 
-import type { PromptConfig } from "@orb/contracts/preset";
+import type { RegexScript } from "@orb/contracts/regex";
 import { REGEX_PLACEMENTS } from "@orb/kit/regex";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
@@ -18,19 +23,27 @@ const CodeEditor = lazy(() =>
   import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })),
 );
 
-type AppForm = AppFormInstance<PromptConfig>;
+/** The minimal form value shape the dialog binds — any editor form carrying a `regexScripts` array. */
+export interface RegexScriptsFormValues {
+  readonly regexScripts: RegexScript[];
+}
 
 /** The placement multi-toggle items (`{value,label}` over the kit tuple — one source of truth). */
 const PLACEMENT_ITEMS = REGEX_PLACEMENTS.map((value) => ({ value, label: value }));
 
+// The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog
+// never calls `reset`, so it accepts the wider shape; both a full `AppFormInstance` and the autosave
+// factory's `Omit<…, "reset">` satisfy it).
+type RegexEditorForm = Omit<AppFormInstance<RegexScriptsFormValues>, "reset">;
+
 export interface RegexEditorDialogProps {
-  readonly form: AppForm;
+  readonly form: RegexEditorForm;
   /** The script index this dialog edits (`regexScripts[index].*`). */
   readonly index: number;
   readonly onClose: () => void;
 }
 
-/** The regex-script editor — bound to `regexScripts[index].*`; closes via the tab's `onClose`. */
+/** The regex-script editor — bound to `regexScripts[index].*`; closes via the caller's `onClose`. */
 export function RegexEditorDialog({ form, index, onClose }: RegexEditorDialogProps): ReactElement {
   return (
     <Dialog

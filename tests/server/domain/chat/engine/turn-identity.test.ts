@@ -1,6 +1,6 @@
 // engine/turn-identity — the D19 triple resolution + the §5/inv-3 max-pro-sub-by-proxy refusal (pure).
 
-import type { ChatSource } from "@orb/contracts/connection";
+import type { CredentialSource } from "@orb/contracts/connection";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -42,7 +42,7 @@ describe("resolveTurnIdentity — the D19 triple", () => {
 });
 
 const consent = (over: {
-  source?: ChatSource;
+  source?: CredentialSource;
   triggeredBy?: UserId;
   runAsUserId?: UserId;
   ownerConsent?: boolean;

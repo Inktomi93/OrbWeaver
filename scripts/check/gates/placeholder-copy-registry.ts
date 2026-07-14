@@ -1,15 +1,8 @@
-// Gate: placeholder-copy-registry (design-enforcement.md §3.2 — the distinct-not-identical half of the
-// section-placeholder work; ux-flow-revamp J10). The SECTION_PLACEHOLDER_COPY map
-// (features/**/lib/section-placeholder-copy.ts) gives every rail SectionId its own honest "not built yet"
-// copy. This gate pins the ONE rule the type layer can't: every entry's `(title, description)` pair is
-// DISTINCT. Three sections sharing one string was the "snap agent sees no differences" root cause
-// (punchlist §0) — a duplicate pair here fails the build, so an unbuilt hub can never silently read as an
-// identical sparkle again. The `Record<SectionId, …>` already forces FULL coverage (a missing section is a
-// tsc error); the companion vitest test pins that at runtime + this gate pins distinctness structurally.
-//
-// SHAPE (fixture-able, the `__g_*` pattern — the modal-body-not-placeholder twin): for every
-// `**/lib/section-placeholder-copy.ts` it walks the `SECTION_PLACEHOLDER_COPY` object's entries, reads each
-// entry's `title`+`description` string literals, and flags any entry whose pair duplicates an earlier one.
+// Gate: placeholder-copy-registry (design-enforcement.md §3.2) — the SECTION_PLACEHOLDER_COPY map
+// (features/**/lib/section-placeholder-copy.ts) gives every rail SectionId its own honest "not built
+// yet" copy. Pins the one rule the type layer can't: every entry's `(title, description)` pair is
+// DISTINCT (three sections sharing one string was the "snap agent sees no differences" root cause).
+// Walks each `**/lib/section-placeholder-copy.ts`'s entries and flags a pair duplicating an earlier one.
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";

@@ -42,7 +42,7 @@ const FROZEN_AT = FROZEN_AT_MS;
 export const EMBED_DIM = 8;
 export const EMBED_MODEL = "qwen3-embed-test";
 export const IMAGE_EMBED_MODEL = "qwen3-vl-test";
-export const SUMMARIZER_MODEL = "qwen3-summarize-test";
+const SUMMARIZER_MODEL = "qwen3-summarize-test";
 export const TEST_CAPTION = "a deterministic test caption";
 
 /** A deterministic, non-zero `dim`-length vector (the `seed` distinguishes distinct embeds). */

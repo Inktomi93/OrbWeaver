@@ -19,6 +19,7 @@
 // (`onRequestRemovalFocus`) so focus lands on a neighbor when the bus echo removes the row.
 
 import { blobUrl } from "@orb/contracts/assets";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -29,7 +30,6 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import { initialsForAttribution } from "../lib/attribution";
 import type {
   MemberCastRow,
   MemberPersonRow,
@@ -85,7 +85,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         hueSeed={row.kind === "cast" ? row.characterId : row.key}
         {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}
       >
-        {initialsForAttribution(row.displayName)}
+        {initialsFor(row.displayName)}
       </Avatar>
       <Text
         as="span"

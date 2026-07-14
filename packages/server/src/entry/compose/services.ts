@@ -113,6 +113,7 @@ import {
   requireAuthorOrHost,
   requireHost,
   requireParticipant,
+  resolveTier0Range,
   setParticipantActivePersona,
 } from "../../domain/chat";
 import { publishChatEvent, publishUserEvent } from "../../transport/trpc";
@@ -150,6 +151,8 @@ export interface ServicesDeps {
   /** The staging root the upload route stages a zip under; absent ⇒ the OS temp dir (the same default the
    *  route resolves). */
   readonly importStagingDir?: string;
+  /** The ST profile-directory snapshot `import-st`'s `importAll` reads; absent ⇒ repo-root `.st-data`. */
+  readonly stProfileDir?: string;
   readonly sessionSecret: string | null;
   readonly vllmDisabled: boolean;
   readonly repoRoot?: string;
@@ -763,6 +766,22 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // discovery receives only the narrowed economics results — raw message_variants columns never cross the fence.
     characterEconomics: stats.characterEconomics,
     characterModelEconomics: stats.characterModelEconomics,
+    // The cross-domain `similar` seam (characterDossier) — search's `similarCharacters`, narrowed to the
+    // discovery-local DossierNeighbor shape here (search's CharacterCardHit never enters the discovery contract).
+    similar: async (userId, characterId, topN) =>
+      (await search.similarCharacters({ ownerId: userId, characterId, topN })).map((h) => ({
+        characterId: h.characterId,
+        name: h.name,
+        score: h.score,
+        avatarHash: h.avatarHash,
+        genre: h.genre,
+        tone: h.tone,
+        elevatorPitch: h.elevatorPitch,
+      })),
+    // The memory tier-grid seam (PD-39 tier-k) — chat/memory's fanOut math (ONE home) bound over the LIVE
+    // AppSettings.memoryDefaults, the same source the digest build resolves per call.
+    tier0RangeOf: (tier, blockIdx) =>
+      resolveTier0Range(effectiveConfig.getEffectiveConfig().memoryDefaults, tier, blockIdx),
   });
   const notifications = createNotificationsService({
     db,
@@ -931,22 +950,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
-  // Built after chat — the memory/group-character sweeps are chat-ctx-bound ops off the chat compose product.
-  const runnerEnv = buildWorkloadRunnerEnv({
-    db,
-    now,
-    cas,
-    discovery,
-    connection,
-    embeddings,
-    assets,
-    memoryBackfill: chatCompose.backfill.memory,
-    groupCharacterBackfill: chatCompose.backfill.groupCharacters,
-    // Lazy: portability is assembled below (after chat/world-info); this thunk derefs it at run time.
-    getPortabilityRegistry: () => portability,
-    ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
-  });
-
   // Built after chat — world-info's chat scope injects chat's membership guards + the chat bus emit.
   const worldInfo = createWorldInfoService({
     db,
@@ -991,6 +994,19 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newPersonaId: minter(ID_PREFIX.persona),
   });
   const resolveOwnerPrincipal = createHostPrincipalResolver(sessions);
+  // Shared by the zip-bundle portability descriptors AND the ST profile-directory importer (runnerEnv below).
+  type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
+  const enqueueImportBackfill: ImportOwnerOp = async ({ ownerId }) => {
+    await workloads.start({
+      input: { kind: "memory-backfill", params: {} },
+      caller: null,
+      mode: "singular",
+      ownerId,
+    });
+  };
+  const reconcileImportStats: ImportOwnerOp = async ({ ownerId }) => {
+    await reconcileStats(db, { ownerId, now });
+  };
   const portability = buildPortabilityRegistry({
     db,
     now,
@@ -1014,18 +1030,39 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     importLorebook: importWorldInfo.importLorebook,
     bulkImportChats,
     bulkImportPersonas,
-    enqueueBackfill: async ({ ownerId }): Promise<void> => {
-      await workloads.start({
-        input: { kind: "memory-backfill", params: {} },
-        caller: null,
-        mode: "singular",
-        ownerId,
-      });
-    },
-    reconcileImportStats: async ({ ownerId }): Promise<void> => {
-      await reconcileStats(db, { ownerId, now });
-    },
+    enqueueBackfill: enqueueImportBackfill,
+    reconcileImportStats,
     resolveOwnerPrincipal,
+  });
+
+  // Built after chat + portability's import ports — the memory/group-character sweeps are chat-ctx-bound ops
+  // off the chat compose product; `import.importAll` composes the profile-dir importer's cross-feature slice.
+  const runnerEnv = buildWorkloadRunnerEnv({
+    db,
+    now,
+    cas,
+    discovery,
+    connection,
+    embeddings,
+    assets,
+    memoryBackfill: chatCompose.backfill.memory,
+    groupCharacterBackfill: chatCompose.backfill.groupCharacters,
+    // Lazy: this thunk derefs the registry at run time (it's already assembled just above, but the bundle op
+    // reads it lazily by contract).
+    getPortabilityRegistry: () => portability,
+    ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
+    ...(deps.stProfileDir !== undefined ? { stProfileDir: deps.stProfileDir } : {}),
+    profileImport: {
+      character,
+      storeAvatar: assets.store,
+      attachCardTag: tag.attachCardTagByName,
+      importLorebook: importWorldInfo.importLorebook,
+      bulkImportChats,
+      bulkImportPersonas,
+      enqueueBackfill: enqueueImportBackfill,
+      reconcileImportStats,
+      resolveOwnerPrincipal,
+    },
   });
 
   const services: Services = {

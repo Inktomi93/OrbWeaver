@@ -42,13 +42,13 @@ import { requireHost } from "../guard";
 import {
   acceptInviteByIdAtomic,
   countPresentMembers,
-  createInvite as createInvitePersist,
   declineInviteById,
   findInviteById,
   findInviteByTokenHash,
+  insertInvite,
   listInvitesForChat,
   redeemInviteAtomic,
-  revokeInvite as revokeInvitePersist,
+  revokeInviteById,
 } from "../persistence/invites";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
@@ -172,7 +172,7 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
     const inviteId = ctx.newInviteId();
     const maxUses = input.maxUses ?? null;
     const expiresAt = input.expiresAt ?? null;
-    await createInvitePersist(ctx.db, {
+    await insertInvite(ctx.db, {
       id: inviteId,
       chatId,
       tokenHash: ctx.hashToken(token),
@@ -381,7 +381,7 @@ function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
 function createRevokeInvite(ctx: ChatContext): ChatService["revokeInvite"] {
   return async ({ principal, chatId, inviteId }: RevokeInviteParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    await revokeInvitePersist(ctx.db, inviteId, chatId);
+    await revokeInviteById(ctx.db, inviteId, chatId);
   };
 }
 

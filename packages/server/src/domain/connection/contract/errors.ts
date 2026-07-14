@@ -4,14 +4,11 @@
 import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 
 /** The `DomainOperationError.code` discriminators connection verbs throw. One home for the strings. */
-export const CONNECTION_OP_CODES = {
+const CONNECTION_OP_CODES = {
   /** An incoherent `(api, source)` pairing the role resolver can't map (e.g. a chat-completions api with a
    *  source that is neither openrouter/vllm/custom_openai). */
   routingIncoherent: "connection_routing_incoherent",
 } as const;
-
-/** The reason-code union (derived from the one tuple of values — never re-spelled). */
-export type ConnectionOpCode = (typeof CONNECTION_OP_CODES)[keyof typeof CONNECTION_OP_CODES];
 
 /**
  * An incoherent routing selection — the resolved `(api, source)` has no coherent backend (e.g. a

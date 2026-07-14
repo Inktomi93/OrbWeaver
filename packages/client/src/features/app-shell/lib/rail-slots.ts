@@ -88,7 +88,9 @@ export const MOBILE_PRIMARY_SECTIONS: readonly RailSectionEntry[] = RAIL_SECTION
 export const SECTION_PANEL_DEFAULTS: Record<SectionId, Record<PanelName, PanelMode>> = {
   chats: { list: "docked", context: "collapsed" },
   characters: { list: "docked", context: "collapsed" },
-  corpus: { list: "collapsed", context: "collapsed" },
+  // Corpus LIST docks by default (UI-Arch §4.2 amended 2026-07-13): the LIST IS the search omnibox —
+  // collapsing it hid the section's only entry point.
+  corpus: { list: "docked", context: "collapsed" },
   worldInfo: { list: "docked", context: "collapsed" },
   presets: { list: "docked", context: "collapsed" },
   refinery: { list: "collapsed", context: "collapsed" },

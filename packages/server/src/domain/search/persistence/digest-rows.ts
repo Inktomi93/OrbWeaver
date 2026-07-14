@@ -29,6 +29,9 @@ interface NearestDigestsParams {
   readonly chatIds?: readonly ChatId[] | undefined;
   readonly ownerId?: UserId | undefined;
   readonly scopedCharacterId?: CharacterId | undefined;
+  /** By-character cross-chat scope: scoped-producer OR present-as-speaker (the chat_digest_speakers
+   *  OR-branch, PD-38). Owner-belt still applies via the characters join. */
+  readonly speakerCharacterId?: CharacterId | undefined;
   readonly candidates?: readonly BlockKey[] | undefined;
   readonly limit: number;
 }
@@ -58,6 +61,7 @@ export async function nearestDigests(
         chatIds: params.chatIds,
         ownerId: params.ownerId,
         scopedCharacterId: params.scopedCharacterId,
+        speakerCharacterId: params.speakerCharacterId,
         candidates: params.candidates,
       }),
     )

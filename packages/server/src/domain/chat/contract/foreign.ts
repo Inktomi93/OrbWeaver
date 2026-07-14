@@ -34,7 +34,7 @@ export interface ResolvedPersonas {
  * settings-/preset-/persona-derived (a read chat must NOT perform itself):
  *   • `promptConfig`        — the chat's active preset under the host's settings (preset domain).
  *   • `personas`            — anchor + active (persona domain).
- *   • `globalRegexScripts`  — the host's `UserSettings.regexScripts` (settings) — the host-global regex tier.
+ *   • `globalRegexScripts`  — the host's `UserSettings.regex.scripts` (settings) — the host-global regex tier.
  *   • `scanDepth`           — the host's `UserSettings.worldInfo.scanDepth` (settings) — the WI keyword-scan
  *                             window the gather slices `recentMessages` to.
  *   • `injectionTokenBudget`— the host's `UserSettings.worldInfo.tokenBudget` (settings) — the ONE injection

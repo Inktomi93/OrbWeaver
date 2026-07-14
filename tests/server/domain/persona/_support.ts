@@ -26,14 +26,14 @@ interface AuditCall {
 }
 
 /** A recorded user-bus emit (PD user-bus lane) — tests assert a persona CRUD verb fired `personasChanged`. */
-export interface UserEventCall {
+interface UserEventCall {
   readonly userId: UserId;
   readonly event: UserBusEvent;
 }
 
 /** A recorded seed re-point call — `remove` fires it after a delete so the current/default pointer never
  *  dangles (the injected settings write is faked here; the real op lives at `entry/compose/services.ts`). */
-export interface RepointSeedsCall {
+interface RepointSeedsCall {
   readonly ownerId: UserId;
   readonly deletedId: PersonaId;
 }

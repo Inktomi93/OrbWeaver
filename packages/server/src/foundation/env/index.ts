@@ -58,6 +58,9 @@ const envSchema = z
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
     // decompresses to disk, not RAM). Unset ⇒ the OS temp dir.
     IMPORT_STAGING_DIR: z.string().min(1).optional(),
+    // The staged ST profile snapshot the `import-st` workload reads (one subdir per ST user profile, each
+    // with characters/chats/settings.json/User Avatars). Unset ⇒ repo-root `.st-data`.
+    ST_PROFILE_DIR: z.string().min(1).optional(),
 
     // The local inference family (embed/rerank/image-embed/summarize/VL gen), supervised loopback engines.
     // STACK_ENGINES=yes signals the stack leader already spawned them (adopt, don't double-spawn GPU).

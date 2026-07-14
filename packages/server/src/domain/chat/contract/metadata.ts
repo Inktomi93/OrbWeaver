@@ -14,7 +14,8 @@ import {
   roomOverridesSchema,
 } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
-import { parseProviderRouting } from "@orb/contracts/connection";
+import { openRouterProviderRoutingSchema } from "@orb/contracts/connection";
+import { stripUndefined } from "@orb/kit/objects";
 import { z } from "zod";
 
 /** The parsed `chats.metadata` blob. Every sub-blob is optional — absent ⇒ the consumer applies its
@@ -32,12 +33,16 @@ export const TOOL_RECURSE_LIMIT_DEFAULT = 5;
 const TOOL_RECURSE_LIMIT_MAX = 20;
 const toolRecurseLimitSchema = z.number().int().min(1).max(TOOL_RECURSE_LIMIT_MAX);
 
-/** The declarative shape of the `chats.metadata` blob; runtime callers use {@link parseChatMetadata}. */
-export const chatMetadataSchema = z
+/** The declarative shape of the `chats.metadata` blob — every sub-blob independently fault-isolated
+ *  (`.catch(undefined)`: a malformed one heals to absent without nuking its siblings) and the object
+ *  itself `.loose()` (unknown future fields pass through unstripped). The runtime entry point is
+ *  {@link parseChatMetadata}. */
+const chatMetadataSchema = z
   .object({
     group: groupConfigSchema.optional().catch(undefined),
     roomOverrides: roomOverridesSchema.optional().catch(undefined),
     opening: openingPolicySchema.optional().catch(undefined),
+    providerRouting: openRouterProviderRoutingSchema.optional().catch(undefined),
     toolRecurseLimit: toolRecurseLimitSchema.optional().catch(undefined),
   })
   .loose();
@@ -47,33 +52,13 @@ function asRecord(raw: unknown): Record<string, unknown> {
 }
 
 /** Fault-isolated read of the `chats.metadata` column. Never throws on a corrupt blob — the hot send path
- *  heals to defaults. */
+ *  heals to defaults (every sub-blob `.catch`es independently, so this can never reject). `stripUndefined`
+ *  restores "absent ⇒ key missing" (zod's `.catch(undefined)` sets the key WITH value `undefined` instead
+ *  of omitting it — {@link ChatMetadata}'s optional fields mean absent, not explicit `undefined`). The cast
+ *  is sound but not TS-provable: `stripUndefined`'s `Partial<T>` return keeps each property's `| undefined`
+ *  arm in its TYPE even though the runtime value can no longer hold it. */
 export function parseChatMetadata(raw: unknown): ChatMetadata {
-  const obj = asRecord(raw);
-  const out: ChatMetadata = {};
-
-  const group = groupConfigSchema.safeParse(obj["group"]);
-  if (group.success) {
-    out.group = group.data;
-  }
-  const room = roomOverridesSchema.safeParse(obj["roomOverrides"]);
-  if (room.success) {
-    out.roomOverrides = room.data;
-  }
-  const opening = openingPolicySchema.safeParse(obj["opening"]);
-  if (opening.success) {
-    out.opening = opening.data;
-  }
-  const recurse = toolRecurseLimitSchema.safeParse(obj["toolRecurseLimit"]);
-  if (recurse.success) {
-    out.toolRecurseLimit = recurse.data;
-  }
-  const routing = parseProviderRouting(obj["providerRouting"]);
-  if (routing !== undefined) {
-    out.providerRouting = routing;
-  }
-
-  return out;
+  return stripUndefined(chatMetadataSchema.parse(asRecord(raw))) as ChatMetadata;
 }
 
 /** The effective {@link GroupConfig} for a chat's raw `metadata` blob, or {@link DEFAULT_GROUP_CONFIG}. */

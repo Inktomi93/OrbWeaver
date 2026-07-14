@@ -6,15 +6,13 @@ import {
   assertForcedCharacterMember,
   isArbiterEligible,
   isPresent,
-  markParticipantLeft,
   markUserLeft,
   parseParticipant,
-  setParticipantRole,
   upsertMemberOnJoin,
 } from "../../../../../packages/server/src/domain/chat/persistence/participant";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
+import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support";
 
 let db: Db;
 
@@ -153,26 +151,5 @@ describe("membership lifecycle writes", () => {
     const first = await markUserLeft(db, chatId, userId, 4);
     expect(first?.leftSeq).toBe(4);
     expect(await markUserLeft(db, chatId, userId, 5)).toBeUndefined();
-  });
-
-  test("markParticipantLeft kicks by id (works for a character with no userId)", async () => {
-    const owner = await seedUser(db, "owner");
-    const chatId = await seedChat(db, "a");
-    const charId = await seedCharacter(db, owner, "c");
-    const pid = await seedParticipant(db, {
-      chatId,
-      key: "c",
-      characterId: charId,
-      role: "member",
-    });
-    const left = await markParticipantLeft(db, pid, 7);
-    expect(left?.leftSeq).toBe(7);
-  });
-
-  test("setParticipantRole swaps the role (host handoff)", async () => {
-    const userId = await seedUser(db, "u");
-    const chatId = await seedChat(db, "a");
-    const pid = await seedParticipant(db, { chatId, key: "u", userId, role: "member" });
-    expect((await setParticipantRole(db, pid, "host"))?.role).toBe("host");
   });
 });

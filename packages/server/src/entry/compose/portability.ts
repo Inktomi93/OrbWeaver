@@ -34,10 +34,10 @@ import type { PresetContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
 import type { SettingsContext } from "#domain/settings";
 import {
-  createThemeExport,
-  createThemeImport,
-  createUserSettingsExport,
-  createUserSettingsImport,
+  createExportTheme,
+  createExportUserSettings,
+  createImportTheme,
+  createImportUserSettings,
 } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
 import { createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
@@ -212,8 +212,8 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  const exportTheme = createThemeExport(deps.settingsCtx);
-  const importTheme = createThemeImport(deps.settingsCtx);
+  const exportTheme = createExportTheme(deps.settingsCtx);
+  const importTheme = createImportTheme(deps.settingsCtx);
   const theme: PortableEntity = {
     kind: "theme",
     dir: "themes/",
@@ -222,8 +222,8 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: (ownerId, file) => importTheme(ownerId, file.bytes),
   };
 
-  const exportUserSettings = createUserSettingsExport(deps.settingsCtx);
-  const importUserSettings = createUserSettingsImport(deps.settingsCtx);
+  const exportUserSettings = createExportUserSettings(deps.settingsCtx);
+  const importUserSettings = createImportUserSettings(deps.settingsCtx);
   const userSettings: PortableEntity = {
     kind: "user-settings",
     dir: "user-settings/",

@@ -1,47 +1,8 @@
-// Gate: monotonic-tests — DORMANT (see docs/architecture/core/Core-Enforcement-Deferred-Dropped.md
-// "monotonic-tests": activates when "first real test suite + baseline file"). Ported from neo-tavern's
-// scripts/check/monotonic-tests.ts onto orb's `Check` interface + the central `tests/` tree; the
-// shared harness project (harness.ts's `getProject`) already loads `tests/**/*.ts` + `tests/**/*.tsx`,
-// so every lane (`.test.ts`/`.int.test.ts`/`.ct.tsx`/`.spec.ts`/…) is covered without a second glob.
-//
-// DORMANT BY DECISION (Nate 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — the `gate` descriptor
-// below carries `status:"dormant"`, so the live pass (runPass filters to status:"active") never runs it as
-// part of `pnpm check:structure` today. ACTIVATE by flipping the descriptor's `status` to `"active"` and
-// adding its Layer-3 ACTIVE row (+ count bump) in Core-Enforcement-Active-Gates.md. The legacy
-// `monotonicTests` Check export is RETAINED only because monotonic-tests.residual.test.ts drives it directly.
-//
-// The permanent "wrong-but-green" guard: every OTHER gate verifies the code; this one verifies the
-// SUITE — a green `pnpm check` must never be reachable by quietly deleting or disabling tests (the
-// cheapest way to turn a red build green, and the one class nothing else catches: a deleted assertion
-// leaves no diff-visible trace in the CODE, only in the test file; a `.skip` is invisible to `tsc`).
-//
-// Two teeth are LIVE today (pure static AST + fs, no external process — a `Check.run` is synchronous):
-//
-//   1. forbidden-skip — a NEW unconditional `it.skip`/`test.only`/`test.todo`/`test.fixme` MODIFIER
-//      call. Conditional forms are allowed: vitest's `it.skipIf(cond)`/`it.runIf(cond)` (exact-name
-//      match — `skipIf` never collides with `skip`) and Playwright's runtime guard
-//      `test.skip(cond, "reason")` (a condition arg, no test-body function) both legitimately gate a
-//      test on env/engine availability. The structural tell: the MODIFIER form carries a
-//      function/arrow body or a string-literal title (it's declaring/naming a test); the
-//      runtime-guard form carries neither. Escape hatch: `// allow-skip: <reason>` on the line itself
-//      or the line above (mirrors `commented-code`'s `// keep-commented:` convention).
-//   2. deleted-test-file — a test file listed in a committed baseline manifest
-//      (`docs/test-baseline/manifest.json`) no longer exists on disk (catches "delete the failing
-//      spec"). Read-only here — no `--write`/regen mode ships with this port: a `Check.run(ctx)` is a
-//      pure synchronous function, so it can't shell out to (re)generate a baseline. The manifest
-//      doesn't exist in orb yet, so tooth 2 is a documented no-op (zero violations) until one is
-//      authored and committed — dormant-within-dormant, exactly matching the deferred-registry
-//      condition ("+ baseline file").
-//
-// NOT PORTED — neo's third tooth (pass-floor: `numPassedTests + numPendingTests` must not drop below
-// a committed floor). It needs a LIVE vitest run's counts; `report.ts` never runs vitest anywhere in
-// the `check:structure` chain (that's `pnpm test`, a separate step), so there is no synchronous,
-// in-process way to feed this Check a live count today. Revisit if/when `pnpm check` ever wires a
-// test-count input through to the structure gates.
-//
-// Self-tested: tests/tooling/monotonic-tests.int.test.ts drives both teeth over synthetic fixtures
-// (an in-memory ts-morph project for tooth 1, a temp dir for tooth 2's manifest/fs check) — never the
-// real tree — proving fire AND no-false-positive.
+// Gate: monotonic-tests — DORMANT (see Core-Enforcement-Deferred-Dropped.md; activates on a real
+// test suite + baseline file). Guards against "wrong-but-green": every other gate verifies the code,
+// this one verifies the SUITE — a deleted assertion or disabled test leaves no diff-visible trace
+// anywhere else, so a green `pnpm check` must never be reachable by quietly skipping/deleting tests.
+// Two teeth: forbidden-skip (a new unconditional it.skip/test.only/.todo/.fixme) and deleted-test-file.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CallExpression, SourceFile, Node as TsMorphNode } from "ts-morph";
@@ -196,12 +157,8 @@ export const gate: GateDescriptor = {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
-  // NOTE: tooth 2 (deleted-baseline-manifest reconciliation) reads a committed `docs/test-baseline/
-  // manifest.json` from disk. A deleted-file FLAG needs a real temp-dir tree with a manifest.json present
-  // — this descriptor is NOT fsBacked (tooth 1 is AST-only; tooth 2 gracefully no-ops when the manifest is
-  // absent, as on the real tree today), so an in-memory example can't materialize a manifest. That FLAG is
-  // retained in tests/tooling/monotonic-tests.residual.test.ts. The no-baseline no-op IS exercised by every
-  // tooth-1 example below (each runs tooth 2 with no manifest and stays clean). Tooth 1 ports fully:
+  // Tooth 2's deleted-manifest FLAG needs a real temp-dir tree, so it lives in
+  // tests/tooling/monotonic-tests.residual.test.ts instead (this descriptor is not fsBacked).
   mustFlag: [
     {
       files: 'it.skip("later", () => {\n  expect(1).toBe(1);\n});\n',

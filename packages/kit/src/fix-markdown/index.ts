@@ -1,4 +1,4 @@
-// Ported from SillyTavern's `power-user.js:fixMarkdown`. LLMs frequently emit slightly-broken markdown:
+// Fixes slightly-broken markdown LLMs frequently emit:
 //
 //   1. `* text *` — italic markers with adjacent whitespace that showdown /
 //      react-markdown treat as literal rather than emphasis. Fix: strip the
@@ -10,7 +10,6 @@
 //      the appended chunk boundary.
 //
 // Called AFTER macro substitution + DISPLAY regex, BEFORE react-markdown.
-// docs/architecture/chat-resolution-pipeline.md §DISPLAY.
 
 import remend from "remend";
 
@@ -69,9 +68,9 @@ function stripInnerWhitespace(text: string): string {
 /** Close unpaired `**`, `*`, and `"` at end-of-line so a half-open span doesn't swallow the rest of
  *  the rendered message. */
 function closeUnpairedMarkers(line: string): string {
-  // `**` pairs FIRST, counted as units: "**bold start" has an EVEN raw `*` count, so the single-char
-  // counter below never saw it and raw `**` rendered to the user (remend-audit catch, 2026-06). Close
-  // the bold run, then count the LEFTOVER single stars after removing `**` units.
+  // `**` pairs FIRST, counted as units: "**bold start" has an EVEN raw `*` count, so a single-char
+  // counter never sees it and raw `**` renders unclosed. Close the bold run, then count the
+  // LEFTOVER single stars after removing `**` units.
   let patched = line;
   if (isOdd(countOccurrences(patched, "**"))) {
     patched = `${patched.trimEnd()}**`;
@@ -89,11 +88,9 @@ function closeUnpairedMarkers(line: string): string {
 // where rewriting a partial would permanently alter the output. This applies only on the streaming
 // ghost path (MessageBody, streaming=true).
 //
-// Delegates to `remend` (Vercel's streamdown repair engine — an isomorphic, side-effect-free kit dep
-// per the kit-purity ruling, `core/Legacy-Migration-and-Gaps.md` §0). One sentinel: an incomplete link
-// becomes `[text](streamdown:incomplete-link)` — the unknown protocol is stripped by rehype-sanitize
-// downstream, rendering the text link-styled but inert until the real URL finishes. The hand-rolled
-// repairs remend replaced are pinned in the test as behavior locks against remend upgrades.
+// Delegates to `remend` (an isomorphic, side-effect-free repair engine). One sentinel: an incomplete
+// link becomes `[text](streamdown:incomplete-link)` — the unknown protocol is stripped by
+// rehype-sanitize downstream, rendering the text link-styled but inert until the real URL finishes.
 
 export function repairStreamingTail(text: string): string {
   return holdTornSpeaker(remend(text));
@@ -103,12 +100,9 @@ export function repairStreamingTail(text: string): string {
  *  span mid-stream). A complete `<speaker>…</speaker>` is left intact. Cheap fast-path: no
  *  `<speaker` present → return as-is.
  *
- *  EXPORTED (#38): the streaming markdown seal calls this DIRECTLY rather than the full
- *  {@link repairStreamingTail}. Streamdown 2.5's own `parseIncompleteMarkdown` already runs `remend`
- *  internally in streaming mode, so the `remend(text)` half of `repairStreamingTail` is redundant on
- *  that path — but Streamdown's repair does NOT balance/hold a fully-open custom `<speaker>` tag
- *  awaiting its close (verified: remend's html-tag handling only truncates a still-open *opening* tag
- *  scan). This hold-back is therefore the genuinely-unique piece the seal keeps. */
+ *  Exported separately because the streaming markdown seal calls this DIRECTLY rather than the full
+ *  {@link repairStreamingTail} — Streamdown's own repair does NOT balance/hold a fully-open custom
+ *  `<speaker>` tag awaiting its close, so this hold-back is the genuinely-unique piece it needs. */
 export function holdTornSpeaker(text: string): string {
   SPEAKER_OPEN_TAG.lastIndex = 0;
   let lastOpenIndex = NOT_FOUND;

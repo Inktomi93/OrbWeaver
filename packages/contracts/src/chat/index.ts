@@ -33,7 +33,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { z } from "zod";
-import type { ChatApi, ChatSource } from "#connection";
+import type { ChatApi, CredentialSource } from "#connection";
 import type { ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
@@ -610,7 +610,7 @@ export type ChatBusEvent =
       chatId: ChatId;
       intent: TurnIntent;
       api: ChatApi;
-      source: ChatSource;
+      source: CredentialSource;
       model: string;
       /** The roster character speaking this turn (group "whose turn is it" automation; ST GROUP_MEMBER_DRAFTED).
        *  Null for a single-character chat or a non-character turn. */

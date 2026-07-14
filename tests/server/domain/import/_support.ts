@@ -22,42 +22,42 @@ const OWNER_ID = castId<UserId>("user_owner");
 // minted) so it stays deterministic (test-determinism — no unseeded ids under tests/).
 const STORED_ASSET_ID = castId<AssetId>("asset_00000000000000000000000000");
 
-export interface CreateCall {
+interface CreateCall {
   readonly ownerId: UserId;
   readonly input: CreateCharacterInput;
   readonly importedFrom: string | null;
   readonly importHash: string;
 }
 
-export interface UpdateCall {
+interface UpdateCall {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly input: UpdateCharacterInput;
 }
 
-export interface StoreCall {
+interface StoreCall {
   readonly ownerId: UserId;
   readonly bytes: Uint8Array;
   readonly mime: string;
 }
 
-export interface FindCall {
+interface FindCall {
   readonly ownerId: UserId;
   readonly importHash: string;
 }
 
-export interface FindByHandleCall {
+interface FindByHandleCall {
   readonly ownerId: UserId;
   readonly handle: string;
 }
 
-export interface TagAttachCall {
+interface TagAttachCall {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly tagName: string;
 }
 
-export interface LorebookCall {
+interface LorebookCall {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly book: BulkImportLorebookInput;
@@ -161,17 +161,17 @@ export function makeHarness(): ImportHarness {
 // persistence mirror int-tests. No `freshDb` for import (import fabricates no db).
 
 /** A fixed clock for the profile harness (deterministic — no unseeded time under tests/). */
-export const IMPORT_NOW = 1_700_000_000_000;
+const IMPORT_NOW = 1_700_000_000_000;
 
 /** One recorded `bulkImportChats` call (the ST→canonical mapping assertion surface). */
-export interface BulkChatsCall {
+interface BulkChatsCall {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly chats: readonly BulkImportChatInput[];
 }
 
 /** One recorded `bulkImportPersonas` call. */
-export interface BulkPersonasCall {
+interface BulkPersonasCall {
   readonly ownerId: UserId;
   readonly personas: readonly BulkImportPersonaInput[];
 }

@@ -25,7 +25,7 @@ const SAMPLING_PARAM_PATHS = [
 ] as const;
 type SamplingParamPath = (typeof SAMPLING_PARAM_PATHS)[number];
 
-export interface SamplingKnobSpec {
+interface SamplingKnobSpec {
   /** The `capability.sampling` key that gates this knob (renders only when it carries a `Range`). */
   readonly key: keyof NonNullable<ModelCapability["sampling"]>;
   /** The `params.<field>` path this knob binds (the nested TanStack Form name — a typed literal). */

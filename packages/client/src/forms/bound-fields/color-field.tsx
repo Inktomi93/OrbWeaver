@@ -6,8 +6,7 @@
 import { ColorField as UiColorField } from "@orb/ui/color-field";
 import { Field } from "@orb/ui/field";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface BoundColorFieldProps {
   readonly label: ReactNode;
@@ -15,27 +14,16 @@ export interface BoundColorFieldProps {
   readonly disabled?: boolean;
 }
 
-export function BoundColorField({
-  label,
-  description,
-  disabled,
-}: BoundColorFieldProps): ReactElement {
-  const field = useFieldContext<string>();
-  const error = touchedFieldError(field.state.meta);
+export function BoundColorField(props: BoundColorFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<string>(props);
   return (
-    <Field
-      label={label}
-      description={description}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field {...fieldProps}>
       <UiColorField
-        value={field.state.value}
         onValueChange={(value): void => {
           field.handleChange(value);
         }}
-        {...(typeof label === "string" ? { "aria-label": label } : {})}
+        value={field.state.value}
+        {...(typeof props.label === "string" ? { "aria-label": props.label } : {})}
       />
     </Field>
   );

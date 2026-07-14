@@ -4,12 +4,7 @@
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 
-export const WORLD_INFO_ENTITY_KINDS = [
-  "world_book",
-  "world_entry",
-  "character",
-  "persona",
-] as const;
+const WORLD_INFO_ENTITY_KINDS = ["world_book", "world_entry", "character", "persona"] as const;
 export type WorldInfoEntityKind = (typeof WORLD_INFO_ENTITY_KINDS)[number];
 
 export class WorldInfoNotFoundError extends DomainNotFoundError {

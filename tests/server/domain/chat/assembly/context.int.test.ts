@@ -3,7 +3,7 @@
 // (macro→wiFormat-wrap, §3 rules 1-3), the ONE injection list + ONE budget pass (§4 — lore dropped by
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
 import type { CharacterCard } from "@orb/contracts/character";
-import { cardDepthPromptWriteSchema } from "@orb/contracts/character";
+import { cardDepthPromptSchema } from "@orb/contracts/character";
 import type { ChatInjection, RoomOverrides } from "@orb/contracts/chat";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -463,10 +463,10 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     // assistant@depth-0 note now round-trips the write schema; the SHAPE splice normalizes it to depth 1
     // (the only assistant placement both runners express) unless the model's `assistantPrefill` is honored.
     expect(
-      cardDepthPromptWriteSchema.safeParse({ prompt: "x", depth: 0, role: "assistant" }).success,
+      cardDepthPromptSchema.safeParse({ prompt: "x", depth: 0, role: "assistant" }).success,
     ).toBe(true);
     expect(
-      cardDepthPromptWriteSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success,
+      cardDepthPromptSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success,
     ).toBe(true);
   });
 });

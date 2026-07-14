@@ -7,6 +7,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -23,7 +24,6 @@ import { useRef } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { timeLib, useFocusOnMount, WeaveGlyph } from "#lib";
-import { initialsForAttribution } from "../lib/attribution";
 
 const RECENTS_LIMIT = 8;
 const QUICK_PICKS_LIMIT = 6;
@@ -155,7 +155,7 @@ function RecentRow({ chat, onSelect }: RecentRowProps): ReactElement {
       clickable={true}
       leading={
         <Avatar size="sm" hueSeed={chat.id} fallbackDelay={0}>
-          {initialsForAttribution(title)}
+          {initialsFor(title)}
         </Avatar>
       }
       title={title}
@@ -182,7 +182,7 @@ function QuickPickRow({ character, onStartChat }: QuickPickRowProps): ReactEleme
       clickable={true}
       leading={
         <Avatar shape="square" size="sm" hueSeed={character.id} fallbackDelay={0} {...avatarSrc}>
-          {initialsForAttribution(character.name)}
+          {initialsFor(character.name)}
         </Avatar>
       }
       title={character.name}

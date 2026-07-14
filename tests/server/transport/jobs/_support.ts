@@ -53,7 +53,7 @@ export function makeRow(
 
 /** The minimal `WorkloadRunnerDeps` the worker threads through to the faked `run` (it reads only `db`+`now`;
  *  the cross-feature env/binder are unused by the driver — casts at the test edge, per the workloads harness). */
-export function makeRunnerDeps(overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
+function makeRunnerDeps(overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
   return {
     db: {} as Db,
     env: {} as WorkloadRunnerEnv,

@@ -4,11 +4,10 @@
 
 import type { GenerationType, MarkerType, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, GENERATION_TYPES, MARKER_TYPES } from "@orb/contracts/preset";
-import type { MessageRole } from "@orb/kit/message-role";
 import { MARKER_COPY } from "../components/prompt-assembly/marker-copy";
 
 /** The three section kinds the rack + inspector branch on (derived from a section, never stamped). */
-export const SECTION_KINDS = ["literal", "templatedMarker", "plainMarker"] as const;
+const SECTION_KINDS = ["literal", "templatedMarker", "plainMarker"] as const;
 type SectionKind = (typeof SECTION_KINDS)[number];
 
 /** The rack's two view modes. */
@@ -38,11 +37,6 @@ export function hasRoleField(section: PromptSection): boolean {
   return !(section.type === "marker" && section.marker === "chat_history");
 }
 
-/** A section's `role` (defaulted `system` in the schema). Non-system roles surface a U/A cue on the row. */
-export function sectionRole(section: PromptSection): MessageRole {
-  return section.role;
-}
-
 /** A `{value,label}` toggle item over a static vocabulary (the Triggers multi-toggle set). */
 interface ToggleItem {
   readonly value: string;
@@ -50,7 +44,7 @@ interface ToggleItem {
 }
 
 /** The human label per turn-type (the multi-toggle chips + the row Triggers pill). */
-export const GENERATION_TYPE_LABELS: Record<GenerationType, string> = {
+const GENERATION_TYPE_LABELS: Record<GenerationType, string> = {
   normal: "Normal",
   continue: "Continue",
   impersonate: "Impersonate",

@@ -4,7 +4,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 
-export const BUDDY_SIGNAL_KINDS = [
+const BUDDY_SIGNAL_KINDS = [
   "workload:started",
   "workload:completed",
   "workload:failed",

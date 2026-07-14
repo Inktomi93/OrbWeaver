@@ -11,18 +11,13 @@ import type {
   ThemeOverride,
   ThemeRadius,
 } from "@orb/contracts/theme";
-import { THEME_SCOPE_EMIT_VARS } from "@orb/ui/theme-scope";
+import type { ThemeColorFields } from "#lib";
+import { assignThemeColorFields } from "#lib";
 
-/** The flat form value shape (nested `userBubble{bg}` is flattened to `userBubbleBg` for a bound field). */
-export interface ThemeFormValues {
+/** The flat form value shape (nested `userBubble{bg}` is flattened to `userBubbleBg` for a bound field);
+ *  the shared palette colours come from `ThemeColorFields`. */
+export interface ThemeFormValues extends ThemeColorFields {
   readonly name: string;
-  readonly background: string;
-  readonly accent: string;
-  readonly borderColor: string;
-  readonly speaker: string;
-  readonly dialogueColor: string;
-  readonly narrationColor: string;
-  readonly bodyColor: string;
   readonly userBubbleBg: string;
   readonly aiBubbleBg: string;
   readonly systemBubbleBg: string;
@@ -82,17 +77,6 @@ export function themeFormFromEntity(theme: Theme): ThemeFormValues {
   };
 }
 
-/** An empty string ⇒ the token drops from the override so <ThemeScope> derives/inherits it. */
-const CLEARABLE_COLOR_KEYS = [
-  "background",
-  "accent",
-  "borderColor",
-  "speaker",
-  "dialogueColor",
-  "narrationColor",
-  "bodyColor",
-] as const;
-
 /** A bubble bg → `{ bg }` unless cleared (empty ⇒ omit the whole bubble so it inherits). */
 function bubbleFromBg(bg: string): { bg: string } | undefined {
   return bg.trim() === "" ? undefined : { bg };
@@ -106,11 +90,7 @@ export function themeOverrideFromForm(v: ThemeFormValues): ThemeOverride {
     chatStyle: v.chatStyle,
     density: v.density,
   };
-  for (const key of CLEARABLE_COLOR_KEYS) {
-    if (v[key].trim() !== "") {
-      o[key] = v[key];
-    }
-  }
+  assignThemeColorFields(o, v);
   const userBubble = bubbleFromBg(v.userBubbleBg);
   if (userBubble !== undefined) {
     o.userBubble = userBubble;
@@ -134,6 +114,3 @@ export function themeInputFromForm(v: ThemeFormValues): CreateThemeInput {
     css: v.css.trim() === "" ? null : v.css,
   };
 }
-
-/** The themeable CSS custom properties an author may target in the custom-CSS box — sourced from THEME_SCOPE_EMIT_VARS so the reference never drifts. */
-export const THEMEABLE_VARS: readonly string[] = THEME_SCOPE_EMIT_VARS;

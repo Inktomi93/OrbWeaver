@@ -40,6 +40,16 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     chatId: chatIdSchema,
     newHostHandle: handleSchema,
   }),
+  // A host-offline DEFERRED AI turn (chat `pending_turns`, Part III §5) that a drain PERMANENTLY dropped —
+  // delivered to the frozen `triggeredBy` member so their owed reply never silently vanishes. `reason`:
+  // `consent` (the host's D17 consent belt refused the by-proxy hosted turn) | `chat-gone` (the room is gone).
+  // A budget/transient drain outcome RE-QUEUES (no notification), so this is only the terminal-verdict path.
+  z.object({
+    type: z.literal("deferred-turn-dropped"),
+    recipientUserId: recipientUserIdSchema,
+    chatId: chatIdSchema,
+    reason: z.enum(["consent", "chat-gone"]),
+  }),
 ]);
 
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;

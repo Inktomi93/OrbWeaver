@@ -9,20 +9,16 @@ import type {
   ThemeOverride,
   ThemeRadius,
 } from "@orb/contracts/theme";
+import type { ThemeColorFields } from "#lib";
+import { assignThemeColorFields } from "#lib";
 
 /** The enum-field sentinel: this control is unset → the token inherits the parent scope. */
 export const THEME_INHERIT = "inherit";
 
 /** The flat form value shape — every field a STRING (the bound `ColorField`/`SelectField` are string-valued;
- *  colours carry "" when unset, enums carry `THEME_INHERIT`). Bubbles are flattened to `*Bg`/`*Fg`. */
-export interface CharacterThemeFormValues {
-  readonly background: string;
-  readonly accent: string;
-  readonly borderColor: string;
-  readonly speaker: string;
-  readonly dialogueColor: string;
-  readonly narrationColor: string;
-  readonly bodyColor: string;
+ *  colours carry "" when unset, enums carry `THEME_INHERIT`). Bubbles are flattened to `*Bg`/`*Fg`; the
+ *  shared palette colours come from `ThemeColorFields`. */
+export interface CharacterThemeFormValues extends ThemeColorFields {
   readonly userBubbleBg: string;
   readonly userBubbleFg: string;
   readonly aiBubbleBg: string;
@@ -110,16 +106,6 @@ export function characterThemeFormFromOverride(
   };
 }
 
-const COLOR_KEYS = [
-  "background",
-  "accent",
-  "borderColor",
-  "speaker",
-  "dialogueColor",
-  "narrationColor",
-  "bodyColor",
-] as const;
-
 function bubbleFromForm(bg: string, fg: string): { bg?: string; fg?: string } | undefined {
   const next: { bg?: string; fg?: string } = {};
   if (bg.trim() !== "") {
@@ -134,11 +120,7 @@ function bubbleFromForm(bg: string, fg: string): { bg?: string; fg?: string } | 
 /** Build the sparse `ThemeOverride` the wire carries — every sentinel field omitted; `null` when nothing is set. */
 export function overrideFromCharacterThemeForm(v: CharacterThemeFormValues): ThemeOverride | null {
   const o: ThemeOverride = {};
-  for (const key of COLOR_KEYS) {
-    if (v[key].trim() !== "") {
-      o[key] = v[key];
-    }
-  }
+  assignThemeColorFields(o, v);
   const userBubble = bubbleFromForm(v.userBubbleBg, v.userBubbleFg);
   if (userBubble !== undefined) {
     o.userBubble = userBubble;

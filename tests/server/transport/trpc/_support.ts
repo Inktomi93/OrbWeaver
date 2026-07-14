@@ -29,7 +29,7 @@ export function principal(role: UserRole, overrides: Partial<Principal> = {}): P
 }
 
 /** A rate-limit gate that always allows (the default; the rate-limit primitive is a separate slice). */
-export const allowAll: RateLimitGate = { enforce: () => Promise.resolve() };
+const allowAll: RateLimitGate = { enforce: () => Promise.resolve() };
 
 /** An inert presence registry (the default; presence's ref-count is exercised in its own slice test). */
 export const inertPresence: PresenceRegistry = {

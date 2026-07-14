@@ -11,14 +11,9 @@ import type {
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 
-export type {
-  CharacterListCursor,
-  CharacterListSort,
-  CreateCharacterInput,
-  UpdateCharacterInput,
-} from "@orb/contracts/character";
+export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
-export interface CharacterActorParams {
+interface CharacterActorParams {
   readonly principal: Principal;
 }
 

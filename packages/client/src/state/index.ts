@@ -15,6 +15,11 @@ export {
   useActiveDraftSeed,
   useActiveSessionKey,
 } from "./active-chat-store";
+export {
+  clearAnalyticsSelection,
+  selectAnalyticsCharacter,
+  useSelectedAnalyticsCharacterId,
+} from "./analytics-selection-store";
 export type { CharacterViewMode } from "./character-library-store";
 export {
   CHARACTER_VIEW_MODES,
@@ -60,6 +65,11 @@ export {
   useTurnSlot,
   useTurnSpeakerCharacterId,
 } from "./chat-stream";
+export {
+  clearCorpusSelection,
+  selectCorpusCharacter,
+  useSelectedCorpusCharacterId,
+} from "./corpus-selection-store";
 export type { EntityDraftStore, EntityDraftStoreConfig } from "./create-entity-draft-store";
 export { createEntityDraftStore } from "./create-entity-draft-store";
 export type { GatedSet, GatedStoreHook } from "./create-gated-store";

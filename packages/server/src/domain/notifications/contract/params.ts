@@ -6,7 +6,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { NotificationId } from "@orb/kit/ids";
 
-export interface NotificationActorParams {
+interface NotificationActorParams {
   readonly principal: Principal;
 }
 

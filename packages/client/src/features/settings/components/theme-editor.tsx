@@ -12,7 +12,7 @@ import type { CodeEditorDiagnostic, CodeEditorProps } from "@orb/ui/code-editor"
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { ThemeScope } from "@orb/ui/theme-scope";
+import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
@@ -25,7 +25,6 @@ import { CHAT_STYLE_ITEMS, DENSITY_ITEMS } from "../lib/appearance-select-items"
 import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
 import type { ThemeFormValues } from "../lib/theme-editor-model";
 import {
-  THEMEABLE_VARS,
   themeFormFromEntity,
   themeInputFromForm,
   themeOverrideFromForm,
@@ -209,7 +208,7 @@ function CssEditorField({
         value={value}
         onChange={onChange}
         diagnostics={diagnostics}
-        completions={THEMEABLE_VARS}
+        completions={THEME_SCOPE_EMIT_VARS}
       />
     </Suspense>
   );
@@ -223,7 +222,7 @@ function ThemeableVarsReference(): ReactElement {
         Themeable variables
       </Text>
       <Row gap="field" className="flex-wrap">
-        {THEMEABLE_VARS.map((name) => (
+        {THEME_SCOPE_EMIT_VARS.map((name) => (
           <Text
             key={name}
             as="span"

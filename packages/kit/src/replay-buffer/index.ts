@@ -8,9 +8,8 @@
 // live loop. Events may overlap between replay and live delivery — consumers' handlers are
 // idempotent by contract, so duplicates are harmless.
 //
-// Pre-lift the prune walk / delete-on-empty / TTL logic was pasted in both buses — a prune bug fix
-// had to be applied twice. The emitter, the emit guards, and WHAT gets buffered (chat excludes
-// high-volume deltas; workloads keeps progress) stay bus-owned; only the ring mechanism lives here.
+// The emitter, the emit guards, and WHAT gets buffered (chat excludes high-volume deltas; workloads
+// keeps progress) stay bus-owned; only the ring mechanism lives here.
 //
 // PURE: no I/O, no timers. The clock is injected (`now`, defaulting to `Date.now`) so the TTL/sweep
 // logic is deterministically testable without faking globals — the sweep is timestamp-gated on the

@@ -198,6 +198,19 @@
   );
 }
 
+/* Horizontal-overflow cue: a scrollable strip (e.g. a many-tab tablist too wide for a narrow panel)
+ * dissolves its TRAILING edge so the clipped items read as "more — scroll" instead of a hard cut.
+ * Trailing-only: a leading fade would dim the always-visible first item. When the content fits (no
+ * overflow), the fade sits over the strip's trailing empty space and is invisible. */
+.scroll-fade-x {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - var(--fade-edge-stop)),
+    transparent
+  );
+  mask-image: linear-gradient(to right, black calc(100% - var(--fade-edge-stop)), transparent);
+}
+
 /* Spotlight hover-follow: media-grid.tsx writes pointer position into --x/--y on the hovered cell;
  * this paints a low-alpha radial spotlight there. pointer: fine only (no touch); reduced-motion
  * drops it entirely. */

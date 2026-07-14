@@ -39,7 +39,7 @@ export function createSimilarityGraph(
 }
 
 /** The owner's character similarity graph: nodes are the highest-degree characters, edges filtered to kept nodes. */
-export async function similarityGraph(
+async function similarityGraph(
   db: Db,
   ownerId: UserId,
   opts: SimilarityGraphOptions = {},

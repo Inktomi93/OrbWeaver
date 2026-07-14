@@ -46,7 +46,7 @@ async function facetCounts(
   return rows.flatMap((r) => (r.value === null ? [] : [{ value: r.value, count: r.count }]));
 }
 
-export async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
+async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
   const [genres, tones] = await Promise.all([
     facetCounts(db, ownerId, characterSummaries.genre),
     facetCounts(db, ownerId, characterSummaries.tone),
@@ -109,8 +109,9 @@ async function comparedCard(
   };
 }
 
-/** null when the ids are equal or either card isn't distilled/owned. */
-export async function compareCharacters(
+/** null when the ids are equal or either card isn't distilled/owned. `analyze.compareCharactersDeep`
+ *  decorates this exact belt + diff via the injected `AnalyzeDeps.compareCharacters` seam (one home). */
+async function compareCharacters(
   db: Db,
   ownerId: UserId,
   idA: CharacterId,

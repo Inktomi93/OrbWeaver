@@ -1,29 +1,8 @@
 // Gate: contract-verb-presence (core/Spine-Testing.md §5) — the INTERFACE-level complement to
-// `test-presence`'s FILE-mirror rule. `test-presence` proves every `verbs/*.ts` FILE carries a mirror
-// test; it can NOT see a method that a domain's `*Service` interface DECLARES but no test ever invokes
-// (a verb wired into the contract with zero behavioral coverage — the "we add to the contract and never
-// know" hole). This gate closes it: for each `domain/<d>/contract/service.ts`, enumerate the methods of
-// every exported interface whose name ends in `Service` (both `MethodSignature` and
-// `PropertySignature`-with-FunctionType members — the codebase writes verbs as readonly arrow-typed
-// properties), and require an invocation-shaped text match (`.methodName(`) somewhere in that domain's
-// test tree `tests/server/domain/<d>/**`. Presence is grep-style over the harness project's already-loaded
-// test files — NOT a filename convention: world-info/tag organize their tests differently and are fully
-// covered, so a mirror rule would false-fire.
-//
-// WHY — the 2026-07-09 ts-morph census (docs/architecture/history/test-support-dry-punchlist.md §5) found
-// 269 Service-interface verbs, 258 (96%) invoked in tests, but 10 with ZERO invocation anywhere — the
-// replay/list spine `FINAL-Chat-Tab-Redesign-UX.md` §9 leans on among them ("wiring-verified, not
-// run-verified", now measured fact). Adding a verb with no test then FAILS `pnpm check`.
-//
-// The DEFERRED list is a RATCHET (bus-coverage.ts precedent): a listed verb that GAINS a test still passes
-// (the entry is simply stale — prune it as W1i burns the debt down); a NEW uncovered verb goes RED.
-//
-// INVOCATION SHAPE (calibrated against the real tree, NOT the audit's `.methodName(` framing — that
-// demanded a dot prefix the bare-imported-verb tests don't have and false-negatived 8 of the audit's 10):
-// a verb is COVERED when its test tree contains a boundary-anchored bare call `<verb>(` (the tests import
-// the verb factory's closure and call it directly) OR its factory `create<Pascal(verb)>(` (the buddy
-// `createResolveSpeakerIdentity(...)` shape, where the returned closure is invoked under a local alias so
-// the verb name never appears as a call). Measured zero-coverage set after this calibration: exactly 2.
+// `test-presence`'s FILE-mirror rule: it catches a method a `*Service` interface DECLARES but no test
+// ever invokes (wired into the contract with zero behavioral coverage). Enumerates every exported
+// `*Service` interface's members per `domain/<d>/contract/service.ts` and requires a boundary-anchored
+// bare call `<verb>(` or its `create<Verb>(` factory call in `tests/server/domain/<d>/**`. DEFERRED is a ratchet (bus-coverage.ts precedent).
 import type { InterfaceDeclaration, Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

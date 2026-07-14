@@ -1,4 +1,4 @@
-// verb: importChats FLAG[PD-77] — attaches loose ST chat `.jsonl` files to an EXISTING owned character
+// verb: importChats (PD-77, wired) — attaches loose ST chat `.jsonl` files to an EXISTING owned character
 // (chosen explicitly; ST chat headers don't reliably carry the character name). Translates each parsed
 // chat to `BulkImportChatInput` and delegates the write to the injected `bulkImportChats` op.
 
@@ -26,7 +26,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       chats,
     });
 
-    // FLAG[PD-78]: a chat canon-write always enqueues the downstream index sweep.
+    // PD-78 (wired): a chat canon-write always enqueues the downstream index sweep.
     if (counts.realConversationWritten) {
       await profile.enqueueBackfill({ ownerId });
     }

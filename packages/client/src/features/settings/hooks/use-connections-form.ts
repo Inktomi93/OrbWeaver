@@ -13,7 +13,7 @@ import { projectRoutingForm } from "../lib/connections-model";
 export const CONNECTIONS_ENTITY_ID = "connections-routing";
 
 /** The all-unset default, projected from the contract default routing section. */
-export const DEFAULT_ROUTING_FORM: RoutingForm = projectRoutingForm(DEFAULT_USER_SETTINGS.routing);
+const DEFAULT_ROUTING_FORM: RoutingForm = projectRoutingForm(DEFAULT_USER_SETTINGS.routing);
 
 export const useConnectionsForm = createAutosaveEntityForm<RoutingForm>({
   defaultValues: DEFAULT_ROUTING_FORM,

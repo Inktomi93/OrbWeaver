@@ -9,8 +9,6 @@
 // dialog's shape map.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
-import { Button } from "@orb/ui/button";
-import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -18,7 +16,6 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations";
 import {
@@ -34,6 +31,7 @@ import {
   scheduleFormValuesFromRow,
   workloadKindBulkSchedulable,
 } from "../lib/workloads-schedule-model";
+import { WorkloadFormDialog, WorkloadSubmitButton } from "./workload-dialog-scaffold";
 import { WorkloadParamFields } from "./workload-kind-fields";
 
 type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
@@ -59,21 +57,15 @@ export function CreateScheduleDialog({
   viewerIsOwner,
 }: CreateScheduleDialogProps): ReactElement {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup data-testid={testId("createScheduleDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Create a schedule</DialogTitle>
-          <DialogDescription>
-            Runs a background job on a recurring cadence. Each run queues automatically and shows in
-            the Jobs list.
-          </DialogDescription>
-          <ScheduleFormBody
-            viewerIsOwner={viewerIsOwner}
-            onDone={(): void => onOpenChange(false)}
-          />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <WorkloadFormDialog
+      description="Runs a background job on a recurring cadence. Each run queues automatically and shows in the Jobs list."
+      onOpenChange={onOpenChange}
+      open={open}
+      testKey="createScheduleDialog"
+      title="Create a schedule"
+    >
+      <ScheduleFormBody onDone={(): void => onOpenChange(false)} viewerIsOwner={viewerIsOwner} />
+    </WorkloadFormDialog>
   );
 }
 
@@ -84,22 +76,19 @@ export function EditScheduleDialog({
   schedule,
 }: EditScheduleDialogProps): ReactElement {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup data-testid={testId("editScheduleDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Edit schedule</DialogTitle>
-          <DialogDescription>
-            Retune this recurring job — change what it runs, its cadence, or (owner) its scope.
-            Enable and pause stay on the row switch.
-          </DialogDescription>
-          <ScheduleFormBody
-            viewerIsOwner={viewerIsOwner}
-            schedule={schedule}
-            onDone={(): void => onOpenChange(false)}
-          />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <WorkloadFormDialog
+      description="Retune this recurring job — change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
+      onOpenChange={onOpenChange}
+      open={open}
+      testKey="editScheduleDialog"
+      title="Edit schedule"
+    >
+      <ScheduleFormBody
+        onDone={(): void => onOpenChange(false)}
+        schedule={schedule}
+        viewerIsOwner={viewerIsOwner}
+      />
+    </WorkloadFormDialog>
   );
 }
 
@@ -191,18 +180,14 @@ function ScheduleFormBody({
             : "Couldn't create the schedule. Try again."}
         </Text>
       ) : null}
-      <Stack align="end">
-        <Button
-          intent="primary"
-          disabled={isPending}
-          data-testid={testId(isEdit ? "editScheduleSubmit" : "createScheduleSubmit")}
-          onClick={(): void => {
-            void form.handleSubmit();
-          }}
-        >
-          {submitLabel}
-        </Button>
-      </Stack>
+      <WorkloadSubmitButton
+        disabled={isPending}
+        label={submitLabel}
+        onSubmit={(): void => {
+          void form.handleSubmit();
+        }}
+        testKey={isEdit ? "editScheduleSubmit" : "createScheduleSubmit"}
+      />
     </Stack>
   );
 }

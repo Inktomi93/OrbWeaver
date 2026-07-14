@@ -12,5 +12,3 @@ export const ADMIN_OP_CODES = {
   cannotGrantOwner: "cannot_grant_owner",
   restartEngine: "restart_engine",
 } as const;
-
-export type AdminOpCode = (typeof ADMIN_OP_CODES)[keyof typeof ADMIN_OP_CODES];

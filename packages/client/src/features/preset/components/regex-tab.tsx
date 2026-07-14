@@ -5,16 +5,11 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
-import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-library-surface.tsx precedent).
-import { Icon, Plus } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import type { RegexScriptsFormValues } from "#components";
+import { EntryListEditor, RegexEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms";
-import { RegexEditorDialog } from "./regex-editor-dialog";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -50,54 +45,35 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
   };
 
   return (
-    <Section heading="Regex">
-      <Text size="micro" tone="muted">
-        Find/replace rules run over prompt or display text before it's used.
-      </Text>
-
-      <form.Subscribe selector={(state): readonly RegexScript[] => state.values.regexScripts}>
-        {(scripts): ReactElement => (
-          <Stack gap="field">
-            {scripts.length === 0 ? (
-              <Text size="micro" tone="muted">
-                No scripts yet.
-              </Text>
-            ) : (
-              scripts.map((script, index) => (
-                <ListRow
-                  // biome-ignore lint/suspicious/noArrayIndexKey: scripts render in array order and are edited in place — the index IS the row identity (the character-greeting-preview precedent).
-                  key={index}
-                  title={script.name === "" ? "Unnamed script" : script.name}
-                  subtitle={script.enabled ? "enabled" : "disabled"}
-                  clickable={true}
-                  onClick={(): void => setEditIndex(index)}
-                  actions={
-                    <Button
-                      intent="ghost"
-                      size="sm"
-                      onClick={(): void => {
-                        void form.removeFieldValue("regexScripts", index);
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  }
-                />
-              ))
-            )}
-            <Row>
-              <Button intent="secondary" size="sm" onClick={onAdd}>
-                <Icon icon={Plus} size="sm" />
-                Add script
-              </Button>
-            </Row>
-          </Stack>
-        )}
-      </form.Subscribe>
-
-      {editIndex === null ? null : (
-        <RegexEditorDialog form={form} index={editIndex} onClose={(): void => setEditIndex(null)} />
+    <form.Subscribe selector={(state): readonly RegexScript[] => state.values.regexScripts}>
+      {(scripts): ReactElement => (
+        <EntryListEditor
+          addLabel="Add script"
+          editIndex={editIndex}
+          emptyText="No scripts yet."
+          getSubtitle={(script): string => (script.enabled ? "enabled" : "disabled")}
+          getTitle={(script): string => (script.name === "" ? "Unnamed script" : script.name)}
+          heading="Regex"
+          helperText="Find/replace rules run over prompt or display text before it's used."
+          items={scripts}
+          onAdd={onAdd}
+          onEdit={setEditIndex}
+          onRemove={(index): void => {
+            void form.removeFieldValue("regexScripts", index);
+          }}
+          renderEditor={(index): ReactElement => (
+            // The shared dialog binds only `regexScripts[*]`, which PromptConfig carries; TanStack form
+            // instances are invariant in their value type, so narrowing this PromptConfig form to the
+            // dialog's minimal `RegexScriptsFormValues` shape needs one cast (a library-invariance escape,
+            // never an Id launder — runtime-identical, the field paths exist).
+            <RegexEditorDialog
+              form={form as unknown as AppFormInstance<RegexScriptsFormValues>}
+              index={index}
+              onClose={(): void => setEditIndex(null)}
+            />
+          )}
+        />
       )}
-    </Section>
+    </form.Subscribe>
   );
 }

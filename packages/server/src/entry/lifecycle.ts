@@ -144,6 +144,7 @@ export function createLifecycle(): Lifecycle {
       casDir: env.ASSETS_DIR,
       variantDir: join(dirname(env.ASSETS_DIR), "variants"),
       ...(env.IMPORT_STAGING_DIR !== undefined ? { importStagingDir: env.IMPORT_STAGING_DIR } : {}),
+      ...(env.ST_PROFILE_DIR !== undefined ? { stProfileDir: env.ST_PROFILE_DIR } : {}),
       sessionSecret: env.SESSION_SECRET ?? null,
       vllmDisabled,
       repoRoot: process.cwd(),
@@ -177,6 +178,14 @@ export function createLifecycle(): Lifecycle {
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
     await seedDefaultPersona({ seeder: built.personaSeeder, owner });
     await reclaimLocksOnBoot({ db, now, holder });
+
+    // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
+    // re-validated in-lock) or is dropped. Fire-and-forget — the drain does real generation, so it must
+    // NOT block boot/listen; its own log reports ran/dropped and one row's fault can't abort the sweep.
+    void built.services.chat
+      .drainDeferredTurns({ all: true })
+      .then((report) => log.info(report, "boot: drained deferred turns (pending_turns reclaim)"))
+      .catch((err: unknown) => log.error({ err }, "boot: deferred-turn drain failed"));
 
     if (built.vllmEngine !== null) {
       drainVllm = built.vllmEngine.start();

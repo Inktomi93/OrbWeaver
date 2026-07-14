@@ -7,14 +7,6 @@
 
 import type { TagWithUsage, UpdateTagInput } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ColorField } from "@orb/ui/color-field";
@@ -28,6 +20,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import {
   useMergeTags,
@@ -107,29 +100,14 @@ export function TagSettingsRow({
         </Button>
       </Row>
 
-      <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>{`Delete "${tag.name}"?`}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {`This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`}
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button
-                    intent="destructive"
-                    onClick={(): void => remove.mutate({ tagId: tag.id })}
-                  >
-                    Delete
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        confirmLabel="Delete"
+        description={`This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`}
+        onConfirm={(): void => remove.mutate({ tagId: tag.id })}
+        onOpenChange={setDeleteOpen}
+        open={deleteOpen}
+        title={`Delete "${tag.name}"?`}
+      />
     </Stack>
   );
 }

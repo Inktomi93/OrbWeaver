@@ -18,7 +18,7 @@ import type { MemoryScope } from "../../../../../packages/server/src/domain/chat
 import { seedMessage } from "../_support";
 
 export const MODEL = "test-embed-1024";
-export const DIM = 1024;
+const DIM = 1024;
 
 /** The synthetic group-as-character id (`scopedCharacterId` for the shared bucket — inv 8, no `''` sentinel).
  *  A FK-valid character row must be seeded (`seedCharacter(db, owner, "group")`) before seeding shared digests. */

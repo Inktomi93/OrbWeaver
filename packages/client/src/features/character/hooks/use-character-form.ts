@@ -9,7 +9,7 @@ import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import { DEFAULT_CHARACTER_CARD_FORM } from "../lib/character-card-form-model";
 
 /** The per-character card-editor DRAFT mirror (device-local crash-survival; §13.4 obligation-5). */
-export const characterCardDraftStore = createEntityDraftStore<CharacterCardFormValues>({
+const characterCardDraftStore = createEntityDraftStore<CharacterCardFormValues>({
   name: "character-card-draft",
 });
 

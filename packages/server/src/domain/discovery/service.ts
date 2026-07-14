@@ -21,6 +21,7 @@ import { createImageAnalyticsRetrieve } from "./image-analytics/retrieve";
 import { backfillMsgMidAt } from "./themes/backfill";
 import { computeThemes as runComputeThemes } from "./themes/generate";
 import { readThemes } from "./themes/retrieve";
+import { createAnalyze } from "./verbs/analyze";
 import { createArchetypes } from "./verbs/archetypes";
 import { createBrowse } from "./verbs/browse";
 import { createCatalog } from "./verbs/catalog";
@@ -31,6 +32,7 @@ import { createInsights } from "./verbs/insights";
 import { createProjection } from "./verbs/projection";
 import { createSimilarChats } from "./verbs/similar-chats";
 import { createSimilarityGraph } from "./verbs/similarity-graph";
+import { createSwipes } from "./verbs/swipes";
 import { createViews } from "./verbs/views";
 
 export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService {
@@ -43,6 +45,8 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     newDuplicateChatPairId: ctx.newDuplicateChatPairId,
   };
   // Composed views compose sibling-subsystem reads — injected here (the verb may not import a subsystem).
+  // `similar` is the one CROSS-domain member — search's `similarCharacters`, narrowed to DossierNeighbor at
+  // the entry root and threaded in via `ctx.similar` (discovery holds no search runtime).
   const viewsDeps: ViewsDeps = {
     themes: (userId: UserId, level?: ThemeLevel): Promise<ThemeRow[]> =>
       readThemes(ctx.db, userId, level),
@@ -50,11 +54,16 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
       readDuplicateCharacters(ctx.db, userId),
     duplicateChats: (userId: UserId, opts?): Promise<DuplicateChatPair[]> =>
       readDuplicateChats(ctx.db, userId, opts),
+    similar: ctx.similar,
   };
+  // catalog is built once so its `compareCharacters` can be injected into analyze (verb-to-verb value deps
+  // are wired explicitly here, never sideways-imported; domain-no-cross-verb).
+  const catalog = createCatalog(ctx);
   const themeDeps = {
     now: ctx.now,
     newThemeClusterId: ctx.newThemeClusterId,
     summarize: ctx.summarize,
+    tier0RangeOf: ctx.tier0RangeOf,
   };
   const coocDeps = {
     now: ctx.now,
@@ -70,7 +79,9 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     ...createBrowse(ctx),
     ...createArchetypes(ctx),
     ...createProjection(ctx),
-    ...createCatalog(ctx),
+    ...catalog,
+    ...createAnalyze(ctx, { compareCharacters: catalog.compareCharacters }),
+    ...createSwipes(ctx),
     ...createImageAnalyticsRetrieve(ctx),
     ...createImageAnalyticsFacets(ctx),
     ...createSimilarityGraph(ctx),
@@ -78,7 +89,7 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     ...createViews(ctx, viewsDeps),
     computeThemes: (opts) => runComputeThemes(ctx.db, themeDeps, opts),
     themes: (userId, level) => readThemes(ctx.db, userId, level),
-    backfillDigestStoryTime: (ownerId) => backfillMsgMidAt(ctx.db, ownerId),
+    backfillDigestStoryTime: (ownerId) => backfillMsgMidAt(ctx.db, ctx.tier0RangeOf, ownerId),
     ...createInsights(ctx),
     ...createEconomicsInsights(ctx),
     computeCooccurrence: (opts) => runComputeCooccurrence(ctx.db, coocDeps, opts),

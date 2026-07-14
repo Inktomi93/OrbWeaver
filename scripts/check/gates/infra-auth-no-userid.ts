@@ -1,11 +1,8 @@
-// Gate: infra-auth-no-userid (D40 the identity-resolution invariant). `infra/auth` VERIFIES a request's
-// headers into a pre-row `ResolvedIdentity` (externalId/handle/groups) — it must NEVER yield a `userId`.
-// Identity→row resolution is a DOMAIN step (`sessions.validate`/`provisionIdentity`); the immutable
-// `Principal` is constructed ONCE at the `entry/auth/seam`. A `userId` identifier appearing under
-// `infra/auth/**` is the neo tier-collapse reborn (the cookie path re-querying / "validate threw the id
-// away") — RED. AST identifiers only: the many `// NO userId` invariant comments + string literals that
-// mention the term are exempt (they DOCUMENT the ban). Mirrors the no-caller-user-id mechanic (a name tsc
-// cannot catch because it's newly introduced, not a type error).
+// Gate: infra-auth-no-userid (D40 identity-resolution invariant). `infra/auth` verifies a request's
+// headers into a pre-row `ResolvedIdentity` — it must never yield a `userId`; identity→row resolution
+// is a DOMAIN step (`sessions.validate`/`provisionIdentity`), and `Principal` is constructed once at
+// entry/auth/seam. A `userId` identifier under infra/auth/** is the neo tier-collapse reborn — RED. AST
+// identifiers only: `// NO userId` comments and string literals documenting the ban are exempt.
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

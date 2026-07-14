@@ -5,7 +5,7 @@
 import type {
   AgentSdkModel,
   ChatApi,
-  ChatSource,
+  CredentialSource,
   ModelCapability,
   Range,
 } from "@orb/contracts/connection";
@@ -194,7 +194,7 @@ function withCuratedTurns(
  *  curated lookup runs first, otherwise dispatch is exhaustive on `source`. */
 export function resolveModelCapability(
   model: ModelId | string,
-  source: ChatSource,
+  source: CredentialSource,
   api: ChatApi,
   caches?: {
     readonly orEntry?:

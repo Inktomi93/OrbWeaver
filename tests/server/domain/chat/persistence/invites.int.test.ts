@@ -6,18 +6,19 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   acceptInviteByIdAtomic,
+  claimPendingTurn,
   countPresentMembers,
-  createInvite,
-  declineInvite,
   declineInviteById,
-  deletePendingTurn,
   findInviteById,
   findInviteByTokenHash,
+  insertInvite,
+  insertPendingTurn,
   listInvitesForChat,
   loadPendingTurns,
+  loadPendingTurnsForHost,
   loadPendingTurnsForReclaim,
   redeemInviteAtomic,
-  revokeInvite,
+  revokeInviteById,
 } from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
@@ -43,7 +44,7 @@ async function seedInvite(
   overrides: { readonly maxUses?: number | null; readonly expiresAt?: number | null } = {},
 ): Promise<string> {
   const tokenHash = `hash_${key}`;
-  await createInvite(db_, {
+  await insertInvite(db_, {
     id: castId<ChatInviteId>(`chat_invite_${key}`),
     chatId,
     tokenHash,
@@ -55,7 +56,7 @@ async function seedInvite(
 }
 
 describe("persistence/invites — reads + lifecycle", () => {
-  test("createInvite + findInviteByTokenHash round-trips by hash (never raw token)", async () => {
+  test("insertInvite + findInviteByTokenHash round-trips by hash (never raw token)", async () => {
     const chatId = await seedChat(db, "a");
     const hash = await seedInvite(db, chatId, "i", { maxUses: 3 });
     const found = await findInviteByTokenHash(db, hash);
@@ -80,20 +81,13 @@ describe("persistence/invites — reads + lifecycle", () => {
     expect(await listInvitesForChat(db, chatId)).toHaveLength(2);
   });
 
-  test("revokeInvite flips a pending invite once", async () => {
+  test("revokeInviteById flips a pending invite once", async () => {
     const chatId = await seedChat(db, "a");
     await seedInvite(db, chatId, "i");
     const inviteId = castId<ChatInviteId>("chat_invite_i");
-    expect(await revokeInvite(db, inviteId, chatId)).toBe(true);
-    expect(await revokeInvite(db, inviteId, chatId)).toBe(false);
+    expect(await revokeInviteById(db, inviteId, chatId)).toBe(true);
+    expect(await revokeInviteById(db, inviteId, chatId)).toBe(false);
     expect((await findInviteByTokenHash(db, "hash_i"))?.status).toBe("revoked");
-  });
-
-  test("declineInvite flips a pending invite by token hash once", async () => {
-    const chatId = await seedChat(db, "a");
-    const hash = await seedInvite(db, chatId, "i");
-    expect(await declineInvite(db, hash)).toBe(true);
-    expect(await declineInvite(db, hash)).toBe(false);
   });
 
   test("declineInviteById flips ONLY the caller's own pending targeted invite (PD-67)", async () => {
@@ -334,8 +328,51 @@ describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () 
       castId<PendingTurnId>("pending_turn_p2"),
     ]);
 
-    await deletePendingTurn(db, castId<PendingTurnId>("pending_turn_p1"));
+    // The atomic claim deletes AND returns the winning row (the drain's exactly-once serializer).
+    const claimed = await claimPendingTurn(db, castId<PendingTurnId>("pending_turn_p1"));
+    expect(claimed?.id).toBe(castId<PendingTurnId>("pending_turn_p1"));
+    // A second claim of the same id finds nothing (a concurrent drain would skip).
+    expect(await claimPendingTurn(db, castId<PendingTurnId>("pending_turn_p1"))).toBeUndefined();
     expect(await loadPendingTurns(db, chatA)).toHaveLength(1);
     expect(await loadPendingTurnsForReclaim(db)).toHaveLength(2);
+  });
+
+  test("insert round-trips; the by-host load scopes to the funding host (run-as user)", async () => {
+    const trigger = await seedUser(db, "trig");
+    const hostA = await seedUser(db, "hostA");
+    const hostB = await seedUser(db, "hostB");
+    const chatA = await seedChat(db, "a");
+    const chatB = await seedChat(db, "b");
+    // Two turns funded by hostA (across two chats) + one funded by hostB.
+    await insertPendingTurn(db, {
+      id: castId<PendingTurnId>("pending_turn_a1"),
+      chatId: chatA,
+      triggeredBy: trigger,
+      runAsUserId: hostA,
+      createdAt: 1,
+    });
+    await insertPendingTurn(db, {
+      id: castId<PendingTurnId>("pending_turn_a2"),
+      chatId: chatB,
+      triggeredBy: trigger,
+      runAsUserId: hostA,
+      createdAt: 2,
+    });
+    await insertPendingTurn(db, {
+      id: castId<PendingTurnId>("pending_turn_b1"),
+      chatId: chatB,
+      triggeredBy: trigger,
+      runAsUserId: hostB,
+      createdAt: 3,
+    });
+
+    // hostA's return drains their two turns only (oldest-first, across chats); hostB's stays queued.
+    const forHostA = await loadPendingTurnsForHost(db, hostA);
+    expect(forHostA.map((p) => p.id)).toStrictEqual([
+      castId<PendingTurnId>("pending_turn_a1"),
+      castId<PendingTurnId>("pending_turn_a2"),
+    ]);
+    expect(await loadPendingTurnsForHost(db, hostB)).toHaveLength(1);
+    expect(await loadPendingTurnsForReclaim(db)).toHaveLength(3);
   });
 });

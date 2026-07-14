@@ -1,0 +1,13 @@
+ - [1m[32mclient/src/features/app-shell/surfaces/shell.css[39m[22m [187:43 - 197:68] (11 lines, 78 tokens)
+ - [1m[32mclient/src/features/app-shell/surfaces/shell.css[39m[22m [270:21 - 277:40] (8 lines, 60 tokens)
+   client/src/features/app-shell/surfaces/shell.css [298:15 - 305:40]
+ - [1m[32mclient/src/features/app-shell/surfaces/shell.css[39m[22m [411:3 - 418:4] (8 lines, 90 tokens)
+   client/src/styles/globals.css [115:3 - 122:4]
+ - [1m[32mclient/src/features/character/lib/filter-characters.ts[39m[22m [16:63 - 25:14] (10 lines, 53 tokens)
+   client/src/features/chat/lib/filter-chats.ts [18:53 - 27:14]
+ - [1m[32mclient/src/features/preset/lib/preset-nav.ts[39m[22m [108:1 - 116:5] (9 lines, 57 tokens)
+   client/src/lib/message-role-labels.ts [10:8 - 19:5]
+ - [1m[32mclient/src/styles/globals.css[39m[22m [54:39 - 61:4] (8 lines, 55 tokens)
+   client/src/styles/globals.css [62:51 - 69:4]
+ - [1m[32mclient/src/styles/globals.css[39m[22m [171:31 - 178:2] (8 lines, 78 tokens)
+   client/src/styles/globals.css [179:43 - 186:2]

@@ -6,7 +6,7 @@ import type { GifImportParams, GifSearchParams } from "@orb/contracts/hub";
 import type { Principal } from "@orb/contracts/identity";
 
 /** Common to every hub verb: the acting principal (`principal.userId` scopes the credential + ownership). */
-export interface HubActorParams {
+interface HubActorParams {
   readonly principal: Principal;
 }
 

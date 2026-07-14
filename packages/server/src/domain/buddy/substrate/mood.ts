@@ -41,7 +41,7 @@ export function decayMood(mood: Mood, lastReactionAt: number | null, now: number
   return now - lastReactionAt > MOOD_DECAY_MS ? "content" : mood;
 }
 
-export const MOOD_HOLD_MS = 120_000;
+const MOOD_HOLD_MS = 120_000;
 
 /** A higher-or-equal priority candidate always wins; a lower one is held off while current is fresh
  *  (a failure's anxious survives a routine content a moment later) and accepted once stale. */

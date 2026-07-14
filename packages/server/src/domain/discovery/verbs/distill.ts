@@ -32,7 +32,7 @@ export function createDistill(ctx: DiscoveryContext): DiscoveryService["distillC
 }
 
 /** @internal — the genre grammar enum (barrel re-export is internal to discovery/). */
-export const GENRES = [
+const GENRES = [
   "fantasy",
   "science-fiction",
   "modern",
@@ -49,7 +49,7 @@ export const GENRES = [
 ] as const;
 
 /** @internal — the tone grammar enum (barrel re-export is internal to discovery/). */
-export const TONES = [
+const TONES = [
   "dark",
   "lighthearted",
   "romantic",
@@ -63,7 +63,7 @@ export const TONES = [
 ] as const;
 
 /** @internal — JSON-schema grammar driver for the distill pass. */
-export const CHARACTER_DISTILL_SCHEMA = {
+const CHARACTER_DISTILL_SCHEMA = {
   type: "object",
   properties: {
     genre: { enum: [...GENRES] },
@@ -109,7 +109,7 @@ interface StagedLabel {
  * whole-library batch. Returns the pass summary. Exported standalone (the `distill-characters` workload runner
  * + the service factory both call it) — the factory thin-wraps it with `ctx`'s injected deps.
  */
-export async function distillCharacters(
+async function distillCharacters(
   db: Db,
   deps: DistillCharactersDeps,
   opts: DistillCharactersOptions = {},
@@ -262,7 +262,7 @@ function upsertSummary(
 
 /** @internal — parse ONE distillation reply into facets (tolerant JSON slice), or `null` (a null result =
  *  the pass counts the character `failed`). Consumed by {@link distillCharacters} + the co-located test. */
-export function parseDistill(raw: string): CharacterDistillation | null {
+function parseDistill(raw: string): CharacterDistillation | null {
   const obj = sliceJsonObject(raw);
   if (obj === null) {
     return null;

@@ -1,4 +1,4 @@
-// CT: <StatFigure> — big-number + optional sparkline (ui-package-design §9 v1 corpus-viz set).
+// CT: <StatFigure> — big-number + optional sparkline.
 // Covers the bare number+delta mode (no chart mounts) and the delta's non-color glyph +
 // intent-token color pairing (real DOM/CSS, fine to assert here). The sparkline's TOKENS-sourced
 // line color is asserted on the pure `buildSparklineOption` builder in stat-figure.test.ts — see

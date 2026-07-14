@@ -114,7 +114,7 @@ export async function seedChat(
   return id;
 }
 
-export interface VariantSeed {
+interface VariantSeed {
   content?: string;
   model?: string | null;
   provider?: string | null;

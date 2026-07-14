@@ -1,10 +1,8 @@
 // Gate: bus-coverage (ledger D50) — the ChatBusEvent emit-coverage ratchet. The union is
 // compile-exhaustive on the CONSUMER side, but nothing checked the PRODUCER side — a member can be
 // declared, replay-guarded, reduced, and never emitted (silently dead wire). Every discriminator in
-// `CHAT_BUS_EVENT_TYPES` must have a server-side emit site OR a cited DEFERRED entry.
-//
-// The DEFERRED map is a ratchet, self-cleaning in both directions: a member that loses its emit site
-// goes RED (regression), and a DEFERRED member that gains one goes RED too (stale allowlist entry).
+// `CHAT_BUS_EVENT_TYPES` must have a server-side emit site OR a cited DEFERRED entry. DEFERRED is a
+// ratchet, self-cleaning in both directions (a lost emit site or a gained one on a deferred member is RED).
 import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -19,7 +17,7 @@ const TYPES_CONST = "CHAT_BUS_EVENT_TYPES";
 const DEFERRED: Record<string, string> = {
   // biome-ignore lint/security/noSecrets: a citation string (a code path), not a secret.
   chatOpened: "stream-attach synthesis unbuilt — see the FLAG comment in verbs/start-chat.ts",
-  historyTruncated: "retained-window synthesis unbuilt (Tier-4 doc overstates — doc-truth gap)",
+  historyTruncated: "retained-window synthesis unbuilt",
   expression:
     "classify emit site unbuilt — the member rides the baseline (union↔chat_events CHECK mirror); the emit lands with expressions E3 (expressions-design/02 §4; the chatOpened precedent)",
 };

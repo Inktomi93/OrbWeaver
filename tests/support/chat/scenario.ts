@@ -116,7 +116,7 @@ export interface ChatScenarioOptions {
     readonly anchor: AssemblePersona | null;
     readonly active: AssemblePersona | null;
   };
-  /** The host-global regex tier (FOREIGN — `UserSettings.regexScripts`). Default none. */
+  /** The host-global regex tier (FOREIGN — `UserSettings.regex.scripts`). Default none. */
   readonly hostRegexScripts?: readonly RegexScript[];
   /** The WI keyword-scan window (FOREIGN). Default 6. */
   readonly scanDepth?: number;

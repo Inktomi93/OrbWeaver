@@ -1,11 +1,8 @@
 // Gate: content-part-seam (D51 — the multimodal content-part shape is threaded at the engine WIRE SEAM,
-// content stays a `string` everywhere upstream). `ChatContentPart` (home: `@orb/contracts/chat`) is
-// PRODUCED exactly once — at the engine request seam (`domain/chat/engine/pipeline.ts`, where each shaped
-// string row is tokenized → image refs resolved → parts) — and CONSUMED only by `infra/providers/**` (the
-// sealed runners mapping parts onto each backend's wire). Everything upstream (assemble/shape, verbs, the
-// rest of `domain/chat`, transport) stays `content: string` — the wasteful "content-parts everywhere"
-// retrofit D51 explicitly avoids. Enforced as the sanctioned-importer allowlist on the symbol: a
-// `ChatContentPart` import from a file outside the seam set is RED (an upstream module reaching for parts).
+// content stays a `string` everywhere upstream). `ChatContentPart` is produced exactly once (at
+// domain/chat/engine/pipeline.ts) and consumed only by infra/providers/** (the sealed runners). Everything
+// else stays `content: string`. Enforced as a sanctioned-importer allowlist on the symbol: a
+// `ChatContentPart` import from a file outside the seam set is RED.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

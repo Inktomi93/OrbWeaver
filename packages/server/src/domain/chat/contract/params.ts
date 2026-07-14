@@ -29,23 +29,23 @@ import type {
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** Common to every chat verb: the acting principal. */
-export interface ChatActorParams {
+interface ChatActorParams {
   readonly principal: Principal;
 }
 
 /** The common chatId-scoped base — requireParticipant/requireHost resolves against (principal, chatId). */
-export interface ChatScopedParams extends ChatActorParams {
+interface ChatScopedParams extends ChatActorParams {
   readonly chatId: ChatId;
 }
 
 /** A message-scoped base (canon edits/variant operations). */
-export interface MessageScopedParams extends ChatScopedParams {
+interface MessageScopedParams extends ChatScopedParams {
   readonly messageId: MessageId;
 }
 
 /** A one-turn typed steer. `placement` defaults to the system marker; the `inject` arm is for an action
  *  that must read as an in-character turn. Untrusted `input` is macro-neutralized downstream. */
-export type GuidedPlacement =
+type GuidedPlacement =
   | { readonly kind: "system" }
   | { readonly kind: "inject"; readonly role: MessageRole };
 

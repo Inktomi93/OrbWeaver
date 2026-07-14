@@ -16,7 +16,7 @@ import type {
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 
-export const FROZEN_AT = FROZEN_AT_MS;
+const FROZEN_AT = FROZEN_AT_MS;
 
 export interface ToolUseHarness {
   readonly ctx: ToolUseContext;
@@ -45,7 +45,7 @@ export function makeHarness(): ToolUseHarness {
   };
 }
 
-export function principalOf(handle: string): Principal {
+function principalOf(handle: string): Principal {
   return makePrincipal(castId(`user_${handle}`), { handle: castId(handle) });
 }
 

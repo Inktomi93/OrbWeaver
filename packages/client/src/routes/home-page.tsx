@@ -40,6 +40,17 @@ import {
   NewChatPicker,
   readJoinToken,
 } from "#features/chat";
+import {
+  CorpusArchetypesTab,
+  CorpusCompareTab,
+  CorpusDossierSurface,
+  CorpusHomeSurface,
+  CorpusListAnchor,
+  CorpusListSurface,
+  CorpusMapTab,
+  CorpusSimilarityTab,
+  CorpusVisualsTab,
+} from "#features/discovery";
 import { NotificationBell } from "#features/notifications";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
 import {
@@ -52,6 +63,15 @@ import {
 } from "#features/preset";
 import { ImportOnboardingCard, SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
+  AnalyticsCharacterSurface,
+  AnalyticsListAnchor,
+  AnalyticsListSurface,
+  AnalyticsModelsTab,
+  AnalyticsOverviewSurface,
+  AnalyticsPersonasTab,
+  AnalyticsTimeTab,
+} from "#features/stats";
+import {
   BookAttachments,
   WorldInfoEditorSurface,
   WorldInfoLibraryAnchor,
@@ -60,6 +80,8 @@ import {
 } from "#features/world-info";
 import {
   chatStream,
+  clearAnalyticsSelection,
+  clearCorpusSelection,
   clearPresetSection,
   commitDraft,
   goToLanding,
@@ -78,7 +100,9 @@ import {
   useActiveDraftSeed,
   useActiveSection,
   useActiveSessionKey,
+  useSelectedAnalyticsCharacterId,
   useSelectedCharacterId,
+  useSelectedCorpusCharacterId,
   useSelectedPresetId,
   useSelectedWorldBookId,
 } from "#state";
@@ -121,6 +145,8 @@ export function HomePage(): ReactElement {
   // "Recent chats" to avoid duplicating it.
   const shellLayout = useShellLayout();
   const selectedCharacterId = useSelectedCharacterId();
+  const selectedCorpusCharacterId = useSelectedCorpusCharacterId();
+  const selectedAnalyticsCharacterId = useSelectedAnalyticsCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
   const isMobile = useIsMobileViewport();
   const revealSectionInspector = (): void => {
@@ -299,6 +325,64 @@ export function HomePage(): ReactElement {
                   }}
                 />
               ),
+          },
+          corpus: {
+            list: (
+              <CorpusListAnchor>
+                <CorpusListSurface />
+              </CorpusListAnchor>
+            ),
+            // Nothing selected shows the corpus overview; a selected character shows its dossier.
+            content:
+              selectedCorpusCharacterId === null ? (
+                <CorpusHomeSurface />
+              ) : (
+                <CorpusDossierSurface
+                  characterId={selectedCorpusCharacterId}
+                  onBack={clearCorpusSelection}
+                />
+              ),
+            // Four analytics tabs, always available: Archetypes / Map / Similarity / Compare.
+            context: (
+              <ContextTabsPanel
+                section="corpus"
+                bodies={{
+                  archetypes: <CorpusArchetypesTab />,
+                  visuals: <CorpusVisualsTab />,
+                  map: <CorpusMapTab />,
+                  similarity: <CorpusSimilarityTab />,
+                  compare: <CorpusCompareTab />,
+                }}
+              />
+            ),
+          },
+          analytics: {
+            list: (
+              <AnalyticsListAnchor>
+                <AnalyticsListSurface />
+              </AnalyticsListAnchor>
+            ),
+            // Nothing drilled shows the overview dashboard; a leaderboard row shows that character's stats.
+            content:
+              selectedAnalyticsCharacterId === null ? (
+                <AnalyticsOverviewSurface />
+              ) : (
+                <AnalyticsCharacterSurface
+                  characterId={selectedAnalyticsCharacterId}
+                  onBack={clearAnalyticsSelection}
+                />
+              ),
+            // Three owner-scoped dimension tabs, always available: Models / Time / Personas.
+            context: (
+              <ContextTabsPanel
+                section="analytics"
+                bodies={{
+                  models: <AnalyticsModelsTab />,
+                  time: <AnalyticsTimeTab />,
+                  personas: <AnalyticsPersonasTab />,
+                }}
+              />
+            ),
           },
           presets: {
             list: (

@@ -30,7 +30,7 @@ export function createInsights(
 }
 
 /** Month bucket derives from the digest's msgMidAt; assignments without a stamp are skipped. */
-export async function themeDrift(
+async function themeDrift(
   db: Db,
   ownerId: UserId,
   level: ThemeLevel = "scene",
@@ -72,7 +72,7 @@ export async function themeDrift(
   }));
 }
 
-export async function unusedCharacters(db: Db, ownerId: UserId): Promise<UnusedCharacter[]> {
+async function unusedCharacters(db: Db, ownerId: UserId): Promise<UnusedCharacter[]> {
   const rows = await db
     .select({
       characterId: characters.id,

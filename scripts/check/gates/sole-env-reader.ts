@@ -1,10 +1,8 @@
-// Gate: sole-env-reader (core/Tier-2-Foundation.md invariant #1, Core-Laws-and-Precedents.md) — `foundation/env` is the ONE
-// place that touches `process.env`. Every other tier imports the frozen `env` object and dot-accesses a
-// typed key. biome's `noProcessEnv` (scoped-off only for foundation/env) already catches the property form
-// `process.env.X`; this gate is the AST backstop that ALSO catches the bracket trick `process["env"]`
-// (which biome's global rule can miss) and reads only real access nodes — comments naming `process.env`
-// (e.g. the agent-sdk firewall docs) are ignored. `domain/sessions`' sanctioned call-time reads are
-// allowlisted below (foundation.md inv #1).
+// Gate: sole-env-reader (Tier-2-Foundation.md invariant #1) — `foundation/env` is the ONE place that
+// touches `process.env`; every other tier imports the frozen `env` object. biome's `noProcessEnv`
+// already catches `process.env.X`; this gate is the AST backstop that also catches the bracket trick
+// `process["env"]` and reads only real access nodes (comments naming process.env are ignored).
+// `domain/sessions`' sanctioned call-time reads are allowlisted below.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

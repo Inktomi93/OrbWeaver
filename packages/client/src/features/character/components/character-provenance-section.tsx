@@ -17,7 +17,7 @@ const StatFigure = lazy(async () => {
 }) as (props: StatFigureProps) => ReactElement;
 
 /** The derived refinery signals (a numeric quality score + an opaque analysis blob), or null. */
-export interface CharacterRefinery {
+interface CharacterRefinery {
   readonly score: number | null;
   readonly analysis: Record<string, unknown> | null;
 }

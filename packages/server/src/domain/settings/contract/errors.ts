@@ -14,8 +14,6 @@ export const SETTINGS_OP_CODES = {
   unsafeCss: "unsafe_css",
 } as const;
 
-export type SettingsOpCode = (typeof SETTINGS_OP_CODES)[keyof typeof SETTINGS_OP_CODES];
-
 /** A theme the caller may read/own does not exist (or is not theirs, or is a seed on a write verb). Maps to
  *  tRPC NOT_FOUND. */
 export class ThemeNotFoundError extends DomainNotFoundError {

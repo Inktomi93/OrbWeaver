@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 import { AdminSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/admin-settings-surface";
 import { AppearanceSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/appearance-settings-surface";
 import { BackupSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/backup-settings-surface";
+import { RegexSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/regex-settings-surface";
 import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
 import { TagsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/tags-settings-surface";
 import { WorkloadsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/workloads-settings-surface";
@@ -84,6 +85,18 @@ export function AppearanceSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
         <AppearanceSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The real Regex settings pane (owner-global scripts) in isolation — `getUserSettings` (read) and
+ *  `updateUserSettingsSection("regex")` (the autosave write) are stubbed per-test via routeTrpc. */
+export function RegexSettingsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 560, overflow: "auto", width: 720 }}>
+        <RegexSettingsSurface />
       </div>
     </CtDataProviders>
   );

@@ -20,7 +20,7 @@ export type {
   UpdateEntryInput,
 } from "@orb/contracts/world-info";
 
-export interface WorldInfoActorParams {
+interface WorldInfoActorParams {
   readonly principal: Principal;
 }
 

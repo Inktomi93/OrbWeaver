@@ -1,9 +1,14 @@
 // domain/connection/contract/params — every verb's *Params, declared ONCE (§7.4). The acting `principal`
 // (resolved at the entry seam) scopes the user's routing settings; connection NEVER reads the `users`
-// table (no-direct-users-read). The cross-boundary input shapes (`RoutableChat`, the `ChatApi`/`ChatSource`
+// table (no-direct-users-read). The cross-boundary input shapes (`RouteChatAssignment`, the `ChatApi`/`CredentialSource`
 // axes, `RoutingRoleKey`) live in `@orb/contracts/connection`; the verb param wrappers live here.
 
-import type { ChatApi, ChatSource, RoutableChat, RoutingRoleKey } from "@orb/contracts/connection";
+import type {
+  ChatApi,
+  CredentialSource,
+  RouteChatAssignment,
+  RoutingRoleKey,
+} from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { ModelId } from "@orb/kit/ids";
 
@@ -14,7 +19,7 @@ import type { ModelId } from "@orb/kit/ids";
  */
 export interface AgentOverride {
   readonly api?: ChatApi | undefined;
-  readonly source?: ChatSource | undefined;
+  readonly source?: CredentialSource | undefined;
   readonly model?: string | null | undefined;
 }
 
@@ -32,7 +37,7 @@ export interface ResolveRoleParams {
  *  model heal then yield the resolved connection. */
 export interface ResolveChatParams {
   readonly principal: Principal;
-  readonly routableChat: RoutableChat;
+  readonly routableChat: RouteChatAssignment;
 }
 
 /** `getModelCapability(params)` — resolve the ONE descriptor for a `(model, source, api)` (feeds the params
@@ -40,7 +45,7 @@ export interface ResolveChatParams {
  *  `api` drives the wire-shape the `turns` cell keys on (D66, part 01 §3). */
 export interface GetModelCapabilityParams {
   readonly model: ModelId | string;
-  readonly source: ChatSource;
+  readonly source: CredentialSource;
   readonly api: ChatApi;
 }
 
@@ -50,7 +55,7 @@ export interface GetModelCapabilityParams {
  *  `role` selects which config/default the vllm/local-light/custom arms surface. */
 export interface GetModelsForSourceParams {
   readonly principal: Principal;
-  readonly source: ChatSource;
+  readonly source: CredentialSource;
   readonly role: RoutingRoleKey;
 }
 

@@ -23,6 +23,7 @@ import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
 import type { InboxView, NotificationsService } from "#domain/notifications";
+import { getLog } from "#foundation/observability";
 import { subscribeNotifications } from "../notifications-bus";
 import { withSubscriptionErrors } from "../subscriptions";
 import { multiHumanProcedure, t } from "../trpc";
@@ -75,7 +76,22 @@ export const notificationsRouter = t.router({
       const sig = signal ?? new AbortController().signal;
       // Presence (PD-70): the per-user notifications stream IS the device-liveness signal — every device holds
       // one, so ref-count this connection (released on `sig` abort) and cast-gating sees the user as present.
+      const wasOnline = ctx.presence.read(ctx.auth.userId).online;
       ctx.presence.connect(ctx.auth.userId, sig);
+      // Host-return drain (chat Part III §5): when a genuinely-offline host reconnects, reclaim the AI turns
+      // that DEFERRED onto their box while it was dark. Only on the offline→online edge (not a within-grace
+      // reconnect or a second device). Fire-and-forget — real generation must not block the subscribe, and an
+      // empty queue is a cheap no-op.
+      if (!wasOnline) {
+        void ctx.services.chat
+          .drainDeferredTurns({ hostUserId: ctx.auth.userId })
+          .catch((err: unknown) =>
+            getLog().error(
+              { err, userId: ctx.auth.userId },
+              "host-return: deferred-turn drain failed",
+            ),
+          );
+      }
       return withSubscriptionErrors(
         notificationStream(ctx.services.notifications, ctx.auth, input?.lastEventId ?? null, sig),
       );

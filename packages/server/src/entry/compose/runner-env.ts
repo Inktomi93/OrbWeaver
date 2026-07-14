@@ -2,20 +2,24 @@
 // op the workload runners depend on, assembled here (the only tier above domain-no-cross-feature) and
 // threaded by the worker into every dispatch. Each op wires to the real backing domain verb where it
 // exists; a deferred op is a typed inert seam that rejects with a clear "not built" message — never a fake
-// success. `import.importAll` is the one still-deferred op (built by the run-profile-import driver).
+// success. Every op is now built (`import.importAll`, the last deferred seam, wires to the
+// run-profile-dir-import driver).
 
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
+import type { BulkImportChats } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DiscoveryService } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
+import type { BulkImportPersonas } from "#domain/persona";
 import { reconcileStats } from "#domain/stats";
 import type {
   WorkloadCharacterEnv,
@@ -27,7 +31,19 @@ import type {
   WorkloadStatsEnv,
 } from "#domain/workloads";
 import type { Cas } from "#infra/storage";
-import { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES, runBundleImport } from "../import";
+import type {
+  ImportAssetPort,
+  ImportCharacterPort,
+  ImportTagPort,
+  ImportWorldInfoPort,
+} from "../import";
+import {
+  createNodeFsImportPort,
+  IMPORT_MAX_DECOMPRESSED_BYTES,
+  IMPORT_MAX_TOTAL_BYTES,
+  runBundleImport,
+  runProfileDirImport,
+} from "../import";
 
 type DiscoveryOut = Awaited<ReturnType<WorkloadDiscoveryEnv["computeThemes"]>>;
 type StatsOut = Awaited<ReturnType<WorkloadStatsEnv["reconcileStats"]>>;
@@ -62,12 +78,56 @@ export interface RunnerEnvDeps {
   /** The staging root the upload route wrote the zip under; absent ⇒ the OS temp dir (same default the
    *  route resolves, so the op reads exactly where the route wrote). */
   readonly importStagingDir?: string;
+  /** The ST profile-directory `importAll` reads (one subdir per ST user); absent ⇒ repo-root `.st-data`. */
+  readonly stProfileDir?: string;
+  /** The cross-feature ops the ST profile-directory importer (`importAll`) composes into a per-owner
+   *  `ImportContext` — the same slice the portability chat/persona descriptors wire. */
+  readonly profileImport: {
+    readonly character: ImportCharacterPort;
+    readonly storeAvatar: ImportAssetPort["store"];
+    readonly attachCardTag: ImportTagPort["attachCardTagByName"];
+    readonly importLorebook: ImportWorldInfoPort["importLorebook"];
+    readonly bulkImportChats: BulkImportChats;
+    readonly bulkImportPersonas: BulkImportPersonas;
+    readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
+    readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
+    readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
+  };
 }
 
-/** A typed inert seam for a deferred op — rejects loudly, never fakes a success. */
-function notBuilt(label: string): () => Promise<never> {
-  return (): Promise<never> => Promise.reject(new Error(`workloads runner-env: ${label}`));
+/** Bind the `import.importAll` workload op: resolve the target owner's principal, then run the ST
+ *  profile-directory importer over the real node:fs port at the configured root (personas first, then
+ *  per-bundle character + chats). Projects the driver's maintenance-pass counts straight through. */
+function bindImportAll(
+  profileRoot: string,
+  now: () => number,
+  deps: RunnerEnvDeps["profileImport"],
+): WorkloadRunnerEnv["import"]["importAll"] {
+  const fs = createNodeFsImportPort();
+  return async ({ ownerId, dryRun, signal }) => {
+    const principal = await deps.resolveOwnerPrincipal(ownerId);
+    const { scanned, changed } = await runProfileDirImport({
+      fs,
+      profileRoot,
+      principal,
+      character: deps.character,
+      storeAvatar: deps.storeAvatar,
+      attachCardTag: deps.attachCardTag,
+      importLorebook: deps.importLorebook,
+      bulkImportChats: deps.bulkImportChats,
+      bulkImportPersonas: deps.bulkImportPersonas,
+      enqueueBackfill: deps.enqueueBackfill,
+      reconcileImportStats: deps.reconcileImportStats,
+      now,
+      dryRun,
+      signal,
+    });
+    return { scanned, changed };
+  };
 }
+
+/** Repo-root ST profile snapshot (gitignored) — the `importAll` default when no `stProfileDir` is set. */
+const DEFAULT_ST_PROFILE_DIR = ".st-data";
 
 /** Bind the `assets-backfill` op. The workload seam is count-only, so the root gathers the staged cards:
  *  characters with a recorded card but no linked avatar whose card blob is still in the CAS. */
@@ -151,6 +211,7 @@ function bindImportBundle(
 /** Assemble the cross-feature `WorkloadRunnerEnv` once at boot. */
 export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
   const stagingRoot = deps.importStagingDir ?? tmpdir();
+  const stProfileDir = deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR;
   return {
     embeddings: {
       embedCorpus: async ({ ownerId, force, signal }): Promise<EmbedOut> => {
@@ -195,9 +256,7 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       },
     },
     import: {
-      importAll: notBuilt(
-        "import.importAll not built — the entry/import run-profile-import driver owns it",
-      ),
+      importAll: bindImportAll(stProfileDir, deps.now, deps.profileImport),
       importBundle: bindImportBundle(deps.getPortabilityRegistry, stagingRoot),
     },
     assets: {

@@ -13,7 +13,6 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
@@ -198,19 +197,8 @@ export function markUserLeftStatement(
     .returning();
 }
 
-/** Kick any participant by id (works for a character too, which has no `userId`). Atomic on the still-present
- *  row. Returns the row left this call, or `undefined` if already gone. */
-export async function markParticipantLeft(
-  db: Db,
-  participantId: ChatParticipantId,
-  leftSeq: number,
-): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const rows = await markParticipantLeftStatement(db, participantId, leftSeq);
-  return rows.at(0);
-}
-
-/** The {@link markParticipantLeft} UPDATE, unexecuted — for callers that must commit the character-seat drop
- *  in one batch alongside another mutation. */
+/** Kick any participant by id, unexecuted (works for a character too, which has no `userId`) — for callers
+ *  that must commit the character-seat drop in one batch alongside another mutation. */
 export function markParticipantLeftStatement(
   db: Db,
   participantId: ChatParticipantId,
@@ -223,33 +211,9 @@ export function markParticipantLeftStatement(
     .returning();
 }
 
-/** Set a participant's `role` by id. The host-handoff accept uses {@link acceptHostHandoffSwap} instead (it
- *  must demote + promote + clear the nomination in one batch). */
-export async function setParticipantRole(
-  db: Db,
-  participantId: ChatParticipantId,
-  role: ParticipantRole,
-): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const rows = await db
-    .update(chatParticipants)
-    .set({ role })
-    .where(eq(chatParticipants.id, participantId))
-    .returning();
-  return rows.at(0);
-}
-
-/** Set the pending host-handoff nominee. A single write; a re-nominate overwrites the prior nominee. */
-export async function setPendingHost(
-  db: Db,
-  chatId: ChatId,
-  nomineeUserId: UserId,
-  now: number,
-): Promise<void> {
-  await setPendingHostStatement(db, chatId, nomineeUserId, now);
-}
-
-/** The {@link setPendingHost} UPDATE, unexecuted — `nominateHostHandoff` hands it to the notifications emit
- *  op so the nomination + the `handoff-nominated` INSERT commit in one batch. */
+/** Set the pending host-handoff nominee, unexecuted — `nominateHostHandoff` hands it to the
+ *  notifications emit op so the nomination + the `handoff-nominated` INSERT commit in one batch. A
+ *  re-nominate overwrites the prior nominee. */
 export function setPendingHostStatement(
   db: Db,
   chatId: ChatId,
@@ -262,17 +226,9 @@ export function setPendingHostStatement(
     .where(eq(chats.id, chatId));
 }
 
-/** The atomic host-handoff accept: one db.batch that demotes the present host → `member`, promotes the
- *  nominee → `host`, and clears the chat's pending nomination. The caller must verify the caller IS the
- *  pending nominee before calling. */
-export async function acceptHostHandoffSwap(
-  db: Db,
-  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },
-): Promise<void> {
-  await db.batch(batchMany(acceptHostHandoffSwapStatements(db, params)));
-}
-
-/** The {@link acceptHostHandoffSwap} statements, unexecuted. Order is load-bearing: demote → promote → clear. */
+/** The atomic host-handoff accept statements, unexecuted: demotes the present host → `member`, promotes
+ *  the nominee → `host`, and clears the chat's pending nomination. Order is load-bearing: demote →
+ *  promote → clear. The caller must verify the caller IS the pending nominee before calling. */
 export function acceptHostHandoffSwapStatements(
   db: Db,
   params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },

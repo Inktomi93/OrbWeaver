@@ -35,7 +35,7 @@ export const injectionDirectiveSchema = z.object({
 const depthSchema = z.number().int().min(0).max(MAX_INJECTION_DEPTH);
 const roleSchema = z.enum(MESSAGE_ROLES);
 
-/** The shared write-guard predicate (contracts' `cardDepthPromptWriteSchema`/`roomAuthorsNoteSchema`/
+/** The shared write-guard predicate (contracts' `cardDepthPromptSchema`/`roomAuthorsNoteSchema`/
  *  `personaMetadataWriteSchema` all reject this combo on the wire): assistant-role at depth 0 is a
  *  response PREFILL, unsupported across providers. Was re-implemented per-editor (character/persona/room-
  *  overrides form models) with copy that already drifted ("pick" vs "Use" depth ≥ 1) — one predicate, each

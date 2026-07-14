@@ -1,21 +1,8 @@
 // biome-ignore-all lint/security/noSecrets: mustFlag/mustPass fixture source strings (vector-table write/import snippets) are documentation-with-teeth, not secrets.
-// Gate: vector-scope-derived (ledger D20; Knowledge-Cluster.md invariants 1-2) — the no-cross-user-leak
-// chokepoints on the vector substrate, as physics:
-//   • WRITE chokepoint (inv 1): every `.insert/.update/.delete` on the five vector tables lives in
-//     `domain/embeddings/persistence/` — producers are lens arms of `embeddings.store`, never inserters
-//     (`writeHubScores` is embeddings-persistence too, so the one sanctioned non-`store` write is inside
-//     the same dir).
-//   • COSINE chokepoint (inv 2): the SQL `vector_distance_cos` appears in CODE (string/template literals)
-//     only under `domain/search/persistence/` — top-k retrieval is search's alone; discovery's analytics
-//     are in-RAM `pairwiseCosine`; memory delegates to the injected `searchDigests` op. Comments citing
-//     the function name are fine (only literals are scanned).
-//   • IMPORT scope: the five table symbols are importable only by the sanctioned set — embeddings (owner),
-//     search/persistence (reader), chat/memory/persistence (the digest GENERATOR's metadata bookkeeping —
-//     tier/blockIdx/contentHash reads, never vectors), discovery/persistence (in-RAM analytics loads), and
-//     the foundation `/_debug` probes (read-only, reads `@orb/db` down). A NEW importer — another domain,
-//     a transport driver, a verbs file — is RED: every scan must be a scoped `search` engine call whose
-//     producer owner-scope is a mandatory param (derived from the producer, never a stamped `ownerId` —
-//     the D20 derive-don't-stamp security model).
+// Gate: vector-scope-derived (D20; Knowledge-Cluster.md invariants 1-2) — the no-cross-user-leak
+// chokepoints on the vector substrate: WRITE (inv 1) — every insert/update/delete on the five vector
+// tables lives in domain/embeddings/persistence/; COSINE (inv 2) — `vector_distance_cos` in code only
+// under domain/search/persistence/; IMPORT — the five table symbols importable only by the sanctioned domain set. A new importer is RED.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";

@@ -1,5 +1,5 @@
-// Unit: <StatFigure>'s pure `buildSparklineOption` builder (ui-package-design §9 v1 corpus-viz
-// set). A mounted ECharts instance does not survive the Playwright component-test RPC boundary
+// Unit: <StatFigure>'s pure `buildSparklineOption` builder. A mounted ECharts instance does not
+// survive the Playwright component-test RPC boundary
 // with its methods intact, so the resolved-color wiring is proven here as plain data
 // (stat-figure.ct.tsx covers what IS DOM-observable: the number/delta tile + sparkline mount).
 //

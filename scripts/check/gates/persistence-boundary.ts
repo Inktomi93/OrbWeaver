@@ -1,22 +1,8 @@
-// Gate: persistence-boundary (UI-Theming-and-Content.md §12.1 "PERSISTENCE" + UI-Arch §5 +
-// UI-Gates-and-Lessons.md §11.5) — the device-local-vs-synced belt. The law: prefs that follow the
-// user across devices live in the SERVER `user_settings` blob (settings-domain CRUD); browser storage
-// (localStorage/sessionStorage/IndexedDB) is for DEVICE-LOCAL transient state ONLY (panel layout,
-// drafts), and even that is minted ONLY through the two persist factories (which force
-// version + partialize + total-migrate + the storage-key uniqueness registry). Multi-device
-// correctness depends on this line holding: a synced-belonging pref that lands in a device-local
-// store silently forks per device and never heals.
-//
-// TWO ARMS:
-//   1. RAW-STORAGE arm: any `localStorage` / `sessionStorage` / `indexedDB` IDENTIFIER (AST — comments
-//      don't count) in packages/client/src outside the ALLOWLIST below is RED. The factories are the
-//      only persistence doors; a feature that "just needs one flag" uses a persisted store or the
-//      synced blob, never a bare setItem.
-//   2. REGISTRY arm (ratchet, both directions — the bus-coverage.ts pattern): every
-//      `createPersistedStore("<name>", …)` / `createEntityDraftStore({ name: "<name>" … })` call site
-//      must name a DEVICE_LOCAL_REGISTRY entry carrying the one-line WHY-device-local rationale —
-//      an unregistered name is RED (a new persisted store is a deliberate, reviewed act), and a
-//      registry entry with NO call site is RED (stale row — delete it).
+// Gate: persistence-boundary (UI-Theming-and-Content.md §12.1, UI-Arch §5, UI-Gates-and-Lessons.md
+// §11.5) — the device-local-vs-synced belt: synced prefs live in the server `user_settings` blob;
+// browser storage is for DEVICE-LOCAL transient state only, minted ONLY through the two persist
+// factories. Two arms: (1) RAW-STORAGE — a bare localStorage/sessionStorage/indexedDB identifier in
+// packages/client/src outside ALLOWLIST is RED. (2) REGISTRY — a ratchet: every persist-factory call site must name a DEVICE_LOCAL_REGISTRY entry.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";

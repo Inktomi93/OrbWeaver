@@ -903,7 +903,7 @@ CREATE TABLE `notifications` (
 	`dismissed_at` integer,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`recipient_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "notifications_type_check" CHECK(type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted'))
+	CONSTRAINT "notifications_type_check" CHECK(type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped'))
 );
 
 --> statement-breakpoint
@@ -1319,7 +1319,7 @@ CREATE UNIQUE INDEX `themes_owner_name_uq` ON `themes` (`owner_id`,`name`);
 --> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
-	`schema_version` integer DEFAULT 2 NOT NULL,
+	`schema_version` integer DEFAULT 3 NOT NULL,
 	`config` text NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade

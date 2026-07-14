@@ -12,13 +12,13 @@ const IMPORT_FIELD = "file";
 
 /** One imported (or deduped) card from `POST /api/import`'s `ProfileImportResult` — `created:false` marks a
  *  byte-identical re-import (already present, no write). */
-export interface ImportedCardResult {
+interface ImportedCardResult {
   readonly filename: string | null;
   readonly created: boolean;
 }
 
 /** One card the server could not import (unreadable/invalid bytes) — carries the reason, isolated not thrown. */
-export interface FailedCardResult {
+interface FailedCardResult {
   readonly filename: string | null;
   readonly error: string;
 }

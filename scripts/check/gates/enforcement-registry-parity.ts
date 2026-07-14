@@ -1,15 +1,7 @@
-// Gate: enforcement-registry-parity — docs/architecture/core/Core-Enforcement-Active-Gates.md must agree
-// with the DISCOVERED gate-descriptor set (the loader IS the registry):
-//   • its Layer-3 ACTIVE table names exactly the `status:"active"` descriptors,
-//   • its Layer-3 DORMANT table names exactly the `status:"dormant"` descriptors,
-//   • its "(N registered gates)" count == the active-descriptor count.
-// Both directions RED (a descriptor with no doc row, or a doc row naming no descriptor). A gate file that
-// isn't a valid descriptor can't exist silently — the loader's fail-closed assertDescriptor makes it a
-// load-time error — so there is no separate "gate-file ↔ registry" axis to police here.
-//
-// This gate self-hosts: it reads each `scripts/check/gates/*.ts` descriptor's name+status straight from the
-// source AST via its own ts-morph Project (fsBacked), never importing report.ts — so there is no report.ts↔
-// gate import cycle to dodge.
+// Gate: enforcement-registry-parity — Core-Enforcement-Active-Gates.md must agree with the DISCOVERED
+// gate-descriptor set (the loader IS the registry): its Layer-3 ACTIVE table names exactly the
+// `status:"active"` descriptors, its DORMANT table exactly the `status:"dormant"` ones, and its "(N
+// registered gates)" count matches. Both directions RED. Self-hosts via its own ts-morph Project (fsBacked) — never imports report.ts, so no import cycle.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Node, Project, SyntaxKind } from "ts-morph";

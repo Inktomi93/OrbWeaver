@@ -9,7 +9,8 @@
 //
 // This composes a card-only ImportContext (no `profile`) — the chats/personas write ops are wired only
 // where needed (the portability chat descriptor + the bundle driver). Callers here pass already-extracted
-// card files; a profile-dir loader remains unbuilt (a zip bundle is the delivery path now).
+// card files; the on-disk ST profile-DIRECTORY delivery path (personas + chats included) is its sibling
+// `run-profile-dir-import.ts` (driven by the `import-st` workload), and a zip bundle is the third path.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";

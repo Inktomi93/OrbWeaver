@@ -61,7 +61,7 @@ export interface SummarizeRequest extends RoleRequestCommon {
 
 /** Text→image edit/img2img payload. Present on {@link ImageGenerateRequest.edit} ⇒ img2img/edit;
  *  dropped-with-warning by a runner whose model lacks `input.imageEdit`. */
-export interface ImageEditInput {
+interface ImageEditInput {
   /** bytes → data-URL at the runner; string → URL/data-URL. */
   readonly image: Uint8Array | string;
   readonly mask?: Uint8Array | string | undefined;

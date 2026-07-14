@@ -318,6 +318,31 @@ const PROBES: readonly Probe[] = [
     call: (c, i) =>
       c.discovery.compareCharacters({ idA: i.characterId, idB: "character_other_fake" }),
   },
+  // discovery.compareCharactersDeep — same two-id owner belt as compareCharacters (it DECORATES that diff);
+  // a stranger comparing A's card gets null before any summarize call (each card's belt joins characters.ownerId).
+  {
+    path: "discovery.compareCharactersDeep",
+    call: (c, i) =>
+      c.discovery.compareCharactersDeep({ idA: i.characterId, idB: "character_other_fake" }),
+  },
+  // discovery.askCard — owner-belted via readOwnedCardFacet (characters.ownerId ∩ characterId): a stranger
+  // asking about A's card reads no owned/distilled row → null before any summarize/scene read (leak-free).
+  {
+    path: "discovery.askCard",
+    call: (c, i) => c.discovery.askCard({ characterId: i.characterId, question: "who are they?" }),
+  },
+  // discovery.swipeHotspots — owner-belted via characters.ownerId (the chat's assistant slots belong to A's
+  // characters, not the stranger's), so a stranger passing A's chatId reads zero rows → a leak-free empty list.
+  {
+    path: "discovery.swipeHotspots",
+    call: (c, i) => c.discovery.swipeHotspots({ chatId: i.chatId }),
+  },
+  // discovery.characterDossier — owner-belted via readOwnedCardFacet (characters.ownerId ∩ characterId): a
+  // stranger requesting A's character reads no owned/distilled row → null (never A's portrait/neighbours).
+  {
+    path: "discovery.characterDossier",
+    call: (c, i) => c.discovery.characterDossier({ characterId: i.characterId }),
+  },
   // discovery.similarChats takes a caller-supplied chatId — a stranger's probe with A's chat reads zero target
   // segments (the present-host owner belt joins `chat_participants.userId = principal AND role='host' AND
   // leftSeq IS NULL`), so the centroid scan finds no target space → a leak-free empty list.
@@ -645,6 +670,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   "search.discover":
     "self-scoped: ownerId = principal.userId (owner-wide verbatim scan derived via characters.ownerId; query text, no id)",
+  // Takes ids inside `scope`, but EVERY scope is owner-belted in the dispatch (digest scans carry the
+  // characters.ownerId belt; the verbatim segments chat is gated against the owner's materialized chat
+  // set) — a stranger's id yields []. Unprobeable HERE: the digest/segment path requires a live embedder
+  // and this sweep runs vllmDisabled (no engine). The owner belt is proven leak-free by the dedicated slice
+  // tests/server/domain/search/verbs/search.int.test.ts (foreign character id → [], foreign chatId → []).
+  "search.search":
+    "owner-belted-per-scope: ids in `scope` are owner-belted; unprobeable under vllmDisabled (needs an embedder). Belt proven in search.int.test.ts.",
   "discovery.duplicateCharacters": "self-scoped: userId = principal.userId",
   "discovery.duplicateChats":
     "self-scoped: userId = principal.userId (owner via present-host EXISTS)",

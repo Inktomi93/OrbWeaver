@@ -6,15 +6,20 @@
 import type { ChatApi } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
 import type { PromptConfig } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/MoreHorizontal/RotateCcw fine (the preset-library-surface.tsx precedent).
+import { Icon, MoreHorizontal, RotateCcw } from "@orb/ui/icons";
+import { Row, Stack } from "@orb/ui/layout";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { SaveBar } from "@orb/ui/save-bar";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "#components";
 import { QueryBoundary, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { ParamsPanel } from "../components/params-panel";
@@ -22,7 +27,7 @@ import { PresetStructureTabs } from "../components/preset-structure-tabs";
 import { RegexTab } from "../components/regex-tab";
 import { VariablesTab } from "../components/variables-tab";
 import { usePresetForm } from "../hooks/use-preset-form";
-import { useUpdatePreset } from "../hooks/use-preset-mutations";
+import { useResetPreset, useUpdatePreset } from "../hooks/use-preset-mutations";
 import { clearAssemblyForm, publishAssemblyForm } from "../lib/preset-editor-bridge";
 import { mergeOnSubmit, seedConfig } from "../lib/preset-editor-model";
 import { PRESET_EDITOR_TABS } from "../lib/preset-nav";
@@ -80,6 +85,7 @@ function PresetEditor({
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const update = useUpdatePreset({ trpc, invalidation });
+  const reset = useResetPreset({ trpc, invalidation });
 
   const chat = settings.config.routing.roleDefaults.chat;
   const chatModel = chat?.model ?? undefined;
@@ -108,6 +114,20 @@ function PresetEditor({
     save,
   });
 
+  const [resetOpen, setResetOpen] = useState(false);
+  const confirmReset = (): void => {
+    void (async (): Promise<void> => {
+      try {
+        await reset.mutateAsync({ id: presetId });
+        // Re-baseline the live form to the starter the server just wrote — the reseed guard alone only
+        // fires on an untouched form, so a dirty editor would keep showing the discarded arrangement.
+        form.reset(seedConfig(DEFAULT_PROMPT_CONFIG));
+      } catch {
+        // The mutation's own errorToast already surfaced it; keep the current arrangement.
+      }
+    })();
+  };
+
   // Publish the live form handle so the CONTEXT section inspector (a sibling shell region, no shared React
   // ancestor) can bind `sections[i].*`; clears on unmount so a stale handle never outlives the editor.
   useEffect(() => {
@@ -126,9 +146,26 @@ function PresetEditor({
     >
       <Tabs defaultValue="quality">
         <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
-          <Text size="label" weight="medium">
-            {preset.name}
-          </Text>
+          <Row align="center" justify="between" gap="field">
+            <Text size="label" weight="medium">
+              {preset.name}
+            </Text>
+            <Menu>
+              <MenuTrigger
+                render={
+                  <Button intent="ghost" size="icon" aria-label="Preset options">
+                    <Icon icon={MoreHorizontal} size="sm" />
+                  </Button>
+                }
+              />
+              <MenuPopup align="end">
+                <MenuItem onClick={(): void => setResetOpen(true)}>
+                  <Icon icon={RotateCcw} size="sm" />
+                  Reset to starter arrangement
+                </MenuItem>
+              </MenuPopup>
+            </Menu>
+          </Row>
           <TabsList>
             {PRESET_EDITOR_TABS.map((tab) => (
               <TabsTab key={tab.id} value={tab.id}>
@@ -187,6 +224,15 @@ function PresetEditor({
           <form.SubmitButton>Save preset</form.SubmitButton>
         </SaveBar>
       </form.AppForm>
+
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Reset to the starter arrangement?"
+        description="This replaces the preset's sampling, reasoning, prompt structure, and every other setting with the starter defaults. This can't be undone."
+        confirmLabel="Reset"
+        onConfirm={confirmReset}
+      />
     </form>
   );
 }

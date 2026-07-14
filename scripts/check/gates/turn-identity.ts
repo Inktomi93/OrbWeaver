@@ -1,19 +1,8 @@
-// Gate: turn-identity (ledger D16/D17/D19) — the turn pipeline runs as the HOST (`runAsUserId`:
-// whose box/creds/wallet fund it) with `triggeredBy` as the responsible human; the CALLER's
-// `Principal.userId` does its work at the VERB layer (membership, CSRF, authorUserId stamping) and
-// must never leak into the engine, where it could reach credential resolution or settings loads and
-// silently re-fund a turn from the wrong wallet (the neo class D19 dissolved).
-//
-// The enforceable core: `domain/chat/engine/**` is PRINCIPAL-BLIND. Identity reaches the engine
-// ONLY as the resolved triple (`engine/turn-identity.ts` — runAsUserId + triggeredBy + the speaker
-// axes). Two arms:
-//   • no import of the `Principal` type (from `@orb/contracts/identity` or anywhere) inside engine/
-//   • no `principal` IDENTIFIER (param/var/property access) inside engine/ — comments are free to
-//     cite the concept; code cannot hold the object.
-// If the caller's id can't be NAMED in the engine, it can't flow to `resolveCredential`/
-// `loadUserSettings` through it — the dataflow half of the deferred-gate row, enforced by
-// unconstructability rather than flow analysis (the same posture as D60's Principal-less agents).
-// Sibling: the `no-caller-user-id` gate (the banned D19 term, repo-wide).
+// Gate: turn-identity (ledger D16/D17/D19) — the turn pipeline runs as the HOST (`runAsUserId`) with
+// `triggeredBy` as the responsible human; the CALLER's `Principal.userId` does its work at the VERB
+// layer and must never leak into the engine, where it could re-fund a turn from the wrong wallet.
+// `domain/chat/engine/**` is PRINCIPAL-BLIND: no import of `Principal`, and no `principal` identifier
+// (param/var/property access) inside engine/ — if the id can't be NAMED there, it can't flow to `resolveCredential`/`loadUserSettings`. Sibling: `no-caller-user-id`.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

@@ -56,7 +56,7 @@ import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 const FROZEN_AT = FROZEN_AT_MS;
 
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
-export const VECTOR_DIM = 1024;
+const VECTOR_DIM = 1024;
 /** The default embed model the harness scopes the scan to (the `(model, dim)` space tag). */
 export const EMBED_MODEL = "test-embed-model-1024";
 /** The default IMAGE-embed model the harness scopes the cross-modal `images` scan to. */
@@ -87,7 +87,7 @@ export interface FakeRoleClientControls {
 
 /** A scripted `RoleClients` — only `embed` / `rerank` matter to search; the other roles are never called
  *  in the W2 core (typed stubs so the bundle satisfies the interface). */
-export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients {
+function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients {
   const embedModel = controls.embedModel ?? EMBED_MODEL;
   const imageEmbedModel = controls.imageEmbedModel ?? IMAGE_EMBED_MODEL;
   const embedVector = controls.embedVector ?? ((): Float32Array<ArrayBuffer> => vec(1));

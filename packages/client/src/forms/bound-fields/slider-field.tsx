@@ -8,8 +8,7 @@
 import { Field } from "@orb/ui/field";
 import { Slider as UiSlider } from "@orb/ui/slider";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface BoundSliderFieldProps {
   readonly label: ReactNode;
@@ -20,34 +19,20 @@ export interface BoundSliderFieldProps {
   readonly disabled?: boolean;
 }
 
-export function BoundSliderField({
-  label,
-  description,
-  min,
-  max,
-  step,
-  disabled,
-}: BoundSliderFieldProps): ReactElement {
-  const field = useFieldContext<number>();
-  const error = touchedFieldError(field.state.meta);
+export function BoundSliderField(props: BoundSliderFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<number>(props);
   return (
-    <Field
-      label={label}
-      description={description}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field {...fieldProps}>
       <UiSlider
-        value={field.state.value}
+        max={props.max}
+        min={props.min}
+        onBlur={field.handleBlur}
         onValueChange={(value): void => {
           field.handleChange(value);
         }}
-        onBlur={field.handleBlur}
-        min={min}
-        max={max}
-        step={step}
         showValue={true}
+        step={props.step}
+        value={field.state.value}
       />
     </Field>
   );

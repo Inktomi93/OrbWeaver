@@ -1,4 +1,8 @@
-import type { ChatSource, ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
+import type {
+  CredentialSource as CredentialSourceViaConnection,
+  ModelCapability,
+  ModelCatalogEntry,
+} from "@orb/contracts/connection";
 import {
   CACHE_MIN_FLOOR,
   CHAT_APIS,
@@ -20,15 +24,15 @@ import {
 import type { CredentialSource } from "@orb/contracts/credentials";
 import { expect, test } from "../../support/fixtures";
 
-// --- ChatSource IS CredentialSource (D31, the load-bearing pin) ---------------
-// The type-level identity pin (ChatSource ≡ CredentialSource) lives in `index.test-d.ts` (core/Spine-Testing.md
-// §1); here we keep the runtime bidirectional-assignability check.
+// --- connection re-exports CredentialSource verbatim (D31, the load-bearing pin) ---------------
+// The type-level identity pin (connection's re-export ≡ CredentialSource) lives in `index.test-d.ts`
+// (core/Spine-Testing.md §1); here we keep the runtime bidirectional-assignability check.
 
-test("ChatSource is a verbatim re-export of CredentialSource (D31, no second tuple)", () => {
-  // Runtime: a value typed as one is assignable as the other in both directions.
+test("connection re-exports CredentialSource verbatim (D31, no second tuple)", () => {
+  // Runtime: a value typed via connection is assignable as the home type in both directions.
   const fromSource: CredentialSource = "openrouter";
-  const asChatSource: ChatSource = fromSource;
-  const backAgain: CredentialSource = asChatSource;
+  const viaConnection: CredentialSourceViaConnection = fromSource;
+  const backAgain: CredentialSource = viaConnection;
   expect(backAgain).toBe("openrouter");
 });
 

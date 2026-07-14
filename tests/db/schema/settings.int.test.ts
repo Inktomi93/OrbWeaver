@@ -69,23 +69,25 @@ test("the owner-global RegexScript[] round-trips through the user_settings confi
     userId,
     config: {
       ...DEFAULT_USER_SETTINGS,
-      regexScripts: [
-        regexScriptSchema.parse({
-          id: "rx_global",
-          name: "owner global",
-          findRegex: "foo",
-          replaceString: "bar",
-          placement: ["USER_INPUT", "AI_OUTPUT"],
-        }),
-      ],
+      regex: {
+        scripts: [
+          regexScriptSchema.parse({
+            id: "rx_global",
+            name: "owner global",
+            findRegex: "foo",
+            replaceString: "bar",
+            placement: ["USER_INPUT", "AI_OUTPUT"],
+          }),
+        ],
+      },
     },
   });
 
   const rows = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
   const parsed = parseUserSettings(rows[0]?.config, rows[0]?.schemaVersion);
-  expect(parsed.regexScripts).toHaveLength(1);
-  expect(parsed.regexScripts[0]?.id).toBe("rx_global");
-  expect(parsed.regexScripts[0]?.placement).toEqual(["USER_INPUT", "AI_OUTPUT"]);
+  expect(parsed.regex.scripts).toHaveLength(1);
+  expect(parsed.regex.scripts[0]?.id).toBe("rx_global");
+  expect(parsed.regex.scripts[0]?.placement).toEqual(["USER_INPUT", "AI_OUTPUT"]);
 });
 
 test("user_settings is keyed by userId (the PK is also the FK; a duplicate collides)", async () => {

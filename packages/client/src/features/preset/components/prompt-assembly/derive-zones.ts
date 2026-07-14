@@ -7,11 +7,11 @@ import type { PromptSection } from "@orb/contracts/preset";
 import { estimateSectionTokens } from "./estimate-tokens";
 
 /** The two conversation zones. `Zone` is derived inline, never an exported alias. */
-export const ZONES = ["setup", "post"] as const;
+const ZONES = ["setup", "post"] as const;
 type Zone = (typeof ZONES)[number];
 
 /** Per-zone roll-up for the summary strip: how many ENABLED sections it holds + their token estimate. */
-export interface ZoneSummary {
+interface ZoneSummary {
   readonly enabledCount: number;
   readonly tokenEstimate: number;
 }

@@ -13,9 +13,6 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SelectItems } from "@orb/ui/select";
 
-/** The two mint modes (§8.2): an untargeted share LINK vs a targeted invite-by-HANDLE. */
-export const INVITE_MODES = ["link", "handle"] as const;
-
 /** Expiry presets — a picker, not a datetime field (the mint is an interrupt, not a scheduler).
  *  Declared ONCE as a tuple, the union derived (§7.5); both stay file-local (§7.4 homes exported
  *  feature types elsewhere). */

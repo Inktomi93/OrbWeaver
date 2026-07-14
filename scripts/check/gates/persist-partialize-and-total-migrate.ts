@@ -1,20 +1,8 @@
-// Gate: persist-partialize-and-total-migrate (UI-Gates-and-Lessons.md §11.5 + UI-Primitives-and-Reuse.md
-// §13.1/§13.3). Zustand `persist()` is partly IRREVERSIBLE: 9 of 11 neo stores persisted a non-primitive
-// shape with no `version`/`migrate`, and once a stale blob is in a user's localStorage you cannot migrate
-// from a version line you never shipped. orbweaver forces every persist through ONE of two minting
-// factories (state/create-persisted-store.ts / state/create-entity-draft-store.ts) that bake
-// `partialize` (only the intended keys survive) + `version` + a TOTAL crash-proof `migrate` (any
-// unknown/corrupt shape degrades to a default, never a throw). This belt catches the middleware DIRECTLY
-// — the structural companion to persistence-boundary's storage-API arm, and the Layer-3 twin of the
-// Layer-2 grit `no-raw-zustand-persist`:
-//   • ARM A — a `persist(` call (AST — comments don't count) in packages/client/src/** outside the two
-//     factories is RED (device-local state persists THROUGH a factory, never a bare persist).
-//   • ARM B — inside each factory, the `persist(initializer, { … })` options object MUST carry
-//     `version`, `partialize`, and `migrate` keys — a refactor that drops one goes RED here (the grit
-//     can only see the call SITE; this reads INTO the chokepoint).
-//
-// WHAT IT DELIBERATELY DOES NOT FLAG: the two factories' own `persist(` calls (ARM A allowlists them,
-// ARM B instead asserts their option shape); non-persist middleware (`devtools`/`subscribeWithSelector`).
+// Gate: persist-partialize-and-total-migrate (UI-Gates-and-Lessons.md §11.5, UI-Primitives-and-Reuse.md
+// §13.1/§13.3). Zustand `persist()` is partly IRREVERSIBLE — once a stale blob is in localStorage you
+// can't migrate from a version line never shipped, so every persist must route through one of the two
+// minting factories that bake `partialize` + `version` + a TOTAL crash-proof `migrate`. ARM A: a bare
+// `persist(` call outside the two factories is RED. ARM B: inside each factory, the options object must carry `version`/`partialize`/`migrate`.
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";

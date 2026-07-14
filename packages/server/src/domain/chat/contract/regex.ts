@@ -13,7 +13,7 @@ import type { RegexScript } from "@orb/contracts/regex";
  * shared prompt (D53); the member-exclusion is structural. Fed to `resolveHostTierRegexScripts`.
  */
 export interface HostTierRegexSources {
-  /** The host's owner-global set — `UserSettings.regexScripts` (the single-owned `fetchOwned` library). */
+  /** The host's owner-global set — `UserSettings.regex.scripts` (the single-owned `fetchOwned` library). */
   readonly hostGlobal: readonly RegexScript[];
   /** The chat's active-preset set — `PromptConfig.regexScripts`. */
   readonly preset: readonly RegexScript[];

@@ -1,20 +1,8 @@
 // Gate: schema-banned-shapes — ONE registry-driven gate over the ledger's explicitly-REJECTED schema +
-// contract shapes. Each row is a (location, forbidden shape, D-cite) the ledger killed by name; a
-// reintroduction (an amnesiac agent re-porting a neo pattern) is RED with the cite. The registry is the
-// extensible-forever table shape — a new "we decided NOT to have X" ruling adds one row.
-//
-// The rows (verified against the ledger text before encoding):
-//   • chats.ownerId (D18 — chats are MEMBERSHIP-scoped, the column is DROPPED)
-//   • chats.memoryEnabled (D36 — memory on/off is a GLOBAL setting, never a per-chat column)
-//   • chats.sessionId / chats.sessionDirty (D25 — agent-sdk cache state lives in sdk-session.ts)
-//   • any chats.*presetId* (D58 — "we don't bind shit to chats"; the owning feature carries the assoc)
-//   • messages.parentId (D27 — ONE branch axis: chat forks, never a message-level DAG)
-//   • generation content/economics columns on messages (D26 — messages is a pure SLOT; content + the
-//     ~25 economics columns live ONLY on message_variants)
-//   • a character_versions table / characters.currentVersionId (D28 — the card is a FLAT characters row)
-//   • AppSettings.guidedActions (D33 — a neo PHANTOM; guided actions live ONLY on the preset)
-//   • a `kind` field on Principal (D60 — agents are STRUCTURALLY Principal-less; Principal gains NO kind)
-//   • the @orb/contracts/sessions namespace (D12 — the contract is `session` SINGULAR; domain is plural)
+// contract shapes. Each row (below, each carrying its own D-cite) is a (location, forbidden shape,
+// D-cite) the ledger killed by name; a reintroduction (an amnesiac agent re-porting a neo pattern) is
+// RED with the cite. The registry is the extensible-forever table shape — a new "we decided NOT to have
+// X" ruling adds one row.
 import type { InterfaceDeclaration, Node, Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

@@ -11,13 +11,9 @@ import type {
 } from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
-export type {
-  CreatePersonaInput,
-  PersonaBackupInput,
-  UpdatePersonaInput,
-} from "@orb/contracts/persona";
+export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
 
-export interface PersonaActorParams {
+interface PersonaActorParams {
   readonly principal: Principal;
 }
 

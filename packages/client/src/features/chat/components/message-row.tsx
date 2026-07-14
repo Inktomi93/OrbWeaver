@@ -6,6 +6,7 @@
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
@@ -19,11 +20,7 @@ import {
 } from "#state";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider";
 import { useEnterMotion } from "../hooks/use-enter-motion";
-import {
-  initialsForAttribution,
-  resolveRowAttribution,
-  speakerThemesByName,
-} from "../lib/attribution";
+import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { resolveRowRenderPolicy } from "../lib/render-trust";
@@ -161,7 +158,7 @@ export function MessageRow({
       kind: attribution.kind,
       avatarHash: attribution.avatarHash,
       hueSeed: attribution.hueSeed,
-      initial: attribution.name === null ? "" : initialsForAttribution(attribution.name),
+      initial: attribution.name === null ? "" : initialsFor(attribution.name),
     }) ?? null;
   const avatarNode = renderRowAvatar({
     attribution,

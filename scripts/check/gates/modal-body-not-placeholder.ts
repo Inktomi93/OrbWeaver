@@ -1,14 +1,7 @@
-// Gate: modal-body-not-placeholder (design-enforcement.md §3.2 — the placeholder-honesty half of the
-// registry belt). A MODAL_SLOTS body (features/**/lib/modal-slots.tsx) whose `render` still returns a
-// `<SectionPlaceholder>` MUST carry an explicit `placeholder: true` flag on its entry. Without the flag a
-// placeholder ships SILENTLY (theme / command / account modals sat as sparkles for weeks in neo,
-// unnoticed) — the flag makes an unbuilt modal a visible, greppable, COUNTED state. When a real surface
-// is route-composed over a slot (AppShellProps.modals), the flag is dropped and the check stays green
-// because the render here is no longer the live body.
-//
-// SHAPE (fixture-able, the `__g_*` pattern): for every `**/lib/modal-slots.tsx` it walks the `MODAL_SLOTS`
-// object's entries; an entry whose `render` body contains a `<SectionPlaceholder>` JSX tag but whose
-// entry object lacks `placeholder: true` is a violation.
+// Gate: modal-body-not-placeholder (design-enforcement.md §3.2) — a MODAL_SLOTS entry
+// (features/**/lib/modal-slots.tsx) whose `render` still returns a `<SectionPlaceholder>` must carry an
+// explicit `placeholder: true` flag — without it a placeholder ships silently instead of as a visible,
+// greppable, COUNTED state. Walks every `**/lib/modal-slots.tsx`'s `MODAL_SLOTS` entries for this mismatch.
 import type { ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

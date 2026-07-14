@@ -4,7 +4,7 @@
 
 import type {
   AgentSdkModel,
-  ChatSource,
+  CredentialSource,
   ModelCapability,
   ModelCatalogEntry,
   ResolvedConnection,
@@ -34,39 +34,39 @@ import type {
 } from "./results";
 
 /** credentials.resolve — resolve the brand-protected credential for a `{principal, source}`. */
-export type ResolveCredentialOp = (params: {
+type ResolveCredentialOp = (params: {
   readonly principal: Principal;
-  readonly source: ChatSource;
+  readonly source: CredentialSource;
 }) => Promise<ResolvedCredential>;
 
 /** infra/providers.fetchOrCatalog — the live OpenRouter `/models` fetch (keyless, no credential). */
-export type FetchOrCatalogOp = (req: {
+type FetchOrCatalogOp = (req: {
   readonly signal?: AbortSignal | undefined;
 }) => Promise<ModelCatalogEntry[]>;
 
 /** infra/providers.fetchAgentSdkModels — the live agent-sdk `supportedModels()` discovery. */
-export type FetchAgentSdkModelsOp = (req: {
+type FetchAgentSdkModelsOp = (req: {
   readonly signal?: AbortSignal | undefined;
 }) => Promise<AgentSdkModel[]>;
 
 /** settings.loadUserSettings — the parsed per-user UserSettings; connection is a consumer, not an owner. */
-export type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
+type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
 
 /** infra/providers.verifyAuth — the host-Claude auth-verify diagnostic (which credential the spawned
  *  runtime used). The credential is the owner-gated `max-pro-sub` mint this domain resolves first. */
-export type VerifyClaudeAuthOp = (req: {
+type VerifyClaudeAuthOp = (req: {
   readonly credential: ResolvedCredential;
   readonly model: string;
 }) => Promise<VerifyAuthResult>;
 
 /** infra/providers.accountCredits — the OpenRouter credit-balance read. */
-export type AccountCreditsOp = (req: {
+type AccountCreditsOp = (req: {
   readonly credential: ResolvedCredential;
   readonly signal?: AbortSignal | undefined;
 }) => Promise<AccountCredits>;
 
 /** infra/providers.generationCost — the settled upstream cost of one generation, read with the billing key. */
-export type GenerationCostOp = (req: {
+type GenerationCostOp = (req: {
   readonly credential: ResolvedCredential;
   readonly generationId: string;
   readonly signal?: AbortSignal | undefined;

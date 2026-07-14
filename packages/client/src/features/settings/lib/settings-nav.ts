@@ -15,6 +15,7 @@ import {
   MessagesSquare,
   Settings,
   SunMoon,
+  WandSparkles,
   Zap,
 } from "@orb/ui/icons";
 import { BACKUP_CATEGORY } from "./backup-nav";
@@ -39,6 +40,8 @@ export const APPEARANCE_SUBCATEGORY_IDS = {
 export const PERSONA_SUBCATEGORY_IDS = { personas: "personas" } as const;
 
 export const TAGS_SUBCATEGORY_IDS = { tags: "tags" } as const;
+
+export const REGEX_SUBCATEGORY_IDS = { scripts: "scripts" } as const;
 
 /** System pane subcategory ids — shared by the registry and the surface's `<Section>` anchor stamps. */
 export const SYSTEM_SUBCATEGORY_IDS = {
@@ -244,6 +247,20 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       icon: MessagesSquare,
       description: "How chats send, continue, and handle greetings.",
       built: false,
+    },
+    regex: {
+      group: "user",
+      label: "Regex",
+      icon: WandSparkles,
+      description: "Owner-global find/replace scripts applied to every chat you host.",
+      built: true,
+      subcategories: [
+        {
+          id: REGEX_SUBCATEGORY_IDS.scripts,
+          label: "Scripts",
+          keywords: ["regex", "find", "replace", "substitute", "transform", "script"],
+        },
+      ],
     },
     connections: CONNECTIONS_CATEGORY,
     automation: {

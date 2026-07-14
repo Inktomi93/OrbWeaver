@@ -8,12 +8,12 @@ import type { BuddyWorkloadKind } from "./agent-env";
 // The db buddy.ts keeps its OWN local BUDDY_TURN_ROLES tuple for the SQL CHECK (deliberately not exported
 // from @orb/db), so the domain owns the TS-side declaration here, structurally identical to the drizzle-
 // inferred buddyTurns.role.
-export const BUDDY_TURN_ROLES = ["user", "assistant"] as const;
+const BUDDY_TURN_ROLES = ["user", "assistant"] as const;
 export type BuddyTurnRole = (typeof BUDDY_TURN_ROLES)[number];
 
 // A new kind = member + switch arm + tool, or tsc red.
-export const BUDDY_PROPOSAL_KINDS = ["rename", "workload"] as const;
-export type BuddyProposalKind = (typeof BUDDY_PROPOSAL_KINDS)[number];
+const BUDDY_PROPOSAL_KINDS = ["rename", "workload"] as const;
+type BuddyProposalKind = (typeof BUDDY_PROPOSAL_KINDS)[number];
 
 /** The UI renders Confirm/Cancel and calls buddy.confirm (the only executor). */
 export interface BuddyProposal {

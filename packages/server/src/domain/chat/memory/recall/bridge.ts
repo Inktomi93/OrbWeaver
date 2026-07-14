@@ -9,7 +9,36 @@
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import type { DigestRow, MemoryScope } from "../types";
+import { resolveCfg } from "../constants";
+import type { DigestRow, MemoryConfig, MemoryScope } from "../types";
+
+/** How many tier-0 blocks one tier-`t` digest covers (`fanOutᵗ`) — the ONE home of the tier-grid span. */
+function tierSpan(fanOut: number, tier: number): number {
+  return fanOut ** tier;
+}
+
+/** The tier-0 blockIdx range a tier-`k` digest at `blockIdx` covers: `[blockIdx·fanOutᵏ, (blockIdx+1)·fanOutᵏ − 1]`
+ *  (the file-header indexing, matching `build/digests.ts` consolidation). Tier 0 is the identity range. */
+function tier0RangeOf(
+  fanOut: number,
+  tier: number,
+  blockIdx: number,
+): { readonly startIdx: number; readonly endIdx: number } {
+  const span = tierSpan(fanOut, tier);
+  return { startIdx: blockIdx * span, endIdx: (blockIdx + 1) * span - 1 };
+}
+
+/** The config-resolving front-door form of {@link tier0RangeOf} — memory's tier-indexing seam for OUTSIDE
+ *  consumers (the discovery `msgMidAt` tier-k backfill injects this at the entry root, so the fanOut math
+ *  keeps ONE home here). `config` is the raw `AppSettings.memoryDefaults` partial; absent knobs resolve to
+ *  the grounded floor exactly as the digest build resolves them. */
+export function resolveTier0Range(
+  config: MemoryConfig | null | undefined,
+  tier: number,
+  blockIdx: number,
+): { readonly startIdx: number; readonly endIdx: number } {
+  return tier0RangeOf(resolveCfg(config).fanOut, tier, blockIdx);
+}
 
 /** Compute the tiered bridge block-keys (chronological) from a scope's digests. The most-recent `fanOut`
  *  tier-0 blocks stay fine; everything older is covered by the highest available non-overlapping tier. */
@@ -48,7 +77,7 @@ export function computeBridge(
       p += 1; // a gap (no digest at any tier covers p) — skip it
       continue;
     }
-    const span = fanOut ** t;
+    const span = tierSpan(fanOut, t);
     keys.push(toKey(scope.chatId, scopeOf, t, Math.floor(p / span)));
     p += span;
   }
@@ -71,7 +100,7 @@ function highestCoveringTier(
   grid: { readonly coarseEnd: number; readonly maxTier: number; readonly fanOut: number },
 ): number | null {
   for (let t = grid.maxTier; t >= 0; t -= 1) {
-    const span = grid.fanOut ** t;
+    const span = tierSpan(grid.fanOut, t);
     if (p % span !== 0) {
       continue; // not aligned to this tier's grid
     }

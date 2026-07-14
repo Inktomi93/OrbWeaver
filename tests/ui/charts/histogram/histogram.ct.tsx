@@ -1,5 +1,5 @@
-// CT: <Histogram> — a distribution chart over pre-binned buckets (ui-package-design §9 v1
-// corpus-viz set). Covers what's genuinely DOM-observable (heading, chart mount, empty state); the
+// CT: <Histogram> — a distribution chart over pre-binned buckets. Covers what's genuinely
+// DOM-observable (heading, chart mount, empty state); the
 // TOKENS-color/flush-bar/bucket-order wiring is asserted on the pure `buildHistogramOption` builder
 // in histogram.test.ts — see bar-list.ct.tsx's header comment for why.
 import { Histogram } from "@orb/ui/histogram";
@@ -11,10 +11,15 @@ const BUCKETS = [
   { label: "200–299", count: 7 },
 ];
 
-test("renders the heading and a chart for non-empty buckets", async ({ mount }) => {
+test("renders the heading and a populated chart canvas for non-empty buckets", async ({
+  mount,
+}) => {
   const component = await mount(<Histogram buckets={BUCKETS} label="Chunk size distribution" />);
   await expect(component.getByText("Chunk size distribution")).toBeVisible();
   await expect(component.getByRole("img", { name: "Chunk size distribution" })).toBeVisible();
+  // Regression guard: populated data must actually draw an ECharts canvas — the CJS/ESM interop
+  // regression rendered the wrapper as an object and threw before any canvas mounted.
+  await expect(component.locator("canvas")).toBeVisible();
 });
 
 test("renders the empty state instead of a chart when buckets is empty", async ({ mount }) => {

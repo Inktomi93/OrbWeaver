@@ -4,7 +4,7 @@
 // outcome is a ToolCallRecord the model reads and self-corrects on; result is always a JSON document.
 
 import type { ToolUseContext } from "../context";
-import type { ToolCallInput, ToolExecutionContext } from "../contract/params";
+import type { ToolCallBatch, ToolCallInput, ToolExecutionContext } from "../contract/params";
 import type {
   RegisteredTool,
   ResolvedToolSet,
@@ -61,7 +61,7 @@ export function createExecuteToolCalls(
   ctx: ToolUseContext,
 ): (
   set: ResolvedToolSet,
-  calls: readonly ToolCallInput[],
+  calls: ToolCallBatch,
   exec: ToolExecutionContext,
 ) => Promise<readonly ToolCallRecord[]> {
   return async (set, calls, exec): Promise<readonly ToolCallRecord[]> => {

@@ -158,6 +158,12 @@ function writeFixtures(): void {
     `${D}/__g_users/persistence/x.ts`,
     `import { users } from "@orb/db";\nexport const x = users;\n`,
   );
+  // discovery-no-stats-rollups: a stats rollup table imported inside domain/discovery (the seam breach
+  // the @orb/db barrel hides from dep-cruiser — the gate matches the ImportSpecifier).
+  fx(
+    `${D}/discovery/__g_rollup.ts`,
+    `import { ownerStats } from "@orb/db";\nexport const x = ownerStats;\n`,
+  );
   // sole-env-reader: a server file outside foundation/env touching process.env (bracket form).
   fx(
     "packages/server/src/domain/__g_env.ts",
@@ -430,6 +436,9 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_assetfk.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nimport { assets } from "./assets";\nexport const gAssetFk = sqliteTable("__g_asset_fk", {\n  id: text("id").primaryKey(),\n  assetId: text("asset_id").references(() => assets.id),\n});\n',
   );
+  // no-vanity-alias: a workspace rename-import whose original name isn't otherwise present in the module
+  // (rule a — the cosmetic-alias case; @orb/ui + db-`*Table`/contracts-`*Wire` + genuine collisions are exempt).
+  fx(`${D}/__g_vanity/x.ts`, 'import { Foo as Bar } from "@orb/kit/x";\nexport const g = Bar;\n');
   // warning-code-coverage: NOT fixtured here — it is a whole-corpus emit-coverage RATCHET (a tuple member
   // with no emit site across the real home + emit scope). An injected `__g_` file can neither match its
   // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture; it is

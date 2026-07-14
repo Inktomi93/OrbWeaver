@@ -1,0 +1,137 @@
+// The Analytics CONTENT drill (a character selected in the leaderboard) — one character's turn
+// economics. Reads `character` (the single-character rollup: turns, words, tokens, cost, gen figures)
+// and `latency` scoped to that character (on-read TTFT/gen percentiles the rollup can't store). Its
+// ONE affordance is Back to the dashboard; there is no primary action (Analytics is read-only).
+
+import type { CharacterId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the corpus-dossier-surface.tsx precedent).
+import { ArrowLeft, ChartColumn, Icon } from "@orb/ui/icons";
+import { Row, Section, Stack } from "@orb/ui/layout";
+import { StatFigure } from "@orb/ui/stat-figure";
+import { Text } from "@orb/ui/text";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+import { useRef } from "react";
+import { QueryBoundary, useTRPC } from "#data";
+import { testId, timeLib, useFocusOnMount } from "#lib";
+import { formatCompact, formatMs, formatPercent } from "../lib/analytics-view-model";
+
+export interface AnalyticsCharacterSurfaceProps {
+  readonly characterId: CharacterId;
+  readonly onBack: () => void;
+}
+
+export function AnalyticsCharacterSurface({
+  characterId,
+  onBack,
+}: AnalyticsCharacterSurfaceProps): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+  return (
+    <Stack
+      ref={surfaceRef}
+      tabIndex={-1}
+      className="h-full min-h-0 outline-none"
+      data-testid={testId("analyticsCharacterSurface")}
+    >
+      <QueryBoundary
+        fallback={<Text tone="muted">Loading character stats…</Text>}
+        renderError={(_error, retry): ReactElement => (
+          <Text tone="muted">
+            Couldn't load these stats.{" "}
+            <Button intent="ghost" onClick={retry}>
+              Retry
+            </Button>
+          </Text>
+        )}
+      >
+        <CharacterBody characterId={characterId} onBack={onBack} />
+      </QueryBoundary>
+    </Stack>
+  );
+}
+
+function CharacterBody({
+  characterId,
+  onBack,
+}: {
+  readonly characterId: CharacterId;
+  readonly onBack: () => void;
+}): ReactElement {
+  const trpc = useTRPC();
+  const { data: stats } = useSuspenseQuery(trpc.stats.character.queryOptions({ characterId }));
+  const { data: latency } = useSuspenseQuery(
+    trpc.stats.latency.queryOptions({ kind: "character", characterId }),
+  );
+
+  if (stats === null) {
+    return (
+      <EmptyState
+        icon={<Icon icon={ChartColumn} size="lg" />}
+        title="No stats yet"
+        description="This character has no rolled-up activity. Play a chat with them, then come back."
+        action={
+          <Button intent="secondary" size="sm" onClick={onBack}>
+            <Icon icon={ArrowLeft} size="sm" />
+            Back
+          </Button>
+        }
+      />
+    );
+  }
+
+  return (
+    <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
+      <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
+        <Icon icon={ArrowLeft} size="sm" />
+        Back
+      </Button>
+
+      <Stack gap="field">
+        <Text size="title" weight="semibold">
+          {stats.name}
+        </Text>
+        {stats.lastActivityAt === null ? null : (
+          <Text size="micro" tone="muted">
+            Last active {timeLib.formatRelative(stats.lastActivityAt)}
+          </Text>
+        )}
+      </Stack>
+
+      <Section heading="Activity">
+        <Row gap="block" className="flex-wrap">
+          <StatFigure label="Chats" value={formatCompact(stats.chats)} />
+          <StatFigure label="Replies" value={formatCompact(stats.assistantTurns)} />
+          <StatFigure label="Your turns" value={formatCompact(stats.userTurns)} />
+          <StatFigure label="Swipes" value={formatCompact(stats.swipes)} />
+          <StatFigure label="Words" value={formatCompact(stats.assistantWords)} />
+          <StatFigure label="Forked chats" value={formatCompact(stats.forkedChats)} />
+        </Row>
+      </Section>
+
+      <Section heading="Economics">
+        <Row gap="block" className="flex-wrap">
+          <StatFigure label="Tokens in" value={formatCompact(stats.tokensIn)} />
+          <StatFigure label="Tokens out" value={formatCompact(stats.tokensOut)} />
+          <StatFigure label="Spend" value={`$${stats.costUsd.toFixed(2)}`} />
+          <StatFigure label="Cache hits" value={formatPercent(stats.cacheHitRate)} />
+          <StatFigure label="Reasoning" value={formatPercent(stats.reasoningRate)} />
+          <StatFigure label="Throughput" value={`${stats.throughputTps.toFixed(1)} t/s`} />
+        </Row>
+      </Section>
+
+      <Section heading="Latency">
+        <Row gap="block" className="flex-wrap">
+          <StatFigure label="Avg TTFT" value={formatMs(latency.avgTtftMs)} />
+          <StatFigure label="p50 TTFT" value={formatMs(latency.p50TtftMs)} />
+          <StatFigure label="p90 TTFT" value={formatMs(latency.p90TtftMs)} />
+          <StatFigure label="Avg gen" value={formatMs(latency.avgGenMs)} />
+          <StatFigure label="p50 gen" value={formatMs(latency.p50GenMs)} />
+          <StatFigure label="p90 gen" value={formatMs(latency.p90GenMs)} />
+        </Row>
+      </Section>
+    </Stack>
+  );
+}

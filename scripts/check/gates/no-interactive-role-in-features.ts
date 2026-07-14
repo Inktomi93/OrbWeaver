@@ -1,29 +1,11 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX role-attribute
 // fixture snippets (role="checkbox" etc.), not secrets.
-// A `role={…}` attribute in a features/**.tsx whose value carries a banned widget-role literal.
 // Gate: no-interactive-role-in-features (UI-Gates-and-Lessons.md §8) — closes the layout-kit
-// interactive-role escape hatch. The compose-only biome keystone bans className/style on raw
-// intrinsics in features/**, and no-raw-interactive-intrinsics (planned, D62) bans raw <button>/<input>
-// there — but neither catches a hand-rolled widget minted through the @orb/ui layout kit: `<Row>`/
-// `<Stack>`/etc. extend ComponentProps<"div"> and spread {...props} onto their div, so a feature can
-// forge an interactive element with `<Row role="button" tabIndex={0} onClick=… className="…">`,
-// dodging both belts. Interactivity in features must come from an @orb/ui primitive (Button, list-row,
-// Card `interactive`, menu, …), never a hand-rolled ARIA widget role on a div/layout component. The
-// @orb/ui seals themselves legally use these roles internally (list-row, card) — this gate scopes to
-// packages/client/src/features/** ONLY, so those seals are out of reach.
-//
-// RED: a `.tsx` file under packages/client/src/features/** whose JSX assigns an INTERACTIVE (widget)
-// ARIA role — the WIDGET_ROLES set below. Matches static string values (`role="button"`,
-// `role={"button"}`) AND template/conditional expressions that CONTAIN a banned literal
-// (`role={x ? "button" : undefined}` is still a hand-roll). `data-role` is NOT ARIA — ignored (the
-// attribute NAME must be exactly `role`). Structural / live-region roles (`list`, `listitem`, `status`,
-// `img`, `group`, `article`, `region`, `dialog`, `alert`, `presentation`, `toolbar`, `tabpanel`, …)
-// stay legal — they describe document structure, not an interactive widget the kit shouldn't be minting.
-//
-// BURN-DOWN ratchet (both directions — the persistence-boundary.ts pattern): BURN_DOWN names the current
-// offenders, each citing its fix owner. An allowlisted file that still hand-rolls is SUPPRESSED (known
-// debt); an allowlisted file that has gone CLEAN is RED ("stale entry — remove it", ratchet down); a
-// NEW offender not in BURN_DOWN is RED immediately.
+// interactive-role escape hatch: `<Row>`/`<Stack>`/etc. extend ComponentProps<"div"> and spread
+// {...props}, so a feature can forge an interactive element via `<Row role="button" tabIndex={0}
+// onClick=…>`, dodging the compose-only className/style ban. RED: a features/**.tsx JSX `role=` whose
+// value carries a banned WIDGET_ROLES literal (static or a conditional/template containing one) — never
+// a structural/live-region role. BURN_DOWN is a both-directions ratchet (persistence-boundary.ts pattern).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

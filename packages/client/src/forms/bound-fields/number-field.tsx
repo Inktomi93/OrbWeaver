@@ -5,8 +5,7 @@
 import { Field } from "@orb/ui/field";
 import { NumberField as UiNumberField } from "@orb/ui/number-field";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface BoundNumberFieldProps {
   readonly label: ReactNode;
@@ -20,35 +19,19 @@ export interface BoundNumberFieldProps {
   readonly disabled?: boolean;
 }
 
-export function BoundNumberField({
-  label,
-  description,
-  hint,
-  min,
-  max,
-  step,
-  disabled,
-}: BoundNumberFieldProps): ReactElement {
-  const field = useFieldContext<number | null>();
-  const error = touchedFieldError(field.state.meta);
+export function BoundNumberField(props: BoundNumberFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<number | null>(props);
   return (
-    <Field
-      label={label}
-      description={description}
-      hint={hint}
-      error={error}
-      disabled={disabled ?? false}
-      name={field.name}
-    >
+    <Field {...fieldProps}>
       <UiNumberField
-        value={field.state.value}
+        max={props.max}
+        min={props.min}
+        onBlur={field.handleBlur}
         onValueChange={(value): void => {
           field.handleChange(value);
         }}
-        onBlur={field.handleBlur}
-        min={min}
-        max={max}
-        step={step}
+        step={props.step}
+        value={field.state.value}
       />
     </Field>
   );

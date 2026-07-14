@@ -129,8 +129,9 @@ export interface MemoryRecallTrace {
   readonly ms: number;
 }
 
-/** The per-call build observability fragment (knowledge-cluster §3a `memoryTrace.build`). */
-export interface MemoryBuildTrace {
+/** The per-call build observability fragment (knowledge-cluster §3a `memoryTrace.build`). Folded into
+ *  {@link MemoryLogEntry}'s `memory.build` arm — not consumed as a standalone type, so not exported. */
+interface MemoryBuildTrace {
   readonly blocksBuilt: number;
   readonly blocksSkipped: number;
   readonly summarizeCalls: number;

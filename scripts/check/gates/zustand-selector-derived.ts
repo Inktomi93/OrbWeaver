@@ -1,33 +1,8 @@
-// Gate: zustand-selector-derived (docs/architecture/core/UI-Lib-Zustand.md §A "Selectors + equality" +
-// §C-1 + UI-Gates-and-Lessons.md §7 "Zustand × React" + §8 PARKED "the zustand-selector gate" + §11.5
-// "extend the selector gate to ALL keyed stores") — Zustand v5 dropped v4's implicit shallow equality
-// (default is `Object.is`), so a selector that DERIVES a fresh object/array every render
-// (`(s) => ({a,b})`, `(s) => [a,b]`, `Object.keys/values/entries(s)`, a rebuilt `.map()`/`.filter()`
-// array) spins `useSyncExternalStore` forever unless the call site wraps it in `useShallow(...)`. This
-// is RUNTIME-only — no compile signal — which is why it needs a gate, not just a lint of style.
-//
-// This is the Layer-3 (structural, ts-morph) HALF of the two-layer belt: `tools/grit/
-// zustand-selector-stability.grit` (Layer 2, biome-wired) already flags the narrow "arrow concise-body
-// IS an object/array literal" shape. This gate reasons over the FULL selector body — block-bodied
-// `return`s, either branch of a `? :`/`??`/`||`/`&&`, and the `Object.keys/values/entries(...)` +
-// array-rebuilding-method (`.map/.filter/.flatMap/.slice/.concat/.toSorted/.toReversed/.toSpliced`)
-// shapes a Grit AST pattern can't express — the §11.5 "extend to ALL keyed stores" ask. It also covers
-// the SECOND call shape the codebase uses: `useStore(vanillaStore, selector)` (`zustand/react`, the
-// door `createEntityDraftStore`'s `useDraft`/`useHasDraft` read through), not just `use<X>Store(selector)`.
-//
-// FLAGS: a call to a Zustand selector-accepting hook —
-//   • `use<X>Store(selector)` — the hook-shaped stores (`createGatedStore`/`createPersistedStore`)
-//   • `useStore(store, selector)` — the vanilla-store adapter (`zustand/react`)
-// — whose selector argument is an INLINE arrow/function expression that returns (directly, from a
-// block body, or from either reachable branch of a `?:`/`??`/`||`/`&&`) a fresh object/array literal,
-// an `Object.keys/values/entries(...)` call, or an array-rebuilding method call — UNLESS the selector
-// argument is wrapped in `useShallow(...)` (the sanctioned escape).
-//
-// Does NOT flag: a single-field selector (`(s) => s.field`); a selector returning an identifier (a
-// frozen module constant, e.g. `IDLE_TURN`/`EMPTY`, or any other stable reference); an already-
-// `useShallow`-wrapped selector (either call shape); an INDIRECT selector passed by reference (a named
-// function declared elsewhere) — tracing that requires cross-scope resolution this AST-only gate
-// doesn't attempt (the same scope limit `state-files.ts`'s literal-only scan documents).
+// Gate: zustand-selector-derived (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5) —
+// Zustand v5 dropped v4's implicit shallow equality (`Object.is`), so a selector that DERIVES a fresh
+// object/array every render spins `useSyncExternalStore` forever unless wrapped in `useShallow(...)`.
+// RUNTIME-only, no compile signal — hence a gate. The ts-morph half of the two-layer belt (`tools/grit/
+// zustand-selector-stability.grit` catches the narrow concise-arrow-body case); reasons over the full selector body across both call shapes.
 import type { ArrowFunction, FunctionExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

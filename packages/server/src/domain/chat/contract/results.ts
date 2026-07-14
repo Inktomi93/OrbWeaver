@@ -23,13 +23,13 @@ import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/pr
 import type { MemoryConfig } from "./memory";
 import type { ChatDetail, ChatVariables } from "./views";
 
-export type { TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
+export type { TurnIntent } from "@orb/contracts/chat";
 
 /** The output axis: per-speaker (one message per speaker) vs narrator (one call voices the cast). */
 export type GroupOutput = GroupConfig["output"];
 /** The card-scope axis: merged (all member cards in one block) vs scoped (own card + egocentric history).
  *  Lives only on the per-speaker arm — narrator is always merged. */
-export type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
+type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
 
 /** The per-speaker shape axis a group round resolves and threads onto {@link TurnPrep}. Absent means the
  *  single-speaker core's pinned default, so solo stays byte-identical. */
@@ -45,7 +45,7 @@ export interface TurnSpeakerShape {
   readonly speakerRef: SpeakerRef;
 }
 
-export const TURN_KINDS = [
+const TURN_KINDS = [
   "send",
   "swipe",
   "continue",
@@ -221,14 +221,17 @@ export interface TurnOutcome {
   readonly abortReason?: TurnAbortReason | undefined;
 }
 
-/** Per-variant provenance recorded on each generated message_variants row — which turn produced it + the
- *  cache hint. */
-export interface VariantProvenance {
-  readonly kind: TurnKind;
-  readonly triggeredBy: UserId;
-  readonly runAsUserId: UserId;
-  readonly speakerCharacterId: CharacterId | null;
-  readonly cacheBreakpointFromEnd: number | null;
+/** The scope of a deferred-turn drain (Part III §5). `all` = the boot reclaim (every chat's queued turns);
+ *  `hostUserId` = the host-return drain (only the turns funded by the returning host's box). Neither carries
+ *  a `principal` — a drain is system-triggered, and the durable `pending_turns` row IS the authorization
+ *  (it was minted by a `send` that already cleared `requireParticipant`). */
+export type DrainDeferredTurnsScope = { readonly all: true } | { readonly hostUserId: UserId };
+
+/** `drainDeferredTurns` — how many queued turns RAN (arbitrated + drove a round) vs. were DROPPED (a
+ *  re-validation refusal: consent/budget/gone-chat). Both outcomes consume the durable row. */
+export interface DrainReport {
+  readonly ran: number;
+  readonly dropped: number;
 }
 
 /** `startChat` — the lazily-created chat (+ roster) and the seeded opening, if any. `opening` is null when
@@ -249,14 +252,12 @@ export interface CompactResult {
   readonly compactedAtSeq: number;
 }
 
-/** `getVariables`/`getStoredVariables` — the ChoiceBlock variable map. */
-export type { ChatVariables } from "./views";
-
 /** `reapTemporaryChats` — how many temporary chats were reaped. */
 export interface ReapResult {
   readonly reaped: number;
 }
 
+/** `getVariables`/`getStoredVariables` — the ChoiceBlock variable map. */
 export type VariablesResult = ChatVariables;
 
 /** `createInvite` — the persisted invite plus the raw token returned once for the share link. The token is
