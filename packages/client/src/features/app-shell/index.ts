@@ -3,6 +3,8 @@
 
 export type { ContextTabsPanelProps } from "./components/context-tabs-panel";
 export { ContextTabsPanel } from "./components/context-tabs-panel";
+export type { SectionPlaceholderProps } from "./components/section-placeholder";
+export { SectionPlaceholder } from "./components/section-placeholder";
 export { YouSheet } from "./components/you-sheet";
 export { useIsMobileViewport } from "./hooks/use-is-mobile-viewport";
 export type { ShellLayout } from "./hooks/use-shell-layout";
