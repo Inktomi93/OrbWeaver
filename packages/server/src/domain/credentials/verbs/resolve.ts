@@ -74,6 +74,10 @@ async function resolveCustomOpenAi(
     headers: endpoint.headers,
     credentialId: active.id,
     model: endpoint.model ?? undefined,
+    contextWindow: endpoint.contextWindow,
+    includeBody: endpoint.includeBody,
+    excludeBody: endpoint.excludeBody,
+    responseMap: endpoint.responseMap,
   });
 }
 

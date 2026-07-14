@@ -201,6 +201,9 @@ export function resolveModelCapability(
       | { contextLength: number | null; supportedParameters: readonly string[] }
       | undefined;
     readonly agentSdkModels?: readonly AgentSdkModel[] | null | undefined;
+    /** The custom_openai credential's user-declared context window (`metadata.contextWindow`); falls back
+     *  to the conservative default when unset. Only the custom_openai arm reads it. */
+    readonly customContextWindow?: number | undefined;
   },
 ): ModelCapability {
   const wireShape = deriveWireShape(api, source);
@@ -226,8 +229,9 @@ export function resolveModelCapability(
     case "local-light":
       return staticProfile(LOCAL_LIGHT_WINDOW, false);
     case "custom_openai":
-      // FLAG[PD-12]: BYO profile is user-declared via providerMetadataSchema.modelProfile; conservative baseline until it lands.
-      return staticProfile(CUSTOM_OPENAI_DEFAULT_WINDOW, true);
+      // BYO profile (PD-12): the user-declared window (`metadata.contextWindow`) when set, else the
+      // conservative default. No nested `CustomModelProfile` type — the flat metadata pair IS the profile.
+      return staticProfile(caches?.customContextWindow ?? CUSTOM_OPENAI_DEFAULT_WINDOW, true);
     default:
       return assertNever(source);
   }

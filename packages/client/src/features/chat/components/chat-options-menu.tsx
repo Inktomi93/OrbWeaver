@@ -10,9 +10,20 @@
 
 import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Crown, Icon, Images, LogOut, MessagesSquare, Pencil, UserPlus, X } from "@orb/ui/icons";
+import {
+  Crown,
+  Download,
+  Icon,
+  Images,
+  LogOut,
+  MessagesSquare,
+  Pencil,
+  UserPlus,
+  X,
+} from "@orb/ui/icons";
 import {
   MenuItem,
+  MenuLinkItem,
   MenuPopup,
   MenuSeparator,
   MenuSubmenuRoot,
@@ -210,6 +221,10 @@ export function ChatOptionsMenu({
           <Icon icon={Pencil} size="sm" />
           Rename
         </MenuItem>
+        <MenuLinkItem href={`/api/export/chat/${chatId}`} download={true}>
+          <Icon icon={Download} size="sm" />
+          Download transcript
+        </MenuLinkItem>
         <MenuItem onClick={goToLanding}>
           <Icon icon={X} size="sm" />
           Close chat

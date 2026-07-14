@@ -22,6 +22,9 @@ export const SOFT_REF_ALLOWLIST: Readonly<Record<string, string>> = {
   // The Claude Agent SDK's OWN resume handle (the prompt-cache lineage id the SDK returns) — an
   // EXTERNAL identifier, not a reference to any orbweaver table (D8/D25).
   "session_entries.sdkSessionId": "external agent-sdk resume handle, not an orbweaver-table FK",
+  // The upstream OpenRouter generation handle (`gen-…`) a variant billed under — an EXTERNAL provider id
+  // (`connection.orGenerationCost`'s key, PD-137), not a reference to any orbweaver table (D24).
+  "message_variants.generationId": "external OpenRouter generation handle, not an FK",
 };
 
 const SOFT_MESSAGE = (pair: string): string =>

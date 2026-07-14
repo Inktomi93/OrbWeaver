@@ -74,6 +74,9 @@ export function makeCustomOpenAiCredential(
     credentialId: overrides.credentialId ?? castId<UserCredentialId>("ucred_test"),
     contextWindow: overrides.contextWindow,
     model: overrides.model,
+    includeBody: overrides.includeBody ?? null,
+    excludeBody: overrides.excludeBody ?? null,
+    responseMap: overrides.responseMap ?? null,
   });
 }
 

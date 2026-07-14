@@ -4,18 +4,19 @@
 // (paints it) AND `app-shell.tsx` (gates `.shell-grid`'s own opaque background off the SAME resolved
 // outcome — the image must show through the chrome's gaps/glass to be visible at all) read the ONE answer.
 //
-// FLAG[PD-131]: the `asset` (own upload) source is GONE from the kind enum — no client asset-URL
-// resolver/upload flow exists yet (#67, the SAME gap `message-media-block.tsx` flags for message
-// images). The picker offers only seeded/external until #67 lands. Debt registry: `Core-Audits-and-Debt.md` PD-131.
+// PD-131: the `asset` (own upload) kind resolves the STORED immutable content hash straight to `blobUrl`
+// (no async id→hash round-trip — the hash is persisted alongside `backgroundAssetId`, which GC roots).
 
+import { blobUrl } from "@orb/contracts/assets";
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { resolveSeededBackgroundUrl } from "#lib";
 
-/** `null` ⇒ no image renders (kind `none`, an empty/stale seeded id, or a blank external url). */
+/** `null` ⇒ no image renders (kind `none`, an empty/stale seeded id, a blank external url, or a
+ *  not-yet-uploaded `asset` with no stored hash). */
 export function resolveBackgroundUrl(
   a: Pick<
     AppearanceSettings,
-    "backgroundImageKind" | "backgroundSeededId" | "backgroundExternalUrl"
+    "backgroundImageKind" | "backgroundSeededId" | "backgroundExternalUrl" | "backgroundAssetHash"
   >,
 ): string | null {
   if (a.backgroundImageKind === "seeded") {
@@ -23,6 +24,9 @@ export function resolveBackgroundUrl(
   }
   if (a.backgroundImageKind === "external") {
     return a.backgroundExternalUrl || null;
+  }
+  if (a.backgroundImageKind === "asset") {
+    return a.backgroundAssetHash ? blobUrl(a.backgroundAssetHash) : null;
   }
   return null;
 }

@@ -55,6 +55,9 @@ export function createCustomByoBackend(deps: CustomByoRunnerDeps): ProviderBacke
         apiKey: credential.apiKey,
         headers: credential.headers,
         model: req.model,
+        includeBody: credential.includeBody,
+        excludeBody: credential.excludeBody,
+        ...(req.signal !== undefined ? { signal: req.signal } : {}),
       });
     },
   };

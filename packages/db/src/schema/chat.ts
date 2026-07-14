@@ -286,6 +286,10 @@ export const messageVariants = sqliteTable(
     promptSnapshot: text("prompt_snapshot", { mode: "json" }).$type<AssembledPrompt>(),
     genStartedAt: integer("gen_started_at"),
     genFinishedAt: integer("gen_finished_at"),
+    // The upstream OpenRouter generation handle (`gen-…`) this variant was billed under — the key
+    // `connection.orGenerationCost` settles the per-message cost with (PD-137). Null on a non-OR turn
+    // (agent-sdk / responses api / user-authored row). NOT an orbweaver-branded id (an upstream handle).
+    generationId: text("generation_id"),
     // Raw provider envelopes (debug/replay) — open JSON, parsed at the read seam.
     rawRequest: text("raw_request", { mode: "json" }).$type<Record<string, unknown>>(),
     rawResponse: text("raw_response", { mode: "json" }).$type<Record<string, unknown>>(),

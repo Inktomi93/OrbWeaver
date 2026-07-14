@@ -3,7 +3,10 @@
 // Two axes: CredentialSource is the DISPATCH axis (resolver+runner arm); CredentialProvider is the
 // broader STORAGE axis (a row may persist with no resolver arm yet).
 // AES-256-GCM AAD invariant: at-rest ciphertext is bound to `${userId}|${provider}`, so CRED_PROVIDERS
-// must stay byte-stable. FLAG[PD-12]: BYO `modelProfile`/per-endpoint transforms deferred.
+// must stay byte-stable. The BYO model profile is the flat `model`/`contextWindow` metadata pair (PD-12
+// closed: no nested `CustomModelProfile` type — the runner reads the resolved `ModelCapability`, never a
+// baked profile object); the per-endpoint request/response transforms are `includeBody`/`excludeBody`/
+// `responseMap` (PD-13).
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -38,6 +41,25 @@ export const CRED_PROVIDERS = [
 export type CredentialProvider = (typeof CRED_PROVIDERS)[number];
 export const credentialProviderSchema = z.enum(CRED_PROVIDERS);
 
+/** A user-declared response-shape map for a non-standard BYO endpoint: each field is a dot-path into the
+ *  raw reply (a numeric segment indexes an array) that overrides the runner's OpenAI-compatible default.
+ *  All optional — an unset path keeps the default. `.loose()` tolerates forward-compat keys. */
+export const customOpenAiResponseMapSchema = z
+  .object({
+    contentPath: z.string().optional(),
+    reasoningPath: z.string().optional(),
+    finishReasonPath: z.string().optional(),
+    promptTokensPath: z.string().optional(),
+    completionTokensPath: z.string().optional(),
+    errorMessagePath: z.string().optional(),
+    errorCodePath: z.string().optional(),
+    toolCallsPath: z.string().optional(),
+  })
+  .loose();
+
+/** The user-declared response-shape overrides for a BYO endpoint (see {@link customOpenAiResponseMapSchema}). */
+export type CustomOpenAiResponseMap = z.infer<typeof customOpenAiResponseMapSchema>;
+
 /** The runtime gate for the `user_credentials.metadata` JSON blob, also used client-side for
  *  custom-endpoint form validation. `.loose()` tolerates forward-compat keys; `null` = no metadata. */
 export const providerMetadataSchema = z.union([
@@ -52,6 +74,12 @@ export const providerMetadataSchema = z.union([
       headers: z.record(z.string(), z.string()).optional(),
       /** User-declared context window (tokens) for the BYO model — trusted input, not probed. */
       contextWindow: z.number().int().positive().optional(),
+      /** Extra request-body fields merged over the base (user wins) — e.g. a `provider`-specific knob. */
+      includeBody: z.record(z.string(), z.unknown()).optional(),
+      /** Request-body keys stripped LAST (a field the endpoint rejects, even if `includeBody` re-added it). */
+      excludeBody: z.array(z.string()).optional(),
+      /** Dot-path overrides for a non-standard reply shape (see {@link customOpenAiResponseMapSchema}). */
+      responseMap: customOpenAiResponseMapSchema.optional(),
     })
     .loose(),
   z
@@ -124,6 +152,12 @@ export type CustomOpenAiCredential = CredentialBrand & {
   readonly contextWindow: number | undefined;
   /** Default model string from the credential's `metadata.model`; undefined until the form supplies one. */
   readonly model: string | undefined;
+  /** Per-endpoint request-body fields merged over the base (user wins); `null` when the row declares none. */
+  readonly includeBody: Record<string, unknown> | null;
+  /** Request-body keys stripped LAST (after `includeBody`); `null` when the row declares none. */
+  readonly excludeBody: readonly string[] | null;
+  /** Dot-path overrides for a non-standard reply shape; `null` when the row uses the OpenAI-compatible defaults. */
+  readonly responseMap: CustomOpenAiResponseMap | null;
 };
 
 /** The decrypted-credential shape every provider runner consumes. Constructed ONLY through the

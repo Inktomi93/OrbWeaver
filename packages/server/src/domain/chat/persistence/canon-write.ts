@@ -54,6 +54,9 @@ interface CanonVariantInput {
    *  columns (not on the read `MessageView`); absent ⇒ null (a verbatim/greeting seed). */
   readonly genStartedAt?: number | null | undefined;
   readonly genFinishedAt?: number | null | undefined;
+  /** The upstream OpenRouter generation handle (`gen-…`) this variant billed under — the PD-137 cost key.
+   *  Absent/null on a non-OR turn (agent-sdk / responses api / user-authored row). */
+  readonly generationId?: string | null | undefined;
   readonly ttftMs?: number | null | undefined;
   readonly finishReason?: string | null | undefined;
   readonly stopReason?: string | null | undefined;
@@ -105,9 +108,17 @@ interface VariantEconomics {
   readonly finishReason: string | null;
   readonly stopReason: string | null;
   readonly terminalReason: string | null;
+  /** Gen-window bounds (epoch-ms) — the stats gen-time axis and (PD-130) the `showGenerationTimer` chip
+   *  both read `gf − gs`. A continue re-stamps them to the continuation's window. */
+  readonly genStartedAt: number | null;
+  readonly genFinishedAt: number | null;
+  /** The upstream OpenRouter generation handle (`gen-…`) — the PD-137 per-message cost key. On both the
+   *  insert columns and the read `MessageView` (one home; the committed view can't drift from the row). */
+  readonly generationId: string | null;
 }
 
 /** Normalize a {@link CanonVariantInput}'s economics to the read-seam null contract. */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat one-field-per-column `?? null` normalize — every operator is one independent coalesce, zero nesting/branching; splitting it would scatter the one-home economics shape (same posture as `canonMessageDelta` above).
 function variantEconomics(v: CanonVariantInput): VariantEconomics {
   return {
     content: v.content,
@@ -125,6 +136,9 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
     finishReason: v.finishReason ?? null,
     stopReason: v.stopReason ?? null,
     terminalReason: v.terminalReason ?? null,
+    genStartedAt: v.genStartedAt ?? null,
+    genFinishedAt: v.genFinishedAt ?? null,
+    generationId: v.generationId ?? null,
   };
 }
 
@@ -143,9 +157,6 @@ function variantColumns(args: {
     ...variantEconomics(args.variant),
     maxOutputTokens: args.variant.maxOutputTokens ?? null,
     reasoningEffort: args.variant.reasoningEffort ?? null,
-    // Persistence-only gen bounds (not on the read view) — the stats gen-time axis reads `gf − gs`.
-    genStartedAt: args.variant.genStartedAt ?? null,
-    genFinishedAt: args.variant.genFinishedAt ?? null,
     params: args.variant.params ?? null,
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,
@@ -291,10 +302,8 @@ export function continueVariantStatements(
       db
         .update(messageVariants)
         .set({
+          // A continue re-generates: `variantEconomics` re-stamps the gen window to the continuation's.
           ...variantEconomics(params.variant),
-          // A continue re-generates, so the gen window is re-stamped to the continuation's.
-          genStartedAt: params.variant.genStartedAt ?? null,
-          genFinishedAt: params.variant.genFinishedAt ?? null,
           params: params.variant.params ?? null,
           promptSnapshot: params.variant.promptSnapshot ?? null,
           // A continue re-runs assembly, so its op-log replaces this variant's delta.

@@ -2,6 +2,12 @@
 // (`collectGarbage`'s whole-CAS sweep + `reapIfOrphan`'s targeted check) to decide "is this blob referenced?".
 // A column missing from BOTH lists silently makes its blobs GC-eligible — the schema-introspection test
 // (asset-refs.int.test.ts) enumerates every FK-to-`assets.id` column and asserts each is classified here.
+//
+// NOT every live asset ref is an FK column: `appearance.backgroundAssetId` (PD-131) is pinned inside the
+// `user_settings.config` JSON blob, invisible to the FK enumeration. `selectSettingsReferencedAssetIds`
+// is that JSON live-source — mirroring `selectInlineReferencedContents` (chat-canon `asset:` refs) —
+// and it is UNIONED into `selectAllReferencedAssetIds` so a pinned own-upload background never gets
+// silently reaped ~1h after upload.
 
 import type { Db } from "@orb/db";
 import {
@@ -13,9 +19,11 @@ import {
   messageAssets,
   personas,
   rpgNpcs,
+  userSettings,
 } from "@orb/db";
 import type { AssetId } from "@orb/kit/ids";
-import { inArray, isNotNull } from "drizzle-orm";
+import { castId } from "@orb/kit/ids";
+import { inArray, isNotNull, sql } from "drizzle-orm";
 import type { AssetRef } from "../contract/maintenance";
 
 /** RETAINING references — a non-null value here keeps its asset (and blob) LIVE; the safe default for an
@@ -35,7 +43,30 @@ export const ASSET_REFS: readonly AssetRef[] = [
  *  snake-case keys, not drizzle refs: `image_embeddings` is a vector table this file may not import. */
 export const DERIVED_ASSET_COLUMNS: readonly string[] = ["image_embeddings.asset_id"];
 
-/** The whole-corpus live set `collectGarbage` sweeps every blob against. */
+/** The non-FK live-source: `AssetId`s pinned inside a JSON settings blob. Today that is a single field —
+ *  `appearance.backgroundAssetId` (PD-131 own-upload background) — read via `json_extract` off every
+ *  `user_settings.config`. Over-inclusion is SAFE (an extra id in the live set never reaps a blob);
+ *  under-inclusion is the silent-reap data-loss bug this closes, so a present, non-empty value joins the
+ *  set unconditionally. Mirrors `selectInlineReferencedContents` (the chat-canon `asset:` JSON live-source). */
+async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
+  const live = new Set<AssetId>();
+  const rows = await db
+    .selectDistinct({
+      id: sql<
+        string | null
+      >`json_extract(${userSettings.config}, '$.appearance.backgroundAssetId')`,
+    })
+    .from(userSettings);
+  for (const row of rows) {
+    if (row.id !== null && row.id.length > 0) {
+      live.add(castId<AssetId>(row.id));
+    }
+  }
+  return live;
+}
+
+/** The whole-corpus live set `collectGarbage` sweeps every blob against — the FK registry UNIONED with the
+ *  JSON settings live-source (so a JSON-pinned background is as GC-safe as an FK-referenced avatar). */
 export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
   const live = new Set<AssetId>();
   for (const ref of ASSET_REFS) {
@@ -50,6 +81,9 @@ export async function selectAllReferencedAssetIds(db: Db): Promise<Set<AssetId>>
         live.add(id);
       }
     }
+  }
+  for (const id of await selectSettingsReferencedAssetIds(db)) {
+    live.add(id);
   }
   return live;
 }

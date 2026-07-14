@@ -26,11 +26,15 @@ export function resolveCapability(
   caches: {
     readonly cached: readonly ModelCatalogEntry[] | null;
     readonly agentSdkModels: readonly AgentSdkModel[] | null;
+    /** The custom_openai credential's user-declared context window, threaded from `resolveRole` (the real
+     *  turn path holds the resolved credential); undefined on the credential-free panel-preview path. */
+    readonly customContextWindow?: number | undefined;
   },
 ): ModelCapability {
   const entry = caches.cached?.find((m) => m.id === model);
   return resolveModelCapability(model, source, api, {
     orEntry: entry,
     agentSdkModels: caches.agentSdkModels,
+    customContextWindow: caches.customContextWindow,
   });
 }

@@ -8,7 +8,7 @@
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import { redactHeaders } from "../kit";
+import { applyIncludeExclude, redactHeaders } from "../kit";
 
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;
@@ -23,25 +23,26 @@ const TRAILING_SLASH_RE = /\/$/;
 
 /**
  * Real 1-message probe against a user-defined OpenAI-compatible endpoint. Sends a trivial non-streaming
- * chat request and returns the redacted request + raw response preview.
- *
- * FLAG[PD-13]: the per-endpoint `includeBody`/`excludeBody` request transforms (§1a) have no contract
- * home yet (v1 deferral — the credential metadata carries only baseUrl/model/headers); the probe body
- * is the OpenAI base + the user's headers only. When
- * those transforms land they apply to this body too (the runner + this inspector share that seam).
+ * chat request — the SAME body a real turn would send, with the user's `includeBody`/`excludeBody`
+ * transforms applied (the runner + this inspector share that seam, PD-13) — and returns the redacted
+ * request + raw response preview. `signal` cancels the in-flight fetch (PD-16).
  */
 export async function inspectCustomByoEndpoint(args: {
   readonly baseUrl: string;
   readonly apiKey: string | null;
   readonly headers: Record<string, string> | null;
   readonly model: string;
+  readonly includeBody: Record<string, unknown> | null;
+  readonly excludeBody: readonly string[] | null;
+  readonly signal?: AbortSignal | undefined;
 }): Promise<EndpointInspection> {
-  const body: Record<string, unknown> = {
+  const base: Record<string, unknown> = {
     model: args.model,
     messages: [{ role: "user", content: PING_CONTENT }],
     stream: false,
     max_tokens: PING_MAX_TOKENS,
   };
+  const body = applyIncludeExclude(base, args.includeBody, args.excludeBody);
   const headers: Record<string, string> = {
     "content-type": JSON_CONTENT_TYPE,
     ...(args.apiKey !== null && args.apiKey.length > 0
@@ -57,7 +58,12 @@ export async function inspectCustomByoEndpoint(args: {
   };
 
   try {
-    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    });
     const text = await res.text().catch((): string => "");
     return {
       ok: res.ok,

@@ -80,6 +80,16 @@ export const useUpdateWorldEntry = createEntityMutation<
   errorToast: "Couldn't save the entry.",
 });
 
+/** Fill blank entry titles from each entry's keys (returns the count filled). Refetches the entry list. */
+export const useBackfillWorldTitles = createEntityMutation<
+  inferInput<Trpc["worldInfo"]["backfillTitles"]>,
+  inferOutput<Trpc["worldInfo"]["backfillTitles"]>
+>({
+  options: (trpc) => trpc.worldInfo.backfillTitles.mutationOptions(),
+  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter()],
+  errorToast: "Couldn't backfill the entry titles.",
+});
+
 /** Delete an entry. Refetches the book's entry list. */
 export const useRemoveWorldEntry = createEntityMutation<
   inferInput<Trpc["worldInfo"]["removeEntry"]>,

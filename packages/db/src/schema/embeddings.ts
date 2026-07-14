@@ -21,7 +21,12 @@
 //     MUST NOT null it (the neo reset-in-3-places bug). It is nullable + never defaulted by a store.
 //   • The `(model, dim)` space tag on every row — `search`/`memory` compare ONLY within one space; the
 //     same model on different backends is the same space (free switch), a different model/dim is its own
-//     space (re-index workload).
+//     space (re-index workload). PD-104: ALL FIVE producers key their idempotent upsert ON `model`
+//     (character/image/document_chunks always did; chat_segments/chat_digests were fixed to match — they
+//     used to OMIT model and overwrite the old space in place, an inconsistency with the orphaning
+//     character/image tables). So a model change is uniformly PURGE + REINDEX: the new space is written
+//     additively (no overwrite, no inconsistent orphan), then the stale old-space rows are purged
+//     (`embeddings/persistence purgeStaleVectors`, folded into the bulk `index` reindex) — never stranded.
 //
 // `image_embeddings.lens` DERIVES the canonical `IMAGE_LENSES` tuple from `@orb/contracts/embeddings`
 // (D34 — promoted out of the server tier so db can derive; db deps are kit + contracts + drizzle only).
@@ -210,10 +215,18 @@ export const chatDigests = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The idempotent-upsert key (ALL FOUR columns, incl. the real-CharacterId scopedCharacterId). A
-    // re-digest of the same bucket collides here (ON CONFLICT DO UPDATE); dropping scopedCharacterId would
-    // bleed a scoped bucket's rows into the shared (group-as-character) bucket.
-    uniqueIndex("chat_digests_scope_unique").on(t.chatId, t.scopedCharacterId, t.tier, t.blockIdx),
+    // The idempotent-upsert key — the scope bucket PLUS `model` (PD-104): every one of the 5 vector
+    // producers keys its upsert ON `model`, so a `(model, dim)` change writes a NEW space additively
+    // (never an in-place overwrite of the old space, never an inconsistent orphan). The old space is
+    // reclaimed by the purge+reindex path (`purgeStaleVectors` in the bulk `index` reindex). Dropping
+    // scopedCharacterId would bleed a scoped bucket's rows into the shared (group-as-character) bucket.
+    uniqueIndex("chat_digests_scope_unique").on(
+      t.chatId,
+      t.scopedCharacterId,
+      t.tier,
+      t.blockIdx,
+      t.model,
+    ),
     index("chat_digests_chat_idx").on(t.chatId),
   ],
 );
@@ -253,8 +266,10 @@ export const chatSegments = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // One verbatim segment per (chat, block) — the idempotent-upsert key.
-    uniqueIndex("chat_segments_chat_block_unique").on(t.chatId, t.blockIdx),
+    // One verbatim segment per (chat, block, model) — the idempotent-upsert key. `model` is in the key
+    // (PD-104) so a `(model, dim)` change writes a NEW space additively rather than overwriting the old
+    // one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
+    uniqueIndex("chat_segments_chat_block_unique").on(t.chatId, t.blockIdx, t.model),
   ],
 );
 

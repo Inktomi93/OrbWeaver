@@ -73,3 +73,36 @@ export const useRestartEngine = createEntityMutation<
   invalidates: (trpc) => [trpc.admin.vllmEngines.queryFilter()],
   errorToast: "Couldn't restart the engine.",
 });
+
+/** Refresh the OpenRouter model catalog (fetch `/models` → write the KV snapshot, warm the cache).
+ *  Invalidates the browse read so pickers see the fresh catalog. */
+export const useRefreshCatalog = createEntityMutation<
+  inferInput<Trpc["connection"]["refreshCatalog"]>,
+  unknown
+>({
+  options: (trpc) => trpc.connection.refreshCatalog.mutationOptions(),
+  invalidates: (trpc) => [trpc.connection.getCatalog.queryFilter()],
+  errorToast: "Couldn't refresh the model catalog.",
+});
+
+/** Refresh the agent-SDK daemon model catalog (run `supportedModels()` → write the KV snapshot).
+ *  Invalidates its browse read. */
+export const useRefreshAgentSdkCatalog = createEntityMutation<
+  inferInput<Trpc["connection"]["refreshAgentSdkCatalog"]>,
+  unknown
+>({
+  options: (trpc) => trpc.connection.refreshAgentSdkCatalog.mutationOptions(),
+  invalidates: (trpc) => [trpc.connection.getAgentSdkCatalog.queryFilter()],
+  errorToast: "Couldn't refresh the agent-SDK catalog.",
+});
+
+/** PD-90 — the inline single-card embed (admin-only; drives the GPU embed engine). Reconciles nothing;
+ *  the caller renders the returned ok inline. */
+export const useEmbedCharacterCard = createEntityMutation<
+  inferInput<Trpc["admin"]["embedCharacterCard"]>,
+  { readonly ok: true }
+>({
+  options: (trpc) => trpc.admin.embedCharacterCard.mutationOptions(),
+  invalidates: () => [],
+  errorToast: "Couldn't embed the card — check the character id.",
+});

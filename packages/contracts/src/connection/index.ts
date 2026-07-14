@@ -3,7 +3,9 @@
 // `connection` is selection, not execution: the sealed `runner`/`family` vocab stays inside
 // `infra/providers`; this contract speaks only the user vocab `{api, source, model}` + `ModelCapability`.
 // `connection` re-exports `CredentialSource` verbatim (never redeclared) — routing's `source` IS the
-// credential source. FLAG[PD-12]: BYO `modelProfile`/`CustomModelProfile` deferred to `#credentials`.
+// credential source. (PD-12 closed: the BYO model profile is the flat `model`/`contextWindow` metadata
+// pair on the `custom_openai` credential — no nested `CustomModelProfile` type; the runner reads the
+// resolved `ModelCapability`, never a baked profile object.)
 
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

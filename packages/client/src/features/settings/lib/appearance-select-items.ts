@@ -87,11 +87,11 @@ export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES
   label: BLUR_SURFACE_LABELS[value],
 }));
 
-// `asset` (own upload) is deliberately absent from BACKGROUND_IMAGE_KINDS — FLAG[PD-131]: no client asset-URL resolver/upload flow exists yet.
 const BACKGROUND_KIND_LABELS: Record<AppearanceSettings["backgroundImageKind"], string> = {
   none: "None",
   seeded: "Seeded",
   external: "URL",
+  asset: "Upload",
 };
 export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.map((value) => ({
   value,

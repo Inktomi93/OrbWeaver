@@ -146,25 +146,41 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
     });
 }
 
-/** The stored `content_hash` for a chat segment `(chatId, blockIdx)`, or `undefined` when no row exists. */
+/** The stored `content_hash` for a chat segment `(chatId, blockIdx, model)`, or `undefined` when no row
+ *  exists in that space. `model` is part of the key (PD-104) — the read scopes to the active space so the
+ *  staleness short-circuit never compares against a different model's row. */
 export async function existingSegmentHash(
   db: Db,
   chatId: ChatId,
   blockIdx: number,
+  model: string,
 ): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatSegments.contentHash })
     .from(chatSegments)
-    .where(and(eq(chatSegments.chatId, chatId), eq(chatSegments.blockIdx, blockIdx)))
+    .where(
+      and(
+        eq(chatSegments.chatId, chatId),
+        eq(chatSegments.blockIdx, blockIdx),
+        eq(chatSegments.model, model),
+      ),
+    )
     .limit(LIMIT_ONE);
   return rows[0]?.hash;
 }
 
-/** The stored `content_hash` for a chat digest `(chatId, scopedCharacterId, tier, blockIdx)`, or `undefined`
- *  when no row exists. The scope key is part of the staleness identity (scope folds into the hash — §4). */
+/** The stored `content_hash` for a chat digest `(chatId, scopedCharacterId, tier, blockIdx, model)`, or
+ *  `undefined` when no row exists in that space. The scope key is part of the staleness identity (scope
+ *  folds into the hash — §4); `model` is in the key (PD-104) so the read scopes to the active space. */
 export async function existingDigestHash(
   db: Db,
-  key: { chatId: ChatId; scopedCharacterId: CharacterId; tier: number; blockIdx: number },
+  key: {
+    chatId: ChatId;
+    scopedCharacterId: CharacterId;
+    tier: number;
+    blockIdx: number;
+    model: string;
+  },
 ): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatDigests.contentHash })
@@ -175,6 +191,7 @@ export async function existingDigestHash(
         eq(chatDigests.scopedCharacterId, key.scopedCharacterId),
         eq(chatDigests.tier, key.tier),
         eq(chatDigests.blockIdx, key.blockIdx),
+        eq(chatDigests.model, key.model),
       ),
     )
     .limit(LIMIT_ONE);
@@ -196,8 +213,9 @@ interface UpsertSegmentInput {
   readonly now: number;
 }
 
-/** Upsert a verbatim segment by `(chatId, blockIdx)`. On conflict updates the vector + text + seq-span +
- *  hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant 2). */
+/** Upsert a verbatim segment by `(chatId, blockIdx, model)`. On conflict updates the vector + text +
+ *  seq-span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant
+ *  2). `model` is in the conflict key (PD-104): a new space inserts, never overwrites the old one. */
 export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Promise<void> {
   await db
     .insert(chatSegments)
@@ -215,7 +233,7 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
       createdAt: input.now,
     })
     .onConflictDoUpdate({
-      target: [chatSegments.chatId, chatSegments.blockIdx],
+      target: [chatSegments.chatId, chatSegments.blockIdx, chatSegments.model],
       set: {
         seqStart: input.seqStart,
         seqEnd: input.seqEnd,
@@ -245,9 +263,10 @@ interface UpsertDigestInput {
   readonly now: number;
 }
 
-/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx)`. Returns the persisted row's
- *  id — on conflict the kept id differs from the freshly-minted `input.id`, so the caller writes the
- *  `chat_digest_speakers` join against this id, never the mint. */
+/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx, model)`. Returns the persisted
+ *  row's id — on conflict the kept id differs from the freshly-minted `input.id`, so the caller writes the
+ *  `chat_digest_speakers` join against this id, never the mint. `model` is in the conflict key (PD-104): a
+ *  new space inserts additively rather than overwriting the old space in place. */
 export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<ChatDigestId> {
   const rows = await db
     .insert(chatDigests)
@@ -273,6 +292,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
         chatDigests.scopedCharacterId,
         chatDigests.tier,
         chatDigests.blockIdx,
+        chatDigests.model,
       ],
       set: {
         text: input.text,

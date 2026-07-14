@@ -22,6 +22,42 @@ test("Send is disabled on an empty draft", async ({ mount }) => {
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
 });
 
+// ── imagery I5 base slice: the in-chat AI generate-image affordance ─────────────────────────────────────
+test("generate-image is gated on typed text, then fires chat.generateImage (mode free, the text as prompt)", async ({
+  mount,
+  page,
+}) => {
+  let genBody: string | null = null;
+  await routeTrpc(page, {});
+  await page.route("**/api/trpc/**", async (route) => {
+    const req = route.request();
+    const isGen =
+      req.method() === "POST" && new URL(req.url()).pathname.includes("chat.generateImage");
+    if (!isGen) {
+      await route.fallback();
+      return;
+    }
+    genBody = req.postData();
+    // Hold it in flight — the button drives the loading state; the posted message rides the bus.
+    await new Promise<void>(() => undefined);
+  });
+
+  const component = await mount(<ComposerStory />);
+  const generate = component.getByRole("button", { name: "Generate image from text" });
+  // Empty composer → the generate action is disabled (free mode needs a prompt).
+  await expect(generate).toBeDisabled();
+
+  const textarea = component.getByLabel("Message", { exact: true });
+  await textarea.fill("a neon city at dusk");
+  await expect(generate).toBeEnabled();
+  await generate.click();
+
+  await expect.poll(() => genBody, { intervals: [20, 50, 100] }).not.toBeNull();
+  expect(genBody).toContain("a neon city at dusk");
+  expect(genBody).toContain("free");
+  expect(genBody).toContain(COMPOSER_CHAT_ID);
+});
+
 test("committed handle: Send fires chat.send; the draft is NOT cleared until the commit signal, then clears", async ({
   mount,
   page,

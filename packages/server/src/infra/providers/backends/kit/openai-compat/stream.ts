@@ -37,6 +37,17 @@ export interface MapTurnContext {
   readonly reasoning?: string | undefined;
 }
 
+/** Latch the generation handle (`gen-…`) on first non-empty sight; every chunk repeats the same id. */
+function latchGenerationId(
+  current: string | undefined,
+  chunkId: string | undefined,
+): string | undefined {
+  if (current !== undefined) {
+    return current;
+  }
+  return chunkId !== undefined && chunkId.length > 0 ? chunkId : undefined;
+}
+
 export async function reduceChatCompletionStream(
   stream: AsyncIterable<ChatCompletionStreamChunk>,
   opts: StreamReduceOptions = {},
@@ -44,12 +55,15 @@ export async function reduceChatCompletionStream(
   let replyText = "";
   let usage: ChatCompletionUsage | undefined;
   let finishReason: string | null = null;
+  // The generation handle (`gen-…`) — identical on every chunk; latch it once for the PD-137 cost key.
+  let generationId: string | undefined;
   const toolCalls = new Map<number, ToolCallAccumulator>();
   for await (const chunk of stream) {
     opts.onChunk?.();
     if (chunk.error !== null && chunk.error !== undefined) {
       throw Object.assign(new Error(chunk.error.message), { statusCode: chunk.error.code });
     }
+    generationId = latchGenerationId(generationId, chunk.id);
     const delta = chunk.choices[0]?.delta;
     if (delta !== undefined) {
       replyText += dispatchDelta(delta, opts.onDelta);
@@ -65,6 +79,7 @@ export async function reduceChatCompletionStream(
   }
   const assembled = assembleToolCalls(toolCalls);
   return {
+    ...(generationId !== undefined ? { id: generationId } : {}),
     choices: [
       {
         message: {
@@ -189,6 +204,7 @@ export function mapChatCompletionToTurnResult(
     durationApiMs: ctx.now - ctx.startedAt,
     apiErrorStatus: null,
     numTurns: 1,
+    ...(view.id !== undefined ? { generationId: view.id } : {}),
     usage: mapUsage(view, ctx),
     events: [],
     rateLimit: null,

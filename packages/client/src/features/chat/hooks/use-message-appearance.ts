@@ -24,8 +24,8 @@ export interface MessageAppearance {
   /** ST `auto_fix_generated_markdown` parity — apply the incomplete-markdown repair to SETTLED bodies
    *  too (default OFF; streaming always repairs regardless). Threaded to `MessageContent`'s markdown seal. */
   readonly autoFixMarkdown: AppearanceSettings["autoFixMarkdown"];
-  /** WS3 metadata-chip visibility — `MessageMetadataRow`'s per-toggle gate (`showGenerationTimer` is
-   *  deliberately absent: no live consumer, see message-metadata-row.tsx's header note). */
+  /** WS3 metadata-chip visibility — `MessageMetadataRow`'s per-toggle gate (incl. PD-130's
+   *  `showGenerationTimer`, now wired to the `MessageView` gen-window bounds). */
   readonly metadataVisibility: MessageMetadataVisibility;
   /** WS3 — hover-reveal vs always-visible action cluster. */
   readonly messageActions: AppearanceSettings["messageActions"];
@@ -50,6 +50,8 @@ export function useMessageAppearance(): MessageAppearance {
       showMessageId: appearance.showMessageId,
       showModelIcon: appearance.showModelIcon,
       showTokenCount: appearance.showTokenCount,
+      showGenerationTimer: appearance.showGenerationTimer,
+      showGenerationCost: appearance.showGenerationCost,
     },
     messageActions: appearance.messageActions,
     showLLMReasoningIcon: appearance.showLLMReasoningIcon,

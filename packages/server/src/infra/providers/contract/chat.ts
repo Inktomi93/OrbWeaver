@@ -233,6 +233,10 @@ export interface ChatResult {
   /** Non-null when transient API errors occurred but retries recovered the turn. */
   readonly apiErrorStatus: number | null;
   readonly numTurns: number;
+  /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the key
+   *  `connection.orGenerationCost` settles the per-message cost with (PD-137). Absent/null on a backend
+   *  that surfaces no such handle (agent-sdk / the responses api / a BYO endpoint). */
+  readonly generationId?: string | null | undefined;
   readonly usage: ChatUsage;
   /** How full the context window is after this turn — absent when the probe failed/timed out. */
   readonly contextUsage?: ContextUsage | undefined;

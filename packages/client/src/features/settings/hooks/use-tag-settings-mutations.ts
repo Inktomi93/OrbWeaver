@@ -5,6 +5,13 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
+/** Create a tag from a name. Its own instance for a name-conflict-aware toast. */
+export const useCreateTag = createEntityMutation<inferInput<Trpc["tag"]["createTag"]>, unknown>({
+  options: (trpc) => trpc.tag.createTag.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't create the tag — that name may already be in use.",
+});
+
 /** Rename a tag (name-only patch). Its own instance for a name-conflict-aware toast. */
 export const useRenameTag = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, unknown>({
   options: (trpc) => trpc.tag.updateTag.mutationOptions(),

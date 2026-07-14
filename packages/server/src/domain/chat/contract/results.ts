@@ -154,6 +154,9 @@ export interface TurnEconomics {
   readonly finishReason?: string | null;
   readonly stopReason?: string | null;
   readonly terminalReason?: string | null;
+  /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the PD-137 cost key,
+   *  folded onto the variant. Absent/null on a backend that doesn't surface one (agent-sdk / responses). */
+  readonly generationId?: string | null;
   /** The reducer-assembled model-emitted calls; the loop pivots on finishReason === "tool" and reads these. */
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
 }
