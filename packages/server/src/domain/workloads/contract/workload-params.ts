@@ -11,6 +11,22 @@ import { z } from "zod";
 
 const noParams = z.object({});
 
+/** A staged-upload handle is a SINGLE path segment minted by the import HTTP routes
+ *  (`import-tree-<uuid>` / `import-bundle-<uuid>.zip`) — never a path. This is the OUTER (contract-layer) belt:
+ *  a tRPC-crafted `".."`, `"."`, `"/etc"`, `"a/b"`, or `"a\\b"` fails validation here, before the runner-env
+ *  ever resolves it. The runner-env's resolve-and-contain check (`resolveStagedPath`) is the authoritative
+ *  inner belt; this makes the traversal shapes unrepresentable at the boundary. Charset admits exactly the
+ *  minted tokens: alphanumerics, `-`, `.`, `_`, first char alphanumeric (so a leading-dot `.`/`..`/`.hidden`
+ *  is rejected), and no `..` substring anywhere. */
+const STAGED_HANDLE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+/** Common single-segment filename ceiling — a UUID token is ~50 chars; this is just a sane upper bound. */
+const STAGED_HANDLE_MAX = 255;
+const stagedHandleSchema = z
+  .string()
+  .max(STAGED_HANDLE_MAX)
+  .regex(STAGED_HANDLE, "must be a single safe path segment (no separators, no leading dot)")
+  .refine((s) => !s.includes(".."), "must not contain a `..` traversal segment");
+
 const computeThemesParams = z.object({ k: z.number().int().positive().optional() });
 
 /** source is required (also the single-active lock dimension stamped into workloads.source). */
@@ -18,8 +34,22 @@ const indexParams = z.object({ source: indexSourceSchema, force: z.boolean().opt
 
 const maintenanceParams = z.object({ dryRun: z.boolean().optional() });
 
-/** Server-minted staging token; the runner-env op resolves basename(token) under the staging root (path-traversal-safe). */
-const importBundleParams = z.object({ token: z.string().min(1) });
+/** import-st tunables: the maintenance `dryRun` plus an optional folder-upload `stagedDir` override (a
+ *  server-minted staging handle — a single safe path segment; the runner-env resolves it to a strict
+ *  descendant of the staging root). Absent stagedDir ⇒ the env-configured ST profile dir (the existing
+ *  behavior). */
+const importStParams = z.object({
+  dryRun: z.boolean().optional(),
+  stagedDir: stagedHandleSchema.optional(),
+});
+
+/** Server-minted staging handle (a single safe path segment); the runner-env op resolves it to a strict
+ *  descendant of the staging root (path-traversal-safe). `source` selects the staged shape: `zip` (a single
+ *  archive, the default) or `dir` (a folder-upload tree). */
+const importBundleParams = z.object({
+  token: stagedHandleSchema,
+  source: z.enum(["zip", "dir"]).optional(),
+});
 
 /** satisfies \{ [K in WorkloadKind]: ZodType \} forces an entry for every kind — a missing one is a tsc error. */
 export const PARAMS_SCHEMAS = {
@@ -34,7 +64,7 @@ export const PARAMS_SCHEMAS = {
   "assets-backfill": maintenanceParams,
   "assets-gc": maintenanceParams,
   "assets-fsck": noParams,
-  "import-st": maintenanceParams,
+  "import-st": importStParams,
   "import-bundle": importBundleParams,
   "reconcile-stats": noParams,
   "refresh-model-catalog": noParams,

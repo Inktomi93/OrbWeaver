@@ -37,6 +37,7 @@ import {
   registerExport,
   registerHealthz,
   registerImportBundle,
+  registerImportTree,
   registerJoin,
   registerUpload,
   securityHeaders,
@@ -196,6 +197,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerExport(app, { export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, {
     workloads: deps.services.workloads,
+    ...(env.IMPORT_STAGING_DIR !== undefined ? { stagingDir: env.IMPORT_STAGING_DIR } : {}),
+  });
+  registerImportTree(app, {
+    workloads: deps.services.workloads,
+    registry: deps.portability,
     ...(env.IMPORT_STAGING_DIR !== undefined ? { stagingDir: env.IMPORT_STAGING_DIR } : {}),
   });
   registerAuthRoutes(plain, {

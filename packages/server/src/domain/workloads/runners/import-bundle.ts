@@ -12,6 +12,7 @@ export const importBundleRunner: Runner<"import-bundle"> = async (ctx, params, r
   return await ctx.env.import.importBundle({
     ownerId: ctx.ownerId,
     token: params.token,
+    ...(params.source !== undefined ? { source: params.source } : {}),
     signal,
   });
 };

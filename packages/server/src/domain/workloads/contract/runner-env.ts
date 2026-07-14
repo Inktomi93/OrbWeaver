@@ -68,11 +68,17 @@ export interface WorkloadImportEnv {
   readonly importAll: (args: {
     ownerId: UserId;
     dryRun: boolean;
+    /** A staged folder-upload override (a token resolved under the staging root); absent ⇒ the env default
+     *  ST profile dir. The folder-import route enqueues this for a picked ST profile/`data` tree. */
+    stagedDir?: string;
     signal: AbortSignal;
   }) => Promise<MaintenancePassCounts>;
   readonly importBundle: (args: {
     ownerId: UserId;
     token: string;
+    /** `"zip"` (default) reads the staged single archive; `"dir"` reads a staged folder-upload tree (the
+     *  token names a directory under the staging root, consumed via `stageDirectory`). */
+    source?: "zip" | "dir";
     signal: AbortSignal;
   }) => Promise<BundleImportWorkloadResult>;
 }

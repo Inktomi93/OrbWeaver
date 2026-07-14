@@ -7,11 +7,12 @@
 
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { resolve, sep } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
@@ -31,6 +32,7 @@ import type {
   WorkloadStatsEnv,
 } from "#domain/workloads";
 import type { Cas } from "#infra/storage";
+import { stageDirectory } from "#infra/storage";
 import type {
   ImportAssetPort,
   ImportCharacterPort,
@@ -41,6 +43,7 @@ import {
   createNodeFsImportPort,
   IMPORT_MAX_DECOMPRESSED_BYTES,
   IMPORT_MAX_TOTAL_BYTES,
+  importStagedArchive,
   runBundleImport,
   runProfileDirImport,
 } from "../import";
@@ -95,34 +98,80 @@ export interface RunnerEnvDeps {
   };
 }
 
+/** Resolve a server-minted staging handle to an absolute path that is a PROPER STRICT DESCENDANT of
+ *  `stagingRoot`, or throw. The authoritative containment belt (mirrors import-tree.ts's `stagePart`
+ *  resolve-prefix check): a handle that resolves to the staging root itself, its parent, or anywhere outside
+ *  is a path-traversal attempt and throws BEFORE any fs read or rm — the workload fails cleanly, nothing is
+ *  touched. `basename()` is NOT a containment primitive (`basename("..") === ".."`); never use it as one. */
+function resolveStagedPath(stagingRoot: string, handle: string): string {
+  const root = resolve(stagingRoot);
+  const target = resolve(root, handle);
+  if (target === root || !target.startsWith(root + sep)) {
+    throw new DomainOperationError(
+      "staged_path_escape",
+      `staged handle escapes the staging root: ${handle}`,
+    );
+  }
+  return target;
+}
+
+/** Belt-and-suspenders rm: remove `target` ONLY when it is provably a strict descendant of `stagingRoot`
+ *  AT THE rm CALLSITE — so even a future refactor that computed the path unsafely can never make this delete
+ *  the staging root, its parent, or anything outside it. A non-contained target is refused silently:
+ *  `resolveStagedPath` already rejected the traversal loudly at compute time, so reaching here with an
+ *  out-of-root path means a bug, and the safe response is to delete nothing (never throw from the finally). */
+async function rmContained(stagingRoot: string, target: string): Promise<void> {
+  const root = resolve(stagingRoot);
+  const resolved = resolve(target);
+  if (resolved === root || !resolved.startsWith(root + sep)) {
+    return;
+  }
+  await rm(resolved, { recursive: true, force: true });
+}
+
 /** Bind the `import.importAll` workload op: resolve the target owner's principal, then run the ST
  *  profile-directory importer over the real node:fs port at the configured root (personas first, then
  *  per-bundle character + chats). Projects the driver's maintenance-pass counts straight through. */
 function bindImportAll(
-  profileRoot: string,
+  defaultProfileRoot: string,
+  stagingRoot: string,
   now: () => number,
   deps: RunnerEnvDeps["profileImport"],
 ): WorkloadRunnerEnv["import"]["importAll"] {
   const fs = createNodeFsImportPort();
-  return async ({ ownerId, dryRun, signal }) => {
+  return async ({ ownerId, dryRun, stagedDir, signal }) => {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
-    const { scanned, changed } = await runProfileDirImport({
-      fs,
-      profileRoot,
-      principal,
-      character: deps.character,
-      storeAvatar: deps.storeAvatar,
-      attachCardTag: deps.attachCardTag,
-      importLorebook: deps.importLorebook,
-      bulkImportChats: deps.bulkImportChats,
-      bulkImportPersonas: deps.bulkImportPersonas,
-      enqueueBackfill: deps.enqueueBackfill,
-      reconcileImportStats: deps.reconcileImportStats,
-      now,
-      dryRun,
-      signal,
-    });
-    return { scanned, changed };
+    // A folder-upload override resolves the server-minted handle to a PROPER STRICT DESCENDANT of the staging
+    // root (throws on any traversal attempt, before any fs read) — the same containment belt the HTTP ingest
+    // uses; absent ⇒ the env-configured root.
+    const profileRoot =
+      stagedDir !== undefined ? resolveStagedPath(stagingRoot, stagedDir) : defaultProfileRoot;
+    try {
+      const { scanned, changed } = await runProfileDirImport({
+        fs,
+        profileRoot,
+        principal,
+        character: deps.character,
+        storeAvatar: deps.storeAvatar,
+        attachCardTag: deps.attachCardTag,
+        importLorebook: deps.importLorebook,
+        bulkImportChats: deps.bulkImportChats,
+        bulkImportPersonas: deps.bulkImportPersonas,
+        enqueueBackfill: deps.enqueueBackfill,
+        reconcileImportStats: deps.reconcileImportStats,
+        now,
+        dryRun,
+        signal,
+      });
+      return { scanned, changed };
+    } finally {
+      // A folder-upload staging tree is owned by this run; remove it (success OR error) — but only via the
+      // contained-rm belt, so nothing outside the staging root is ever deletable here. The env-configured
+      // default profile dir is persistent and is NEVER removed here.
+      if (stagedDir !== undefined) {
+        await rmContained(stagingRoot, profileRoot);
+      }
+    }
   };
 }
 
@@ -179,31 +228,41 @@ function bindBackfillAvatars(
   };
 }
 
-/** Bind the `import-bundle` workload op: read the staged zip (`basename` strips any path-traversal), run
- *  `runBundleImport` over the lazily-resolved registry, project the report into workload counts, and remove
- *  the staged zip in a `finally` (success and error). */
+/** Bind the `import-bundle` workload op. `resolveStagedPath` resolves the staged upload to a PROPER STRICT
+ *  DESCENDANT of the staging root (throws on any traversal attempt, before any fs read or rm). `source: "zip"`
+ *  (default) reads the single archive through `runBundleImport` (its own extract belts); `source: "dir"` walks
+ *  a staged folder-upload tree (`stageDirectory`, already sanitized + capped at the HTTP ingest) through the
+ *  SAME entity routing. The staged upload (a file OR a directory) is removed in a `finally` (success and
+ *  error) via the contained-rm belt. */
 function bindImportBundle(
   getRegistry: () => PortabilityRegistry,
   stagingRoot: string,
 ): WorkloadRunnerEnv["import"]["importBundle"] {
-  return async ({ ownerId, token, signal }) => {
-    const stagedPath = join(stagingRoot, basename(token));
+  return async ({ ownerId, token, source, signal }) => {
+    const stagedPath = resolveStagedPath(stagingRoot, token);
     try {
-      const bytes = await readFile(stagedPath);
-      const report = await runBundleImport({
-        registry: getRegistry(),
-        ownerId,
-        archive: bytes,
-        extractOptions: {
-          maxTotalBytes: IMPORT_MAX_TOTAL_BYTES,
-          maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES,
-          stagingRoot,
-        },
-        signal,
-      });
+      const report =
+        source === "dir"
+          ? await importStagedArchive({
+              registry: getRegistry(),
+              ownerId,
+              staged: await stageDirectory(stagedPath),
+              signal,
+            })
+          : await runBundleImport({
+              registry: getRegistry(),
+              ownerId,
+              archive: await readFile(stagedPath),
+              extractOptions: {
+                maxTotalBytes: IMPORT_MAX_TOTAL_BYTES,
+                maxTotalDecompressedBytes: IMPORT_MAX_DECOMPRESSED_BYTES,
+                stagingRoot,
+              },
+              signal,
+            });
       return { imported: report.imported, skipped: report.skipped, failed: report.failed };
     } finally {
-      await rm(stagedPath, { force: true });
+      await rmContained(stagingRoot, stagedPath);
     }
   };
 }
@@ -256,7 +315,7 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       },
     },
     import: {
-      importAll: bindImportAll(stProfileDir, deps.now, deps.profileImport),
+      importAll: bindImportAll(stProfileDir, stagingRoot, deps.now, deps.profileImport),
       importBundle: bindImportBundle(deps.getPortabilityRegistry, stagingRoot),
     },
     assets: {

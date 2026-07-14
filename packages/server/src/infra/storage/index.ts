@@ -6,6 +6,7 @@
 
 export type { Cas, PutResult } from "./cas";
 export { createCas } from "./cas";
+export { stageDirectory } from "./stage-dir";
 export type { VariantCache } from "./variant-cache";
 export { createVariantCache } from "./variant-cache";
 export type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry } from "./zip";

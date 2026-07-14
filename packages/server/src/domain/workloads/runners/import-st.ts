@@ -10,7 +10,12 @@ export const importStRunner: Runner<"import-st"> = async (ctx, params, report, s
   }
   const dryRun = params.dryRun ?? false;
   report({ message: dryRun ? "import ST (dry run)" : "importing ST profiles" });
-  const result = await ctx.env.import.importAll({ ownerId: ctx.ownerId, dryRun, signal });
+  const result = await ctx.env.import.importAll({
+    ownerId: ctx.ownerId,
+    dryRun,
+    ...(params.stagedDir !== undefined ? { stagedDir: params.stagedDir } : {}),
+    signal,
+  });
   if (!dryRun && result.changed > 0) {
     report({ message: "reconciling stats post-import" });
     await ctx.env.stats.reconcileStats({ ownerId: ctx.ownerId, signal });

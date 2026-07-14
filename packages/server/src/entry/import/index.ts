@@ -13,10 +13,12 @@ export type {
   BundleImportDeps,
   BundleImportFileOutcome,
   BundleImportReport,
+  StagedBundleImportDeps,
 } from "./run-bundle-import";
 export {
   IMPORT_MAX_DECOMPRESSED_BYTES,
   IMPORT_MAX_TOTAL_BYTES,
+  importStagedArchive,
   runBundleImport,
 } from "./run-bundle-import";
 export type {
@@ -36,3 +38,4 @@ export type {
   ProfileImportResult,
 } from "./run-profile-import";
 export { runProfileImport } from "./run-profile-import";
+export { sniffTreeLayout } from "./sniff-tree-layout";

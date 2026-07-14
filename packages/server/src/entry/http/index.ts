@@ -25,6 +25,8 @@ export type { HealthzDeps } from "./healthz";
 export { registerHealthz } from "./healthz";
 export type { ImportBundleDeps } from "./import";
 export { registerImportBundle } from "./import";
+export type { ImportTreeDeps } from "./import-tree";
+export { registerImportTree } from "./import-tree";
 export type { JoinDeps } from "./join";
 export { registerJoin } from "./join";
 export { securityHeaders } from "./security-headers";
