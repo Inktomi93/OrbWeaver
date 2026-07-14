@@ -1,137 +1,273 @@
 ---
 kind: law
 status: active
-updated: 2026-07-05
+updated: 2026-07-13
 ---
 
 # UI-Gates-and-Lessons
 
-> **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: a deleted `client.md`). Decision records: D42–D44, D52, D54 in `Core-Laws-and-Precedents.md`. §-map + reading order: `UI-Architecture-and-Layout.md` header.
+> **The UI enforcement law.** Decision records: D42–D44, D52, D54, D62, D66 in
+> `Core-Laws-and-Precedents.md`. §-map + reading order: `UI-Architecture-and-Layout.md` header. The
+> war-story archaeology behind these rulings is `history/ui-gates-lessons-archaeology-record.md`.
 
 ## 7. The sealed gotchas — fix each ONCE, in a place a cold agent can't bypass
 
-Four cross-library footguns observed in neo (all rooted in libs that live *outside* React's render model — external stores, event-based state, non-memoizable closures — which React 19 + the Compiler punish). neo solved each per-site; orbweaver seals each in a primitive:
+Four cross-library footguns from neo, all rooted in libs that live OUTSIDE React's render model
+(external stores, event-based state, non-memoizable closures — which React 19 + the Compiler punish).
+neo solved each per-site; orbweaver seals each in a primitive. Row order is load-bearing (gate
+`no-form-reset-in-autosave` cites "§7 row 2").
 
 | Footgun | Root | Sealed in |
 | - | - | - |
-| **Virtual × React Compiler** — `useVirtualizer`'s return is internally mutable; the Compiler memo pass can flash the list | interior mutability (FIXED upstream) | **`@orb/ui/virtual-list`** (BUILT) owns **`directDomUpdates: true` + `containerRef`** (TanStack Virtual 3.14+, Compiler-E2E-tested — **NOT `"use no memo"`**, obsolete) + `measureElement` wiring. Features never call `useVirtualizer` (dep-cruiser `ui-satellite-seals`). |
-| **Form × React** — `isDirty` is event-based, never auto-clears after submit (#1144) → `useStore(isDirty)+useEffect` loops forever; save bar stays "Unsaved" | TanStack Form persistent-dirty | the **`client/forms` factories** (`useAppForm`, BUILT) own the post-submit reset; the banned `useEffect`-on-`isDirty` autosave is gate-flagged |
-| **Form × Query × Zustand** — a background refetch reseeds the form and clobbers unsaved typing | three-lib interaction | a **`useSeedFormOnServerLoad`** guard (`seededRef + persistent-isDirty + reset`) baked into the saved-form factory (BUILT) |
-| **Zustand × React** — a selector returning a fresh `{}`/`[]` per render spins `useSyncExternalStore` forever | referential instability | the **`createEntityDraftStore`** factory's frozen `EMPTY` (+ `useShallow` for multi-field selectors) + a gate flagging fresh literals (BUILT) |
+| **Virtual × React Compiler** — `useVirtualizer`'s return is internally mutable; the Compiler memo pass can flash the list | interior mutability (FIXED upstream) | **`@orb/ui/virtual-list`** owns `directDomUpdates: true` + `containerRef` (TanStack Virtual 3.14+, Compiler-E2E-tested — NOT `"use no memo"`, obsolete) + `measureElement` wiring. Features never call `useVirtualizer` (dep-cruiser `ui-satellite-seals`). |
+| **Form × React** — `isDirty` is event-based, never auto-clears after submit → `useStore(isDirty)+useEffect` loops forever; save bar stays "Unsaved" | TanStack Form persistent-dirty | the **`client/forms` factories** own the post-submit reset; the banned `useEffect`-on-`isDirty` autosave is gate-flagged |
+| **Form × Query × Zustand** — a background refetch reseeds the form and clobbers unsaved typing | three-lib interaction | a **`useSeedFormOnServerLoad`** guard (`seededRef + persistent-isDirty + reset`) baked into the saved-form factory |
+| **Zustand × React** — a selector returning a fresh `{}`/`[]` per render spins `useSyncExternalStore` forever | referential instability | the **`createEntityDraftStore`** factory's frozen `EMPTY` (+ `useShallow` for multi-field selectors) + a gate flagging fresh literals |
 
-The two FORM rows are 2 of the six editor obligations the factories bake — **the full contract is §13.4 (the canonical home). Don't build a form against this table; build against §13.4.**
+The two FORM rows are 2 of the six editor obligations the factories bake — the full contract is §13.4
+(the canonical home). Don't build a form against this table; build against §13.4.
 
 ## 8. The gates (physics + lint belts)
 
-> **One home for enforcement state:** `Core-Enforcement-Active-Gates.md` is the live registry (what fails a build today, all six layers); `Core-Enforcement-Deferred-Dropped.md` is the backlog. This § is the UI-law index: what each UI gate protects and where it lives. Rationale lives where each gate was specced (§11.x / §12.6 / §13.3).
+> **Live enforcement state has ONE home:** `Core-Enforcement-Active-Gates.md` (what fails a build today,
+> all six layers) + `Core-Enforcement-Deferred-Dropped.md` (the backlog + each gate's activation
+> trigger), kept honest by `enforcement-registry-parity.ts`. This § is the UI-law INDEX — the CONCEPT
+> each UI-enforcement family protects, not a status board (do not re-track live/parked/dormant here; it
+> drifts against the registry).
 
-**LIVE — physics (resolver + dep-cruiser, `.dependency-cruiser.cjs`):** `@orb/ui` ⇏ contracts/db/server/client (`ui-cake`); `ui-no-node-builtins`; every satellite sealed behind ONE group (`ui-satellite-seals`: echarts→`charts/` · react-virtual→`virtual-list|message-list|media-grid` · codemirror→`code-editor/` · streamdown/remark→`markdown/` · cmdk→`command/` · @dnd-kit→`sortable/` · diff→`diff/` · lucide→`icons/` · minisearch→`macro-textarea/`); `client-no-raw-satellites` (pre-wired Phase-6 backstop); `client ⇏ @orb/server` (wire types come from `@orb/contracts`).
+The UI enforcement families:
 
-**LIVE — ESLint (`eslint.config.js`, the narrow supplement to Biome):** react-hooks v7 recommended-latest (the React-Compiler Rules-of-React diagnostics; `exhaustive-deps`/`unsupported-syntax` hardened to error, `incompatible-library` kept at warn — it fires correctly on seals); `@tanstack/query` discipline incl. `prefer-query-options` (dormant until client Query code); `@tanstack/router` `create-route-property-order`; better-tailwindcss compiled-class validation on ui; the **compose-only keystone** (a feature ASSEMBLES `@orb/ui` primitives + the layout kit, it never PAINTS — no `className`/`style` on a raw intrinsic element in `features/`, app-shell exempt as the SHELL-tier painter); the zustand static-`setState`/`getState` escape-hatch ban.
+- **Physics (dependency-cruiser, `.dependency-cruiser.cjs`).** `@orb/ui` ⇏ contracts/db/server/client
+  (`ui-cake`); `ui-no-node-builtins`; `ui-groups-independent` + `ui-primitives-below-groups` +
+  `ui-lib-tokens-floor`; every satellite lib sealed behind ONE `@orb/ui` group (`ui-satellite-seals` —
+  the lib→group map lives in that rule + §11.3). "client ⇏ raw satellite libs" is RESOLVER physics (the
+  libs aren't in client's `package.json`), a deliberate NON-rule — not a dep-cruiser rule.
+  `client ⇏ @orb/server` (wire types come from `@orb/contracts`).
+- **Token gates (Biome grit, `tools/grit/`).** `no-color-literals` (incl. named non-token colors +
+  the theme-aware `--scrim`), `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`,
+  `no-arbitrary-tw-values` — over ALL feature + ui TSX, no `components/ui/`-style exemption (§11.0/§11.4).
+- **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
+  the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element in `features/`
+  (app-shell exempt as the SHELL-tier painter). Plus the zustand static-`setState`/`getState`
+  escape-hatch ban, the react-hooks v7 React-Compiler diagnostics (`exhaustive-deps` +
+  `unsupported-syntax` at error), the `@tanstack/query` + `@tanstack/router` discipline, and
+  better-tailwindcss compiled-class validation on ui.
+- **Structural (ts-morph, `scripts/check/gates/`).** The UI structural family: `ui-primitive-structure`
+  (the §13.7 primitive/CT contract), `client-structure`/`feature-structure` (the §2.1 slice shape),
+  `state-files` (the §5 Zustand discipline), the two selector-stability gates
+  (`zustand-selector-stability.grit` = the fast narrow literal belt; `zustand-selector-derived.ts` = the
+  full-body/second-call-shape comprehensive belt), `no-effect-on-shared-selection` (§5.1),
+  `persistence-boundary` (§12.1), `no-interactive-role-in-features` (closes the layout-kit
+  interactive-role escape hatch), `surface-a11y-focus`, the registry keystones (`registry-pairing`
+  RAIL↔MODAL bijection, `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
+  client-foundation belts (`no-array-literal-querykey`, `no-inline-invalidate-outside-seam`,
+  `bus-onData-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
+- **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
+  trio (§12.6).
 
-**LIVE — Biome grit (`biome.json` → `tools/grit/`):** the token gates (`no-color-literals` incl. named non-token colors → `--scrim`, `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`) covering **all feature + ui TSX** (no `components/ui/`-style exemption — §11.0); `no-layout-context-props`; the neo client four (`no-direct-useform` · `no-form-state-in-useeffect` · `no-chat-trpc-in-surface` · `no-inline-optimistic-in-surface`, dormant until client code).
+**The D62 design-gate set** (specced in `history/design-enforcement.md` §3; lands WITH the D62 feature
+lanes per §11.7): `no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
+in `features/**` regardless of className), `no-arbitrary-tw-values` (bracket-value utilities banned in
+features AND ui), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
+interactive primitive's CT asserts focus-visible ring + disabled opacity). **Not yet gated —
+prerequisite is a CI browser lane (`ci.yml` has none):** the ARIA-tree goldens (`toMatchAriaSnapshot`
+over the canonical shell states) and screenshot goldens (`toHaveScreenshot` × {desktop, mobile},
+probe-mode on, animations off) — the "visual-regression as a gate" commitment, honest law-awaiting-CI.
 
-**LIVE — structural gates (`scripts/check/gates/`):** `ui-primitive-structure.ts` (the §13.7 primitive/CT contract) · `client-structure.ts` (the §2.1 feature-slice shape, per-built-feature — now incl. neo rules 2/6/7: feature↔domain mirror, per-bucket file naming, surface-purity) · `state-files.ts` (the §5 Zustand `state/` discipline: field cap, one store per file, no exported raw handle) · `no-effect-on-shared-selection.ts` (the §5.1 anti-chase mechanical half, added 2026-07-09: a `features/**` effect depping a shared-selection hook result — seed + same-file transitive taint — is RED; app-shell shell-tier-exempt) · `persistence-boundary.ts` (the §12.1 device-local-vs-synced belt, added 2026-07-09: raw browser storage outside the two persist factories + the boot/dev allowlist is RED, and every persisted-store name must carry a registered why-device-local rationale — a both-directions ratchet, the bus-coverage pattern) · `no-interactive-role-in-features.ts` (closes the layout-kit interactive-role escape hatch, added 2026-07-09: a `features/**` `.tsx` assigning an INTERACTIVE widget ARIA role — `button`/`link`/`checkbox`/`menuitem`/`tab`/… as a static, braced, or conditional literal — is RED, because `<Row>`/`<Stack>` forward DOM props and forge a widget that dodges the compose-only + raw-intrinsic belts; structural/live-region roles + `data-role` stay legal, seals outside `features/**` are out of scope; a both-ways BURN\_DOWN ratchet, the persistence-boundary pattern) · `user-bus-coverage.ts` (PD user-bus lane: the per-USER bus emit-coverage ratchet — every `USER_BUS_EVENT_TYPES` member has a domain-verb `emitUserEvent` site OR a cited `DEFERRED` entry; the `bus-coverage` twin) · `surface-a11y-focus.ts` (LIVE: a `surfaces/*.tsx` that isn't an auto-focus-trapping Base UI primitive must explicitly manage focus on mount — `.focus()`/`useFocusOnMount`) · `zustand-selector-derived.ts` (the Layer-3 half of the selector-stability belt — full-body reasoning over block returns + `?:`/`??`/`||`/`&&` branches + `Object.keys/values/entries`/array-rebuild-method derivations, for BOTH the `use<X>Store(selector)` and `useStore(store, selector)` call shapes; the Layer-2 grit `zustand-selector-stability.grit` below stays the fast narrow-literal belt) · `registry-pairing.ts` (LIVE: RAIL\_SLOTS ↔ MODAL\_SLOTS id-bijection) · `modal-body-not-placeholder.ts` (LIVE: a `SectionPlaceholder`-rendering `MODAL_SLOTS` body must carry `placeholder: true`) · `placeholder-copy-registry.ts` (LIVE: every `SectionId`'s placeholder-copy entry is DISTINCT) · **the five client-foundation belts (LIVE 2026-07-09, §11.7/§13.6):** `no-array-literal-querykey.ts` (a `queryKey:` property with an inline array literal in `packages/client/src` — keys are 100% tRPC-proxy-derived, §11.1; the data/ factory passthroughs are identifiers, not literals) · `no-inline-invalidate-outside-seam.ts` (`.invalidateQueries(` outside `data/invalidation.ts` — tighter than the `client-cache-surgery-only-in-data` grit, which allows all of `data/`) · `bus-onData-no-store-write.ts` (a raw `.setState(` inside a `data/bus/*` subscription `onData`/`onConnectionStateChange` body — the "never a second store" pin, §11.1) · `no-form-reset-in-autosave.ts` (a `.reset(` on a form in any `createAutosaveEntityForm` importer + the reset type-strip must stay in the factory — the runtime backstop to the `Omit<…,"reset">`, §7 row 2) · `persist-partialize-and-total-migrate.ts` (a bare `persist(` outside the two minting factories + a version/partialize/migrate key-assertion INSIDE them — the Layer-3 twin of the `no-raw-zustand-persist` grit, §11.5).
-
-**LIVE — tests:** the token freshness test (§3 derived-theme invariant) · the CT containment tests on the D44 trio (§12.6).
-
-**PARKED (named, correct — the client-foundation belts; they gate constructs that don't exist yet and MUST land before feature agents, §11.7/§13.6):** `no-media-queries-in-features` · `no-raw-container-widths` · `no-inline-cache-surgery-in-stream` (scoped to stream/subscription bodies — must NOT flag `createEntityMutation.onMutate`) · `no-multiplexed-mutation-error` · `no-client-wire-redeclare` · `persist-shape-needs-version` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · client-determinism (render scope: no `Date.now()`/`new Date()`/`Math.random()`; seeded PRNG allowed) · the typed-`testId` gate · `tanstack-form-only-in-shared` (single-`createFormHook` half) · `client-feature-front-door`/`client-features-no-cross` · the D44 lint/route halves (§12.6) · `touch-target-floor`'s per-component half (token floor is test-locked; component half rides CT `boundingBox` assertions).
-
-**REALIZED (2026-07-05 — task #51):** the zustand-selector gate. It was NOT wholly unwritten — `tools/grit/zustand-selector-stability.grit` (Layer 2) already caught the narrow "arrow concise-body IS `({...})`/`[...]`" shape and was LIVE in `biome.json`. §11.5's "extend the selector gate to ALL keyed stores" ask is now discharged by the Layer-3 structural gate `zustand-selector-derived.ts` (listed above), which adds full-body reasoning (block `return`s, `?:`/`??`/`||`/`&&` branches, `Object.keys/values/entries`, array-rebuilding `.map/.filter/...`) and the second call shape (`useStore(store, selector)`, the vanilla-store adapter `createEntityDraftStore`'s read hooks use) a Grit AST pattern can't express. Both layers stay live — the grit is the fast narrow belt, the structural gate is the comprehensive one.
-
-**DORMANT (built + self-tested, held out of `report.ts`'s `ALL_CHECKS` — distinct from PARKED, which is unwritten; activation is a one-line add, ground truth = the `DORMANT_GATES` set in `tests/tooling/check-gates.int.test.ts`):** `surface-in-a-container` (needs a real consumer surface — app-shell is shell-tier-exempt) · `component-size-ui` (rides W1-1's `table.tsx` split) · `test-presence-client` (rides W1-1's client-primitive test backfill). Full registry + triggers: `Core-Enforcement-Active-Gates.md`.
-
-**PLANNED — the D62 design-gate set (specced; implementation detail + tiering: `history/design-enforcement.md` §3; they land WITH the D62 lanes per §11.7, and the D62 lanes ALSO trigger the full remaining §8-PARKED activation — the lanes ARE feature agents):**
-
-- `no-raw-interactive-intrinsics` — in `features/**` a raw `<button>/<input>/<select>/<textarea>/<a>` JSX element is banned regardless of className (interactive elements come from `@orb/ui`); app-shell stays shell-tier-exempt.
-- `no-arbitrary-tw-values` — bracket-value utilities (`p-[13px]`, `text-[10.5px]`) banned in features AND ui — widens the token-gate grit family to the general bracket escape.
-- `empty-state-has-action` — an `<EmptyState>` in `features/**` must pass `action` or sit in the gate-file allowlist (§4.3 rule 1's mechanical half).
-- **ARIA-tree goldens** — `toMatchAriaSnapshot` over the canonical shell states (`tests/e2e/shell-structure.spec.ts`); structure drift = a visible diff. **Prerequisite: the CI browser lane** (ci.yml has none yet — its own comment defers it; activating it = install browsers + run `playwright test`).
-- **Screenshot goldens** — `toHaveScreenshot` on the same states × {desktop, mobile}, probe-mode on, animations off, devtools masked; the Phase-6 "visual-regression as a gate" commitment made concrete. Local fast loop stays `pnpm snap --probe --diff`; the committed Playwright baselines are the ONE merge-gate source of truth.
-- **CT state-coverage** — extend the §13.7 CT contract: every interactive primitive's CT asserts focus-visible ring + disabled opacity (+ loading/error where claimed) — the machine-checkable core of the 8-state doctrine.
-
-**No directory is exempt from a boundary rule** (the `_shared` + `components/ui/` exemptions are what rotted neo — §11.0).
+**No directory is exempt from a boundary rule** (the `_shared` + `components/ui/` exemptions are what
+rotted neo — §11.0).
 
 ## 9. What we explicitly do NOT carry from neo
 
-shadcn copy-paste · Radix · the react-markdown stack · react-syntax-highlighter/Prism · the single-route `this_chid` re-coupling sync effect · `@/` aliases (use `#`) · file-based Router codegen (\~3 hand-written routes) · `compact`/`inDrawer`/`density` layout props (container queries replace them) · per-feature `useVirtualizer` (the `@orb/ui/virtual-list` seal replaces it).
+shadcn copy-paste · Radix · the react-markdown stack · react-syntax-highlighter/Prism · the single-route
+`this_chid` re-coupling sync effect · `@/` aliases (use `#`) · file-based Router codegen (\~3 hand-written
+routes) · `compact`/`inDrawer`/`density` layout props (container queries replace them) · per-feature
+`useVirtualizer` (the `@orb/ui/virtual-list` seal replaces it).
 
 ## 10. Deferred forks (DEFERRED-with-a-committed-default)
 
-- **Token enforcement level** — DEFAULT: Tailwind v4 + DTCG + the gates. Deferred upgrade: Panda `strictTokens` (type-level). Revisit only if gate-bypass is observed. (§3)
-- **Streamdown sanitization for untrusted content** — RESOLVED-BUILT: the two-policy seal shipped (`packages/ui/src/markdown/policy.ts`, §11.6). The remaining hard checkpoint is the Phase-6 chat wiring (per-message trust selection + `MessageMedia` routing).
-- **DECIDED (not forks):** Base UI as the primitive · Zustand for client state · Streamdown for markdown · single-route shell · the container model · the `@orb/ui` package + DTCG tokens.
+- **Token enforcement level** — DEFAULT: Tailwind v4 + DTCG + the gates. Deferred upgrade: Panda
+  `strictTokens` (type-level). Revisit only if gate-bypass is observed. (§3)
+- **Streamdown sanitization for untrusted content** — RESOLVED-BUILT: the two-policy seal shipped
+  (`packages/ui/src/markdown/policy.ts`, §11.6).
+- **DECIDED (not forks):** Base UI as the primitive · Zustand for client state · Streamdown for markdown
+  · single-route shell · the container model · the `@orb/ui` package + DTCG tokens.
 
 ## 11. Ratified from the full neo-client audit (ledger D43)
 
-**Provenance.** Ten agents read every file in neo's client (\~51k LOC) against a shared KEEP / DUMP / IMPLICIT-CONVENTION / CROSS-LIB-FOOTGUN / ENFORCEABLE-RULE contract. This section is the ratified synthesis; D43 is the decision record. The findings converged across slices — which is what makes them load-bearing rather than slice-local.
+The standing rulings from the ten-agent neo-client audit. Provenance + the bug narratives that produced
+each ruling: `history/ui-gates-lessons-archaeology-record.md`.
 
 ### 11.0 Why neo rotted *despite* being structured + enforced (the three root causes)
 
-neo had feature-slices, dep-cruiser, a token system, and \~104 gated queryKeys — and still became a mess. It rotted in exactly three seams; orbweaver closes all three by construction:
+neo had feature-slices, dep-cruiser, a token system, and \~104 gated queryKeys — and still rotted, in
+three seams. The three standing rulings (also D43 (1)/(2)/(3)):
 
-1. **Exemption zones become rot zones.** Two directories were carved OUT of the rules (`features/_shared/` from `client-no-cross-feature`; `components/ui/` from the token gates). **Every documented production bug, every raw style value, and the entire cross-feature-coupling mess lived in those two exempt zones.** ⇒ **orbweaver rule: no directory is exempt from a boundary rule.** `@orb/ui` is a real package under the same token gates; there is no `_shared` drawer.
-2. **Consumer-obligation footguns leak as comments and rot; library-owned ones don't.** The four footguns that required the **call site** to remember something (`reset(value)`-after-submit, silent `setValue`, `onFieldUnmount` flush, `key={entityId}` remount) leaked as prose, and only one of four editors honored all of them — forgetting `reset(value)` silently bricks the save bar with a green `check`. ⇒ **orbweaver rule: every footgun is carried by STRUCTURE (a factory/primitive the call site cannot bypass), never by a remembered convention.**
-3. **The cross-feature CONTRACT was unrecognized, so coupling pooled.** neo conflated "imports another feature's React module" with "couples to another feature," so a legit cross-feature *read* (calling `trpc.worldInfo.*`) had no legal home and got dumped in `_shared/`. ⇒ **orbweaver rule: the tRPC router + `@orb/contracts` ARE the cross-feature contract; calling a procedure is not coupling.** \~29 of neo's 66 `_shared` files evaporate as a category.
+1. **No directory is exempt from a boundary rule.** Exemption zones (`features/_shared/`,
+   `components/ui/`) become rot zones — every neo prod bug and raw style value lived in them. `@orb/ui`
+   is a real package under the same token gates; there is no `_shared` drawer.
+2. **Every footgun is carried by STRUCTURE (a factory/primitive the call site cannot bypass), never by a
+   remembered convention.** Consumer-obligation footguns leak as comments and rot; library-owned ones
+   don't.
+3. **The tRPC router + `@orb/contracts` ARE the cross-feature contract; calling a procedure is not
+   coupling.** A legit cross-feature READ has a legal home — it does not belong in a `_shared/` drawer.
 
 ### 11.1 KEEP-BY-CONSTRUCTION (neo got these right — lock as physics, don't let them re-rot)
 
-- **queryKeys are 100% tRPC-codegen-derived.** All \~104 sites are `trpc.X.Y.queryKey()`; **zero** ad-hoc `queryKey:[...]` arrays. The tRPC proxy IS the key factory. *Gate `no-array-literal-querykey`.*
-- **The stream/turn lifecycle is the reference — carry it almost verbatim.** `applyChatBusEvent(event,deps)` is a **pure, extracted, exhaustive switch** over a server-authoritative discriminated union, node-testable against a real QueryClient with no SSE; the hook is a thin transport adapter. Slot lifecycle is owned by the **terminal** turn events (Stop stays live across the whole turn incl. TTFT); `openSlot` is idempotent with a lazy id factory. *Gate `no-inline-cache-surgery-in-stream`.*
-- **Per-mutation error channels, never multiplexed.** TanStack v5 mutation errors are *sticky* until the next fire; `a.error ?? b.error` fed into a dialog leaks action A's failure into B's surface. One error slot per mutation. *Gate `no-multiplexed-mutation-error`.*
-- **Registry-as-data shell + derive-don't-respell registries.** The array/record IS the panel; a missing member is a `tsc` error, not a stale `<Select>`. Carry.
-- **The clamp-width overlay shell is the SHELL-tier reference (and needs ZERO `@media`).** One master `--width-shell-content: clamp(680px, ${chatWidthPct}dvw, 100dvw)` var at the root; drawer width *derives*; closed overlays are `absolute` + `-translate-x-full` so they consume zero width and never reflow. No media queries, no `react-resizable-panels`. **This IS the `overlay` mechanism for §4.1's collapsible panels** — the rail-shell's `docked`→`overlay`→`collapsed` states reuse this exact clamp.
-- **The bus→cache sync seam is the only sanctioned SSE shape.** A subscription `onData` may (a) buffer transient progress in **local** state and (b) `invalidateQueries(readKey)` — it must **never** become a second store. The invalidation key must be produced by the same `*.queryKey(args)` the reader uses. *Gate `bus-onData-no-store-write`.*
+- **queryKeys are 100% tRPC-codegen-derived.** All sites are `trpc.X.Y.queryKey()`; zero ad-hoc
+  `queryKey:[...]` arrays. The tRPC proxy IS the key factory. *Gate `no-array-literal-querykey`.*
+- **The stream/turn lifecycle is the reference — carry it almost verbatim.**
+  `applyChatBusEvent(event,deps)` is a pure, extracted, exhaustive switch over a server-authoritative
+  discriminated union, node-testable against a real QueryClient with no SSE; the hook is a thin
+  transport adapter. Slot lifecycle is owned by the TERMINAL turn events; `openSlot` is idempotent with
+  a lazy id factory. *Gate `no-inline-cache-surgery-in-stream`.*
+- **Per-mutation error channels, never multiplexed.** TanStack v5 mutation errors are sticky until the
+  next fire; `a.error ?? b.error` leaks action A's failure into B's surface. One error slot per
+  mutation. *Gate `no-multiplexed-mutation-error`.*
+- **Registry-as-data shell + derive-don't-respell registries.** The array/record IS the panel; a missing
+  member is a `tsc` error, not a stale `<Select>`.
+- **The clamp-width overlay shell is the SHELL-tier reference (and needs ZERO `@media`).** One master
+  `--width-shell-content: clamp(680px, ${chatWidthPct}dvw, 100dvw)` var at the root; drawer width
+  DERIVES; closed overlays are `absolute` + `-translate-x-full` so they consume zero width and never
+  reflow. This IS the `overlay` mechanism for §4.1's collapsible panels.
+- **The bus→cache sync seam is the only sanctioned SSE shape.** A subscription `onData` may (a) buffer
+  transient progress in LOCAL state and (b) `invalidateQueries(readKey)` — it must NEVER become a second
+  store. The invalidation key is produced by the same `*.queryKey(args)` the reader uses. *Gate
+  `bus-onData-no-store-write`.*
 
-### 11.2 The container model is a near-zero-cost FREEZE, not an unwind (the audit's happy surprise)
+### 11.2 The container model is a FREEZE, not an unwind
 
-The plan assumed unwinding neo's `compact`/`inDrawer`/`density` threading. **It doesn't exist in the hot paths:** chat has **0** occurrences and **0** `@media`/`@container`; the macro shell needs **0** `@media`; total viewport-responsive sites client-wide: \~6. So `no-media-queries-in-features` + `no-layout-context-props` are a **freeze at \~6 sites' cost** — pin before features regrow the threading. **Correction to D42 §4:** features MAY use `@container`; only the SHELL tier may use viewport `@media`.
+Correction to D42 §4: features MAY use `@container`; only the SHELL tier may use viewport `@media`.
+`no-media-queries-in-features` + `no-layout-context-props` freeze this at a handful of existing sites'
+cost — pin before features regrow the threading. (The near-zero unwind cost is the archaeology record.)
 
 ### 11.3 NEW structural primitives — convert every leaked convention into an API the call site can't bypass
 
-The §11.0-rule-2 fixes. The `@orb/ui` halves are BUILT; the client halves ship in the client-foundation wave **before** feature agents (§11.7).
+The §11.0-rule-2 fixes. The `@orb/ui` halves are BUILT; the client halves ship in the client-foundation
+wave BEFORE feature agents (§11.7).
 
-- **`@orb/ui/virtual-list` (generic) + `@orb/ui/message-list` (chat) — BUILT** — seal TanStack Virtual (KEPT, D54; the virtua swap was refuted, §11.8). The seal owns `directDomUpdates: true` + `containerRef`, the `measureElement` wiring, and the unbounded-window tripwire **as a thrown error** (neo's dev-warn cost a 200ms commit). `message-list` additionally owns the native streaming-chat APIs (`anchorTo:'end'` + `followOnAppend` + `isAtEnd` = stick-to-bottom-without-yank · id-keyed `getItemKey` for the ghost→canonical swap) — the cluster neo hand-rolled into a 387-line surface, native since core 3.16. **Keep-mounted path for stateful rows — BUILT (2026-07-09, PD-119): the `keepMounted?: (item: T) => boolean` predicate.** The seal is pure windowed virtualization BY DEFAULT (rows unmount off-screen, and a stable `getItemKey` does NOT keep them mounted), so without it a Tier-B `sandbox-frame` iframe reloads on scroll-back and edit-in-place local state drops. `keepMounted` names WHICH items must stay mounted; the seal forces their indices into the rendered range (composing item-space `keepMounted` over the caller's `rangeExtractor` when supplied, else `defaultRangeExtractor`), so a pinned row stays a REAL mounted DOM node at its own offset and its local React state survives scroll-away without hoisting to an external store. CT-proven against a stateful input row (state SURVIVES with `keepMounted` matching, LOST without). The caller owns the pinning POLICY (cap the matched set so it can't defeat virtualization).
-- **`@orb/ui` charts — BUILT** (`chart` + `bar-list`/`histogram`/`stat-figure` over the ECharts seal; D52) — **injects the token theme internally** so omission is impossible (neo's voluntary `theme=` prop shipped an invisible white-on-transparent chart). **Token-theme wrinkle:** ECharts renders to Canvas, so `var(--token)` does NOT resolve as it did in nivo's SVG — the seal resolves DTCG tokens to concrete values (`getComputedStyle`) and re-reads on theme switch; the internal theme-injection is load-bearing for theming to work at all. Plus **`@orb/ui/meter`** for 1-D magnitude bars (never force these through the chart lib). Seam API covers bar · line · heatmap · calendar · scatter · force-graph (the corpus set; §11.8).
-- **`@orb/ui/sortable` — BUILT** — seals `@dnd-kit/react` (the modern rewrite; the legacy `@dnd-kit/core`/`sortable`/`utilities` stack is dead and must never be installed).
-- **TWO named editor factories** (homed in `client/forms`, §2.1 — BUILT) so the four divergent strategies neo grew can't be improvised: `createSavedEntityForm` (button-gated) and `createAutosaveEntityForm` (listener-debounced; **`reset` removed from its type** — calling it is the autosave infinite loop). **The full six-obligation contract is §13.4 — do NOT re-spec it here.** Keep neo's one structural win: the single `createFormHook`/`createFormHookContexts` instance (gate `tanstack-form-only-in-shared`). *Gate `no-form-reset-in-autosave`.*
-- **`ChatHandle` — the true `this_chid` successor** (BUILT). neo killed the URL-coupled `this_chid` but resurrected the disease as an ambient `isOptimistic` boolean read in 15+ sites. Replace with a discriminated handle `{ kind:"committed"; id } | { kind:"draft"; id; meta }` threaded from the composition root — the draft and committed paths become different functions that don't typecheck against each other; forgetting the branch **cannot compile**.
-- **The central invalidation seam** (BUILT). queryKeys are solved (§11.1) but **invalidation is the real sprawl** (neo: 81 `invalidateQueries` across 40 files, no map, several arg-less). One `client/data/invalidation.ts` maps domain-event → `queryFilter()`s; mutation `onSettled` + bus handlers call `invalidate(event)`. *Gate `no-inline-invalidate-outside-seam`.*
-- **`@orb/contracts` owns every wire DTO; the client never imports `#server/*`.** neo had no contracts layer, so the client imported server return types directly and re-declared wire schemas (`CustomOpenAiMetadata` had THREE homes). orbweaver's cake makes this physics. *Physics: `client ⇏ @orb/server`. Gate `no-client-wire-redeclare`.*
+- **`@orb/ui/virtual-list` (generic) + `@orb/ui/message-list` (chat)** — seal TanStack Virtual (KEPT,
+  D54). The seal owns `directDomUpdates: true` + `containerRef`, the `measureElement` wiring, and the
+  unbounded-window tripwire as a THROWN error. `message-list` additionally owns the native streaming-chat
+  APIs (`anchorTo:'end'` + `followOnAppend` + `isAtEnd` · id-keyed `getItemKey` for the ghost→canonical
+  swap). **Keep-mounted path for stateful rows:** the `keepMounted?: (item: T) => boolean` predicate
+  forces matched items' indices into the rendered range (composing over the caller's `rangeExtractor`),
+  so a pinned row stays a REAL mounted DOM node at its own offset and its local React state survives
+  scroll-away — the seal is pure windowed virtualization by default (rows unmount off-screen; a stable
+  `getItemKey` does NOT keep them mounted). The caller owns the pinning POLICY (cap the matched set so it
+  can't defeat virtualization).
+- **`@orb/ui` charts** (`chart` + `bar-list`/`histogram`/`stat-figure` over the ECharts seal; D52) —
+  INJECTS the token theme internally so omission is impossible. ECharts renders to Canvas, so the seal
+  resolves DTCG tokens to concrete values (`getComputedStyle`) and re-reads on theme switch — the
+  internal theme-injection is load-bearing for theming to work at all. Plus **`@orb/ui/meter`** for 1-D
+  magnitude bars (never force these through the chart lib). Seam covers bar · line · heatmap · calendar ·
+  scatter · force-graph.
+- **`@orb/ui/sortable`** — seals `@dnd-kit/react` (the modern rewrite; the legacy
+  `@dnd-kit/core`/`sortable`/`utilities` stack is dead and must never be installed).
+- **TWO named editor factories** (homed in `client/forms`, §2.1): `createSavedEntityForm` (button-gated)
+  and `createAutosaveEntityForm` (listener-debounced; **`reset` removed from its type** — calling it is
+  the autosave infinite loop). The full six-obligation contract is §13.4. Keep neo's single
+  `createFormHook`/`createFormHookContexts` instance (gate `tanstack-form-only-in-shared`). *Gate
+  `no-form-reset-in-autosave`.* **Amended by D66 A4:** A4 made AUTOSAVE the standing save model (no manual
+  Save button; program doc §7), so `createSavedEntityForm` + the `save-bar` primitive are now orphaned
+  pending a no-consumer-remaining removal decision. Both factories still exist (D43/D54 list them); do
+  not delete on the strength of A4 alone.
+- **`ChatHandle` — the true `this_chid` successor.** A discriminated handle
+  `{ kind:"committed"; id } | { kind:"draft"; id; meta }` threaded from the composition root; the draft
+  and committed paths become different functions that don't typecheck against each other — forgetting the
+  branch cannot compile. (Replaces neo's ambient `isOptimistic` boolean.)
+- **The central invalidation seam.** queryKeys are solved (§11.1) but invalidation is the real sprawl.
+  One `client/data/invalidation.ts` maps domain-event → `queryFilter()`s; mutation `onSettled` + bus
+  handlers call `invalidate(event)`. *Gate `no-inline-invalidate-outside-seam`.*
+- **`@orb/contracts` owns every wire DTO; the client never imports `#server/*`.** *Physics:
+  `client ⇏ @orb/server`. Gate `no-client-wire-redeclare`.*
 
 ### 11.4 Close the token hole + extend gates past `globals.css`
 
-neo's design-token check only ever inspected `globals.css`, never feature TSX — so raw `size-[1.5rem]`, `z-10`, `bg-black/50` drifted everywhere. Ratified (LIVE for ui; feature halves activate with client code): (a) `@orb/ui` lives under the same token gates as features, **no `components/ui/` exemption**; (b) the Tailwind utility namespaces are **generated** from the DTCG source (dead token = failing freshness test); (c) the token gates apply to **all** feature + ui TSX; (d) `no-color-literals` widened past hex to named non-token colors (`bg-black`/`bg-white`) + the theme-aware **`--scrim`** token (a `bg-black/50` scrim is invisible on a true-black theme); (e) a small CSS structure test pins the "one edit silently breaks it" `globals.css` footguns (theme enumeration, the **unlayered** reduced-motion floor, per-theme `color-scheme`).
+neo's design-token check only inspected `globals.css`, never feature TSX — so raw `size-[1.5rem]`,
+`z-10`, `bg-black/50` drifted everywhere. Ratified: (a) `@orb/ui` lives under the same token gates as
+features, no `components/ui/` exemption; (b) the Tailwind utility namespaces are GENERATED from the DTCG
+source (dead token = failing freshness test); (c) the token gates apply to ALL feature + ui TSX;
+(d) `no-color-literals` widened past hex to named non-token colors (`bg-black`/`bg-white`) + the
+theme-aware `--scrim` token (a `bg-black/50` scrim is invisible on a true-black theme); (e) a small CSS
+structure test pins the `globals.css` footguns (theme enumeration, the unlayered reduced-motion floor,
+per-theme `color-scheme`).
 
 ### 11.5 The smaller HIGH-value gates (persist · determinism · sentinels · keystones)
 
-- **Persist versioning — partly irreversible, pin first.** 9 of 11 neo stores `persist()` a non-primitive shape with no `version`/`migrate`; once stale blobs are in users' `localStorage` you can't migrate from a version line you never shipped. *Gate `persist-shape-needs-version`.* Plus a `STORAGE_KEYS` registry asserting key uniqueness.
-- **Determinism reaches the client.** Extend the server's no-`Date.now()`/`new Date()`/`Math.random()` rule to client render + optimistic code (seeded PRNG allowed). **The timezone pipeline (carry neo's — it was solid):** the wire is ALWAYS a **UTC epoch number**; localization to the browser-local tz happens exactly ONCE, at the display edge, in the sealed `lib/time.ts` seam via memoized `Intl.*`; `now` is **injected** so relative-time is snapshot-testable. The `time.ts` seam is the ONE sanctioned `Intl` site.
-- **`castId<X>("")` empty-id sentinel → `skipToken`.** The fake branded id paired with `enabled:` appeared \~10×; if the guard is ever dropped the empty id hits the server. `useGatedQuery(id, optsFn)` refuses to build the key when `id` is null. *Gate `no-fake-disabled-id`.*
-- **Zustand selector stability** — extend the selector gate to **all** keyed stores (a fresh `{}`/`[]` per render spins `useSyncExternalStore` — runtime-only, no compile signal). And split per-token stream fields from lifecycle fields so chrome physically cannot subscribe to token churn. **DONE (task #51):** `zustand-selector-derived.ts` (§8) covers both `use<X>Store(selector)` and `useStore(store, selector)`, full-body (block/ternary/`??`) reasoning, plus `Object.keys/values/entries`/array-rebuild derivations — the grit belt alone only caught the concise-literal shape.
-- **Registry-pairing keystone.** RAIL\_SLOTS ↔ MODAL\_SLOTS id-pairing is the shell's keystone and was unguarded in neo (a missing body shipped as "the panel won't open"). *Gate `check:registry-pairing`.*
-- **Typed test-id registry.** Freeform `data-testid` strings mean a typo silently breaks an e2e selector. A `testId(...)` typed map makes a typo a type error.
+- **Persist versioning — partly irreversible, pin first.** 9 of 11 neo stores `persist()` a non-primitive
+  shape with no `version`/`migrate`; once stale blobs are in users' `localStorage` you can't migrate from
+  a version line you never shipped. \*Gates `no-raw-zustand-persist` + `persist-partialize-and-total-migrate`
+  - a `STORAGE_KEYS` uniqueness registry.\*
+- **Determinism reaches the client.** Extend the server's no-`Date.now()`/`new Date()`/`Math.random()`
+  rule to client render + optimistic code (seeded PRNG allowed). **Timezone pipeline:** the wire is
+  ALWAYS a UTC epoch number; localization to browser-local tz happens exactly ONCE, at the display edge,
+  in the sealed `lib/time.ts` seam via memoized `Intl.*`; `now` is INJECTED so relative-time is
+  snapshot-testable. `time.ts` is the ONE sanctioned `Intl` site. *Gates `no-raw-random`, `no-raw-clock`,
+  `no-raw-intl-time`.*
+- **`castId<X>("")` empty-id sentinel → `skipToken`.** The fake branded id paired with `enabled:` hits
+  the server if the guard is ever dropped. `useGatedQuery(id, optsFn)` refuses to build the key when `id`
+  is null. *Gate `no-fake-disabled-id`.*
+- **Zustand selector stability** — a fresh `{}`/`[]` per render spins `useSyncExternalStore` (runtime-only,
+  no compile signal). Split per-token stream fields from lifecycle fields so chrome physically cannot
+  subscribe to token churn. *Gates: `zustand-selector-stability.grit` (narrow) + `zustand-selector-derived.ts`
+  (full-body, both call shapes).*
+- **Registry-pairing keystone.** RAIL\_SLOTS ↔ MODAL\_SLOTS id-pairing was unguarded in neo (a missing body
+  shipped as "the panel won't open"). *Gate `registry-pairing`.*
+- **Typed test-id registry.** A `testId(...)` typed map makes a `data-testid` typo a type error. *Gate
+  `testid-typed-only`.*
 
-### 11.6 Streamdown + untrusted content — the two-policy spec (BUILT; API corrected at build)
+### 11.6 Streamdown + untrusted content — the two-policy spec (BUILT)
 
-The audit confirmed D21's threat surface is chat-only: character-card fields render as escaped text; the only untrusted-markdown render is chat's message body. Streamdown runs `rehype-sanitize` + `rehype-harden` **by default**, but that default is deliberately permissive — suitable only for content the box owner authored, NOT for LLM output / imported cards / other participants. So the `@orb/ui/markdown` seam exposes **two trust policies** — BUILT in `packages/ui/src/markdown/policy.ts`. **Governing posture (D44 §12.0 — CORRECTED 2026-07-05, #25): UNTRUSTED BY DEFAULT.** "trusted" names the permissive *policy*, NOT a default — the earlier "trusted = own AI output" framing was wrong (the model is untrusted: indirect prompt-injection can make it emit exfil-shaped markup — Claude-Artifacts treats its own model's HTML the same way). The per-message tier is resolved by `resolveRowRenderPolicy` (client `features/chat/lib/render-trust.ts`); the opt-in mirrors `forbidExternalMedia` (a deployment-global `trustHtml` **AND** a per-character `trustHtml` override, resolved server-side `override ?? global` onto `ParticipantView.renderPolicy`).
+The threat surface is chat-only: character-card fields render as escaped text; the only untrusted-markdown
+render is chat's message body. The `@orb/ui/markdown` seam exposes two trust policies (BUILT in
+`packages/ui/src/markdown/policy.ts`). **Governing posture (D44 §12.0): UNTRUSTED BY DEFAULT** — "trusted"
+names the permissive POLICY, not a default; the model is untrusted (indirect prompt-injection can make it
+emit exfil-shaped markup). Per-message tier resolved by `resolveRowRenderPolicy`
+(`features/chat/lib/render-trust.ts`); the opt-in mirrors `forbidExternalMedia` (deployment-global
+`trustHtml` AND per-character override, resolved server-side `override ?? global`).
 
-- **`trusted` (the OPT-IN escalation — the viewer's OWN input, or a character/global that opted into rich HTML):** Streamdown defaults — maximum functionality.
-- **`untrusted` (the DEFAULT — LLM output / imported cards / other participants / system):** the Tier-A element allowlist (§12.2) **minus `img`**, plus a `urlTransform` gate (blocks `javascript:`/`data:`/off-allowlist hosts), **AND Mermaid withheld** (#54 — a `mermaid` fence degrades to an inert code block; an untrusted diagram DSL + heavy lazy engine is a real risk). KaTeX is kept (rehype-katex `trust:false` — math-only, inert).
+- **`trusted` (the OPT-IN escalation — the viewer's OWN input, or a character/global that opted into rich
+  HTML):** Streamdown defaults — maximum functionality.
+- **`untrusted` (the DEFAULT — LLM output / imported cards / other participants / system):** the Tier-A
+  element allowlist (§12.2) MINUS `img`, plus a `urlTransform` gate (blocks `javascript:`/`data:`/off-allowlist
+  hosts), AND Mermaid withheld (a `mermaid` fence degrades to an inert code block). KaTeX kept (rehype-katex
+  `trust:false` — math-only, inert).
 
-**API correction (recorded at build — the docs-assumed knobs do not exist):** Streamdown 2.5's real security surface is **`allowedElements`/`disallowedElements` + `urlTransform`** — NOT `allowedLinkPrefixes`/`allowedImagePrefixes`/`allowDataImages`. And **`img` must be dropped at the element level for untrusted content**: verified 2026-07-02, Streamdown emits a `<link rel="preload" as="image">` that `urlTransform` does NOT intercept — an untrusted external image would prefetch to the source (the exact D21 tracking-pixel exfil) even with the url gate. Untrusted images route through the gated `<MessageMedia>` (§12.3) when chat wires it.
+> \[!WARNING] `img` MUST be dropped at the element level for untrusted content — NOT via `urlTransform`.
+> Streamdown emits a `<link rel="preload" as="image">` that `urlTransform` does NOT intercept, so an
+> untrusted external image would prefetch to the source (the D21 tracking-pixel exfil) even with the url
+> gate. Untrusted images route through the gated `<MessageMedia>` (§12.3). Streamdown 2.5's real security
+> surface is `allowedElements`/`disallowedElements` + `urlTransform` — the docs-assumed
+> `allowedLinkPrefixes`/`allowedImagePrefixes`/`allowDataImages` knobs do not exist.
 
-Also pinned: `remark-gfm { singleTilde:false }` (else `10~20°C` renders struck-through). **The Phase-6 chat wiring — per-message trust selection + `MessageMedia`/`SandboxFrame` dispatch — LANDED (#25):** `message-row.tsx` resolves `render` via `resolveRowRenderPolicy` (replacing the pre-#25 hardcoded `trust="trusted"`), `message-content.tsx` dispatches markdown/media/html-card per block, and `#54` (untrusted Mermaid) is absorbed. The `html-card` + `asset`-media arms are PRE-WIRED seams awaiting their producers (#68 card grammar + `cardTrust`; #67 asset resolver + composer attach).
+Also pinned: `remark-gfm { singleTilde:false }` (else `10~20°C` renders struck-through). The Phase-6 chat
+wiring (per-message trust selection + `MessageMedia`/`SandboxFrame` dispatch) LANDED: `message-row.tsx`
+resolves `render` via `resolveRowRenderPolicy`, `message-content.tsx` dispatches markdown/media/html-card
+per block. The `html-card` + `asset`-media arms are PRE-WIRED seams awaiting their producers (card grammar
+
+- `cardTrust`; asset resolver + composer attach). *Gates `no-untrusted-html-in-main-dom`,
+  `no-external-media-without-gate` (§12.6).*
 
 ### 11.7 Sequencing (born-compliant — the non-negotiable)
 
-Every §11.3 client primitive, the §11.4 feature-side gates, and all §8-PARKED belts ship in the **client-foundation wave, BEFORE any feature agent runs**. *neo rotted in the gap between "feature shipped" and "gate written"* — a feature that lands before its gate is enforced retroactively, the exact ts-morph-out-of-a-mess this architecture exists to prevent. (The `@orb/ui` half of this rule is already discharged — the primitives and their gates landed together.) (§12.8 is the §12-content companion.)
+Every §11.3 client primitive, the §11.4 feature-side gates, and all deferred UI belts ship in the
+client-foundation wave, BEFORE any feature agent runs. neo rotted in the gap between "feature shipped" and
+"gate written" — a feature that lands before its gate is enforced retroactively, the exact mess this
+architecture exists to prevent. (The `@orb/ui` half is already discharged — the primitives and their gates
+landed together.)
 
-### 11.8 Stack-currency verification (2026-06 — the load-bearing bets re-checked against current reality)
+### 11.8 Stack-currency decisions (the load-bearing bets)
 
-- **Base UI** — `@base-ui/react` 1.x stable (1.0 shipped 2025-12; MUI-backed). The rc-era `@base-ui-components/react` name is dead and biome-banned.
-- **React Compiler × TanStack Virtual — CORRECTED (D54).** The interior-mutability issue was real, but the fix shipped and is Compiler-E2E-tested: `directDomUpdates: true` + `containerRef` (3.14+); the streaming-chat cluster went native in core 3.16. The mid-2026 "virtua swap" idea rested on two now-refuted premises — **TanStack Virtual is KEPT**, sealed (§11.3). The seal still earns its place (chat cluster + dep-cruiser ban + tripwire), just not because the lib is "broken."
-- **React 19.2 `<Activity>` + `useEffectEvent`** — both stable (Oct 2025). The §4a bets stand.
-- **DTCG + Style Dictionary + Tailwind v4 `@theme`** — DTCG first stable spec 2025-10; Style Dictionary (v5 at build — recorded delta from the doc-era v4) has first-class DTCG support. The §3 pipeline is the 2026 best-practice path.
-- **Streamdown** — real + security-first by default; stronger than planned (bundles sanitize+harden) but needed the §11.6 two-policy config (and the API correction recorded there).
-- **Charts — DECIDED: Apache ECharts; nivo dropped (D52, reverses D43's "keep nivo").** nivo is stuck at v0.99 — the "amnesiac author inherits a dead lib" risk this architecture exists to avoid; the client had zero charts written, so pre-committing was free. ECharts is the only single mainstream lib natively covering the corpus set — bar · line · heatmap · **calendar** heatmap · scatter · **force-directed network** — which eliminated Recharts (renders neither hard one) and visx (hand-build). One dep replaced 6 `@nivo/*` packages; Canvas-rendered (a perf win for the dense corpus-galaxy scatter). Fallback if the similarity graph outgrows ECharts' force layout: split that one chart to a WebGL lib behind the same seal.
+The 2026-06 re-verification write-up is the archaeology record; the standing decisions:
+
+- **Base UI** — `@base-ui/react` 1.x is the primitive. The rc-era `@base-ui-components/react` name is dead
+  and biome-banned.
+- **TanStack Virtual is KEPT** (D54), sealed (§11.3) — the interior-mutability issue was real but the fix
+  shipped and is Compiler-E2E-tested; the "virtua swap" rested on now-refuted premises.
+- **React 19.2** `<Activity>` + `useEffectEvent` are stable — the §4a bets stand.
+- **DTCG + Style Dictionary (v5) + Tailwind v4 `@theme`** — the §3 pipeline is the current best-practice
+  path.
+- **Charts: Apache ECharts; nivo dropped (D52).** One dep natively covers the corpus set (bar · line ·
+  heatmap · calendar · scatter · force-graph), replacing 6 `@nivo/*` packages; Canvas-rendered. Fallback if
+  the similarity graph outgrows the force layout: split that one chart to a WebGL lib behind the same seal.

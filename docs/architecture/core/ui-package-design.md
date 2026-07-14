@@ -7,11 +7,18 @@ updated: 2026-07-13
 <!-- Promoted proposed/ → core/ under D66 (2026-07-13): this is the @orb/ui law. §-numbers are
      load-bearing history; do not renumber. -->
 
-# `@orb/ui` — the package design (structure · scaffold · factories · build order)
+# `@orb/ui` — the package design (structure · factories · seals · tokens)
 
-> **Status: EXECUTED build design (waves 0–3 + the carve-out fleet are BUILT, 2026-07; the §6.2 client factories are ALSO BUILT — verified 2026-07-09, see the §6.2 status update).** The build plan for the `@orb/ui` package — the frontend cake leaf (`kit ← contracts ← ui ← client`, D42). The law this doc executes is the `core/UI-*.md` docs + ledger D42/D43/D44/D52/D54/D58; **those win on any conflict** — this doc adds (a) the concrete scaffold decisions the law leaves open, (b) the factory inventory with homes/signatures/obligations, (c) the recorded doc-vs-current-API deltas. **For anything built, the code is the doc** (`packages/ui/src` + the CT suite); code comments cite this doc's §-numbers as their spec provenance — the §-numbering is load-bearing, do not renumber. The structural contract graduated to `core/UI-Primitives-and-Reuse.md` §13.7–§13.9.
-
-> **Triage 2026-07-09 (dispatch board — `README.md` §0):** AS-BUILT REFERENCE — waves 0–3 + the client data/forms/state factories are BUILT. §-numbers are load-bearing (code file headers cite them): never renumber, never move this file.
+> **AS-BUILT LAW.** `@orb/ui` is fully built (`packages/ui/src` is the inventory;
+> `packages/ui/package.json#exports` is the public surface); the §6.2 client factories are built too
+> (`packages/client/src/{forms,data,state}`). The frontend cake leaf (`kit ← contracts ← ui ← client`,
+> D42). **The law this doc executes is `core/UI-*.md` + ledger D42/D43/D44/D52/D54/D58/D62/D66; those
+> win on any conflict.** This doc owns the concrete package decisions the law leaves open + the factory
+> inventory with homes/signatures/obligations. **For anything built, the code is the doc**
+> (`packages/ui/src` + the CT suite) — this doc carries only the cross-cutting WHY. Code file headers
+> cite these §-numbers as spec provenance: the numbering is load-bearing, never renumber, never move
+> this file. The structural contract graduated to `core/UI-Primitives-and-Reuse.md` §13.7–§13.9. The
+> build journey + resolved deltas: `../history/ui-package-design-archaeology-record.md`.
 
 ## 1. Position in the cake + the physics
 
@@ -27,10 +34,9 @@ kit ─┬─→ contracts ─┬─→ db ─→ server           (backend arm)
   2. **lint** — biome `noUndeclaredDependencies` (an undeclared import is an error);
   3. **dep-cruiser** — the `ui-cake` rule (backstop for deep `../../` escapes), plus
      `ui-no-node-builtins` (ui is browser code; `node:*` is banned, same as kit).
-- **`react` + `react-dom` are PEERS.** D54 said "peer `react` ONLY"; **recorded delta:**
-  `@base-ui/react@1.6.0` itself declares `react-dom` as a required peer, so `@orb/ui` peers BOTH.
-  The intent is preserved — the client remains the renderer/provider; ui never bundles React.
-  (`@date-fns/tz`/`date-fns` are OPTIONAL Base UI peers for date components we don't wrap — not installed.)
+- **`react` + `react-dom` are PEERS** (both — `@base-ui/react` declares `react-dom` a required peer,
+  amending D54's "peer react ONLY" in intent-preserving form: the client stays the renderer/provider,
+  ui never bundles React).
 - **Contracts-adjacent primitives use ui-local STRUCTURAL props, never a contracts import.**
   `MessageMedia` takes `{ src: MessageMediaSource; … }` where `MessageMediaSource` is a ui-local
   discriminated union structurally compatible with the D44 `MessageContentBlock.media` fields;
@@ -63,8 +69,8 @@ packages/ui/
       + the Wave-3/carve-out set (checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
         combobox · separator · collapsible · accordion · scroll-area · alert-dialog · progress ·
         badge · skeleton · spinner · empty-state · card · list-row · setting-row · selection-bar ·
-        save-bar · status-chip · compare-blocks · avatar-stack · file-dropzone · highlighted-text ·
-        log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate)
+        save-bar · status-chip · compare-blocks · avatar-stack · file-dropzone · file-trigger ·
+        highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate)
       + aria-announcer/ · fieldset/ · kbd/ · table/ · text/  (BUILT — the small hand-authored
         primitives; no lib, tv() over semantic HTML/ARIA)
     fuzzy-search/       # minisearch's second sealed home (BUILT) — the generic browse-search hook,
@@ -77,12 +83,16 @@ packages/ui/
       meter/            # Meter (linear/arc/bipolar + milestones/dangerBelow) + SegmentedClock —
                         #   plain CSS/SVG, NOT the chart lib (D52/D58; rpg-design/11 §2); exported ./meter
     markdown/           # seals Streamdown — TWO trust policies (UI-Gates §11.6) + toPlainText
-                        #   (remark strip-markdown, D54) — the Tier-A allowlist lives HERE (D44 §12.2)
+                        #   (strip-markdown) + math.ts (KaTeX) + shiki-plugin.ts (Shiki code highlight —
+                        #   Streamdown 2.5 dropped its bundled Shiki) — Tier-A allowlist lives HERE (D44 §12.2)
     stream/             # useSmoothText pacer + TTFT shimmer (BUILT; §6.3.1 — pure string-math)
-    content/            # sandbox-frame · MessageMedia · ThemeScope · lightbox (D44 — the security trio)
+    content/            # sandbox-frame/ · message-media/ · theme-scope/ · lightbox/ — each a sealed
+                        #   dir (D44 — the security trio + lightbox)
     code-editor/        # seals CodeMirror 6, token-themed (custom-CSS field · Tier-B card CSS · D46)
     diff/               # seals `diff` (jsdiff) — snapshot/edit-history diff views (D28/D54)
-    lib/   { cn.ts }    # tailwind-variants' built-in merge, re-exported
+    lib/                # cross-cutting seams: `cn` (tailwind-variants merge, re-exported) + the
+                        #   configured `tv` factory (§5) + focus-ring/overlay-motion/portal-container/
+                        #   reduced-motion/result-count helpers. Primitives import from here, never a raw lib.
     styles/ { globals.css · theme.css (GENERATED @theme) }
   (no src/index.ts barrel — subpath exports only, one per group; see below)
 ```
@@ -98,47 +108,60 @@ packages/ui/
   `.ts` at `src/` root except nothing — even `index.ts` doesn't exist here) and `test-layout.ts`
   gains the `tests/ui` mirror.
 
-## 3. Dependencies (verified against the live registry, 2026-07-02)
+## 3. Dependencies — the sealed satellites (each lib seals ONE dir)
 
-| Dep | Version | Role | Doc-vs-current delta |
-| - | - | - | - |
-| `@base-ui/react` | ^1.6.0 | THE headless primitive (D42) | ✅ as documented (1.6.x; the `@base-ui-components/react` name is the DEAD rc-era package — never install it). v1 broke RC-era APIs: **every wrap is written against the live per-component docs (base-ui.com), never memory.** |
-| `tailwind-variants` | ^3.2.2 | variants + slots + `cn` (subsumes cva/clsx/tw-merge — D54) | ⚠️ docs said "v1"; current major is **3.x**. API verified at build: `tv()`, `slots`, `VariantProps` all present; deltas recorded in the variants convention (§5) if any surface. |
-| `lucide-react` | ^1.22.0 | icons (gate `icons-lucide-only`) | ✅ (pinned below `.23` by `minimumReleaseAge` — bump when mature) |
-| `@tanstack/react-virtual` | ^3.14.5 | virtual-list/message-list seals | ✅ ≥3.14.3 (`directDomUpdates` fix) + core ≥3.16 chat APIs per D54 |
-| `streamdown` | ^2.5.0 | markdown seal | ✅ meets the D43 "floor ≥2.5" build-gate |
-| `codemirror` + `@codemirror/lang-css` | ^6.0.2 / ^6.3.1 | code-editor seal | ✅ CM6 |
-| `diff` | ^9.0.0 | diff seal | ⚠️ docs said "v8+"; current is **9.x** — same modern TS/async surface, ^9 pinned |
-| `zod` | catalog (^4.4.3) | the `ThemeScope` ui-local clamp (§7) | isomorphic-pure; already a kit dep — legal everywhere |
-| `remark` + `strip-markdown` | ^15 / ^6 | `toPlainText` (D54 — previews/snippets) | ✅ same unified pipeline as Streamdown |
-| `cmdk` | ^1.1.1 | command seal | BUILT |
-| `@dnd-kit/react` (+`/dom`+`/helpers`) | ^0.5.0 | sortable seal | BUILT (the rewrite; the legacy `@dnd-kit/core`/`sortable`/`utilities` stack is dead — never install) |
-| `echarts` + `echarts-for-react` | ^6.1.0 / ^3.0.6 | charts seal (D52) | BUILT |
-| `minisearch` | catalog | macro-textarea fuzzy match (carve-out item 18 — DECIDED dep); ALSO seals `fuzzy-search/` (the generic browse-search hook, the lib's second sanctioned home) | BUILT |
-| `katex` + `rehype-katex` + `remark-math` | ^0.16.25 / ^7.0.1 / ^6.0.0 (catalog) | the markdown seal's math capability (`markdown/math.ts`) — Streamdown bundles Mermaid but not KaTeX, so this seal supplies the whole `$…$`/`$$…$$` parse→render stack + stylesheet | BUILT |
-| **peer** `react` / `react-dom` | ^19 | the renderer stays the client's | see §1 — react-dom peer is a Base UI requirement (recorded delta vs D54's "react only") |
-| **dev** `@types/react`(-dom), `react`, `react-dom`, `tailwindcss`, `@tailwindcss/vite`, `style-dictionary` | catalog | typecheck + token codegen + CT | `style-dictionary` current major is **5.x** (docs said v4) — v5 is ESM/async; DTCG support intact. Recorded delta. |
+Versions live in the pnpm **catalog** (`catalog:` in `package.json`), not this table — the catalog is
+the one home for the number. `@base-ui/react` v1 broke its RC-era APIs, so **every wrap is written
+against the live per-component docs (base-ui.com), never memory** (the DEAD rc-era package
+`@base-ui-components/react` must never be installed). The dep-cruiser `ui-satellite-seals` rule (§8)
+enforces the seal column: a lib may only be imported from its sealed dir.
 
-**DROPPED (D54 — do not re-add without a ledger decision):** `sonner` (→ Base UI Toast),
-`vaul` (→ Base UI Drawer — verified present as `@base-ui/react/drawer` in 1.6.0),
-`react-resizable-panels` (the shell uses the §11.1 clamp-overlay), `cva`/`clsx`/`tailwind-merge`
-(→ tailwind-variants), DOMPurify (sanitize is native inside Streamdown — D54).
+| Dep(s) | Seals | Notes |
+| - | - | - |
+| `@base-ui/react` | every Base UI wrap (`primitives/`, `layout/toolbar`) | THE headless primitive (D42); react + react-dom peers ride it (§1) |
+| `tailwind-variants` (+ `tailwind-merge`) | `lib/` — the `cn` merge + configured `tv` (§5) | subsumes cva/clsx as the styling primitive; `tailwind-merge` is a direct dep only so `createTV`'s `twMergeConfig` can register the custom `--text-*` size classGroup (§5) |
+| `lucide-react` | `primitives/icons/` (gate `icons-lucide-only`) | the ONE icon set |
+| `@tanstack/react-virtual` | `primitives/virtual-list/` + `primitives/message-list/` | `directDomUpdates` + core chat APIs (D54) |
+| `streamdown` + `remark-gfm` + `strip-markdown` | `markdown/` | two trust policies + `toPlainText` |
+| `katex` + `rehype-katex` + `remark-math` | `markdown/math.ts` | Streamdown bundles Mermaid but not KaTeX — this seal supplies the whole `$…$`/`$$…$$` stack + stylesheet |
+| `@shikijs/core` + `@shikijs/engine-javascript` + `@shikijs/langs` | `markdown/shiki-plugin.ts` | Streamdown 2.5 dropped its bundled Shiki — the seal re-supplies code highlighting via `plugins.code` (lazy JS-regex engine, both mode literals baked) |
+| `codemirror` + `@codemirror/{lang-css,autocomplete,lint,state}` | `code-editor/` | CM6 |
+| `diff` (jsdiff) | `diff/` | snapshot/edit-history diff views (D28/D54) |
+| `cmdk` | `primitives/command/` | — |
+| `@dnd-kit/react` (+`/dom`+`/helpers`) | `primitives/sortable/` | the rewrite package; the legacy `@dnd-kit/core`/`sortable`/`utilities` stack is dead — never install |
+| `echarts` + `echarts-for-react` | `charts/` (D52) | — |
+| `minisearch` | `primitives/macro-textarea/` + `fuzzy-search/` | two sanctioned homes (the lib's second is the generic browse-search hook) |
+| `zod` | `content/theme-scope/` clamp (§7) | isomorphic-pure; already a kit dep |
+| **dev** `style-dictionary` (v5, ESM/async) + `tailwindcss` + `tsx` + `@types/react`(-dom) | token codegen (§4) + typecheck | — |
+
+**DROPPED at D54 (do not re-add without a ledger decision):** `sonner` (→ Base UI Toast), `vaul`
+(→ Base UI Drawer), `react-resizable-panels` (→ the §11.1 clamp-overlay shell), `cva`/`clsx`
+(→ tailwind-variants), DOMPurify (sanitize is native inside Streamdown). Version-migration archaeology
+(the majors that moved past the original brief): the history record.
 
 ## 4. Tokens — the DTCG pipeline (concrete)
 
 - **Source:** `src/tokens/tokens.json` — W3C DTCG (`$value`/`$type`). Seeded from the design seed
   (the DESIGN.md OKLCH Hearth ramp + Ember accent + Geist + the radius/spacing/motion scales —
   UI-Arch §4.1 keeps ONLY the palette from that seed) plus the scales the law mandates:
-  - **color** — the Hearth ramp (`background`/`foreground`/`card`/`popover`/`primary`(Ember)/
-    `secondary`/`muted`/`accent`/`destructive`/`success`/`border`/`input`/`ring`/`sidebar` set), the
-    **`--scrim`** token (D43 §11.4 — theme-aware overlay; never `bg-black/50`), the chart ramp
-    (`--chart-1..5`), and the **prose/bubble semantics** (`--user-bubble`/`--user-bubble-fg`/
-    `--ai-bubble`/`--ai-bubble-fg`/`--dialogue`/`--narration`/`--body`/`--speaker-name`) — the D44
-    §12.1 ThemeScope override TARGETS, defaulting to ramp values.
+  - **color** — the Hearth ramp + intents (`background`/`foreground`/`card`/`surface-raised`/`popover`/
+    `primary`(Ember)/`secondary`/`muted`/`accent`/`destructive`/`success`/`warning`/`info`/`highlight`/
+    `border`/`input`/`ring`/`sidebar`), the **`--scrim`** token (D43 §11.4 — theme-aware overlay; never
+    `bg-black/50`), the chart ramp (`--chart-1..5`), and the **prose/bubble semantics**
+    (`--user-bubble`/`--ai-bubble`/`--system-bubble` + `-foreground`, `--dialogue`/`--narration`/
+    `--prose-body`/`--speaker`) — the D44 §12.1 ThemeScope override TARGETS, defaulting to ramp values.
+    `tokens.json` is the truth for the full set (it also carries shadow/blur/immersive/reading token
+    families the appearance system drives) — this list names the load-bearing override targets, not the
+    whole tree.
   - **spacing** — the 4px scale + the intent tokens (`gap-field/row/block/section/gutter`,
     `p-row/block/section/gutter`) the grit gates point at.
-  - **control heights** — `--control-sm/md/lg` with the **≥44px touch floor** (gate
-    `touch-target-floor`, §4b axis 3; `data-density="compact"` tightens for fine pointers).
+  - **control heights** — `--control-sm/md/lg`, **POINTER-CONDITIONAL per D62 P1**: 44/48/56px at
+    coarse (meets the touch floor), narrowing to 32/34/40px at `@media(pointer:fine)` via the token's
+    `orb.pointerFine` extension. FLAG\[registry]: `Core-Path-Registry.md` D62 P1 is the authority on the
+    per-pointer floor (the fine floor was raised 28→32 after side-eye/design-audit passes; the
+    per-pointer tap-target CHECK lives in the design-audit probe, not the `pnpm check` battery — see §8
+    `touch-target-floor`). `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
+    display sizes are pointer-INDEPENDENT (never narrow — §13.9 D62 delta).
   - **container breakpoints** — `--cq-sm/md/lg` (§3 — container queries use named tokens).
   - **type** — the Geist scale (display/headline/title/body/label/mono per the seed table);
     **radius** (`base/control/card/full`); **z** scale; **motion** (`--motion-fast/base/layout` +
@@ -150,8 +173,11 @@ packages/ui/
 - **Freshness is machine-enforced:** `tests/ui/tokens/index.test.ts` re-runs the codegen
   in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
   from `tokens.json` FAILS `pnpm test`. ("Derived, never hand-authored" as a test, not a hope.)
-- **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`; Mocha (the cool ramp)
-  lands as a second value-set when the theme selector builds. NO structural mode exists.
+- **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`. NO structural mode exists.
+  FLAG\[registry]: the shipped theme SET is **Hearth · Mocha · Light** (`Core-Path-Registry.md` §Placement
+  is the authority; never the seed mockup's Catppuccin/Loom names) — built as `owner_id IS NULL` seed
+  rows (`server/domain/settings/seed-themes.ts`), NOT as extra `theme.css` value-sets. Custom themes ride
+  the `<ThemeScope>` override API.
 
 ## 5. Variants — the tailwind-variants conventions
 
@@ -187,32 +213,25 @@ factories are inventoried here because this package is their substrate and their
 | - | - | - | - |
 | `tv()` variant configs (per primitive) | `variants.ts` per §5 | tokens-only classes; union-typed variants; slots for multi-part | CT: variant renders; `tsc`: bad variant fails `test:types` |
 | `createVirtualList` seal → `<VirtualList>` | `{ count, getItemKey (REQUIRED, id-based), estimateSize, overscan?, lanes?, rangeExtractor?, renderItem }` | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
-| `<MessageList>` seal (chat) — DEFERRED to the chat-client chunk | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (BUILT 2026-07-09 — the `keepMounted` predicate, PD-119 DONE) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
+| `<MessageList>` seal (chat) | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (the `keepMounted` predicate — PD-119 DONE) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
 | `<Meter kind>` + `<SegmentedClock>` | `Meter: { kind: 'linear'\|'arc'\|'bipolar', value, max?, milestones?: number[], dangerBelow?: number, label }` · `SegmentedClock: { segments: int ≥2, filled, size?, completed? }` | hand-rolled ARIA (`role="meter"` + value semantics) — ONE rendering mechanism across kinds (Base UI's Meter is linear-DOM-shaped; arc/bipolar need SVG); `dangerBelow` swaps the danger INTENT token (never a color calc); bipolar is center-origin −/+ | CT: 0/partial/full/completed clock; bipolar ticks; danger token swap; ARIA values (rpg-design/11 §13 — the fixtures come from `RpgHudView`-SHAPED plain objects, no contracts import) |
-| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` + `toPlainText(md)` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D44 §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; error-boundary around lazy CodeBlock/Mermaid (#343); large-block guard (#195) | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
+| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` + `toPlainText(md)` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D44 §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; the `shiki-plugin.ts` `CodeHighlighterPlugin` supplied via `plugins.code` (Streamdown 2.5 ships no bundled Shiki); error-boundary around lazy CodeBlock/Mermaid (#343); large-block guard (#195) | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
 | `<ThemeScope>` | `{ tokens: ThemeScopeTokens, children }` — ui-local Zod-clamped subset (D44 §12.1) | values parsed+clamped at the boundary (colors must parse as colors — reject `url()`/`expression()`; dims snap to token scale; font from allowlist); applies ONLY scoped CSS custom props on a wrapper; NEVER raw style passthrough (gate `theme-override-only-via-scope`) | CT: hostile values (`url(//x)`, `expression(...)`, `;injection`) are rejected/dropped; legal overrides land as `--token` custom props on the scope node only |
 | `<MessageMedia>` | `{ src: { kind:'asset', url } \| { kind:'external', url }, media: 'image'\|'audio'\|'video', alt, dims?, allowExternal: boolean }` | asset-vs-external dispatch; `forbidExternalMedia`-style click-to-load placeholder when `!allowExternal`; **autoplay FORCED OFF + `controls` required on untrusted A/V (non-overridable)**; lazy-load; aspect reservation (no layout shift); broken-media fallback; lightbox hook | CT: external img does NOT hit the network un-gated (placeholder first); untrusted `<video>` has `controls` and never `autoplay`; aspect box reserved pre-load |
 | `<SandboxFrame>` | `{ html, css?, themeTokens?, title, complete?, heightPx? }` | sandboxed `<iframe sandbox="allow-...">` **minus `allow-same-origin`, minus `allow-scripts` (v1)**; per-frame CSP attr (`connect-src 'none'`, gated `img-src`/`media-src`) owned in THIS ONE file; render-on-complete (no partial-stream mount); caller-controlled `heightPx` sizing (default `320`) — postMessage auto-height is IMPOSSIBLE in v1 (requires a script inside the frame, and `allow-scripts` is OFF); auto-height is explicitly DEFERRED to a future `allow-scripts`-enabled version (origin-checked listener), not before; theme-token injection so `var(--accent)` tracks | CT: `sandbox`/`csp` attrs EXACT (string-asserted); script inside the doc does not execute |
 | `<Lightbox>` | hand-built over Dialog + MessageMedia (D54 — no lib) | zoom view for image/video; focus trap + Esc from Base UI Dialog | CT: opens/closes; media renders through MessageMedia (gates compose) |
 | `code-editor` seal | `<CodeEditor lang="css"\|…, value, onChange, readOnly?>` | CM6 behind the seam; token-themed via an editor theme built FROM the TS token map (one mapping site); no raw CodeMirror import outside the dir (dep-cruiser) | CT: mounts, edits, theme vars applied |
 | `diff` seal | `<DiffView before after mode="chars"\|"lines">` | jsdiff v9 behind the seam; add/remove intent tokens | CT: known before/after renders adds/dels |
-| `useSmoothText` pacer + shimmer (stream/) — DEFERRED to the chat-client chunk | `(text, opts) => paced` | grapheme-cluster safety; adaptive backlog drain; hidden-tab flush; reduced-motion passthrough (§6.3.1) | node tests (pure string-math) + CT compose check with Markdown fade |
+| `useSmoothText` pacer + shimmer (stream/) | `(text, opts) => paced` | grapheme-cluster safety; adaptive backlog drain; hidden-tab flush; reduced-motion passthrough (§6.3.1) | node tests (pure string-math) + CT compose check with Markdown fade |
 | `icons` seal | re-export of the lucide set actually used + `<Icon>` sizing wrapper | one icon lib (gate `icons-lucide-only`); token-driven sizes | CT smoke |
 | layout primitives | `<Stack> <Row> <Section> <Toolbar> <Container name size>` | `Container` owns `container-type/-name` (features never write raw containment); intent-token gaps/padding as variant unions; Toolbar = Base UI Toolbar (roving tabindex) + layout skin | CT: containment established (a `@container` child query resolves); gap variants map to intent tokens |
 
 ### 6.2 Client-side (Phase 6 — inventoried so the homes are pre-decided; DO NOT build in ui)
 
-> **STATUS UPDATE (verified in-tree 2026-07-09): the §6.2 inventory is BUILT — every factory below
-> exists at its pre-decided home** (`client/src/forms/`: `create-saved-entity-form.ts` ·
-> `create-autosave-entity-form.ts` · `use-app-form.ts`; `client/src/data/`:
-> `create-entity-mutation.ts` · `create-collection-surface.ts` · `use-gated-query.ts` ·
-> `query-boundary.tsx` · `invalidation.ts` · `bus/apply-chat-bus-event.ts`; `client/src/state/`:
-> `create-entity-draft-store.ts` · `shell-store.ts` · `chat-handle.ts` (the `ChatHandle` union,
-> grown a third `{kind:"landing"}` member per D62 P4); `client/src/lib/time.ts`; the
-> `RAIL_SLOTS`↔`MODAL_SLOTS` registries + the live `registry-pairing` gate). **The code is now the
-> doc for the built shapes; the table below stays as the obligations spec the builds were verified
-> against.** NOTE the gate caveat: several §6.2-obligation belts are still NOT wired (§11 table,
-> re-trued 2026-07-09) — the obligations hold by construction+review, not yet by gate.
+> **BUILT.** Every factory below exists at its pre-decided home (`client/src/{forms,data,state,lib}` —
+> the code is now the doc for the built shapes). The table stays as the obligations spec the builds were
+> verified against; some obligation belts hold by construction+review, not yet by gate (the active-gate
+> registry, `Core-Enforcement-Active-Gates.md`, is the truth for which are wired).
 
 | Factory | Home | Why client-side | Signature + the baked obligations (canonical spec cite) |
 | - | - | - | - |
@@ -231,21 +250,10 @@ factories are inventoried here because this package is their substrate and their
 | `ChatHandle` | `client` | domain-shaped | the `{kind:'committed';id} \| {kind:'draft';id;meta}` discriminated handle threaded from the root — the typed `this_chid`/`isOptimistic` successor. |
 | `lib/time.ts` seam | `client/lib` | Intl + injected now | epoch-UTC wire → browser-local display, memoized `Intl.*`, injected `now` (snapshot-testable). |
 
-**Under-specified factories, now SPECCED (the "figuring out" half):**
-
-1. `createSavedEntityForm`'s **group-submit obligation** (the mission's sixth): sections that
-   save independently use `form.FormGroup` + per-group `onDynamic` schemas (the multi-step-wizard
-   pattern) — the factory exposes `SectionGroup` so a preset's "sampling"/"prompt" tabs or the
-   wizard's steps validate + submit per-group while ONE form owns all state.
-2. `createEntityMutation`'s error-slot SHAPE (as-built — verified against
-   `packages/client/src/data/create-entity-mutation.ts`): the return is FLAT, not a nested
-   `mutation`/`errorSlot` pair — `{ mutate, mutateAsync, isPending, pendingVariables, error,
-   clearError, retry }`. `error` is `mutation.error` (sticky until the next `mutate` — v5
-   behavior); `clearError` is `mutation.reset`. The dialog/banner binds to `error`/`clearError`
-   directly, never to a `??`-multiplexed pair.
-3. The virtual-list tripwire: "unbounded window" = the scroll element measures taller than
-   `visualViewport.height * 3` at mount → **throw** with the fix instruction (the neo 200ms-commit
-   lesson, D43 §11.3).
+The as-built shapes are the code (`client/src/{forms,data}`); the three factories that needed
+figuring-out during the build (`createSavedEntityForm`'s `SectionGroup` group-submit, the FLAT
+`createEntityMutation` error slot, the virtual-list unbounded-window tripwire threshold) are recorded
+in the history record.
 
 ## 7. Security primitives — the D44 trio (exact-spec, comment-cited)
 
@@ -278,132 +286,55 @@ and the CT tests assert the CONTAINMENT properties, not just rendering:
 `tests/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css
 entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-browser).
 
-## 9. Build order (waves; green-to-commit per chunk)
+## 9. Build order (DONE — historical)
 
-- **Wave 0 — scaffold** (this doc + the package skeleton): `package.json` · tsconfig · the token
-  pipeline + seed `tokens.json` + generated theme + freshness test · gates (§8) · CT wiring ·
-  `tests/ui` mirror. **Checkpoint:** workspace `pnpm check` green with the empty-but-real package;
-  an illegal `@orb/ui → @orb/contracts` import FAILS (biome undeclared-dep + depcruise).
-- **Wave 1 — pure primitives** (subagent-parallel, disjoint dirs): Base UI wraps (controls:
-  button/field/input/select/switch/slider/number-field/tabs · overlays: dialog/popover/tooltip/
-  menu/toast/drawer · identity: avatar) · layout (Stack/Row/Section/Toolbar/Container) · icons ·
-  **Meter + SegmentedClock** (rpg-design/11 §2 U1 — exact spec) · virtual-list seal · code-editor
-  seal · diff seal. Every component: tv variant unions · tokens-only · a `.ct.tsx` · a usage
-  doc-comment · APIs verified against live Base UI docs (never memory).
-- **Wave 2 — the security primitives** (D44 trio + markdown, sequenced after Wave 1 since
-  lightbox/media compose Dialog): ThemeScope · MessageMedia · sandbox-frame · `@orb/ui/markdown`
-  two-policy pipeline + `toPlainText`. CT asserts containment (§7).
-- **Wave 3 — the display/form gap** (the neo-parity sweep, §11.1 below): the domain-agnostic
-  primitives every committed feature design needs but waves 1–2 didn't cover, found by (a) grepping
-  the whole `proposed/` tree for `@orb/ui/*` refs + primitive nouns (`card` ×187, `chip`/`badge`
-  ×72, `skeleton` ×9, `radio`/`checkbox`/`textarea`/`autocomplete`/`separator`/`collapsible` …) and
-  (b) inventorying neo's `components/ui/` (the shadcn layer being replaced). Three batches:
-  **form controls** (checkbox · radio-group · toggle/toggle-group · textarea · autocomplete — Base
-  UI wraps) · **structure/disclosure** (separator · collapsible · accordion · scroll-area ·
-  alert-dialog · progress — Base UI wraps) · **hand-authored display** (badge/chip/pill · skeleton ·
-  spinner · empty-state · card — pure `tv()` over semantic HTML, no lib). Same bar: tv unions,
-  tokens-only, `.ct.tsx`, doc-comment, Base UI verified live.
-- **Deferral outcome (2026-07):** the originally-deferred ui chunks (`message-list` · `stream/` ·
-  `command` · `sortable` · `charts` · `macro-textarea` + the whole carve-out set) were UN-PARKED and
-  BUILT by the primitive fleet. ~~Still deferred: ALL §6.2 client factories — Phase 6~~ **superseded
-  2026-07-09: the §6.2 client factories are now BUILT too** (the client-foundation wave landed them;
-  see the §6.2 status update).
+Built green-to-commit per chunk in waves 0 (scaffold) → 1 (pure primitives) → 2 (security trio +
+markdown) → 3 (the display/form gap), then the un-parked carve-out (message-list · stream · command ·
+sortable · charts · macro-textarea + the carve-out set) and the §6.2 client factories. All done
+(2026-07). The wave contents + checkpoints: `../history/ui-package-design-archaeology-record.md`.
+Standing bar for any NEW primitive is §13, not this wave list.
 
-## 10. Recorded deltas + flags for Nate (decision-level, not resolved unilaterally)
+## 10. Recorded deltas (live WHYs; the resolved list is history)
 
-1. **Task-prompt vs law:** the mission brief listed `vaul`/`sonner`/`react-resizable-panels` seals
-   and "toast via sonner" — **D54 dropped all three** (Base UI native toast + drawer; clamp-overlay
-   shell). The law wins; built accordingly.
-2. **`react-dom` peer** (§1) — Base UI requires it; D54's "peer react ONLY" is amended in intent-
-   preserving form. Ledger touch-up suggested (one clause in D54's dependency-refinements tail).
-3. **Version majors moved** since the docs: tailwind-variants 1→3, style-dictionary 4→5, diff 8→9,
-   echarts 5→6 era, `@dnd-kit/react` still 0.x. APIs verified at build; any behavioral divergence
-   from a doc claim gets recorded HERE when hit.
-4. **`Meter` is a HYBRID over Base UI's `meter`** (revised 2026-07-02, endorsed). Base UI
-   `Meter.Root` supplies the a11y shell — `role="meter"` + `aria-valuemin/max/now` + locale-aware
-   `aria-valuetext` (formatted by `Intl.NumberFormat`, no hand-rolled ARIA) — plus the optional
-   visible label/value readout row (`Meter.Label`/`Meter.Value`, mirroring `Progress`). The custom
-   SVG/div geometry (arc gauge, bipolar center-origin fill, milestone ticks, the `dangerBelow` token
-   swap) rides as the Root's **children** and stays hand-rolled, because Base UI's `MeterIndicator`
-   hardcodes `width:%` (linear-DOM-only — verified) and cannot draw arcs. **Recorded delta:** the
-   geometry is nested as `children`, NOT injected via the `render` prop — `Meter.Root` always appends
-   a visually-hidden `<span>` to its children and defaults to a `<div>`, so replacing the root with
-   the arc's `<svg>` would nest that HTML span inside an `<svg>` (invalid). One Root, geometry as
-   children, keeps every kind valid. The public API (`kind`/`value`/`max`/`min`/`milestones`/
-   `dangerBelow`/`label`) is preserved; `showValue`/`formatValue` + the Base UI value-format
-   passthrough (`format`/`locale`/`getAriaValueText`) are additive.
-5. **`ThemeOverride` one-home tension** (§1): the Zod clamp exists twice by design — the WIRE
-   schema in `@orb/contracts/theme` (D44 §12.5) and the ui-local RENDER clamp in `<ThemeScope>`
-   (ui cannot import contracts). Pairing is asserted by a client-phase type test. If Nate prefers,
-   the alternative is contracts importing a ui-exported shape — rejected here because it inverts
-   the cake (ui is a LEAF of client, contracts must not know ui).
-6. **`Toolbar` double-listing** resolved: D42 §2 lists Toolbar under `layout/`; D54 adds Base UI
-   Toolbar. Merged — `layout/toolbar` wraps Base UI Toolbar (roving tabindex) with layout skin.
-7. **`tabs` added** to the Base UI wrap set (not in the D42 §2 primitive list, but required by the
-   committed game-panel/crew-panel designs and native to Base UI). Additive; flag for the ledger.
-8. **Streamdown security API doesn't exist as originally assumed** (`packages/ui/src/markdown/policy.ts`
-   self-cites this item): the mission's markdown obligation was drafted against `allowedImagePrefixes`/
-   `allowDataImages` — VERIFIED against the live Streamdown 2.5 API that neither exists. The real
-   surface is `allowedElements`/`disallowedElements` + `urlTransform`; the seal is built against that
-   (§6.1 obligation text corrected to match). No behavior gap — same containment, different API shape.
+The build's decision-level deltas were resolved and moved to
+`../history/ui-package-design-archaeology-record.md`. Two WHYs stay live because they still constrain
+the code:
 
-## 11. Gate-coverage inventory (UI-Gates §8 registry vs what is LIVE — audited 2026-07-02)
+- **`Meter` is a HYBRID over Base UI's `meter`:** `Meter.Root` supplies the a11y shell (`role="meter"`
+  - `aria-value*` + `Intl.NumberFormat` `aria-valuetext`); the custom SVG geometry (arc/bipolar/ticks/
+    `dangerBelow` swap) rides as its **children**, NOT the `render` prop — replacing the Root would nest
+    its visually-hidden `<span>` inside an `<svg>` (invalid). `MeterIndicator` hardcodes `width:%`
+    (linear-only), which is why arc/bipolar are hand-drawn.
+- **`ThemeOverride` clamp lives in two homes by design:** the WIRE schema in `@orb/contracts/theme`
+  (D44 §12.5) and the ui-local RENDER clamp in `<ThemeScope>` (ui cannot import contracts). A
+  client-phase type test asserts the pairing. Contracts importing a ui shape was rejected — it inverts
+  the cake (ui is a LEAF of client).
 
-Nate's flag ("a lot of our ui grit/custom rules aren't present or wired") audited. Verdict: **nothing
-wired is dark** — all grit files on disk are registered in `biome.json` AND pinned by
-`tests/tooling/grit-plugins.int.test.ts` (a plugin that compiles-but-matches-nothing FAILS there);
-same for dep-cruiser rules (`dependency-cruiser.int.test.ts` derives the rule set from the config and
-fires each on a fixture). The gaps are the D43/D54 belts that were correctly PARKED for the
-client-foundation wave (the `archive/ENFORCEMENT.md` backlog table names them with their
-"waiting on" triggers). Status per §8 registry entry:
+The Streamdown security-API gotcha (the real surface is `allowedElements`/`disallowedElements` +
+`urlTransform`, not the assumed `allowedImagePrefixes`/`allowDataImages`) now self-documents at the top
+of `markdown/policy.ts` — no doc copy needed.
 
-| Gate (§8 registry) | Status | Where / when |
-| - | - | - |
-| ui/client package physics | ✅ LIVE | resolver + biome `noUndeclaredDependencies` + depcruise `ui-cake` (this scaffold) |
-| `virtualizer-only-in-seal` · echarts/codemirror/streamdown/cmdk/dnd-kit/diff/lucide seals | ✅ LIVE | depcruise `ui-satellite-seals` (this scaffold) |
-| `no-raw-value` family (`no-color-literals` incl. arbitrary hex, `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`) | ✅ LIVE, ui-covered | grit; widened to `packages/ui/src` + `tv()` arms (this scaffold — they previously scoped to client-only and could not see tailwind-variants call sites) |
-| named non-token color ban (`bg-black/50` → `--scrim`) | ✅ LIVE | new arm in `no-color-literals` (this scaffold) |
-| `no-layout-context-props` | ✅ LIVE | new grit (this scaffold) |
-| `design-token-parity` | ✅ SUPERSEDED-BY-CONSTRUCTION | the codegen + freshness test (§4) — drift is a failing test, not a parity check |
-| `touch-target-floor` | ◐ PARTIAL | the token floor is test-locked (tests/ui/tokens); the per-component "no control below the token" half rides review + the CT computed-height assertions until a grit for h-\* under the floor is worth writing |
-| `no-direct-useform` / `no-form-state-in-useeffect` / `no-chat-trpc-in-surface` / `no-inline-optimistic-in-surface` (the neo client four) | ✅ LIVE (dormant) | grit — wired since Phase 0; fire when client code lands |
-| `tanstack-form-only-in-shared` | ◐ PARTIAL | `no-direct-useform` covers the "no raw useForm" half; the single-`createFormHook` half lands with `client/forms` |
-| `no-media-queries-in-features` / `no-raw-container-widths` / `surface-in-a-container` | ✅ LIVE (re-trued 2026-07-09) | the first two as grit (`biome.json`), the third as a `scripts/check/gates/` gate — landed with the client-foundation wave as planned |
-| `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · `persist-shape-needs-version`/`persist-partialize-and-total-migrate` · zustand-selector · `state:files` · `check:registry-pairing` · typed-`testId` · client-determinism (client render scope) · `client-feature-front-door`/`client-features-no-cross` | ◐ PARTIALLY discharged (re-trued 2026-07-11) | LIVE: `state:files` · `check:registry-pairing` · typed-`testId` (`testid-typed-only.grit`) · `no-fake-disabled-id` · the client-structure/feature-isolation gates. **ALSO LIVE** (re-confirmed 2026-07-11 — wired in `scripts/check/gates/` + imported/registered in `scripts/check/report.ts`): `no-array-literal-querykey` (`scripts/check/gates/no-array-literal-querykey.ts`) · `no-inline-invalidate-outside-seam` (`scripts/check/gates/no-inline-invalidate-outside-seam.ts`) · `bus-onData-no-store-write` (`scripts/check/gates/bus-onData-no-store-write.ts`) · `no-form-reset-in-autosave` (`scripts/check/gates/no-form-reset-in-autosave.ts`) · `persist-partialize-and-total-migrate` (`scripts/check/gates/persist-partialize-and-total-migrate.ts`). Verify the remainder of the named list before relying on it. |
-| D44 quartet (`no-untrusted-html-in-main-dom` · `no-external-media-without-gate` · `theme-override-only-via-scope` · CSP-headers-present) | ✅ lint trio LIVE (re-trued 2026-07-09); CSP half riding `entry/http` | the three grit rules are wired in `biome.json`; the CSP lands with `entry/http/security-headers.ts` (in-tree, cites `client-tooling-setup.md` §7.5) |
-| `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | RESOLVED — LIVE | the eslint lane was adopted (`eslint.config.js`, wired into `pnpm check` via `lint:eslint`); rationale in that file's header + `history/client-tooling-setup.md` |
-| visual-regression screenshots (D42 §8) | ⏸ PARKED | Playwright screenshot gate — adopt when the first themed surfaces stabilize (HUD named the highest-drift surface, rpg-design/11 §13) |
+## 11. Gate coverage — the active-gate registry is the truth
 
-## 12. The neo-parity primitive sweep (what `@orb/ui` must cover; audited 2026-07-02)
+The LIVE gate set (which grit/dep-cruiser/`scripts/check/gates` rules are wired) is standing law in
+`../core/Core-Enforcement-Active-Gates.md` — read it there, not here (one home). The load-bearing
+ui-side belts: the cake/seal rules of §8; the `no-raw-value` token family widened to `packages/ui/src`
 
-The domain-agnostic primitive set, derived from BOTH (a) neo's `components/ui/` (the shadcn layer
-being replaced) and (b) a grep of the whole `proposed/` tree for `@orb/ui/*` refs + primitive nouns.
-Rule for inclusion: **domain-agnostic** (a `Button`/`Badge`/`Card`, never a `CharacterCard`) AND
-referenced by ≥1 committed design (or a neo staple). Domain components live in `client/features`.
+- `tv()` arms; `design-token-parity` is SUPERSEDED-BY-CONSTRUCTION (the §4 codegen + freshness test);
+  `touch-target-floor` is ◐ PARTIAL (token floor test-locked; the per-pointer per-component check rides
+  the design-audit probe, D62 P1). The dated 2026-07-02 coverage audit ("nothing wired is dark") is
+  `../history/ui-package-design-archaeology-record.md`.
 
-| Primitive | neo had | Base UI native | Status | Home / wave |
-| - | - | - | - | - |
-| button · field · input · select · switch · slider · number-field · tabs | ✓ | ✓ | ✅ built | W1 |
-| dialog · popover · tooltip · menu(=dropdown-menu) · toast · drawer(+sheet) · avatar | ✓ | ✓ | ✅ built | W1 |
-| layout (Stack/Row/Section/Container/Toolbar) · icons | ✓ (shared) | — | ✅ built | W1 |
-| meter (linear/arc/bipolar) + SegmentedClock | — | ✗ (hand) | ✅ built | W1 |
-| virtual-list · code-editor · diff | ✓ (resizable dropped) | ✗ (seals) | ✅ built | W1 |
-| ThemeScope · MessageMedia · sandbox-frame · lightbox · markdown (incl. KaTeX math plugin — `markdown/math.ts`) | — | ✗ (D44 owned) | ✅ built | W2 |
-| checkbox · radio-group · toggle · toggle-group · textarea · autocomplete | ✓ (label/textarea) | ✓ | ✅ built | W3 |
-| separator · collapsible · accordion · scroll-area · alert-dialog · progress | ✓ (accordion/alert-dialog/scroll-area/separator/skeleton) | ✓ | ✅ built | W3 |
-| badge/chip/pill · skeleton · spinner · empty-state · card | ✓ (badge/skeleton/empty-state) | ✗ (hand) | ✅ built | W3 |
-| message-list · stream pacer | ✓ (hand-rolled) | ✗ (seal) | ✅ built (un-parked) | carve-out |
-| charts (ECharts: chart/bar-list/histogram/stat-figure) | ✓ (nivo→ECharts) | ✗ (seal) | ✅ built (un-parked) | carve-out |
-| command (cmdk) · sortable (@dnd-kit) | ✓ | ✗ (seal) | ✅ built (un-parked) | carve-out |
-| macro-textarea (minisearch fuzzy match) | ✓ (hand-rolled, ported) | ✗ | ✅ built (carve-out item 18) | carve-out |
-| carve-out set (media-grid · status-chip · compare-blocks · avatar-stack · file-dropzone · highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate · list-row · setting-row · selection-bar · save-bar) | partial | mixed | ✅ built | carve-out |
-| weave-glyph (brand) | ✓ | — | ✅ landed (2026-07) — app-level per §13.9: `client/src/lib/weave-glyph.tsx` (`anim` prop, D62 re-home), consumed by the rail brand + EmptyState decorations | |
+## 12. Neo-parity primitive coverage — DONE
 
-**Deliberately NOT `@orb/ui` (they were neo `components/ui/` but are app-shell/feature concerns):**
-`resizable` (DROPPED — D54 clamp-overlay shell) · `sheet` (folded into `drawer` side variants) ·
-`label` (folded into `field`) · `app-splash`/`route-error-fallback` (app-shell chrome, `client`) ·
-`macro-textarea-logic` (feature logic). The **proposal-diff** pattern (chat-crew 07) is a FEATURE
-component over `@orb/ui/diff`, not a ui primitive (it knows edit-proposal shapes → `client/features`).
+The domain-agnostic primitive set `@orb/ui` had to cover was derived from neo's `components/ui/` (the
+shadcn layer being replaced) + a grep of committed designs. It is fully built — the current inventory
+is `packages/ui/package.json#exports` (the truth), not a list here. Inclusion rule (still binding for
+any new primitive): **domain-agnostic** (a `Button`/`Badge`/`Card`, never a `CharacterCard`) AND
+referenced by ≥1 committed design; domain components live in `client/features`. The **proposal-diff**
+pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive; `weave-glyph` is
+app-level (`client/src/lib/weave-glyph.tsx`, §13.9). The derivation table + the deliberately-excluded
+list (`resizable`/`sheet`/`label`/…) are in `../history/ui-package-design-archaeology-record.md`.
 
 ## 13. Primitive authoring rules (the recurring-mistake gates — BINDING)
 
@@ -416,8 +347,7 @@ cold-read treatment; a missing native capability is a DEFECT, not a deferral.**
 **R1 — Read the shipped `.d.ts` FIRST, never memory or runtime probing.** Before writing a wrap,
 read `node_modules/@base-ui/react/<component>/**/*.d.ts`: the parts list (`index.parts.d.ts`), the
 Root props, the generics. The wrap is written against THAT surface, not a training-data recollection
-of an older API. (The 5-day autocomplete snipe-hunt was probe-archaeology in place of reading the
-type defs.)
+of an older API.
 
 **R2 — Expose the FULL native part + prop surface.** If Base UI ships it, the seal surfaces it:
 `Toast.Action` · `Field.Control` (native-control registration — a plain element does NOT auto-associate)
@@ -431,15 +361,13 @@ with the reason inline.
 
 **R3 — Native-part-first: never hand-roll what the lib ships.** A hand-rolled checkmark, spinner
 SVG, chip, or dismiss button when Base UI has `Indicator`/`Chip`/`Close` is the seal failing its
-purpose. Grep the parts list before writing any `<svg>`/`<span>`/`<button>` inside a seal. (The
-spinner shipped a hand-rolled SVG when lucide `Loader2` + the icon seal was right there.)
+purpose. Grep the parts list before writing any `<svg>`/`<span>`/`<button>` inside a seal.
 
 **R4 — Pick the RIGHT primitive; do not bolt features onto the wrong one.** Choose by the VALUE
 TYPE: multi-select / object-items / chips → **Combobox** (never Autocomplete); free-text-input +
 suggestions → **Autocomplete**; single-select from a fixed list → **Select**; confirm/destructive →
 **AlertDialog** (never Dialog); pressable on/off button → **Toggle**; bound on/off state → **Switch**.
-When unsure, read both `.d.ts` and decide by whether the value must be an object or an array. (A2's
-multi-select-with-chips is a Combobox, not an Autocomplete extension.)
+When unsure, read both `.d.ts` and decide by whether the value must be an object or an array.
 
 **R5 — Extend the Base props type for passthrough.** `interface XProps extends BaseXRootProps` (or
 `Omit<…>` only the props you deliberately re-shape) so every Root-level Base UI feature flows through
@@ -448,8 +376,7 @@ without re-declaration. Never hand-pick a prop subset that silently drops the re
 **R6 — Empirical over theory: no root-cause claim without a failing test.** A wrap that misbehaves
 gets the minimal reproducing test, then a fix or a VERIFIED cause — never a narrowed API plus an
 inline doc theorizing the reason. A "X breaks under Y" claim not backed by a red test is banned from
-the codebase (the React-Compiler autocomplete story was fiction — the Compiler isn't even in the CT
-pipeline).
+the codebase.
 
 **R7 — The mandatory acceptance tests (the shapes that caught real bugs):**
 

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-04
+updated: 2026-07-13
 ---
 
 # Chat macro/persona resolution — the one home
@@ -14,28 +14,26 @@ updated: 2026-07-04
 
 ## 0. The one rule (memorize this)
 
-- **Storage is RAW (D51), with ONE commit-time exception: VOLATILE macros FREEZE at COMMIT (Task #77).**
-  Message content stores literal `{{macros}}` and all resolution happens at CONSUMPTION
-  (read/render/assemble) — EXCEPT the nondeterministic (clock/PRNG) macros, which resolve ONCE at the
-  moment content COMMITS to the conversation and bake their value into the stored row (owner-ruled; the
-  clock/PRNG at commit is otherwise unrecoverable). **Freeze set (nondeterministic ONLY):** `{{roll}}`/dice
-  · `{{random}}` · `{{pick}}` · the clock family `{{time}}`/`{{date}}`/`{{weekday}}`/`{{isodate}}`/
-  `{{isotime}}`/`{{datetimeformat}}`. **Everything else stays RAW/per-view:** the IDENTITY macros
-  (`{{char}}`/`{{user}}`/`{{persona}}` + name aliases) are NEVER baked — they resolve per-view at READ (§2/§4)
-  so multi-human `{{user}}` + the author-side-macro law hold; var-mutation (`{{setvar}}`/…) and
-  conversation-context (`{{input}}`/`{{lastMessage}}`/…) macros stay raw + inert. **Commit points:** a
-  **user message** freezes at SEND (composer text, macro-before-regex — the freeze runs, then the D53
-  USER\_INPUT regex sees the baked value; both the WI haystack and the persisted row are the one
-  post-transform text); a **greeting** freezes at the FIRST USER TURN (malleable/swipeable until then) —
-  **BUILT** (Task #79) for the SELECTED greeting variant (`freezeGreetingVolatiles`, `verbs/turn.ts` — the
-  send detects the first user turn and bakes each pre-first-turn assistant row's selected variant; IDEMPOTENT
-  → concurrent-retry-safe). STILL DEFERRED (owner-flagged edge): a POST-first-turn swipe to a different
-  (unfrozen) greeting variant is not re-frozen, and the freeze is not re-emitted on the bus (a client sees the
-  baked value on its next refetch). **Mechanism:** the
-  freeze is the exact inverse of the §2 names-only pass — `createVolatileOnlyRegistry` (`@orb/kit/macro`)
-  resolves ONLY volatiles + passes identity through; the names-only registry resolves ONLY identity + passes
-  volatiles through; they share `registerVolatileMacros` so the freeze axis can never drift. Editing a
-  message still recovers its real IDENTITY tokens (only the nondeterministic value was baked).
+- **Storage is RAW (D51), with ONE commit-time exception: VOLATILE macros FREEZE at COMMIT.**
+  Message content stores literal `{{macros}}`; resolution happens at CONSUMPTION (read/render/assemble) —
+  EXCEPT the nondeterministic (clock/PRNG) macros, which resolve ONCE at the moment content COMMITS and bake
+  their value into the stored row (owner-ruled; the clock/PRNG at commit is otherwise unrecoverable).
+  **Freeze set (nondeterministic ONLY):** `{{roll}}`/dice · `{{random}}` · `{{pick}}` · the clock family
+  `{{time}}`/`{{date}}`/`{{weekday}}`/`{{isodate}}`/`{{isotime}}`/`{{datetimeformat}}`. **Everything else
+  stays RAW/per-view:** the IDENTITY macros (`{{char}}`/`{{user}}`/`{{persona}}` + name aliases) are NEVER
+  baked — they resolve per-view at READ (§2/§4) so multi-human `{{user}}` + the author-side-macro law hold;
+  var-mutation (`{{setvar}}`/…) and conversation-context (`{{input}}`/`{{lastMessage}}`/…) macros stay raw +
+  inert. **Commit points:** a **user message** freezes at SEND (composer text, macro-before-regex — the
+  freeze runs, then the D53 USER\_INPUT regex sees the baked value; both the WI haystack and the persisted row
+  are the one post-transform text); a **greeting** freezes at the FIRST USER TURN (malleable/swipeable until
+  then) — `freezeGreetingVolatiles` (`verbs/turn.ts`) bakes each pre-first-turn assistant row's SELECTED
+  variant, idempotent → concurrent-retry-safe. **Known gap:** a POST-first-turn swipe to a different
+  (unfrozen) greeting variant is not re-frozen, and the freeze is not re-emitted on the bus — a client sees
+  the baked value on its next refetch. **Mechanism:** the freeze is the exact inverse of the §2 names-only
+  pass — `createVolatileOnlyRegistry` (`@orb/kit/macro`) resolves ONLY volatiles + passes identity through;
+  `createNamesOnlyRegistry` resolves ONLY identity + passes volatiles through; they share
+  `registerVolatileMacros` so the freeze axis can never drift. Editing a message still recovers its real
+  IDENTITY tokens (only the nondeterministic value was baked).
 - **The per-message STAMPS are the source of truth** — the message row carries `characterId` (the
   speaker) and `personaId` (the author, stamped at send: PD-100 = the sender's active persona at send).
   These same stamps drive BOTH the attribution chrome AND the macro subject — one source, no divergence.
@@ -44,18 +42,21 @@ updated: 2026-07-04
 
 ## 1. The producer (membership-gated name maps)
 
-A chat read yields two derived maps, scoped to ONE chat, **member-gated** (any member may read them):
+A chat read yields the `ChatMacroNameProducer` (`@orb/contracts/chat`) — two id→name lists scoped to ONE
+chat, **member-gated** (any member may read them), loaded via `loadChatMacroNameProducer`
+(`domain/chat/persistence/macro-names.ts`):
 
-- `personaNamesById: ReadonlyMap<PersonaId, { name; description }>`
-- `characterNamesById: ReadonlyMap<CharacterId, { name }>`
+- `personaNames` — each `{ id; name; description }`
+- `characterNames` — each `{ id; name }`
 
-Coverage: every id the chat references — its participants' personas/characters AND any `personaId`/
-`characterId` a stored message carries (incl. since-switched personas). **Names only, not full
-entities** — so this is NOT the owner-scoped persona/character read (`fetchOwned`), NOT a permission-
-spine change: a member already sees who authored each line, so a co-participant's persona *name* is not
-a secret. The efficient loader is a `LEFT JOIN` (message ids → personas/characters), but its OUTPUT is
-this map — rows stay id-only; the map is the producer. Loaded once per read (client) / once per
-assemble (server, engine-side, after canon history is known — the ids aren't knowable in turn PREP).
+The resolver (§2) consumes these as `personaNamesById`/`characterNamesById` maps. Coverage: every id the
+chat references — its participants' personas/characters AND any `personaId`/`characterId` a stored message
+carries (incl. since-switched personas). **Names only, not full entities** — so this is NOT the owner-scoped
+persona/character read (`fetchOwned`), NOT a permission-spine change: a member already sees who authored each
+line, so a co-participant's persona *name* is not a secret. The efficient loader is a `LEFT JOIN` (message
+ids → personas/characters), but its OUTPUT is this producer — rows stay id-only. Loaded once per read
+(client) / once per assemble (server, engine-side, after canon history is known — the ids aren't knowable in
+turn PREP).
 
 ## 2. The shared resolver (`@orb/kit` — the one atom)
 
@@ -65,7 +66,8 @@ Both consumers call the SAME pure function, so they cannot diverge:
 resolveRowMacros(
   content: string,
   stamps: { characterId: CharacterId | null; personaId: PersonaId | null },
-  ctx: { characterNamesById; personaNamesById; speakerCharName?; activePersonaName?; },
+  ctx: { characterNamesById; personaNamesById; speakerCharName?; cast?;
+         fallbackPersonaName?; fallbackPersonaDescription?; },
 ): string
 ```
 
@@ -77,7 +79,9 @@ resolveRowMacros(
 - `{{user}}` / `{{persona}}` → `personaNamesById.get(row.personaId)?.{name,description}` (the ROW's authoring
   persona) — falling back for a null/legacy/greeting/AI stamp to the chat **ANCHOR**
   (`ctx.fallbackPersonaName`/`fallbackPersonaDescription` = `pinnedPersona`), NEVER the reader's own active
-  persona, then `"User"`/`""`. Ruling A / the design principle: identity is the row's or the chat anchor's,
+  persona, then the `"User"`/`""` kit floor. Since PD-129 mints an editable default persona at
+  boot / first authed request, the anchor is normally a real persona name; the kit floor is only the
+  genuinely-persona-less edge. Ruling A / the design principle: identity is the row's or the chat anchor's,
   never the viewer's — so a greeting/AI line addresses the SAME persona for the model and every human.
 - Wraps `@orb/kit/macro` `processMacros`; a no-`{{` string is byte-identical passthrough. `<speaker>`
   tags are opaque to the macro parser (disjoint token set) — they pass through for the separate
@@ -127,7 +131,7 @@ narrator row's `{{char}}` (`characterId === null`) is the CAST — the joined ca
 ## 6. Parity is enforced, not hoped
 
 Guaranteed by (1) the ONE shared atom (§2) and (2) the SAME producer semantics (§1) on both sides.
-Pinned by the regression matrix (`tests/*` per task #59): one fixture — chat anchor = Nyx, active =
+Pinned by the regression matrix (`tests/*`): one fixture — chat anchor = Nyx, active =
 Zara, a user row stamped `personaId` = Mara, content `"{{user}} waves"` — resolves to **Mara** on BOTH
 server-assemble and client-display, and to Zara/"User" only when the stamp is null. A card `{{user}}`
 in the same fixture resolves to Nyx (pin). Storage of that row stays the literal `"{{user}} waves"`.

@@ -9,7 +9,7 @@ updated: 2026-07-13
 **THE one active UI work doc.** Every UI/UX task dispatched after 2026-07-13 builds from THIS file.
 The prior program records (`ui-polish-punchlist.md`, `ux-flow-revamp.md`, `DESIGN-REVIEW-2026-07-01.md`)
 are ARCHIVED to `../history/` — they are history, not law; do not quote them as authority. Their open
-remainders are ported into §6 here. Unbuilt design sets are staged OUT of the repo
+remainders are ported into §6 here. Unbuilt design sets are parked beside this doc — see `INDEX.md`
 (`../proposed/README.md` has the map). **Precedence:** `Core-Laws-and-Precedents.md` (D-ledger,
 D66 = this program) → the core `UI-*.md` law set + `../core/ui-package-design.md` +
 `../core/motion-and-animation-guide.md` (promoted to core under D66; ui-package-design's §-numbers
@@ -173,7 +173,7 @@ correct — a task touching it is off the rails.
   through `color-field`/`isSafeColor`.
 - **Owner custom CSS** (`app-shell/components/custom-theme-style.tsx`) injects unlayered and wins —
   `data-slot` values and `.shell-*` class names are API (rule 0.7). `validateThemeCss` posture
-  (REJECT fixed/sticky, WARN @import, 64KiB cap) must not weaken.
+  (REJECT fixed/sticky, WARN @import, cap per the contracts schema's `THEME_CSS_MAX`) must not weaken.
 - **Typography seal** (`ui/src/primitives/text/variants.ts`): flat scale, hierarchy by WEIGHT.
   Micro-caps section voice = `size="micro" weight="semibold" transform="caps"`. Timestamps/counts =
   `size="micro"` + `font-mono` — never a raw font-size.
@@ -361,17 +361,32 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
      build the missing chrome (respecting `reducedMotion`). Fold into the N3/N4 chat lane.
    - **Account settings pane completion.** Surface exists (`auth/surfaces/account-surface.tsx`);
      finish rides auth #50 — do not start independently.
-   - **J10 — Corpus chat-search preview.** OPEN, verified: `features/corpus/` does not exist.
-     This is FEATURE work (the Corpus section), not cohesion polish — park until the Corpus
-     feature is scheduled; the section placeholder stays honest meanwhile.
+   - **@orb/ui chart-module registration — `Scatter` + `Heatmap`/`VisualMap`.** OPEN (2026-07-13):
+     the ECharts seal (`packages/ui/src/charts/chart/echarts-setup.ts`) registers Bar/Line only.
+     Two shipped surfaces are capped by it: the Corpus Map is an inert SVG scatter (click-through is
+     belt-blocked on raw SVG — needs a real `Scatter` primitive) and Analytics decomposes the 7×24
+     activity matrix into histogram+bar-list (a true heatmap needs `HeatmapChart`+`VisualMapComponent`).
+     One ui-package task unlocks both; the consuming client code is already shaped for it.
+   - **Chat-scoped discovery drills — `discovery.swipeHotspots` + `discovery.similarChats`.** OPEN,
+     verified: both server verbs are routed + tested but take a `chatId` (a chat's most-re-rolled
+     assistant slots; "more like THIS chat"), so they belong to a FUTURE per-chat drill, NOT the
+     owner-wide Corpus section — the Corpus coverage pass (2026-07) deliberately left them
+     unconsumed rather than forcing a chat concern into the corpus surfaces. Fold into the Chat lane
+     when a chat-analytics drill is scheduled (the same select/scope wiring the corpus dossier uses).
    - **Chat-behavior settings pane.** OPEN, verified: `settings-nav.ts:241` marks the category
      `built: false` and no surface exists — an unbuilt placeholder category. Fold into the Settings
      stop of the rollout alongside UIP-404. (Automation is likewise `built: false` but is
      feature-scope, not cohesion.)
-   - **Devtools FAB in snaps.** OPEN, verified: `dev-tools.tsx` is only `import.meta.env.DEV`-gated
-     — snap drives the dev server, so the TanStack palm tree renders in every screenshot (visible
-     in today's audit snaps). Fix: gate the FAB behind probe-mode (`orb:probe-mode`) or teach snap
-     a default `--mask` for it. Tiny task; fold into the N1 lane.
+   - **Autosave micro-status on settings panes.** OPEN, verified (2026-07-13): §7 specifies a live
+     `Saved / Saving… / Save failed — retry` status, but no settings pane renders it — every pane shows
+     only the static "Changes save automatically" caption (`appearance-settings-surface.tsx:361`,
+     `regex-settings-surface.tsx:139`, `connections-settings-surface.tsx:116`). The autosave WRITE path
+     exists; the user-facing status affordance does not. App-wide A4 gap — needs its own pass (one shared
+     status primitive fed by the section mutation state, replacing the static caption). Fold into the
+     Settings stop of the rollout alongside UIP-404.
+   - **Devtools FAB in snaps.** RESOLVED (2026-07-13): `main.tsx` now also checks `isProbeMode()`
+     (`orb:probe-mode`) before rendering `DevTools`, so `pnpm snap --probe` captures no longer show
+     the FAB.
    - **RESOLVED, no work (recorded so nobody re-opens; Opus-verified 2026-07-13):** the
      presets/world-info rail sections are BUILT (the placement question is settled — D66 keeps
      Presets in the rail, Connections in Settings); J11's Personas + Connections panes are BUILT;
@@ -379,6 +394,31 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
      is PP3; — DESIGN-REVIEW-2026-07-01's findings were all
      applied; every design-enforcement item is BUILT or DROPPED-by-ruling (no-CI model, D62); the
      full punchlist §0c table and ux-flow J-table re-verified with zero FALSE-DONE.
+   - **RESOLVED — client composite consolidation (jscpd tsx clone-audit lane, landed 2026-07-13):**
+     the cohesion composites are built + adopted at every cloned site — `RowActionsMenu`
+     (⋯-menu → items → ConfirmDialog-wired destructive; 9 sites, incl. migrating 6 hand-rolled
+     `AlertDialog` deletes onto the sanctioned C1 `ConfirmDialog`), `LibraryRow` +
+     `LibrarySurfaceShell`/`LibraryListLayout` (preset + world-info libraries), `CharacterPicker`
+     (add-member popover + new-chat picker), `EntryListEditor` (preset regex + variables tabs),
+     `createFormHandleBridge` (character + preset editor bridges, `resolve*` gates kept),
+     `ThemeColorFields`/`assignThemeColorFields` in `#lib` (character + settings theme models), the
+     settings `WorkloadFormDialog`/`WorkloadSubmitButton` scaffold + the `useBoundField` bound-field
+     wrapper, and preset-nav re-adopting the ONE `#lib/message-role-labels` map. All behavior-preserving
+     (only visible change: the admin-user + theme-row `⋯` text triggers standardized to the
+     `MoreHorizontal` glyph). `jscpd.json` now lists `tsx` (it was blind to the whole client);
+     client tsx duplication 4.30%→3.15%.
+   - **RESOLVED — Settings→Regex pane (2026-07-13):** the D53 owner-global tier got its editor. Root-fixed
+     rather than worked around: `regexScripts` became a real `USER_SETTINGS_SECTIONS` member (`regex.scripts`,
+     schema v2→v3 lift, one-shot migration), so the pane autosaves through the same section path as every
+     sibling; `EntryListEditor`'s 3rd consumer; ONE shared `RegexEditorDialog` now serves preset + settings.
+   - **RESOLVED — the Corpus section (2026-07-13, closes J10):** built at `features/discovery/`
+     (`corpus` stays the section label). Full four-region anatomy, omnibox (typeahead + Text lexical
+     target + the J10 per-chat evidence preview), browse (sort/tag axes), home (catalog/insights/keyword
+     explorer), dossier (+ Similar art, askCard), CONTEXT tabs Archetypes/Map/Similarity/Compare/Visuals.
+     Every discovery-router procedure has a consumer except the two board-routed chat-scoped drills.
+   - **RESOLVED — the Analytics section (2026-07-13):** built at `features/stats/`. All 12 stats-router
+     procedures consumed — leaderboard LIST → per-character drill, overview/wrapped dashboard CONTENT,
+     Models/Time/Personas CONTEXT tabs, charts-family throughout (bar-list/histogram/stat-figure/meter).
 
 ---
 
@@ -393,6 +433,13 @@ and raise it). Every editor shows one identical status where its Save button was
 not silent). Destructive/irreversible actions keep their `AlertDialog` confirms. The orphaned
 `save-bar` primitive + `form.DirtyPill`/`form.SubmitButton` helpers stay in the package this program
 (D66 A4) — deleting them is a follow-up decision once no consumer remains.
+
+**TRAP (caught live 2026-07-13): `createAutosaveEntityForm`'s `onChange` listener fires only on
+scalar field `handleChange` — NOT on form-level array structural mutations (`pushFieldValue` /
+`removeFieldValue`).** An autosave pane that CRUDs an array field must explicitly flush
+(`form.handleSubmit()`) after add/remove or the mutation silently never persists (the regex pane
+shipped with exactly this bug; removal was equally dead). Any future array-field autosave consumer:
+flush explicitly, and CT the add AND remove persistence paths.
 
 ---
 

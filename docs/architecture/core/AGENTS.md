@@ -1,23 +1,58 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — Constitution (AGENTS)
 
 > **Status: authoritative.** The shared instruction manual for any autonomous agent in this repository —
 > read this file IN FULL first (deliberately terse: comprehensive overviews measurably hurt agent task
-> success, `Documentation-Law.md`), then read IN FULL the specific docs your task touches (§7).
+> success, `Documentation-Law.md`), then read IN FULL the specific docs your task touches (§0.3 — the reading-set router).
 >
 > Former files → sections: AGENTS-1 §1-4 → §1-4 · AGENTS-1 §5 → §7 · AGENTS-1 §6 → §8 ·
 > AGENTS-2 §5/§7.1-7.5 → §5/§5.1-5.5 · AGENTS-2 §6/8 → §8 · AGENTS-3 §7 → §6 · AGENTS-3 §8 → §7.
 
-## 1. The doctrine (non-negotiable)
+## 0. First 90 seconds (read this before you touch anything)
 
-- **These instructions override any global agent defaults.** The global KISS / YAGNI / "just fucking
-  code" / "best code is no code" lenses are **SUSPENDED for the orbweaver architecture** (they still
-  apply to throwaway scripts + dev tooling — never to the architecture itself).
+> **You are a cold amnesiac agent. §0.1 is the set of mistakes you WILL make in your first five minutes — know it. §0.2 is the structure you keep forgetting and misfiling against. Then jump to YOUR reading set (§0.3) and read ONLY those docs — reading all 34 measurably LOWERS task success (`Documentation-Law.md`).**
+
+### 0.1 Tripwires (operational — every session)
+
+1. **Docs are law — over your instinct AND your task prompt.** On ANY conflict the ledger (`Core-Path-Registry.md`) wins. If a prompt asks for what the spine homes elsewhere, follow the spine and FLAG it.
+2. **KISS / YAGNI / "just code" are SUSPENDED here** (throwaway scripts + dev tooling excepted — never the architecture). The rigor IS the requirement; "redundant / over-engineered" → read the ledger before doubting, it's almost certainly a deliberate one-home / derive / no-doubling call.
+3. **Imports flow ONE direction (§2).** A change that needs an upward import is automatically WRONG — re-home it, never force it.
+4. **A green `pnpm check` proves STRUCTURE, not LOGIC** (assertion-free / lying tests still pass it). Never read green as "the logic is sound."
+5. **You have no standing to shortcut.** When the right path is tedious: do it RIGHT, or STOP and flag. Stub / simplify-away / weaken-a-test / swallow-an-error / sideways-import are the banned reflexes — the instant you reach for one is the moment this file exists to stop you.
+6. **Green-to-commit:** `pnpm check` AND `pnpm test` BOTH pass before any commit; commit on `main`; end the message with the `Co-Authored-By` trailer.
+7. **`pnpm ast`, never grep,** for any code question (refs / callers / importers / exports / rot lenses).
+
+### 0.2 The shape you're working in (agents forget this and misfile — don't)
+
+- **Packages are a one-directional cake: `kit ← contracts ← db ← server ← client`** (+ the sealed `ui`: `kit ← ui ← client`). These are REAL pnpm workspace packages, not folders — the layer is physics (an undeclared cross-package import won't even resolve). Before you write a type or a helper, decide WHICH package owns it; if it needs something UP the cake, you're in the wrong package. `kit`/`contracts`/`db` exist precisely so shapes and primitives have a home BELOW `server` — reach for them, don't re-invent locally.
+- **A type/shape has exactly ONE home, by who needs it** (`Spine-TypeScript-and-Patterns.md`): DB row → `db` (`$inferSelect`); cross-boundary wire (server↔client, domain↔domain) → `contracts` (zod + inferred TS); pure primitive → `kit`; domain-internal → that domain's `contract/`. A hand-declared exported `type`/`interface`/`z.object` outside those four homes is gate-RED (`no-inline-types`) — never re-spell a shape a lower package already owns.
+- **`kit` = pure ISOMORPHIC primitives + engines ONLY** — no `node:*`, no domain, no `db`, no `contracts`, no I/O (isomorphic npm like zod/luxon is fine). Node-only-pure code → `@orb/server/kit`, NEVER `@orb/kit` (the browser imports kit).
+- **Tests are CENTRAL, never colocated.** The test for `packages/<pkg>/src/<path>.ts` lives at `tests/<pkg>/<path>.<kind>.test.ts` — a mechanical prefix-swap mirror (`packages/X/src/` ↔ `tests/X/`), kind by suffix (`.test` unit · `.int.test` db · `.contract.test` schema · `.test-d` types). A `.test.ts` dropped next to the source is RED (`test-layout` gate). Full policy: `Spine-Testing.md`.
+
+### 0.3 Your reading set — find your task, read THOSE docs in full, skip the rest
+
+| Your task | Read IN FULL, in this order |
+| - | - |
+| **any server domain** (a verb / persistence / contract) | `Core-0-Architecture-and-Structure.md` §3–4 → the Spine(s) you touch (§5) → your code's `Tier-*` → the domain's `contract/` + file headers |
+| **identity / auth / sessions / agents** | `Spine-Identity-and-Auth.md` + ledger D17/D18/D40/D60/D65 → route the work to `security-executor` |
+| **providers / backends / a new model source** | `Tier-3b-Providers.md` + the `domain/connection` code + D31/D39/D67 |
+| **db schema / a migration** | `Tier-1-DB.md` + D15/D20/D23/D24/D28 |
+| **a gate / an enforcement change** | `Core-Enforcement-Active-Gates.md` + `Core-0` §7 |
+| **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the active program `../proposed/ui-cohesion-north-star.md` |
+| **a `@orb/ui` primitive** | `ui-package-design.md` + `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
+| **types / unions / dispatch** | `Spine-TypeScript-and-Patterns.md` |
+| **tests** | `Spine-Testing.md` |
+| **adding/changing a ledger decision** | `Documentation-Law.md` §"Ledger-entry style" → write it in `Core-Path-Registry.md` |
+| **any doc edit** | `Documentation-Law.md` (content) + `Core-Docs-Formatting-Law.md` (mechanics) → `pnpm check:docs` |
+| **"where does concept X live?"** | §6 (domain map) + §7 (topic index) — pointers only, then read the target |
+
+## 1. The doctrine — why the rigor exists (read once)
+
 - **The goal is get it right the FIRST time** — full architecture, one home per concept, FK-enforced
   boundaries, born-compliant schema, complete test + gate coverage. Nate chose this deliberately and at
   length. Do not relitigate it.
@@ -26,30 +61,20 @@ updated: 2026-07-03
   "simplify" the awkward case, write a test that asserts nothing, sideways-import, carry a neo pattern).
   The apparatus — ledger, gates, audit panels, one-home/derive/FK/boundaries-are-physics — is NOT
   ceremony; it is **the substitute for the memory and judgment the author lacks**, and its job is to
-  make the shortcut **impossible**, not merely discouraged.
-- **You do not have the standing to take a shortcut.** When it gets hard you do NOT stub, simplify-away,
-  weaken a test, swallow an error, or reach sideways — you do it RIGHT, or you STOP and flag it. The
-  instant you catch yourself reaching for the easy path because the right one is tedious is exactly the
-  moment this file exists to stop you.
-- **Don't fight the rigor.** No "YAGNI" / "over-engineered" / "12 users ≠ enterprise" pushback; the
-  rigor IS the requirement. If something looks redundant, it's almost certainly a deliberate
-  one-home / derive / no-doubling call — read the ledger before doubting it. The bar is correctness +
-  cleanliness, never speed-to-ship.
-- **The docs are the law — over your instinct AND over a task prompt.** Read the relevant docs IN FULL
-  before building; no grep-skimming, no "what most projects do." The D-ledger
-  (`Core-Laws-and-Precedents.md`) is canonical and **wins on ANY conflict**. Two costly bugs came from
-  an agent building neo's pattern instead of the spine (the `infra/auth` tier-collapse; the providers
-  credential-firewall framing). If a prompt tells you to build something the spine homes elsewhere,
-  follow the spine and flag it.
-- **A green `pnpm check` proves STRUCTURE, not LOGIC.** The mutation-testing gate (Stryker) lands Phase
-  4c/5; until then assertion-free/lying tests are caught by review/audit, not machine — never read a
-  green check as "the logic is sound."
+  make the shortcut **impossible**, not merely discouraged. (Two costly bugs came from an agent building
+  neo's pattern instead of the spine: the `infra/auth` tier-collapse; the providers credential-firewall
+  framing.)
 - **"Unwired ≠ worthless."** "No consumer / dead / unwired" is a prompt to evaluate **intent**, not a
   delete signal — much of neo is scaffolded intent that never got wired. Understand → wire or modernize;
   flag-for-delete only for genuinely superseded residue, and say why. (Full rule: `Core-0` §1.)
 - **Engine vs data:** the pure engines (macro, regex, speaker-label) are `kit`; the *data* they run on
   (`MacroContext` values, the regex script library) is a domain. One engine, every call site → identical
   behavior. (Full rule: `Core-0` §2.)
+- Design sets are PARKED in `../proposed/` — `../proposed/INDEX.md` carries their VERIFIED build status;
+  a parked set's own status lines rot. The active program is `../proposed/ui-cohesion-north-star.md`.
+- **Ownership is INHERITED, not stamped:** a table without an `ownerId` is not unscoped — scope derives
+  from the Principal through the FK chain to the root row, gated at the producer verb. Before flagging
+  "missing scope," walk the chain (`Spine-Identity-and-Auth.md` §2b, D18/D20).
 
 ## 2. THE HARD CONSTRAINT — one-directional flow
 
@@ -111,8 +136,9 @@ each section here is a pointer only. **Read the Spine doc IN FULL before touchin
 
 **Canonical: [`Spine-Identity-and-Auth.md`](Spine-Identity-and-Auth.md).** Identity resolves ONCE at
 the edge into one immutable `Principal`; permission = global-role × resource-role × capability; agents
-are FIRST-CLASS PRINCIPALS (model locked; mint + ceiling BUILT (AP1/AP2), seat wave remaining, per D60 —
-agent-principal design set (staged out-of-repo — see `../proposed/README.md`)); BFF sessions ≠ SDK chat sessions.
+are FIRST-CLASS PRINCIPALS (model locked; mint + ceiling BUILT (AP1/AP2) (AP0–AP4 = the agent-principal
+build waves; decode: the PD-17 row + `../proposed/INDEX.md`), seat wave remaining, per D60 —
+agent-principal design set (parked in `../proposed/` — see its `INDEX.md`)); BFF sessions ≠ SDK chat sessions.
 
 ### 5.2 settings / config / the env FOUR natures
 
@@ -146,7 +172,7 @@ Each domain follows the 8-slot template in `Core-0-Architecture-and-Structure.md
 IS the domain name:** `packages/server/src/domain/<name>/` — and for built domains the code + its file
 headers ARE the doc (per-domain prose gutted per `Documentation-Law.md`). Special cases: `memory` lives
 at `domain/chat/memory/` (a chat subsystem; boundary: `Knowledge-Cluster.md`); `character` snapshot-UX:
-the retired FINAL-Character competition doc (yeeted under D66; git history has it) §7/§12; `stats`↔`discovery` seam: the stats-discovery-seam doc (staged out-of-repo — see `../proposed/README.md`);
+the retired FINAL-Character competition doc (yeeted under D66; git history has it) §7/§12; `stats`↔`discovery` seam: the stats-discovery-seam doc (parked in `../proposed/` — see its `INDEX.md`);
 participants/agents/identity → the pointer subsection below.
 
 | Domain | Origin | Owns |
@@ -180,12 +206,12 @@ Phase-7/8 additive domains (post-chat grafts — D47/D48/D49; scripting D46): **
 (`domain/imagery/` — chat-facing image gen, prompt-template modes, `/imagine` via automation);
 **gallery** BUILT (`domain/assets` gallery v1/v2 verbs + `domain/hub` gif search/import —
 [gallery.md](../history/gallery.md) · [gallery-design.md](../history/gallery-design.md)); unbuilt →
-tool-use · databank · expressions · automation design sets (staged out-of-repo — see `../proposed/README.md`).
+tool-use · databank · expressions · automation design sets (parked in `../proposed/` — see its `INDEX.md`).
 
 ### Participants, agents & identity
 
 **→ [`Spine-Identity-and-Auth.md`](Spine-Identity-and-Auth.md)** (identity/persona/permission; the
-stateless chat-turn foundation) · the agent-principal design set (staged out-of-repo — see `../proposed/README.md`)
+stateless chat-turn foundation) · the agent-principal design set (parked in `../proposed/` — see its `INDEX.md`)
 (agent principals, D60) · ledger D28 + the `character` code (character).
 
 ### Memory ↔ search / the knowledge & derived-data untangle
@@ -211,7 +237,7 @@ the capability descriptor). The tell that it's right: `providers` imports zero d
 None remain open here — every call formerly listed (memory placement, `hub_score` seam, serde core,
 bulk-import/proposedTags, the stats/discovery line, assets vs `infra/storage`, discovery shape,
 per-agent connection) is RESOLVED in the ledger, `Knowledge-Cluster.md`, `Tier-3b-Providers.md`,
-the agent-principal design set (staged out-of-repo), or the built code. Live open work is tracked in
+the agent-principal design set (parked in `../proposed/`), or the built code. Live open work is tracked in
 `Core-Audits-and-Debt.md` (the PD registry) + `../proposed/`.
 
 ## 7. The index — where the law lives
@@ -223,7 +249,7 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
 | build phases · checkpoints · stack + version pins | `Core-BUILD-PLAN.md` (version pins: the pnpm catalog) |
 | build cursor / status | `Core-STATUS.md` |
 | planning + checklists | `Core-Planning-and-Checklists.md` |
-| identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ the agent-principal design set, staged out-of-repo, D60) |
+| identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ the agent-principal design set, parked in `../proposed/`, D60) |
 | settings / config / serialization | `Spine-Config-and-Serialization.md` |
 | types · schemas · string-union dispatch · house TS style | `Spine-TypeScript-and-Patterns.md` |
 | testing policy (lanes, presence, determinism, factories) | `Spine-Testing.md` |
@@ -238,7 +264,8 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
 | mission | `../../Mission.md` |
 | the neo→orb parity-audit record (campaign complete, protocol retired) | `../history/neo-orb-parity-audit.md` |
 | structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (scripts/codemods/ast.ts — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `scripts/codemods/codemod-kit.ts`. Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
-| the ONE active program doc | `../proposed/README.md` (D66 rule: one at a time; currently `ui-cohesion-north-star.md`) — unbuilt design sets are staged OUT of the repo, see that README |
+| task → reading-set router (backend + frontend) | §0.3 above |
+| the ONE active program doc | `../proposed/README.md` (D66 as amended: one ACTIVE at a time; currently `ui-cohesion-north-star.md`) — the verified PARKED sets live beside it, mapped by `../proposed/INDEX.md` |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |
 
 ## 8. Archeology (moved to history/)
@@ -252,4 +279,4 @@ the agent-principal design set (staged out-of-repo), or the built code. Live ope
   blast radius, doc-claim verification, escape hatches, the codemod-kit instrument) →
   [`../history/Grounded-Intelligence-AST-Scan.md`](../history/Grounded-Intelligence-AST-Scan.md).
   Its findings are law only where they were promoted (the gates, the ledger, `Knowledge-Cluster.md`,
-  the agent-principal design set, staged out-of-repo, for §8.6).
+  the agent-principal design set, parked in `../proposed/`, for §8.6).

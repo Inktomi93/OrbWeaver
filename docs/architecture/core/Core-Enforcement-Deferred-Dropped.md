@@ -1,12 +1,12 @@
 ---
 kind: reference
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — Enforcement Registry: Deferred + Dropped
 
-> Split from `Core-Laws-and-Precedents.md` (2026-07-02). The NOT-yet-active gates (each with a named future activation trigger — backlog/goals) and the explicitly-rejected neo gates (archeology — why they don't apply to a greenfield build). Active gates are in `Core-Enforcement-Active-Gates.md`.
+> The NOT-yet-active gates (each with a named activation trigger) and the explicitly-rejected neo gates (why they don't apply to a greenfield build). Active gates: `Core-Enforcement-Active-Gates.md`. Dropped-experiment postmortems in full: `history/enforcement-archaeology-record.md`. Each row here is ONE ruling line — the what + the trigger; the saga is in history.
 
 ---
 
@@ -17,11 +17,11 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 
 | Gate | What it does | Activates when |
 | - | - | - |
-| `touch-target-floor` (component half) | the RENDERED half of the D62 P1 pointer-conditional floor: a coarse-pointer CT sweep asserting every interactive primitive's effective HIT AREA (boundingBox ∪ the `::before` size-touch-target expansion Switch/Checkbox/Radio use) is ≥44px on the governed axis — short side for square/pseudo controls, control-height for row/text controls (the token floors height; width is content-driven), per the D62 P1 per-pointer law (NOT the stale D43 "≥44px unconditional"). BUILT + green: `tests/ui/touch-target-floor.suite.ct.tsx` (the token-layer half is `tests/ui/tokens/index.{test,ct}.tsx`). A browser-lane belt, NOT a `pnpm check` gate | the CI browser lane (`test:ct`) is activated in `ci.yml` (currently none) — same trigger as the D62 ARIA/screenshot goldens |
+| `touch-target-floor` (component half) | RENDERED half of the D62 P1 per-pointer floor: a coarse-pointer CT sweep asserting every interactive primitive's effective hit area (boundingBox ∪ the `::before` expansion) is ≥44px on the governed axis (NOT the stale D43 unconditional rule). BUILT + green as a browser-lane belt (`tests/ui/touch-target-floor.suite.ct.tsx`), not a `pnpm check` gate | the CI browser lane (`test:ct`) is wired in `ci.yml` — same trigger as the D62 ARIA/screenshot goldens |
 | `assets-single-writer` | only `domain/assets` writes the assets table + `storeBlob` (the one CAS coherence site) | assets domain built (PRE-SCAFFOLD §A1) |
 | `asset-owner-gated` | assets are per-user (`assets.ownerId` + `unique(ownerId,hash)`); the `/blob/:hash` route resolves the caller (session cookie) + `fetchOwned` (or the roster-avatar membership exception) — NEVER serves on bare row-existence; `Cache-Control: private`; the CAS is per-user keyed (ledger D21 — "no leaks ever") | assets domain + blob route built |
 | `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
-| `dead-code` (knip) | unused exports / files / deps | **PARTIALLY BUILT (2026-07-13)** — the workspace knip config (`knip.ts`) + `pnpm knip`/`knip:prod` scripts (`knip@^6.26.0`) landed; run on-demand, all issue types as errors. Remaining trigger: promote it to a failing gate in the check chain (`pnpm check`/CI). |
+| `dead-code` (knip) | unused exports / files / deps | PROMOTED 2026-07-13 — LIVE as the `deps:knip` static-tier stage in `pnpm check` (see Active-Gates Layer 4); this row is retained only as the deferral record |
 | `api-surface` | public package-surface drift snapshot ("lock the surface") | packages export a stable surface |
 | `monotonic-tests` | test-count baseline only grows (behavior lock) | BUILT (dormant) — activation = flip `status` in the gate descriptor; triggers: first real client test suite + committed baseline |
 | `suppressions` | `biome-ignore` count ratchet + audit (reasons are already biome-native) | post-Phase-1 baseline (count-down ratchet needs existing code) |
@@ -30,13 +30,13 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `serde-core` | serialization-core invariants (one canonical home, layer-clean) | serde/import-export domains built |
 | `bus-payload-allowlist` | credentials/secrets are **type-level-unrepresentable** in `ChatBusEvent` / `NotificationEvent`; all chat bus events are room-public (ledger D16) | chat + notifications domains built |
 | `notifications-durable-first` | a notification is INSERTed in the membership-transition tx and fanned out only after commit (deliverable from the table alone); the stream uses the `chat.streamMessages` resume shape, never `buddy.stream` | notifications domain built |
-| `optimistic-chat` | client optimistic-update call-site invariants | **DROPPED 2026-07-07** — superseded by architecture-B (the `ChatHandle` discriminated union + the `startChat` carry-params). A draft is NOT an optimistic query-cache seed (`state/chat-handle.ts` rejected `isOptimistic`); it is a distinct `{kind:"draft"}` handle whose pre-send edits live in the `draft-config` store and ride `chat.startChat` carry-params at first send. ZERO `isOptimistic` call-sites to gate — the fully-editable-draft feature (greeting · overrides · roster · injections · group, all carried to commit) makes this gate's premise moot. |
+| `optimistic-chat` | client optimistic-update call-site invariants | DROPPED 2026-07-07 — architecture-B (the `ChatHandle` union + `startChat` carry-params) makes the premise moot: a draft is a `{kind:"draft"}` handle, not an optimistic cache seed, so there are zero `isOptimistic` call-sites to gate (postmortem in history) |
 | `design-tokens` | design-token file shape (globals.css) | client styling built |
 | `substrate-clean` | substrate/canonical cleanliness ratchet | client built |
 | `entity-editor` | entity-editor checklist ratchet | client entity editors built |
 | `audit-client-tests` | client test audit | BUILT (dormant) — activation = flip `status` in the gate descriptor; triggers: client tests exist |
 | `doc-tables` | docs ↔ code table-consistency | a docs-table convention is adopted |
-| `no-inline-union-redecl` (tuple-vs-tuple) | **UPGRADED (4b)**: the active gate now flags an inline union (any position, incl. interface property) OR a `z.enum([…])` literal array that re-spells an EXISTING canonical tuple's member set (the AUTH\_MODE class). Remaining: a 2nd `as const` TUPLE duplicating a 1st's members — doctrinally contested (distinct axes may legitimately share a member set, e.g. `REASONING_DISPLAY_MODES`/`THINKING_DISPLAYS`, ledger §5 vs D5), so left unbuilt pending that policy call. | decide the distinct-axis-vs-dup policy |
+| `no-inline-union-redecl` (tuple-vs-tuple) | UPGRADED: the active gate now flags an inline union or a `z.enum([…])` literal re-spelling a canonical tuple's members. Remaining (unbuilt): a 2nd `as const` tuple duplicating a 1st's members — contested (distinct axes may legitimately share a member set) | decide the distinct-axis-vs-dup policy |
 | `dangling-refs` | prose pointers (paths/symbols) that lead nowhere | revisit (risk: doc-path refs); candidate post-Phase-1 |
 | `abandoned-comments` | comments that lost their code anchor (report-only metric) | optional; revisit if churn warrants |
 | `comment-density` | comment-density metric (report-only) | optional; revisit if a cap is agreed |
@@ -50,4 +50,4 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | - | - |
 | `clean-break` | retrofit-diff rule (delete-home-as-you-add-replacement); orbweaver is greenfield, no retrofits |
 | `shared-structure` | governs neo's `src/shared/`; orbweaver has no `_shared` (kit/contracts replace it) |
-| `import-alias` | forced cross-LAYER imports through aliases because neo was ONE package (`src/{shared,server,db,client}`) the resolver couldn't police. Orbweaver made those layers PHYSICAL packages — the rule is now cross-PACKAGE `@orb/*` physics (dep-cruiser + not-in-package.json) + `client-feature-front-door`/`no-cross` for cross-feature. Residual (intra-package deep-relative vs `#lib`) is cosmetic, not a boundary — YAGNI to gate. |
+| `import-alias` | neo aliased cross-LAYER imports because it was ONE package; orbweaver's layers are PHYSICAL packages, so it's now cross-PACKAGE `@orb/*` physics (dep-cruiser + not-in-package.json) + `no-cross` for cross-feature — the intra-package residual is cosmetic, YAGNI to gate (rationale in history) |

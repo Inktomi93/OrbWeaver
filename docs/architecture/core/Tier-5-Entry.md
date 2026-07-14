@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — `entry`: the composition root
@@ -51,7 +51,8 @@ packages/server/src/entry/
 │   ├── join.ts               /join/:token invite-acceptance registrar
 │   ├── security-headers.ts   the response security-header registrar
 │   └── healthz.ts            liveness + credentials_key_mismatch / shutdown-503 signals
-└── import/run-profile-import.ts  the bulk-import composition driver (upload route + future import-st runner)
+└── import/                  the bulk-import composition drivers (run-profile-import · run-bundle-import ·
+                              build-import-context) — the upload route + the import-st runner
 ```
 
 Inventory lists are illustrative — the tree on disk is the truth.
@@ -69,15 +70,18 @@ Every cross-feature dependency is a **typed op declared in the consumer domain's
 
 ## Boot order
 
+The split is load-bearing: **only `seedOwner` runs pre-compose** (compose binds the owner role-clients against the owner id — the boot chicken-egg), and **every other seed runs post-compose** because it consumes a composed service/seeder. `entry/lifecycle.ts` is the truth.
+
 1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `core/Tier-3-Infra.md`).
-2. **env** (`foundation/env`) — the one `process.env` read; `superRefine` boot-fatality per `AUTH_MODE`.
-3. **migrate** — `backupBeforeMigrate` → migrations on an FK-off connection → `assertReferentialIntegrity`.
-4. **seed (pre-compose)** — env→DB credential seed; default preset/characters/persona/themes; `reclaimChatLocksOnBoot`.
+2. **env** (`foundation/env`) — the one `process.env` read (at module load); `superRefine` boot-fatality per `AUTH_MODE`.
+3. **migrate** — `backupBeforeMigrate` → baseline drift check (pre-launch auto-resets the dev db, data loss by design; post-launch it's boot-FATAL) → migrations → `assertReferentialIntegrity`.
+4. **seed-owner (pre-compose)** — resolves the owner id the compose graph binds against, via a TRANSIENT sessions service (compose owns the real one). The ONLY pre-compose seed.
 5. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
-6. **crypto decrypt-probe** — runs AFTER compose via `built.services.credentials.probeKeyDecrypt()` (`entry/lifecycle.ts` is the truth).
-7. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the jobs worker poll loop.
-8. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`), start listening; healthz goes live.
-9. **shutdown** — drain in-flight turns, stop supervisors, healthz → 503.
+6. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
+7. **seed (post-compose)** — env→DB credential seed (needs the composed credentials service); default preset/themes/characters/persona (the seeders are composed); `reclaimChatLocksOnBoot`; then the fire-and-forget host-offline **deferred-turn drain** (`chat.drainDeferredTurns` — the `pending_turns` reclaim; does real generation, so it must NOT block listen).
+8. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers, the buddy observer.
+9. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`), await the async bind (an `EADDRINUSE` surfaces as a server `error` event, not a throw — boot fails loudly on a dead listener), start listening; healthz goes live.
+10. **shutdown** — close the listener (healthz → 503 first, so the LB pulls traffic), stop supervisors, drain vLLM, db pre-close housekeeping.
 
 ## Invariants
 

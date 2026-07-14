@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — `foundation`: the base tier (env-read · observability · residual config)
@@ -22,7 +22,7 @@ NOT owned: the AppSettings floor-merge (→ `domain/settings` `effective-config/
 
 ## The defining invariant — foundation reaches UP to NOTHING
 
-Foundation imports only `@orb/kit`, `@orb/contracts`, `@orb/db` (lower packages) and within-tier siblings. A `foundation → domain` or `foundation → infra` import is RED (dep-cruiser `foundation-reaches-up-to-nothing`; the killed neo-tavern `DEFAULT_*_MODEL_ID` edge — those constants live in `@orb/contracts/connection` — is the canary).
+Foundation imports only `@orb/kit`, `@orb/contracts`, `@orb/db` (lower packages) and within-tier siblings. A `foundation → domain` or `foundation → infra` import is RED (dep-cruiser `foundation-reaches-up-to-nothing`). An up-stack constant it needs lives in a lower package and is imported DOWN (e.g. `DEFAULT_*_MODEL_ID` in `@orb/contracts/connection`); the killed neo-tavern up-edge is in `history/tier-1-2-archaeology-record.md`.
 
 Upward pressures resolve by **inversion of control**, never imports:
 
@@ -37,7 +37,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 ## Spine intersections
 
-- **§7.1 identity/auth:** `env` owns the auth *configuration* keys (`AUTH_MODE`/`AUTH_FALLBACK`/`OWNER_*`/the OIDC quintet/`SESSION_SECRET`/forward-header trust/`IP_ALLOWLIST`/`EGRESS_FIREWALL`) + the `superRefine` boot-fatality; identity *resolution* is `domain/sessions` + the entry seam. `securityEvent` is the security trail — one `security:true` line per rejection, deliberately pino-only (the single-operator audit surface is the log stream + ring; a DB security log is intentionally not built). The debug gate is OFF by default (no token + no admin → 404); the query-param token form was removed (it leaked into proxy logs + shell history).
+- **§7.1 identity/auth:** `env` owns the auth *configuration* keys (`AUTH_MODE`/`AUTH_FALLBACK`/`OWNER_*`/the `OIDC_*` set/`SESSION_SECRET`/forward-header trust/`IP_ALLOWLIST`/`EGRESS_FIREWALL`) + the `superRefine` boot-fatality (oidc requires `OIDC_ISSUER`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`/`OIDC_REDIRECT_URIS`/`SESSION_SECRET`; local requires `SESSION_SECRET`/`LOCAL_INITIAL_PASSWORD`); identity *resolution* is `domain/sessions` + the entry seam. `securityEvent` is the security trail — one `security:true` line per rejection, deliberately pino-only (the single-operator audit surface is the log stream + ring; a DB security log is intentionally not built). The debug gate is OFF by default (no token + no admin → 404); the query-param token form was removed (it leaked into proxy logs + shell history).
 - **§7.2 settings/config:** foundation owns nature (a) READ only. The (a/seed) env→DB-once verb runs in `entry/`+credentials; nature (b) resolution (`layer()`, the cache) is settings'; nature (c) is the agent-sdk backend's; nature (d) generation params are preset's.
 - **§7.4 types:** `LOG_LEVELS`/`AUTH_MODES` tuples are imported DOWN from `@orb/contracts`. `SerializedSpan`/`RequestTrace`/`RequestRecord`/`AuditFailureSnapshot` and the debug shapes stay foundation-internal (clients consume the JSON, never the types; a `contracts/observability` mirror is deferred until a client genuinely type-imports them).
 
@@ -47,7 +47,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 2. **The ONE `process.env` reader discipline.** Sole reader = typed dot-access everywhere. The sanctioned call-time exceptions live in `sessions` (per-test `vi.stubEnv` ergonomics) and are allowlisted in the `sole-env-reader` gate.
 
-3. **`dotenv override:true` + the two escape hatches.** A checked-in dev `.env` wins over a stale shell export — EXCEPT under `VITEST` (deterministic auth env) and `NEO_ENV_NO_OVERRIDE=1` (probe scripts honoring shell vars). Both load-bearing for test determinism + one-off server fires.
+3. **`dotenv override:true` + the two escape hatches.** A checked-in dev `.env` wins over a stale shell export — EXCEPT under `VITEST` (deterministic auth env) and `ORB_ENV_NO_OVERRIDE=1` (probe scripts honoring shell vars). Both load-bearing for test determinism + one-off server fires.
 
 4. **Audit never breaks the primary channel (suppress → count → drop).** A db failure inside `logAudit` logs at `error`, increments the sticky counter, drops; every 25th drop (`ALERT_EVERY`) trips a `security:true` `audit_sustained_failure` warn. Window is process-lifetime.
 
@@ -59,9 +59,9 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 8. **`wrapLibSqlClient` binds NON-instrumented methods to the target.** libSQL's client uses TC39 private fields that throw `TypeError` if invoked with the Proxy as `this`; returning `value.bind(target)` for every function keeps `migrate()`/`close()`/`sync()` working. The wrap is injected into `createDb` (cake).
 
-9. **The trace ring's orphan-bucket eviction.** A post-request fire-and-forget span copying a sealed parent's `neo.requestId` would re-create a never-evicting bucket. Guards: `MAX_LIVE_BUCKETS` (2000) drops the oldest in-progress bucket, and the bounded `sealed` set drops late orphans. Seal-time eviction reads the OUTGOING record at `head` first (a prior bug deleted the wrong slot).
+9. **The trace ring's orphan-bucket eviction.** A post-request fire-and-forget span copying a sealed parent's `orb.requestId` would re-create a never-evicting bucket. Guards: `MAX_LIVE_BUCKETS` (2000) drops the oldest in-progress bucket, and the bounded `sealed` set drops late orphans. Seal-time eviction reads the OUTGOING record at `head` first (a prior bug deleted the wrong slot).
 
-10. **The `span()` parent-attr internal cast.** Child spans copy `neo.requestId` via `(parent as { attributes? }).attributes` — an SDK concrete-span property, not public OTel API. If OTel renames it, the child degrades gracefully (lands without the id; traces still record), never throws. Keep the fallback.
+10. **The `span()` parent-attr internal cast.** Child spans copy `orb.requestId` via `(parent as { attributes? }).attributes` — an SDK concrete-span property, not public OTel API. If OTel renames it, the child degrades gracefully (lands without the id; traces still record), never throws. Keep the fallback.
 
 11. **The `X-Request-Id` charset guard.** `SAFE_REQUEST_ID` (`/^[A-Za-z0-9_.\-:]{1,128}$/`) caps reuse-from-header so a client can't inject log content or terminal escapes; mismatch → fresh UUID.
 

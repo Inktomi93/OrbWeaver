@@ -1,16 +1,16 @@
 ---
 kind: law
 status: active
-updated: 2026-07-05
+updated: 2026-07-13
 ---
 
 # UI-Primitives-and-Reuse
 
-> **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: a deleted `client.md`). Decision records: D42–D44, D52, D54 in `Core-Laws-and-Precedents.md`. §-map + reading order: `UI-Architecture-and-Layout.md` header.
+> **The client reuse-model law (§13).** Decision records: D42–D44, D52, D54 (+ the D66 amendments) in `Core-Laws-and-Precedents.md`. §-map + reading order: `UI-Architecture-and-Layout.md` header; the `@orb/ui` package build law is `ui-package-design.md`. Provenance/lineage archive: `../history/ui-primitives-archaeology-record.md`.
 
 ## 13. The reuse model — the central primitives every feature builds on (D54)
 
-> **Status: authoritative (D54, 2026-06-29).** Synthesis of the full client-foundation research sweep (the five `UI-Lib-*` companions in `history/`, re-homed 2026-07-09; cite them for any specific claim). The §11.0 thesis — *every footgun carried by STRUCTURE, never convention* — **extended from footguns to boilerplate**: a feature converges to **config + a field/row renderer**; all wiring (fetch · cache · invalidate · optimistic · error · virtualize · select · seed · dirty · lifecycle) lives in a primitive the call site **cannot bypass or get wrong**. The `@orb/ui` half is BUILT; the client factories shipped in the client-foundation wave, ahead of the feature lanes (§11.7/§13.6).
+> The §11.0 thesis — *every footgun carried by STRUCTURE, never convention* — **extended from footguns to boilerplate**: a feature converges to **config + a field/row renderer**; all wiring (fetch · cache · invalidate · optimistic · error · virtualize · select · seed · dirty · lifecycle) lives in a primitive the call site **cannot bypass or get wrong**. BUILT — the `@orb/ui` primitives and the client `{data,forms,state}` factories. Evidence: the five `UI-Lib-*` mines + `../history/ui-primitives-archaeology-record.md`.
 
 ### 13.0 The litmus (what gets centralized, what stays in the feature)
 
@@ -53,7 +53,7 @@ updated: 2026-07-05
 | bulk-select mode chrome | `@orb/ui/selection-bar` | a bespoke count+actions footer |
 | an editor's save/dirty bar | `@orb/ui/save-bar` | a bespoke sticky footer |
 | the ⌘K palette / any picker-with-search | `@orb/ui/command` (cmdk seal) | a hand-rolled filtered list |
-| a keyboard-hint chip | `@orb/ui/kbd` (D62 — lands in the D62 primitive lane) | inline mono spans |
+| a keyboard-hint chip | `@orb/ui/kbd` | inline mono spans |
 | a route / auth gate | Router `beforeLoad`+`redirect` (§6.1) | `useBlocker` for an in-app pane guard |
 | the editor "unsaved? leave?" guard | a **hand-rolled in-app** guard off view-state | `useBlocker` (won't fire on a pane swap) |
 | single-route pane transition | hand-rolled `document.startViewTransition()` | the router's VT (won't fire; `pathChanged` is constant) |
@@ -68,51 +68,38 @@ The Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldVal
 
 The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft semantics** — *Form is for forms, not for "entities."* The six obligations the factories bake (verified FACTORY-ORIGINAL — no example or doc fixes them): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` · the `seededRef + persistent-isDirty` reseed guard · the Zustand-`persist` draft mirror (autosave; OPTIONAL on saved, see the obligation-5 doctrine below) · `dontUpdateMeta` on non-user writes.
 
-| Surface | Factory | Why |
+Factory column = the factory each surface uses TODAY (code is the truth). D66 A4 (autosave everywhere) + the north-star §6 rollout flip the button-gated entity editors to autosave as they land — marked **COMMITTED, not yet built** where the code still gates on a button.
+
+| Surface | Factory (today) | Why |
 | - | - | - |
-| Character card editor | `createAutosaveEntityForm` (D66 A4 — autosave everywhere; was saved-form) | many fields, autosave status |
-| Persona editor | `createAutosaveEntityForm` (D66 A4; obligation-5 already cited `use-persona-form` as the autosave precedent) | multi-field |
-| Preset editor | `createAutosaveEntityForm` (D66 A4 — `Save preset` is removed) | many fields |
-| Prompt-manager | `createAutosaveEntityForm` (D66 A4) | multi-field |
-| Connection / credential add+edit | `createSavedEntityForm` | multi-field + validation — was hand-rolled in neo |
-| Group-chat create + config | `createAutosaveEntityForm` | immediate-commit chat law (no save-bar, FINAL-Chats §2); the whole-object DU rebuild lives in the save fn |
+| Character card editor | `createSavedEntityForm` (+ optional `draft` mirror) | long authored text; button-gated (save-bar + DirtyPill still live). D66 A4 flips to autosave — COMMITTED, not yet built |
+| Preset editor | `createSavedEntityForm` | many fields; button-gated. D66 A4 flips to autosave (`Save preset` removed) — COMMITTED, not yet built |
+| World-info / lorebook entry | `createSavedEntityForm` | multi-field; button-gated. North-star §6 flips to autosave — COMMITTED, not yet built |
+| Persona editor | `createAutosaveEntityForm` | multi-field |
+| Group-chat create + config | `createAutosaveEntityForm` | immediate-commit chat law (no save-bar); the whole-object DU rebuild lives in the save fn |
+| Room overrides (per-chat) | `createAutosaveEntityForm` | flip-and-it-saves |
+| Settings panels (appearance / system / connection config) | `createAutosaveEntityForm` | many grouped toggles, save-on-change |
+| Connection / credential add+edit | `createSavedEntityForm` | multi-field + validation (never autosave a half-typed credential) |
 | User-admin create / edit user | `createSavedEntityForm` | multi-field + validation |
 | D44 theme editor | `createSavedEntityForm` | the token subset (§12.1) |
-| World-info / lorebook entry | `createAutosaveEntityForm` | debounced draft |
-| Room overrides (per-chat) | `createAutosaveEntityForm` | flip-and-it-saves |
-| Settings panels (AppSettings) | `createAutosaveEntityForm` | many grouped toggles, save-on-change |
 | — stays controlled + Zod — | | search box · lone toggle · single rename · login (2-field): trivial, no toolkit tax |
 
-**The correction in one line:** treating Form as "the 4 entity editors" (neo's framing) under-used it — settings, connections, group config, theme, and user-admin are all multi-field forms that belong in a factory.
+**The under-use correction:** Form is for ANY multi-field / validation / save-or-draft surface — settings, connections, group config, theme, and user-admin all belong in a factory, not just the four entity editors.
 
-**Obligation-5 doctrine (codified 2026-07-09 from the shipped consumers' own reasoning):** on an
-AUTOSAVE form the server row IS the crash mirror — a confirmed save lands within the debounce window, so
-the `draft` slot is deliberately omitted (the use-appearance-form / use-persona-form precedent; a local
-mirror would duplicate synced truth, §12.1). The slot earns its keep only for offline-heavy or
-long-invalid-mid-edit autosave panels. On a SAVED (button-gated) form the original stance — "unsaved
-state lives in the form itself" — is AMENDED for long-form editors: `createSavedEntityForm` takes an
-optional `draft` crash mirror (shipped 2026-07-09). It seeds `defaultValues` from the SERVER row ONLY
-(so `isDefaultValue` still compares against server truth), then PROMOTES any surviving draft after mount
-as user-intent writes so `!isDefaultValue` lights the pill honestly (a restored draft that read "clean"
-would silently drop the work on the next navigation); a `draftSeededRef` makes the promotion mount-once
-so a background refetch can't re-apply it, a debounced form-level listener mirrors every real change
-(skipping the untouched seed so an open never mints a draft), and the slot clears on a confirmed save
-AND on `discard()`. Omitting `draft` is byte-identical to the original button-gated behavior. Required
-for editors whose fields carry long authored text (the character card editor is the founding consumer).
-Every `createEntityDraftStore` name registers in the `persistence-boundary` gate's DEVICE\_LOCAL\_REGISTRY.
+**Obligation-5 — the crash-mirror `draft` slot, when it earns its keep:** on an AUTOSAVE form the server row IS the crash mirror (a confirmed save lands within the debounce window), so the `draft` slot is OMITTED — a local mirror would duplicate synced truth (§12.1; the `use-appearance-form` / `use-persona-form` precedent). It earns its keep only for offline-heavy or long-invalid-mid-edit autosave panels. On a SAVED (button-gated) form `createSavedEntityForm` takes an OPTIONAL `draft` crash mirror: it seeds `defaultValues` from the SERVER row ONLY (so `isDefaultValue` still compares against server truth), then PROMOTES any surviving draft after mount as user-intent writes so `!isDefaultValue` lights the pill honestly (a restored draft that read "clean" would silently drop the work on the next navigation); a `draftSeededRef` makes the promotion mount-once so a background refetch can't re-apply it, a debounced form-level listener mirrors every real change (skipping the untouched seed so an open never mints a draft), and the slot clears on a confirmed save AND on `discard()`. Omitting `draft` is byte-identical to plain button-gated behavior. Required for editors whose fields carry long authored text (the character card editor is the founding consumer). Every `createEntityDraftStore` name registers in the `persistence-boundary` gate's DEVICE\_LOCAL\_REGISTRY. (Codification trail: `../history/ui-primitives-archaeology-record.md`.)
 
 ### 13.5 Deferred-with-a-committed-default forks (D54)
 
 - **Editor draft layer** — DEFAULT: TanStack Form + the Zustand-`persist` draft store + the factory seed/dirty guards. Deferred upgrade: **TanStack DB** local-storage-collection + manual transactions would dissolve the dirty/reset/seed dance — revisit when TanStack DB hits 1.0 + a proven Form-editor recipe. **The factory IS the swap seam.**
 - **Token enforcement** — DEFAULT Tailwind v4 + DTCG + gates; deferred **Panda `strictTokens`** (§3/§10).
 
-### 13.6 Sequencing (born-compliant — non-negotiable)
+### 13.6 The primitive-or-flag rule (non-negotiable)
 
-Every §13.1 client primitive + the §13.3 client belts shipped in the client-foundation wave, ahead of the feature lanes (§11.7). The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag. (The `@orb/ui` half already shipped, gates included.)
+The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag. The primitives + their gates shipped BEFORE the feature lanes (born-compliant) precisely so a feature can never land ahead of the belt that enforces it — the sequencing history is in `../history/ui-primitives-archaeology-record.md`.
 
 ### 13.7 The `@orb/ui` primitive & CT structural contract (BUILT — gate `ui-primitive-structure`)
 
-`@orb/ui` was built fast by parallel agent waves and drifted into competing micro-conventions; this contract is the reconciled canonical shape, **machine-enforced by `scripts/check/gates/ui-primitive-structure.ts`** (8 clauses — the gate file is the enforcer; this § is the WHY a clause exists). Graduated from `proposed/ui-primitive-contract.md`.
+`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `scripts/check/gates/ui-primitive-structure.ts`** (8 clauses — the gate file is the enforcer; this § is the WHY a clause exists). `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is load-bearing, do not renumber.
 
 - **The primitive trio.** `primitives/<name>/` = `<name>.tsx` (named export, no default) + `index.ts` (the ONLY consumer import) + `variants.ts`, plus optional `handle.ts` (imperative `createHandle`). Variants-exempt allowlist: `icons`, `virtual-list`, `message-list` (sealed satellites/barrels with no skin of their own); `code-editor`/`content/*`/`markdown`/`lib` live outside `primitives/`; `layout/` shares one `variants.ts` for the kit.
 - **Variants naming:** exactly one `tv()` export named **`{camelName}Variants`** (greppable, reserved-word-safe — `switch` forced the suffix anyway).
@@ -138,8 +125,8 @@ Codified after a full seal review found the same miss-class across agents: thin 
 
 ### 13.9 Homing + the parked list
 
-**The homing rule:** a factory that touches tRPC/Query/Form/Zustand types is CLIENT-side (`packages/client`, Phase 6); a pure component/DOM/string-math primitive is UI-side. The `@orb/ui` inclusion litmus: **domain-agnostic** (a `Button`, never a `CharacterCard`) AND ≥1 committed consumer (or a neo staple). Domain components live in `client/features`.
+**The homing rule:** a factory that touches tRPC/Query/Form/Zustand types is CLIENT-side (`packages/client`); a pure component/DOM/string-math primitive is UI-side. The `@orb/ui` inclusion litmus: **domain-agnostic** (a `Button`, never a `CharacterCardTile`) AND ≥1 committed consumer. Domain components live in `client/features`.
 
 **Deliberately NOT `@orb/ui` (adjudicated app-level — do not re-carve):** `resizable`/split panes (D54 dropped `react-resizable-panels`; the shell uses the §11.1 clamp-overlay — reopening it is a ledger decision) · `sheet` (folded into drawer side variants) · `label` (folded into `field`) · app-splash / route-error-fallback / dialog-state-gate (app-shell chrome) · **weave-glyph — RE-HOMED by D62 to `packages/client/src/lib/` (the cross-cutting display seam): features cannot import app-shell, and D62's empty-state decorations need the glyph across features; still NOT `@orb/ui` (brand, not a domain-agnostic primitive)** · proposal-diff, reasoning-block, swipe-strip, composer internals (feature components over the primitives) · CapabilityGrantList (no committed consumer/design yet — compose at feature level when one appears).
 
-**D62 primitive deltas (specced in `proposed/ux-flow-revamp.md` §4 — the ONE home for the delta list; every delta lands under the §13.7 contract + §13.8 rules):** new `kbd`; `Text` gains `micro` size + `caps` transform; `Avatar` sizes decouple from control tokens (new avatar-size token trio) + deterministic per-entity fallback hue; `Dialog` gains width variants + a `full` presentation; `EmptyState` gains `action` + `decoration` slots; `Skeleton` gains the shimmer (reduced-motion-safe); `Button` `secondary` retunes to bordered (D62 P5) and `ghost` defaults muted. **`table` IS an `@orb/ui` primitive** (built + exported `./table`): kept per Nate 2026-07-04 — a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and the primitive naturally splits under the 450-line cap (`table.tsx` = 461).
+**Primitive deltas land under the §13.7 contract + §13.8 rules — one governance home.** The D62 delta set (new `kbd`; `Text` `micro`/`caps`; decoupled `Avatar` size tokens `avatar-sm/md/lg`/`avatar-hero` + per-entity fallback hue; `Dialog` width variants `sm/md/lg/xl` + `full`; `EmptyState` `action`/`decoration` slots; `Skeleton` shimmer; `Button` `secondary` bordered + muted `ghost`) is BUILT — the code + `tokens.json` are the doc; the delta narrative is in `../history/ui-primitives-archaeology-record.md`. **`table` IS an `@orb/ui` primitive** (built + exported `./table`): a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and `table.tsx` naturally splits under the 450-line cap.

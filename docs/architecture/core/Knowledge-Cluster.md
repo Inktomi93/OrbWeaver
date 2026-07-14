@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Knowledge cluster — the producer → store → consumer boundary

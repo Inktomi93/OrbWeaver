@@ -1,32 +1,18 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — structure & enforcement (the constitution)
 
-> **Status: authoritative.** The canonical structure for Orbweaver — the ground-up remake of
-> neo-tavern. Written to be *enforced*, not aspirational: every rule below has a gate that goes RED
-> when violated. Read this before creating any file.
+> **Status: authoritative.** The canonical structure for Orbweaver. Every rule below has a gate that
+> goes RED when violated — enforced, not aspirational. Read this before creating any file.
 
-## Why a remake
-
-neo-tavern's *architecture* was sound (clean layer cake, machine-enforced) but three things rotted in
-place and are cheaper to rebuild than retrofit:
-
-- **`domain/_shared` became a junk drawer** — primitives, cross-feature *services* (credentials,
-  user-settings, role-clients), leaked feature-internals, and a misfiled driver concern all dumped
-  together because there was no clean home for cross-cutting code.
-- **Concepts fragmented across stores** — "a connection," "descriptive labels," "active persona" each
-  had 2–6 homes with no partitioning rule for what lives where.
-- **The frontend leaned on inherited SillyTavern patterns** that bit back.
-
-Orbweaver keeps what worked (the **per-feature template** — it's genuinely good) and fixes the rest by
-**making the structure self-documenting and the boundaries physics, not policy.**
-
-The north star: **you can figure out where anything lives, and what may import what, from the file
-tree alone.** Mental load drops because you *derive* the layout instead of *remembering* it.
+**North star:** you can figure out where anything lives, and what may import what, **from the file tree
+alone** — you *derive* the layout instead of *remembering* it. The structure is self-documenting and the
+boundaries are physics, not policy. (Why the codebase is shaped this way — the neo-tavern rot the remake
+fixed — is history: `history/core-0-structure-archaeology-record.md`.)
 
 ---
 
@@ -45,15 +31,6 @@ tree alone.** Mental load drops because you *derive* the layout instead of *reme
 4. **Tests are one central tree mirroring `src` 1:1.** Not colocated. The test path is a mechanical
    prefix-swap of the src path; kind is a filename suffix. More work, but agent-enforceable and the
    src tree stays clean.
-
-### Working rule — "unwired ≠ worthless"
-
-When porting from neo-tavern, **"no current consumer / dead / unwired" is a prompt to evaluate intent,
-not a delete signal.** Much of it is **SillyTavern-inherited or scaffolded intent that just never got
-wired** (e.g. `runOnEdit`, the non-chat `roleDefaults`, `chat_participants.activePersonaId`, the
-declared-but-never-emitted `WiBusEvent` entry variants). Default to **understand the intent → wire or modernize it**; delete only when it's
-genuinely superseded residue (a per-item judgment, never a reflex). Auto-deleting on "no consumer" throws
-away half-built features the remake actually wants.
 
 Agents (the only contributors here) respect only what fails *early*. Push enforcement up the ladder:
 
@@ -142,23 +119,20 @@ packages/server/src/
 └── kit/              server-only PURE primitives (zero I/O, zero domain)
 ```
 
-Changes vs neo-tavern: `foundation`/`infra`/`transport`/`entry` are **named tiers** (were loose under
-`server/`), so the cake is visible in the tree; `kit/` gives server-only primitives a real home;
-**`domain/_shared` is deleted** — its contents are redistributed (primitives → `kit`; services →
-their own feature; feature-internals → home; rate-limit → transport).
-
 ---
 
 ## 4. The per-feature template — the legibility engine
 
-**Every feature is the same eight slots.** Learn one, know all. (Carried over from neo-tavern, where
-it already proved itself across features from `persona` (7 files) to `corpus` (40+).)
+**Every feature is the same eight slots.** Learn one, know all. Scales from `persona` (7 files) to the
+40+-file features without changing shape.
 
 ```
 domain/<feature>/
 ├── index.ts        FRONT DOOR — the only legal external import. Re-exports the public surface.
 ├── service.ts      COMPOSITION ROOT — wires verbs + injected deps. ZERO logic.
 ├── context.ts      DI BUNDLE — the `ctx` verbs close over (db + cross-feature ops, wired at root).
+├── guard.ts        OPTIONAL 9th slot — the ratified `can()` authority seam (`requireAdmin`/`requireParticipant`):
+│                   an I/O-touching, non-verb gate primitive. Allowed at ANY feature root (admin/chat/import).
 ├── contract/       THE TYPED SURFACE — the feature's "API README, as code" (no logic):
 │   ├── service.ts      interface <Feature>Service   ← read THIS to know everything the feature does
 │   ├── params.ts       every verb's *Params
@@ -188,7 +162,13 @@ domain/<feature>/
 
 **Cross-feature dependency:** never a sideways import. A verb declares the *type* of an injected
 cross-feature op in its `contract`; the runtime op is wired at the composition root (`service.ts` /
-`context.ts`). (Same pattern neo-tavern used for the workloads runner-env.)
+`context.ts`).
+
+**Feature-root files are locked** to `index.ts` / `service.ts` / `context.ts` / `guard.ts` — plus a
+handful of individually-sanctioned domain singletons (chat's `bus.ts` / `active-turns.ts` /
+`connected-persona.ts`, buddy's `bus.ts`, preset/settings' `constants.ts` + seed files) that fit no
+verb/substrate/subsystem. The allowlist lives in the `feature-structure` gate; anything else at the root
+is RED.
 
 ---
 
@@ -216,7 +196,7 @@ clean. The fixture doctrine is composed `test.extend` (over `beforeEach`/`freshD
 
 ## 6. The partitioning rule — what concept lives where
 
-The neo-tavern crunch was concepts with no single home. Orbweaver fixes the worst offenders up front:
+The rot mode is a concept with no single home. Each of these has exactly one, up front:
 
 | Concept | Home | Notes |
 | - | - | - |
@@ -225,7 +205,7 @@ The neo-tavern crunch was concepts with no single home. Orbweaver fixes the wors
 | **Credentials** | the `credentials` domain owns ALL of it (resolve + CRUD + metadata) | un-inverted: logic lives in the feature, not a `_shared` drawer |
 | **Roles** (chat/embed/rerank/summarize/imageEmbed/generateImage/agent) | one `resolveRole(role)` | all roles honor settings; buddy = the `agent` role |
 | **Regex** | a regex *library* + scope junctions (global/character/preset), assembled + executed by placement | the world-info pattern — one store, attached at scopes |
-| **World info** | one books/entries store + scope junctions | already the right shape in neo-tavern; keep it |
+| **World info** | one books/entries store + scope junctions | the canonical scope-junction pattern (regex reuses it) |
 | **Descriptive labels** | tags (one namespace + per-entity junctions); proposed = a *status*, not a parallel store | analytics facets (genre/tone/keywords/themes) are a SEPARATE concept (discovery) |
 | **Derived data** (digests/embeddings/themes) | an event-driven indexer (canon write → ContentChanged → coalesced workload) | "import just works"; no manual backfill scripts |
 | **Turn economics** (tokens/cost/cache/timing rollups) | `stats` — the four per-owner rollups; ZERO vector tables | economics and semantics NEVER share tables: `stats` (economics) vs `discovery` (semantics) are disjoint + type-enforced (`stats-no-vector-tables` dep-cruiser rule + disjoint `messages` projections) |

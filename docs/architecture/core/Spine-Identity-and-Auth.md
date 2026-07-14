@@ -1,12 +1,12 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
 
-Canonical doc for spine §7.1 (`AGENTS.md` §5.1 points here). BUILT — this is current law, not a plan. Agent-principal detail: [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md) + ledger D60 win over this digest on any conflict.
+Canonical doc for spine §7.1 (`AGENTS.md` §5.1 points here). BUILT — current law. Agent-principal detail: ledger D60 wins over this digest on any conflict; the design set is parked in `../proposed/` (see its `INDEX.md`) ([`../proposed/README.md`](../proposed/README.md)).
 
 ## 1. Resolution — one pipeline, one mint
 
@@ -20,7 +20,7 @@ Identity resolves ONCE at the edge into one immutable `Principal` (`@orb/contrac
 
 The numbered invariants (code comments cite these as "invariant #n"):
 
-1. **One mint.** `entry/auth/seam.ts` is the only module that mints a `Principal` FROM A REQUEST; entry-tier composition/lifecycle code mints synthetic SYSTEM Principals (`entry/compose/role-clients.ts`, `entry/lifecycle.ts` boot-seed, `entry/compose/chat.ts` host-ops, `entry/compose/services.ts`) — and NO `domain/` code ever constructs one.
+1. **One mint.** `entry/auth/seam.ts` is the only module that mints a `Principal` FROM A REQUEST; entry-tier composition/lifecycle code mints synthetic Principals — never from a request, carrying an `owner` or `user` role (`entry/compose/role-clients.ts`, `entry/lifecycle.ts` boot-seed, `entry/compose/chat.ts` host-ops, `entry/compose/services.ts`) — and NO `domain/` code ever constructs one.
 2. **Resolve once.** Everything below the seam reads `Principal.userId`; nothing re-resolves or re-queries identity.
 3. **`ResolvedIdentity` carries NO `userId` and NO `role`.** Infra must not know DB row ids; the seam adds them.
 4. **`MODE_RESOLVERS` is exhaustive** over `AuthConfig["mode"]` (mapped-type `Record` — a new `AUTH_MODES` member fails `tsc`).
@@ -38,6 +38,20 @@ The numbered invariants (code comments cite these as "invariant #n"):
 
 All three route through the one `can()` seam (invariant #6); `ResourceRef` is a discriminated union, so a new resource kind breaks the `can()` switch until handled.
 
+### 2b. Ownership is INHERITED through the FK chain, never re-stamped per table
+
+**A table without an `ownerId` column is not unscoped — its scope DERIVES from the Principal through
+its FK chain to the owning row, gated at the producer verb.** The pattern (D18/D20): chats scope via
+`chat_participants` membership; a chat's messages/variants/digests/pending\_turns inherit through
+`chatId`; vector rows carry only their producer FK and search derives owner-scope from the producer's
+category; character satellites (sprites, embeddings) inherit through `characters.ownerId`; asset
+variants inherit through `assets.ownerId`. The AUTHZ lives at the verb (`fetchOwned` /
+`requireParticipant` / `requireHost` on the ROOT row), and everything below flows down — adding a
+redundant owner stamp to a child table is a DEFECT (two sources of truth that can disagree; D20's
+"derive, never stamp"). **Before flagging "missing scope" on a table or query, walk the FK chain to
+its root and find the verb gate — the cross-tenant IDOR sweep (`cross-tenant-sweep.suite.int.test.ts`)
+is the proof this holds at the transport boundary.**
+
 ## 3. Construction
 
 The sanctioned `Principal`/credential construction + cookie sites — everything else consumes:
@@ -52,7 +66,7 @@ The sanctioned `Principal`/credential construction + cookie sites — everything
 
 ## 4. Agents are first-class principals (D60)
 
-Built: an agent is a real `users` row (`kind:'agent'`, `users_agent_shape` CHECK makes it loginless/`role='user'`/owned by DDL) + an `agent_principals` satellite, minted lazily by `sessions.provisionAgentPrincipal` (idempotent; the reserved `__agent__` handle namespace is refused at every auth/handle surface). The roster's per-kind shape CHECK `chat_participants_kind_shape` (`human|character|agent|observer`, `packages/db/src/schema/chat.ts`) replaced the old 2-way actor XOR. The ceiling: agents are structurally sessionless + `Principal`-less; the one runtime gate is `canAgent(actor, action, room)` over `AGENT_ACTIONS = ["speak","tool-propose"]` — the ceiling IS the union. Proof: `tests/server/domain/admin/containment.suite.int.test.ts`. The SEAT WAVE (buddy adoption + rpg seats, AP3/AP4a) is the remaining planned work — buddy's borrowed-owner posture (ledger §3/§5/D17) stays the shipping posture until it lands. Authoritative: `../proposed/agent-principal-design/` + ledger D60.
+Built: an agent is a real `users` row (`kind:'agent'`, `users_agent_shape` CHECK makes it loginless/`role='user'`/owned by DDL) + an `agent_principals` satellite, minted lazily by `sessions.provisionAgentPrincipal` (idempotent; the reserved `__agent__` handle namespace is refused at every auth/handle surface). The roster's per-kind shape CHECK `chat_participants_kind_shape` (`human|character|agent|observer`, `packages/db/src/schema/chat.ts`) shapes each kind. The ceiling: agents are structurally sessionless + `Principal`-less; the one runtime gate is `canAgent(actor, action, room)` over `AGENT_ACTIONS = ["speak","tool-propose"]` — the ceiling IS the union. Proof: `tests/server/domain/admin/containment.suite.int.test.ts`. COMMITTED (not yet built): the seat wave (buddy adoption + rpg GM seat, AP3/AP4a) — until it lands, buddy's borrowed-owner posture (D17) is the shipping posture. Authoritative: ledger D60 (design set parked in `../proposed/` (see its `INDEX.md`), `../proposed/README.md`).
 
 ## BFF session ≠ SDK chat session
 

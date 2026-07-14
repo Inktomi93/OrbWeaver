@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
@@ -24,7 +24,7 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** (Neo
 
 ## House TypeScript style
 
-The opinionated conventions (TS 6.0, strict everything, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod, the package cake). ⚙️ = gate- or biome-enforced; the enforcement machinery is catalogued in `Core-Enforcement-Active-Gates.md`. This section is the "how we write it" reference those gates protect.
+The opinionated conventions (TS 6.0.x, strict everything, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod, the package cake). `pnpm typecheck` runs on **tsgo** — the TS7 native-preview compiler (`@typescript/native-preview`), not classic `tsc`. Raw `tsc <file>` is a hard TS5112 error since TS 6, so per-file type checks are project-scoped `tsgo -p <owning tsconfig>` (the `.claude/hooks/biome-check.sh` type leg). ⚙️ = gate- or biome-enforced; the enforcement machinery is catalogued in `Core-Enforcement-Active-Gates.md`. This section is the "how we write it" reference those gates protect.
 
 ## 1. The keystone
 
@@ -57,7 +57,7 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 - **`?` vs `| undefined` are NOT interchangeable under `exactOptionalPropertyTypes`**: `x?: T` = may be **absent** (can't pass explicit `undefined`); `x: T | undefined` = must be **present**, may be undefined. Choose by intent — default `?` for genuinely-absent fields.
 - **`interface` for hand-authored object shapes, `type` for unions/aliases** — but in practice most domain models are `z.infer<typeof schema>` (a `type`). `interface extends` over `&` for composition (`extends` errors on conflicts; `&` silently → `never`).
 - **Banned habits:** `any` ⚙️ (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` ⚙️ (`noNonNullAssertion`; use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts hard-gated by `no-loose-id-cast`/`no-mint-via-cast` GritQL); `as any as T` is a hard no.
-- **`@total-typescript/ts-reset` is on (root `reset.d.ts`, all 5 packages).** It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost.
+- **`@total-typescript/ts-reset` is on** — one root `reset.d.ts` pulled into every package's compilation via `tsconfig.base.json`'s `include` (`${configDir}/../../reset.d.ts`). It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost.
 
 ## 5. `erasableSyntaxOnly` — the forbidden set (+ erasable replacement)
 
@@ -99,22 +99,14 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 
 ## String-union dispatch discipline (spine §7.5)
 
-The coupling an import-graph CANNOT see: runtime branching on string-union "kind" keys. The AST dispatch
-scout **quantified the "touch N spots to add one variant" pain** in neo-tavern
-(scan record: `../history/Grounded-Intelligence-AST-Scan.md`):
+The coupling an import-graph CANNOT see: runtime branching on string-union "kind" keys. Without a
+canonical home an axis gets re-spelled inline at every dispatch site, so adding one variant turns into a
+scavenger hunt across dozens of files — the neo-tavern pain that motivated this rule, quantified per-axis
+in `../history/spine-typescript-archaeology-record.md`.
 
-| axis | touch-count | shape of the rot |
-| - | - | - |
-| `messageRole` (system/user/assistant) | **132** | 3 competing canonical const-arrays + 116 inline re-spellings; no importable union |
-| `users.role` (admin/user) | 35 | no exported `UserRole` union → 33 inline `"admin"\|"user"` re-decls |
-| `guidedAction` (6) | 23 | 14 redecls + 4 **untyped** `Record`s (no exhaustiveness backstop) |
-| `routing.source` (4) | **18** | **the user's lived pain, MEASURED** — 11 inline re-decls of the source union (dispatch IS gated; the cost is pure re-declaration) |
-| `routing.api` (3) | 12 | 9 inline re-decls (dispatch fully `assertNever`-gated) |
-
-**The GOLD STANDARD to copy (already right in neo, carried into orbweaver's `workloads`):**
-`workloads.kind` dispatches through `RUNNERS: { [K in WorkloadKind]: Runner<K> }` — a **mapped-type
-Record**, so a missing kind is a hard `tsc` error. `routing.api`/`source` runner switches use
-typed-return / `assertNever`.
+**The GOLD STANDARD to copy:** `workloads.kind` dispatches through `RUNNERS: { [K in WorkloadKind]:
+Runner<K> }` (`domain/workloads/substrate/dispatch.ts`) — a **mapped-type Record**, so a missing kind is
+a hard compile error. `routing.api`/`source` runner switches use typed-return / `assertNever`.
 
 **The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling — gated),
 and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).

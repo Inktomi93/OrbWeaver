@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-13
 ---
 
 # Orbweaver — `@orb/db`: the schema floor (drizzle + libSQL + migrations)
@@ -23,7 +23,7 @@ NOT owned: business logic (verbs/ownership/dispatch → `server`); the vector wr
 
 > **A schema file is named for the domain that PRODUCES/OWNS its rows, never for a consumer.**
 
-This kills neo-tavern's schema-naming lies (`search.ts` holding the embeddings tables, `character.ts` holding `personas`, `corpus.ts` for discovery's rollups). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `agent-principals` → `domain/sessions`, `gallery` → `domain/assets`).
+A consumer-named schema file hides its real producer (the port-from-neo antipattern; the enumerated cases are in `history/tier-1-2-archaeology-record.md`). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `agent-principals` → `domain/sessions`, `gallery` → `domain/assets`).
 
 ## Cross-tier composition (who reads `db`)
 
@@ -48,7 +48,7 @@ This kills neo-tavern's schema-naming lies (`search.ts` holding the embeddings t
 
 2. **The custom-type 4-byte-alignment `slice()`.** `vector32.fromDriver` copies via `value.slice().buffer` because the driver may return an unaligned subarray view `Float32Array` cannot wrap. Remove the copy and reads corrupt on unaligned rows. (Carried in `custom-types/index.ts`.)
 
-3. **`chat_digests.scopedCharacterId` is ALWAYS a real branded `CharacterId` FK.** The room/SHARED bucket rows carry the room-designated witnessing character's id — never NULL, never a sentinel. The idempotent-upsert UNIQUE `(chatId, scopedCharacterId, tier, blockIdx)` keys off the real id. (The pre-build `''`-sentinel design is superseded; `schema/embeddings.ts` header is the authority.)
+3. **`chat_digests.scopedCharacterId` is ALWAYS a real branded `CharacterId` FK.** The room/SHARED bucket rows carry the room-designated witnessing character's id (or the synthetic group-as-character `__group__${chatId}`) — never NULL, never a sentinel (D55). The idempotent-upsert UNIQUE `(chatId, scopedCharacterId, tier, blockIdx)` keys off the real id. `schema/embeddings.ts` header is the current-state authority.
 
 4. **The TypeID brand at the db boundary.** `$type<CharacterId>()` etc. are type-only; SQL is plain `TEXT`. `users.id` is deliberately a plain `Branded<"UserId">` nanoid, not a prefix-validated TypeID; inbound `ownerId`/`userId` FKs inherit that plainness.
 

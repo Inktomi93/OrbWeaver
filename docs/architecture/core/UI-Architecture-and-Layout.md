@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-09
+updated: 2026-07-13
 ---
 
 # UI-Architecture-and-Layout
@@ -12,13 +12,11 @@ updated: 2026-07-09
 >
 > **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.9 → `UI-Primitives-and-Reuse.md`.
 >
-> **Build state (2026-07-09):** `@orb/ui` is BUILT (the primitive fleet: Base UI wraps, layout kit, charts/meter, markdown/stream, the D44 security trio, the carve-out set — `packages/ui/src` is the inventory; `packages/ui/package.json#exports` is the public surface). The client data/forms/state primitives are BUILT (`packages/client/src/{data,forms,state}` is the inventory); feature slices are largely built (D62 lanes; 125+ files across 12 of 14 features — `credentials` + `user-admin` remain `.gitkeep` stubs). Remaining Phase 6 = PWA + the outstanding feature surfaces (current lane: the FINAL-Character doc). Build design + per-primitive decisions: `proposed/ui-package-design.md`.
+> **Build state:** `@orb/ui` is BUILT (the primitive fleet: Base UI wraps, layout kit, charts/meter, markdown/stream, the D44 security trio, the carve-out set — `packages/ui/src` is the inventory; `packages/ui/package.json#exports` the public surface). The `@orb/client` data/forms/state primitives are BUILT (`packages/client/src/{data,forms,state}`). Most feature slices carry real code; `corpus`/`credentials`/`user-admin` remain reserved `.gitkeep` stubs. Current build status + the open UI board are NOT restated here — they live in the active program doc (`../proposed/ui-cohesion-north-star.md` §0b/§6) and the code. Per-primitive build decisions: `ui-package-design.md`.
+>
+> **Ledger D66 amends four D62-era rulings below (UI-relevant, all LANDED):** the LIST gets a real `.shell-panel-header` band (A1), the list-header **New** is the panel's ONE `primary` button (A2), message-action clusters rest HIDDEN not dimmed (A3), and every editor AUTOSAVES — no Save/Set/Discard (A4). Where §4.1/§4.2/§4.3 below still read as the D62 posture, the ledger D66 amendment WINS (`Core-Path-Registry.md` D66; full text `../proposed/ui-cohesion-north-star.md` §3). The inline `> [!NOTE]` flags mark each conflict rather than silently overwriting the standing D62 law text.
 
 > **The one-sentence thesis:** carry over neo's *structure* (feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery) and *dump* neo's *component foundation* (shadcn copy-paste + Radix + the react-markdown stack). The replacement is **one headless primitive (Base UI), hand-authored components in the `@orb/ui` package, and the lint rules promoted to package physics.**
-
-### 0. Where this came from
-
-Two inputs, both *prior art*, not law: (1) the Phase-4b neo-tavern client critique (the single-route `this_chid` jank, the cross-lib footgun cluster); (2) the Claude-Design redesign handoff (the intent-token system, surfaces/anchors doctrine). This doc is the law.
 
 ### 0.5 Phase-6 build manifest (the index)
 
@@ -100,7 +98,7 @@ The law that survives any file-level churn:
 
 #### 2.1 `@orb/client` — the feature-slice tree
 
-**State: BUILT.** The tree below is committed law (gate `client-structure` enforces the per-feature shape the moment a slice gets real code); `data/`, `forms/`, `state/` are populated per the §13.1 contracts, 12 of 14 features have real code, and `credentials`/`user-admin` remain reserved `.gitkeep` stubs. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, neo's proven shape minus the three §-noted deletions, plus `data/`+`forms/` elevated to top-level peers of `state/`.
+**State: BUILT.** The tree below is committed law (gate `client-structure` enforces the per-feature shape the moment a slice gets real code); `data/`, `forms/`, `state/` are populated per the §13.1 contracts, most feature slices carry real code, and `corpus`/`credentials`/`user-admin` remain reserved `.gitkeep` stubs. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, neo's proven shape minus the three §-noted deletions, plus `data/`+`forms/` elevated to top-level peers of `state/`.
 
 ```
 packages/client/
@@ -112,7 +110,8 @@ packages/client/
     sw.ts / manifest    # PWA (Phase 6): workbox precache of the app shell + web-app-manifest — D54.
                         #   offline scope = the shell + last-opened chat; live data still needs the server (SSE bus)
     main.tsx            # entry / composition root (mounts providers; injects the cross-feature ops — §11.0)
-    routes/             # ~3 HAND-WRITTEN routes: / · /login · /admin/* (lazyRouteComponent) — no file-based codegen (§6.1)
+    routes/             # 2 HAND-WRITTEN routes: / · /login — no file-based codegen; admin is a pane in the
+                        #   Settings modal at /, NOT a standalone route (§6.1)
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1
       trpc.ts · query-client.ts · invalidation.ts · create-entity-mutation.ts ·
       create-collection-surface.ts · query-boundary.tsx · use-gated-query.ts · bus/
@@ -122,7 +121,9 @@ packages/client/
     features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
                         #     the clamp-width overlay (§11.1); RAIL_SLOTS ↔ MODAL_SLOTS registries (gate check:registry-pairing)
-      auth/ character/ chat/ corpus/ credentials/ persona/ preset/ prompt-manager/ settings/ tag/ user-admin/ workloads/ world-info/
+      auth/ character/ chat/ corpus/ credentials/ notifications/ persona/ preset/ prompt-manager/ settings/ user-admin/ workloads/ world-info/
+                        #   (`corpus` is the SECTION/feature name; the owning DOMAIN is `discovery` — the
+                        #     rename landed domain-side only, per the feature-structure gate note)
         <feature>/      #   { surfaces/ (containment CONSUMERS, @container) · anchors/ (containment PROVIDERS) ·
                         #     components/ (leaf) · hooks/ · lib/ · index.ts (the front door) }
     lib/                # cross-cutting display/util seams: message-render · time · cn re-export · download-json · notify
@@ -133,7 +134,7 @@ packages/client/
 ```
 
 - **Why not FSD:** `@orb/ui` already IS the shared-component layer; the `entities/` layer overlaps the feature concept and adds ceremony neo's flat slice never needed.
-- **Three deletions from neo:** `components/`+`components/ui/` → the `@orb/ui` package; `features/_shared/` → dissolved (generic bits → `@orb/ui`, form toolkit → `forms/`, cross-feature reads → `trpc.*`); file-based `routes/` codegen → \~3 hand-written routes.
+- **Three deletions from neo:** `components/`+`components/ui/` → the `@orb/ui` package; `features/_shared/` → dissolved (generic bits → `@orb/ui`, form toolkit → `forms/`, cross-feature reads → `trpc.*`); file-based `routes/` codegen → 2 hand-written routes.
 
 ### 3. Tokens — DTCG single source, derived theme
 
@@ -166,31 +167,36 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 
 #### 4.1 The shell — the rail + collapsible panels (D55)
 
-> **Design-seed status (amended D62):** the Claude-design handoff's `Hearth`/`Loom`/`Pocket` "modes" never did the structural work they claimed; the VS-Code "Work mode" stays **CUT**. **Themes are color palettes only** (§12.1) — there is NO structural mode. From the seed corpus (`reference/design/`), keep the palette (OKLCH ramp + **Ember** + **Geist**, the §3 token seed) AND — added by D62 — its **visual grammar as reference** (control metrics, popover chrome, micro-caps/mono voice, empty-state style; the D62 program docs cite it file-by-file). Where the layout below and the seed disagree, this wins.
+> **Themes are color palettes only** (§12.1) — there is NO structural mode; the rail + panels render identically under any palette. (The Claude-design seed's `Hearth`/`Loom`/`Pocket` "modes" + a VS-Code "Work mode" were cut under D62; what survived is the palette + visual grammar, folded into §3/§12.1 law — saga in `../history/ui-architecture-archaeology-record.md`.) Where any design-seed mockup and the layout below disagree, this wins.
 
 The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp-overlay so it is BOTH the "command-center" *and* the "immersive-SillyTavern" layout — **one shell, panels toggled**, not two builds.
 
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
-  RAIL    — persistent thin icon column (~56px, fixed). Weave glyph → section icons, SEVEN at
-            end-state (D62 P6 — the World Info/Presets additions are PENDING an owner re-decision
-            2026-07-09: presets→settings candidate; needs a ledger amendment before either section
-            is built), grouped by --spacing-section dividers:
-            Chats · Characters · Corpus (primary) | World Info · Presets · Refinery (authoring)
+  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). Weave glyph → section icons,
+            SEVEN (D62 P6, settled — Presets stays in the rail, Connections lives in Settings per D66),
+            grouped by --spacing-section dividers:
+            Chats · Characters · Corpus (primary; `corpus` is the SECTION/feature name — the owning
+            DOMAIN is `discovery`, the rename landed domain-side only, per the feature-structure gate
+            note) | World Info · Presets · Refinery (authoring)
             | Analytics (insight) → spacer → Theme · Settings · avatar. Seven is the CEILING —
-            anything further goes to modals/settings. Sections exist only as RAIL_SLOTS entries,
-            id-paired with MODAL_SLOTS (gate check:registry-pairing).
+            anything further goes to modals/settings. Sections are `RAIL_SECTIONS`/`RAIL_SLOTS`
+            entries (`app-shell/lib/rail-slots.ts`), id-paired with MODAL_SLOTS (gate check:registry-pairing).
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
             ListRow rows. Side panel. Per-section DEFAULTS (user toggle wins thereafter):
-            docked for Chats/Characters/World Info/Presets; collapsed for the content-first hubs
-            (Corpus/Refinery/Analytics) — a SECTION_PANEL_DEFAULTS map beside RAIL_SECTIONS.
+            docked for Chats/Characters/World Info/Presets AND Corpus (amended 2026-07-13: the built
+            Corpus LIST IS the search omnibox — the section's primary entry point — so collapsing it
+            hid the only way in; the original "collapsed" premise assumed search lived in CONTENT);
+            collapsed for the content-first hubs (Refinery/Analytics) — a SECTION_PANEL_DEFAULTS map
+            beside RAIL_SECTIONS.
   CONTENT — the fluid hero: HEADER bar (active entity · scene chip · thread actions) + the THREAD
             (chat/editor surface, prose capped 65–75ch) + the COMPOSER (pill input · attach · Send,
             mid-stream STOP, optimistic send). With NOTHING selected the Chats section renders the
             LANDING surface (welcome hero + recent chats + character quick-picks — the committed
             {kind:landing} pane), never an empty room. LEFTOVER width feeds CONTEXT, NOT a wider chat.
-  CONTEXT — the right detail panel (active artifact's detail + config; tabs). Side panel. Defaults
-            collapsed except Chats-with-active-chat.
+  CONTEXT — the right detail panel (active artifact's detail + config; tabs). Side panel. Every
+            section defaults collapsed (`SECTION_PANEL_DEFAULTS`, `rail-slots.ts`); the persisted
+            per-panel override wins thereafter.
 
 MOBILE:  RAIL → BOTTOM tab bar (D62 P3, supersedes the earlier top-bar note): Chats · Characters ·
          Corpus · You (You = account/settings sheet + overflow sections; everything also reachable
@@ -218,15 +224,21 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 | User settings overlay | `settings` modal, full-bleed variant | USER group (Account · Personas · Appearance · Chat behavior) + APP group (Connections · Automation · System · Admin). Generation config is NOT settings — it is the Presets section. |
 | Avatar chip | rail-foot avatar → `account` modal | quick identity card; links into Settings |
 
+> \[!NOTE]
+> LIST-header rulings AMENDED by ledger D66 (`Core-Path-Registry.md` D66 A1/A2; north-star §3): the
+> LIST "header row" is now the shared `.shell-panel-header` band on the `--dimension-chrome-row`
+> baseline (A1), and its create affordance is the panel's ONE `primary` **New** button, not a ghost
+> `+` (A2). The D62 text below stands as the standing law; D66 wins on the conflict.
+
 Per-section grid (end-state; the D62 program builds toward it):
 
 | Section | LIST | CONTENT — none selected | CONTENT — selected | CONTEXT |
 | - | - | - | - | - |
-| Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Overrides · Preview · Injections · Roster(group) |
+| Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Members(group) · Overrides · Group(host) · Preview(host) · Injections (`chat-context-panel-surface.tsx`) |
 | Characters | character rows · search · `+` create/import | teaching state | detail card → editor | activity (chats with them) + actions |
 | World Info | book rows | teaching state | entries table + editor | book config + activation scope |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
-| Corpus | recent searches/lenses (default-collapsed) | search-first hub | results in CONTENT (list + graph) | selected result's dossier |
+| Corpus | the search omnibox + target picker + results (default-docked, amended 2026-07-13) | overview home (coverage · insights · keywords) | selected character's dossier | corpus-global analysis tabs (Archetypes/Visuals/Map/Similarity/Compare) |
 | Refinery | past sessions (default-collapsed) | pick-a-character | pipeline (stepper · assay · issues · compare) | collapsed |
 | Analytics | default-collapsed | dashboard | drill-in in CONTENT | dimension detail |
 
@@ -263,10 +275,10 @@ The client targets **React 19 + the React Compiler** (LIVE: the compiler runs fu
 **USE:**
 
 - **The React Compiler is ON — stop hand-writing `useMemo`/`useCallback`/`React.memo`.** The ONE blind spot is `useVirtualizer` (interior mutability) → sealed in `@orb/ui/virtual-list` with **`directDomUpdates: true` + `containerRef`** (TanStack Virtual 3.14+, Compiler-E2E-tested, **NOT `"use no memo"`**) — BUILT; features never wire it by hand.
-- **`<Activity>` (19.2, stable) for the single-route panes.** Keep a pane mounted-but-hidden on flip-away (chat ⇄ library) so returning is instant with scroll + form state intact (§5.1). Replaces unmount/remount. Two companion rules (2026-07-04 audit): (1) a hidden pane cannot hold focus — focus dies silently on hide; on `hidden→visible` restore focus to the pane's stable anchor (its header) — a WCAG keyboard-operability obligation, not polish; (2) hide-coupled DOM work (scroll-position capture, media pause) runs in `useLayoutEffect` — Activity unmounts effects synchronously with the visual hide, and a passive `useEffect` cleanup runs too late.
+- **`<Activity>` (19.2, stable) for the single-route panes.** Keep a pane mounted-but-hidden on flip-away (chat ⇄ library) so returning is instant with scroll + form state intact (§5.1). Replaces unmount/remount. Two companion rules: (1) a hidden pane cannot hold focus — focus dies silently on hide; on `hidden→visible` restore focus to the pane's stable anchor (its header) — a WCAG keyboard-operability obligation, not polish; (2) hide-coupled DOM work (scroll-position capture, media pause) runs in `useLayoutEffect` — Activity unmounts effects synchronously with the visual hide, and a passive `useEffect` cleanup runs too late.
 - **`useEffectEvent` (19.2, stable) is THE fix for the effect footguns** — separates an effect's non-reactive part from its deps. The correct tool for the seam effects neo hand-rolled with `prevRef` bookkeeping (§7); prefer it over ref-juggling.
 - **`useDeferredValue` for every search/filter-over-collection surface** (library grid · corpus search · tag/world-info filters): the input stays responsive while the filtered list lags a frame behind. Pass `initialValue` so the first render has a defined deferred value. Division of labor: `startTransition` wraps pane *switches*; `useDeferredValue` absorbs derived-*list* churn; neither is a debounce hack. (§13.2 row.)
-- **View Transitions API for single-route navigation** — hand-rolled `document.startViewTransition()` (the router's built-in VT never fires in our shell — §6.1 trap 2; React's own `<ViewTransition>` component is STILL canary-only, re-verified 2026-07-04 — the hand-rolled call stands). Pairs with `<Activity>`; utilities live in `@orb/ui` styles. A dynamic `view-transition-name` must be a valid CSS custom-ident: `useId` output is safe since 19.2 (`_r_` prefix exists for exactly this); an entity-id-derived name must be sanitized.
+- **View Transitions API for single-route navigation** — hand-rolled `document.startViewTransition()` (the router's built-in VT fires only on the `/`↔`/login` commit, never on in-app section switches — §6.1 trap 2; React's own `<ViewTransition>` component is still canary-only — the hand-rolled call stands). Pairs with `<Activity>`; utilities live in `@orb/ui` styles. A dynamic `view-transition-name` must be a valid CSS custom-ident: `useId` output is safe since 19.2 (`_r_` prefix exists for exactly this); an entity-id-derived name must be sanitized.
 - **`ref` as a prop (no `forwardRef`)** — biome-enforced (`noReactForwardRef`).
 - **Resource preloading (`preload`/`preinit`) where the need is predictable** — preinit the palette CSS on theme switch (kills the FOUC), preload the code-editor/Shiki chunk when a code block is likely. Sparingly: measured wins only, never speculative sprays.
 - **19.2 Chrome Performance Tracks (Scheduler + Components lanes) are the verification tool for this doc's priority claims** — e.g. confirm a pane switch actually renders in the Transition lane (not Blocking) and Stop stays responsive mid-stream. Use at the Phase-6 chat checkpoints alongside the §6.3.1 golden tests.
@@ -303,7 +315,7 @@ The client targets **React 19 + the React Compiler** (LIVE: the compiler runs fu
 - **The keyboard gotcha (verified):** `dvh`/`svh` are NOT shrunk by the virtual keyboard → set **`interactive-widget=resizes-content`** in the viewport meta so the composer reflows above the keyboard; `visualViewport` API only for precise composer-pinning if ever needed.
 - **`env(safe-area-inset-*)`** padding on shell + composer; **`overscroll-behavior: contain`** on every scroll region; `inputmode`/`type=` on inputs (Base UI fields set these).
 
-**Why no second build:** Base UI gives touch/keyboard/pointer *interaction* correctness for free; we own only *layout* (axes 1–2) + *platform CSS* (axis 4), and axes 2–4 are all shell/token/primitive-level. (D42 §4 + D43 §11.2; verified 2026-06.)
+**Why no second build:** Base UI gives touch/keyboard/pointer *interaction* correctness for free; we own only *layout* (axes 1–2) + *platform CSS* (axis 4), and axes 2–4 are all shell/token/primitive-level. (D42 §4 + D43 §11.2.)
 
 ### 5. State
 
@@ -320,7 +332,7 @@ The URL stays `/` (entity ids never in the address bar; multi-device sync is DB-
 
 If "open the library beside a live chat without it yanking the chat" is possible, the jank is gone. If real deep-links/back-forward ever become wanted, routes are a localized bolt-on (TanStack Router for the chat id only) — NOT a rewrite.
 
-**The sanctioned cross-feature-navigation SEAM (built + proven 2026-07-04c — the positive pattern that satisfies the rule):** shared client selection state (active section, active chat, open modal) lives in a **gated Zustand store BELOW the features** (`state/shell-store.ts`, `state/active-chat-store.ts`), NOT route-`useState` and NOT a feature. Arbitrary leaf writers — a rail button, a character card's "start chat", a message row's fork — call intent-named MODULE actions (`setActiveSection`/`selectChat`/`startNewChat`/`openModal`); **writers only WRITE, never write-because-they-read.** Reading has exactly THREE sanctioned shapes, all RENDER-only (amended 2026-07-09 — the pre-amendment "the route is the SINGLE reactive reader" sentence was over-narrow; the persona rail-foot panel proved the mirror shape):
+**The sanctioned cross-feature-navigation SEAM (the positive pattern that satisfies the rule):** shared client selection state (active section, active chat, open modal) lives in a **gated Zustand store BELOW the features** (`state/shell-store.ts`, `state/active-chat-store.ts`), NOT route-`useState` and NOT a feature. Arbitrary leaf writers — a rail button, a character card's "start chat", a message row's fork — call intent-named MODULE actions (`setActiveSection`/`selectChat`/`startNewChat`/`openModal`); **writers only WRITE, never write-because-they-read.** Reading has exactly THREE sanctioned shapes, all RENDER-only:
 
 > 1. **The COMPOSITION reader** — the route (`home-page.tsx` reads the store → renders the right CONTENT/LIST into `AppShellProps.sections`); surfaces under it receive the selection as a PROP and never re-read it.
 > 2. **The OWN-SECTION reader** — a section's LIST/CONTENT surface reading *its own* section's selection pointer to render (the library highlighting its selected row via `useSelectedCharacterId`).
@@ -353,7 +365,7 @@ The tab title still tracks the active entity even with the URL pinned to `/`: re
 > | `../history/UI-Lib-Zustand.md` | the §5/§13.1 store conventions (frozen `EMPTY` + `useShallow`; `persist` partialize/migrate) |
 
 - **Query / Form / Virtual: keep** (load-bearing; dropping = reinventing worse).
-- **Router: use it MINIMALLY** — single-route shell means \~3 routes (`/`, `/login`, `/admin/*`), BUILT hand-written in `packages/client/src/routes/`. The file-based codegen plugin is DROPPED — **type-safety survives dropping it** (inference + one `declare module { Register }`, not codegen; `UI-Lib-TanStack-Router.md`). Two real traps: (1) `useBlocker` will NOT fire on the in-app editor pane-switch (a reducer state change, not a navigation) → the editor dirty-guard is **hand-rolled in-app**; (2) the router's built-in View Transitions fire only on URL commits (`pathChanged` is always false in our shell) → §4a's hand-rolled VT is correct. Steal-list: router-context DI (forward `queryClient`/`trpc`), `beforeLoad`+`redirect` auth gate, `lazyRouteComponent` for `/admin/*`, `createMemoryHistory` in tests, DEV-gated devtools.
+- **Router: use it MINIMALLY** — the single-route shell means 2 routes (`/`, `/login`), BUILT hand-written in `packages/client/src/routes/`; admin is a pane inside the Settings modal at `/`, not a standalone route. The file-based codegen plugin is DROPPED — **type-safety survives dropping it** (inference + one `declare module { Register }`, not codegen; `UI-Lib-TanStack-Router.md`). Two real traps: (1) `useBlocker` will NOT fire on the in-app editor pane-switch (a reducer state change, not a navigation) → the editor dirty-guard is **hand-rolled in-app**; (2) the router's built-in View Transitions fire only on the real URL commit (`/`↔`/login`), never on in-app section switches (same URL) → §4a's hand-rolled VT covers the in-app case. Steal-list: router-context DI (forward `queryClient`/`trpc`), `beforeLoad`+`redirect` auth gate, `lazyRouteComponent` for any heavy route added later, `createMemoryHistory` in tests, DEV-gated devtools.
 - **Form threshold rule (CORRECTED — D54; "entity editors" was under-scoped):** a **form factory** (§13) is the home for **ANY multi-field form** — trigger = **≥3 fields OR validation OR save/draft semantics**, NOT "is it an entity." Covers settings panels, connection/credential add+edit, group-chat config, room overrides, the D44 theme editor, user-admin create/edit. Only genuinely trivial inputs stay plain controlled + the same Zod schema (a 1–2-field search box, a lone toggle, a single rename). Full surface→factory map: §13.4. RHF stays banned (Compiler-incompatible; never coming back).
 
 #### 6.2 Tests
@@ -364,7 +376,7 @@ Playwright CT (`.ct.tsx` under the `tests/ui` mirror — LIVE, `playwright-ct.co
 
 - **Streamdown** is THE markdown renderer, used everywhere (chat AND static descriptions → one lib). It repairs incomplete/unterminated markdown mid-stream instead of flashing, does incremental DOM updates (react-markdown re-parses the whole message per token → \~O(n²) lag), and bundles **Shiki** + KaTeX + Mermaid + copy/download + security policies. Sealed as `@orb/ui/markdown` with **two trust policies** (`packages/ui/src/markdown/policy.ts`) + `toPlainText` (remark `strip-markdown`, D54 — previews/snippets/notifications). The concrete two-policy security spec: §11.6.
 
-##### 6.3.1 The streaming-reveal stack — the three layers, and who owns each (D43; verified 2026-06)
+##### 6.3.1 The streaming-reveal stack — the three layers, and who owns each (D43)
 
 neo had real markdown-parse + streaming display bugs because it hand-rolled the parse/repair layer that is now a solved problem. Three layers, one owner each:
 
@@ -374,7 +386,7 @@ neo had real markdown-parse + streaming display bugs because it hand-rolled the 
 
 - The `<speaker>`-tag hold-back lives in `@orb/kit/fix-markdown` (`holdTornSpeaker`) — kept, because orbweaver's chat DOES keep the `<speaker>`-span wire format (§12.4).
 
-**HONEST RISK — Streamdown's open bugs cluster in code-blocks-while-streaming, the SAME spot neo's did (verified 2026-06).** Capability is complete, but the streaming-time code-block path is its soft spot (#473 fenced blocks buffer-not-incremental, #402 Shiki re-highlight flicker, #195 huge blocks freeze the tab, #343 lazy chunks crash after deploy). Streamdown is "trade hand-rolled bugs for a maintained library's upstream-fixed bugs," NOT "weirdness solved" — still the right call, with these guards:
+**HONEST RISK — Streamdown's open bugs cluster in code-blocks-while-streaming, the SAME spot neo's did.** Capability is complete, but the streaming-time code-block path is its soft spot (#473 fenced blocks buffer-not-incremental, #402 Shiki re-highlight flicker, #195 huge blocks freeze the tab, #343 lazy chunks crash after deploy). Streamdown is "trade hand-rolled bugs for a maintained library's upstream-fixed bugs," NOT "weirdness solved" — still the right call, with these guards:
 
 1. **Version floor ≥ 2.5** — met (`packages/ui/package.json`).
 2. **The pacer mitigates the flicker (#402/#473):** feeding Streamdown word-snapped \~30fps commits (not raw per-token deltas) cuts the re-highlight churn — an explicit reason the pacer sits in front.
