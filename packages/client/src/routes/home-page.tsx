@@ -39,13 +39,10 @@ import {
 import {
   CorpusArchetypesTab,
   CorpusCompareTab,
-  CorpusDossierSurface,
-  CorpusHomeSurface,
-  CorpusListAnchor,
-  CorpusListSurface,
   CorpusMapTab,
   CorpusSimilarityTab,
   CorpusVisualsTab,
+  corpusSection,
 } from "#features/discovery";
 import { NotificationBell } from "#features/notifications";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
@@ -60,7 +57,6 @@ import {
 import { worldInfoSection } from "#features/world-info";
 import {
   chatStream,
-  clearCorpusSelection,
   commitDraft,
   dismissPresetSection,
   goToLanding,
@@ -76,7 +72,6 @@ import {
   useActiveSection,
   useActiveSessionKey,
   useSelectedCharacterId,
-  useSelectedCorpusCharacterId,
   useSelectedPresetId,
 } from "#state";
 
@@ -117,7 +112,6 @@ export function HomePage(): ReactElement {
   // "Recent chats" to avoid duplicating it.
   const shellLayout = useShellLayout();
   const selectedCharacterId = useSelectedCharacterId();
-  const selectedCorpusCharacterId = useSelectedCorpusCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
   // After a host deletes the chat the CONTENT is showing, return to the landing surface so the room
   // never points at a dropped chat.
@@ -254,23 +248,13 @@ export function HomePage(): ReactElement {
                 />
               ),
           },
+          // corpus is the fifth section migrated to the co-located SectionDefinition (M1.5): the LIST +
+          // CONTENT render from `corpusSection`, which reads its own selection. The CONTEXT still rides
+          // the shell's ContextTabsPanel until the M1 cutover consumes `corpusSection.context`.
           corpus: {
-            list: (
-              <CorpusListAnchor>
-                <CorpusListSurface />
-              </CorpusListAnchor>
-            ),
-            // Nothing selected shows the corpus overview; a selected character shows its dossier.
-            content:
-              selectedCorpusCharacterId === null ? (
-                <CorpusHomeSurface />
-              ) : (
-                <CorpusDossierSurface
-                  characterId={selectedCorpusCharacterId}
-                  onBack={clearCorpusSelection}
-                />
-              ),
-            // Four analytics tabs, always available: Archetypes / Map / Similarity / Compare.
+            list: corpusSection.list?.(),
+            content: typeof corpusSection.content === "function" ? corpusSection.content() : null,
+            // Five owner-scoped analytics tabs, always available: Archetypes / Visuals / Map / Similarity / Compare.
             context: (
               <ContextTabsPanel
                 section="corpus"

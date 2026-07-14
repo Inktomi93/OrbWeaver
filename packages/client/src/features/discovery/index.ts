@@ -11,6 +11,7 @@ export { CorpusCompareTab } from "./components/corpus-compare-tab";
 export { CorpusMapTab } from "./components/corpus-map-tab";
 export { CorpusSimilarityTab } from "./components/corpus-similarity-tab";
 export { CorpusVisualsTab } from "./components/corpus-visuals-tab";
+export { corpusSection } from "./lib/corpus-section";
 export type { CorpusDossierSurfaceProps } from "./surfaces/corpus-dossier-surface";
 export { CorpusDossierSurface } from "./surfaces/corpus-dossier-surface";
 export { CorpusHomeSurface } from "./surfaces/corpus-home-surface";
