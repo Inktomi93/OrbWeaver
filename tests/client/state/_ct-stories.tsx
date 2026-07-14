@@ -7,6 +7,7 @@
 // can't import) — those are exercised end-to-end by app-shell.ct.tsx, the correct tier.
 
 import {
+  chatDeletedFromList,
   clearAnalyticsSelection,
   clearCharacterSelection,
   clearChatListCharacterFilter,
@@ -26,6 +27,7 @@ import {
   selectAnalyticsCharacter,
   selectCharacter,
   selectChat,
+  selectChatFromList,
   selectCorpusCharacter,
   selectPreset,
   selectPresetSection,
@@ -36,6 +38,8 @@ import {
   setCharacterSortMode,
   setCharacterViewMode,
   setChatListCharacterFilter,
+  setMobileSheet,
+  setMobileViewport,
   setPanelMode,
   startNewChat,
   toggleFavoritesOnly,
@@ -51,6 +55,8 @@ import {
   useChatListCharacterFilter,
   useFavoritesOnly,
   useImportOnboardingDismissed,
+  useListDocked,
+  useMobileSheet,
   useOpenModal,
   usePanelOverride,
   useSelectedAnalyticsCharacterId,
@@ -74,9 +80,15 @@ export function ShellStoreProbe(): ReactElement {
   const list = usePanelOverride(section, "list") ?? "none";
   const context = usePanelOverride(section, "context") ?? "none";
   const modal = useOpenModal();
+  // `useListDocked` — the narrow #state projection a section definition reads instead of
+  // `useShellLayout` (chats-section.tsx's landing showRecents). Fed a literal "docked" own-default here
+  // so the probe exercises the override-priority logic, independent of any real section's actual default.
+  const docked = useListDocked(section, "docked");
   return (
     <div>
-      <output>{`section=${section} list=${list} context=${context} modal=${modal ?? "none"}`}</output>
+      <output>
+        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked}`}
+      </output>
       <button type="button" onClick={(): void => setActiveSection("corpus")}>
         go corpus
       </button>
@@ -89,11 +101,20 @@ export function ShellStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => setPanelMode("context", "docked")}>
         dock context
       </button>
+      <button type="button" onClick={(): void => setPanelMode("list", "docked")}>
+        dock list
+      </button>
       <button type="button" onClick={(): void => openModal("settings")}>
         open settings
       </button>
       <button type="button" onClick={(): void => closeModal()}>
         close modal
+      </button>
+      <button type="button" onClick={(): void => setMobileViewport(true)}>
+        enter mobile viewport
+      </button>
+      <button type="button" onClick={(): void => setMobileViewport(false)}>
+        enter desktop viewport
       </button>
     </div>
   );
@@ -102,15 +123,20 @@ export function ShellStoreProbe(): ReactElement {
 const PROBE_CHARACTER = castId<CharacterId>("char_probe_aria");
 const PROBE_SELECT_CHAT = castId<ChatId>("chat_probe_select");
 const PROBE_COMMIT_CHAT = castId<ChatId>("chat_probe_commit");
+const PROBE_LIST_CHAT = castId<ChatId>("chat_probe_list");
+const PROBE_OTHER_CHAT = castId<ChatId>("chat_probe_other");
 
 /** ActiveChatStoreProbe — renders the active-chat store's read hooks as text + buttons that fire its
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
  *  and assert THE KEY DISCIPLINE: sessionKey is stable across a draft→committed promotion, changes on
- *  new-chat / select. Each mount is a fresh page → the module session counter restarts at 1. */
+ *  new-chat / select. Each mount is a fresh page → the module session counter restarts at 1. Also drives
+ *  the LIST-callback intent actions (`selectChatFromList`'s mobileSheet dual-write,
+ *  `chatDeletedFromList`'s active-chat-only goToLanding). */
 export function ActiveChatStoreProbe(): ReactElement {
   const handle = useActiveChatHandle();
   const seed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
+  const mobileSheet = useMobileSheet();
   let handleStr = "landing";
   if (isCommitted(handle)) {
     handleStr = `committed:${handle.id}`;
@@ -120,7 +146,9 @@ export function ActiveChatStoreProbe(): ReactElement {
   const seedStr = seed?.characterIds?.join(",") ?? "none";
   return (
     <div>
-      <output>{`handle=${handleStr} session=${sessionKey} seed=${seedStr}`}</output>
+      <output>
+        {`handle=${handleStr} session=${sessionKey} seed=${seedStr} mobileSheet=${mobileSheet ?? "none"}`}
+      </output>
       <button type="button" onClick={(): void => startNewChat()}>
         new blank
       </button>
@@ -129,6 +157,19 @@ export function ActiveChatStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
         select chat
+      </button>
+      {/* Open the LIST mobile sheet first so `selectChatFromList`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setMobileSheet("list")}>
+        open list sheet
+      </button>
+      <button type="button" onClick={(): void => selectChatFromList(PROBE_LIST_CHAT)}>
+        select from list
+      </button>
+      <button type="button" onClick={(): void => chatDeletedFromList(PROBE_OTHER_CHAT)}>
+        delete other chat
+      </button>
+      <button type="button" onClick={(): void => chatDeletedFromList(PROBE_LIST_CHAT)}>
+        delete active chat
       </button>
       {/* Commit the CURRENTLY-active draft — reads its draftKey off the live handle (the real send
           seam threads `initialHandle.draftKey`). A committed/landing handle passes "" ⇒ the guard

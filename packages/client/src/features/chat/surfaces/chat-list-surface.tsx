@@ -1,8 +1,10 @@
 // The chats-list surface: a header row, search field, and the caller's chats as list-row rows
 // (avatar/title/participants/relative time), select-to-open, with a per-row kebab menu. chat.listChats
 // is a plain unpaged array, so this is a bounded useSuspenseQuery, not createCollectionSurface. Search
-// is a client-side useDeferredValue filter — there is no server-side search param. This surface only
-// writes the choice out via onSelect/onNewChat/onDeletedChat; it holds no active-chat state.
+// is a client-side useDeferredValue filter — there is no server-side search param. Reads its OWN
+// selection (`useActiveChatId`) so the chats-section definition composing it stays a pure data object
+// (the character/preset/world-info library-surface precedent); writes the choice out via
+// onSelect/onNewChat/onDeletedChat.
 
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
@@ -25,7 +27,7 @@ import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
-import { clearChatListCharacterFilter, useChatListCharacterFilter } from "#state";
+import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
 import { filterChats } from "../lib/filter-chats";
 
@@ -35,19 +37,17 @@ type ChatListRows = inferOutput<Trpc["chat"]["listChats"]>;
 type ChatSummaryItem = ChatListRows[number];
 
 export interface ChatListSurfaceProps {
-  /** Paints the selected row only; never a read source. */
-  readonly activeChatId: ChatId | null;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onNewChat: () => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
 }
 
 export function ChatListSurface({
-  activeChatId,
   onSelect,
   onNewChat,
   onDeletedChat,
 }: ChatListSurfaceProps): ReactElement {
+  const activeChatId = useActiveChatId();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
   const clearSearch = (): void => setQuery("");

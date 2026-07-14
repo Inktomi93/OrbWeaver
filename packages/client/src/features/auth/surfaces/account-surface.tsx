@@ -10,8 +10,9 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { useAuthConfig } from "#data";
 import { notify, testId, useFocusOnMount } from "#lib";
-import { useAuthConfig, useAuthMe } from "../hooks/use-auth-meta";
+import { useAuthMe } from "../hooks/use-auth-meta";
 import { logout } from "../lib/auth-bootstrap";
 
 /** Sign out, then hard-redirect (see the file header for why a full document load is the reset). */

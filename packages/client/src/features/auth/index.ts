@@ -2,8 +2,8 @@
 // protected-route beforeLoad guards, and home-page.tsx. Cross-feature "who am I" reads ride
 // trpc.sessions.me (data/use-viewer.ts), never this slice.
 
+export { useAuthConfig } from "#data";
 export { LoginShellAnchor } from "./anchors/login-shell-anchor";
-export { useAuthConfig } from "./hooks/use-auth-meta";
 export { redirectIfAuthed, requireAuthed } from "./lib/route-guards";
 export { AccountSurface } from "./surfaces/account-surface";
 export { LoginSurface } from "./surfaces/login-surface";

@@ -69,3 +69,22 @@ export function resolveHumanParticipants(
 export function resolveIsGroupChat(participants: readonly ParticipantView[]): boolean {
   return buildParticipantsById(participants).size > 1;
 }
+
+const CAST_SECTION_FLOOR = 2;
+const PEOPLE_TAB_FLOOR = 2;
+
+/** The Members tab's Cast section floor — needs \>=2 characters to be worth its own list. */
+export function castSectionVisible(participants: readonly ParticipantView[]): boolean {
+  return filterCharacters(participants).length >= CAST_SECTION_FLOOR;
+}
+
+/** The Members tab's overall floor gate (chat-context-panel-surface.tsx's `showMembers`): People needs a
+ *  multi-human install with \>=2 humans, Cast needs \>=2 characters; either alone justifies the tab. */
+export function membersTabJustified(
+  participants: readonly ParticipantView[],
+  multiHumanCapable: boolean,
+): boolean {
+  const peopleJustifies =
+    multiHumanCapable && resolveHumanParticipants(participants).length >= PEOPLE_TAB_FLOOR;
+  return peopleJustifies || castSectionVisible(participants);
+}

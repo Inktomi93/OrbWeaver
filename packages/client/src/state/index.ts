@@ -6,9 +6,11 @@
 
 export type { DraftSeed } from "./active-chat-store";
 export {
+  chatDeletedFromList,
   commitDraft,
   goToLanding,
   selectChat,
+  selectChatFromList,
   startNewChat,
   useActiveChatHandle,
   useActiveChatId,
@@ -143,9 +145,11 @@ export {
   setActiveSection,
   setContextTab,
   setMobileSheet,
+  setMobileViewport,
   setPanelMode,
   useActiveSection,
   useContextTab,
+  useListDocked,
   useMobileSheet,
   useOpenModal,
   usePanelOverride,

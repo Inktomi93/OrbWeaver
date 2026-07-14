@@ -14,6 +14,7 @@ import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle";
 import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle";
 import { createGatedStore } from "./create-gated-store";
+import { setMobileSheet } from "./shell-store";
 
 /** The founding-roster seed a draft chat carries until its first send calls `chat.startChat`. All
  *  fields optional — an empty seed is a legal narrator-only room. */
@@ -108,6 +109,23 @@ export function goToLanding(): void {
       "activeChat/goToLanding",
     );
   });
+}
+
+/** Land on a chat from the LIST AND close any open mobile LIST sheet — the viewport-unaware intent form
+ *  of the old route-closure `selectChatFromList`: `mobileSheet` is read only in the mobile regime
+ *  (`useShellLayout`), so the unconditional write is a no-op on desktop. */
+export function selectChatFromList(chatId: ChatId): void {
+  selectChat(chatId);
+  setMobileSheet(null);
+}
+
+/** After a host deletes the chat CONTENT is currently showing, return to landing so the room never
+ *  points at a dropped chat — a no-op if the deleted chat isn't the active one. */
+export function chatDeletedFromList(deletedChatId: ChatId): void {
+  const { handle } = useActiveChatStore.getState();
+  if (isCommitted(handle) && handle.id === deletedChatId) {
+    goToLanding();
+  }
 }
 
 // ── The read API — narrow hooks so the route re-renders only on the slice it reads. ──

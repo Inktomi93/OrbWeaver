@@ -1,28 +1,12 @@
-// The auth bootstrap seam — the client's only pre-tRPC server reads. The two public Hono endpoints are
-// deliberately not tRPC: sessions.me is an authed procedure that 401s logged-out, so the client can't
-// discover its mode/auth state through tRPC. Response shapes are structural mirrors of
-// entry/http/auth-meta.ts (no proxy type to derive from, since the endpoints live outside AppRouter).
+// The auth bootstrap seam — the client's only pre-tRPC session read (sessions.me is an authed procedure
+// that 401s logged-out, so the client can't discover auth state through tRPC). The CONFIG half of this
+// seam (`AuthConfig`/`fetchAuthConfig`) moved to `#data/auth-config` — a chat context tab needs
+// `multiHumanCapable` without a cross-feature reach into auth; import it from `#data` directly. `AuthMe`
+// stays here: session-specific, no consumer outside auth. Response shape is a structural mirror of
+// entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
 
-import type { AuthMode, UserRole } from "@orb/contracts/identity";
+import type { UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-
-/** The `/api/auth/config` wire shape (mirrors `entry/http/auth-meta.ts` — mode-derived flags). */
-export interface AuthConfig {
-  readonly mode: AuthMode;
-  /** TRUE only for the cookie modes (local/oidc) — the modes where /login is a real fix. Single-user can
-   *  never be unauthenticated (redirecting would loop); forward-header's fix is proxy config. */
-  readonly requiresLogin: boolean;
-  readonly localEnabled: boolean;
-  readonly oidcEnabled: boolean;
-  /** ST `enableDiscreetLogin` parity — TRUE ⇒ blank form (`defaultHandle` is withheld as null). */
-  readonly discreetLogin: boolean;
-  readonly defaultHandle: string | null;
-  /** PD-106 (B4): can this deployment seat ≥2 humans? The HONEST capability signal the multi-human
-   *  client surfaces (invite affordances · notifications bell · /join landing) gate on — never a
-   *  probe-and-catch of a `multiHumanProcedure` NOT_FOUND. Derived server-side per request from the
-   *  same `MULTI_HUMAN_CAPABLE` map the transport belt runs. */
-  readonly multiHumanCapable: boolean;
-}
 
 /** The `/api/auth/me` wire shape — THIS request's seam-resolved identity (public; never a 401). */
 export interface AuthMe {
@@ -31,7 +15,6 @@ export interface AuthMe {
   readonly role: UserRole | null;
 }
 
-export const AUTH_CONFIG_KEY = ["auth", "config"] as const;
 export const AUTH_ME_KEY = ["auth", "me"] as const;
 
 /** Thrown by `login` with the server's user-safe message (generic "invalid credentials" — the server
@@ -49,17 +32,6 @@ async function getJson<T>(url: string): Promise<T> {
     throw new Error(`${url}: HTTP ${res.status}`);
   }
   return (await res.json()) as T;
-}
-
-/** Fetch the deployment auth config. MEMOIZED for the session — the mode is boot-env, immutable while
- *  the server runs; a failed fetch clears the memo so the next caller retries. */
-let configPromise: Promise<AuthConfig> | null = null;
-export function fetchAuthConfig(): Promise<AuthConfig> {
-  configPromise ??= getJson<AuthConfig>("/api/auth/config").catch((err: unknown) => {
-    configPromise = null;
-    throw err;
-  });
-  return configPromise;
 }
 
 /** Fetch THIS request's auth state. Never memoized — the guards want the live cookie verdict. */
