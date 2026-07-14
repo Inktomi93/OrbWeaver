@@ -123,6 +123,12 @@ export {
   readRecentModels,
   useRecentModels,
 } from "./recent-models-store";
+export type {
+  RailEntry,
+  SectionDefinition,
+  SectionGroup,
+  SectionPlaceholderCopy,
+} from "./section-registry";
 export type { ModalSlotId, PanelMode, PanelName, SectionId } from "./shell-store";
 export {
   closeModal,
@@ -130,6 +136,7 @@ export {
   openModal,
   openSettingsTo,
   PANEL_MODES,
+  revealContextPanel,
   SECTION_IDS,
   setActiveSection,
   setContextTab,
@@ -146,6 +153,7 @@ export {
   clearWorldBookSelection,
   clearWorldEntrySelection,
   selectWorldBook,
+  selectWorldBookFromList,
   selectWorldEntry,
   useSelectedWorldBookId,
   useSelectedWorldEntryId,

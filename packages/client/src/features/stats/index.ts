@@ -9,6 +9,7 @@ export { AnalyticsListAnchor } from "./anchors/analytics-list-anchor";
 export { AnalyticsModelsTab } from "./components/analytics-models-tab";
 export { AnalyticsPersonasTab } from "./components/analytics-personas-tab";
 export { AnalyticsTimeTab } from "./components/analytics-time-tab";
+export { analyticsSection } from "./lib/analytics-section";
 export type { AnalyticsCharacterSurfaceProps } from "./surfaces/analytics-character-surface";
 export { AnalyticsCharacterSurface } from "./surfaces/analytics-character-surface";
 export { AnalyticsListSurface } from "./surfaces/analytics-list-surface";

@@ -1,4 +1,4 @@
-import type { CharacterId, ChatId, PresetId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -16,13 +16,10 @@ import {
 import { AccountSurface, useAuthConfig } from "#features/auth";
 import {
   CharacterActionsMenu,
-  CharacterEditorSurface,
   CharacterFacetInspector,
-  CharacterLibraryAnchor,
-  CharacterLibrarySurface,
-  CharacterLibraryWelcome,
   CharacterOptionsTab,
   CharacterRelationsTab,
+  charactersSection,
 } from "#features/character";
 import type { GoToSection } from "#features/chat";
 import {
@@ -63,24 +60,14 @@ import {
 } from "#features/preset";
 import { ImportOnboardingCard, SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
-  AnalyticsCharacterSurface,
-  AnalyticsListAnchor,
-  AnalyticsListSurface,
   AnalyticsModelsTab,
-  AnalyticsOverviewSurface,
   AnalyticsPersonasTab,
   AnalyticsTimeTab,
+  analyticsSection,
 } from "#features/stats";
-import {
-  BookAttachments,
-  WorldInfoEditorSurface,
-  WorldInfoLibraryAnchor,
-  WorldInfoLibrarySurface,
-  WorldInfoWelcome,
-} from "#features/world-info";
+import { worldInfoSection } from "#features/world-info";
 import {
   chatStream,
-  clearAnalyticsSelection,
   clearCorpusSelection,
   clearPresetSection,
   commitDraft,
@@ -90,7 +77,6 @@ import {
   openModal,
   selectChat,
   selectPreset,
-  selectWorldBook,
   setActiveSection,
   setContextTab,
   setMobileSheet,
@@ -100,11 +86,9 @@ import {
   useActiveDraftSeed,
   useActiveSection,
   useActiveSessionKey,
-  useSelectedAnalyticsCharacterId,
   useSelectedCharacterId,
   useSelectedCorpusCharacterId,
   useSelectedPresetId,
-  useSelectedWorldBookId,
 } from "#state";
 
 // The `/` home: the composition root + the app's central navigation seam. It mounts the four-region
@@ -140,13 +124,11 @@ export function HomePage(): ReactElement {
   const sessionKey = useActiveSessionKey();
   const activeSection = useActiveSection();
   const selectedPresetId = useSelectedPresetId();
-  const selectedWorldBookId = useSelectedWorldBookId();
   // When the Chats LIST is docked it already is the recents finder, so the landing drops its own
   // "Recent chats" to avoid duplicating it.
   const shellLayout = useShellLayout();
   const selectedCharacterId = useSelectedCharacterId();
   const selectedCorpusCharacterId = useSelectedCorpusCharacterId();
-  const selectedAnalyticsCharacterId = useSelectedAnalyticsCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
   const isMobile = useIsMobileViewport();
   const revealSectionInspector = (): void => {
@@ -169,20 +151,6 @@ export function HomePage(): ReactElement {
     selectPreset(id);
     setMobileSheet(null);
   };
-  const selectWorldBookFromList = (id: WorldBookId): void => {
-    selectWorldBook(id);
-    setMobileSheet(null);
-  };
-  // A facet-row click opens the CONTEXT "field" tab, docked on desktop / a sheet on mobile.
-  const revealFieldInspector = (): void => {
-    setContextTab("field");
-    if (isMobile) {
-      setMobileSheet("context");
-    } else {
-      setPanelMode("context", "docked");
-    }
-  };
-
   // After a host deletes the chat the CONTENT is showing, return to the landing surface so the room
   // never points at a dropped chat.
   const onDeletedChat = (deletedChatId: ChatId): void => {
@@ -296,22 +264,14 @@ export function HomePage(): ReactElement {
               />
             ),
           },
+          // characters is the first section migrated to the co-located SectionDefinition (M1.1): the
+          // LIST + CONTENT render from `charactersSection`, which reads its own selection and folds the
+          // field-inspector reveal into a #state intent (no isMobile closure here). The CONTEXT still
+          // rides the shell's ContextTabsPanel until the M1 cutover consumes `charactersSection.context`.
           characters: {
-            list: (
-              <CharacterLibraryAnchor>
-                <CharacterLibrarySurface />
-              </CharacterLibraryAnchor>
-            ),
-            // A selected row opens the character editor; nothing selected shows the teaching welcome.
+            list: charactersSection.list?.(),
             content:
-              selectedCharacterId === null ? (
-                <CharacterLibraryWelcome />
-              ) : (
-                <CharacterEditorSurface
-                  characterId={selectedCharacterId}
-                  onRevealField={revealFieldInspector}
-                />
-              ),
+              typeof charactersSection.content === "function" ? charactersSection.content() : null,
             // Three tabs: Field (drilled facet detail), Links (world books + personas), Options.
             context:
               selectedCharacterId === null ? undefined : (
@@ -356,22 +316,13 @@ export function HomePage(): ReactElement {
               />
             ),
           },
+          // analytics is the second section migrated to the co-located SectionDefinition (M1.2): the LIST
+          // + CONTENT render from `analyticsSection`, which reads its own selection. The CONTEXT still
+          // rides the shell's ContextTabsPanel until the M1 cutover consumes `analyticsSection.context`.
           analytics: {
-            list: (
-              <AnalyticsListAnchor>
-                <AnalyticsListSurface />
-              </AnalyticsListAnchor>
-            ),
-            // Nothing drilled shows the overview dashboard; a leaderboard row shows that character's stats.
+            list: analyticsSection.list?.(),
             content:
-              selectedAnalyticsCharacterId === null ? (
-                <AnalyticsOverviewSurface />
-              ) : (
-                <AnalyticsCharacterSurface
-                  characterId={selectedAnalyticsCharacterId}
-                  onBack={clearAnalyticsSelection}
-                />
-              ),
+              typeof analyticsSection.content === "function" ? analyticsSection.content() : null,
             // Three owner-scoped dimension tabs, always available: Models / Time / Personas.
             context: (
               <ContextTabsPanel
@@ -411,22 +362,17 @@ export function HomePage(): ReactElement {
                 />
               ),
           },
+          // worldInfo is the third section migrated to the co-located SectionDefinition (M1.3): LIST +
+          // CONTENT + CONTEXT all render from `worldInfoSection`, which reads its own selection and folds
+          // the LIST's mobile-sheet-close into a #state intent. CONTEXT is the `single` arm (§6b) — this
+          // route still hosts it directly (not via ContextTabsPanel, which only renders `tabs`) until the
+          // M1 cutover consumes `worldInfoSection.context` through the shell.
           worldInfo: {
-            list: (
-              <WorldInfoLibraryAnchor>
-                <WorldInfoLibrarySurface onSelectBook={selectWorldBookFromList} />
-              </WorldInfoLibraryAnchor>
-            ),
+            list: worldInfoSection.list?.(),
             content:
-              selectedWorldBookId === null ? (
-                <WorldInfoWelcome />
-              ) : (
-                <WorldInfoEditorSurface bookId={selectedWorldBookId} />
-              ),
+              typeof worldInfoSection.content === "function" ? worldInfoSection.content() : null,
             context:
-              selectedWorldBookId === null ? undefined : (
-                <BookAttachments bookId={selectedWorldBookId} />
-              ),
+              worldInfoSection.context.kind === "single" ? worldInfoSection.context.body() : null,
           },
         }}
         modals={{

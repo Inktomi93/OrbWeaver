@@ -9,6 +9,7 @@ export { WorldInfoLibraryAnchor } from "./anchors/world-info-library-anchor";
 export type { BookAttachmentsProps } from "./components/book-attachments";
 export { BookAttachments } from "./components/book-attachments";
 export { WorldInfoWelcome } from "./components/world-info-welcome";
+export { worldInfoSection } from "./lib/world-info-section";
 export type { WorldInfoEditorSurfaceProps } from "./surfaces/world-info-editor-surface";
 export { WorldInfoEditorSurface } from "./surfaces/world-info-editor-surface";
 export type { WorldInfoLibrarySurfaceProps } from "./surfaces/world-info-library-surface";
