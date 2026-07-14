@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-07-14
 ---
 
 # Core-Laws-and-Precedents
@@ -55,11 +55,11 @@ The 5-seat council's committed calls are now law in their canonical homes — v1
 
 Canonical: **`Spine-Testing.md`** (lanes by suffix, `test-presence`/`test-determinism`, mock + factory doctrine); layout is `Core-0-Architecture-and-Structure.md §5` + the `test-layout` gate. The 2026-06-26 consolidation record is frozen in [`../history/core-laws-archaeology-record.md`](../history/core-laws-archaeology-record.md) §6.
 
-## 7. The path/home registry (D1–D67)
+## 7. The path/home registry (D1–D70)
 
-THE decision registry — every ledger ruling D1–D67, one file. Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. If a doc ever disagrees with a D-entry, the registry wins.
+THE decision registry — every ledger ruling D1–D70, one file. Cite as `Core-Path-Registry.md D<n>` or `Core-Laws-and-Precedents.md §7 D<n>` — D-numbers are stable global ids; grep the id. If a doc ever disagrees with a D-entry, the registry wins.
 
-- **D1–D67** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — THE registry, one file (merged 2026-07-13, D66).
+- **D1–D70** → [`Core-Path-Registry.md`](Core-Path-Registry.md) — THE registry, one file (merged 2026-07-13, D66; D70 = client-architecture lockdown is law, 2026-07-14).
 - **D65** → OIDC group-derived roles (extends D17), in the registry.
 
 ## Enforcement registry
