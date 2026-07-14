@@ -170,6 +170,8 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
     const capability = resolveCapability(model, selection.source, selection.api, {
       cached: getCachedOrModels(ctx.now()),
       agentSdkModels: getCachedAgentSdkModels(ctx.now()),
+      customContextWindow:
+        credential.source === "custom_openai" ? credential.contextWindow : undefined,
     });
     return {
       api: selection.api,

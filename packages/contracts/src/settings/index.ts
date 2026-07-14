@@ -359,7 +359,11 @@ export type BlurSurface = (typeof BLUR_SURFACES)[number];
 // long reading text by default; a user may still opt it in.
 export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
 
-export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external"] as const;
+// `asset` = an own-upload background (PD-131): the picked file is stored as a `background` AssetKind and
+// pinned here by `backgroundAssetId` (GC-rooted via the settings live-source scan) + `backgroundAssetHash`
+// (the immutable content hash the SYNC `resolveBackgroundUrl` builds `blobUrl(hash)` from — id↔hash is
+// fixed for a content-addressed asset, so storing both is denormalized-but-never-stale).
+export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external", "asset"] as const;
 export type BackgroundImageKind = (typeof BACKGROUND_IMAGE_KINDS)[number];
 
 export const SURFACE_TEXTURES = ["none", "grain"] as const;
@@ -410,6 +414,9 @@ const appearanceSchema = z
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),
     showTimestamps: z.boolean().catch(true).default(true),
     showGenerationTimer: z.boolean().catch(false).default(false),
+    // PD-137 — reveal a quiet per-message settled-cost affordance (a paid upstream OpenRouter call, fired
+    // on-demand per message, never on load). Default OFF (opt-in, like the other diagnostic chips).
+    showGenerationCost: z.boolean().catch(false).default(false),
     showTokenCount: z.boolean().catch(false).default(false),
     showMessageId: z.boolean().catch(false).default(false),
     showModelIcon: z.boolean().catch(false).default(false),
@@ -432,6 +439,15 @@ const appearanceSchema = z
       .refine((s) => s === "" || z.url().safeParse(s).success)
       .catch("")
       .default(""),
+    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution (the `profile.avatarAssetId` precedent); the LIVE value is GC-rooted by the settings live-source scan (`domain/assets/persistence/asset-refs.ts`), not an FK boundary.
+    backgroundAssetId: z
+      .string()
+      .regex(/^(asset_[a-z0-9]+)?$/u)
+      .catch("")
+      .default(""),
+    // The immutable content hash for the `asset` kind — the SYNC `resolveBackgroundUrl` builds
+    // `blobUrl(hash)` from it (no async id→hash round-trip). A blank/garbage value degrades to a 404 blob.
+    backgroundAssetHash: z.string().catch("").default(""),
     backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
     backgroundDim: z
       .number()

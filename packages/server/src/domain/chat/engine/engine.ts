@@ -183,6 +183,7 @@ function variantPayloadOf(
     finishReason: e?.finishReason ?? null,
     stopReason: e?.stopReason ?? null,
     terminalReason: e?.terminalReason ?? null,
+    generationId: e?.generationId ?? null,
     params: prep.intent,
     promptSnapshot: result.request.prompt,
     // The turn's macro op-log is copied (never aliased) since the shared per-round array is cleared after

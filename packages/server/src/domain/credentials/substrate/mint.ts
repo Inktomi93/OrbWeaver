@@ -10,6 +10,7 @@
 
 import type {
   CustomOpenAiCredential,
+  CustomOpenAiResponseMap,
   LocalLightCredential,
   MaxProSubCredential,
   OpenRouterCredential,
@@ -50,13 +51,18 @@ export function mintLocalLight(): LocalLightCredential {
 
 /** Mint a user-defined OpenAI-compatible endpoint credential. `apiKey` is `null` for no-auth local
  *  servers; `headers` is the per-endpoint request transform; `model` is the convenience default model
- *  string from `metadata.model`, `undefined` when the row carries none. */
+ *  string from `metadata.model`, `undefined` when the row carries none. `includeBody`/`excludeBody`/
+ *  `responseMap` are the per-endpoint request/response transforms (PD-13; `null` when the row declares none). */
 export function mintCustomOpenAi(args: {
   readonly baseUrl: string;
   readonly apiKey: string | null;
   readonly headers: Record<string, string> | null;
   readonly credentialId: UserCredentialId;
   readonly model: string | undefined;
+  readonly contextWindow: number | undefined;
+  readonly includeBody: Record<string, unknown> | null;
+  readonly excludeBody: readonly string[] | null;
+  readonly responseMap: CustomOpenAiResponseMap | null;
 }): CustomOpenAiCredential {
   return {
     source: "custom_openai",
@@ -65,5 +71,9 @@ export function mintCustomOpenAi(args: {
     headers: args.headers,
     credentialId: args.credentialId,
     model: args.model,
+    contextWindow: args.contextWindow,
+    includeBody: args.includeBody,
+    excludeBody: args.excludeBody,
+    responseMap: args.responseMap,
   } as CustomOpenAiCredential;
 }

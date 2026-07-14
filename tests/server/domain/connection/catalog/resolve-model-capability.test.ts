@@ -89,9 +89,16 @@ describe("resolveModelCapability — static arms", () => {
     expect(cap.context.window).toBe(8192);
   });
 
-  test("custom_openai: conservative user-declared baseline (deferred profile)", () => {
+  test("custom_openai: conservative default window when none declared", () => {
     const cap = resolveModelCapability("my-model", "custom_openai", "chat-completions");
     expect(cap.reasoning.mode).toBe("none");
     expect(cap.context.window).toBe(128_000);
+  });
+
+  test("custom_openai: honors the user-declared contextWindow (PD-12)", () => {
+    const cap = resolveModelCapability("my-model", "custom_openai", "chat-completions", {
+      customContextWindow: 8192,
+    });
+    expect(cap.context.window).toBe(8192);
   });
 });

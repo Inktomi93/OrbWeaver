@@ -6,7 +6,7 @@
 // returns the redacted view. The input is unmasked so the user can verify the paste; it is transient,
 // never persisted client-side, and never echoed by any read.
 
-import type { CredentialProvider } from "@orb/contracts/credentials";
+import type { CredentialProvider, ProviderMetadata } from "@orb/contracts/credentials";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
@@ -17,7 +17,13 @@ import type { Invalidation, Trpc } from "#data";
 import { useAddCredentialForm } from "../hooks/use-add-credential-form";
 import { useAddCredential, useFetchModels } from "../hooks/use-connections-mutations";
 import type { AddCredentialFormValues } from "../lib/add-credential-form-model";
-import { isCustomProvider, PROVIDER_ITEMS } from "../lib/add-credential-form-model";
+import {
+  isCustomProvider,
+  PROVIDER_ITEMS,
+  parseJsonObject,
+  parseKeyList,
+  parseResponseMap,
+} from "../lib/add-credential-form-model";
 
 export interface AddCredentialDialogProps {
   readonly open: boolean;
@@ -52,6 +58,25 @@ export function AddCredentialDialog({
   );
 }
 
+/** Build the `custom_openai` metadata blob from the form values — the three transforms are parsed from
+ *  free text (the validator already rejected an invalid JSON object) and omitted when empty. */
+function customEndpointMetadata(
+  values: AddCredentialFormValues,
+): Extract<ProviderMetadata, { readonly kind: "custom_openai" }> {
+  const model = values.model.trim();
+  const includeBody = parseJsonObject(values.includeBody);
+  const excludeBody = parseKeyList(values.excludeBody);
+  const responseMap = parseResponseMap(values.responseMap);
+  return {
+    kind: "custom_openai" as const,
+    baseUrl: values.baseUrl.trim(),
+    ...(model !== "" ? { model } : {}),
+    ...(includeBody !== null ? { includeBody } : {}),
+    ...(excludeBody.length > 0 ? { excludeBody } : {}),
+    ...(responseMap !== null ? { responseMap } : {}),
+  };
+}
+
 function AddCredentialFormBody({
   trpc,
   invalidation,
@@ -66,21 +91,12 @@ function AddCredentialFormBody({
   const save = async (values: AddCredentialFormValues): Promise<AddCredentialFormValues> => {
     const provider = values.provider as CredentialProvider;
     const label = values.label.trim();
-    const baseUrl = values.baseUrl.trim();
-    const model = values.model.trim();
+    const metadata = isCustomProvider(values.provider) ? customEndpointMetadata(values) : undefined;
     await add.mutateAsync({
       provider,
       key: values.key.trim(),
       ...(label !== "" ? { label } : {}),
-      ...(isCustomProvider(values.provider)
-        ? {
-            metadata: {
-              kind: "custom_openai" as const,
-              baseUrl,
-              ...(model !== "" ? { model } : {}),
-            },
-          }
-        : {}),
+      ...(metadata !== undefined ? { metadata } : {}),
     });
     onDone();
     return values;
@@ -138,6 +154,36 @@ function AddCredentialFormBody({
                         hint="Optional — the model id roles on this endpoint default to."
                         placeholder="e.g. llama-3.3-70b"
                         autoComplete="off"
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="includeBody">
+                    {(field): ReactElement => (
+                      <field.TextareaField
+                        label="Extra body fields"
+                        description="Optional JSON object merged into every request body (e.g. a provider knob)."
+                        placeholder="{ reasoning_effort: high }"
+                        rows={2}
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="excludeBody">
+                    {(field): ReactElement => (
+                      <field.TextField
+                        label="Strip body fields"
+                        hint="Optional — request-body keys to drop, comma-separated (e.g. a field the server rejects)."
+                        placeholder="e.g. frequency_penalty, logit_bias"
+                        autoComplete="off"
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="responseMap">
+                    {(field): ReactElement => (
+                      <field.TextareaField
+                        label="Response map"
+                        description="Optional JSON of dot-paths overriding a non-standard reply shape."
+                        placeholder="{ contentPath: choices.0.message.content }"
+                        rows={2}
                       />
                     )}
                   </form.AppField>

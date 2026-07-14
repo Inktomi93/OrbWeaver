@@ -10,6 +10,7 @@ import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { AdminEnginesSection } from "../components/admin-engines-section";
+import { AdminCatalogSection, AdminEmbedCardSection } from "../components/admin-ops-section";
 import { AdminUsersSection } from "../components/admin-users-section";
 import { ADMIN_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
@@ -56,6 +57,12 @@ function AdminPaneBody(): ReactElement {
       </Section>
       <Section divider={true} heading="Engines" id={anchor(ADMIN_SUBCATEGORY_IDS.engines)}>
         <AdminEnginesSection />
+      </Section>
+      <Section divider={true} heading="Model catalog">
+        <AdminCatalogSection />
+      </Section>
+      <Section divider={true} heading="Card embeddings">
+        <AdminEmbedCardSection />
       </Section>
     </Stack>
   );

@@ -28,6 +28,8 @@ describe("inspectCustomByoEndpoint", () => {
       apiKey: SECRET_KEY,
       headers: { "x-team": "alpha" },
       model: "local-model",
+      includeBody: null,
+      excludeBody: null,
     });
 
     // The ACTUAL wire carried the real key…
@@ -50,9 +52,36 @@ describe("inspectCustomByoEndpoint", () => {
       apiKey: null,
       headers: null,
       model: "m",
+      includeBody: null,
+      excludeBody: null,
     });
     expect(result.ok).toBe(false);
     expect(result.response).toBeNull();
     expect(result.error).toContain("ECONNREFUSED");
+  });
+
+  test("applies includeBody/excludeBody transforms to the probe body (PD-13)", async () => {
+    let sentBody: unknown = null;
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      sentBody = JSON.parse(String(init?.body));
+      return new Response("{}", { status: 200, statusText: "OK" });
+    });
+
+    const result = await inspectCustomByoEndpoint({
+      baseUrl: BASE_URL,
+      apiKey: null,
+      headers: null,
+      model: "m",
+      includeBody: { extraKnob: "high" },
+      excludeBody: ["stream"],
+    });
+
+    // includeBody merged in, excludeBody stripped LAST (`stream` removed even though the base set it).
+    expect(sentBody).toMatchObject({ model: "m", extraKnob: "high" });
+    expect(sentBody).not.toHaveProperty("stream");
+    // The redacted request preview reflects the same shaped body.
+    const preview: unknown = JSON.parse(result.request.body);
+    expect(preview).toMatchObject({ extraKnob: "high" });
+    expect(preview).not.toHaveProperty("stream");
   });
 });

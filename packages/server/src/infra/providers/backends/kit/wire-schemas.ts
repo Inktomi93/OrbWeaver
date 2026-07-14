@@ -221,6 +221,9 @@ export interface ChatCompletionStreamChoice {
 }
 export interface ChatCompletionStreamChunk {
   readonly choices: readonly ChatCompletionStreamChoice[];
+  /** The upstream generation handle (`gen-…`), stamped on every chunk of the stream; the reducer latches
+   *  it once for the per-message cost key (PD-137). */
+  readonly id?: string | undefined;
   readonly error?: { readonly code: number; readonly message: string } | null | undefined;
   readonly usage?: ChatCompletionUsage | undefined;
 }

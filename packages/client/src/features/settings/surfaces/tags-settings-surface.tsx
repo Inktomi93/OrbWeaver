@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
+import { TagCreateButton } from "../components/tag-create-button";
 import { TagSettingsRow } from "../components/tag-settings-row";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
 import { TAGS_SUBCATEGORY_IDS } from "../lib/settings-nav";
@@ -52,14 +53,17 @@ function TagsSettingsList(): ReactElement {
           Rename, recolor, reorder, merge, or delete the labels you tag characters, chats, world
           books, personas, and presets with. Drag the handle to reorder.
         </Text>
-        <Button
-          intent="secondary"
-          size="sm"
-          disabled={!hasUnused}
-          onClick={(): void => prune.mutate()}
-        >
-          Prune unused
-        </Button>
+        <Row gap="field" align="center">
+          <Button
+            intent="secondary"
+            size="sm"
+            disabled={!hasUnused}
+            onClick={(): void => prune.mutate()}
+          >
+            Prune unused
+          </Button>
+          <TagCreateButton trpc={trpc} />
+        </Row>
       </Row>
 
       {tags.length === 0 ? (

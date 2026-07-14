@@ -3,7 +3,7 @@
 // response shape reshapes through a declared dot-path map so a non-standard reply still maps cleanly.
 
 import type { ChatContentPart } from "@orb/contracts/chat";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { CustomOpenAiResponseMap, ResolvedCredential } from "@orb/contracts/credentials";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -16,6 +16,7 @@ import type {
   StreamReduceOptions,
 } from "../../kit";
 import {
+  applyIncludeExclude,
   buildOpenAiSamplingFields,
   chatHistoryText,
   mapChatCompletionToTurnResult,
@@ -74,6 +75,24 @@ const BODY_DEFAULT_MAP: ResponseMap = {
   errorCodePath: "error.code",
   toolCallsPath: "choices.0.message.tool_calls",
 };
+
+// Overlay the user's declared paths onto a default map — only a SET override path replaces the default,
+// so a partial map (e.g. only `contentPath`) keeps the OpenAI-compatible defaults for the rest.
+function withResponseMap(base: ResponseMap, override: CustomOpenAiResponseMap | null): ResponseMap {
+  if (override === null) {
+    return base;
+  }
+  return {
+    contentPath: override.contentPath ?? base.contentPath,
+    reasoningPath: override.reasoningPath ?? base.reasoningPath,
+    finishReasonPath: override.finishReasonPath ?? base.finishReasonPath,
+    promptTokensPath: override.promptTokensPath ?? base.promptTokensPath,
+    completionTokensPath: override.completionTokensPath ?? base.completionTokensPath,
+    errorMessagePath: override.errorMessagePath ?? base.errorMessagePath,
+    errorCodePath: override.errorCodePath ?? base.errorCodePath,
+    toolCallsPath: override.toolCallsPath ?? base.toolCallsPath,
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
@@ -216,8 +235,14 @@ function buildMessages(req: ChatCompletionsRequest): readonly Record<string, unk
   return messages;
 }
 
-// FLAG[PD-13]: per-endpoint includeBody/excludeBody transforms have no contract home yet.
-function buildBody(req: ChatCompletionsRequest): Record<string, unknown> {
+// The user's per-endpoint request transforms (PD-13) apply LAST — AFTER the preset's `customParameters`
+// deep-merge — so `includeBody`/`excludeBody` are the endpoint's final word (a field the server rejects is
+// stripped even if a preset re-added it).
+function buildBody(
+  req: ChatCompletionsRequest,
+  includeBody: Record<string, unknown> | null,
+  excludeBody: readonly string[] | null,
+): Record<string, unknown> {
   const base: Record<string, unknown> = {
     model: req.model,
     messages: buildMessages(req),
@@ -231,9 +256,9 @@ function buildBody(req: ChatCompletionsRequest): Record<string, unknown> {
       ? { response_format: rawResponseFormat(req.responseFormat) }
       : {}),
   };
-  return req.customParameters === undefined
-    ? base
-    : deepMergeRequestBody(base, req.customParameters);
+  const withCustom =
+    req.customParameters === undefined ? base : deepMergeRequestBody(base, req.customParameters);
+  return applyIncludeExclude(withCustom, includeBody, excludeBody);
 }
 
 function buildHeaders(
@@ -274,12 +299,13 @@ async function fetchAndReduce(args: {
   readonly body: Record<string, unknown>;
   readonly req: ChatCompletionsRequest;
   readonly baseUrl: string;
+  readonly responseMap: CustomOpenAiResponseMap | null;
   readonly markCommitted: () => void;
 }): Promise<{
   readonly view: Awaited<ReturnType<typeof reduceChatCompletionStream>>;
   readonly reasoning: string;
 }> {
-  const { url, headers, body, req, baseUrl, markCommitted } = args;
+  const { url, headers, body, req, baseUrl, responseMap, markCommitted } = args;
   const chatId = castId<ChatId>(req.chatId ?? "");
   const idle = turnAbortSignal(req.signal);
   let reasoning = "";
@@ -323,12 +349,12 @@ async function fetchAndReduce(args: {
       if (nonStreamJson) {
         const json: unknown = await res.json().catch((): null => null);
         view = await reduceChatCompletionStream(
-          oneChunk(reshapeChunk(json, BODY_DEFAULT_MAP)),
+          oneChunk(reshapeChunk(json, withResponseMap(BODY_DEFAULT_MAP, responseMap))),
           reduceOpts,
         );
       } else {
         view = await reduceChatCompletionStream(
-          reshapeSse(parseOpenAiSse(res.body), STREAM_DEFAULT_MAP),
+          reshapeSse(parseOpenAiSse(res.body), withResponseMap(STREAM_DEFAULT_MAP, responseMap)),
           reduceOpts,
         );
       }
@@ -365,13 +391,21 @@ export async function runChatTurn(
   }
 
   const startedAt = deps.now();
-  const body = buildBody(req);
+  const body = buildBody(req, cred.includeBody, cred.excludeBody);
   const headers = buildHeaders(cred.apiKey, cred.headers);
   const url = `${cred.baseUrl.replace(TRAILING_SLASH_RE, "")}${CHAT_COMPLETIONS_PATH}`;
 
   const { view, reasoning } = await runWithPreCommitRetry(
     (markCommitted) =>
-      fetchAndReduce({ url, headers, body, req, baseUrl: cred.baseUrl, markCommitted }),
+      fetchAndReduce({
+        url,
+        headers,
+        body,
+        req,
+        baseUrl: cred.baseUrl,
+        responseMap: cred.responseMap,
+        markCommitted,
+      }),
     (err): ProviderError =>
       err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(cred.baseUrl)),
     {

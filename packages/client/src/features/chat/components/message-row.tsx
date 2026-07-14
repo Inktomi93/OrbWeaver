@@ -81,6 +81,8 @@ const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showMessageId: false,
   showModelIcon: false,
   showTokenCount: false,
+  showGenerationTimer: false,
+  showGenerationCost: false,
 };
 
 export function MessageRow({

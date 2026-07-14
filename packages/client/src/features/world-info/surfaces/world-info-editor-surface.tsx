@@ -13,6 +13,7 @@ import { ArrowLeft, BookOpen, Icon, Pencil, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
+import { useToastManager } from "@orb/ui/toast";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -21,7 +22,11 @@ import { useFocusOnMount } from "#lib";
 import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog";
 import { EntryEditor } from "../components/entry-editor";
-import { useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
+import {
+  useBackfillWorldTitles,
+  useCreateWorldEntry,
+  useUpdateWorldBook,
+} from "../hooks/use-world-info-mutations";
 
 const NEW_ENTRY_TITLE = "New entry";
 const NEW_ENTRY_CONTENT = "New lore.";
@@ -61,11 +66,13 @@ export function WorldInfoEditorSurface({ bookId }: WorldInfoEditorSurfaceProps):
 function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const toast = useToastManager();
   const { data: book } = useSuspenseQuery(trpc.worldInfo.getBook.queryOptions({ bookId }));
   const { data: entries } = useSuspenseQuery(trpc.worldInfo.listEntries.queryOptions({ bookId }));
   const selectedEntryId = useSelectedWorldEntryId();
   const create = useCreateWorldEntry({ trpc, invalidation });
   const update = useUpdateWorldBook({ trpc, invalidation });
+  const backfill = useBackfillWorldTitles({ trpc, invalidation });
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const selectedEntry = entries.find((e) => e.id === selectedEntryId) ?? null;
@@ -74,6 +81,17 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
     void create
       .mutateAsync({ bookId, input: { title: NEW_ENTRY_TITLE, content: NEW_ENTRY_CONTENT } })
       .then((created) => selectWorldEntry(created.id));
+  };
+
+  const onBackfill = (): void => {
+    void backfill.mutateAsync({ bookId }).then(({ filled }) =>
+      toast.add({
+        title:
+          filled === 0
+            ? "No blank titles to fill"
+            : `Filled ${filled} title${filled === 1 ? "" : "s"}`,
+      }),
+    );
   };
 
   // A selected entry drills in — the editor replaces the list until "Back to entries" clears it.
@@ -123,10 +141,20 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
         <Text size="micro" tone="muted" transform="caps">
           {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
         </Text>
-        <Button intent="primary" size="sm" onClick={onCreate} disabled={create.isPending}>
-          <Icon icon={Plus} size="sm" />
-          New entry
-        </Button>
+        <Row gap="field" align="center">
+          <Button
+            intent="ghost"
+            size="sm"
+            onClick={onBackfill}
+            disabled={backfill.isPending || entries.length === 0}
+          >
+            Backfill titles
+          </Button>
+          <Button intent="primary" size="sm" onClick={onCreate} disabled={create.isPending}>
+            <Icon icon={Plus} size="sm" />
+            New entry
+          </Button>
+        </Row>
       </Row>
 
       {entries.length === 0 ? (

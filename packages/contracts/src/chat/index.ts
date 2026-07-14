@@ -366,6 +366,9 @@ export interface MessageVariant {
   finishReason: string | null;
   stopReason: string | null;
   terminalReason: string | null;
+  /** The upstream OpenRouter generation handle (`gen-…`) this variant billed under — the key
+   *  `connection.orGenerationCost` settles the per-message cost with (PD-137). Null on a non-OR turn. */
+  generationId: string | null;
   /** The recorded generation params (D26 `params (UserIntent)`). */
   params: UserIntent | null;
   /** The per-variant assembled-prompt snapshot (D26 — now works per swipe). */
@@ -451,6 +454,15 @@ export interface MessageView {
   contextBoundaryMessageId: MessageId | null;
   costUsd: number | null;
   ttftMs: number | null;
+  /** Generation-window bounds (epoch-ms) for this swipe — the wall time the turn engine began/finished
+   *  the model call. Both null on a non-generated row (user/system/draft-greeting). `gf − gs` (when both
+   *  present and ordered) is the generation duration the `showGenerationTimer` chip reads (PD-130). */
+  genStartedAt: number | null;
+  genFinishedAt: number | null;
+  /** The upstream OpenRouter generation handle (`gen-…`) this shown swipe billed under — the key a quiet
+   *  per-message cost readout settles with via `connection.orGenerationCost` (PD-137). Null on a non-OR
+   *  turn (agent-sdk / user/system row). */
+  generationId: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

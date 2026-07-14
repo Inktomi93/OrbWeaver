@@ -5,12 +5,18 @@
 // The caption is the expensive half, so the sweep pre-checks both lens rows against the bytes' hash before
 // captioning: a fully-embedded asset is a pure two-read skip. `force` bypasses the pre-check and threads
 // into `store`. Cooperative abort between assets; an embed failure propagates.
+//
+// PD-104 — the REINDEX half of purge+reindex for the image space (mirrors embed-corpus). After a complete
+// BULK sweep re-embeds every asset (both lenses) into the box's active `(model, dim)` image space, it
+// PURGES `image_embeddings` rows in any OTHER space. BULK-ONLY (ownerId === null); skipped on abort so the
+// space is never left with a gap. A no-op unless the box image-embed model changed.
 
 import type { AssetId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context";
 import type { EmbedPassParams } from "../contract/params";
 import type { BulkEmbedResult } from "../contract/results";
 import type { EmbeddingsService } from "../contract/service";
+import { purgeStaleVectors } from "../persistence/clear";
 import { existingImageHash } from "../persistence/queries";
 import { contentHash } from "../substrate/hash";
 
@@ -83,6 +89,11 @@ export function createEmbedAssets(
       } else {
         skipped += 1;
       }
+    }
+    // PD-104 purge (reclaim the old image space) — only after a complete bulk sweep, never on abort or a
+    // singular per-owner pass. A no-op unless the box image-embed model changed since the last index.
+    if (ownerId === null && !signal.aborted) {
+      await purgeStaleVectors(ctx.db, "image_embeddings", ctx.roleClients.imageEmbedModel);
     }
     return { embedded, skipped };
   };

@@ -34,6 +34,16 @@ export async function verifyAuth(
   // Refresh an expired host token before the probe (mode-1 only) — so `testClaudeAuth` reports the SAME
   // fresh-token state a real turn now gets, instead of a stale `auth_failed` that a manual login "fixes".
   await refreshHostSubTokenIfMode1(req.credential, deps.refreshHostSubToken);
+  // Bridge the caller's cancellation onto the SDK's own AbortController (mirrors the turn runner) so a
+  // cancelled health check tears down the spawned probe instead of leaking it (PD-16).
+  const abortController = new AbortController();
+  if (req.signal !== undefined) {
+    if (req.signal.aborted) {
+      abortController.abort();
+    } else {
+      req.signal.addEventListener("abort", () => abortController.abort(), { once: true });
+    }
+  }
   const stream = deps.query({
     prompt: VERIFY_PROMPT,
     options: {
@@ -42,6 +52,7 @@ export async function verifyAuth(
       ...observabilityOptions(),
       model: req.model,
       maxTurns: 1,
+      ...(req.signal !== undefined ? { abortController } : {}),
     },
   });
 

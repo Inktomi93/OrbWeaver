@@ -119,7 +119,7 @@ async function storeImage(
  *  the embed input and the stored body. */
 async function storeSegment(ctx: EmbeddingsContext, p: SegmentStoreParams): Promise<StoreResult> {
   const hash = p.contentHash;
-  if ((await existingSegmentHash(ctx.db, p.chatId, p.blockIdx)) === hash) {
+  if ((await existingSegmentHash(ctx.db, p.chatId, p.blockIdx, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
   const vector = firstVector((await ctx.roleClients.embed(p.text)).vectors, p.lens, p.model);
@@ -149,6 +149,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     scopedCharacterId: p.scopedCharacterId,
     tier: p.tier,
     blockIdx: p.blockIdx,
+    model: p.model,
   });
   if (existing === hash) {
     return { outcome: "noop", contentHash: hash };

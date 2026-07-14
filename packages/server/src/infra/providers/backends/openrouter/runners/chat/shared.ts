@@ -364,9 +364,11 @@ export function reshapeChatStreamChunk(chunk: ChatStreamChunk): ChatCompletionSt
     ...(chunk.error !== undefined ? { error: chunk.error } : {}),
     ...(chunk.usage !== undefined ? { usage: reshapeChatUsage(chunk.usage) } : {}),
   };
+  // The generation handle (`gen-…`) rides every chunk; carry it so the reducer can latch it (PD-137).
+  const idTail = chunk.id.length > 0 ? { id: chunk.id } : {};
   const choice = chunk.choices.at(0);
   if (choice === undefined) {
-    return { choices: [{ delta: {}, finishReason: null }], ...tail };
+    return { choices: [{ delta: {}, finishReason: null }], ...idTail, ...tail };
   }
   const { delta } = choice;
   const { reasoning } = delta;
@@ -384,6 +386,7 @@ export function reshapeChatStreamChunk(chunk: ChatStreamChunk): ChatCompletionSt
         finishReason: choice.finishReason ?? null,
       },
     ],
+    ...idTail,
     ...tail,
   };
 }

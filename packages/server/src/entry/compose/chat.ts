@@ -404,6 +404,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               finishReason: result.finishReason,
               stopReason: result.stopReason,
               terminalReason: result.terminalReason,
+              generationId: result.generationId ?? null,
               ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
             },
           });

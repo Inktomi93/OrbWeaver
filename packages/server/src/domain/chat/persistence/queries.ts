@@ -124,6 +124,9 @@ const messageViewSelection = {
   contextBoundaryMessageId: messageVariants.contextBoundaryMessageId,
   costUsd: messageVariants.costUsd,
   ttftMs: messageVariants.ttftMs,
+  genStartedAt: messageVariants.genStartedAt,
+  genFinishedAt: messageVariants.genFinishedAt,
+  generationId: messageVariants.generationId,
 } as const;
 
 function toChatRow(

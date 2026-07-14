@@ -2,6 +2,7 @@
 // custom_openai endpoint shape in one place, so a corrupt row collapses to null rather than letting an
 // undefined URL escape into an outbound fetch.
 
+import type { CustomOpenAiResponseMap } from "@orb/contracts/credentials";
 import { parseProviderMetadata } from "@orb/contracts/credentials";
 
 /** The custom_openai endpoint fields the resolver/inspector/model-fetch consume. */
@@ -9,6 +10,10 @@ interface CustomOpenAiEndpoint {
   readonly baseUrl: string;
   readonly model: string | null;
   readonly headers: Record<string, string> | null;
+  readonly contextWindow: number | undefined;
+  readonly includeBody: Record<string, unknown> | null;
+  readonly excludeBody: readonly string[] | null;
+  readonly responseMap: CustomOpenAiResponseMap | null;
 }
 
 /** Narrow a raw metadata column value to the custom_openai endpoint fields, or null. */
@@ -22,5 +27,9 @@ export function parseCustomOpenAiEndpoint(raw: unknown): CustomOpenAiEndpoint | 
     baseUrl: meta.baseUrl,
     model: meta.model ?? null,
     headers: meta.headers ?? null,
+    contextWindow: meta.contextWindow,
+    includeBody: meta.includeBody ?? null,
+    excludeBody: meta.excludeBody ?? null,
+    responseMap: meta.responseMap ?? null,
   };
 }

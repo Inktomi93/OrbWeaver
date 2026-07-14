@@ -169,6 +169,9 @@ test("MessageView is the slot joined with its selected variant (content + econom
     contextWindow: 200_000,
     costUsd: null,
     ttftMs: 120,
+    genStartedAt: 1000,
+    genFinishedAt: 4400,
+    generationId: null,
     contextBoundaryMessageId: null,
   };
   expect(view.content).toBe("hello there");

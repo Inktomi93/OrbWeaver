@@ -110,6 +110,24 @@ describe("reduceChatCompletionStream", () => {
     expect(deltas).toEqual([{ kind: "reasoning", text: "legacy CoT" }]);
   });
 
+  test("latches the generation handle (`gen-…`) from the first chunk that carries one (PD-137)", async () => {
+    const view = await reduceChatCompletionStream(
+      streamOf([
+        { id: "gen-abc123", choices: [{ delta: { content: "hi" } }] },
+        // A later chunk repeats the same id; the reducer keeps the first-latched value.
+        { id: "gen-abc123", choices: [{ finishReason: "stop" }] },
+      ]),
+    );
+    expect(view.id).toBe("gen-abc123");
+  });
+
+  test("carries no id when the stream never reports one (a spec-sloppy BYO endpoint)", async () => {
+    const view = await reduceChatCompletionStream(
+      streamOf([{ choices: [{ delta: { content: "hi" }, finishReason: "stop" }] }]),
+    );
+    expect("id" in view).toBe(false);
+  });
+
   test("promotes an in-band stream error to a throw carrying the status code", async () => {
     await expect(
       reduceChatCompletionStream(
@@ -165,6 +183,23 @@ describe("mapChatCompletionToTurnResult", () => {
     expect(result.usage.isByok).toBe(true);
     // The 5m/1h split is SDK-internal — the chat-completions path can't report it.
     expect(result.usage.cacheCreation5mTokens).toBeNull();
+  });
+
+  test("surfaces the view's generation handle as ChatResult.generationId, else omits it (PD-137)", () => {
+    const withId = mapChatCompletionToTurnResult(
+      { ...view, id: "gen-xyz" },
+      { model: "m", startedAt: 0, now: 1, contextWindow: null, maxOutputTokens: null },
+    );
+    expect(withId.generationId).toBe("gen-xyz");
+
+    const withoutId = mapChatCompletionToTurnResult(view, {
+      model: "m",
+      startedAt: 0,
+      now: 1,
+      contextWindow: null,
+      maxOutputTokens: null,
+    });
+    expect("generationId" in withoutId).toBe(false);
   });
 
   test("has NO sessionId (OpenAI-compatible runners have no SDK session)", () => {

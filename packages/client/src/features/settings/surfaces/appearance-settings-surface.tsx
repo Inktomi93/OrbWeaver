@@ -2,8 +2,8 @@ import { useRef } from "react";
 // The Appearance settings surface. Reads the synced UserSettings.appearance blob and autosaves each
 // change back through updateUserSettingsSection("appearance"), which refetches getUserSettings so other
 // consumers re-render live. A field is rendered only when its knob is wired end-to-end to a live
-// consumer; the schema stays complete (all knobs persist unchanged) but showGenerationTimer gets no
-// control — FLAG[PD-130]: the underlying timing data is never populated by the turn engine.
+// consumer — including PD-130's showGenerationTimer, now that the turn engine writes the gen-window
+// bounds and the read seam surfaces them on MessageView.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
@@ -21,6 +21,7 @@ import {
 import { useFocusOnMount } from "#lib";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
+import { BackgroundUploadField } from "../components/background-upload-field";
 import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
 import {
   BACKGROUND_BLUR_MAX,
@@ -254,6 +255,22 @@ function AppearanceForm(): ReactElement {
               />
             )}
           </form.AppField>
+          <form.AppField name="showGenerationTimer">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show generation time"
+                description="How long the model took to generate the message, when known."
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="showGenerationCost">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show generation cost"
+                description="A click-to-reveal per-message cost, settled on demand against OpenRouter."
+              />
+            )}
+          </form.AppField>
           <form.AppField name="showLLMReasoningIcon">
             {(field): ReactElement => (
               <field.SwitchField
@@ -301,7 +318,7 @@ function AppearanceForm(): ReactElement {
               }
               return (
                 <>
-                  {kind === "seeded" ? (
+                  {kind === "seeded" && (
                     <form.AppField name="backgroundSeededId">
                       {(field): ReactElement => (
                         <field.SelectField
@@ -311,7 +328,8 @@ function AppearanceForm(): ReactElement {
                         />
                       )}
                     </form.AppField>
-                  ) : (
+                  )}
+                  {kind === "external" && (
                     <form.AppField name="backgroundExternalUrl">
                       {(field): ReactElement => (
                         <field.TextField
@@ -320,6 +338,20 @@ function AppearanceForm(): ReactElement {
                         />
                       )}
                     </form.AppField>
+                  )}
+                  {kind === "asset" && (
+                    <form.Subscribe selector={(state): string => state.values.backgroundAssetHash}>
+                      {(hash): ReactElement => (
+                        <BackgroundUploadField
+                          currentHash={hash}
+                          onUploaded={(stored): void => {
+                            form.setFieldValue("backgroundAssetId", stored.assetId);
+                            // biome-ignore lint/security/noSecrets: false positive — an appearance form-field NAME, not a credential.
+                            form.setFieldValue("backgroundAssetHash", stored.hash);
+                          }}
+                        />
+                      )}
+                    </form.Subscribe>
                   )}
                   <form.AppField name="backgroundFit">
                     {(field): ReactElement => (

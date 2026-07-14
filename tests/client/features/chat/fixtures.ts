@@ -73,6 +73,9 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     contextWindow: null,
     costUsd: null,
     ttftMs: null,
+    genStartedAt: null,
+    genFinishedAt: null,
+    generationId: null,
     contextBoundaryMessageId: null,
     ...overrides,
   };

@@ -1,6 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
+  "id": "deac7482-3da2-4e1c-b3a4-132a4694c84e",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
       "name": "agent_principals",
@@ -134,7 +136,7 @@
       "checkConstraints": {
         "assets_kind_check": {
           "name": "assets_kind_check",
-          "value": "kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'sprite')"
+          "value": "kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment', 'document', 'sprite', 'background')"
         }
       }
     },
@@ -2468,6 +2470,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "generation_id": {
+          "name": "generation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "raw_request": {
           "name": "raw_request",
           "type": "text",
@@ -4484,7 +4493,7 @@
       "indexes": {
         "chat_digests_scope_unique": {
           "name": "chat_digests_scope_unique",
-          "columns": ["chat_id", "scoped_character_id", "tier", "block_idx"],
+          "columns": ["chat_id", "scoped_character_id", "tier", "block_idx", "model"],
           "isUnique": true
         },
         "chat_digests_chat_idx": {
@@ -4609,7 +4618,7 @@
       "indexes": {
         "chat_segments_chat_block_unique": {
           "name": "chat_segments_chat_block_unique",
-          "columns": ["chat_id", "block_idx"],
+          "columns": ["chat_id", "block_idx", "model"],
           "isUnique": true
         }
       },
@@ -9637,6 +9646,7 @@
   "views": {},
   "enums": {},
   "_meta": {
+    "schemas": {},
     "tables": {},
     "columns": {}
   },
@@ -9650,7 +9660,5 @@
         }
       }
     }
-  },
-  "id": "3b5274e9-8fc3-454f-8389-d69b8d4b0c92",
-  "prevId": "00000000-0000-0000-0000-000000000000"
+  }
 }

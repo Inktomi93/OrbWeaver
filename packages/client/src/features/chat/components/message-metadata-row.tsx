@@ -1,26 +1,26 @@
 // The per-message METADATA chip row (WS3, D44 §12.1) — each chip gated by its OWN appearance toggle
-// (`showTimestamps`/`showMessageId`/`showModelIcon`/`showTokenCount`), rendered only when its datum is
-// actually present on the `MessageView` (a draft/greeting row has null model/tokens — no chip, no
-// gap). Reuses the existing `@orb/ui/badge` primitive (no new primitive, per the WS3 spec) — a quiet
-// muted-intent pill per datum, `Icon` composed as the leading glyph (ui-package-design §6.1 pattern,
-// the same convention `StatusChip` uses).
+// (`showTimestamps`/`showMessageId`/`showModelIcon`/`showTokenCount`/`showGenerationTimer`), rendered
+// only when its datum is actually present on the `MessageView` (a draft/greeting row has null
+// model/tokens/gen-window — no chip, no gap). The datum chips reuse the existing `@orb/ui/badge`
+// primitive (no new primitive, per the WS3 spec) — a quiet muted-intent pill per datum, `Icon` composed
+// as the leading glyph (ui-package-design §6.1 pattern, the same convention `StatusChip` uses).
 //
-// FLAG[PD-130]: `showGenerationTimer` has NO consumer. The `message_variants.gen_started_at`/
-// `gen_finished_at` columns exist (read by `domain/stats`) but are NEVER WRITTEN by the turn engine
-// for a real generation (only nulled at genesis-message seeding, `verbs/start-chat.ts`) — populating
-// them needs per-backend turn-engine plumbing across every provider (the same shape as `ttftMs`'s
-// existing wiring in `infra/providers/backends/*`), not a field-plumb. Per the WS3 spec's own carve-out
-// ("flag it rather than destabilize the engine, ship the chips whose data exists"), this toggle is left
-// OUT of the appearance pane entirely (schema-only, same posture WS2 left it in) rather than shipped as
-// an always-empty control. Debt registry: `Core-Audits-and-Debt.md` PD-130.
+// PD-130 (generation timer): the turn engine DOES write `message_variants.gen_started_at`/`gen_finished_at`
+// on the real turn path (`engine.ts` → `canon-write.ts`; live since eb5d6b3c), and the read seam now
+// surfaces them on `MessageView` (`genStartedAt`/`genFinishedAt`). The gen-duration readout renders per
+// north-star P5 as QUIET METADATA (inline `--text-micro` `--font-mono` `--color-muted-foreground`), not a
+// pill — so N3's pending pills→micro-text conversion leaves it as-is.
 
 import type { MessageView } from "@orb/contracts/chat";
 import { Badge } from "@orb/ui/badge";
 // biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the swipe-strip.tsx precedent).
 import { Clock, Coins, Cpu, Hash, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { timeLib } from "#lib";
+import { genDurationLabel } from "../lib/gen-duration";
+import { MessageCostReadout } from "./message-cost-readout";
 
 /** The metadata-chip subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
  *  shape) — threaded from the surface, never a per-row query (rows stay prop-driven). */
@@ -29,6 +29,8 @@ export interface MessageMetadataVisibility {
   readonly showMessageId: boolean;
   readonly showModelIcon: boolean;
   readonly showTokenCount: boolean;
+  readonly showGenerationTimer: boolean;
+  readonly showGenerationCost: boolean;
 }
 
 export interface MessageMetadataRowProps {
@@ -82,6 +84,29 @@ export function MessageMetadataRow({
         {message.id}
       </Badge>,
     );
+  }
+  // PD-130 — quiet metadata (north-star P5): the gen duration is inline micro-mono muted text, NOT a
+  // pill, and appears only when the turn recorded a complete gen window.
+  const genLabel = visibility.showGenerationTimer
+    ? genDurationLabel(message.genStartedAt, message.genFinishedAt)
+    : null;
+  if (genLabel !== null) {
+    chips.push(
+      <Text
+        key="gen-duration"
+        size="micro"
+        tone="muted"
+        className="font-mono"
+        data-slot="message-metadata-gen-duration"
+      >
+        {genLabel}
+      </Text>,
+    );
+  }
+  // PD-137 — the on-demand settled-cost readout (renders its own null-guard for a non-OR row); the paid
+  // fetch fires only on the user's reveal click, never here.
+  if (visibility.showGenerationCost && message.generationId !== null) {
+    chips.push(<MessageCostReadout key="gen-cost" message={message} />);
   }
 
   if (chips.length === 0) {

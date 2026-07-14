@@ -1,9 +1,10 @@
 // verb: inspectEndpoint — the "Test endpoint" round-trip for a SAVED custom_openai credential; the key
 // never leaves the server (the injected inspect op redacts before building the result).
 //
-// FLAG[PD-25]: draft (pre-save) inspect is NOT supported here — CustomOpenAiCredential.credentialId is
-// non-null, so an unsaved draft can't be represented without a contract change; fetch-models still
-// supports drafts for pre-save /models validation.
+// (PD-25 closed as covered 2026-07-14): draft (pre-save) inspect is deliberately NOT built — the draft arm
+// of `fetchModels` already validates reachability + auth pre-save, and the shaped round-trip is available
+// immediately post-save via this verb. A draft-inspect would need a raw-args inspect op or a nullable
+// `credentialId` on the runner-consumed brand — marginal value over save-then-test.
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import type { CredentialContext } from "../context";
@@ -47,6 +48,10 @@ export function createInspectEndpoint(
       headers: endpoint.headers,
       credentialId,
       model: endpoint.model ?? undefined,
+      contextWindow: endpoint.contextWindow,
+      includeBody: endpoint.includeBody,
+      excludeBody: endpoint.excludeBody,
+      responseMap: endpoint.responseMap,
     });
     return ctx.inspect({ credential, model: params.model ?? endpoint.model ?? "" });
   };

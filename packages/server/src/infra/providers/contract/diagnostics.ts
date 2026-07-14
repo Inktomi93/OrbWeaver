@@ -18,9 +18,10 @@ import type {
   VerifyAuthResult,
 } from "@orb/contracts/providers";
 
-/** FLAG[PD-16]: Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface cancellation
- *  hook (carried for parity with the role requests; the OpenRouter SDK diagnostic ports + the BYO inspector
- *  don't yet accept request-level options, so it is not threaded for those today — see the front-door FLAG). */
+/** FLAG[PD-16]: Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface
+ *  cancellation hook. THREADED for `inspect` (the BYO inspector's fetch) and `verifyAuth` (the agent-sdk
+ *  probe's AbortController). STILL unthreaded for the OpenRouter SDK ports (`accountCredits`/`generationCost`
+ *  — `credits.getCredits()`/`generations.getGeneration()` take no options arg; blocked:upstream-sdk). */
 interface DiagnosticRequestCommon {
   /** Resolved by credentials, handed in — discriminated by `source` at the dispatcher. */
   readonly credential: ResolvedCredential;

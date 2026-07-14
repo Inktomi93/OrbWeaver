@@ -17,6 +17,10 @@ import {
   reshapeChunk,
 } from "@orb/server/infra/providers/backends/custom-byo";
 import { afterEach, describe, vi } from "vitest";
+import {
+  makeCustomOpenAiCredential,
+  makeOpenRouterCredential,
+} from "../../../../../../support/factories/resolved-connection";
 import { expect, test } from "../../../../../../support/fixtures";
 
 const FIXED_NOW = 1000;
@@ -35,13 +39,8 @@ const CAPABILITY: ModelCapability = {
   context: { window: CUSTOM_WINDOW },
 };
 
-const CRED: ResolvedCredential = {
-  source: "custom_openai",
-  baseUrl: BASE_URL,
-  apiKey: SECRET_KEY,
-  headers: { "x-team": "alpha" },
-  credentialId: "uc_1",
-} as unknown as ResolvedCredential;
+const CRED_BASE = { baseUrl: BASE_URL, apiKey: SECRET_KEY, headers: { "x-team": "alpha" } };
+const CRED: ResolvedCredential = makeCustomOpenAiCredential(CRED_BASE);
 
 const DEPS = { now: (): number => FIXED_NOW, random: (): number => 0.5 };
 
@@ -165,7 +164,7 @@ describe("createCustomByoBackend — request mapping", () => {
       capturedHeaders = new Headers(init?.headers);
       return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
     });
-    const keyless = { ...CRED, apiKey: null, headers: null } as unknown as ResolvedCredential;
+    const keyless = makeCustomOpenAiCredential({ ...CRED_BASE, apiKey: null, headers: null });
     await runTurn(makeRequest({ credential: keyless }));
     expect(capturedHeaders.has("authorization")).toBe(false);
   });
@@ -223,6 +222,44 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
     expect(result.reply).toBe("one-shot reply");
     expect(result.finishReason).toBe("stop");
     expect(result.usage.tokensOut).toBe(3);
+  });
+
+  test("threads the credential's responseMap over the streaming defaults (PD-13)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      (): Response =>
+        sseResponse([
+          'data: {"out":{"text":"mapped "}}',
+          'data: {"out":{"text":"hi"},"done":"stop"}',
+          "data: [DONE]",
+        ]),
+    );
+    // Only `contentPath`/`finishReasonPath` overridden — the untouched default paths still apply.
+    const cred = makeCustomOpenAiCredential({
+      ...CRED_BASE,
+      responseMap: { contentPath: "out.text", finishReasonPath: "done" },
+    });
+    const result = await runTurn(makeRequest({ credential: cred }));
+    expect(result.reply).toBe("mapped hi");
+    expect(result.finishReason).toBe("stop");
+  });
+
+  test("applies the credential's includeBody/excludeBody to the request body (PD-13)", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      capturedBody =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
+    });
+    const cred = makeCustomOpenAiCredential({
+      ...CRED_BASE,
+      includeBody: { safety: "off" },
+      excludeBody: ["stream"],
+    });
+    await runTurn(makeRequest({ credential: cred }));
+    expect(capturedBody["safety"]).toBe("off");
+    // excludeBody strips LAST — `stream` is removed even though the base body set it true.
+    expect(capturedBody).not.toHaveProperty("stream");
   });
 });
 
@@ -286,11 +323,7 @@ describe("createCustomByoBackend — error classification", () => {
   });
 
   test("fail-closes on a non-custom_openai credential", async () => {
-    const wrongCred = {
-      source: "openrouter",
-      apiKey: "k",
-      credentialId: null,
-    } as unknown as ResolvedCredential;
+    const wrongCred = makeOpenRouterCredential();
     await expect(runTurn(makeRequest({ credential: wrongCred }))).rejects.toMatchObject({
       kind: "invalid",
     });

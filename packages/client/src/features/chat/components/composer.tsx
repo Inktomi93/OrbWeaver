@@ -10,7 +10,7 @@ import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the swipe-strip.tsx precedent).
-import { Icon, ImagePlus, Send, Square, X } from "@orb/ui/icons";
+import { Icon, ImagePlus, Send, Sparkles, Square, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Spinner } from "@orb/ui/spinner";
 import { Textarea } from "@orb/ui/textarea";
@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { testId } from "#lib";
 import type { ChatHandle } from "#state";
 import { isCommitted } from "#state";
+import { useGenerateImage } from "../hooks/use-generate-image";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useStopTurn } from "../hooks/use-stop-turn";
@@ -139,10 +140,25 @@ export function Composer({
     },
   });
 
+  // Free-mode in-chat AI image generation (imagery I5 base slice): the typed composer text IS the prompt.
+  // The verb posts one user message with asset: refs (D51), so it renders through the normal stream.
+  const generateImage = useGenerateImage(chatId);
+
   const trimmed = value.trim();
   const hasAttachments = attachments.length > 0;
   const canSubmitText = trimmed.length > 0;
   const canSubmit = canSubmitText || hasAttachments;
+  // Needs a committed chat to post into + prompt text; one action at a time (never mid-send/mid-generate).
+  const canGenerateImage =
+    chatId !== null && canSubmitText && !sendMessage.isPending && !generateImage.isPending;
+
+  const generateFromText = (): void => {
+    if (!canGenerateImage) {
+      return;
+    }
+    generateImage.generate(value);
+    onChange("");
+  };
   const continueEligible = !canSubmitText && isContinueEligible(tailRole);
   const stopping = stopTurn.phase === "stopping";
   // Stop stays visible (disabled + spinner) until the bus's turnAborted/turnCompleted closes the slot.
@@ -222,6 +238,21 @@ export function Composer({
               className="absolute inset-0 size-full rounded-full border-0 bg-transparent p-0 opacity-0"
             />
           </Row>
+          {/* Generate an image FROM the typed text (free mode) — a secondary/ghost action distinct from the
+              attach-local affordance above; Send stays the one primary (A2). */}
+          <Button
+            type="button"
+            intent="ghost"
+            size="icon"
+            data-testid={testId("composerGenerateImage")}
+            disabled={!canGenerateImage}
+            loading={generateImage.isPending}
+            aria-label={generateImage.isPending ? "Generating image…" : "Generate image from text"}
+            onClick={generateFromText}
+            className="shrink-0 rounded-full"
+          >
+            <Icon icon={Sparkles} size="sm" />
+          </Button>
           <SpeakAsSelect handle={handle} />
           <Textarea
             aria-label="Message"
