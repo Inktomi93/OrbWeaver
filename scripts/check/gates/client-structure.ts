@@ -14,7 +14,9 @@ const DOMAINS = "packages/server/src/domain";
 const BUCKETS = new Set(["surfaces", "anchors", "components", "hooks", "lib"]);
 // app-shell is the shell-tier frame — it additionally owns the slot registries + the shell store.
 const SHELL_EXTRA = new Set(["registry", "store"]);
-const RESERVED = new Set(["app-shell", "auth", "prompt-manager", "user-admin"]);
+// refinery: declared-planned (client-architecture-lockdown.md §6a, O1) — its design set scores/rewrites
+// against the `character` domain rather than owning one; no `domain/refinery` mirror is expected.
+const RESERVED = new Set(["app-shell", "auth", "prompt-manager", "refinery", "user-admin"]);
 // Container-type vocabulary for anchor filenames (an anchor names the containment it PROVIDES).
 const ANCHOR_SUFFIXES = ["anchor", "dialog", "drawer", "popover", "menu", "panel"];
 // The bare modal ROOT tag only (`<Dialog>`/`<Dialog `), not `<DialogTrigger`/`<DialogPopup`/`<ConfirmDialog`

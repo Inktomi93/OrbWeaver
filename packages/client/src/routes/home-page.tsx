@@ -9,6 +9,7 @@ import {
   AppShell,
   ContextTabsPanel,
   RAIL_SECTIONS,
+  SectionPlaceholder,
   useShellLayout,
   YouSheet,
 } from "#features/app-shell";
@@ -47,6 +48,7 @@ import {
 import { NotificationBell } from "#features/notifications";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
 import { PresetSectionInspector, PresetUsageContext, presetsSection } from "#features/preset";
+import { refinerySection } from "#features/refinery";
 import { ImportOnboardingCard, SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   AnalyticsModelsTab,
@@ -317,6 +319,18 @@ export function HomePage(): ReactElement {
               typeof worldInfoSection.content === "function" ? worldInfoSection.content() : null,
             context:
               worldInfoSection.context.kind === "single" ? worldInfoSection.context.body() : null,
+          },
+          // refinery is the founding DECLARED-PLANNED section (M1.6, §6a ratified O1): no list/context,
+          // and CONTENT renders the definition's OWN placeholder copy (not the app-shell twin) since
+          // `content` is the `{ planned }` arm, never a function.
+          refinery: {
+            content: (
+              <SectionPlaceholder
+                title={refinerySection.placeholder.title}
+                description={refinerySection.placeholder.description}
+                weave={true}
+              />
+            ),
           },
         }}
         modals={{
