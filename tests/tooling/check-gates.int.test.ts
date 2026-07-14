@@ -198,6 +198,18 @@ function writeFixtures(): void {
   fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
   // client-structure: a BUILT feature (has code) with a stray root file + no index.ts front door.
   fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
+  // section-registry-completeness: a non-auth feature front-door import in a route file that isn't
+  // app-root (the anti-god-map arm 3b). `#features/chat` is a real specifier the gate matches by AST.
+  fx(
+    "packages/client/src/routes/__g_g1route.tsx",
+    'import { X } from "#features/chat";\nexport const G = X;\n',
+  );
+  // no-parallel-section-map: an object literal hardcoding ≥2 SectionId keys (the gate reads the real
+  // SECTION_IDS tuple from shell-store.ts), outside the allowlisted homes — a re-declared parallel map.
+  fx(
+    "packages/client/src/features/__g_g2map/lib/parallel.ts",
+    "export const M = { chats: 1, characters: 1, corpus: 1 };\n",
+  );
   // state-files: a flat state/ file exporting the minted store handle (rule 3 — no exported handle).
   fx(
     "packages/client/src/state/__g_state.ts",
@@ -343,11 +355,17 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_modalph/lib/modal-slots.tsx",
     'export const MODAL_SLOTS = { silent: { title: "S", render: () => <SectionPlaceholder title="S" /> } };\n',
   );
-  // placeholder-copy-registry: a section-placeholder-copy.ts map with TWO entries sharing the same
-  // (title, description) pair — the "all sections look identical" duplicate the gate forbids (J10).
+  // placeholder-copy-registry: a PAIR of co-located `*-section` files sharing one (title, description)
+  // placeholder — the cross-file distinctness "SAME" arm. The `-section` path shape (SECTION_FILE_RE)
+  // matches ANY owner folder, so `__g_*` folders trip the real-tree scan with zero collision against the
+  // real 7 (distinctness keys on the string pair, not the path).
   fx(
-    "packages/client/src/features/__g_phcopy/lib/section-placeholder-copy.ts",
-    `export const SECTION_PLACEHOLDER_COPY = {\n  one: { title: "Dup", description: "same copy" },\n  two: { title: "Dup", description: "same copy" },\n};\n`,
+    "packages/client/src/features/__g_phcopy_a/lib/__g_phcopy_a-section.ts",
+    'import type { SectionDefinition } from "#state";\nexport const gPhcopyASection: SectionDefinition = { id: "__g_phcopy_a", placeholder: { title: "Dup", description: "same copy" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+  );
+  fx(
+    "packages/client/src/features/__g_phcopy_b/lib/__g_phcopy_b-section.ts",
+    'import type { SectionDefinition } from "#state";\nexport const gPhcopyBSection: SectionDefinition = { id: "__g_phcopy_b", placeholder: { title: "Dup", description: "same copy" }, content: { planned: "x" }, context: { kind: "none" } };\n',
   );
   // no-array-literal-querykey: a client options object minting a queryKey as an inline array literal
   // (keys are 100% tRPC-proxy-derived). These gates scope to packages/client/src ONLY, so writing the

@@ -16,6 +16,16 @@
 // page across tests, the per-mount reset belongs HERE.
 
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
+import { charactersSection } from "@orb/client/features/character";
+import { chatsSection } from "@orb/client/features/chat";
+import { corpusSection } from "@orb/client/features/discovery";
+import { presetsSection } from "@orb/client/features/preset";
+import { refinerySection } from "@orb/client/features/refinery";
+import { analyticsSection } from "@orb/client/features/stats";
+import { worldInfoSection } from "@orb/client/features/world-info";
+import { createRegistry } from "@orb/client/lib";
+import type { SectionDefinition, SectionId, SectionRegistry } from "@orb/client/state";
+import { SECTION_IDS, SectionRegistryProvider } from "@orb/client/state";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 
@@ -34,4 +44,74 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
       </TRPCProvider>
     </QueryClientProvider>
   );
+}
+
+// ── Section-registry CT providers ─────────────────────────────────────────────────────────────────
+// The shell (AppShell / Rail / YouSheet / useShellLayout / AppRoot) reads the section registry as a
+// runtime context, so a CT mounting any of them must provide one (mirrors main.tsx's door). Homed HERE
+// (the one client-owned CT support file — selection.ts CT_CLIENT_OWNED) so importing the client feature
+// front doors stays in the client program.
+
+const REAL: Record<SectionId, SectionDefinition<never>> = {
+  chats: chatsSection,
+  characters: charactersSection,
+  corpus: corpusSection,
+  worldInfo: worldInfoSection,
+  presets: presetsSection,
+  refinery: refinerySection,
+  analytics: analyticsSection,
+};
+
+const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition<never>>(
+  "sections",
+  SECTION_IDS,
+  REAL,
+);
+
+/** The real 7-section registry — for CTs that drive real section content (the route CT). */
+export function CtRealSectionRegistry({
+  children,
+}: {
+  readonly children: ReactNode;
+}): ReactElement {
+  return <SectionRegistryProvider value={realRegistry}>{children}</SectionRegistryProvider>;
+}
+
+/** Per-section fake injection: `list`/`content` slots the story wants to render (the old SectionSlot). */
+export interface CtFakeSection {
+  readonly list?: ReactNode;
+  readonly content?: ReactNode;
+}
+
+function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDefinition<never> {
+  const real = REAL[id];
+  return {
+    id,
+    rail: real.rail,
+    panelDefaults: real.panelDefaults,
+    placeholder: real.placeholder,
+    ...(slot?.list !== undefined ? { list: (): ReactNode => slot.list } : {}),
+    // A non-injected section renders its real placeholder (the planned arm) — the old "unwired ⇒ fallback".
+    content: slot?.content !== undefined ? (): ReactNode => slot.content : { planned: "ct" },
+    context: { kind: "none" },
+  };
+}
+
+/** The shell-isolation registry — real rail/placeholder, story-injected list/content per section. */
+export function CtFakeSectionRegistry({
+  sections,
+  children,
+}: {
+  readonly sections?: Partial<Record<SectionId, CtFakeSection>>;
+  readonly children: ReactNode;
+}): ReactElement {
+  const registry = createRegistry<SectionId, SectionDefinition<never>>(
+    "sections",
+    SECTION_IDS,
+    Object.fromEntries(SECTION_IDS.map((id) => [id, fakeSection(id, sections?.[id])])) as Record<
+      SectionId,
+      SectionDefinition<never>
+    >,
+  );
+  return <SectionRegistryProvider value={registry}>{children}</SectionRegistryProvider>;
 }

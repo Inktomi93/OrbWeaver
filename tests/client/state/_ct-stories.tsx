@@ -2,9 +2,10 @@
 // ShellStoreProbe renders the shell store's read-hook values as text + buttons that fire its module
 // actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
 // assert the store's OWN surface: section switch, PER-SECTION panel override memory (§4.2 rule 2), and
-// the modal open/close read. The resolve step (override ?? default) + the toggle/focus derivations moved
-// to the app-shell feature's `use-shell-layout.ts` (they need the SECTION_PANEL_DEFAULTS table the store
-// can't import) — those are exercised end-to-end by app-shell.ct.tsx, the correct tier.
+// the modal open/close read. The resolve step (override ?? the registry's panelDefaults) + the
+// toggle/focus derivations moved to the app-shell feature's `use-shell-layout.ts` — those are exercised
+// end-to-end by app-shell.ct.tsx, the correct tier. `SectionRegistryProbe` reads the section registry
+// context (useSectionRegistry) so the context+provider primitives carry a behavioral test.
 
 import {
   chatDeletedFromList,
@@ -19,7 +20,6 @@ import {
   clearWorldEntrySelection,
   closeModal,
   commitDraft,
-  dismissImportOnboarding,
   goToLanding,
   isCommitted,
   isLanding,
@@ -54,11 +54,11 @@ import {
   useCharacterViewMode,
   useChatListCharacterFilter,
   useFavoritesOnly,
-  useImportOnboardingDismissed,
   useListDocked,
   useMobileSheet,
   useOpenModal,
   usePanelOverride,
+  useSectionRegistry,
   useSelectedAnalyticsCharacterId,
   useSelectedCharacterId,
   useSelectedCorpusCharacterId,
@@ -72,6 +72,7 @@ import {
 import type { CharacterId, ChatId, PresetId, TagId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { CtFakeSectionRegistry } from "../../support/ct/ct-data-providers";
 
 export function ShellStoreProbe(): ReactElement {
   const section = useActiveSection();
@@ -338,20 +339,6 @@ export function WorldInfoSelectionProbe(): ReactElement {
   );
 }
 
-/** ImportOnboardingProbe — renders the first-run import-card dismiss latch as text + a dismiss button, so
- *  a CT can drive the persisted store's module action + read hook (import-onboarding-store). */
-export function ImportOnboardingProbe(): ReactElement {
-  const dismissed = useImportOnboardingDismissed();
-  return (
-    <div>
-      <output>{`dismissed=${String(dismissed)}`}</output>
-      <button type="button" onClick={(): void => dismissImportOnboarding()}>
-        dismiss card
-      </button>
-    </div>
-  );
-}
-
 /** CorpusSelectionProbe — renders the corpus-selection store's read hook as text + buttons that fire its
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
  *  assert select → clear (LIST/dossier selection drives the Corpus CONTENT; separate from the Characters
@@ -392,6 +379,30 @@ export function AnalyticsSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => clearAnalyticsSelection()}>
         clear analytics selection
       </button>
+    </div>
+  );
+}
+
+/** SectionRegistryProbe — reads the section registry via `useSectionRegistry` inside its provider (the
+ *  CtFakeSectionRegistry helper), rendering the delivered vocabulary as text so a CT proves the context
+ *  delivers the ordered, total section list and `get()` resolves a member. */
+export function SectionRegistryProbe(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <SectionRegistryReader />
+    </CtFakeSectionRegistry>
+  );
+}
+
+function SectionRegistryReader(): ReactElement {
+  const registry = useSectionRegistry();
+  const ids = registry
+    .list()
+    .map((d) => d.id)
+    .join(",");
+  return (
+    <div>
+      <output>{`ids=${ids} chats=${registry.get("chats").rail.label}`}</output>
     </div>
   );
 }

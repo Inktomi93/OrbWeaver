@@ -1,8 +1,7 @@
 // The Chats CONTENT body — landing (nothing selected) vs a live room, keyed so the draft→committed
 // promotion doesn't remount mid-first-turn (ChatRoomSurface's `sessionKey`, active-chat-store.ts). Reads
 // its OWN #state (handle/draftSeed/sessionKey) + #data (busDeps) so the chats-section definition composing
-// it stays a pure data object. The shared-with-settings `ImportOnboardingCard` chrome stays hand-wired at
-// the route (a cross-feature import this component can't make) — this branch is the bare surface split.
+// it stays a pure data object — the whole Chats CONTENT now flows from the registry, no route wrapper.
 
 import type { ReactElement } from "react";
 import type { ChatBusDeps } from "#data";

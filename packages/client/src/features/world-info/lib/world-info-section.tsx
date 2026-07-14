@@ -3,8 +3,8 @@
 // place. A pure DATA object: no app-shell/auth hook (the LIST's mobile-sheet-close on select is a #state
 // intent, `selectWorldBookFromList`, not an isMobile branch here). CONTEXT is the `single` arm (§6b) —
 // worldInfo has one body, not tabs, so `S` stays `void`. The composition root assembles this into the
-// section registry at the M1 cutover; until then the `/` route consumes `list` + `content` + `context`
-// directly and this `context` field is populated for the cutover but not yet on the render path.
+// section registry (main.tsx); AppShell consumes it via `useSectionRegistry`. CONTEXT still rides the
+// FLAG[lockdown-M3] bridge until M3.
 
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the BookOpen glyph fine (the character-card-facets.ts precedent).
 import { BookOpen } from "@orb/ui/icons";

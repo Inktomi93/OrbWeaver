@@ -1,5 +1,6 @@
-// app-shell front door. The route composes <AppShell sections={…}> with feature panes in the section
-// slots — the one cross-boundary seam (route→feature is legal; the shell stays domain-agnostic).
+// app-shell front door. AppShell consumes the section registry (a runtime context value) — it stays
+// domain-agnostic and gains no #features import. app-root feeds only the temporary FLAG[lockdown-M3]
+// CONTEXT bridge (context body + header) until M3 consumes each section's ContextDefinition.
 
 export type { ContextTabsPanelProps } from "./components/context-tabs-panel";
 export { ContextTabsPanel } from "./components/context-tabs-panel";
@@ -11,7 +12,5 @@ export type { ShellLayout } from "./hooks/use-shell-layout";
 export { useShellLayout } from "./hooks/use-shell-layout";
 export type { ContextTabEntry } from "./lib/context-slots";
 export { CONTEXT_SLOTS } from "./lib/context-slots";
-export type { RailSectionEntry } from "./lib/rail-slots";
-export { RAIL_SECTIONS } from "./lib/rail-slots";
-export type { AppShellProps, SectionSlot } from "./surfaces/app-shell";
+export type { AppShellProps } from "./surfaces/app-shell";
 export { AppShell } from "./surfaces/app-shell";

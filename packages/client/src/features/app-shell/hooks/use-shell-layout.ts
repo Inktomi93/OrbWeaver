@@ -1,8 +1,7 @@
 // useShellLayout — the shell's view-model and panel-resolve merge point. Bundles narrow shell-store
 // reads with derived bits (active section label, resolved per-panel modes, immersive, scrim) plus the
-// toggle/focus/collapse callbacks. Resolution lives here (not the store) because the state store can't
-// import the app-shell feature's SECTION_PANEL_DEFAULTS (reverse cycle) — the store exposes only the raw
-// override, this hook merges `override ?? default`.
+// toggle/focus/collapse callbacks. Resolution lives here (not the store): the store exposes only the raw
+// per-panel override; this hook merges `override ?? the section's registry panelDefaults`.
 //
 // On mobile the panels are transient sheets, not persisted docks: the resolve reads the store's
 // `mobileSheet` instead of `panelOverrides`, and toggle/collapse write `setMobileSheet` instead of
@@ -18,8 +17,8 @@ import {
   useMobileSheet,
   useOpenModal,
   usePanelOverride,
+  useSectionRegistry,
 } from "#state";
-import { RAIL_SECTIONS, SECTION_PANEL_DEFAULTS } from "../lib/rail-slots";
 import { useIsMobileViewport } from "./use-is-mobile-viewport";
 
 export interface ShellLayout {
@@ -40,16 +39,8 @@ export interface ShellLayout {
   readonly toggleFocus: () => void;
 }
 
-/** Resolve one panel's effective mode: the user's override if set, else the section's boot default. */
-function resolveMode(
-  override: PanelMode | undefined,
-  section: SectionId,
-  panel: PanelName,
-): PanelMode {
-  return override ?? SECTION_PANEL_DEFAULTS[section][panel];
-}
-
 export function useShellLayout(): ShellLayout {
+  const registry = useSectionRegistry();
   const activeSection = useActiveSection();
   const isMobile = useIsMobileViewport();
   // Publishes the viewport regime to #state so feature-tier projections (useListDocked) can branch on
@@ -65,14 +56,13 @@ export function useShellLayout(): ShellLayout {
     if (isMobile) {
       return mobileSheet === panel ? "overlay" : "collapsed";
     }
-    return resolveMode(override, activeSection, panel);
+    return override ?? registry.get(activeSection).panelDefaults[panel];
   };
   const listMode = resolvePanel("list", listOverride);
   const contextMode = resolvePanel("context", contextOverride);
 
   const openModalId = useOpenModal();
-  const activeSectionLabel =
-    RAIL_SECTIONS.find((s) => s.id === activeSection)?.label ?? activeSection;
+  const activeSectionLabel = registry.get(activeSection).rail.label;
   const immersive = listMode === "collapsed" && contextMode === "collapsed";
   const scrimVisible = listMode === "overlay" || contextMode === "overlay";
 

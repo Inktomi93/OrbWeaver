@@ -6,8 +6,8 @@
 // server read of its own — export is a browser download, import is a POST with a synchronous report, so
 // no QueryBoundary is needed here.
 //
-// This IS the permanent, discoverable "Backup & Restore / Import from SillyTavern" entry the first-run
-// onboarding card routes to (openSettingsTo("backup")).
+// This IS the permanent, discoverable "Backup & Restore / Import from SillyTavern" entry — the sole
+// import/export surface (the first-run onboarding card that once routed here was deleted at M1.cutover).
 
 import { Container, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";

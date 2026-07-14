@@ -1,7 +1,7 @@
 import { createRoute, createRouter } from "@tanstack/react-router";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
 import { rootRoute } from "./__root";
-import { HomePage } from "./home-page";
+import { AppRoot } from "./app-root";
 import { LoginPage } from "./login-page";
 import { RoutePending } from "./route-pending";
 
@@ -14,7 +14,7 @@ const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: () => requireAuthed(),
-  component: HomePage,
+  component: AppRoot,
 });
 
 const loginRoute = createRoute({

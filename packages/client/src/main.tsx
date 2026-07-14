@@ -21,7 +21,16 @@ import type { ReactElement } from "react";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
-import { AppErrorBoundary, bindNotify, buildClientErrorPayload } from "#lib";
+import { charactersSection } from "#features/character";
+import { chatsSection } from "#features/chat";
+import { corpusSection } from "#features/discovery";
+import { presetsSection } from "#features/preset";
+import { refinerySection } from "#features/refinery";
+import { analyticsSection } from "#features/stats";
+import { worldInfoSection } from "#features/world-info";
+import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createRegistry } from "#lib";
+import type { SectionDefinition, SectionId } from "#state";
+import { SECTION_IDS, SectionRegistryProvider } from "#state";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { isProbeMode } from "./lib/probe-mode";
 import { router } from "./routes/router";
@@ -55,6 +64,19 @@ globalThis.addEventListener("vite:preloadError", () => {
 
 const queryClient = createAppQueryClient();
 const trpcClient = createTrpcClient();
+
+// The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
+// app-shell reads it (incl. the use-shell-layout hook) without a #features import. `never` erases each
+// section's heterogeneous context-state projection (the variance-safe common Def).
+const sections = createRegistry<SectionId, SectionDefinition<never>>("sections", SECTION_IDS, {
+  chats: chatsSection,
+  characters: charactersSection,
+  corpus: corpusSection,
+  worldInfo: worldInfoSection,
+  presets: presetsSection,
+  refinery: refinerySection,
+  analytics: analyticsSection,
+});
 
 // The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders
 // whatever notify.* enqueues. Without this bind, user-facing errors were console-only.
@@ -110,7 +132,9 @@ createRoot(rootEl).render(
               </Stack>
             )}
           >
-            <RouterProvider router={router} />
+            <SectionRegistryProvider value={sections}>
+              <RouterProvider router={router} />
+            </SectionRegistryProvider>
           </AppErrorBoundary>
           <Toaster />
         </ToastProvider>

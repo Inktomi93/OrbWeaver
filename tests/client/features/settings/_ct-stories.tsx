@@ -2,11 +2,7 @@
 // settings shell comes through the feature front door, wrapped in the real data layer (`routeTrpc` stubs
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
-import {
-  ImportOnboardingCard,
-  SettingsShell,
-  ThemePickerSurface,
-} from "@orb/client/features/settings";
+import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
@@ -165,31 +161,6 @@ export function BackupSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
         <BackupSettingsSurface />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-/** The first-run import onboarding card in isolation — reads `chat.listChats` (stubbed per-test; empty ⇒
- *  fresh ⇒ the card shows). Its Upload action deep-links to Settings → Backup & Restore via the shell
- *  store; the dismiss is device-local (localStorage). */
-export function ImportOnboardingCardStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ width: 720 }}>
-        <ImportOnboardingCard />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-/** The same card in a 375px-wide box — below the card's `@md` container width, so its text+button Row must
- *  collapse to a column (heading wraps as normal lines, buttons stack BELOW the text, no horizontal overflow). */
-export function ImportOnboardingCardNarrowStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ width: 375 }}>
-        <ImportOnboardingCard />
       </div>
     </CtDataProviders>
   );

@@ -2,9 +2,9 @@
 // read hooks reflect each transition: section switch, the PER-SECTION panel override memory (§4.2 rule 2
 // — switching away and back restores the section's own override, and a sibling section is unaffected),
 // and `useListDocked` (the narrow #state projection chats-section.tsx reads instead of `useShellLayout`).
-// The resolve (override ?? default) + toggle/focus derivations live in the app-shell feature hook
-// (SECTION_PANEL_DEFAULTS is a feature table the store can't import) and are covered by app-shell.ct.tsx
-// — here the store's raw overrides read `none` until explicitly set.
+// The resolve (override ?? the section registry's panelDefaults) + toggle/focus derivations live in the
+// app-shell feature hook and are covered by app-shell.ct.tsx — here the store's raw overrides read `none`
+// until explicitly set.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ShellStoreProbe } from "./_ct-stories";

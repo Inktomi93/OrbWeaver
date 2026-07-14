@@ -3,12 +3,11 @@
 // place. A pure DATA object: every render slot is a hook-free arrow composing this feature's surfaces +
 // components, so the definition itself imports NO app-shell/auth hook — `ChatListSurface`/`ChatContent`
 // read their own #state selection, and `multiHumanCapable` (the `ContextTabDef.when`/`body` inputs) is
-// the CONSUMER's job to resolve into `ChatContextState` at cutover (today `useAuthConfig` from `#data`,
-// not `#features/auth` — no cross-feature reach). The composition root assembles this into the section
-// registry at the M1 cutover; until then the `/` route consumes `list` + `content` directly and the
-// shell's bespoke Tabs (`ChatContextPanel`) still serves the CONTEXT for a committed chat (this `context`
-// field is the fourth legacy-Tabs unification named in registry-contracts.ts — populated for the cutover
-// but not yet on the render path).
+// the CONSUMER's job to resolve into `ChatContextState` (today `useAuthConfig` from `#data`, not
+// `#features/auth` — no cross-feature reach). The composition root assembles this into the section
+// registry (main.tsx); AppShell consumes it via `useSectionRegistry`. CONTEXT still rides the
+// FLAG[lockdown-M3] bridge until M3 (`ChatContextPanel`'s bespoke Tabs is the fourth legacy-Tabs
+// unification named in registry-contracts.ts).
 
 import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -23,6 +22,7 @@ import { chatDeletedFromList, openModal, selectChatFromList } from "#state";
 import { ChatListAnchor } from "../anchors/chat-list-anchor";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { ChatContent } from "../components/chat-content";
+import { ChatsTopbarHeader } from "../components/chats-topbar-header";
 import { CommittedGroupConfigTab } from "../components/group-config-form";
 import { InjectionsManager } from "../components/injections-manager";
 import { RoomOverridesTab } from "../components/room-overrides-tab";
@@ -91,6 +91,8 @@ export const chatsSection: SectionDefinition<ChatContextState> = {
     </ChatListAnchor>
   ),
   content: () => <ChatContent />,
+  // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
+  header: () => <ChatsTopbarHeader />,
   // Five tabs, the chat-context-panel-surface.tsx bespoke Tabs unified (§6c): Members (floor-gated),
   // Overrides (always), Group (host + group chat only), Preview (host only), Injections (always).
   context: {

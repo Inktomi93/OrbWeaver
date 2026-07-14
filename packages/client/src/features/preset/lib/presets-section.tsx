@@ -3,9 +3,8 @@
 // place. A pure DATA object: every render slot is a hook-free arrow composing this feature's surfaces +
 // components, so the definition itself imports NO app-shell/auth hook (the LIST's mobile-sheet-close on
 // select and the CONTEXT reveal/dismiss intents live inside PresetContent / the #state actions). The
-// composition root assembles this into the section registry at the M1 cutover; until then the `/` route
-// consumes `list` + `content` directly and the shell's ContextTabsPanel still serves the CONTEXT (this
-// `context` field is populated for the cutover but not yet on the render path).
+// composition root assembles this into the section registry (main.tsx); AppShell consumes it via
+// `useSectionRegistry`. CONTEXT still rides the FLAG[lockdown-M3] bridge until M3.
 
 import type { PresetId } from "@orb/kit/ids";
 import { SlidersHorizontal } from "@orb/ui/icons";

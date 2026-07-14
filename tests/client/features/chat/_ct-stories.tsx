@@ -723,7 +723,7 @@ const CT_GO_TO_SECTIONS: readonly GoToSection[] = [
 ];
 
 /** The J4 ⌘K command palette body, wired to the real data layer (routeTrpc stubs `chat.listChats`).
- *  `goToSections` is a fixed CT literal (the route supplies RAIL_SECTIONS in production). */
+ *  `goToSections` is a fixed CT literal (app-root derives it from the section registry in production). */
 export function CommandPaletteSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>

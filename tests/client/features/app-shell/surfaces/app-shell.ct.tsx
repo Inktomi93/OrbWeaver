@@ -15,6 +15,10 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
 import { AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
 
+/** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (mobilePrimary sections + "You") must
+ *  never exceed this — a def flipping `mobilePrimary: true` must not silently balloon the bar. */
+const MAX_MOBILE_TAB_BUTTONS = 4;
+
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
 
@@ -337,6 +341,10 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
+  // The ballooning guard: rendered mobile-bar buttons (mobilePrimary sections + "You") must never
+  // exceed the thumb-reach budget — a def flipping `mobilePrimary: true` must not silently balloon it.
+  const tabCount = await page.locator(".shell-rail-mobile").getByRole("button").count();
+  expect(tabCount).toBeLessThanOrEqual(MAX_MOBILE_TAB_BUTTONS);
 });
 
 test("mobile: you land on CONTENT — the list panel is collapsed, not an open sheet", async ({

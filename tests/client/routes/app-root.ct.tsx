@@ -1,5 +1,5 @@
-// CT: the `/` home route — the central navigation seam end-to-end (this route was untested before this
-// task). Drives the PRODUCTION composition: the four-region shell, the active-chat store, and the
+// CT: the `/` route (app-root) — the central navigation seam end-to-end. Drives the PRODUCTION
+// composition: the four-region shell + the section registry, the active-chat store, and the
 // character→chat seam. Asserts: the default chats section renders the LANDING surface (D62 P4 / J1 — the
 // app never opens on an empty room); and picking a character in the library STARTS a chat with it — the
 // library writes the shared stores (startNewChat + setActiveSection), the route (the sole reader) flips

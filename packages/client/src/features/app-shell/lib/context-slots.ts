@@ -1,3 +1,4 @@
+// FLAG[lockdown-M3] — temporary context bridge, deleted at M3.
 // CONTEXT_SLOTS — the registry-as-data for the context panel's per-section tab strip. A section's
 // context tabs are data entries (id + label), not bespoke JSX, so a new domain adds a tab by appending a
 // registry entry + a body, never touching the domain-agnostic shell. <ContextTabsPanel> reads this table
