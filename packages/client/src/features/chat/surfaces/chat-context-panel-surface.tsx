@@ -4,7 +4,7 @@
 // is non-empty (People needs a multi-human install with >1 human; Cast needs >=2 characters); the
 // default tab is Members when it renders, else Overrides.
 
-import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -29,8 +29,7 @@ import { CommittedGroupConfigTab } from "../components/group-config-form";
 import { InjectionsManager } from "../components/injections-manager";
 import { InviteDialog } from "../components/invite-dialog";
 import { MembersPanel } from "../components/members-panel";
-import { RoomOverridesForm } from "../components/room-overrides-form";
-import { useSetRoomOverrides } from "../hooks/use-context-panel-mutations";
+import { RoomOverridesTab } from "../components/room-overrides-tab";
 import {
   useKickMember,
   useNominateHostHandoff,
@@ -42,11 +41,13 @@ import {
   useSetParticipantTalkativeness,
 } from "../hooks/use-roster-mutations";
 import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows";
-import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
-import { filterCharacters, resolveHumanParticipants, resolveIsGroupChat } from "../lib/roster";
-
-const CAST_SECTION_FLOOR = 2;
-const PEOPLE_TAB_FLOOR = 2;
+import {
+  castSectionVisible,
+  filterCharacters,
+  membersTabJustified,
+  resolveHumanParticipants,
+  resolveIsGroupChat,
+} from "../lib/roster";
 
 function toPersonRows(
   participants: readonly ParticipantView[],
@@ -121,20 +122,10 @@ function ChatContextPanelBody({
   multiHumanCapable = false,
 }: ChatContextPanelProps): ReactElement {
   const trpc = useTRPC();
-  const invalidation = useInvalidation();
   const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const isHost = chat.viewerIsHost === true;
-  const setOverrides = useSetRoomOverrides({ trpc, invalidation });
-  // .catch swallows the autosave rejection so a failed write doesn't leak an unhandled page error —
-  // the mutation's errorToast already surfaces it.
-  const saveOverrides = (overrides: RoomOverrides): Promise<unknown> =>
-    setOverrides.mutateAsync({ chatId, overrides }).catch(() => undefined);
-
-  const humans = resolveHumanParticipants(chat.participants);
-  const characterCount = filterCharacters(chat.participants).length;
-  const peopleJustifiesTab = multiHumanCapable && humans.length >= PEOPLE_TAB_FLOOR;
-  const castJustifiesTab = characterCount >= CAST_SECTION_FLOOR;
-  const showMembers = peopleJustifiesTab ? true : castJustifiesTab;
+  const castJustifiesTab = castSectionVisible(chat.participants);
+  const showMembers = membersTabJustified(chat.participants, multiHumanCapable);
   const showGroup = isHost && resolveIsGroupChat(chat.participants);
 
   const contextTab = useContextTab();
@@ -172,12 +163,7 @@ function ChatContextPanelBody({
         ) : null}
 
         <TabsPanel value="overrides">
-          <RoomOverridesForm
-            entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}${chatId}`}
-            roomOverrides={chat.roomOverrides}
-            isHost={isHost}
-            save={isHost ? saveOverrides : undefined}
-          />
+          <RoomOverridesTab chatId={chatId} roomOverrides={chat.roomOverrides} isHost={isHost} />
         </TabsPanel>
 
         {showGroup ? (
@@ -242,7 +228,9 @@ function resolveActiveTab(
   return contextTab !== null && visibleTabs.has(contextTab) ? contextTab : defaultTab;
 }
 
-interface CommittedMembersTabProps {
+/** Exported for `chats-section.tsx`'s dormant CONTEXT port (§6c) — the Members tab body needs the same
+ *  `chat` slice + gates the live surface computes, without re-fetching. */
+export interface CommittedMembersTabProps {
   readonly chatId: ChatId;
   readonly chat: {
     readonly participants: readonly ParticipantView[];
@@ -254,7 +242,7 @@ interface CommittedMembersTabProps {
   readonly castVisible: boolean;
 }
 
-function CommittedMembersTab({
+export function CommittedMembersTab({
   chatId,
   chat,
   isHost,

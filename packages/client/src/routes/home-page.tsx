@@ -1,19 +1,16 @@
-import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Stack } from "@orb/ui/layout";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import type { ChatBusDeps } from "#data";
-import { useInvalidation, useUserBus } from "#data";
+import { useAuthConfig, useInvalidation, useUserBus } from "#data";
 import {
   AppShell,
   ContextTabsPanel,
   RAIL_SECTIONS,
   SectionPlaceholder,
-  useShellLayout,
   YouSheet,
 } from "#features/app-shell";
-import { AccountSurface, useAuthConfig } from "#features/auth";
+import { AccountSurface } from "#features/auth";
 import {
   CharacterActionsMenu,
   CharacterFacetInspector,
@@ -25,11 +22,8 @@ import type { GoToSection } from "#features/chat";
 import {
   ChatContextPanel,
   ChatHeaderSurface,
-  ChatLandingSurface,
-  ChatListAnchor,
-  ChatListSurface,
-  ChatRoomSurface,
   CommandPaletteSurface,
+  chatsSection,
   clearJoinParam,
   DraftChatHeader,
   DraftContextPanel,
@@ -57,32 +51,37 @@ import {
   analyticsSection,
 } from "#features/stats";
 import { worldInfoSection } from "#features/world-info";
+import type { ChatHandle } from "#state";
 import {
-  chatStream,
-  commitDraft,
   dismissPresetSection,
-  goToLanding,
   isCommitted,
   isLanding,
-  openModal,
-  selectChat,
-  setActiveSection,
-  setMobileSheet,
-  startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSection,
-  useActiveSessionKey,
   useSelectedCharacterId,
   useSelectedPresetId,
 } from "#state";
 
+// The Chats CONTENT body — `chatsSection.content` is the bare landing-vs-room surface; the shared-
+// with-settings `ImportOnboardingCard` chrome wraps ONLY the landing case (a cross-feature import a chat
+// component can't make, so it stays hand-wired here, never folded into the section definition).
+function renderChatsContent(handle: ChatHandle): ReactNode {
+  const content = typeof chatsSection.content === "function" ? chatsSection.content() : null;
+  if (!isLanding(handle)) {
+    return content;
+  }
+  return (
+    <Stack className="h-full min-h-0">
+      <ImportOnboardingCard />
+      <Stack className="min-h-0 flex-1">{content}</Stack>
+    </Stack>
+  );
+}
+
 // The `/` home: the composition root + the app's central navigation seam. It mounts the four-region
 // AppShell and is the ONE reactive reader of the active-chat store; a route may import a feature front
 // door but a feature may NOT import another feature — every domain touch lives HERE.
-//
-// `sessionKey` is ChatRoomSurface's React key — stable across a draft→committed promotion so the
-// surface does not remount mid-first-turn (which would tear down the live SSE subscription).
 export function HomePage(): ReactElement {
   // Single-user renders none of the three multi-human surfaces (bell, People tab, /join landing);
   // `false` until the config lands so chrome never flashes-then-yanks.
@@ -97,7 +96,6 @@ export function HomePage(): ReactElement {
     }
   }, [joinToken]);
   const invalidation = useInvalidation();
-  const busDeps: ChatBusDeps = { stream: chatStream, invalidate: invalidation.invalidate };
   // The always-on per-user entity-changed stream, mounted once here (never in a feature, which could
   // unmount and drop the freshness driver).
   useUserBus({
@@ -107,31 +105,10 @@ export function HomePage(): ReactElement {
 
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
-  const sessionKey = useActiveSessionKey();
   const activeSection = useActiveSection();
   const selectedPresetId = useSelectedPresetId();
-  // When the Chats LIST is docked it already is the recents finder, so the landing drops its own
-  // "Recent chats" to avoid duplicating it.
-  const shellLayout = useShellLayout();
   const selectedCharacterId = useSelectedCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
-  // After a host deletes the chat the CONTENT is showing, return to the landing surface so the room
-  // never points at a dropped chat.
-  const onDeletedChat = (deletedChatId: ChatId): void => {
-    if (activeChatId === deletedChatId) {
-      goToLanding();
-    }
-  };
-  // Land on the selected chat and close any open mobile list sheet (no-op on desktop).
-  const selectChatFromList = (chatId: ChatId): void => {
-    selectChat(chatId);
-    setMobileSheet(null);
-  };
-  const openNewChatPicker = (): void => openModal("newChat");
-  const browseCharacters = (): void => setActiveSection("characters");
-  const startChatWithCharacter = (characterId: CharacterId): void => {
-    startNewChat({ characterIds: [characterId] });
-  };
 
   // The palette's "Go to" targets, bridged from the rail's own section registry.
   const goToSections = useMemo<readonly GoToSection[]>(
@@ -163,6 +140,8 @@ export function HomePage(): ReactElement {
     return null;
   })();
 
+  const chatsContent = renderChatsContent(handle);
+
   const routeAnnouncement = ((): string => {
     if (activeSection === "chats") {
       if (activeChatId !== null) {
@@ -190,43 +169,18 @@ export function HomePage(): ReactElement {
         // Topbar chrome, mounted only while the deployment can seat a second human.
         topbarTrail={multiHumanCapable ? <NotificationBell /> : undefined}
         sections={{
+          // chats is the last (M1.7) and hardest section migrated to the co-located SectionDefinition:
+          // the LIST + CONTENT render from `chatsSection`, which reads its own selection/handle and folds
+          // the LIST's mobile-sheet-close, new-chat, and delete-return-to-landing into #state intents (no
+          // isMobile closures here). `header`/`context` stay hand-wired (chat's bespoke Tabs still serves
+          // CONTEXT until the M1 cutover consumes `chatsSection.context`) — the shared-with-settings
+          // `ImportOnboardingCard` chrome wraps ONLY the landing case, so it stays here too (a cross-
+          // feature import `chatsSection.content` can't make).
           chats: {
             header: chatsHeader,
             context: chatsContext,
-            list: (
-              <ChatListAnchor>
-                <ChatListSurface
-                  activeChatId={activeChatId}
-                  onNewChat={openNewChatPicker}
-                  onSelect={selectChatFromList}
-                  onDeletedChat={onDeletedChat}
-                />
-              </ChatListAnchor>
-            ),
-            // A landing handle (nothing selected) renders the welcome hero, never an empty room.
-            content: isLanding(handle) ? (
-              <Stack className="h-full min-h-0">
-                <ImportOnboardingCard />
-                <Stack className="min-h-0 flex-1">
-                  <ChatLandingSurface
-                    onSelect={selectChat}
-                    onStartChat={startChatWithCharacter}
-                    onNewChat={openNewChatPicker}
-                    onBrowseCharacters={browseCharacters}
-                    showRecents={shellLayout.listMode !== "docked"}
-                  />
-                </Stack>
-              </Stack>
-            ) : (
-              <ChatRoomSurface
-                key={sessionKey}
-                busDeps={busDeps}
-                draftSeed={draftSeed}
-                initialHandle={handle}
-                onChatForked={selectChat}
-                onChatStarted={commitDraft}
-              />
-            ),
+            list: chatsSection.list?.(),
+            content: chatsContent,
           },
           // characters is the first section migrated to the co-located SectionDefinition (M1.1): the
           // LIST + CONTENT render from `charactersSection`, which reads its own selection and folds the

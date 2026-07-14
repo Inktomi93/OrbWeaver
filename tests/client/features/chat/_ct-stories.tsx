@@ -29,6 +29,7 @@ import {
   chatStream,
   committedChat,
   draftChat,
+  selectChat,
   startEditingMessage,
   useTurnPhase,
 } from "@orb/client/state";
@@ -611,7 +612,9 @@ export function ComposerStory(props: ComposerStoryProps): ReactElement {
 // ── Chat-list story (data layer — listChats stubbed at the network) ─────────────────────────────────
 
 export interface ChatListSurfaceStoryProps {
-  /** The active chat id (paints the selected row) — a plain string, cast to `ChatId` inside. */
+  /** The active chat id (paints the selected row) — a plain string, cast to `ChatId` inside. Drives the
+   *  REAL active-chat-store via `selectChat` (ChatListSurface reads `useActiveChatId()` internally now —
+   *  the character/preset/world-info library-surface precedent), not a passthrough prop. */
   readonly activeChatId?: string | null;
 }
 
@@ -632,11 +635,15 @@ function ChatListInner({ activeChatId }: { readonly activeChatId: string | null 
   const [selected, setSelected] = useState("none");
   const [newCount, setNewCount] = useState(0);
   const [deleted, setDeleted] = useState("none");
+  useEffect(() => {
+    if (activeChatId !== null) {
+      selectChat(castId<ChatId>(activeChatId));
+    }
+  }, [activeChatId]);
   return (
     <div style={{ height: 480, width: 320 }}>
       <ChatListAnchor>
         <ChatListSurface
-          activeChatId={activeChatId === null ? null : castId<ChatId>(activeChatId)}
           onDeletedChat={(id): void => setDeleted(id)}
           onNewChat={(): void => setNewCount((n) => n + 1)}
           onSelect={(id): void => setSelected(id)}

@@ -8,9 +8,11 @@
 // `mobileSheet` instead of `panelOverrides`, and toggle/collapse write `setMobileSheet` instead of
 // `setPanelMode`. Desktop is untouched.
 
+import { useEffect } from "react";
 import type { ModalSlotId, PanelMode, PanelName, SectionId } from "#state";
 import {
   setMobileSheet,
+  setMobileViewport,
   setPanelMode,
   useActiveSection,
   useMobileSheet,
@@ -50,6 +52,11 @@ function resolveMode(
 export function useShellLayout(): ShellLayout {
   const activeSection = useActiveSection();
   const isMobile = useIsMobileViewport();
+  // Publishes the viewport regime to #state so feature-tier projections (useListDocked) can branch on
+  // it without importing this matchMedia-backed hook (client-features-no-cross / no-raw-matchmedia).
+  useEffect(() => {
+    setMobileViewport(isMobile);
+  }, [isMobile]);
   const mobileSheet = useMobileSheet();
   const listOverride = usePanelOverride(activeSection, "list");
   const contextOverride = usePanelOverride(activeSection, "context");

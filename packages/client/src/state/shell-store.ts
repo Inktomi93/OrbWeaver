@@ -54,6 +54,10 @@ interface ShellState {
   readonly mobileSheet: PanelName | null;
   /** Opaque settings-category deep-link target. Set alongside `openModal:'settings'`; transient. */
   readonly settingsCategory: string | null;
+  /** The shell's viewport regime, published by app-shell (the sole `useIsMobileViewport` home) so
+   *  `#state` projections can branch on viewport WITHOUT importing the matchMedia hook
+   *  (`no-raw-matchmedia` bars it outside app-shell). Device-transient, never persisted. */
+  readonly mobileViewport: boolean;
 }
 
 /** Only the layout preference persists — `openModal` is transient (never reopen a modal on reload). */
@@ -69,6 +73,7 @@ const DEFAULT_STATE: ShellState = {
   contextTab: null,
   mobileSheet: null,
   settingsCategory: null,
+  mobileViewport: false,
 };
 
 // v2: the persisted shape changed from a single global panel pair to per-section `panelOverrides`.
@@ -138,6 +143,7 @@ function migrate(persisted: unknown): ShellState {
     contextTab: null,
     mobileSheet: null,
     settingsCategory: null,
+    mobileViewport: false,
   };
 }
 
@@ -222,6 +228,12 @@ export function setMobileSheet(panel: PanelName | null): void {
   useShellStore.setState({ mobileSheet: panel }, false, "shell/setMobileSheet");
 }
 
+/** Publish the shell's current viewport regime — called from app-shell's `useIsMobileViewport` sync
+ *  effect only (that hook is the sole matchMedia read; this store must never read it directly). */
+export function setMobileViewport(isMobile: boolean): void {
+  useShellStore.setState({ mobileViewport: isMobile }, false, "shell/setMobileViewport");
+}
+
 // ── The read API — narrow hooks so chrome re-renders only on the slice it reads. ──
 
 export function useActiveSection(): SectionId {
@@ -231,6 +243,17 @@ export function useActiveSection(): SectionId {
 /** The stored override for one (section, panel) — `undefined` when the user hasn't toggled it. */
 export function usePanelOverride(section: SectionId, panel: PanelName): PanelMode | undefined {
   return useShellStore((s) => s.panelOverrides[section]?.[panel]);
+}
+
+/** Is a section's LIST panel currently docked — the narrow #state projection a section definition reads
+ *  instead of `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell
+ *  hook). Mirrors `useShellLayout`'s `resolvePanel`: on mobile the real panel is never "docked" (it's a
+ *  transient sheet), so this reads `false` regardless of override/default; desktop resolves the same
+ *  channel useShellLayout does (override ?? the section's own default). */
+export function useListDocked(section: SectionId, ownDefault: PanelMode): boolean {
+  const mobileViewport = useShellStore((s) => s.mobileViewport);
+  const override = usePanelOverride(section, "list");
+  return mobileViewport ? false : (override ?? ownDefault) === "docked";
 }
 
 export function useOpenModal(): ModalSlotId | null {

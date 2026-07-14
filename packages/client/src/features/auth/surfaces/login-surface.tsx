@@ -11,10 +11,10 @@ import { Heading, Text } from "@orb/ui/text";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useRef } from "react";
+import type { AuthConfig } from "#data";
+import { useAuthConfig } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { LoginLocalForm } from "../components/login-local-form";
-import { useAuthConfig } from "../hooks/use-auth-meta";
-import type { AuthConfig } from "../lib/auth-bootstrap";
 
 /** The per-mode login card content (mounted inside `LoginShellAnchor` by the /login route). */
 export function LoginSurface(): ReactElement {

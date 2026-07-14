@@ -9,8 +9,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
+import type { AuthConfig } from "../../../../packages/client/src/data/auth-config";
 import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form";
-import type { AuthConfig } from "../../../../packages/client/src/features/auth/lib/auth-bootstrap";
 import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 

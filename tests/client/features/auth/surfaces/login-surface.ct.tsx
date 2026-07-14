@@ -6,7 +6,7 @@
 // `onDone`), so no memory-router harness is needed.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { AuthConfig } from "../../../../../packages/client/src/features/auth/lib/auth-bootstrap";
+import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config";
 import { LoginArmStory } from "../_ct-stories";
 
 function config(overrides: Partial<AuthConfig>): AuthConfig {

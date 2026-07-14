@@ -23,6 +23,8 @@ export type {
 export { useSendMessage } from "./hooks/use-send-message";
 export type { UseStopTurnResult } from "./hooks/use-stop-turn";
 export { useStopTurn } from "./hooks/use-stop-turn";
+export type { ChatContextState } from "./lib/chats-section";
+export { chatsSection } from "./lib/chats-section";
 export { isContinueEligible } from "./lib/continue-on-empty";
 export { clearJoinParam, readJoinToken } from "./lib/join-token";
 export type { ChatContextPanelProps } from "./surfaces/chat-context-panel-surface";
