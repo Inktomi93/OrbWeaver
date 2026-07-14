@@ -340,6 +340,54 @@ changed — `RAIL_SECTIONS`/`SECTION_PANEL_DEFAULTS`/`SECTION_PLACEHOLDER_COPY`/
 whole (the temporary duplication is expected); every section still renders (no regression); `pnpm check`
 whole green. (G1/G2 do not exist yet — not this step.)
 
+**M1.cutover executor spec (SCOUTED 2026-07-14 by the orchestrator — this is precise, not exploratory).**
+Extra reading in full: `client-architecture-lockdown.md` §5–§7; `features/app-shell/surfaces/app-shell.tsx`
+(the consumer); `features/app-shell/lib/rail-slots.ts` + `section-placeholder-copy.ts` (the 3 maps to
+delete); `features/app-shell/hooks/use-shell-layout.ts` + `components/{rail,you-sheet}.tsx` (the other map
+readers); `main.tsx` (the door) + `routes/home-page.tsx` (the current assembly).
+
+- **Delivery = a React CONTEXT, not a prop (the load-bearing decision).** `AppShell` is mounted in the
+  route but `createRegistry` must live in `main.tsx` (G8), and the registry is read deep in app-shell —
+  including inside the `use-shell-layout` HOOK, which can't take a prop. So add
+  `SectionRegistryContext` + `SectionRegistryProvider` + `useSectionRegistry()` in `#state` (it holds
+  `Registry<SectionId, SectionDefinition>`; the type already lives in `state/section-registry.ts`).
+  **This is NOT a cross-feature import:** app-shell reads the registry as a runtime context VALUE and calls
+  `def.list()`/`def.content()` blind — dep-cruiser checks static imports, not context values (confirm with
+  `pnpm ast flow` that app-shell gains no `#features/*` edge). `main.tsx` constructs
+  `const sections = createRegistry("sections", SECTION_IDS, { chats: chatsSection, characters:
+  charactersSection, corpus: corpusSection, worldInfo: worldInfoSection, presets: presetsSection, refinery:
+  refinerySection, analytics: analyticsSection })` (imports all 7 front-door exports — the door), and wraps
+  `<SectionRegistryProvider value={sections}>` around `<RouterProvider>`.
+- **Re-point every map reader at the registry (exact list from the scout), then DELETE the 3 maps:**
+  `SECTION_PANEL_DEFAULTS` (1 reader — `use-shell-layout.ts:49`) → `registry.get(s).panelDefaults[panel]`;
+  `SECTION_PLACEHOLDER_COPY` (1 reader — `app-shell.tsx:88` + its test) → `registry.get(active).placeholder`;
+  `RAIL_SECTIONS` (`rail.tsx`, `you-sheet.tsx`, `use-shell-layout` label, `home-page` palette, + derived
+  `MOBILE_PRIMARY_SECTIONS`/`RAIL_SLOTS`) → `registry.list().map(d => d.rail)`. `AppShell`'s
+  `contentBySection` (`<Activity>` pane-keeping) rebuilds from `registry.list()`. Update the
+  `section-placeholder-copy.test.ts`. `SECTION_IDS` STAYS (retained vocabulary).
+- **`home-page.tsx` → `app-root.tsx` (O7):** the `sections={{…}}` assembly MOVES to `main.tsx` (as the
+  `createRegistry` call). `app-root` keeps only §7 residue (`useUserBus` mount, `AriaAnnouncer`, the
+  `?join=` capture + `JoinInviteDialog`, `FirstRunPersonaDialog`) and mounts `<AppShell>`.
+- **The slim temp CONTEXT prop (FLAG\[lockdown-M3] scaffolding) carries BOTH `context` AND `contextHeader`**
+  — `AppShell` renders both from the slot today (`app-shell.tsx:158` header via ShellTopbar, `:165`
+  contextHeader, `:196` context body). Context stays hand-wired to M3, so `AppShellProps` keeps a slim
+  `sectionContext?: Partial<Record<SectionId, {context, contextHeader}>>` fed by `app-root`'s inline
+  `ContextTabsPanel`/`chatsContext`. Mark the prop, its type, and the app-root wiring with `FLAG[lockdown-M3]`.
+- **G1 + G2 with the temp-scaffolding allowlist.** G1 = `section-registry-completeness` (whole-project).
+  G2 = `no-parallel-section-map` — its `mustPass` MUST include a real DERIVED map (`MOBILE_PRIMARY_SECTIONS`
+  ←`RAIL_SECTIONS`… now ←the registry). **G2 will flag the two surviving temp maps** (`CONTEXT_SLOTS` and
+  the slim `sectionContext` prop are both `Record<SectionId,…>` over ≥2 members) — allowlist BOTH as
+  `FLAG[lockdown-M3]` temp entries; M3's done-gate removes the maps AND these allowlist entries. **This is
+  the ONE sanctioned exception to §A's "no new gate allowlist entry" ban** — that ban is against PERMANENT
+  dodges; this is TRACKED scaffolding for maps that legitimately live until M3, greppable and removed by
+  M3's done-gate. Cite the FLAG marker in the allowlist entry so it reads as temp, not a dodge. Full gate
+  ritual for G1/G2 (inline mustFlag/mustPass; `__g_` fixture or `UNFIXTURABLE_GATES`; Core-Enforcement row +
+  count bump).
+- **This wave is ATOMIC and large** — the registry is total, so there is no green partial-registry
+  intermediate. Build it whole, `pnpm check` whole green, live-drive EVERY section renders. If any single
+  piece (the context delivery, a map reader, the G2 allowlist) fights you in a way this spec didn't
+  anticipate, ASK — do not improvise the architecture.
+
 **M1.cutover verifier "verify" list (the FINAL step only):** the route is `app-root.tsx` with no
 `sections={{…}}` literal; AppShell consumes `sections.get(active)` (not `Partial<Record>` props); the four
 app-shell maps (`RAIL_SECTIONS`/`SECTION_PANEL_DEFAULTS`/`SECTION_PLACEHOLDER_COPY`/`CONTEXT_SLOTS`) + the
