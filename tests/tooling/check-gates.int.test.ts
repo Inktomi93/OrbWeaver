@@ -332,6 +332,11 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_pairing/lib/modal-slots.tsx",
     'export const MODAL_SLOTS = { orphan: { title: "Orphan", render: () => null } };\n',
   );
+  // registry-assembly-at-door-only: a createRegistry( call in a feature file — outside the door.
+  fx(
+    "packages/client/src/features/__g_regdoor/lib/__g_regdoor.ts",
+    'declare function createRegistry<T>(name: string, ids: readonly string[], defs: T): unknown;\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+  );
   // modal-body-not-placeholder: a modal-slots.tsx entry rendering <SectionPlaceholder> with NO
   // `placeholder: true` flag (a silent-sparkle body).
   fx(

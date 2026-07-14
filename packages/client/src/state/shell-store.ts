@@ -199,6 +199,19 @@ export function setContextTab(tab: string | null): void {
   useShellStore.setState({ contextTab: tab }, false, "shell/setContextTab");
 }
 
+/** Reveal the CONTEXT panel on a specific tab — the intent form of the old route-closure
+ *  `revealFieldInspector` (a feature fires the navigation intent; the section definition stays
+ *  viewport-unaware, §5.1). It writes BOTH regime channels unconditionally because `useShellLayout`
+ *  reads them mutually-exclusively — `mobileSheet` only in the mobile regime, the `panelOverrides` dock
+ *  only on desktop — so each write self-selects its regime and neither leaks into the other. This is the
+ *  viewport-unaware equivalent of the old `if (isMobile) sheet else dock` branch, without state forking
+ *  the shell's one `matchMedia` home (the app-shell mobile-viewport hook, no-raw-matchmedia). */
+export function revealContextPanel(tab: string): void {
+  setContextTab(tab);
+  setMobileSheet("context");
+  setPanelMode("context", "docked");
+}
+
 export function closeModal(): void {
   useShellStore.setState({ openModal: null, settingsCategory: null }, false, "shell/closeModal");
 }
