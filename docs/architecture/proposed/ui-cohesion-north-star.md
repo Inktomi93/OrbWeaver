@@ -419,6 +419,18 @@ Highest-impact fix; repeats every turn. All changes in the SHARED pieces — all
    - **RESOLVED — the Analytics section (2026-07-13):** built at `features/stats/`. All 12 stats-router
      procedures consumed — leaderboard LIST → per-character drill, overview/wrapped dashboard CONTENT,
      Models/Time/Personas CONTEXT tabs, charts-family throughout (bar-list/histogram/stat-figure/meter).
+   - **RESOLVED — Backup & Restore folder import (2026-07-14):** the import dropzone now also takes a
+     whole unzipped folder (a `webkitdirectory` `FolderPicker` primitive + `POST /api/import/tree`, no
+     client-side zip dep). The ingest is an INGEST TRUST BOUNDARY: every browser-supplied relative path is
+     sanitized fail-closed (reject absolute / `..` / backslash / NUL / empty-`.` segments) then
+     resolve-prefix-checked against a fresh unique staging dir; per-file (64 MiB), total (256 MiB), and
+     count (50k) caps; a rejected path fails the WHOLE upload (no partial staging). A layout sniff routes
+     an ST profile tree → the `import-st` workload (widened with an optional staged-dir override) and an
+     orb backup tree → the `import-bundle` workload (`source: "dir"`, consuming a `stageDirectory`
+     `StagedArchive` through the same `importStagedArchive` seam the extracted zip uses); an
+     ambiguous/unrecognized tree is a typed reject. Both arms ride the existing `BundleWorkloadTracker`
+     progress UX; the workload owns the staged-tree cleanup. v1 is pick-button only — the `FileDropzone`
+     primitive doesn't traverse a dropped folder (`webkitGetAsEntry`).
 
 ---
 

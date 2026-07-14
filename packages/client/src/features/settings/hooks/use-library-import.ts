@@ -8,7 +8,7 @@
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
 import { useState } from "react";
-import { importBundle, importCharacters, useInvalidation } from "#data";
+import { importBundle, importCharacters, importTree, relativePathOf, useInvalidation } from "#data";
 import { notify } from "#lib";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model";
 import {
@@ -42,6 +42,8 @@ export interface LibraryImport {
   readonly state: LibraryImportState;
   /** Upload a picked batch (a single `.zip` bundle, or one-or-many bare card files). */
   readonly importFiles: (files: readonly File[]) => void;
+  /** Upload a picked FOLDER (each file carries its `webkitRelativePath`) — the tree-import workload arm. */
+  readonly importFolder: (files: readonly File[]) => void;
   /** Return to the resting dropzone (clears a prior report / error). */
   readonly reset: () => void;
   /** Wired into the workload tracker while `state.status === "running"`. */
@@ -93,6 +95,19 @@ export function useLibraryImport(): LibraryImport {
       .catch((error: unknown) => fail(errorMessage(error)));
   };
 
+  const importFolder = (files: readonly File[]): void => {
+    const [first] = files;
+    if (first === undefined) {
+      return;
+    }
+    setState({ status: "uploading", filename: relativePathOf(first) });
+    importTree(files)
+      .then(({ workloadId }) => {
+        setState({ status: "running", workloadId, progress: { pct: null, label: null } });
+      })
+      .catch((error: unknown) => fail(errorMessage(error)));
+  };
+
   const track: LibraryImportTrack = {
     onProgress: (progress) => {
       setState((prev) => (prev.status === "running" ? { ...prev, progress } : prev));
@@ -102,7 +117,7 @@ export function useLibraryImport(): LibraryImport {
   };
 
   const reset = (): void => setState({ status: "idle" });
-  return { state, importFiles, reset, track };
+  return { state, importFiles, importFolder, reset, track };
 }
 
 function errorMessage(error: unknown): string {

@@ -202,14 +202,24 @@ function tally(outcomes: readonly BundleImportFileOutcome[]): {
   return { imported, skipped, failed };
 }
 
+/** What {@link importStagedArchive} needs: an already-staged tree (from `extractZip` OR `stageDirectory`)
+ *  plus the routing registry + target owner. `staged.dispose()` runs in the finally regardless of outcome. */
+export interface StagedBundleImportDeps {
+  readonly registry: PortabilityRegistry;
+  readonly ownerId: UserId;
+  readonly staged: StagedArchive;
+  readonly signal?: AbortSignal;
+}
+
 /**
- * Extract an untrusted bundle and import each file to its owning entity in dependency order. Returns the
- * per-file report (imported / deduped vs skipped vs failed). Rejects (from `extractZip`) with a
- * `ZipRejectedError` if the archive itself is hostile — nothing is imported in that case.
+ * Import an already-staged tree: route each entry to its owning entity by leading dir and import in
+ * dependency order, then dispose the staging dir. The seam BOTH sources funnel through — an extracted zip
+ * (`runBundleImport`) and an uploaded folder (`stageDirectory`) — so the entity routing lives in one place.
  */
-export async function runBundleImport(deps: BundleImportDeps): Promise<BundleImportReport> {
-  const { registry, ownerId, archive, extractOptions, signal } = deps;
-  const staged = await extractZip(archive, extractOptions);
+export async function importStagedArchive(
+  deps: StagedBundleImportDeps,
+): Promise<BundleImportReport> {
+  const { registry, ownerId, staged, signal } = deps;
   try {
     const { byDir, unrouted } = groupByDir(staged);
     const outcomes = [
@@ -220,4 +230,20 @@ export async function runBundleImport(deps: BundleImportDeps): Promise<BundleImp
   } finally {
     await staged.dispose();
   }
+}
+
+/**
+ * Extract an untrusted bundle and import each file to its owning entity in dependency order. Returns the
+ * per-file report (imported / deduped vs skipped vs failed). Rejects (from `extractZip`) with a
+ * `ZipRejectedError` if the archive itself is hostile — nothing is imported in that case.
+ */
+export async function runBundleImport(deps: BundleImportDeps): Promise<BundleImportReport> {
+  const { registry, ownerId, archive, extractOptions, signal } = deps;
+  const staged = await extractZip(archive, extractOptions);
+  return await importStagedArchive({
+    registry,
+    ownerId,
+    staged,
+    ...(signal !== undefined ? { signal } : {}),
+  });
 }

@@ -3,7 +3,7 @@
 // card imports synchronously. On success the library is already blanket-invalidated; the report renders below.
 
 import { Button } from "@orb/ui/button";
-import { FileDropzone } from "@orb/ui/file-dropzone";
+import { FileDropzone, FolderPicker } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
@@ -21,7 +21,7 @@ const IMPORT_MAX_BYTES = IMPORT_MAX_MIB * BYTES_PER_MIB;
 
 /** The import controls: dropzone → busy + live progress → summary (or error) → reset. */
 export function ImportLibrarySection(): ReactElement {
-  const { state, importFiles, reset, track } = useLibraryImport();
+  const { state, importFiles, importFolder, reset, track } = useLibraryImport();
   const busy = state.status === "uploading" || state.status === "running";
   const done = state.status === "done";
   const succeeded = done && state.summary.failed === 0;
@@ -30,7 +30,8 @@ export function ImportLibrarySection(): ReactElement {
     <Stack gap="block">
       <Text tone="muted" size="body">
         Restore a backup, or bring your SillyTavern library over. Drop a full .zip export
-        (characters, chats, personas, lorebooks — everything) or a single character card.
+        (characters, chats, personas, lorebooks — everything) or a single character card — or pick
+        an unzipped backup / SillyTavern profile folder.
       </Text>
       <FileDropzone
         accept=".zip,.png,.json"
@@ -47,6 +48,22 @@ export function ImportLibrarySection(): ReactElement {
           }
         }}
       />
+      <Row justify="start" align="center" gap="field">
+        <FolderPicker
+          maxSizeBytes={IMPORT_MAX_BYTES}
+          loading={busy}
+          onFilesSelected={({ accepted }): void => {
+            if (accepted.length > 0) {
+              importFolder(accepted);
+            }
+          }}
+        >
+          Import a folder…
+        </FolderPicker>
+        <Text tone="muted" size="micro">
+          An unzipped Orbweaver backup or a SillyTavern profile folder
+        </Text>
+      </Row>
       {state.status === "running" ? (
         <>
           <BundleWorkloadTracker
