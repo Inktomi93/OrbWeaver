@@ -131,10 +131,8 @@ DOC-SNIPPET GOTCHA: the lockdown doc's TS interface snippets use method-shorthan
 biome's `useConsistentMethodSignatures` REJECTS on house style. Write property-style instead:
 `readonly get: (id: Id) => Def`. Same shape; do not copy the doc snippet verbatim into code.
 
-ICON IMPORTS: do NOT add a `biome-ignore lint/correctness/noUnresolvedImports` for `@orb/ui/icons`. That
-rule is now OFF at the biome-config level (it false-positived on the lucide re-export chain; tsc/tsgo own
-unresolved-import detection). Import icons cleanly, no ignore. (The ~123 legacy ignores are harmless silent
-warnings, swept separately.)
+ICON IMPORTS: import from `@orb/ui/icons` cleanly — no `noUnresolvedImports` biome-ignore. That rule is OFF
+(the lucide-resolver false-positive is fixed at the biome-config level; tsc/tsgo own unresolved imports).
 ```
 
 ## B. The verifier preamble (verbatim, every verifier/stickler dispatch)
