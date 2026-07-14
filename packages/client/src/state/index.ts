@@ -91,7 +91,6 @@ export {
   setDraftRosterOverride,
   useDraftConfig,
 } from "./draft-config-store";
-export { dismissImportOnboarding, useImportOnboardingDismissed } from "./import-onboarding-store";
 export {
   cancelEditingMessage,
   readMessageEditDraft,
@@ -133,6 +132,9 @@ export type {
   SectionGroup,
   SectionPlaceholderCopy,
 } from "./section-registry";
+export type { SectionRegistry } from "./section-registry-context";
+export { SectionRegistryContext, useSectionRegistry } from "./section-registry-context";
+export { SectionRegistryProvider } from "./section-registry-provider";
 export type { ModalSlotId, PanelMode, PanelName, SectionId } from "./shell-store";
 export {
   closeModal,

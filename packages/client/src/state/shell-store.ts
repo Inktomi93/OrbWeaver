@@ -38,8 +38,8 @@ export type PanelMode = (typeof PANEL_MODES)[number];
 /** The two collapsible side panels (rail is fixed, content is fluid — neither is a panel). */
 export type PanelName = "list" | "context";
 
-/** One section's panel overrides — a sparse map; an absent (section, panel) resolves to the feature's
- *  SECTION_PANEL_DEFAULTS table. */
+/** One section's panel overrides — a sparse map; an absent (section, panel) resolves to the section
+ *  registry's `panelDefaults`. */
 type SectionPanels = Partial<Record<PanelName, PanelMode>>;
 type PanelOverrides = Partial<Record<SectionId, SectionPanels>>;
 

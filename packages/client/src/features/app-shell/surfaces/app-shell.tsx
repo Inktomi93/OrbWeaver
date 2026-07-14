@@ -1,6 +1,7 @@
 // AppShell — the four-region rail frame: RAIL | LIST | CONTENT | CONTEXT. Layout mechanics live in
 // shell.css; this file wires store state to data attrs. Domain-agnostic: it knows RAIL/LIST/CONTENT/
-// CONTEXT, never a specific feature — the route composes feature content into the `sections` slot map.
+// CONTEXT, never a specific feature — sections ride the registry (`useSectionRegistry`), assembled at
+// the main.tsx door.
 
 import { PortalContainerContext } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
@@ -10,7 +11,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { preload } from "react-dom";
 import type { ModalSlotId, SectionId } from "#state";
-import { closeModal, openModal, setActiveSection } from "#state";
+import { closeModal, openModal, setActiveSection, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
 import { CustomThemeStyle } from "../components/custom-theme-style";
 import { ModalHost } from "../components/modal-host";
@@ -25,23 +26,19 @@ import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects";
 import { useSelectedTheme } from "../hooks/use-selected-theme";
 import { useShellLayout } from "../hooks/use-shell-layout";
 import { resolveBackgroundUrl } from "../lib/resolve-theme-background";
-import { SECTION_PLACEHOLDER_COPY } from "../lib/section-placeholder-copy";
 import "./shell.css";
 
-/** A section's route-composed slots — the shell renders only the active section's entry, so every region follows the rail selection by construction. */
-export interface SectionSlot {
-  readonly list?: ReactNode;
-  readonly content?: ReactNode;
-  /** Topbar identity header. Absent ⇒ section name. */
-  readonly header?: ReactNode;
-  /** The context (right detail) panel body. Absent ⇒ the shell placeholder. */
+/** One section's route-composed CONTEXT chrome (panel body + header) — the M3 bridge value. */
+interface SectionContextBridge {
   readonly context?: ReactNode;
-  /** The context panel header. Absent ⇒ "Details". */
   readonly contextHeader?: ReactNode;
 }
 
 export interface AppShellProps {
-  readonly sections: Partial<Record<SectionId, SectionSlot>>;
+  // FLAG[lockdown-M3]: TEMPORARY context bridge. The CONTEXT panel (body + header) stays hand-wired at
+  // app-root until M3 consumes each section's ContextDefinition from the registry. Deleted at M3 — the
+  // per-section map is the sanctioned scaffolding (G2 allowlist), NOT a returning god-map.
+  readonly sectionContext?: Partial<Record<SectionId, SectionContextBridge>>;
   /** Route-composed modal bodies rendered over the `MODAL_SLOTS` placeholders. */
   readonly modals?: Partial<Record<ModalSlotId, ReactNode>>;
   /** Route-composed rail-foot chip (the persona switcher). Undefined ⇒ the account button. */
@@ -50,7 +47,13 @@ export interface AppShellProps {
   readonly topbarTrail?: ReactNode;
 }
 
-export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellProps): ReactElement {
+export function AppShell({
+  sectionContext,
+  modals,
+  railFoot,
+  topbarTrail,
+}: AppShellProps): ReactElement {
+  const registry = useSectionRegistry();
   const layout = useShellLayout();
   const appearance = useAppearance();
   const theme = useSelectedTheme();
@@ -84,10 +87,13 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
   const shellVars: CSSProperties = {
     "--width-shell-content": `clamp(680px, ${appearance.chatWidthPct}dvw, 100dvw)`,
   } as CSSProperties;
-  const slot = sections[layout.activeSection];
-  const placeholderCopy = SECTION_PLACEHOLDER_COPY[layout.activeSection];
+  const activeDef = registry.get(layout.activeSection);
+  const ctx = sectionContext?.[layout.activeSection];
+  const placeholderCopy = activeDef.placeholder;
   // At most one Weave decoration per screen — it rides the content placeholder only.
-  const listContent = slot?.list ?? <SectionPlaceholder title={`${placeholderCopy.title} list`} />;
+  const listContent = activeDef.list?.() ?? (
+    <SectionPlaceholder title={`${placeholderCopy.title} list`} />
+  );
   const contentFallback = (
     <SectionPlaceholder
       title={placeholderCopy.title}
@@ -95,13 +101,21 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
       weave={true}
     />
   );
-  // Every wired section's content, so <Activity> keeps recently-visited panes mounted-but-hidden across a rail switch.
+  // Every section's content, from the registry, so <Activity> keeps recently-visited panes mounted-but-
+  // hidden across a rail switch. The DECLARED-PLANNED arm renders the section's own placeholder as its
+  // content (the refinery founding member).
   const contentBySection: Partial<Record<SectionId, ReactNode>> = {};
-  for (const id of Object.keys(sections) as SectionId[]) {
-    const body = sections[id]?.content;
-    if (body !== undefined) {
-      contentBySection[id] = body;
-    }
+  for (const def of registry.list()) {
+    contentBySection[def.id] =
+      typeof def.content === "function" ? (
+        def.content()
+      ) : (
+        <SectionPlaceholder
+          title={def.placeholder.title}
+          description={def.placeholder.description}
+          weave={true}
+        />
+      );
   }
   const mainRef = useRef<HTMLElement>(null);
 
@@ -155,7 +169,7 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
             <div className="shell-main">
               <ShellTopbar
                 title={layout.activeSectionLabel}
-                header={slot?.header}
+                header={activeDef.header?.()}
                 trail={topbarTrail}
                 listMode={layout.listMode}
                 contextMode={layout.contextMode}
@@ -179,7 +193,7 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
               panel="context"
               label={`${layout.activeSectionLabel} details`}
               header={
-                slot?.contextHeader ?? (
+                ctx?.contextHeader ?? (
                   <Text size="label" weight="medium" tone="muted">
                     Details
                   </Text>
@@ -190,7 +204,7 @@ export function AppShell({ sections, modals, railFoot, topbarTrail }: AppShellPr
               onCollapse={(): void => layout.collapsePanel("context")}
             >
               <RegionAnchor region="context">
-                {slot?.context ?? (
+                {ctx?.context ?? (
                   <SectionPlaceholder
                     title="Details"
                     description="Select something to see its details here."

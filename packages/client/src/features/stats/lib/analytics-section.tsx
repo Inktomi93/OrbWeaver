@@ -1,10 +1,9 @@
 // The Analytics rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — the
 // section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
 // place. A pure DATA object: no app-shell/auth hook (Analytics has no isMobile-branching intent, unlike
-// Characters' field-inspector reveal). The composition root assembles this into the section registry at
-// the M1 cutover; until then the `/` route consumes `list` + `content` directly and the shell's
-// ContextTabsPanel still serves the CONTEXT (this `context` field is populated for the cutover but not
-// yet on the render path).
+// Characters' field-inspector reveal). The composition root assembles this into the section registry
+// (main.tsx); AppShell consumes it via `useSectionRegistry`. CONTEXT still rides the FLAG[lockdown-M3]
+// bridge until M3.
 
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the ChartColumn glyph fine (the character-card-facets.ts precedent).
 import { ChartColumn } from "@orb/ui/icons";

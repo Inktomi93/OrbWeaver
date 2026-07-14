@@ -15,8 +15,13 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ModalSlotId, SectionId } from "#state";
-import { closeModal, openModal, setActiveSection, useActiveSection } from "#state";
-import { RAIL_SECTIONS } from "../lib/rail-slots";
+import {
+  closeModal,
+  openModal,
+  setActiveSection,
+  useActiveSection,
+  useSectionRegistry,
+} from "#state";
 
 /** The account/settings/theme rows — the desktop rail's footer affordances, folded into the You sheet. */
 const YOU_MODAL_ROWS: readonly {
@@ -32,7 +37,9 @@ const YOU_MODAL_ROWS: readonly {
 /** The You bottom-sheet body: account/settings/theme + the overflow (non-`mobilePrimary`) sections. */
 export function YouSheet(): ReactElement {
   const activeSection = useActiveSection();
-  const overflowSections = RAIL_SECTIONS.filter((s) => s.mobilePrimary !== true);
+  const overflowSections = useSectionRegistry()
+    .list()
+    .filter((d) => d.rail.mobilePrimary !== true);
 
   const openYouModal = (id: ModalSlotId): void => {
     openModal(id);
@@ -61,14 +68,14 @@ export function YouSheet(): ReactElement {
           <Text size="micro" weight="semibold" tone="muted" transform="caps">
             More
           </Text>
-          {overflowSections.map((s) => (
+          {overflowSections.map((d) => (
             <ListRow
-              key={s.id}
+              key={d.id}
               clickable={true}
-              leading={<Icon icon={s.icon} size="sm" />}
-              onClick={(): void => goToSection(s.id)}
-              selected={s.id === activeSection}
-              title={s.label}
+              leading={<Icon icon={d.rail.icon} size="sm" />}
+              onClick={(): void => goToSection(d.id)}
+              selected={d.id === activeSection}
+              title={d.rail.label}
             />
           ))}
         </Stack>

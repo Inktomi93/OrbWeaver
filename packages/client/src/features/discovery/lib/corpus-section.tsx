@@ -1,9 +1,8 @@
 // The Corpus rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — the
 // section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
 // place. A pure DATA object: no app-shell/auth hook (Corpus has no isMobile-branching intent). The
-// composition root assembles this into the section registry at the M1 cutover; until then the `/` route
-// consumes `list` + `content` directly and the shell's ContextTabsPanel still serves the CONTEXT (this
-// `context` field is populated for the cutover but not yet on the render path).
+// composition root assembles this into the section registry (main.tsx); AppShell consumes it via
+// `useSectionRegistry`. CONTEXT still rides the FLAG[lockdown-M3] bridge until M3.
 
 import { Library } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";

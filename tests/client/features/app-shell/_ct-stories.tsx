@@ -26,23 +26,28 @@ import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
 import { openModal } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtFakeSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 /** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
  *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
 export function AppShellStory(): ReactElement {
   return (
     <CtDataProviders>
-      <AppShell
+      <CtFakeSectionRegistry
         sections={{
-          chats: { content: <p>chats content pane</p>, context: <p>chats context pane</p> },
+          chats: { content: <p>chats content pane</p> },
           corpus: { list: <p>corpus list pane</p>, content: <p>corpus content pane</p> },
         }}
-        // The route composes the real "You" bottom-sheet body over the `you` modal slot (L6/J12) — mirror
-        // that here so the mobile CT exercises the real sheet (account/settings/theme + overflow), not the
-        // placeholder fallback.
-        modals={{ you: <YouSheet /> }}
-      />
+      >
+        <AppShell
+          // The CONTEXT bodies ride the FLAG[lockdown-M3] bridge (list/content ride the registry above).
+          sectionContext={{ chats: { context: <p>chats context pane</p> } }}
+          // The route composes the real "You" bottom-sheet body over the `you` modal slot (L6/J12) — mirror
+          // that here so the mobile CT exercises the real sheet (account/settings/theme + overflow), not the
+          // placeholder fallback.
+          modals={{ you: <YouSheet /> }}
+        />
+      </CtFakeSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -54,7 +59,7 @@ export function AppShellStory(): ReactElement {
 export function AppShellWidthProbeStory(): ReactElement {
   return (
     <CtDataProviders>
-      <AppShell
+      <CtFakeSectionRegistry
         sections={{
           chats: {
             content: (
@@ -64,7 +69,9 @@ export function AppShellWidthProbeStory(): ReactElement {
             ),
           },
         }}
-      />
+      >
+        <AppShell />
+      </CtFakeSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -80,15 +87,18 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
   }, [modalId]);
   return (
     <CtDataProviders>
-      <AppShell
-        sections={{ chats: { content: <p>chats content pane</p> } }}
-        modals={{
-          // `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to
-          // fit (real drawer content has intrinsic height that resists shrink; an empty div would not) —
-          // we want it to genuinely overflow so the scroll assertion measures a real scroll region.
-          [modalId]: <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />,
-        }}
-      />
+      <CtFakeSectionRegistry sections={{ chats: { content: <p>chats content pane</p> } }}>
+        <AppShell
+          modals={{
+            // `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to
+            // fit (real drawer content has intrinsic height that resists shrink; an empty div would not) —
+            // we want it to genuinely overflow so the scroll assertion measures a real scroll region.
+            [modalId]: (
+              <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />
+            ),
+          }}
+        />
+      </CtFakeSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -96,11 +106,13 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
 /** The Rail in isolation — a11y + keyboard nav over real <button>s, registry-driven. */
 export function RailStory(): ReactElement {
   return (
-    <Rail
-      activeSection="chats"
-      onSelectSection={(): void => undefined}
-      onOpenModal={(): void => undefined}
-    />
+    <CtFakeSectionRegistry>
+      <Rail
+        activeSection="chats"
+        onSelectSection={(): void => undefined}
+        onOpenModal={(): void => undefined}
+      />
+    </CtFakeSectionRegistry>
   );
 }
 

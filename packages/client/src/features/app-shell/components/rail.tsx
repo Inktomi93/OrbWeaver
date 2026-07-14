@@ -1,19 +1,13 @@
 // Rail — the persistent nav. One component, two layouts chosen by shell.css @media: the desktop thin
 // icon column (brand → section buttons → spacer → footer triggers → avatar), and the mobile bottom tab
 // bar (a curated four: mobilePrimary sections + "You"). Both blocks are always in the DOM; shell.css
-// shows exactly one per breakpoint. Pure registry render: a new section is a RAIL_SECTIONS row.
+// shows exactly one per breakpoint. Pure registry render: a new section is a registered SectionDefinition.
 
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ModalSlotId, SectionId } from "#state";
-import {
-  ACCOUNT_ACTION,
-  MOBILE_PRIMARY_SECTIONS,
-  RAIL_ACTIONS,
-  RAIL_SECTIONS,
-  SECTION_GROUPS,
-  YOU_ACTION,
-} from "../lib/rail-slots";
+import { useSectionRegistry } from "#state";
+import { ACCOUNT_ACTION, RAIL_ACTIONS, SECTION_GROUPS, YOU_ACTION } from "../lib/rail-slots";
 import { RailButton } from "./rail-button";
 import { RailTabButton } from "./rail-tab-button";
 
@@ -32,6 +26,10 @@ export function Rail({
   onOpenModal,
   railFoot,
 }: RailProps): ReactElement {
+  // Pure registry render: the rail order + grouping + mobile curation all derive from the section
+  // definitions (no parallel RAIL_SECTIONS map). A new section is a registered SectionDefinition.
+  const sections = useSectionRegistry().list();
+  const mobilePrimary = sections.filter((d) => d.rail.mobilePrimary === true);
   return (
     <nav className="shell-rail" aria-label="Primary">
       <div className="shell-rail-desktop">
@@ -42,15 +40,17 @@ export function Rail({
         <div className="shell-rail-sections">
           {SECTION_GROUPS.map((group) => (
             <div className="shell-rail-group" key={group}>
-              {RAIL_SECTIONS.filter((s) => s.group === group).map((s) => (
-                <RailButton
-                  key={s.id}
-                  label={s.label}
-                  icon={s.icon}
-                  active={s.id === activeSection}
-                  onClick={(): void => onSelectSection(s.id)}
-                />
-              ))}
+              {sections
+                .filter((d) => d.rail.group === group)
+                .map((d) => (
+                  <RailButton
+                    key={d.id}
+                    label={d.rail.label}
+                    icon={d.rail.icon}
+                    active={d.id === activeSection}
+                    onClick={(): void => onSelectSection(d.id)}
+                  />
+                ))}
             </div>
           ))}
         </div>
@@ -79,13 +79,13 @@ export function Rail({
       </div>
 
       <div className="shell-rail-mobile">
-        {MOBILE_PRIMARY_SECTIONS.map((s) => (
+        {mobilePrimary.map((d) => (
           <RailTabButton
-            key={s.id}
-            label={s.label}
-            icon={s.icon}
-            active={s.id === activeSection}
-            onClick={(): void => onSelectSection(s.id)}
+            key={d.id}
+            label={d.rail.label}
+            icon={d.rail.icon}
+            active={d.id === activeSection}
+            onClick={(): void => onSelectSection(d.id)}
           />
         ))}
         <RailTabButton

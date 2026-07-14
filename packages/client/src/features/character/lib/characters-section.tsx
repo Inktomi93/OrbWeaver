@@ -3,9 +3,8 @@
 // place. A pure DATA object: every render slot is a hook-free arrow composing this feature's surfaces +
 // components, so the definition itself imports NO app-shell/auth hook (the selection reads + the
 // "reveal the field inspector" intent live inside CharacterContentSurface / the #state action).
-// The composition root assembles this into the section registry at the M1 cutover; until then the `/`
-// route consumes `list` + `content` directly and the shell's ContextTabsPanel still serves the CONTEXT
-// (this `context` field is populated for the cutover but not yet on the render path).
+// The composition root assembles this into the section registry (main.tsx); AppShell consumes it via
+// `useSectionRegistry`. CONTEXT still rides the FLAG[lockdown-M3] bridge until M3.
 
 import type { CharacterId } from "@orb/kit/ids";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the Users glyph fine (the character-card-facets.ts precedent).
