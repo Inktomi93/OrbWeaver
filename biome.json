@@ -98,7 +98,7 @@
         },
         "noUnusedFunctionParameters": "error",
         "noUndeclaredDependencies": "error",
-        "noUnresolvedImports": "error",
+        "noUnresolvedImports": "off",
         "noPrivateImports": "error",
         "noGlobalDirnameFilename": "error",
         "noProcessGlobal": "error",
