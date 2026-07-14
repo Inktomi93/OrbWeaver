@@ -128,14 +128,19 @@ tsgo_f=$(grep -E '\.(ts|tsx|mts|cts)\([0-9]+,[0-9]+\): error TS' "$tout" 2>/dev/
 
 [ -z "$biome_f" ] && [ -z "$dep_f" ] && [ -z "$tsgo_f" ] && exit 0
 
+# Grouped like `pnpm verify`: a labelled header per non-empty tool block, blank-line separated, so a
+# reader (and the agent) sees WHICH tool flagged WHAT at a glance. Diagnostic lines stay unindented so
+# their `path:line:col` / `path(line,col)` anchors stay click-navigable.
 {
-  [ -n "$biome_f" ] && printf '%s\n' "$biome_f"
+  [ -n "$biome_f" ] && { printf '── biome (lint) ──\n'; printf '%s\n' "$biome_f"; }
   if [ -n "$dep_f" ]; then
     [ -n "$biome_f" ] && echo
+    printf '── dep-cruiser (imports) ──\n'
     printf '%s\n' "$dep_f"
   fi
   if [ -n "$tsgo_f" ]; then
     { [ -n "$biome_f" ] || [ -n "$dep_f" ]; } && echo
+    printf '── tsgo (types) ──\n'
     printf '%s\n' "$tsgo_f"
   fi
 } >&2
