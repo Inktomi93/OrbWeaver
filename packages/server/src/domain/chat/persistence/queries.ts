@@ -564,7 +564,7 @@ export async function loadMessagesPage(
 
 /** Resume the resumable SSE token log — every row strictly after `afterSeq` (absent ⇒ from the retained
  *  window start), oldest-first. */
-export async function replayStreamEvents(
+export async function loadStreamReplay(
   db: Db,
   chatId: ChatId,
   afterSeq?: number,
@@ -586,7 +586,7 @@ export async function replayStreamEvents(
 }
 
 /** The resumable SSE log's replay cursor bounds — min/max `seq` (null/null when empty). */
-export async function streamEventBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
+export async function loadStreamBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
   const rows = await db
     .select({ minSeq: min(chatStreamEvents.seq), maxSeq: max(chatStreamEvents.seq) })
     .from(chatStreamEvents)
@@ -597,7 +597,7 @@ export async function streamEventBounds(db: Db, chatId: ChatId): Promise<StreamE
 
 /** Replay the durable chat-bus log — every row strictly after `afterSeq` (absent ⇒ from the start),
  *  oldest-first, the full room-public payload. */
-export async function replayChatEvents(
+export async function loadChatEventReplay(
   db: Db,
   chatId: ChatId,
   afterSeq?: number,
@@ -615,7 +615,7 @@ export async function replayChatEvents(
 
 /** The durable chat-bus log's cursor bounds — min/max `seq` (null/null when empty); `maxSeq` is the
  *  `lastEventId` a fresh subscriber resumes from. */
-export async function chatEventBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
+export async function loadChatEventBounds(db: Db, chatId: ChatId): Promise<StreamEventBounds> {
   const rows = await db
     .select({ minSeq: min(chatEvents.seq), maxSeq: max(chatEvents.seq) })
     .from(chatEvents)

@@ -36,6 +36,7 @@ const NOTIFICATION_TYPES = [
   "kicked",
   "handoff-nominated",
   "handoff-accepted",
+  "deferred-turn-dropped",
 ] as const satisfies readonly NotificationType[];
 
 // CHECK list derived from the same tuple (NOT re-spelled): `type in ('invite', …)`. Raw fragment — a

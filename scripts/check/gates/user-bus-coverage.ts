@@ -1,18 +1,8 @@
 // Gate: user-bus-coverage (PD user-bus lane) — the `UserBusEvent` emit-coverage RATCHET, the twin of
-// `bus-coverage.ts` (ledger D50) for the per-USER bus. The union is compile-exhaustive on the CONSUMER side
-// (`USER_BUS_EVENT_TYPES satisfies Record<…>`; the client `USER_BUS_FILTERS` mapped type), but nothing
-// machine-checks the PRODUCER side — a member can be declared, mapped on the client, and NEVER EMITTED by a
-// domain verb (silently dead wire: device B's edit never reaches device A). This gate closes that: every
-// discriminator in `USER_BUS_EVENT_TYPES` (parsed from the contracts source, the one home) must have a
-// server-side emit site (the discriminator string appearing in a `domain/` or `transport/` code literal —
-// the verbs' `emitUserEvent(userId, { type: "…" })` calls) OR an entry in the DEFERRED map below carrying
-// its citation.
-//
-// The DEFERRED map is a RATCHET, self-cleaning in both directions: a member that loses its emit site goes
-// RED (regression), and a DEFERRED member that GAINS one goes RED too ("stale allowlist — delete the
-// entry"). Today all members but `connectionsChanged` have a producer; `connectionsChanged` is DEFERRED
-// (no per-user connection store exists yet — a user's connection config lives in USER SETTINGS, so
-// `settingsChanged` covers it, and the model catalog is admin/global; see @orb/contracts/user-bus).
+// `bus-coverage.ts` (D50) for the per-USER bus: the union is compile-exhaustive on the CONSUMER side but
+// nothing machine-checks the PRODUCER side — a member can be declared, mapped on the client, and never
+// emitted (silently dead wire). Every `USER_BUS_EVENT_TYPES` discriminator must have a server-side emit
+// site OR a cited DEFERRED entry. DEFERRED is a self-cleaning ratchet (both directions, bus-coverage.ts precedent).
 import type { Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

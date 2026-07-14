@@ -19,7 +19,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { MESSAGE_ROLE_ITEMS } from "../lib/preset-nav";
+import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { PRESET_PROMPT_MACROS } from "../lib/preset-prompt-macros";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;

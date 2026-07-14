@@ -7,8 +7,10 @@
 // can't import) — those are exercised end-to-end by app-shell.ct.tsx, the correct tier.
 
 import {
+  clearAnalyticsSelection,
   clearCharacterSelection,
   clearChatListCharacterFilter,
+  clearCorpusSelection,
   clearPresetSection,
   clearPresetSelection,
   clearTagFilter,
@@ -21,8 +23,10 @@ import {
   isCommitted,
   isLanding,
   openModal,
+  selectAnalyticsCharacter,
   selectCharacter,
   selectChat,
+  selectCorpusCharacter,
   selectPreset,
   selectPresetSection,
   selectWorldBook,
@@ -49,7 +53,9 @@ import {
   useImportOnboardingDismissed,
   useOpenModal,
   usePanelOverride,
+  useSelectedAnalyticsCharacterId,
   useSelectedCharacterId,
+  useSelectedCorpusCharacterId,
   useSelectedPresetId,
   useSelectedPresetSectionId,
   useSelectedWorldBookId,
@@ -300,6 +306,50 @@ export function ImportOnboardingProbe(): ReactElement {
       <output>{`dismissed=${String(dismissed)}`}</output>
       <button type="button" onClick={(): void => dismissImportOnboarding()}>
         dismiss card
+      </button>
+    </div>
+  );
+}
+
+/** CorpusSelectionProbe — renders the corpus-selection store's read hook as text + buttons that fire its
+ *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
+ *  assert select → clear (LIST/dossier selection drives the Corpus CONTENT; separate from the Characters
+ *  editor selection). */
+export function CorpusSelectionProbe(): ReactElement {
+  const selected = useSelectedCorpusCharacterId();
+  return (
+    <div>
+      <output>{`corpus=${selected ?? "none"}`}</output>
+      <button
+        type="button"
+        onClick={(): void => selectCorpusCharacter(castId<CharacterId>("char_corpus_probe"))}
+      >
+        select corpus character
+      </button>
+      <button type="button" onClick={(): void => clearCorpusSelection()}>
+        clear corpus selection
+      </button>
+    </div>
+  );
+}
+
+/** AnalyticsSelectionProbe — renders the analytics-selection store's read hook as text + buttons that fire
+ *  its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
+ *  and assert select → clear (the Analytics leaderboard drill drives the Analytics CONTENT; separate from
+ *  the Corpus / Characters selections). */
+export function AnalyticsSelectionProbe(): ReactElement {
+  const selected = useSelectedAnalyticsCharacterId();
+  return (
+    <div>
+      <output>{`analytics=${selected ?? "none"}`}</output>
+      <button
+        type="button"
+        onClick={(): void => selectAnalyticsCharacter(castId<CharacterId>("char_analytics_probe"))}
+      >
+        select analytics character
+      </button>
+      <button type="button" onClick={(): void => clearAnalyticsSelection()}>
+        clear analytics selection
       </button>
     </div>
   );

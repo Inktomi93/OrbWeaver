@@ -2,8 +2,7 @@
 // RESPONSIBLE human is `triggeredBy` and the FUNDED identity is `runAsUserId`. The term `callerUserId`
 // conflates caller with turn-identity (the neo bug class: the caller's id reaching `resolveCredential`/
 // `loadUserSettings`). tsc cannot catch a NEWLY-INTRODUCED forbidden name, so this gate does — before the
-// turn-running/engine chunks (where it's most tempting) accrete. AST identifiers only: comments + string
-// literals that mention the term (e.g. the identity-doc "no `callerUserId`" note) are exempt.
+// turn-running/engine chunks accrete. AST identifiers only: comments + string literals mentioning the term are exempt.
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

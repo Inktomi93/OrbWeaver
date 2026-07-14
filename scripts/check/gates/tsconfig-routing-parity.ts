@@ -1,9 +1,7 @@
-// Gate: tsconfig-routing-parity (TSC-INCREMENTAL-PERFILE.md §2.2 parity gate) — keeps the file→tsconfig
-// routing algebra (scripts/verify/selection.ts `staticPrograms`) honest against the compilers' ground
-// truth, so `verify --file/--changed` never type-checks a file against the wrong program (or skips it).
-// Each program's root set is the config's resolved `files` (`tsgo --showConfig`, pre-import-closure). For
-// every root file R of program P we assert `staticPrograms(R)` contains P (forward), and for every file
-// `staticPrograms` routes to a present program P we assert P actually roots it (mirror).
+// Gate: tsconfig-routing-parity (TSC-INCREMENTAL-PERFILE.md §2.2) — keeps the file→tsconfig routing
+// algebra (scripts/verify/selection.ts `staticPrograms`) honest against the compilers' ground truth, so
+// `verify --file/--changed` never type-checks a file against the wrong program (or skips it). For every
+// root file R of program P we assert `staticPrograms(R)` contains P (forward) and its mirror.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";

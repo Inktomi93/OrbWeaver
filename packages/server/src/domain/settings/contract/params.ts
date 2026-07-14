@@ -19,7 +19,7 @@ export interface UpdateUserSettingsSectionInput {
   readonly patch: Record<string, unknown>;
 }
 
-export interface UserSettingsActorParams {
+interface UserSettingsActorParams {
   readonly principal: Principal;
 }
 
@@ -33,7 +33,7 @@ export interface UpdateUserSettingsSectionParams extends UserSettingsActorParams
   readonly input: UpdateUserSettingsSectionInput;
 }
 
-export interface AppSettingsActorParams {
+interface AppSettingsActorParams {
   readonly principal: Principal;
 }
 
@@ -47,7 +47,7 @@ export interface UpdateAppSettingsParams extends AppSettingsActorParams {
 // Themes library — owner-only. Reads resolve owned ∪ seeds; writes go through fetchOwned(caller), so a
 // seed row is un-mutable by construction.
 
-export interface ThemeActorParams {
+interface ThemeActorParams {
   readonly principal: Principal;
 }
 

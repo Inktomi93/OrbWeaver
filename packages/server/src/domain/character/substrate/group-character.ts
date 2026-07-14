@@ -7,7 +7,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 
 /** The reserved handle prefix for per-room synthetic group characters. */
-export const GROUP_HANDLE_PREFIX = "__group__";
+const GROUP_HANDLE_PREFIX = "__group__";
 
 /** The synthetic group character's handle for a room (`__group__<chatId>`). */
 export function groupHandle(chatId: string): string {

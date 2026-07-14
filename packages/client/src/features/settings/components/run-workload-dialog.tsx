@@ -9,8 +9,6 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
-import { Button } from "@orb/ui/button";
-import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -20,7 +18,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { testId, timeLib } from "#lib";
+import { timeLib } from "#lib";
 import { useRunWorkloadForm } from "../hooks/use-run-workload-form";
 import { useStartWorkload } from "../hooks/use-workload-mutations";
 import type { RunWorkloadFormValues } from "../lib/workloads-model";
@@ -34,12 +32,13 @@ import {
   workloadKindNeedsBulkTarget,
 } from "../lib/workloads-model";
 import { parseRunAt } from "../lib/workloads-run-model";
+import { WorkloadFormDialog, WorkloadSubmitButton } from "./workload-dialog-scaffold";
 import { WorkloadParamFields } from "./workload-kind-fields";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 /** A candidate for the `dependsOn` gate — one of the viewer's currently in-flight (queued/running) runs. */
-export interface DependencyCandidate {
+interface DependencyCandidate {
   readonly id: string;
   readonly kind: string;
   readonly createdAt: number;
@@ -64,23 +63,20 @@ export function RunWorkloadDialog({
   dependencyCandidates,
 }: RunWorkloadDialogProps): ReactElement {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup data-testid={testId("runWorkloadDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Run a workload</DialogTitle>
-          <DialogDescription>
-            Runs a background job over your own library. It queues immediately; progress shows live
-            in the list.
-          </DialogDescription>
-          <RunWorkloadFormBody
-            viewerIsOwner={viewerIsOwner}
-            users={users}
-            dependencyCandidates={dependencyCandidates}
-            onDone={(): void => onOpenChange(false)}
-          />
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <WorkloadFormDialog
+      description="Runs a background job over your own library. It queues immediately; progress shows live in the list."
+      onOpenChange={onOpenChange}
+      open={open}
+      testKey="runWorkloadDialog"
+      title="Run a workload"
+    >
+      <RunWorkloadFormBody
+        dependencyCandidates={dependencyCandidates}
+        onDone={(): void => onOpenChange(false)}
+        users={users}
+        viewerIsOwner={viewerIsOwner}
+      />
+    </WorkloadFormDialog>
   );
 }
 
@@ -227,18 +223,14 @@ function RunWorkloadFormBody({
           Couldn't start the workload — a run of that kind may already be active.
         </Text>
       )}
-      <Stack align="end">
-        <Button
-          intent="primary"
-          disabled={start.isPending}
-          data-testid={testId("runWorkloadSubmit")}
-          onClick={(): void => {
-            void form.handleSubmit();
-          }}
-        >
-          {start.isPending ? "Starting…" : "Run workload"}
-        </Button>
-      </Stack>
+      <WorkloadSubmitButton
+        disabled={start.isPending}
+        label={start.isPending ? "Starting…" : "Run workload"}
+        onSubmit={(): void => {
+          void form.handleSubmit();
+        }}
+        testKey="runWorkloadSubmit"
+      />
     </Stack>
   );
 }

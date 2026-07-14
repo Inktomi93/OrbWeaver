@@ -41,6 +41,7 @@ import { AppearanceSettingsSurface } from "./appearance-settings-surface";
 import { BackupSettingsSurface } from "./backup-settings-surface";
 import { ConnectionsSettingsSurface } from "./connections-settings-surface";
 import { PersonaSettingsSurface } from "./persona-settings-surface";
+import { RegexSettingsSurface } from "./regex-settings-surface";
 import { SystemSettingsSurface } from "./system-settings-surface";
 import { TagsSettingsSurface } from "./tags-settings-surface";
 import { WorkloadsSettingsSurface } from "./workloads-settings-surface";
@@ -338,6 +339,9 @@ function SettingsPane({ category }: { readonly category: CategoryId }): ReactEle
   }
   if (category === "personas") {
     return <PersonaSettingsSurface />;
+  }
+  if (category === "regex") {
+    return <RegexSettingsSurface />;
   }
   if (category === "tags") {
     return <TagsSettingsSurface />;

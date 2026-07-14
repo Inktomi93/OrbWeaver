@@ -13,7 +13,7 @@ import { readOwnedCardFacets } from "../persistence/summary-reads";
 import { kmeans } from "../substrate/kmeans";
 import { pairsAboveThreshold } from "../substrate/pair-cosine";
 
-export const DEFAULT_IMAGE_DUP_THRESHOLD = 0.92;
+const DEFAULT_IMAGE_DUP_THRESHOLD = 0.92;
 const DEFAULT_VISUAL_K = 8;
 const VISUAL_SEED = 1;
 const MAX_MEMBERS = 12;
@@ -42,7 +42,7 @@ export function createImageAnalyticsRetrieve(
   };
 }
 
-export async function imageDuplicates(
+async function imageDuplicates(
   db: Db,
   ownerId: UserId,
   threshold = DEFAULT_IMAGE_DUP_THRESHOLD,
@@ -173,7 +173,7 @@ interface VisualLabels {
 const metaStr = (m: Record<string, unknown> | null, key: string): string | null =>
   m !== null && typeof m[key] === "string" ? (m[key] as string) : null;
 
-export async function visualArchetypes(
+async function visualArchetypes(
   db: Db,
   ownerId: UserId,
   k = DEFAULT_VISUAL_K,

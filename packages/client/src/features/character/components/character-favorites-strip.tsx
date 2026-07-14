@@ -10,7 +10,7 @@ import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 
-export interface FavoriteCharacter {
+interface FavoriteCharacter {
   readonly id: string;
   readonly name: string;
   readonly avatarHash: string | null;

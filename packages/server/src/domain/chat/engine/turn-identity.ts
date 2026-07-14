@@ -9,7 +9,7 @@
 // The by-proxy refusal (fail-closed, default OFF): a non-owner-triggered max-pro-sub (hosted creds) turn is
 // refused unless explicit owner consent.
 
-import type { ChatSource } from "@orb/contracts/connection";
+import type { CredentialSource } from "@orb/contracts/connection";
 import type { UserId } from "@orb/kit/ids";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
 
@@ -21,7 +21,7 @@ interface TurnIdentity {
 }
 
 /** The hosted-credential source the by-proxy belt guards (the owner-only resource class). */
-const MAX_PRO_SUB: ChatSource = "max-pro-sub";
+const MAX_PRO_SUB: CredentialSource = "max-pro-sub";
 
 /** Resolve the identity triple from the ids the verb holds. Pure. `runAsUserId` is always the host (never
  *  the caller); `triggeredBy` is the caller unless an auto-mode chain-starter is supplied. */
@@ -45,7 +45,7 @@ function isByProxy(identity: TurnIdentity): boolean {
 /** Throws `ChatOperationError('consent_required')` when a hosted-credential (max-pro-sub) turn is triggered
  *  by someone other than the funding host and the owner has not consented. Fail-closed: no consent ⇒ refuse. */
 export function assertMaxProSubConsent(params: {
-  readonly source: ChatSource;
+  readonly source: CredentialSource;
   readonly identity: TurnIdentity;
   readonly ownerConsent: boolean;
 }): void {

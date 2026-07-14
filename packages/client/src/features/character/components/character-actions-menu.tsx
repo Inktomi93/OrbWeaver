@@ -4,13 +4,10 @@
 // item closes the menu on click).
 
 import type { CharacterId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/MoreHorizontal fine (the character-card.tsx precedent).
-import { Icon, MoreHorizontal } from "@orb/ui/icons";
-import { Menu, MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
+import { MenuItem, MenuLinkItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { clearCharacterSelection, selectCharacter } from "#state";
 import {
@@ -33,7 +30,6 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
   const setWelcome = useSetWelcomeGreeter({ trpc, invalidation });
 
   const [duplicateOpen, setDuplicateOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const confirmDuplicate = (): void => {
     void duplicate
@@ -50,36 +46,34 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
 
   return (
     <>
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button aria-label="Character actions" intent="ghost" size="icon" type="button">
-              <Icon icon={MoreHorizontal} size="sm" />
-            </Button>
+      <RowActionsMenu
+        align="start"
+        label="Character actions"
+        destructive={{
+          title: "Delete this character?",
+          description:
+            "This permanently deletes the character and everything attached to it. This can't be undone.",
+          onConfirm: confirmDelete,
+        }}
+      >
+        <MenuItem onClick={(): void => setDuplicateOpen(true)}>Duplicate</MenuItem>
+        <MenuLinkItem href={`/api/export/character/${characterId}`} download={true}>
+          Export card
+        </MenuLinkItem>
+        <MenuItem onClick={(): void => convert.mutate({ characterId, swapMacros: true })}>
+          Convert to persona
+        </MenuItem>
+        <MenuItem
+          onClick={(): void =>
+            setWelcome.mutate({
+              section: "seeds",
+              patch: { welcomeAssistantCharacterId: characterId },
+            })
           }
-        />
-        <MenuPopup>
-          <MenuItem onClick={(): void => setDuplicateOpen(true)}>Duplicate</MenuItem>
-          <MenuLinkItem href={`/api/export/character/${characterId}`} download={true}>
-            Export card
-          </MenuLinkItem>
-          <MenuItem onClick={(): void => convert.mutate({ characterId, swapMacros: true })}>
-            Convert to persona
-          </MenuItem>
-          <MenuItem
-            onClick={(): void =>
-              setWelcome.mutate({
-                section: "seeds",
-                patch: { welcomeAssistantCharacterId: characterId },
-              })
-            }
-          >
-            Set as welcome greeter
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem onClick={(): void => setDeleteOpen(true)}>Delete</MenuItem>
-        </MenuPopup>
-      </Menu>
+        >
+          Set as welcome greeter
+        </MenuItem>
+      </RowActionsMenu>
 
       <ConfirmDialog
         confirmIntent="primary"
@@ -89,15 +83,6 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
         onOpenChange={setDuplicateOpen}
         open={duplicateOpen}
         title="Duplicate this character?"
-      />
-
-      <ConfirmDialog
-        confirmLabel="Delete"
-        description="This permanently deletes the character and everything attached to it. This can't be undone."
-        onConfirm={confirmDelete}
-        onOpenChange={setDeleteOpen}
-        open={deleteOpen}
-        title="Delete this character?"
       />
     </>
   );

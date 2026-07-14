@@ -5,6 +5,7 @@
 
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
@@ -16,7 +17,6 @@ import { cn, renderMessageForDisplay } from "#lib";
 import { useEnterMotion } from "../hooks/use-enter-motion";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream";
 import type { RowAttribution } from "../lib/attribution";
-import { initialsForAttribution } from "../lib/attribution";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { renderRowAvatar } from "./message-row-parts";
 import { ReasoningBlock } from "./reasoning-block";
@@ -31,7 +31,7 @@ function ghostFallbackTile(attribution: RowAttribution | undefined): {
   if (attribution === undefined || attribution.name === null) {
     return { hueSeed: attribution?.hueSeed ?? "", initial: "" };
   }
-  return { hueSeed: attribution.hueSeed, initial: initialsForAttribution(attribution.name) };
+  return { hueSeed: attribution.hueSeed, initial: initialsFor(attribution.name) };
 }
 
 export interface GhostMessageRowProps {

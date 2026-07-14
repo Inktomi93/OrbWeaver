@@ -5,7 +5,7 @@
 // unit-covered (packages/server/src/kit/regex) and the edit verb's runOnEdit re-apply is covered with a FAKE
 // `applyRegexReplace` (domain/chat/verbs/edit.int.test.ts) — but nothing proved the REAL composition wires the
 // real guard. `ChatComposeResult` never exposes the `ChatContext`, so the only faithful observation is
-// end-to-end: seed the host's `UserSettings.regexScripts` (through the REAL settings verb) with the canonical
+// end-to-end: seed the host's `UserSettings.regex.scripts` (through the REAL settings verb) with the canonical
 // ReDoS-shaped pattern `(a+)+$` (a runOnEdit USER_INPUT script — the heuristic explicitly lets this one
 // through), then `services.chat.editMessage` a user slot and prove the composed watchdog interrupts the
 // catastrophic backtrack: the per-script catch skips the rule and the content survives UNCHANGED (never hangs
@@ -74,7 +74,7 @@ interface SeededEditTarget {
 }
 
 describe("D53 ReDoS watchdog — composed at the editMessage seam (real createServices)", () => {
-  /** Seed the host + their `UserSettings.regexScripts` (through the REAL settings verb — not blob-poking) +
+  /** Seed the host + their `UserSettings.regex.scripts` (through the REAL settings verb — not blob-poking) +
    *  a solo room with one host-authored USER slot. Returns the ids the edit call needs. */
   async function seedEditTarget(
     db: Db,
@@ -85,12 +85,12 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     const host = await seedUser(db, "host");
     const principal = hostPrincipal(host);
 
-    // The heavyweight, faithful seed: write regexScripts through the settings front door (a whole-blob
+    // The heavyweight, faithful seed: write the regex scripts through the settings front door (a whole-blob
     // replace over the current defaults) so the REAL resolveForeignInputs reads them at edit time.
     const current = await services.settings.getUserSettings({ principal });
     await services.settings.updateUserSettings({
       principal,
-      input: { config: { ...current.config, regexScripts: [...scripts] } },
+      input: { config: { ...current.config, regex: { scripts: [...scripts] } } },
     });
 
     const chatId = await seedChat(db, "redos");

@@ -7,6 +7,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Crown/Icon fine (the shell-topbar.tsx precedent).
 import { Crown, Icon } from "@orb/ui/icons";
@@ -17,7 +18,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
-import { initialsForAttribution } from "../lib/attribution";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
 import { AddMemberPopover } from "./add-member-popover";
 
@@ -63,7 +63,7 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
             hueSeed={member.characterId}
             {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}
           >
-            {initialsForAttribution(member.displayName)}
+            {initialsFor(member.displayName)}
           </Avatar>
           <Text as="span" size="label" weight="medium" tone={member.disabled ? "muted" : undefined}>
             {member.displayName}
@@ -91,7 +91,7 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
             hueSeed={member.id}
             {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}
           >
-            {initialsForAttribution(member.displayName)}
+            {initialsFor(member.displayName)}
           </Avatar>
           <Text as="span" size="label" weight="medium">
             {member.displayName}

@@ -22,7 +22,7 @@ export function createBrowse(
   };
 }
 
-export async function browseCharacters(
+async function browseCharacters(
   db: Db,
   ownerId: UserId,
   filter: BrowseFilter = {},
@@ -73,7 +73,7 @@ export async function browseCharacters(
   return rows.map((r) => ({ ...r, tags: r.tags ?? [] }));
 }
 
-export async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets> {
+async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets> {
   const facet = async (
     col: typeof characterSummaries.genre | typeof characterSummaries.tone,
   ): Promise<FacetCount[]> => {

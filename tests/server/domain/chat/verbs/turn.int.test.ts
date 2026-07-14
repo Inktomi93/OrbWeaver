@@ -7,6 +7,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -14,6 +15,7 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
+import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -24,6 +26,10 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import {
+  loadPendingTurns,
+  loadPendingTurnsForReclaim,
+} from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
 import {
   loadCanonHistory,
@@ -40,6 +46,7 @@ import {
   seedChat,
   seedMessage,
   seedParticipant,
+  seedPendingTurn,
   seedUser,
   testConnection,
 } from "../_support";
@@ -87,6 +94,7 @@ interface Harness {
   ctx: ChatContext;
   events: ChatBusEvent[];
   deltas: StatsDelta[];
+  notifications: NotificationEvent[];
   turn: ReturnType<typeof createTurn>;
   activeTurns: ReturnType<typeof createActiveTurns>;
 }
@@ -106,10 +114,17 @@ function harness(
     onForeignInputs?: (args: { readonly personaIds: readonly PersonaId[] }) => void;
     /** Override server-derived presence (default = everyone online; a cast-gating test marks a member away). */
     readPresence?: ChatContext["readPresence"];
+    /** Override the resolved connection's credential `source` (default `vllm`; the drain drop-path pins
+     *  `max-pro-sub` so the engine's consent belt refuses a by-proxy deferred turn). */
+    connectionSource?: string;
+    /** Override the engine's per-turn budget debit (default no-op). The drain requeue-path pins a thrower
+     *  (`DomainRateLimitError` → `budget_exceeded`) to prove a temporal drop re-queues, not drops. */
+    debitBudget?: (triggeredBy: UserId, budget: number | null) => Promise<void>;
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
+  const notifications: NotificationEvent[] = [];
   const ctx = makeChatContext(database, {
     runChatTurn: (request) => {
       over.onChatRequest?.(request);
@@ -123,6 +138,12 @@ function harness(
       Promise.resolve({
         characterId: over.groupCharacterId ?? castId<CharacterId>("character_group"),
       }),
+    // Record every emitted notification (the drop-path asserts the deferred-turn-dropped delivery). The drop
+    // emit carries no co-statements, so recording + resolving is the whole contract here.
+    emitNotification: (event) => {
+      notifications.push(event);
+      return Promise.resolve();
+    },
     ...(over.readPresence !== undefined ? { readPresence: over.readPresence } : {}),
   });
   const emit = (event: ChatBusEvent): Promise<void> => {
@@ -131,7 +152,7 @@ function harness(
   };
   const engine = createTurnEngine(ctx, {
     emit,
-    debitBudget: () => Promise.resolve(),
+    debitBudget: over.debitBudget ?? (() => Promise.resolve()),
     resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
     holder: "replica-1",
     lockTtlMs: 60_000,
@@ -145,7 +166,7 @@ function harness(
     emit,
     prng: seededPrng(),
     delay: () => Promise.resolve(),
-    resolveConnection: () => Promise.resolve(testConnection()),
+    resolveConnection: () => Promise.resolve(testConnection(over.connectionSource ?? "vllm")),
     resolveForeignInputs: (args) => {
       over.onForeignInputs?.(args);
       return Promise.resolve({
@@ -157,7 +178,7 @@ function harness(
       });
     },
   });
-  return { ctx, events, deltas, turn, activeTurns };
+  return { ctx, events, deltas, notifications, turn, activeTurns };
 }
 
 let db: Db;
@@ -561,6 +582,192 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     await expect(
       h.turn.send({ principal: principal(stranger), chatId, content: "hi" }),
     ).rejects.toBeInstanceOf(ChatNotFoundError);
+  });
+});
+
+// Part III §5 — the host-offline DEFERRED turn (`pending_turns`): a NON-host member's send while the funding
+// host is dark queues the owed AI response as a durable, NOT-lock-held row instead of running it; the drain
+// (boot reclaim / host-return) reconstructs + runs it through the engine (consent/budget re-validated in-lock)
+// or DROPS it on a re-validation refusal. Both consume the row.
+describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part III §5)", () => {
+  /** Seed a group room whose host is offline + a present member who will trigger the send. */
+  async function seedMemberRoom(): Promise<{
+    host: UserId;
+    member: UserId;
+    chatId: ChatId;
+    chars: CharacterId[];
+    names: Record<string, string>;
+  }> {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    return { host, member, chatId, chars, names };
+  }
+
+  /** Host offline, everyone else online — the funding host is dark while a member drives. */
+  function hostOffline(host: UserId): ChatContext["readPresence"] {
+    return (userId) => Promise.resolve({ userId, online: userId !== host, lastSeenAt: null });
+  }
+
+  test("a member's send while the host is offline DEFERS: only the user row commits + a pending_turns row queues", async () => {
+    const { host, member, chatId, names } = await seedMemberRoom();
+    const h = harness(db, names, { readPresence: hostOffline(host) });
+
+    const outcome = await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+
+    // The member's message is durable canon; the owed AI turn did NOT run.
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("user");
+    expect(outcome.messages[0]?.authorUserId).toBe(member);
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.filter((m) => m.role === "assistant")).toHaveLength(0);
+    // …and the frozen identity triple is queued (triggeredBy = the responsible member; runAsUserId = host).
+    const queued = await loadPendingTurns(db, chatId);
+    expect(queued).toHaveLength(1);
+    expect(queued[0]?.triggeredBy).toBe(member);
+    expect(queued[0]?.runAsUserId).toBe(host);
+  });
+
+  test("a host's OWN send never defers, even when presence reports the host offline (present by definition)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names, {
+      readPresence: (userId) => Promise.resolve({ userId, online: false, lastSeenAt: null }),
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+
+    // Ran inline: user + assistant, no queued row.
+    expect(outcome.messages).toHaveLength(2);
+    expect(outcome.messages[1]?.role).toBe("assistant");
+    expect(outcome.messages[1]?.characterId).toBe(chars[0]);
+    expect(await loadPendingTurns(db, chatId)).toHaveLength(0);
+  });
+
+  test("the host-return drain RECLAIMS a deferred turn: reconstructs + runs the owed AI response, consumes the row", async () => {
+    const { host, member, chatId, chars, names } = await seedMemberRoom();
+    const h = harness(db, names, { readPresence: hostOffline(host) });
+
+    // DEFER via a real send (exercises insertPendingTurn), then DRAIN on the host's return.
+    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    expect(await loadPendingTurns(db, chatId)).toHaveLength(1);
+
+    const report = await h.turn.drainDeferredTurns({ hostUserId: host });
+
+    expect(report).toStrictEqual({ ran: 1, dropped: 0 });
+    expect(await loadPendingTurns(db, chatId)).toHaveLength(0); // consumed
+    const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.characterId).toBe(chars[0]);
+  });
+
+  test("the boot reclaim ({all}) drains every chat's queued turns", async () => {
+    const { host, member, chatId, names } = await seedMemberRoom();
+    const h = harness(db, names, { readPresence: hostOffline(host) });
+    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+
+    const report = await h.turn.drainDeferredTurns({ all: true });
+
+    expect(report).toStrictEqual({ ran: 1, dropped: 0 });
+    expect(await loadPendingTurns(db, chatId)).toHaveLength(0);
+  });
+
+  test("consent_required is a PERMANENT verdict: the drain drops the row AND notifies the triggering member", async () => {
+    const { host, member, chatId, names } = await seedMemberRoom();
+    // A queued by-proxy turn: the member triggered it; it funds the host's box.
+    await seedPendingTurn(db, { chatId, key: "drop", triggeredBy: member, runAsUserId: host });
+    // The host box is a hosted (max-pro-sub) credential + owner consent is OFF (harness default policy), so
+    // the engine's consent belt refuses a non-owner-triggered hosted turn → a permanent verdict drop.
+    const h = harness(db, names, { connectionSource: "max-pro-sub" });
+
+    const report = await h.turn.drainDeferredTurns({ all: true });
+
+    expect(report).toStrictEqual({ ran: 0, dropped: 1 });
+    expect(await loadPendingTurns(db, chatId)).toHaveLength(0); // consumed (dropped), no reboot re-run
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(
+      0,
+    );
+    // The frozen triggeredBy member is told their owed reply never ran + why (the kick/handoff inbox precedent).
+    expect(h.notifications).toHaveLength(1);
+    expect(h.notifications[0]).toStrictEqual({
+      type: "deferred-turn-dropped",
+      recipientUserId: member,
+      chatId,
+      reason: "consent",
+    });
+  });
+
+  test("budget_exceeded is TEMPORAL: the drain RE-QUEUES the row (no drop, no notification) to retry next drain", async () => {
+    const { host, member, chatId, names } = await seedMemberRoom();
+    await seedPendingTurn(db, { chatId, key: "budget", triggeredBy: member, runAsUserId: host });
+    // The per-member budget is exhausted this window → the engine throws budget_exceeded. A spent window is
+    // "not now", not "never" — the owed reply must survive to the next drain edge, unspammed.
+    const h = harness(db, names, {
+      debitBudget: () => Promise.reject(new DomainRateLimitError("per-member budget exhausted")),
+    });
+
+    const report = await h.turn.drainDeferredTurns({ all: true });
+
+    expect(report).toStrictEqual({ ran: 0, dropped: 0 });
+    // Re-queued (re-inserted after the atomic claim), same frozen triple — waits for the next drain.
+    const requeued = await loadPendingTurns(db, chatId);
+    expect(requeued).toHaveLength(1);
+    expect(requeued[0]?.triggeredBy).toBe(member);
+    expect(requeued[0]?.runAsUserId).toBe(host);
+    expect(h.notifications).toHaveLength(0); // NO spam on a temporal requeue
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(
+      0,
+    );
+  });
+
+  test("two concurrent drains claim each row exactly once (no double-run / double-spend)", async () => {
+    // N rows across N DISTINCT chats (no per-chat lock contention) — the atomic DELETE…RETURNING claim is
+    // the only serializer, so overlapping boot ∥ host-return snapshots can't run or spend a row twice.
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatIds: ChatId[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+      const chatId = await seedChat(db, `c${i}`, {
+        metadata: { group: { output: "per-speaker", policy: "natural" } },
+      });
+      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+      await seedParticipant(db, { chatId, key: `h${i}`, userId: host, role: "host" });
+      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+      await seedParticipant(db, { chatId, key: `m${i}`, userId: member, role: "member" });
+      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+      const cid = await seedCharacter(db, host, `aria${i}`);
+      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+      await seedParticipant(db, { chatId, key: `aria${i}`, characterId: cid, joinSeq: 0 });
+      // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
+      await seedPendingTurn(db, { chatId, key: `p${i}`, triggeredBy: member, runAsUserId: host });
+      chatIds.push(chatId);
+    }
+    let debits = 0;
+    const names: Record<string, string> = {};
+    const h = harness(db, names, {
+      debitBudget: () => {
+        debits += 1;
+        return Promise.resolve();
+      },
+    });
+
+    // Two overlapping drains race the same 4 candidate rows.
+    const [a, b] = await Promise.all([
+      h.turn.drainDeferredTurns({ all: true }),
+      h.turn.drainDeferredTurns({ hostUserId: host }),
+    ]);
+
+    // Across BOTH drains, exactly 4 rows ran (each claimed once); the losers skipped.
+    expect(a.ran + b.ran).toBe(4);
+    expect(a.dropped + b.dropped).toBe(0);
+    expect(debits).toBe(4); // exactly-once spend — no double debit
+    expect(await loadPendingTurnsForReclaim(db)).toHaveLength(0); // all consumed
+    // Each chat got exactly one AI response (never two).
+    for (const chatId of chatIds) {
+      // biome-ignore lint/performance/noAwaitInLoops: per-chat assertion over a tiny fixed set.
+      const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
+      expect(assistants).toHaveLength(1);
+    }
   });
 });
 

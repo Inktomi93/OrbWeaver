@@ -11,8 +11,6 @@ export const CREDENTIALS_OP_CODES = {
   metadataInvalid: "credential_metadata_invalid",
 } as const;
 
-export type CredentialsOpCode = (typeof CREDENTIALS_OP_CODES)[keyof typeof CREDENTIALS_OP_CODES];
-
 export class CredentialsNotFoundError extends DomainOperationError {
   declare readonly code: typeof CREDENTIALS_OP_CODES.notFound;
   constructor(credentialId: UserCredentialId) {

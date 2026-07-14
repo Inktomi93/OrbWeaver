@@ -21,7 +21,7 @@ export type {
 export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views";
 export { ensureSeedThemes } from "./seed-themes";
 export { createSettingsService } from "./service";
-export { createExportTheme as createThemeExport } from "./verbs/export-theme";
-export { createExportUserSettings as createUserSettingsExport } from "./verbs/export-user-settings";
-export { createImportTheme as createThemeImport } from "./verbs/import-theme";
-export { createImportUserSettings as createUserSettingsImport } from "./verbs/import-user-settings";
+export { createExportTheme } from "./verbs/export-theme";
+export { createExportUserSettings } from "./verbs/export-user-settings";
+export { createImportTheme } from "./verbs/import-theme";
+export { createImportUserSettings } from "./verbs/import-user-settings";

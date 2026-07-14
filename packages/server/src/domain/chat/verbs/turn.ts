@@ -19,7 +19,16 @@ import { DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/cha
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  MessageId,
+  PendingTurnId,
+  PersonaId,
+  UserId,
+} from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
@@ -38,7 +47,14 @@ import type {
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params";
-import type { TurnEngine, TurnKind, TurnOutcome, TurnPrep } from "../contract/results";
+import type {
+  DrainDeferredTurnsScope,
+  DrainReport,
+  TurnEngine,
+  TurnKind,
+  TurnOutcome,
+  TurnPrep,
+} from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
@@ -49,7 +65,14 @@ import {
   setVariantContentStatement,
 } from "../persistence/canon-write";
 import {
+  claimPendingTurn,
+  insertPendingTurn,
+  loadPendingTurnsForHost,
+  loadPendingTurnsForReclaim,
+} from "../persistence/invites";
+import {
   loadCanonHistory,
+  loadChatRow,
   loadContinueSnapshot,
   loadMaxMessageSeq,
   loadMessageView,
@@ -105,6 +128,7 @@ type TurnVerbs = Pick<
   | "generate"
   | "undoContinue"
   | "revertContinue"
+  | "drainDeferredTurns"
 >;
 
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
@@ -472,6 +496,95 @@ async function runChain(
   });
 }
 
+/** The shared AI-response body of a human `send` AND a drained deferred turn: arbitrate the responder(s) off
+ *  the committed canon, mint the narrator group-character when needed, drive the round, then (if autoMode)
+ *  chain AI→AI. Returns the committed assistant rows. Both callers owe the same "who speaks next" response —
+ *  the only difference is the caller persists a user line first (send) or not (drain). */
+async function runAiRound(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  args: {
+    readonly base: RoundBase;
+    readonly group: GroupConfig;
+    readonly room: Room;
+    readonly signal: AbortSignal;
+    /** Human `@mention` hard-override (send only). A drained turn re-arbitrates naturally — the pending row
+     *  carries no message text to parse. */
+    readonly forcedIds?: readonly CharacterId[] | undefined;
+  },
+): Promise<MessageView[]> {
+  const facts = await canonFacts(ctx, args.base.chatId);
+  const speakers = await arbitrate(ctx, deps, {
+    group: args.group,
+    candidates: args.room.candidates,
+    castNames: args.room.castNames,
+    forcedIds: args.forcedIds,
+    lastSpeaker: facts.lastSpeaker,
+    recentHistory: facts.recentHistory,
+  });
+  const groupCharacterId =
+    args.group.output === "narrator"
+      ? (
+          await ctx.mintSyntheticGroupCharacter({
+            ownerId: args.base.runAsUserId,
+            chatId: args.base.chatId,
+          })
+        ).characterId
+      : null;
+  const castName = joinedCastName(args.room.castNames);
+  const round = await driveRoundVia({
+    engine: deps.engine,
+    base: args.base,
+    group: args.group,
+    speakers,
+    groupCharacterId,
+    castName,
+  });
+  const committed: MessageView[] = [...round.messages];
+  if (args.group.autoMode) {
+    const auto = await runChain(ctx, deps, {
+      base: args.base,
+      group: args.group,
+      room: args.room,
+      groupCharacterId,
+      castName,
+      signal: args.signal,
+      initialLastSpeaker: lastSpeakerRef(round.messages.findLast((m) => m.role === "assistant")),
+    });
+    committed.push(...auto.messages);
+  }
+  return committed;
+}
+
+/** Host-offline defer decision (Part III §5): a NON-host member's send while the funding host is dark queues
+ *  the owed AI turn as a durable, NOT-lock-held `pending_turns` row (the frozen identity triple) instead of
+ *  running it — the 5-min turn-lock would stale-takeover into a double-run. A host's OWN send never defers
+ *  (they are present by definition, making the request). Returns true iff the turn was deferred. */
+async function deferIfHostOffline(
+  ctx: ChatContext,
+  args: {
+    readonly principalUserId: UserId;
+    readonly triggeredBy: UserId;
+    readonly runAsUserId: UserId;
+    readonly chatId: ChatId;
+  },
+): Promise<boolean> {
+  if (
+    args.principalUserId === args.runAsUserId ||
+    (await ctx.readPresence(args.runAsUserId)).online
+  ) {
+    return false;
+  }
+  await insertPendingTurn(ctx.db, {
+    id: ctx.newPendingTurnId(),
+    chatId: args.chatId,
+    triggeredBy: args.triggeredBy,
+    runAsUserId: args.runAsUserId,
+    createdAt: ctx.now(),
+  });
+  return true;
+}
+
 /**
  * The greeting first-user-turn volatile freeze. When the first user message locks the conversation in, bakes
  * each greeting's nondeterministic macros against the turn's pinned clock + seeded PRNG so they stop shipping
@@ -590,22 +703,19 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       await freezeGreetingVolatiles(ctx, deps, assembleContext, priorCanon);
     }
 
-    const facts = await canonFacts(ctx, chatId);
-    const speakers = await arbitrate(ctx, deps, {
-      group,
-      candidates: room.candidates,
-      castNames: room.castNames,
-      forcedIds: resolveMentionsVia(content, room.castNames),
-      lastSpeaker: facts.lastSpeaker,
-      recentHistory: facts.recentHistory,
-    });
+    // Host-offline → DEFER the AI response (Part III §5): the member's message is durable canon, but the owed
+    // AI turn cannot run on the host's dark box, so it queues instead of running. The user row stands alone.
+    if (
+      await deferIfHostOffline(ctx, {
+        principalUserId: principal.userId,
+        triggeredBy: identity.triggeredBy,
+        runAsUserId: identity.runAsUserId,
+        chatId,
+      })
+    ) {
+      return { messages: [userView], aborted: false };
+    }
 
-    const groupCharacterId =
-      group.output === "narrator"
-        ? (await ctx.mintSyntheticGroupCharacter({ ownerId: identity.runAsUserId, chatId }))
-            .characterId
-        : null;
-    const castName = joinedCastName(room.castNames);
     // Registered before base so the abort signal threads into every round turn + the auto-mode chain.
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
@@ -621,30 +731,14 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
     };
 
     try {
-      const round = await driveRoundVia({
-        engine: deps.engine,
+      const committed = await runAiRound(ctx, deps, {
         base,
         group,
-        speakers,
-        groupCharacterId,
-        castName,
+        room,
+        signal: handle.signal,
+        forcedIds: resolveMentionsVia(content, room.castNames),
       });
-      const committed: MessageView[] = [userView, ...round.messages];
-      if (group.autoMode) {
-        const auto = await runChain(ctx, deps, {
-          base,
-          group,
-          room,
-          groupCharacterId,
-          castName,
-          signal: handle.signal,
-          initialLastSpeaker: lastSpeakerRef(
-            round.messages.findLast((m) => m.role === "assistant"),
-          ),
-        });
-        committed.push(...auto.messages);
-      }
-      return { messages: committed, aborted: false };
+      return { messages: [userView, ...committed], aborted: false };
     } finally {
       handle.release();
     }
@@ -1069,6 +1163,169 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
   };
 }
 
+// ── pending_turns drain — the host-offline deferred-turn reclaim (Part III §5) ──
+
+/** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued):
+ *   • `consent_required` — the host's D17 consent belt refused a by-proxy hosted turn (an authority verdict).
+ *   • `ChatNotFoundError` — the chat/host is gone (nothing left to run).
+ *  Everything else RE-QUEUES: `budget_exceeded` is TEMPORAL (a spent window means "not now", not "never" — the
+ *  member's owed reply waits for the next drain edge), and a transient fault (provider outage) is a retry.
+ *  Drains fire only at boot + host-return edges, so a re-queued row can't hot-loop. */
+function isDrainVerdictDrop(err: unknown): boolean {
+  return (
+    err instanceof ChatNotFoundError ||
+    (err instanceof ChatOperationError && err.code === CHAT_OP_CODES.consentRequired)
+  );
+}
+
+/** Reconstruct + run ONE deferred AI round from a durable `pending_turns` row — no principal, no new user
+ *  line: the row's frozen triple (`triggeredBy`/`runAsUserId`) funds it and the engine's in-lock belts
+ *  re-validate consent + budget. Throws a coded refusal (→ the drain drops the row) or completes (→ the drain
+ *  deletes it). Cards + assemble resolve under the row's frozen host; a mid-defer host-handoff funds the
+ *  frozen host per D19. */
+async function runDeferredRound(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  row: { readonly chatId: ChatId; readonly triggeredBy: UserId; readonly runAsUserId: UserId },
+): Promise<void> {
+  const chat = await loadChatRow(ctx.db, row.chatId);
+  if (chat === undefined) {
+    throw new ChatNotFoundError(row.chatId);
+  }
+  const room = await loadRoom(ctx, row.chatId); // hostless/gone → ChatNotFoundError (a drop)
+  const connection = await deps.resolveConnection({
+    runAsUserId: row.runAsUserId,
+    chatId: row.chatId,
+  });
+  const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
+  const { assembleContext, memoryConfig } = await buildTurnContext(ctx, deps, {
+    chatId: row.chatId,
+    runAsUserId: row.runAsUserId,
+    model: connection.model,
+    kind: "send",
+    castCharacterIds: room.castCharacterIds,
+    personaIds: room.personaIds,
+    anchorPersonaId: chat.anchorPersonaId,
+    // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
+    triggerPersonaId: null,
+  });
+  const handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
+  const base: RoundBase = {
+    chatId: row.chatId,
+    assembleContext,
+    connection,
+    triggeredBy: row.triggeredBy,
+    runAsUserId: row.runAsUserId,
+    kind: "send",
+    intent: {},
+    memoryConfig,
+    signal: handle.signal,
+  };
+  try {
+    await runAiRound(ctx, deps, { base, group, room, signal: handle.signal });
+  } finally {
+    handle.release();
+  }
+}
+
+/** Process ONE queued row: CLAIM it atomically (the exactly-once serializer), then RUN it · DROP it on a
+ *  permanent verdict (the claim already deleted it) · or RE-QUEUE it (re-insert) on `budget_exceeded`/a
+ *  transient fault. A lost claim ("skipped") means a concurrent drain owns the row. Isolated — the fault
+ *  never escapes the sweep. */
+async function drainOne(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  row: { readonly id: PendingTurnId },
+): Promise<"ran" | "dropped" | "requeued" | "skipped"> {
+  // Atomic claim-before-run: the `DELETE … RETURNING` is the ONLY serializer (a drained turn is not
+  // lock-held), so the boot reclaim ∥ host-return overlap can't double-run or double-spend a row.
+  const claimed = await claimPendingTurn(ctx.db, row.id);
+  if (claimed === undefined) {
+    return "skipped"; // a concurrent drain already claimed this row.
+  }
+  try {
+    await runDeferredRound(ctx, deps, claimed);
+    return "ran";
+  } catch (err) {
+    if (isDrainVerdictDrop(err)) {
+      const reason = err instanceof ChatNotFoundError ? "chat-gone" : "consent";
+      await notifyDeferredTurnDropped(ctx, claimed, reason);
+      getLog().info(
+        { pendingTurnId: claimed.id, chatId: claimed.chatId, reason, dropped: true },
+        "chat: deferred turn DROPPED at drain (permanent verdict)",
+      );
+      return "dropped";
+    }
+    // budget_exceeded (temporal) or a transient fault → RE-QUEUE (re-insert the claimed row, same frozen
+    // triple + createdAt) to retry on the next drain edge. A crash between claim and re-insert loses the row
+    // (the member can resend) — cheaper than a double-run.
+    await insertPendingTurn(ctx.db, {
+      id: claimed.id,
+      chatId: claimed.chatId,
+      triggeredBy: claimed.triggeredBy,
+      runAsUserId: claimed.runAsUserId,
+      createdAt: claimed.createdAt,
+    });
+    getLog().warn(
+      { pendingTurnId: claimed.id, chatId: claimed.chatId, err, requeued: true },
+      "chat: deferred turn RE-QUEUED at drain (budget window / transient fault)",
+    );
+    return "requeued";
+  }
+}
+
+/** Notify the frozen `triggeredBy` member that their host-offline deferred reply was PERMANENTLY dropped
+ *  (Part III §5) — mirrors the kick/handoff durable-inbox precedent (verbs/roster.ts). Best-effort: a
+ *  cascade-gone recipient/chat can FK-fail the insert, which is logged, not fatal (the drain still consumed
+ *  the row). No co-statements — the claim already deleted the row. */
+async function notifyDeferredTurnDropped(
+  ctx: ChatContext,
+  row: { readonly chatId: ChatId; readonly triggeredBy: UserId },
+  reason: "consent" | "chat-gone",
+): Promise<void> {
+  await ctx
+    .emitNotification({
+      type: "deferred-turn-dropped",
+      recipientUserId: row.triggeredBy,
+      chatId: row.chatId,
+      reason,
+    })
+    .catch((err: unknown) =>
+      getLog().warn(
+        { chatId: row.chatId, triggeredBy: row.triggeredBy, reason, err },
+        "chat: deferred-turn-dropped notification emit failed (best-effort)",
+      ),
+    );
+}
+
+/** `drainDeferredTurns` — the boot reclaim (`{all:true}`) + host-return (`{hostUserId}`) drain of the durable
+ *  `pending_turns` queue. Each row runs through the engine (consent/budget re-validated in-lock) or is
+ *  dropped on a re-validation refusal — both consume the row; a transient fault leaves it queued. Rows drain
+ *  oldest-first + SEQUENTIALLY (each takes the per-chat lock + spends the host budget). */
+function createDrainDeferredTurns(
+  ctx: ChatContext,
+  deps: TurnDeps,
+): ChatService["drainDeferredTurns"] {
+  return async (scope: DrainDeferredTurnsScope): Promise<DrainReport> => {
+    const rows =
+      "all" in scope
+        ? await loadPendingTurnsForReclaim(ctx.db)
+        : await loadPendingTurnsForHost(ctx.db, scope.hostUserId);
+    let ran = 0;
+    let dropped = 0;
+    for (const row of rows) {
+      // biome-ignore lint/performance/noAwaitInLoops: deferred turns drain SEQUENTIALLY — each acquires the per-chat lock + spends the host's count budget; a parallel sweep would race the lock + the limiter.
+      const outcome = await drainOne(ctx, deps, row);
+      if (outcome === "ran") {
+        ran += 1;
+      } else if (outcome === "dropped") {
+        dropped += 1;
+      }
+    }
+    return { ran, dropped };
+  };
+}
+
 /** The turn-running verb bundle the root spreads into the full service. `opening`/`generateOpening` stays
  *  internal (injected into `startChat`, not on `ChatService`); the engine path is a `kind:"opening"` runTurn
  *  with the opening instruction on `appendUserTurn`. */
@@ -1083,5 +1340,6 @@ export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
     generate: createGenerate(ctx, deps),
     undoContinue: createUndoContinue(ctx, deps),
     revertContinue: createRevertContinue(ctx, deps),
+    drainDeferredTurns: createDrainDeferredTurns(ctx, deps),
   };
 }

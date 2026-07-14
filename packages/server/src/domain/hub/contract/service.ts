@@ -10,7 +10,7 @@ import type { ImportGifParams, SearchGifsParams } from "./params";
 
 /** The Tenor search adapter op (`infra/network/searchTenorGifs`). The resolved `apiKey` is threaded by the
  *  verb (from `resolveGifKey`); the op knows Tenor's URL grammar + response mapping, the domain does not. */
-export type SearchGifsAdapterOp = (args: {
+type SearchGifsAdapterOp = (args: {
   readonly apiKey: string;
   readonly query: string;
   readonly limit: number;
@@ -20,17 +20,17 @@ export type SearchGifsAdapterOp = (args: {
 /** The Tenor image fetch+guard op (`infra/network/fetchTenorGifImage`). FAIL-CLOSED host allowlist + the
  *  magic/dimension guard live inside it; it throws on a bad host / non-2xx / rejected buffer. Returns the
  *  validated bytes + the sniffed mime the verb stamps on `storeAsset`. */
-export type FetchGifImageOp = (
+type FetchGifImageOp = (
   url: string,
 ) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
 
 /** Resolve the acting principal's `gif-search` (Tenor) key (`credentials.resolveGifSearchKey`) — `null`
  *  when the user has no live credential (the verb surfaces the no-credential floor). */
-export type ResolveGifKeyOp = (principal: Principal) => Promise<string | null>;
+type ResolveGifKeyOp = (principal: Principal) => Promise<string | null>;
 
 /** Store validated gif bytes as a `"gallery"`-kind CAS asset (`assets.store` bound with `kind:"gallery"` +
  *  `enforceMagic:true` + the import byte cap). Owner = the acting principal. */
-export type StoreGalleryAssetOp = (args: {
+type StoreGalleryAssetOp = (args: {
   readonly principal: Principal;
   readonly bytes: Uint8Array;
   readonly mime: string;
@@ -38,7 +38,7 @@ export type StoreGalleryAssetOp = (args: {
 
 /** Curate a stored asset into the gallery (`assets.addToGallery` bound). Assets re-checks ownership; the
  *  subject character (when given) is also gated EARLY in the verb, before any fetch. */
-export type AddToGalleryOp = (args: {
+type AddToGalleryOp = (args: {
   readonly principal: Principal;
   readonly assetId: AssetId;
   readonly subjectCharacterId?: CharacterId | undefined;
@@ -46,10 +46,7 @@ export type AddToGalleryOp = (args: {
 
 /** Owner-scoped character ownership check (`characters.ownerId = ownerId`) — the EARLY leak-free gate in
  *  `importGif` (a foreign/missing subject id rejects NOT_FOUND before spending a fetch; DoS + IDOR). */
-export type AssertCharacterOwnedOp = (
-  ownerId: UserId,
-  characterId: CharacterId,
-) => Promise<boolean>;
+type AssertCharacterOwnedOp = (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
 
 /** The DI bundle every hub verb closes over. Every field is an injected op — hub sideways-imports no
  *  sibling runtime and never imports `infra/network` internals. */

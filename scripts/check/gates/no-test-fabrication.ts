@@ -1,23 +1,8 @@
-// Gate: no-test-fabrication (core/Spine-Testing.md §5; test-support-dry-punchlist.md §5 / W1h) — bans the
-// two fabricated-entity shapes that compile STRAIGHT THROUGH a type change, the "source changed, tests
-// never knew" hole:
-//   (a) `X as unknown as Y` double-casts — the escape hatch that silently survives Y gaining/renaming a
-//       required field (the 2026-07-09 census found 168, concentrated on ResolvedCredential/ModelCapability
-//       /UpdateCharacterInput/… — server/infra owns 72).
-//   (b) an object- or array-literal `as Y` where Y is not `const`/`any`/`unknown` — a hand-shaped literal
-//       asserted complete; when Y grows a field, the literal is silently wrong (census: 67). The fix is a
-//       typed factory (`makeResolvedCredential(overrides?)` — a new required field errors in ONE place) or
-//       `satisfies Y` (which re-checks the literal against Y on every change).
-//
-// ESCAPE HATCH: a `// FABRICATION-OK: <reason>` comment on the SAME line or the line ABOVE the cast exempts
-// that site — for the deliberate invalid-input probes (the `never`-cast negative-space tests, `{__behaviors}`
-// stubs) that fabricate on PURPOSE.
-//
-// BASELINE RATCHET (no-test-fabrication.baseline.json, tests/-relative path → current count): a file
-// violates only when its live count EXCEEDS its baseline (a file absent from the baseline has baseline 0, so
-// a NEW fabrication anywhere is RED). Shrink an entry as W1h converts its sites to factories/`satisfies`;
-// never grow one. Regenerate deliberately (scripts/check/gen-fabrication-baseline.ts) only when a legitimate
-// bulk shift lands — the point is the count can only fall.
+// Gate: no-test-fabrication (core/Spine-Testing.md §5; test-support-dry-punchlist.md W1h) — bans two
+// fabricated-entity shapes that compile STRAIGHT THROUGH a type change ("source changed, tests never
+// knew"): (a) `X as unknown as Y` double-casts, and (b) an object/array-literal `as Y` (not
+// const/any/unknown) — both survive Y gaining/renaming a required field silently; use a typed factory
+// or `satisfies Y` instead. Escape: `// FABRICATION-OK: <reason>`. BASELINE RATCHET: a file violates only when its live count exceeds its committed baseline — shrink-only.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AsExpression, SourceFile } from "ts-morph";

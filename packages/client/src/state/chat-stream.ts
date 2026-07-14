@@ -57,7 +57,7 @@ interface ChatStreamState {
 }
 
 /** The stable "no turn" slot — frozen so selectors returning it never mint a fresh object per render. */
-export const IDLE_TURN: TurnSlot = Object.freeze({ phase: "idle" as const });
+const IDLE_TURN: TurnSlot = Object.freeze({ phase: "idle" as const });
 
 const useChatStreamStore = createGatedStore<ChatStreamState>(
   "chat-stream",

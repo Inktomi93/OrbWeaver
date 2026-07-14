@@ -1,4 +1,4 @@
-// CT: the ECharts seal wrapper (ui-package-design §9 v1 corpus-viz set). Covers what's genuinely
+// CT: the ECharts seal wrapper. Covers what's genuinely
 // DOM-observable: the native aria accessible-name wiring and free container resize (size-sensor's
 // ResizeObserver). The reduced-motion merge logic is pure data transformation — proven by
 // merge-option.test.ts, not here: a mounted ECharts instance does not survive the Playwright

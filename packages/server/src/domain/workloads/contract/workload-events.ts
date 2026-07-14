@@ -7,16 +7,6 @@ import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadError } from "./workload-error";
 import type { WorkloadProgress } from "./workload-state";
 
-export const WORKLOAD_EVENT_TYPES = [
-  "started",
-  "progress",
-  "status",
-  "succeeded",
-  "failed",
-  "cancelled",
-] as const;
-export type WorkloadEventType = (typeof WORKLOAD_EVENT_TYPES)[number];
-
 interface WorkloadEventBase {
   readonly workloadId: WorkloadId;
   readonly kind: WorkloadKind;

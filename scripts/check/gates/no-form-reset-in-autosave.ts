@@ -1,20 +1,8 @@
-// Gate: no-form-reset-in-autosave (UI-Gates-and-Lessons.md §7 row 2 + §11.3 / UI-Primitives-and-Reuse.md
-// §13.1). TanStack Form's `isDirty` never auto-clears after submit (#1144); on a listener-debounced
-// AUTOSAVE form, calling `reset(value)` re-baselines defaults on a LIVE draft mirror → the autosave
-// infinite loop (the save bar spins forever). `createAutosaveEntityForm` strips `reset` at the TYPE
-// level (`Omit<AppFormInstance, "reset">`), so `form.reset()` is a compile error on the typed surface;
-// this belt catches the RUNTIME escape hatches the type can't:
-//   • ARM A — a `.reset(` call on a form object in any file that IMPORTS createAutosaveEntityForm (a
-//     cast past the Omit re-exposes the method at runtime). Scoped to a receiver whose name reads as a
-//     form (`form`, `personaForm`, `props.form`) so an unrelated `.reset(` (a ref, an animation) is
-//     left alone.
-//   • ARM B — inside forms/create-autosave-entity-form.ts itself: the `Omit<…, "reset">` type strip
-//     must remain present, AND no returned object may carry a `reset` property — a refactor that
-//     un-strips reset or hands it back through the surface goes RED here.
-//
-// WHAT IT DELIBERATELY DOES NOT FLAG: `createSavedEntityForm`'s legitimate `form.reset(saved)` (the
-// button-gated factory's post-submit rebaseline) — that file does NOT import createAutosaveEntityForm
-// (it only references it in prose), so ARM A never scans it.
+// Gate: no-form-reset-in-autosave (UI-Gates-and-Lessons.md §7 row 2/§11.3, UI-Primitives-and-Reuse.md
+// §13.1). On a listener-debounced AUTOSAVE form, `reset(value)` re-baselines a LIVE draft mirror → an
+// infinite autosave loop (TanStack's `isDirty` never auto-clears after submit, #1144).
+// `createAutosaveEntityForm` strips `reset` at the type level; catches the runtime escapes: ARM A — a
+// `.reset(` on a form-shaped receiver in any file importing the factory. ARM B — inside the factory, the `Omit<…, "reset">` strip and no returned `reset` property must hold.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";

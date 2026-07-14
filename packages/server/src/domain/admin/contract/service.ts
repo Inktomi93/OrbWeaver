@@ -33,7 +33,7 @@ import type { AdminEngineStatus, SessionAdminView } from "./views";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
  *  composition root. Not re-exported from the front door — a private port. */
-export interface SessionAdminPort {
+interface SessionAdminPort {
   readonly listForUser: (userId: UserId) => Promise<readonly SessionAdminView[]>;
   readonly revoke: (sessionId: string) => Promise<void>;
   readonly revokeAllForUser: (userId: UserId) => Promise<number>;
@@ -41,14 +41,14 @@ export interface SessionAdminPort {
 
 /** The vLLM-supervisor slice admin needs — satisfied at the root by mapping `infra/providers`' supervisor
  *  handle into this shape. */
-export interface VllmSupervisorPort {
+interface VllmSupervisorPort {
   readonly allEngineStatuses: () => Record<string, AdminEngineStatus>;
   readonly restartEngine: (engine: string) => Promise<string>;
 }
 
 /** The inline-embed slice admin needs — composed at the root from `character` and `embeddings`. Resolves
  *  `false` when the caller doesn't own the character, it's gone, or it has no embeddable text. */
-export interface EmbedProducerPort {
+interface EmbedProducerPort {
   readonly embedCharacterCard: (principal: Principal, characterId: CharacterId) => Promise<boolean>;
 }
 

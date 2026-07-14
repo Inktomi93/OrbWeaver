@@ -19,6 +19,7 @@ export const SETTINGS_CATEGORY_IDS = [
   "workloads",
   "backup",
   "chat-behavior",
+  "regex",
   "connections",
   "automation",
   "system",
@@ -26,14 +27,14 @@ export const SETTINGS_CATEGORY_IDS = [
 ] as const;
 
 /** One searchable/jumpable setting inside a subcategory — the leaf of the settings index. */
-export interface SettingsSetting {
+interface SettingsSetting {
   readonly id: string;
   readonly label: string;
   readonly keywords?: readonly string[];
 }
 
 /** A subcategory = one anchored section inside a pane; each stamps a stable anchor node the search jumps to. */
-export interface SettingsSubcategory {
+interface SettingsSubcategory {
   readonly id: string;
   readonly label: string;
   readonly keywords?: readonly string[];

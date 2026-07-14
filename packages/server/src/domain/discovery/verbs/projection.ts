@@ -43,7 +43,7 @@ function primarySpace(vectors: readonly CardVector[]): CardVector[] {
 }
 
 /** Fewer than MIN_PROJECTION_POINTS cards → [] (nothing to plot). */
-export async function corpusProjection(db: Db, ownerId: UserId): Promise<CorpusPoint[]> {
+async function corpusProjection(db: Db, ownerId: UserId): Promise<CorpusPoint[]> {
   const vectors = await readOwnedCharacterVectors(db, ownerId);
   const space = primarySpace(vectors);
   if (space.length < MIN_PROJECTION_POINTS) {

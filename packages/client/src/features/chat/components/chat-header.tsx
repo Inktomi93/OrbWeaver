@@ -5,6 +5,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
@@ -16,7 +17,6 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { setContextTab, setPanelMode, usePanelOverride } from "#state";
-import { initialsForAttribution } from "../lib/attribution";
 import { filterCharacters } from "../lib/roster";
 import { ChatOptionsMenu } from "./chat-options-menu";
 
@@ -102,7 +102,7 @@ function CastAvatars({
         hueSeed={lead.characterId}
         {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
       >
-        {initialsForAttribution(lead.displayName)}
+        {initialsFor(lead.displayName)}
       </Avatar>
     );
   }
@@ -161,7 +161,7 @@ function DraftCastAvatars({
         fallbackDelay={0}
         {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
       >
-        {initialsForAttribution(lead.name)}
+        {initialsFor(lead.name)}
       </Avatar>
     );
   }

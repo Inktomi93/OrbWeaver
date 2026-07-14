@@ -1,26 +1,8 @@
-// Gate: surface-in-a-container — LIVE (activated W1-1, 2026-07-04; first real consumer:
-// features/chat/anchors/message-thread-anchor.tsx wraps features/chat/surfaces/message-list-surface.tsx).
-// docs/architecture/core/UI-Architecture-and-Layout.md §4: a SURFACE is the containment CONSUMER —
-// pure content that queries `@container` variants — and a surface is placed inside a `<Container>` /
-// `<Section container>` that OWNS `container-type`. Feature code never writes raw containment; it wraps
-// a surface in a layout container. This gate flags a surfaces/*.tsx that renders structural JSX but
-// references NO `@orb/ui/layout` container (`<Container>` / `<Section>`) EITHER in the surface itself OR
-// in any file under its feature's `anchors/` dir (the calibrated cross-file exemption below).
-//
-// Dormant-era reason #1 (no consumer) is resolved by the chat pair above. Reason #2 — CONTAINMENT IS
-// ANCHOR-PROVIDED (cross-file: §4's realized shape is anchor-wraps-surface, the `<Container>` often
-// lives in the surface's ANCHOR, a different file) — is resolved HERE, calibrated against that first
-// real pair: a surface with no Container of its own is NOT a violation if ANY `.tsx` file in its
-// feature's `anchors/` directory renders one (`anchorHasContainer`). This is a per-FEATURE match (not
-// per-surface-to-specific-anchor render-tree tracing, which needs a type graph harness.ts doesn't load)
-// — acceptable at today's scale (one anchor dir per feature); a feature that grows multiple anchors
-// wrapping different surfaces would need per-file cross-referencing, revisit then.
-// ACTIVATED, verbatim, in scripts/check/report.ts: `import { surfaceInAContainer } from
-// "./gates/surface-in-a-container.ts";` + a `surfaceInAContainer,` entry in `ALL_CHECKS`.
-//
-// Self-tested: tests/tooling/surface-in-a-container.int.test.ts drives it over a temp-dir fixture tree
-// (real fs — the gate reads surface files) proving fire (a surface with a raw `<div>` structural root
-// + no Container) AND no-false-positive (a surface that renders `<Container>`), never the real tree.
+// Gate: surface-in-a-container (UI-Architecture-and-Layout.md §4) — a SURFACE is the containment
+// CONSUMER (pure content querying `@container` variants); it must sit inside a `<Container>` /
+// `<Section container>` that owns `container-type`. Flags a surfaces/*.tsx that renders structural JSX
+// but references no `@orb/ui/layout` container, either in the surface itself or in any file under its
+// feature's `anchors/` dir — §4's realized shape is anchor-wraps-surface. Per-FEATURE match, not per-surface-to-specific-anchor tracing.
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TSX surface fixture
 // snippets, not secrets.
 import { existsSync, readdirSync, readFileSync } from "node:fs";

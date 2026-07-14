@@ -99,6 +99,29 @@ export const discoveryRouter = t.router({
       ctx.services.discovery.compareCharacters(ctx.auth.userId, input.idA, input.idB),
     ),
 
+  // PD-40 compareCharactersDeep: the facet diff PLUS a grounded LLM narrative. Both ids owner-belted (→ null).
+  compareCharactersDeep: authedProcedure
+    .input(z.object({ idA: brandedId<CharacterId>(), idB: brandedId<CharacterId>() }))
+    .query(({ ctx, input }) =>
+      ctx.services.discovery.compareCharactersDeep(ctx.auth.userId, input.idA, input.idB),
+    ),
+
+  // PD-40 askCard: a grounded Q&A over ONE owned/distilled character's recent PLAYED scenes (CONTENT-only).
+  // Owner-belted (a foreign/undistilled character → null). Owner = the resolved principal (audit #1).
+  askCard: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>(), question: z.string().min(1) }))
+    .query(({ ctx, input }) =>
+      ctx.services.discovery.askCard(ctx.auth.userId, input.characterId, input.question),
+    ),
+
+  // PD-40 swipeHotspots: one chat's most-re-rolled assistant slots. Owner-belted via characters.ownerId (a
+  // foreign chat → [], proved by the cross-tenant sweep probe). Owner = the resolved principal (audit #1).
+  swipeHotspots: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>(), limit: z.number().int().positive().optional() }))
+    .query(({ ctx, input }) =>
+      ctx.services.discovery.swipeHotspots(ctx.auth.userId, input.chatId, input.limit),
+    ),
+
   // PD-40 archetypes: k-means clusters of the owner's card embeddings, labelled from distilled facets.
   archetypes: authedProcedure
     .input(z.object({ k: z.number().int().positive().optional() }).optional())
@@ -193,6 +216,14 @@ export const discoveryRouter = t.router({
     .input(z.object({ clusterIdx: z.number().int().nonnegative(), level: z.enum(THEME_LEVELS) }))
     .query(({ ctx, input }) =>
       ctx.services.discovery.themeDetail(ctx.auth.userId, input.clusterIdx, input.level),
+    ),
+
+  // PD-40 characterDossier: one character's composed dossier (facets + portrait alignment + injected `similar`
+  // neighbours). Owner-belted (a foreign/undistilled character → null). Owner = the resolved principal.
+  characterDossier: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .query(({ ctx, input }) =>
+      ctx.services.discovery.characterDossier(ctx.auth.userId, input.characterId),
     ),
 
   // PD-40 cooccurrence reads (owner-scoped). The heavy recompute is the `compute-cooccurrence` workload.

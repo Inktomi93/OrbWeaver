@@ -2,7 +2,7 @@
 // per-(api, source) → shape matrix + the anthropic-messages transport split (cli vs direct). This is the
 // carriage that makes the per-shape `turns` cells producible (they were invisible without it).
 
-import type { ChatSource } from "@orb/contracts/connection";
+import type { CredentialSource } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import {
   deriveWireShape,
@@ -10,7 +10,7 @@ import {
 } from "../../../../../packages/server/src/domain/connection/catalog/wire-shape.ts";
 import { expect, test } from "../../../../support/fixtures";
 
-const SOURCES: readonly ChatSource[] = [
+const SOURCES: readonly CredentialSource[] = [
   "max-pro-sub",
   "openrouter",
   "vllm",

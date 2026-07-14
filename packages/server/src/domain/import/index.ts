@@ -12,5 +12,15 @@ export type {
   ImportService,
   StoreImportAsset,
 } from "./contract/service";
+export type {
+  CollectedCard,
+  CollectedChat,
+  CollectedPersona,
+  CollectResult,
+  ImportChatsInput,
+  ImportFsPort,
+  ImportPersonaInput,
+} from "./contract/views";
+export { collectBundlesFromDir } from "./loader/collect";
 export { createImportService } from "./service";
-export { parseCardJson, parseCardPng } from "./substrate/card";
+export { importFileHash, parseCardJson, parseCardPng } from "./substrate/card";

@@ -13,7 +13,7 @@ import type { UserCredentialId } from "@orb/kit/ids";
 /** Common to every ownership-scoped credential verb: the acting principal (`principal.userId` is the
  *  row owner; the guard reads `principal.role`). The runner-internal `markRevoked` is the ONE verb that
  *  does NOT extend this — the runner has only the credentialId (it proved access by holding it). */
-export interface CredentialActorParams {
+interface CredentialActorParams {
   readonly principal: Principal;
 }
 
@@ -76,7 +76,7 @@ export interface ClearRevokedParams extends CredentialActorParams {
 }
 
 /** The unsaved "Add endpoint" form fields — the draft arm of {@link FetchModelsParams}. */
-export interface CustomEndpointDraft {
+interface CustomEndpointDraft {
   readonly baseUrl: string;
   readonly key?: string | undefined;
   readonly headers?: Record<string, string> | undefined;
@@ -96,6 +96,3 @@ export interface InspectEndpointParams extends CredentialActorParams {
   readonly credentialId: UserCredentialId;
   readonly model?: string | undefined;
 }
-
-/** The keyless OR catalog credential takes no input — the `/models` endpoint is public. */
-export type KeylessCatalogParams = Record<string, never>;

@@ -31,7 +31,7 @@ import type {
 } from "./results";
 import type { BuddyView } from "./views";
 
-export type ResolveAgentConnectionOp = (params: {
+type ResolveAgentConnectionOp = (params: {
   readonly principal: Principal;
 }) => Promise<ResolvedConnection>;
 

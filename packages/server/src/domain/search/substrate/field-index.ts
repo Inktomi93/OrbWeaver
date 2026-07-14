@@ -7,7 +7,7 @@ import MiniSearch from "minisearch";
 import type { FieldSearchHit, SearchSuggestion } from "../contract/results";
 
 export const FIELD_INDEX_TTL_MS = 300_000;
-export const FIELD_INDEX_MAX_OWNERS = 32;
+const FIELD_INDEX_MAX_OWNERS = 32;
 const FUZZY = 0.2;
 
 /** Per-field score boost — a name match outranks description/personality, which outrank scenario/creatorNotes. */

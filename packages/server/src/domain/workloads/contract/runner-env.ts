@@ -17,7 +17,7 @@ import type {
 } from "./workload-result";
 
 /** Counts a maintenance/backfill op returns BEFORE the runner adds the `dryRun` echo (→ MaintenanceResult). */
-export interface MaintenancePassCounts {
+interface MaintenancePassCounts {
   readonly scanned: number;
   readonly changed: number;
 }

@@ -39,7 +39,7 @@ export function buildLibraryExportHref(selected: ReadonlySet<PortableKind>): str
 }
 
 /** One normalized per-file outcome for the report summary. */
-export interface ImportOutcomeView {
+interface ImportOutcomeView {
   readonly path: string;
   readonly ok: boolean;
   readonly detail: string;

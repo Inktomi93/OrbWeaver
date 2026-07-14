@@ -1,13 +1,8 @@
 // Gate: owner-role-split (ledger D17; Spine-Identity invariant #6) — `can()` is the ONLY
-// privilege-comparison site: `owner ⊇ admin` lives inside `domain/admin/guard.ts` and NOWHERE else.
-// A scattered `role === "owner"`/`"admin"` comparison re-spells the privilege lattice — the exact
-// drift D17 exists to prevent (a delegated admin silently gaining/losing owner surface). This gate
-// scans every server source for a GLOBAL-role literal compared against anything (either side of an
-// equality) outside the one allowlisted guard file. Role DERIVATION (sessions' `determineRole`
-// building the value) and role WRITES (boot seed) assign literals — assignments don't match; only
-// comparisons do. The 2026-07-03 catch that motivated the allowlist being exactly ONE file: the
-// auth seam's debug `isAdmin` re-implemented owner∪admin inline — now routed through
-// `requireAdmin` (the seam fix landed with this gate).
+// privilege-comparison site: `owner ⊇ admin` lives inside domain/admin/guard.ts and nowhere else. A
+// scattered `role === "owner"`/`"admin"` comparison re-spells the privilege lattice (a delegated admin
+// silently gaining/losing owner surface). Scans every server source for a global-role literal compared
+// against anything, outside the one allowlisted guard file — assignments (derivation/boot-seed writes) don't match, only comparisons do.
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

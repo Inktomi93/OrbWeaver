@@ -18,7 +18,7 @@ const READY_FALLBACK_MS = 3000;
 
 let markReady = (): void => undefined;
 /** Resolves once the app has hydrated and its initial reads have settled (see installAppReadySignal). */
-export const ready: Promise<void> = new Promise<void>((resolve) => {
+const ready: Promise<void> = new Promise<void>((resolve) => {
   markReady = resolve;
 });
 
@@ -65,7 +65,7 @@ interface ShellSnapshot {
   readonly chatOpen: boolean;
 }
 
-export interface OrbDebugHandle {
+interface OrbDebugHandle {
   /** Resolves when `data-app-ready` is set (initial reads settled). */
   readonly ready: Promise<void>;
   readonly isReady: () => boolean;

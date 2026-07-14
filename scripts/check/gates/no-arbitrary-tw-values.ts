@@ -1,22 +1,8 @@
-// Gate: no-arbitrary-tw-values (design-enforcement.md §3 — the last PLANNED gate in the doc, widening
-// the existing no-raw-spacing/no-raw-typography biome family to the general bracket escape hatch). A
-// Tailwind arbitrary-VALUE class on a layout/size/spacing/type utility (`w-[137px]`, `text-[13px]`,
-// `p-[7px]`) in `packages/client/src` or `packages/ui/src` is banned — if a value is worth using it's
-// worth a token.
-//
-// SHAPE: walk every string/template literal in the two src trees, split on whitespace into class
-// tokens, and for each token strip variant modifiers (split on `:`, keep only the LAST segment — so
-// `hover:w-[137px]` and `md:text-[13px]` still flag; `data-[state=open]:opacity-100` does NOT, because
-// its bracket lives in a NON-terminal segment, i.e. it's a variant/selector bracket, not a value). The
-// terminal segment flags when it matches `<utility>-[<body>]` where `<utility>` is one of the scoped
-// layout/size/spacing/type prefixes AND `<body>` does NOT start with `--`, `var(`, or `calc(` (those ARE
-// token-driven, same class as a bare token utility). `content-['…']` (arbitrary content, not a magic
-// value) is out of scope entirely — `content` isn't a scoped utility.
-//
-// ALLOWLIST (file-level, the no-interactive-role-in-features BURN_DOWN precedent): a file lands here
-// with the value + reason when no token exists for it. An allowlisted file that has gone CLEAN (no
-// scoped arbitrary-value class remains) is RED (stale entry — remove it); a NEW offender not in the
-// allowlist is RED immediately.
+// Gate: no-arbitrary-tw-values (design-enforcement.md §3) — widens the no-raw-spacing/no-raw-typography
+// biome family to the general bracket escape hatch: a Tailwind arbitrary-VALUE class on a
+// layout/size/spacing/type utility (`w-[137px]`, `text-[13px]`) in packages/{client,ui}/src is banned —
+// if a value is worth using it's worth a token. Walks class tokens (terminal `:`-segment) and flags
+// `<utility>-[<body>]` unless token-driven. ALLOWLIST is a both-directions ratchet.
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";

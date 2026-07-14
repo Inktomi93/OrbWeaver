@@ -22,7 +22,7 @@ export const PROVIDER_LABELS: Record<CredentialProvider, string> = Object.fromEn
 ) as Record<CredentialProvider, string>;
 
 /** The full storable-provider order (includes `gif-search`, a storage-only member). */
-export const PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDER_LABEL_PAIRS.map(
+const PROVIDERS_ORDERED: readonly CredentialProvider[] = PROVIDER_LABEL_PAIRS.map(
   ([provider]) => provider,
 );
 
@@ -178,13 +178,13 @@ export function embedDimensionWarning(
 }
 
 /** One slot's flat form value — `""` for an unset source/model (the picker's empty state). */
-export interface RoleSlotForm {
+interface RoleSlotForm {
   readonly source: string;
   readonly model: string;
 }
 
 /** The chat slot additionally carries the protocol `api` knob. */
-export interface ChatSlotForm extends RoleSlotForm {
+interface ChatSlotForm extends RoleSlotForm {
   readonly api: string;
 }
 
@@ -295,7 +295,7 @@ export const CHAT_API_LABELS: Record<ChatApi, string> = Object.fromEntries(
 ) as Record<ChatApi, string>;
 
 /** The chat api options in declaration order. */
-export const CHAT_APIS_ORDERED: readonly ChatApi[] = CHAT_API_LABEL_PAIRS.map(([api]) => api);
+const CHAT_APIS_ORDERED: readonly ChatApi[] = CHAT_API_LABEL_PAIRS.map(([api]) => api);
 
 // Mirrors the server resolver's assertCoherent(api, source) matrix — kept in lockstep with resolve-role.ts.
 const CHAT_APIS_BY_SOURCE_PAIRS: readonly (readonly [CredentialSource, readonly ChatApi[]])[] = [

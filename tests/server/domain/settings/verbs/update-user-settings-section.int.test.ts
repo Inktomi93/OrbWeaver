@@ -121,4 +121,39 @@ describe("updateUserSettingsSection", () => {
     const view = await h.svc.getUserSettings({ principal: p });
     expect(view.config.theme.selectedThemeId).toBe("theme_00000000000000000000000002");
   });
+
+  test("the regex section patches its scripts array (REPLACE, not merge — the autosave contract)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_regex" });
+    const p = principal(u, "user");
+    const script = {
+      id: "22222222-2222-4222-8222-222222222222",
+      name: "strip ooc",
+      findRegex: "\\(ooc\\)",
+      replaceString: "",
+      placement: [],
+      enabled: true,
+      markdownOnly: false,
+      promptOnly: false,
+      runOnEdit: false,
+      trimStrings: [],
+      substituteRegex: 0,
+      minDepth: null,
+      maxDepth: null,
+    };
+    expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(0);
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "regex", patch: { scripts: [script] } },
+    });
+    expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(1);
+    // A later save with the empty array REPLACES (an array is not deep-merged) — deleting the last
+    // script actually clears the library instead of leaving a stale entry.
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "regex", patch: { scripts: [] } },
+    });
+    expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(0);
+  });
 });

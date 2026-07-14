@@ -17,7 +17,7 @@ const NAME_MAX = 48;
 
 const WORKLOAD_KINDS = ["find-duplicates", "index"] as const;
 
-export function toolText(text: string): BuddyToolResult {
+function toolText(text: string): BuddyToolResult {
   const clipped =
     text.length > TOOL_PAYLOAD_MAX_CHARS
       ? `${text.slice(0, TOOL_PAYLOAD_MAX_CHARS)}\n…[truncated ${text.length - TOOL_PAYLOAD_MAX_CHARS} chars]`

@@ -36,16 +36,16 @@ export interface FetchModelsArgs {
 
 /** Probe a resolved credential against its provider's health endpoint (testHealth's injected op). The
  *  credential is built (by id) in the verb and handed here; the root binds this to the providers probe. */
-export type ProbeOp = (credential: ResolvedCredential) => Promise<CredentialHealth>;
+type ProbeOp = (credential: ResolvedCredential) => Promise<CredentialHealth>;
 
 /** Inspect a resolved custom_openai credential — the "Test endpoint" round-trip (inspectEndpoint's op). */
-export type InspectOp = (req: {
+type InspectOp = (req: {
   readonly credential: ResolvedCredential;
   readonly model: string;
 }) => Promise<EndpointInspection>;
 
 /** Best-effort `/models` fetch against a user-supplied endpoint (fetch-models' op; `[]` on any failure). */
-export type FetchModelsOp = (args: FetchModelsArgs) => Promise<string[]>;
+type FetchModelsOp = (args: FetchModelsArgs) => Promise<string[]>;
 
 /** The DI bundle the credential verbs close over, wired at the composition root. */
 export interface CredentialContext {

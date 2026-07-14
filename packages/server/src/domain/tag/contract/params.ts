@@ -12,7 +12,7 @@ import type {
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 
 /** Common to every tag verb: the acting principal whose `userId` is the owner discriminant. */
-export interface TagActorParams {
+interface TagActorParams {
   readonly principal: Principal;
 }
 

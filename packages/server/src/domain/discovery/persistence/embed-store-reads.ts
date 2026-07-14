@@ -24,7 +24,19 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gte, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 
 interface DigestKeywordRow {
   readonly ownerId: UserId;
@@ -413,6 +425,72 @@ export async function readTier0DigestSpans(
     .where(eq(chatDigests.tier, 0));
 }
 
+interface TierKDigestRow {
+  readonly digestId: ChatDigestId;
+  readonly chatId: ChatId;
+  readonly tier: number;
+  readonly blockIdx: number;
+}
+
+/** Every tier-k (tier \> 0) digest with a theme assignment — no 1:1 segment sibling, so the seq-span is
+ *  derived from the injected memory tier-grid (`Tier0RangeOp`) over {@link readSegmentBlockSpans}. */
+export async function readTierKDigestSpans(
+  db: Db,
+  ownerId?: UserId | null,
+): Promise<TierKDigestRow[]> {
+  const base = db
+    .selectDistinct({
+      digestId: chatDigests.id,
+      chatId: chatDigests.chatId,
+      tier: chatDigests.tier,
+      blockIdx: chatDigests.blockIdx,
+    })
+    .from(digestThemeAssignments)
+    .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId));
+  if (ownerId === undefined || ownerId === null) {
+    return await base.where(gt(chatDigests.tier, 0));
+  }
+  return await base
+    .innerJoin(
+      chatParticipants,
+      and(
+        eq(chatParticipants.chatId, chatDigests.chatId),
+        eq(chatParticipants.kind, "human"),
+        eq(chatParticipants.role, "host"),
+        eq(chatParticipants.userId, ownerId),
+        isNull(chatParticipants.leftSeq),
+      ),
+    )
+    .where(gt(chatDigests.tier, 0));
+}
+
+interface SegmentBlockSpan {
+  readonly chatId: ChatId;
+  readonly blockIdx: number;
+  readonly seqStart: number;
+  readonly seqEnd: number;
+}
+
+/** The verbatim block grid of the given chats — each tier-0 block's seq-span. The tier-k backfill folds a
+ *  digest's covered blockIdx range over these to derive its whole-span `[min(seqStart), max(seqEnd)]`. */
+export async function readSegmentBlockSpans(
+  db: Db,
+  chatIds: readonly ChatId[],
+): Promise<SegmentBlockSpan[]> {
+  if (chatIds.length === 0) {
+    return [];
+  }
+  return await db
+    .selectDistinct({
+      chatId: chatSegments.chatId,
+      blockIdx: chatSegments.blockIdx,
+      seqStart: chatSegments.seqStart,
+      seqEnd: chatSegments.seqEnd,
+    })
+    .from(chatSegments)
+    .where(inArray(chatSegments.chatId, [...chatIds]));
+}
+
 // ── composed views (home coverage + theme-detail members/timeline) ───────────
 /** Corpus coverage — how much of the owner's library is indexed (catalog size + memory-substrate depth). */
 export async function readCorpusCoverage(
@@ -494,7 +572,7 @@ export async function readThemeClusterTimeline(
 // ── image analytics (the AVATAR-lens reads; SHARED_AVATAR_MIN_REFS exclusion) ─
 // A shared/default avatar (one asset that is the current avatar of ≥ this many characters, via CAS dedup)
 // represents no one character and is excluded from cross-modal alignment + facet distributions.
-export const SHARED_AVATAR_MIN_REFS = 3;
+const SHARED_AVATAR_MIN_REFS = 3;
 
 const IMAGE_VECTOR_LENS = "image-raw";
 const IMAGE_CAPTION_LENS = "image-captioned";
@@ -642,7 +720,7 @@ export async function readCaptionRowsByFacet(
 // ── similarity (similar-chats: per-chat segment centroids, in-RAM) ────────────
 // No precomputed per-chat centroid store — derived from raw segment embeddings at request time. Loading a
 // heavy user's entire segment corpus per call is an OOM risk, so the candidate set is capped (see below).
-export const SIMILAR_CHATS_SEG_CAP = 20_000;
+const SIMILAR_CHATS_SEG_CAP = 20_000;
 
 interface OwnedSegmentVector {
   readonly chatId: ChatId;

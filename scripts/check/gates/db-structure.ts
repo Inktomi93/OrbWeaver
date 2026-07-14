@@ -1,11 +1,8 @@
-// Gate: db-structure — two halves of the db schema layout discipline.
-//   1. BARREL COMPLETENESS: every packages/db/src/schema/<file>.ts must be re-exported from
-//      schema/index.ts — missing means silently dropped from `typeof schema` (tables vanish from
-//      migrations AND the drizzle relational query API with no error).
-//   2. PRODUCER-SCHEMA MIRROR: every schema/<feature>.ts must mirror a
-//      packages/server/src/domain/<feature>/ producer, catching consumer-named schema files. A reserved
-//      cross-cutting set + documented non-domain producers are mapped and checked for existence. Skipped
-//      when domain/ is absent.
+// Gate: db-structure — two halves of the db schema layout discipline. (1) BARREL COMPLETENESS: every
+// packages/db/src/schema/<file>.ts must be re-exported from schema/index.ts — missing means silently
+// dropped from `typeof schema` (tables vanish from migrations + the query API with no error). (2)
+// PRODUCER-SCHEMA MIRROR: every schema/<feature>.ts must mirror a domain/<feature>/ producer (a reserved
+// cross-cutting set + documented non-domain producers are mapped); skipped when domain/ is absent.
 
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";

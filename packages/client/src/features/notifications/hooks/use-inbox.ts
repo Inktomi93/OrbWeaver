@@ -27,14 +27,6 @@ export function useInbox(): InboxRead {
   return { items, unreadCount: items.filter((item) => item.readAt === null).length };
 }
 
-export const useMarkNotificationRead = createEntityMutation<
-  inferInput<Trpc["notifications"]["markRead"]>,
-  unknown
->({
-  options: (trpc) => trpc.notifications.markRead.mutationOptions(),
-  invalidates: (trpc) => [trpc.notifications.list.pathFilter()],
-});
-
 /** Bulk "opening the bell reads everything" — ONE mutation + ONE reconcile, not a per-row loop. */
 export const useMarkAllNotificationsRead = createEntityMutation<
   inferInput<Trpc["notifications"]["markAllRead"]>,

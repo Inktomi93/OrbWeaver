@@ -25,4 +25,16 @@ export const CONTEXT_SLOTS: Partial<Record<SectionId, readonly ContextTabEntry[]
     { id: "section", label: "Section" },
     { id: "usage", label: "Usage" },
   ],
+  corpus: [
+    { id: "archetypes", label: "Archetypes" },
+    { id: "visuals", label: "Visuals" },
+    { id: "map", label: "Map" },
+    { id: "similarity", label: "Similarity" },
+    { id: "compare", label: "Compare" },
+  ],
+  analytics: [
+    { id: "models", label: "Models" },
+    { id: "time", label: "Time" },
+    { id: "personas", label: "Personas" },
+  ],
 };

@@ -1,20 +1,20 @@
-// The World Info LIST hub: header row, search, rows. Reads worldInfo.listBooks + listGlobal (to mark
+// The World Info LIST hub: header band, search, rows. Reads worldInfo.listBooks + listGlobal (to mark
 // the "Global" badge), filters client-side by name, renders a WorldInfoLibraryRow per book. A row click
 // opens the book in CONTENT and never attaches it. Overlays live in the row/dialog components; the
-// surface only wires the mutations.
+// surface only wires the mutations. The focus/QueryBoundary shell + header/search/empty body come from
+// the shared library-surface scaffold.
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve BookOpen/Icon/Plus/Search fine (the preset-library-surface.tsx precedent).
 import { BookOpen, Icon, Plus, Search } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { LibraryListLayout, LibrarySurfaceShell } from "#components";
+import { useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { clearWorldBookSelection, selectWorldBook, useSelectedWorldBookId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog";
@@ -42,20 +42,13 @@ export function WorldInfoLibrarySurface({
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full outline-none" gap="block">
-      <QueryBoundary
-        fallback={<Text tone="muted">Loading your books…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load your books.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
-        )}
+    <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
+      <LibrarySurfaceShell
+        errorLabel="Couldn't load your books."
+        loadingLabel="Loading your books…"
       >
         <BookList onSelectBook={onSelectBook ?? selectWorldBook} />
-      </QueryBoundary>
+      </LibrarySurfaceShell>
     </Stack>
   );
 }
@@ -109,71 +102,66 @@ function BookList({
   const renameBook = books.find((b) => b.id === renameId) ?? null;
 
   return (
-    <Stack gap="block" className="h-full">
-      <Row gap="field" align="center" justify="between">
-        <Text size="micro" tone="muted" transform="caps">
-          World Info
-        </Text>
-        <Button intent="primary" size="sm" onClick={onCreate} disabled={create.isPending}>
-          <Icon icon={Plus} size="sm" />
-          New
-        </Button>
-      </Row>
-
-      <Input
-        value={query}
-        onValueChange={setQuery}
-        placeholder="Search books"
-        aria-label="Search books"
-      />
-
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={<Icon icon={needle === "" ? BookOpen : Search} size="lg" />}
-          title={needle === "" ? "No books yet" : "No matches"}
-          description={
-            needle === ""
-              ? "Create a world book to hold keyword-triggered lore your characters can draw on."
-              : "No book matches your search."
-          }
-          action={
-            needle === "" ? (
-              <Button intent="secondary" size="sm" onClick={onCreate} disabled={create.isPending}>
-                New book
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        <Stack gap="field" className="min-h-0 flex-1 overflow-y-auto">
-          {filtered.map((book) => (
-            <WorldInfoLibraryRow
-              key={book.id}
-              book={book}
-              selected={book.id === selectedId}
-              global={globalIds.has(book.id)}
-              onSelect={onSelectBook}
-              onDelete={onDelete}
-              onDuplicate={onDuplicate}
-              onRename={(id): void => setRenameId(id)}
-            />
-          ))}
-        </Stack>
-      )}
+    <>
+      <LibraryListLayout
+        actions={
+          <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+            <Icon icon={Plus} size="sm" />
+            New
+          </Button>
+        }
+        empty={
+          <EmptyState
+            action={
+              needle === "" ? (
+                <Button disabled={create.isPending} intent="secondary" onClick={onCreate} size="sm">
+                  New book
+                </Button>
+              ) : undefined
+            }
+            description={
+              needle === ""
+                ? "Create a world book to hold keyword-triggered lore your characters can draw on."
+                : "No book matches your search."
+            }
+            icon={<Icon icon={needle === "" ? BookOpen : Search} size="lg" />}
+            title={needle === "" ? "No books yet" : "No matches"}
+          />
+        }
+        isEmpty={filtered.length === 0}
+        onSearchChange={setQuery}
+        searchLabel="Search books"
+        searchPlaceholder="Search books"
+        searchValue={query}
+        title="World Info"
+      >
+        {filtered.map((book) => (
+          <WorldInfoLibraryRow
+            book={book}
+            global={globalIds.has(book.id)}
+            key={book.id}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onRename={(id): void => setRenameId(id)}
+            onSelect={onSelectBook}
+            selected={book.id === selectedId}
+          />
+        ))}
+      </LibraryListLayout>
 
       {renameBook !== null ? (
         <BookDetailsDialog
-          open={true}
+          currentDescription={renameBook.description}
+          currentName={renameBook.name}
           onOpenChange={(next): void => {
             if (!next) {
               setRenameId(null);
             }
           }}
-          currentName={renameBook.name}
-          currentDescription={renameBook.description}
           onSave={(patch): void => update.mutate({ bookId: renameBook.id, input: patch })}
+          open={true}
         />
       ) : null}
-    </Stack>
+    </>
   );
 }

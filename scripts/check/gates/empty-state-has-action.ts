@@ -1,18 +1,8 @@
-// Gate: empty-state-has-action (design-enforcement.md §3.2, D62 — the rule-1 "no dead ends" mechanical
-// half). A JSX `<EmptyState>` render in `packages/client/src/features/**` must pass an `action` prop (a
-// next-step CTA — @orb/ui/button `Button`, typically) OR appear in the ALLOWLIST below. Without one, an
-// empty state teaches nothing and strands the user (design-enforcement.md §3.2's finding: "today 5 of 6
-// empty states are dead").
-//
-// SHAPE: for every `.tsx` file under features/**, walk `<EmptyState … />` JSX elements. `action={…}` (any
-// attribute literally named `action`) or a spread attribute (`{...cond ? { action: … } : {}}` — a
-// conditional CTA the gate can't statically resolve, so it's treated as present) counts as satisfied.
-//
-// ALLOWLIST (file-level, the no-interactive-role-in-features BURN_DOWN precedent): a file lands here the
-// commit its dead-end EmptyState is discovered, with the reason — either a genuine "no next step exists"
-// case (a search/filter yielding zero results, "nothing left to do") or real debt awaiting a CTA design
-// call. An allowlisted file that has gone CLEAN (every EmptyState in it now passes `action`) is RED (stale
-// entry — remove it); a NEW file with a dead-end EmptyState not in the allowlist is RED immediately.
+// Gate: empty-state-has-action (design-enforcement.md §3.2, D62 — rule-1 "no dead ends"). A JSX
+// `<EmptyState>` render in packages/client/src/features/** must pass an `action` prop (a next-step CTA)
+// OR appear in ALLOWLIST — without one an empty state strands the user. `action={…}` or a spread
+// attribute (a conditional CTA the gate can't statically resolve) counts as satisfied. ALLOWLIST is a
+// both-directions ratchet (no-interactive-role-in-features precedent).
 import type { JsxAttributeLike, JsxSelfClosingElement } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

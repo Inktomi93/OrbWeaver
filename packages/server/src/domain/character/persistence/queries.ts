@@ -72,20 +72,6 @@ export async function loadOwnedCharacterWithAvatar(
   return rows[0];
 }
 
-/** Load a character + avatar ignoring ownership (for membership-gated chat roster views). */
-export async function loadCharacterWithAvatarById(
-  db: Db,
-  characterId: CharacterId,
-): Promise<CharacterWithAvatar | undefined> {
-  const rows = await db
-    .select({ character: characters, avatar: assets })
-    .from(characters)
-    .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
-    .where(eq(characters.id, characterId))
-    .limit(LIMIT_ONE);
-  return rows[0];
-}
-
 interface ListOwnedPageInput {
   readonly ownerId: UserId;
   readonly limit: number;

@@ -9,29 +9,26 @@
 // `.residual.test.ts` (NOT `.int.test.ts`) so the Phase-2 deletion sweep of `tests/tooling/<name>.int.test.ts`
 // does not take it; the vitest `unit` lane's `tests/**/*.test.ts` glob still collects it. (The no-baseline
 // no-op arm is already covered by every tooth-1 conformance example, which runs tooth 2 with no manifest.)
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { Project } from "ts-morph";
 import { monotonicTests } from "../../scripts/check/gates/monotonic-tests.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { ctxAt, withTree } from "./_support.ts";
 
 const NO_LONGER_EXISTS_RE = /no longer exists/u;
 
 test("tooth 2 fires when a manifest-listed test file no longer exists on disk", () => {
-  const root = mkdtempSync(join(tmpdir(), "orb-monotonic-"));
-  const manifestDir = join(root, "docs", "test-baseline");
-  mkdirSync(manifestDir, { recursive: true });
-  writeFileSync(
-    join(manifestDir, "manifest.json"),
-    JSON.stringify({ testFiles: ["tests/server/gone.test.ts"] }),
+  withTree(
+    {
+      "docs/test-baseline/manifest.json": JSON.stringify({
+        testFiles: ["tests/server/gone.test.ts"],
+      }),
+    },
+    (root) => {
+      const violations = monotonicTests.run(ctxAt(root));
+      expect(
+        violations.some(
+          (v) => v.file === "tests/server/gone.test.ts" && NO_LONGER_EXISTS_RE.test(v.message),
+        ),
+      ).toBe(true);
+    },
   );
-  const project = new Project({ useInMemoryFileSystem: true });
-  const violations = monotonicTests.run({ root, project });
-  rmSync(root, { recursive: true, force: true });
-  expect(
-    violations.some(
-      (v) => v.file === "tests/server/gone.test.ts" && NO_LONGER_EXISTS_RE.test(v.message),
-    ),
-  ).toBe(true);
 });

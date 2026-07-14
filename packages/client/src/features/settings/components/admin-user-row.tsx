@@ -4,26 +4,18 @@
 // ⋯ menu offers Sessions… and Reset password….
 
 import type { UserRole } from "@orb/contracts/identity";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph fine (the theme-row-menu precedent).
 import { Icon, KeyRound, MonitorSmartphone } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { MenuItem } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
 import { ROLE_BADGE_INTENT, ROLE_ITEMS, ROLE_LABELS } from "../lib/admin-model";
@@ -92,48 +84,28 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
                 }}
               />
             )}
-            <Menu>
-              <MenuTrigger
-                render={<Button intent="ghost" size="sm" aria-label={`${user.handle} actions`} />}
-              >
-                ⋯
-              </MenuTrigger>
-              <MenuPopup align="end">
-                <MenuItem onClick={props.onOpenSessions}>
-                  <Icon icon={MonitorSmartphone} size="sm" />
-                  Sessions…
-                </MenuItem>
-                <MenuItem onClick={props.onResetPassword}>
-                  <Icon icon={KeyRound} size="sm" />
-                  Reset password…
-                </MenuItem>
-              </MenuPopup>
-            </Menu>
+            <RowActionsMenu label={`${user.handle} actions`} triggerSize="sm">
+              <MenuItem onClick={props.onOpenSessions}>
+                <Icon icon={MonitorSmartphone} size="sm" />
+                Sessions…
+              </MenuItem>
+              <MenuItem onClick={props.onResetPassword}>
+                <Icon icon={KeyRound} size="sm" />
+                Reset password…
+              </MenuItem>
+            </RowActionsMenu>
           </Row>
         }
       />
 
-      <AlertDialog onOpenChange={setConfirmDisable} open={confirmDisable}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Disable this account?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Disabling {user.handle} blocks their next request and revokes every live session. You
-              can re-enable the account any time.
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={(): void => props.onSetEnabled(false)}>
-                    Disable
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        confirmLabel="Disable"
+        description={`Disabling ${user.handle} blocks their next request and revokes every live session. You can re-enable the account any time.`}
+        onConfirm={(): void => props.onSetEnabled(false)}
+        onOpenChange={setConfirmDisable}
+        open={confirmDisable}
+        title="Disable this account?"
+      />
     </>
   );
 }

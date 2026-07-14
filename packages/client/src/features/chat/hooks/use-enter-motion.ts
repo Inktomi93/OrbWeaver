@@ -1,5 +1,6 @@
-// `useEnterMotion` — the list-item ENTER transition for a genuinely-new chat row (motion guide §4.2
-// item 1). The guide's rAF-flip pattern, adapted for the WINDOWED message list: the decision of
+// `useEnterMotion` — the list-item ENTER transition for a genuinely-new chat row. Entrance is
+// BUILT, exit is decided-against: a virtualized row has no honest unmount phase to animate.
+// The rAF-flip pattern, adapted for the WINDOWED message list: the decision of
 // whether this mount is an arrival is NOT made here (a virtualized row mounts on every scrollback) —
 // the surface makes it in item space (`useNewArrivalKeys`, use-message-items.ts) and passes the
 // verdict down as `enter`. This hook only executes it: mount in the "from" state (transparent, 4px
@@ -9,12 +10,13 @@
 // after the arrival commit, so later prop flips must not restart — and a scrollback remount gets
 // `enter=false` and renders resting with NO transition classes at all.
 //
-// Reduced motion is REMOVE, not shorten (guide §3.9): under `prefers-reduced-motion` the latch never
+// Reduced motion is REMOVE, not shorten: under `prefers-reduced-motion` the latch never
 // arms, so the row renders resting from its first frame — no hidden frame, no fast fade. (The manual
 // appearance.reducedMotion toggle rides the globals.css `[data-reduced-motion]` transition-duration
 // floor, same as every other transition in the app.)
 //
-// Compositor-only (guide §3.7): `opacity` + the Tailwind v4 standalone `translate` property — the
+// Compositor-only (only `transform`/`opacity` — never trigger layout/paint): `opacity` + the
+// Tailwind v4 standalone `translate` property — the
 // transition must NAME `translate` (the button primitive's `scale` precedent; `transform` would not
 // animate it). `--motion-base` + `ease-out-expo`, the house programmatic-motion pair — no bounce.
 

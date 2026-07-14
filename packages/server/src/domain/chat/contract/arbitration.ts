@@ -31,7 +31,7 @@ export interface CastName {
 
 /** Why an auto-mode AI→AI chain stopped (the dual bound + the interrupt/eligibility/
  *  lock guards). ONE home; the union derives from this tuple (no inline re-spell). */
-export const AUTO_MODE_STOP_REASONS = [
+const AUTO_MODE_STOP_REASONS = [
   /** The turn-count cap (`autoModeMaxTurns`) was reached. */
   "max-turns",
   /** The caller aborted (the `AbortSignal` fired) — a user interrupt. */

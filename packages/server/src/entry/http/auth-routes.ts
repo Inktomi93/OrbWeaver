@@ -283,10 +283,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
 
 /** Resolve a claim name that may be a dot-path (e.g. `user.memberOf`) against the claims object. A flat
  *  name is a single-key lookup; the walk short-circuits to `undefined` at any non-object segment. */
-export function readClaimPath(
-  claims: { readonly [claim: string]: unknown },
-  path: string,
-): unknown {
+function readClaimPath(claims: { readonly [claim: string]: unknown }, path: string): unknown {
   let current: unknown = claims;
   for (const segment of path.split(".")) {
     if (current === null || typeof current !== "object") {

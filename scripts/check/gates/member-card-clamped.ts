@@ -1,19 +1,8 @@
 // Gate: member-card-clamped (ledger D22; PD-111) — a roster member's card read has ONE clamp.
-// `MemberCardView` (the level-clamped projection) lives in `@orb/contracts/chat`, and the ONLY
-// producer is chat's `clampMemberCard`/`resolveCardVisibility` (domain/chat/substrate/auth/clamp.ts,
-// keyed to `chatMetadata.group.memberCardVisibility`; host ⇒ `full`). PD-111's founding catch: the
-// character domain had grown a SECOND clamp (`getRosterCardView` + its own divergent `MemberCardView`
-// — `creatorNotes` at the WRONG level, `tags`/`lore` missing) — adjudicated 2026-07-03, chat's clamp
-// canonical (ledger-exact), the duplicate deleted. The three regression freezes:
-//   • one-home TYPE — no `MemberCardView` interface/type-alias DECLARATION outside
-//     `packages/contracts/` (a re-spelled local shape is how the levels diverged).
-//   • one CLAMP — no `clampMemberCard`/`resolveCardVisibility` declaration outside
-//     `domain/chat/substrate/auth/` (a second decision site re-spells the level lattice).
-//   • resurrection freeze — the identifier `getRosterCardView` is banned in server src (the deleted
-//     duplicate's name; the sanctioned surface is the matrix's non-verb `roster-card-read`, served
-//     by chat over the one clamp).
-// NOT gated: `.memberCardVisibility` property reads — config plumbing (turn.ts's group normalizer)
-// legitimately copies the knob; only the field-gating DECISION is confined, and that is the symbols.
+// `MemberCardView` lives in `@orb/contracts/chat`; the only producer is chat's
+// `clampMemberCard`/`resolveCardVisibility` (domain/chat/substrate/auth/clamp.ts). PD-111 found the
+// character domain had grown a second, divergent clamp (`getRosterCardView`) — deleted, chat's canonical.
+// Three freezes: no `MemberCardView` declaration outside packages/contracts/; no clamp declaration outside domain/chat/substrate/auth/; `getRosterCardView` banned in server src.
 import type { Node } from "ts-morph";
 import { Node as NodeGuards, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";

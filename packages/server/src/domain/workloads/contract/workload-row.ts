@@ -7,7 +7,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { ParamsByKind } from "./workload-params";
 import type { ResultByKind } from "./workload-result";
 
-export interface WorkloadRowBase {
+interface WorkloadRowBase {
   readonly id: WorkloadId;
   readonly status: WorkloadStatus;
   readonly mode: WorkloadMode;
@@ -22,7 +22,7 @@ export interface WorkloadRowBase {
   readonly updatedAt: number;
 }
 
-export type WorkloadRow<K extends WorkloadKind> = WorkloadRowBase & {
+type WorkloadRow<K extends WorkloadKind> = WorkloadRowBase & {
   readonly kind: K;
   readonly params: ParamsByKind[K];
   readonly result: ResultByKind[K] | null;

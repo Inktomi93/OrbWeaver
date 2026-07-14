@@ -6,6 +6,7 @@ import type {
   ChatId,
   DuplicateCharacterPairId,
   DuplicateChatPairId,
+  MessageId,
   ThemeClusterId,
 } from "@orb/kit/ids";
 import type { ThemeLevel } from "./params";
@@ -236,6 +237,42 @@ export interface CharacterComparison {
   readonly redundancy: number;
 }
 
+// ── analyze (LLM-narrated comparison + card Q&A; the semantic-understanding half) ───────────────────────
+/** The grounded LLM narrative decorating {@link CharacterComparison} — a prose read of the facet diff. */
+export interface ComparisonNarrative {
+  readonly summary: string;
+  readonly overlap: string;
+  readonly distinction: string;
+}
+
+/** {@link CharacterComparison} plus a grounded LLM narrative over the same diff (`compareCharactersDeep`). */
+export interface CharacterComparisonDeep extends CharacterComparison {
+  readonly narrative: ComparisonNarrative;
+}
+
+/** A grounded answer to a free-text question about ONE owned/distilled character — answered from its recent
+ *  PLAYED scenes ONLY (SEMANTIC content, never economics). `grounded` is the model's own claim that the
+ *  answer is supported by the sampled scenes; `sampledMessages` is how many scenes it saw. */
+export interface AskCardAnswer {
+  readonly characterId: CharacterId;
+  readonly question: string;
+  readonly answer: string;
+  readonly grounded: boolean;
+  readonly sampledMessages: number;
+}
+
+// ── swipes (regeneration hotspots — the assistant slots with the most alternate takes) ──────────────────
+/** One "swipe hotspot" — an assistant message slot with multiple variants (a spot the owner re-rolled).
+ *  `variantCount` is how many takes exist; `snippet` is the SELECTED variant's content (SEMANTIC only). */
+export interface SwipeHotspot {
+  readonly messageId: MessageId;
+  readonly seq: number;
+  readonly characterId: CharacterId;
+  readonly characterName: string;
+  readonly variantCount: number;
+  readonly snippet: string;
+}
+
 // ── insights (pure-semantics half: themeDrift + unusedCharacters) ───────────────────────────────────────
 /** One theme's prevalence within a story-time month bucket. `themeName` is null below the name-worthiness floor. */
 export interface ThemeDriftTheme {
@@ -288,7 +325,7 @@ export interface ModelRoutingRow {
 
 // ── composed views (content-only server verbs — home + themeDetail) ─────────────────────────────────────
 /** Corpus coverage — how much of the owner's library is indexed (not usage). */
-export interface CorpusCoverage {
+interface CorpusCoverage {
   readonly characters: number;
   readonly digests: number;
   readonly segments: number;
@@ -307,6 +344,33 @@ export interface ThemeMember {
   readonly characterId: CharacterId;
   readonly name: string;
   readonly count: number;
+}
+
+/** One neighbour in a `characterDossier` — a discovery-local projection of search's `similarCharacters`
+ *  (injected cross-domain at the root). Deliberately NOT search's `CharacterCardHit` — the search shape stays
+ *  out of the discovery contract; discovery owns this narrowed neighbour view. `score` is search's CSLS unit. */
+export interface DossierNeighbor {
+  readonly characterId: CharacterId;
+  readonly name: string;
+  readonly score: number;
+  readonly avatarHash: string | null;
+  readonly genre: string | null;
+  readonly tone: string | null;
+  readonly elevatorPitch: string | null;
+}
+
+/** One character's composed dossier — its distilled headline facets + portrait↔card alignment (in-RAM
+ *  cosine) + nearest neighbours (the injected search seam). `portrait` is null when the character has no
+ *  paired card/avatar vector; `similar` is empty when search has no neighbours. */
+export interface CharacterDossier {
+  readonly characterId: CharacterId;
+  readonly name: string;
+  readonly genre: string | null;
+  readonly tone: string | null;
+  readonly elevatorPitch: string | null;
+  readonly tags: string[];
+  readonly portrait: { readonly avatarHash: string; readonly alignment: number } | null;
+  readonly similar: DossierNeighbor[];
 }
 
 /** One theme's detail view — the cluster row + its story-time timeline + the characters most present in it. */

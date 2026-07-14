@@ -32,12 +32,12 @@ import {
   createUpdateBook,
 } from "./verbs/books";
 import {
-  createApplyEntryOrder,
   createBackfillTitles,
   createCreateEntry,
   createGetEntry,
   createListEntries,
   createRemoveEntry,
+  createReorder,
   createUpdateEntry,
 } from "./verbs/entries";
 
@@ -55,7 +55,7 @@ export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService 
     updateEntry: createUpdateEntry(ctx),
     removeEntry: createRemoveEntry(ctx),
     backfillTitles: createBackfillTitles(ctx),
-    applyEntryOrder: createApplyEntryOrder(ctx),
+    applyEntryOrder: createReorder(ctx),
     attachToCharacter: createAttachToCharacter(ctx),
     detachFromCharacter: createDetachFromCharacter(ctx),
     listForCharacter: createListForCharacter(ctx),

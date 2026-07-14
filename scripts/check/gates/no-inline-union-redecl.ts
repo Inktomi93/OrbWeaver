@@ -1,13 +1,8 @@
-// Gate: no-inline-union-redecl (core/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is declared
-// ONCE as an `as const` tuple and the union DERIVED ((typeof X)[number] / z.enum(X)); never re-spelled.
-// Two checks:
-//   (A) an inline string-literal union TYPE ALIAS of >=3 members — declare it as a tuple + derive.
-//   (B) ANY inline string-literal set whose members EXACTLY EQUAL an existing canonical `as const` tuple
-//       — re-spelling a homed axis. Catches the forms (A) misses: a union in an interface/type-literal
-//       PROPERTY position, and a `z.enum([...])` literal-array call. (This is the AUTH_MODE bug: the axis
-//       had a home in @orb/contracts but env's `z.enum([...])` and AuthConfig.mode re-spelled it — neither
-//       is a type alias, so (A) was blind to both.) A genuine one-off enum with NO canonical tuple (e.g.
-//       NODE_ENV) is NOT flagged — only re-spells of an axis that already has a home.
+// Gate: no-inline-union-redecl (core/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is
+// declared ONCE as an `as const` tuple and the union derived; never re-spelled. Two checks: (A) an
+// inline string-literal union TYPE ALIAS of ≥3 members. (B) any inline string-literal set whose members
+// EXACTLY EQUAL an existing canonical tuple — catches a union in a property position or a `z.enum([...])`
+// call that (A) misses. A genuine one-off enum with no canonical tuple (e.g. NODE_ENV) is not flagged.
 import type {
   ArrayLiteralExpression,
   CallExpression,

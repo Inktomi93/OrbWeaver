@@ -1,13 +1,8 @@
-// Gate: no-untyped-soft-ref (D24 typed per-type FK tables + D37 the audit_logs actor→real-FK fix). A
-// schema column whose JS key ends in `Id` (an entity reference) MUST carry a `.references()` FK —
-// "boundaries are physics, FK-enforced" (D24). A soft ref (a `text`/`integer` id column with NO FK, kept
-// coherent by a hand-rolled sweep) is banned; the ONE sanctioned exception is `audit_logs.entityId` (an
-// append-only log that must OUTLIVE an arbitrary referent of unknown type — D24), plus `users.externalId`
-// (an EXTERNAL IdP subject string, not an orbweaver-table reference at all). A new unlisted `*Id` column
-// without a `.references()` at landing either gets its FK or a justified allowlist row with a D-cite.
-//
-// The allowlist is a two-direction ratchet: a stale entry (a listed pair that GAINS a `.references()` or
-// vanishes) is RED too, so the exception list can't rot.
+// Gate: no-untyped-soft-ref (D24 typed per-type FK tables, D37 audit_logs actor→real-FK fix). A schema
+// column whose JS key ends in `Id` must carry a `.references()` FK — "boundaries are physics,
+// FK-enforced" (D24). A soft ref (an id column with no FK, kept coherent by a hand-rolled sweep) is
+// banned; sanctioned exceptions: `audit_logs.entityId` (must outlive an arbitrary referent of unknown
+// type) and `users.externalId` (an external IdP subject, not an orbweaver-table reference). The allowlist is a two-direction ratchet.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

@@ -91,3 +91,15 @@ export interface ImageSearchHit {
   readonly lens: ImageLens;
   readonly caption: string | null;
 }
+
+/** The unified search() result — discriminated by `over` (the {@link SearchTarget}), each branch carrying
+ *  the underlying verb's hit shape. Exhaustive: a new SearchTarget without a branch here fails `tsc` at the
+ *  dispatch's `assertNever`. */
+export type UnifiedSearchResult =
+  | { readonly over: "entities"; readonly hits: readonly SearchHit[] }
+  | { readonly over: "characters"; readonly hits: readonly CharacterCardHit[] }
+  | { readonly over: "discover"; readonly hits: readonly DiscoverCharacter[] }
+  | { readonly over: "segments"; readonly hits: readonly SegmentSearchHit[] }
+  | { readonly over: "digests"; readonly hits: readonly DigestSearchHit[] }
+  | { readonly over: "corpus"; readonly hits: readonly CorpusHit[] }
+  | { readonly over: "images"; readonly hits: readonly ImageSearchHit[] };

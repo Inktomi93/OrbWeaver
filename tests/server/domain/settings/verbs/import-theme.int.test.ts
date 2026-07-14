@@ -2,7 +2,7 @@
 // (dedup by (ownerId, name) — a re-import creates zero), the write-boundary css guard drops unsafe CSS to null
 // (the palette still restores), and a non-theme file returns {ok:false} without throwing.
 
-import { createSettingsContext, createThemeImport } from "@orb/server/domain/settings";
+import { createImportTheme, createSettingsContext } from "@orb/server/domain/settings";
 import { buildThemeBackup } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -24,7 +24,7 @@ describe("importTheme", () => {
       ],
     });
 
-    const first = await createThemeImport(ctx)(owner, bytes);
+    const first = await createImportTheme(ctx)(owner, bytes);
     expect(first).toEqual({ ok: true, created: true });
 
     const views = await h.svc.listThemes({ principal: p });
@@ -32,7 +32,7 @@ describe("importTheme", () => {
     expect(owned.sort()).toEqual(["Restored A", "Restored B"]);
 
     // Re-import the SAME file → dedup by (owner, name), zero new rows.
-    const second = await createThemeImport(ctx)(owner, bytes);
+    const second = await createImportTheme(ctx)(owner, bytes);
     expect(second).toEqual({ ok: true, created: false });
     const after = (await h.svc.listThemes({ principal: p })).filter((v) => !v.isSeed);
     expect(after).toHaveLength(2);
@@ -48,7 +48,7 @@ describe("importTheme", () => {
     const bytes = buildThemeBackup({
       themes: [{ name: "Risky", override: { accent: "#123456" }, css: ".x { position: fixed; }" }],
     });
-    const result = await createThemeImport(ctx)(owner, bytes);
+    const result = await createImportTheme(ctx)(owner, bytes);
     expect(result).toEqual({ ok: true, created: true });
 
     const view = (await h.svc.listThemes({ principal: principal(owner, "user") })).find(
@@ -64,7 +64,7 @@ describe("importTheme", () => {
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_bad" });
 
-    const result = await createThemeImport(ctx)(owner, new TextEncoder().encode("{garbage"));
+    const result = await createImportTheme(ctx)(owner, new TextEncoder().encode("{garbage"));
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
   });

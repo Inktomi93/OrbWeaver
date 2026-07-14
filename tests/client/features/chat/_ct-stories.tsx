@@ -83,7 +83,7 @@ import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
  *  executes post-mount in the real browser context — never at the `.ct.tsx` call site — via the REAL
  *  `@orb/contracts/chat` producer builders, so a story feeds `MessageRow` exactly the shape the
  *  production surface would). */
-export interface PersonaNameStoryEntry {
+interface PersonaNameStoryEntry {
   readonly id: PersonaId;
   readonly name: string;
   readonly description?: string;
@@ -784,7 +784,7 @@ export function ChatContextPanelStory({
 /** The DRAFT CONTEXT panel (J2/J3) — the draft-config-backed twin of `ChatContextPanel`. No server reads:
  *  the Overrides tab renders from `draftConfig` (keyed by this key) and writes to the draft-config store on
  *  edit. The `.ct.tsx` asserts the tab + fields render and that editing lands in the store (no network). */
-export const DRAFT_CONTEXT_KEY = "draft-ct-context";
+const DRAFT_CONTEXT_KEY = "draft-ct-context";
 export function DraftContextPanelStory(): ReactElement {
   return (
     <CtDataProviders>

@@ -7,10 +7,10 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import {
-  initialsForAttribution,
   resolveRoomTheme,
   resolveRowAttribution,
   speakerThemesByName,
@@ -267,9 +267,9 @@ test("system rows never get attribution chrome", () => {
 });
 
 test("initials take the first letter of up to two words", () => {
-  expect(initialsForAttribution("Alice Smith")).toBe("AS");
-  expect(initialsForAttribution("Bob")).toBe("B");
-  expect(initialsForAttribution("   ")).toBe("?");
+  expect(initialsFor("Alice Smith")).toBe("AS");
+  expect(initialsFor("Bob")).toBe("B");
+  expect(initialsFor("   ")).toBe("?");
 });
 
 const HEARTH_TOKENS = { accent: "oklch(0.7 0.14 250)" };

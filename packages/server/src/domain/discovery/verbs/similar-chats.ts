@@ -33,7 +33,7 @@ function dominantModel(rows: readonly { readonly model: string }[]): string | nu
  * service factory + tests call it directly. A target chat the owner doesn't host, or with no segments in its
  * space, ⇒ `[]`.
  */
-export async function similarChats(
+async function similarChats(
   db: Db,
   ownerId: UserId,
   chatId: ChatId,

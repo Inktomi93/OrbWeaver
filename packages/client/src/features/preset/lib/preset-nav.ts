@@ -3,7 +3,8 @@
 // Compaction · Prompt)"). Registry-as-data: the tab strip renders from `PRESET_EDITOR_TABS`, so a new tab
 // is a data edit and the id union is derived from the tuple (§11.1 derive-don't-respell). The select
 // vocabularies here are the STATIC enum→label maps (thinking-display, names-behavior, continue-postfix,
-// compaction-mode, message-role) — the DESCRIPTOR-driven sampling/reasoning/verbosity vocab is NOT here
+// compaction-mode) — the message-role map is the shared `#lib/message-role-labels` (the ONE map; features
+// import it, they don't re-spell it) — and the DESCRIPTOR-driven sampling/reasoning/verbosity vocab is NOT here
 // (it lives in capability-panel-model.ts, iterated from `ModelCapabilityView` — the panel GATE).
 
 import type {
@@ -18,14 +19,12 @@ import {
   NAMES_BEHAVIOR,
   THINKING_DISPLAYS,
 } from "@orb/contracts/preset";
-import type { MessageRole } from "@orb/kit/message-role";
-import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { SelectItems } from "@orb/ui/select";
 
 /** The editor's tab ids, in strip order (UI-Arch §4.2 Presets tabbed editor). Params-related tabs
  *  (Quality/Sampling/Reasoning/Output) render the descriptor-driven panel; the rest edit `PromptConfig`
  *  structure directly. */
-export const PRESET_EDITOR_TAB_IDS = [
+const PRESET_EDITOR_TAB_IDS = [
   "quality",
   "sampling",
   "reasoning",
@@ -103,14 +102,4 @@ const COMPACTION_MODE_LABELS: Record<CompactionMode, string> = {
 export const COMPACTION_MODE_ITEMS: SelectItems<string> = COMPACTION_MODES.map((value) => ({
   value,
   label: COMPACTION_MODE_LABELS[value],
-}));
-
-const MESSAGE_ROLE_LABELS: Record<MessageRole, string> = {
-  system: "System",
-  user: "User",
-  assistant: "Assistant",
-};
-export const MESSAGE_ROLE_ITEMS: SelectItems<string> = MESSAGE_ROLES.map((value) => ({
-  value,
-  label: MESSAGE_ROLE_LABELS[value],
 }));

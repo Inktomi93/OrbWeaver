@@ -1,24 +1,8 @@
 // Gate: diagnostic-legibility (Documentation-Law.md — machine-first: an error message IS the amnesiac
 // agent's documentation at the moment of blocking). Every custom-gate + grit diagnostic STRING must
-// carry a resolvable pointer — a `*.md` doc path, a code-home path/file, or an explicit `// terse-ok:
-// <reason>` marker — so a blocked cold agent gets a navigable next step, never a dead-end "no". This
-// makes the W1-D normalization PERMANENT: the next gate/grit someone writes CANNOT regress to a
-// bare/pointerless message (a bare `§N`, or "do X" with no home).
-//
-// WHAT COUNTS AS A POINTER (any one):
-//   • a doc path:  `<Name>.md` (optionally `<Name>.md §N`)
-//   • a code home: a concrete `<file>.ts`/`.tsx`, a `packages/…|features/…|domain/…|…/` dir path,
-//     or an `@orb/<pkg>` package specifier
-//   • the escape: a `// terse-ok: <reason>` comment ON the diagnostic's line or the line above (for a
-//     genuinely self-contained message whose fix is obvious IN the message AND that no doc covers).
-//
-// WHAT IT READS (the diagnostic strings, not incidental strings):
-//   • gate files (scripts/check/gates/*.ts): every `message:` object-property value — inline literal,
-//     or resolved ONE level through a same-file `const …MESSAGE` string; plus every string value of a
-//     `const MSG`/`MESSAGES` object table (the shorthand-`{ message }` idiom, e.g. test-presence.ts).
-//   • grit files (tools/grit/*.grit): every `register_diagnostic(… message="…" …)` string.
-// It does NOT scan arbitrary strings (regex literals, ban-lists, span vars) — only the message surface,
-// so it can't false-fire on a non-diagnostic string.
+// carry a resolvable pointer — a `*.md` doc path, a code-home path/file/`@orb/<pkg>` specifier, or an
+// explicit `// terse-ok: <reason>` marker on the diagnostic's line or the line above — so a blocked
+// cold agent gets a navigable next step, never a dead-end "no". Reads gate `message:` and grit `register_diagnostic` strings — never incidental strings.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";

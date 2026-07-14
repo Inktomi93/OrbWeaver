@@ -2,7 +2,7 @@
 // owner-scoped (a foreign owner's themes never travel; seeds never travel), and the bytes parse back to the
 // same theme set with the palette intact.
 
-import { createSettingsContext, createThemeExport } from "@orb/server/domain/settings";
+import { createExportTheme, createSettingsContext } from "@orb/server/domain/settings";
 import { parseThemeBackup } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -30,7 +30,7 @@ describe("exportTheme", () => {
       input: { name: "Theirs", override: {} },
     });
 
-    const file = await createThemeExport(ctx)(owner);
+    const file = await createExportTheme(ctx)(owner);
     expect(file.filename).toBe("themes.json");
     const backup = parseThemeBackup(file.bytes);
 
@@ -48,7 +48,7 @@ describe("exportTheme", () => {
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_empty" });
 
-    const backup = parseThemeBackup((await createThemeExport(ctx)(owner)).bytes);
+    const backup = parseThemeBackup((await createExportTheme(ctx)(owner)).bytes);
     expect(backup?.themes).toEqual([]);
   });
 });

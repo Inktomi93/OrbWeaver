@@ -87,6 +87,8 @@ import type {
 import type {
   CompactResult,
   CreateInviteResult,
+  DrainDeferredTurnsScope,
+  DrainReport,
   ForkResult,
   ReapResult,
   RedeemInviteResult,
@@ -175,6 +177,11 @@ export interface ChatService {
   readonly compact: (params: CompactParams) => Promise<CompactResult>;
   /** Cancel an in-flight turn (lock-free; turn-owner only — rollback-theft defense). */
   readonly abort: (params: AbortParams) => Promise<void>;
+  /** Drain the durable `pending_turns` queue (Part III §5): reconstruct + run each host-offline DEFERRED AI
+   *  response through the engine (which re-validates consent/budget in-lock), or DROP it on a re-validation
+   *  refusal. System-triggered (no principal): the boot reclaim (`{all:true}`) + the host-return drain
+   *  (`{hostUserId}`). The durable row is consumed either way. */
+  readonly drainDeferredTurns: (scope: DrainDeferredTurnsScope) => Promise<DrainReport>;
   /** Generate image(s) via the injected imagery op + persist one caller-authored message with `asset:`
    *  refs. Returns the committed message view. */
   readonly generateImage: (params: GenerateImageParams) => Promise<MessageView>;

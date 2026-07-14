@@ -1,18 +1,8 @@
-// Gate: no-raw-interactive-intrinsics (design-enforcement.md §3.2, D62 — planned alongside
-// no-interactive-role-in-features, whose header names both). A raw `<button>`, `<input>`, `<select>`,
-// `<textarea>`, or an interactive `<a href>` in `packages/client/src/features/**` is banned regardless of
-// className — interactivity in features must come from an @orb/ui primitive (Button, TextField, Select,
-// TextArea, Link, …), never a bare intrinsic. `app-shell` is EXEMPT (shell-tier, per the spec table) —
-// only the rest of features/** is scoped. `ui/` is where these primitives legitimately live under the
-// hood, and is out of reach (this gate only walks features/**).
-//
-// RED: a `.tsx` file under packages/client/src/features/** (excluding app-shell/) whose JSX opens one of
-// the BANNED_TAGS, or an `<a>` carrying an `href` attribute (a non-interactive `<a>` with no `href` — rare,
-// e.g. an anchor-name target — stays legal).
-//
-// BURN_DOWN ratchet (the no-interactive-role-in-features precedent): BURN_DOWN names current offenders,
-// each citing its fix owner/reason. An allowlisted file that has gone CLEAN is RED ("stale entry —
-// remove it"); a NEW offender not in BURN_DOWN is RED immediately.
+// Gate: no-raw-interactive-intrinsics (design-enforcement.md §3.2, D62) — a raw `<button>`, `<input>`,
+// `<select>`, `<textarea>`, or an `<a href>` in packages/client/src/features/** (app-shell exempt) is
+// banned regardless of className — interactivity must come from an @orb/ui primitive. RED: a `.tsx`
+// file whose JSX opens a BANNED_TAG, or an `<a>` carrying `href` (an `<a>` with no `href` stays legal).
+// BURN_DOWN is a both-directions ratchet (no-interactive-role-in-features precedent).
 import type { JsxOpeningElement, JsxSelfClosingElement, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

@@ -9,7 +9,7 @@
 import type { Principal } from "@orb/contracts/identity";
 
 /** Common to every buddy verb: the acting principal (`principal.userId` is the one buddy's owner). */
-export interface BuddyActorParams {
+interface BuddyActorParams {
   readonly principal: Principal;
 }
 

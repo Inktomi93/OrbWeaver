@@ -156,7 +156,10 @@ test("active press scales the surface down (motion guide §4.2 #4)", async ({ mo
 });
 
 test("keyboard focus shows a focus-visible ring", async ({ mount, page }) => {
-  const button = await mount(<Button>Save</Button>);
+  // `secondary`, not the default `primary`: the ring is a `box-shadow`, and `primary` now carries a
+  // resting `shadow-cta` top-highlight (also a box-shadow) that would confound the none→ring proxy.
+  // The focus ring is a base-layer behavior identical across intents, so a shadowless intent isolates it.
+  const button = await mount(<Button intent="secondary">Save</Button>);
   await expect(button).toHaveCSS("box-shadow", "none");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Save" })).toBeFocused();

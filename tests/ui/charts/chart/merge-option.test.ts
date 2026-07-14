@@ -1,4 +1,4 @@
-// Unit: <Chart>'s pure option-merge logic (ui-package-design §9 v1 corpus-viz set). A mounted
+// Unit: <Chart>'s pure option-merge logic. A mounted
 // ECharts instance does not survive the Playwright component-test RPC boundary with its methods
 // intact, so the reduced-motion/aria wiring is proven here as plain data transformation instead of
 // through a live instance (chart.ct.tsx covers what IS DOM-observable: rendering + resize).

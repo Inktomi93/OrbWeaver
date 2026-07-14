@@ -7,5 +7,5 @@ export { createCreate as createCreateEntry } from "./create";
 export { createGet as createGetEntry } from "./get";
 export { createList as createListEntries } from "./list";
 export { createRemove as createRemoveEntry } from "./remove";
-export { createReorder as createApplyEntryOrder } from "./reorder";
+export { createReorder } from "./reorder";
 export { createUpdate as createUpdateEntry } from "./update";

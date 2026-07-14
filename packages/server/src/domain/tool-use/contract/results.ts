@@ -6,7 +6,6 @@
 import type { ToolCapability, ToolExecutionContext, ToolSource } from "./params";
 
 export type { ToolCallRecord } from "@orb/contracts/chat";
-export type { ToolHandlerResult } from "./params";
 
 /** One erased call's terminal shape. */
 export type RunOutcome =

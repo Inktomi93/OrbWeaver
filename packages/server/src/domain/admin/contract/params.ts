@@ -5,7 +5,7 @@
 import type { Principal, UserKind, UserRole } from "@orb/contracts/identity";
 import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
 
-export interface AdminActorParams {
+interface AdminActorParams {
   readonly principal: Principal;
 }
 

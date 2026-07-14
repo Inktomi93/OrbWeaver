@@ -2,7 +2,7 @@
 // browse reads are authed; `refreshCatalog` (fetch OR `/models` → write the KV snapshot) is admin-gated.
 // Thin: validate → `ctx.services.connection.<verb>` → map errors. The turn-time `resolveRole`/`resolveChat`
 // verbs are internal (chat's turn path, P5) — NOT exposed here. `source` derives from the credentials axis
-// (`ChatSource` = `CredentialSource`).
+// (`CredentialSource`, re-exported verbatim by connection).
 
 import { chatApiSchema, routingRoleKeySchema } from "@orb/contracts/connection";
 import { credentialSourceSchema } from "@orb/contracts/credentials";

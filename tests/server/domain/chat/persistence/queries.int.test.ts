@@ -3,9 +3,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import {
-  chatEventBounds,
   listMemberChats,
   loadCanonHistory,
+  loadChatEventBounds,
+  loadChatEventReplay,
   loadChatParticipantCharacterIds,
   loadChatRow,
   loadForkChildren,
@@ -13,9 +14,8 @@ import {
   loadMemberChat,
   loadMessagesPage,
   loadMessageVariantSummaries,
-  replayChatEvents,
-  replayStreamEvents,
-  streamEventBounds,
+  loadStreamBounds,
+  loadStreamReplay,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
@@ -220,34 +220,30 @@ describe("persistence/queries — canon reads (D26)", () => {
 });
 
 describe("persistence/queries — stream-log / bus-log replay + cursors", () => {
-  test("replayStreamEvents resumes after a cursor; streamEventBounds reports min/max", async () => {
+  test("loadStreamReplay resumes after a cursor; loadStreamBounds reports min/max", async () => {
     const chatId = await seedChat(db, "a");
     await seedStreamEvent(db, chatId, 1, "a");
     await seedStreamEvent(db, chatId, 2, "b");
     await seedStreamEvent(db, chatId, 3, "c");
 
-    expect((await replayStreamEvents(db, chatId, 1)).map((e) => e.seq)).toStrictEqual([2, 3]);
-    expect((await replayStreamEvents(db, chatId)).map((e) => e.delta)).toStrictEqual([
-      "a",
-      "b",
-      "c",
-    ]);
-    expect(await streamEventBounds(db, chatId)).toStrictEqual({ minSeq: 1, maxSeq: 3 });
+    expect((await loadStreamReplay(db, chatId, 1)).map((e) => e.seq)).toStrictEqual([2, 3]);
+    expect((await loadStreamReplay(db, chatId)).map((e) => e.delta)).toStrictEqual(["a", "b", "c"]);
+    expect(await loadStreamBounds(db, chatId)).toStrictEqual({ minSeq: 1, maxSeq: 3 });
   });
 
-  test("streamEventBounds is null/null for an empty log", async () => {
+  test("loadStreamBounds is null/null for an empty log", async () => {
     const chatId = await seedChat(db, "empty");
-    expect(await streamEventBounds(db, chatId)).toStrictEqual({ minSeq: null, maxSeq: null });
+    expect(await loadStreamBounds(db, chatId)).toStrictEqual({ minSeq: null, maxSeq: null });
   });
 
-  test("replayChatEvents resumes after a cursor; chatEventBounds reports the lastEventId head", async () => {
+  test("loadChatEventReplay resumes after a cursor; loadChatEventBounds reports the lastEventId head", async () => {
     const chatId = await seedChat(db, "a");
     await seedChatEvent(db, chatId, 1, "x");
     await seedChatEvent(db, chatId, 2, "y");
 
-    const tail = await replayChatEvents(db, chatId, 1);
+    const tail = await loadChatEventReplay(db, chatId, 1);
     expect(tail.map((e) => e.seq)).toStrictEqual([2]);
     expect(tail[0]?.payload.type).toBe("delta");
-    expect((await chatEventBounds(db, chatId)).maxSeq).toBe(2);
+    expect((await loadChatEventBounds(db, chatId)).maxSeq).toBe(2);
   });
 });

@@ -224,7 +224,7 @@ const roleDefaultsSchema = z
   })
   .prefault({});
 
-export const USER_SETTINGS_SCHEMA_VERSION = 2;
+export const USER_SETTINGS_SCHEMA_VERSION = 3;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -489,6 +489,17 @@ const appearanceSchema = z
 
 export type AppearanceSettings = z.infer<typeof appearanceSchema>;
 
+// The owner-global regex script library — its OWN object section (`config.regex.scripts`) so the
+// section-update machinery can address it (sections deep-merge object patches; a bare top-level array
+// could not be section-patched). v2→v3 lift moved it out of the top-level `regexScripts` array.
+const regexSettingsSchema = z
+  .object({
+    scripts: z.array(regexScriptSchema).catch([]).default([]),
+  })
+  .prefault({});
+
+export type RegexSettings = z.infer<typeof regexSettingsSchema>;
+
 export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
   // value so a client can't spoof past a lift.
@@ -501,7 +512,7 @@ export const userSettingsSchema = z.object({
   persona: personaSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
-  regexScripts: z.array(regexScriptSchema).catch([]).default([]),
+  regex: regexSettingsSchema,
   workloads: workloadsSchema,
   profile: profileSchema,
   appearance: appearanceSchema,
@@ -520,6 +531,7 @@ export const USER_SETTINGS_SECTIONS = [
   "persona",
   "groupDefaults",
   "onboarding",
+  "regex",
   "workloads",
   "profile",
   "appearance",
@@ -565,6 +577,13 @@ const USER_SETTINGS_LIFTS: Record<
       workloads: (c["workloadDefaults"] as Record<string, unknown> | undefined) ?? {},
       profile: (c["profile"] as Record<string, unknown> | undefined) ?? {},
     };
+  },
+  // v2→v3: the owner-global regex library moved from the top-level `regexScripts` array into its own
+  // `regex: { scripts }` object section, so the section-update machinery can address it. Preserve every
+  // other namespace untouched; carry any stored scripts across; drop the retired top-level key.
+  2: (c) => {
+    const { regexScripts, ...rest } = c;
+    return { ...rest, regex: { scripts: Array.isArray(regexScripts) ? regexScripts : [] } };
   },
 };
 

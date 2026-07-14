@@ -60,7 +60,7 @@ export async function countPresentMembers(db: Db, chatId: ChatId): Promise<numbe
 }
 
 /** Insert a host-minted invite (the token already CSPRNG-minted + hashed by the verb). */
-export async function createInvite(db: Db, row: typeof chatInvites.$inferInsert): Promise<void> {
+export async function insertInvite(db: Db, row: typeof chatInvites.$inferInsert): Promise<void> {
   await db.insert(chatInvites).values(row);
 }
 
@@ -172,7 +172,7 @@ export async function acceptInviteByIdAtomic(
 }
 
 /** Host-revoke a still-pending invite (atomic). Returns true iff it flipped. */
-export async function revokeInvite(
+export async function revokeInviteById(
   db: Db,
   inviteId: ChatInviteId,
   chatId: ChatId,
@@ -187,16 +187,6 @@ export async function revokeInvite(
         eq(chatInvites.status, "pending"),
       ),
     )
-    .returning({ id: chatInvites.id });
-  return rows.length > 0;
-}
-
-/** Invitee-decline a still-pending invite by token hash. Atomic. Returns true iff it flipped. */
-export async function declineInvite(db: Db, tokenHash: string): Promise<boolean> {
-  const rows = await db
-    .update(chatInvites)
-    .set({ status: "declined" })
-    .where(and(eq(chatInvites.tokenHash, tokenHash), eq(chatInvites.status, "pending")))
     .returning({ id: chatInvites.id });
   return rows.length > 0;
 }
@@ -233,9 +223,17 @@ export async function insertPendingTurn(
   await db.insert(pendingTurns).values(row);
 }
 
-/** Drop a drained/cancelled deferred turn by id. */
-export async function deletePendingTurn(db: Db, id: PendingTurnId): Promise<void> {
-  await db.delete(pendingTurns).where(eq(pendingTurns.id, id));
+/** ATOMICALLY claim (delete) one deferred turn by id — the drain's serializer. A drained turn is NOT
+ *  lock-held, so this `DELETE … RETURNING` is the ONLY thing that makes a row run exactly once: the boot
+ *  reclaim (`{all}`) and a host-return drain (`{hostUserId}`) can hold overlapping candidate snapshots, but
+ *  only one `DELETE` matches — the winner gets the row, the loser gets `undefined` and skips. A transient
+ *  fault re-inserts the row to retry; a completed/dropped turn stays deleted. */
+export async function claimPendingTurn(
+  db: Db,
+  id: PendingTurnId,
+): Promise<typeof pendingTurns.$inferSelect | undefined> {
+  const rows = await db.delete(pendingTurns).where(eq(pendingTurns.id, id)).returning();
+  return rows.at(0);
 }
 
 /** The deferred turns queued for a chat (drain at host return), oldest-first. */
@@ -255,4 +253,17 @@ export async function loadPendingTurnsForReclaim(
   db: Db,
 ): Promise<(typeof pendingTurns.$inferSelect)[]> {
   return await db.select().from(pendingTurns).orderBy(asc(pendingTurns.createdAt));
+}
+
+/** The deferred turns FUNDED by one host's box (`runAsUserId`) — the host-return drain, oldest-first. When
+ *  that host reconnects, their queued turns can run on their now-live box. */
+export async function loadPendingTurnsForHost(
+  db: Db,
+  runAsUserId: UserId,
+): Promise<(typeof pendingTurns.$inferSelect)[]> {
+  return await db
+    .select()
+    .from(pendingTurns)
+    .where(eq(pendingTurns.runAsUserId, runAsUserId))
+    .orderBy(asc(pendingTurns.createdAt));
 }

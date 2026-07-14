@@ -25,8 +25,6 @@ export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
 });
 export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 
-export const cardDepthPromptWriteSchema = cardDepthPromptSchema;
-
 // Derived pipeline signals (score + analysis) — not user-authored, absent from create/update.
 export const refinerySignalsSchema = z.object({
   score: z.number().nullable(),
@@ -84,7 +82,7 @@ export const createCharacterSchema = z.object({
   residualData: z.record(z.string(), z.unknown()).nullable().optional(),
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional(),
   /** Character's Note \@ Depth — null clears it; omit to leave unchanged. */
-  depthPrompt: cardDepthPromptWriteSchema.nullable().optional(),
+  depthPrompt: cardDepthPromptSchema.nullable().optional(),
 });
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
 

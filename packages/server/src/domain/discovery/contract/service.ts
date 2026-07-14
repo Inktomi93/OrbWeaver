@@ -1,6 +1,7 @@
 // domain/discovery/contract/service — the typed API surface: context, service deps, and DiscoveryService.
 // discovery embeds nothing and writes no vector row directly; hub_score is written via the injected
-// writeHubScores seam. FLAG[PD-40]: characterDossier.similar/similarArt + analyze/swipes stay deferred (need injected search/message reads).
+// writeHubScores seam; characterDossier's neighbours arrive via the injected `similar` search seam (wired at
+// the root — type-only here). analyze/swipes read the SEMANTIC messages projection (content, never economics).
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -39,13 +40,17 @@ import type {
 } from "./params";
 import type {
   Archetype,
+  AskCardAnswer,
   BrowseCharacter,
   CatalogStats,
   CharacterComparison,
+  CharacterComparisonDeep,
+  CharacterDossier,
   CharacterFacets,
   CooccurrenceStats,
   CorpusPoint,
   DistillStats,
+  DossierNeighbor,
   DuplicateCharacterPair,
   DuplicateChatComputeStats,
   DuplicateChatPair,
@@ -62,6 +67,7 @@ import type {
   SimilarChat,
   SimilarityGraph,
   StoryTimeBackfillStats,
+  SwipeHotspot,
   ThemeComputeStats,
   ThemeDetail,
   ThemeDriftBucket,
@@ -72,17 +78,17 @@ import type {
 
 // ── injected cross-feature ops (type-only; wired at the root) ─────────────────
 /** The `hub_score` write seam — the embeddings domain's `writeHubScores` verb, bound at the entry root. */
-export type WriteHubScores = EmbeddingsService["writeHubScores"];
+type WriteHubScores = EmbeddingsService["writeHubScores"];
 
 /** The bound `summarize` role thunk — discovery's only inference surface (theme naming + distill). */
 export type Summarize = RoleClients["summarize"];
 
 /** The tag-staging seam — tag's `attachCardTagByName` verb, bound at the entry root; distill's only tag write. */
-export type AttachCardTagByName = TagService["attachCardTagByName"];
+type AttachCardTagByName = TagService["attachCardTagByName"];
 
 /** The stats↔discovery economics seam — bound at the entry root to stats' economics-projection ops. */
-export type CharacterEconomicsOp = StatsService["characterEconomics"];
-export type CharacterModelEconomicsOp = StatsService["characterModelEconomics"];
+type CharacterEconomicsOp = StatsService["characterEconomics"];
+type CharacterModelEconomicsOp = StatsService["characterModelEconomics"];
 
 // ── the standalone-compute DEPS shapes (the workload runners construct these directly) ─────────────────
 
@@ -98,11 +104,21 @@ export interface ComputeChatDuplicatesDeps {
   readonly newDuplicateChatPairId: () => DuplicateChatPairId;
 }
 
+/** The tier-0 blockIdx range a tier-`k` digest covers — the memory tier-grid seam (PD-39). The fanOut math
+ *  stays ONE-HOMED in chat/memory (`resolveTier0Range`); discovery receives the resolver bound over the live
+ *  memory config at the entry root and never spells `fanOut` itself. Tier 0 is the identity range. */
+export type Tier0RangeOp = (
+  tier: number,
+  blockIdx: number,
+) => { readonly startIdx: number; readonly endIdx: number };
+
 /** Deps for the standalone `computeThemes`. */
 export interface ComputeThemesDeps {
   readonly now: () => number;
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly summarize: Summarize;
+  /** Threaded into the tier-k `msgMidAt` backfill `computeThemes` runs after every replace. */
+  readonly tier0RangeOf: Tier0RangeOp;
 }
 
 /** Deps for the standalone `compute*HubScores` passes. */
@@ -110,7 +126,9 @@ export interface ComputeHubScoresDeps {
   readonly writeHubScores: WriteHubScores;
 }
 
-/** Sibling-subsystem reads the composed views (`home`/`themeDetail`) depend on, injected at the entry root. */
+/** Sibling-subsystem reads the composed views (`home`/`themeDetail`/`characterDossier`) depend on, injected
+ *  at the entry root. `themes`/`duplicate*` come from discovery's OWN verbs (self-composition); `similar` is
+ *  the one CROSS-domain member — search's `similarCharacters`, narrowed to {@link DossierNeighbor} at the root. */
 export interface ViewsDeps {
   readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   readonly duplicateCharacters: (userId: UserId) => Promise<DuplicateCharacterPair[]>;
@@ -118,6 +136,11 @@ export interface ViewsDeps {
     userId: UserId,
     opts?: { relation?: DuplicateRelation },
   ) => Promise<DuplicateChatPair[]>;
+  readonly similar: (
+    userId: UserId,
+    characterId: CharacterId,
+    topN: number,
+  ) => Promise<DossierNeighbor[]>;
 }
 
 /** Deps for the standalone `computeCooccurrence` pass. */
@@ -125,6 +148,13 @@ export interface ComputeCooccurrenceDeps {
   readonly now: () => number;
   readonly newKeywordCooccurrenceId: () => KeywordCooccurrenceId;
   readonly newCharacterKeywordProfileId: () => CharacterKeywordProfileId;
+}
+
+/** The one cross-verb dep for `analyze` — `catalog.compareCharacters`, injected at `service.ts` (verb-to-verb
+ *  value deps are wired explicitly, never sideways-imported; domain-no-cross-verb). `compareCharactersDeep`
+ *  decorates its owner-belted facet diff with an LLM narrative (one home for the diff logic — no doubling). */
+export interface AnalyzeDeps {
+  readonly compareCharacters: DiscoveryService["compareCharacters"];
 }
 
 /** Deps for the standalone `distillCharacters` pass. */
@@ -151,6 +181,17 @@ export interface DiscoveryContext {
   readonly newKeywordCooccurrenceId: () => KeywordCooccurrenceId;
   readonly newCharacterKeywordProfileId: () => CharacterKeywordProfileId;
   readonly newDuplicateChatPairId: () => DuplicateChatPairId;
+  /** The memory tier-grid seam (PD-39) — `chat/memory.resolveTier0Range` bound over the live
+   *  `AppSettings.memoryDefaults` at the entry root; powers the tier-k `msgMidAt` backfill arm. */
+  readonly tier0RangeOf: Tier0RangeOp;
+  /** The cross-domain `similar` seam — search's `similarCharacters`, narrowed to {@link DossierNeighbor} and
+   *  bound at the entry root. discovery's only retrieval dependency (analytics ≠ retrieval); enters here so it
+   *  threads into the {@link ViewsDeps} the service builds. */
+  readonly similar: (
+    userId: UserId,
+    characterId: CharacterId,
+    topN: number,
+  ) => Promise<DossierNeighbor[]>;
 }
 
 /** What `createDiscoveryService` receives from the entry root; identical to {@link DiscoveryContext}. */
@@ -208,6 +249,30 @@ export interface DiscoveryService {
     idA: CharacterId,
     idB: CharacterId,
   ) => Promise<CharacterComparison | null>;
+
+  // ── analyze (semantic understanding — LLM narrative over the diff + grounded card Q&A) ──────────────
+  /** {@link compareCharacters} plus a grounded LLM narrative over the same diff. null on self/foreign/undistilled. */
+  readonly compareCharactersDeep: (
+    userId: UserId,
+    idA: CharacterId,
+    idB: CharacterId,
+  ) => Promise<CharacterComparisonDeep | null>;
+  /** Answer a free-text question about ONE owned/distilled character from its recent PLAYED scenes (SEMANTIC
+   *  content only). null when the character isn't owned/distilled. */
+  readonly askCard: (
+    userId: UserId,
+    characterId: CharacterId,
+    question: string,
+  ) => Promise<AskCardAnswer | null>;
+
+  // ── swipes (regeneration hotspots — the assistant slots with the most alternate takes in one chat) ──
+  /** The owner's chat's assistant slots with \>1 variant (re-rolled spots), most takes first (default 20).
+   *  Owner-belted via `characters.ownerId` — a foreign chat returns [] (no leak). */
+  readonly swipeHotspots: (
+    userId: UserId,
+    chatId: ChatId,
+    limit?: number,
+  ) => Promise<SwipeHotspot[]>;
 
   // ── archetypes + projection (owner-scoped reads; live compute over card embeddings) ──────────────────
   /** The owner's character archetypes — k-means clusters of their card embeddings, largest first. */
@@ -269,6 +334,12 @@ export interface DiscoveryService {
     clusterIdx: number,
     level: ThemeLevel,
   ) => Promise<ThemeDetail | null>;
+  /** One character's composed DOSSIER — distilled headline facets + portrait↔card alignment (in-RAM cosine) +
+   *  nearest neighbours (the injected `similar` search seam). `null` when the character isn't owned/distilled. */
+  readonly characterDossier: (
+    userId: UserId,
+    characterId: CharacterId,
+  ) => Promise<CharacterDossier | null>;
 
   // ── cooccurrence (workload compute + owner-scoped reads) ─────────────────────
   /** Recompute every owner's keyword×keyword cooccurrence + per-character keyword profiles — atomic per-owner replace. */

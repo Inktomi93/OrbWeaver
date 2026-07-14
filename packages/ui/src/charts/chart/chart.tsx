@@ -2,13 +2,22 @@
 // (ECharts animates via canvas-internal timers, not CSS, so this reads prefers-reduced-motion live
 // and forces `animation: false`), resize (free via echarts-for-react's size-sensor), and accessible
 // name (ECharts' native `aria` component). Colors are never decided here — `option` arrives fully built.
-import ReactEChartsCore from "echarts-for-react/lib/core";
+import ReactEChartsCoreDefault from "echarts-for-react/lib/core";
 import type { ReactElement } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup";
 import { echartsCore } from "./echarts-setup";
 import { mergeChartOption } from "./merge-option";
 import { chartVariants } from "./variants";
+
+// `echarts-for-react/lib/core` is CJS (`exports.default = class`). Some bundler interop paths
+// (notably the dev server's ESM<->CJS bridge) hand back the module namespace object
+// (`{ default: class }`) rather than the class itself — rendering it throws "Element type is
+// invalid… got: object" the moment a populated chart mounts. Unwrap defensively so the value is
+// always the component class regardless of which interop path resolved it.
+const ReactEChartsCore =
+  (ReactEChartsCoreDefault as unknown as { readonly default?: typeof ReactEChartsCoreDefault })
+    .default ?? ReactEChartsCoreDefault;
 
 const DEFAULT_HEIGHT = 240;
 

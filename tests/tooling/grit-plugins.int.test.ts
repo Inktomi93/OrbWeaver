@@ -15,11 +15,11 @@
 // tests/tooling/scripts exemptions and produce false negatives).
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { afterAll, beforeAll } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { beforeAll } from "vitest";
 import { expect, test } from "../support/fixtures";
+import { withTree } from "./_support";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const GRIT_DIR = join(ROOT, "tools", "grit");
@@ -220,42 +220,39 @@ function pluginDiagnostics(file: string, configPath: string): number {
   return (parsed.diagnostics ?? []).filter((d) => d.category === "plugin").length;
 }
 
-let tmp = "";
 const fired = new Set<string>();
 
 beforeAll(() => {
-  tmp = mkdtempSync(join(tmpdir(), "orb-grit-"));
+  // Materialize every grit's isolated config + known-violating fixture into one temp tree, then lint each
+  // in place; `fired` (module-scope) outlives the tree, so withTree can reclaim it as soon as the loop ends.
+  const files: Record<string, string> = {};
   for (const g of GRITS) {
     const fixture = FIXTURES[g];
     if (fixture === undefined) {
       continue; // the "has a fixture" test reports this; nothing to run.
     }
-    const dir = join(tmp, g);
-    const cfg = join(dir, "biome.json");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      cfg,
-      JSON.stringify({
-        $schema: "https://biomejs.dev/schemas/2.5.1/schema.json",
-        root: true,
-        linter: { enabled: true, rules: { recommended: false } },
-        plugins: [join(GRIT_DIR, `${g}.grit`)],
-      }),
-    );
-    const file = join(dir, fixture.path);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, fixture.src);
-    if (pluginDiagnostics(file, cfg) > 0) {
-      fired.add(g);
+    files[join(g, "biome.json")] = JSON.stringify({
+      $schema: "https://biomejs.dev/schemas/2.5.1/schema.json",
+      root: true,
+      linter: { enabled: true, rules: { recommended: false } },
+      plugins: [join(GRIT_DIR, `${g}.grit`)],
+    });
+    files[join(g, fixture.path)] = fixture.src;
+  }
+  withTree(files, (root) => {
+    for (const g of GRITS) {
+      const fixture = FIXTURES[g];
+      if (fixture === undefined) {
+        continue;
+      }
+      const cfg = join(root, g, "biome.json");
+      const file = join(root, g, fixture.path);
+      if (pluginDiagnostics(file, cfg) > 0) {
+        fired.add(g);
+      }
     }
-  }
+  });
 }, 120_000);
-
-afterAll(() => {
-  if (tmp !== "") {
-    rmSync(tmp, { recursive: true, force: true });
-  }
-});
 
 test("discovers a non-trivial set of grit plugins on disk (not silently empty)", () => {
   expect(GRITS.length).toBeGreaterThan(10);

@@ -95,7 +95,7 @@ export function workloadKindItems(viewerIsOwner: boolean): SelectItems<string> {
 }
 
 /** The `index` kind's source picker (text / image / all — what to reindex). */
-export const INDEX_SOURCE_LABELS: Record<IndexSource, string> = {
+const INDEX_SOURCE_LABELS: Record<IndexSource, string> = {
   text: "Text — characters + chat memory",
   image: "Images — avatars",
   all: "Everything",

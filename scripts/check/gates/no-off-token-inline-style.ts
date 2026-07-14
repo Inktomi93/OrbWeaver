@@ -1,41 +1,8 @@
-// Gate: no-off-token-inline-style (design-enforcement.md §3 — the inline/imperative arm the className +
-// CSS gates can't see). `no-arbitrary-tw-values`/`no-off-token-radius-shadow`/`no-color-literals` guard
-// the Tailwind CLASS lane; `motion-token-purity` guards raw-CSS files. But a token-backed CSS property can
-// also be written STRAIGHT ONTO an element — a JSX `style={{ borderRadius: "8px" }}` object literal, or an
-// imperative `el.style.color = "#fff"` / `el.style.setProperty("--x", "12px")` — and every one of those
-// bypasses ALL of the above (the class gates scan className strings; the CSS gate scans .css files; neither
-// walks a style object or a `.style` assignment). This gate closes that last hole for the axes we tokenize.
-//
-// HONEST FRAMING: this is a RATCHET. A radius audit + the motion pass both found the drift surface is
-// currently EMPTY — the class lane + CSS are 100% on-token, and the handful of inline `style` uses are all
-// either a var(--…) reference (on-token, just inline) or a genuinely-off-Tailwind canvas/editor sink. So it
-// is GREEN today; it exists to catch the FIRST future raw-literal inline style a reviewer would wave through.
-//
-// SCOPE: `packages/{ui,client}/src/**/*.{ts,tsx}` (the ts-morph project's own files — same packages the
-// class gates cover). It flags a TOKEN-BACKED CSS property (radius/shadow/color/background/the motion axes/
-// the spacing box axes — see TOKEN_BACKED_PROPS) written with a RAW STATIC LITERAL value, in either of two
-// carriers:
-//   • a JSX inline `style={{ <prop>: <value> }}` object literal, and
-//   • an imperative `<expr>.style.<prop> = <value>` assignment or `<expr>.style.setProperty("<prop>", <value>)`.
-// A property outside the token set (`left`, `width`, `zIndex`, `opacity`, `display`, a `--custom-prop`
-// setProperty, …) is OUT OF SCOPE — this gate owns exactly the axes tokens.json defines a vocabulary for.
-//
-// ALLOW (not a violation): any value that IS or CONTAINS a `var(--…)` reference — a `"var(--radius-card)"`
-// inline style is on-token, just written inline, which is fine. And it is CONSERVATIVE: only a STATIC
-// string/number LITERAL value is judged. A dynamic value (an identifier, a prop/member read, a template
-// with interpolation, a conditional) is NOT flagged — chasing computed values is out of scope and false-
-// positive-prone; this gate catches the reviewer-waved raw literal, nothing subtler.
-//
-// ALLOWLIST (file-level, both-arm, the no-off-token-radius-shadow / motion-token-purity precedent): a file
-// would land here with the value + reason if a raw-literal inline style were a genuinely-off-Tailwind sink.
-// It is EMPTY: the two known off-Tailwind radius sinks (the ECharts `<canvas>` bar corner in
-// charts/bar-list/option.ts, the CodeMirror lint-marker `9999px` pill in code-editor/code-editor.tsx) are
-// NOT in this gate's scope — neither is a JSX `style={{…}}` attribute nor an imperative `.style` write.
-// They are plain object PROPERTIES inside a framework config object (an ECharts `itemStyle` / a CodeMirror
-// `EditorView.theme` decoration), which this gate deliberately does not scan (a variable-ref / non-`style`
-// object property — the conservative scope). So they don't need an allowlist entry, and adding one would be
-// a permanent STALE-entry RED. An allowlisted file gone CLEAN is RED ("stale entry — remove it"); a NEW
-// offender not in the allowlist is RED immediately.
+// Gate: no-off-token-inline-style (design-enforcement.md §3) — the inline/imperative arm the
+// className + CSS gates can't see: a token-backed CSS property written straight onto an element via a
+// JSX `style={{...}}` literal or an imperative `.style`/`setProperty` call bypasses both. A RATCHET —
+// currently EMPTY drift surface (class lane + CSS are 100% on-token); catches the first future
+// raw-literal inline style. Scope: packages/{ui,client}/src, and only a static literal value.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

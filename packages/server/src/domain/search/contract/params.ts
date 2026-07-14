@@ -4,7 +4,7 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { MemoryQueryOptions } from "@orb/contracts/search";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
 export interface KnnParams {
   readonly ownerId: UserId;
@@ -73,4 +73,46 @@ export interface SuggestParams {
   readonly ownerId: UserId;
   readonly query: string;
   readonly limit: number;
+}
+
+// ── the unified search() dispatch (PD-38) ─────────────────────────────────────
+
+/** WHERE a unified search runs. `owner` = the whole corpus (all the user's cards/chats); `chat` = one
+ *  authorized chat (the egocentric `scopedCharacterId` is the verbatim-lens POV, required by the
+ *  `segments` target); `character` = this character ACROSS ALL the owner's chats — the membership-widened
+ *  scope (D16) that credits co-star blocks via the `chat_digest_speakers` OR-branch, not just the digests
+ *  the character egocentrically produced. Single importable union — never re-declared inline. */
+export type SearchScope =
+  | { readonly kind: "owner" }
+  | {
+      readonly kind: "chat";
+      readonly chatId: ChatId;
+      readonly scopedCharacterId?: CharacterId | undefined;
+    }
+  | { readonly kind: "character"; readonly characterId: CharacterId };
+
+/** The retrieval-surface axis the unified `search()` dispatches over — one member per underlying verb.
+ *  A new member fails `tsc` at the `UnifiedSearchResult` union + the exhaustive dispatch (no inline
+ *  re-declaration; `SEARCH_TARGETS` is the one home). */
+export const SEARCH_TARGETS = [
+  "entities",
+  "characters",
+  "discover",
+  "segments",
+  "digests",
+  "corpus",
+  "images",
+] as const;
+export type SearchTarget = (typeof SEARCH_TARGETS)[number];
+
+/** The omnibox call: one query text, one target surface, one scope. `lens` is required only when
+ *  `over === "images"` (validated at the transport seam + re-checked in the dispatch). */
+export interface UnifiedSearchParams {
+  readonly ownerId: UserId;
+  readonly query: string;
+  readonly topN: number;
+  readonly over: SearchTarget;
+  readonly scope: SearchScope;
+  readonly rerank?: boolean | undefined;
+  readonly lens?: ImageLens | undefined;
 }

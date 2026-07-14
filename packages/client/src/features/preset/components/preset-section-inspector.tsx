@@ -14,10 +14,10 @@ import { Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
+import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useSelectedPresetId, useSelectedPresetSectionId } from "#state";
 import { hasRoleField } from "../lib/assembly-model";
 import { useAssemblyForm } from "../lib/preset-editor-bridge";
-import { MESSAGE_ROLE_ITEMS } from "../lib/preset-nav";
 import { deriveZones } from "./prompt-assembly/derive-zones";
 import { MARKER_COPY } from "./prompt-assembly/marker-copy";
 import {

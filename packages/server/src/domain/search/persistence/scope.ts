@@ -4,16 +4,21 @@
 // never a users read), and optional CANDIDATES restricting to given block-keys.
 
 import type { BlockKey } from "@orb/contracts/search";
-import { characters, chatDigests, chatSegments } from "@orb/db";
+import { characters, chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 interface DigestScopeParams {
   readonly model: string;
   readonly chatIds?: readonly ChatId[] | undefined;
   readonly ownerId?: UserId | undefined;
   readonly scopedCharacterId?: CharacterId | undefined;
+  /** The membership-widened by-character cross-chat scope (D16, PD-38): match digests this character
+   *  egocentrically produced OR co-star blocks where it was merely PRESENT (a `chat_digest_speakers`
+   *  row). Filtering on `scopedCharacterId` alone silently drops the co-star blocks. Mutually exclusive
+   *  with `scopedCharacterId` (this widens; that narrows). */
+  readonly speakerCharacterId?: CharacterId | undefined;
   readonly candidates?: readonly BlockKey[] | undefined;
 }
 
@@ -37,6 +42,15 @@ export function digestScopeCond(params: DigestScopeParams): SQL | undefined {
             eq(chatDigests.blockIdx, k.blockIdx),
           ),
         ),
+      ),
+    );
+  } else if (params.speakerCharacterId !== undefined) {
+    // scoped-producer OR present-as-a-speaker. The EXISTS correlates on the digest's own id, so a group
+    // scene where the character spoke but another co-star was the egocentric producer still matches.
+    belts.push(
+      or(
+        eq(chatDigests.scopedCharacterId, params.speakerCharacterId),
+        sql`EXISTS (SELECT 1 FROM ${chatDigestSpeakers} WHERE ${chatDigestSpeakers.digestId} = ${chatDigests.id} AND ${chatDigestSpeakers.characterId} = ${params.speakerCharacterId})`,
       ),
     );
   } else if (params.scopedCharacterId !== undefined) {

@@ -9,7 +9,7 @@
 
 import type {
   AgentSdkModel,
-  ChatSource,
+  CredentialSource,
   ModelCatalogEntry,
 } from "../../../../packages/contracts/src/connection/index.ts";
 import type {
@@ -36,7 +36,7 @@ type RoleDefaults = UserSettings["routing"]["roleDefaults"];
 
 /** A brand-protected credential for a source (the edge fake — see file header). The brand symbol is
  *  unconstructable outside contracts, so the double-cast is the sanctioned test-only bridge. */
-function fakeCredential(source: ChatSource): ResolvedCredential {
+function fakeCredential(source: CredentialSource): ResolvedCredential {
   switch (source) {
     case "vllm":
       return { source: "vllm", credentialId: null } as unknown as VllmCredential;
@@ -71,7 +71,7 @@ export interface ConnHarness {
   readonly setRoleDefaults: (roleDefaults: RoleDefaults) => void;
   /** Mark a source so the faked `resolveCredential` rejects with `DomainNoCredentialError` (the keyless /
    *  missing-key path — e.g. openrouter browse-without-key, or an unconfigured custom_openai). */
-  readonly setNoCredentialSource: (source: ChatSource) => void;
+  readonly setNoCredentialSource: (source: CredentialSource) => void;
   /** Set the OR catalog the faked `fetchOrCatalog` returns. */
   readonly setOrCatalog: (models: ModelCatalogEntry[]) => void;
   /** Set the agent-sdk daemon catalog the faked `fetchAgentSdkModels` returns. */
@@ -80,9 +80,9 @@ export interface ConnHarness {
    *  no-GPU derive fallback (embed/rerank/imageEmbed vllm → local-light). */
   readonly setVllmAvailable: (available: boolean) => void;
   /** Every `source` the resolver asked `resolveCredential` for — proves the selection routed to it. */
-  readonly credentialCalls: ChatSource[];
+  readonly credentialCalls: CredentialSource[];
   /** Every request `testClaudeAuth` handed the faked `verifyClaudeAuth` diagnostic. */
-  readonly verifyCalls: { readonly source: ChatSource; readonly model: string }[];
+  readonly verifyCalls: { readonly source: CredentialSource; readonly model: string }[];
 }
 
 /** Build a ConnectionContext over a real db with the three injected ops faked + a frozen clock. */
@@ -92,9 +92,9 @@ export function makeConnHarness(db: Db): ConnHarness {
   let orCatalog: ModelCatalogEntry[] = [];
   let agentSdkCatalog: AgentSdkModel[] = [];
   let vllmAvailable = true;
-  const noCredentialSources = new Set<ChatSource>();
-  const credentialCalls: ChatSource[] = [];
-  const verifyCalls: { readonly source: ChatSource; readonly model: string }[] = [];
+  const noCredentialSources = new Set<CredentialSource>();
+  const credentialCalls: CredentialSource[] = [];
+  const verifyCalls: { readonly source: CredentialSource; readonly model: string }[] = [];
 
   const ctx: ConnectionContext = {
     db,
@@ -151,7 +151,7 @@ export function makeConnHarness(db: Db): ConnHarness {
     setRoleDefaults: (rd: RoleDefaults): void => {
       roleDefaults = rd;
     },
-    setNoCredentialSource: (source: ChatSource): void => {
+    setNoCredentialSource: (source: CredentialSource): void => {
       noCredentialSources.add(source);
     },
     setOrCatalog: (models: ModelCatalogEntry[]): void => {

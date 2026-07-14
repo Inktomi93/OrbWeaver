@@ -22,23 +22,14 @@ import type {
   PersonaAvatarEntry,
   RoomOverrides,
 } from "@orb/contracts/chat";
-import type {
-  CharacterId,
-  ChatId,
-  ChatInjectionId,
-  MessageVariantId,
-  UserId,
-  WorldEntryId,
-} from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
 
 export type {
   AssembledPrompt,
-  ChatMacroNameProducer,
   InvitePreview,
   InviteView,
   MessageView,
   ParticipantView,
-  PersonaAvatarEntry,
   SectionPreview,
 } from "@orb/contracts/chat";
 
@@ -190,20 +181,4 @@ export interface ChatBusReplayEvent {
 export interface StreamEventBounds {
   readonly minSeq: number | null;
   readonly maxSeq: number | null;
-}
-
-/** The 4-scope world-info pool resolved for a chat (the WI activation surface;
- *  `assembly/world-info/pool.ts` — the union STAYS chat). A read-model of which entries are in scope for this chat's next turn,
- *  for the WI panel + the activation preview (NOT the rendered prompt — that's `AssembledPrompt`). */
-export interface WorldInfoPoolChat {
-  readonly entries: readonly WorldInfoPoolEntry[];
-}
-
-/** One entry in the chat's resolved WI pool — identity + the scope it joined by + whether it fired. */
-export interface WorldInfoPoolEntry {
-  readonly id: WorldEntryId;
-  /** The 4-scope provenance bucket the entry joined the pool by. */
-  readonly scope: "global" | "character" | "persona" | "chat";
-  readonly keys: readonly string[];
-  readonly enabled: boolean;
 }

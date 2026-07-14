@@ -10,31 +10,17 @@
 
 import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
+import { Crown, Icon, Images, LogOut, MessagesSquare, Pencil, UserPlus, X } from "@orb/ui/icons";
 import {
-  Crown,
-  Icon,
-  Images,
-  LogOut,
-  MessagesSquare,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  UserPlus,
-  X,
-} from "@orb/ui/icons";
-import {
-  Menu,
   MenuItem,
   MenuPopup,
   MenuSeparator,
   MenuSubmenuRoot,
   MenuSubmenuTrigger,
-  MenuTrigger,
 } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import {
   committedChat,
@@ -51,7 +37,7 @@ import { useSelfLeave } from "../hooks/use-membership-mutations";
 import { InviteDialog } from "./invite-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 
-export interface ChatOptionsCastMember {
+interface ChatOptionsCastMember {
   readonly characterId: CharacterId;
   readonly name: string;
 }
@@ -88,7 +74,6 @@ export function ChatOptionsMenu({
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [galleryFor, setGalleryFor] = useState<ChatOptionsCastMember | null>(null);
@@ -134,104 +119,102 @@ export function ChatOptionsMenu({
 
   return (
     <>
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button intent="ghost" size="icon" aria-label="Chat options">
-              <Icon icon={MoreHorizontal} size="sm" />
-            </Button>
-          }
-        />
-        <MenuPopup align="end">
-          {characterIds.length > 0 ? (
-            <MenuItem onClick={(): void => startNewChat({ characterIds })}>
-              <Icon icon={MessagesSquare} size="sm" />
-              New chat with same cast
-            </MenuItem>
-          ) : null}
-          {soloCharacter !== undefined ? (
-            <MenuItem onClick={(): void => setGalleryFor(soloCharacter)}>
-              <Icon icon={Images} size="sm" />
-              {soloCharacter.name}'s gallery
-            </MenuItem>
-          ) : null}
-          {characters.length > 1 ? (
-            <MenuSubmenuRoot>
-              <MenuSubmenuTrigger>
-                <Icon icon={Images} size="sm" />
-                Character galleries
-              </MenuSubmenuTrigger>
-              <MenuPopup>
-                {characters.map((character) => (
-                  <MenuItem
-                    key={character.characterId}
-                    onClick={(): void => setGalleryFor(character)}
-                  >
-                    {character.name}
-                  </MenuItem>
-                ))}
-              </MenuPopup>
-            </MenuSubmenuRoot>
-          ) : null}
-          <MenuItem disabled={!canTargetTail} onClick={(): void => guided.fireContinue("")}>
-            Continue
+      <RowActionsMenu
+        label="Chat options"
+        destructive={{
+          label: "Delete chat",
+          separator: false,
+          title: "Delete this chat?",
+          description:
+            "This permanently deletes the chat and its messages for everyone. This can't be undone.",
+          confirmLabel: "Delete",
+          onConfirm: confirmDelete,
+        }}
+      >
+        {characterIds.length > 0 ? (
+          <MenuItem onClick={(): void => startNewChat({ characterIds })}>
+            <Icon icon={MessagesSquare} size="sm" />
+            New chat with same cast
           </MenuItem>
-          <MenuItem disabled={!canTargetTail} onClick={(): void => guided.fireSwipe("")}>
-            Regenerate
+        ) : null}
+        {soloCharacter !== undefined ? (
+          <MenuItem onClick={(): void => setGalleryFor(soloCharacter)}>
+            <Icon icon={Images} size="sm" />
+            {soloCharacter.name}'s gallery
           </MenuItem>
+        ) : null}
+        {characters.length > 1 ? (
           <MenuSubmenuRoot>
-            <MenuSubmenuTrigger>Impersonate</MenuSubmenuTrigger>
+            <MenuSubmenuTrigger>
+              <Icon icon={Images} size="sm" />
+              Character galleries
+            </MenuSubmenuTrigger>
             <MenuPopup>
-              {GUIDED_IMPERSONATE_PERSONS.map((person) => (
-                <MenuItem key={person} onClick={(): void => guided.fireImpersonate("", person)}>
-                  {PERSON_LABEL[person]}
+              {characters.map((character) => (
+                <MenuItem
+                  key={character.characterId}
+                  onClick={(): void => setGalleryFor(character)}
+                >
+                  {character.name}
                 </MenuItem>
               ))}
             </MenuPopup>
           </MenuSubmenuRoot>
+        ) : null}
+        <MenuItem disabled={!canTargetTail} onClick={(): void => guided.fireContinue("")}>
+          Continue
+        </MenuItem>
+        <MenuItem disabled={!canTargetTail} onClick={(): void => guided.fireSwipe("")}>
+          Regenerate
+        </MenuItem>
+        <MenuSubmenuRoot>
+          <MenuSubmenuTrigger>Impersonate</MenuSubmenuTrigger>
+          <MenuPopup>
+            {GUIDED_IMPERSONATE_PERSONS.map((person) => (
+              <MenuItem key={person} onClick={(): void => guided.fireImpersonate("", person)}>
+                {PERSON_LABEL[person]}
+              </MenuItem>
+            ))}
+          </MenuPopup>
+        </MenuSubmenuRoot>
 
-          <MenuSeparator />
-          {isHost && multiHumanCapable ? (
-            <MenuItem onClick={(): void => setInviteOpen(true)}>
-              <Icon icon={UserPlus} size="sm" />
-              Invite people…
-            </MenuItem>
-          ) : null}
-          {isHost && multiHumanCapable ? (
-            <MenuItem onClick={(): void => openContextTab("members")}>
-              <Icon icon={Crown} size="sm" />
-              Hand off host…
-            </MenuItem>
-          ) : null}
-          {!isHost && multiHumanCapable ? (
-            <MenuItem onClick={(): void => setLeaveOpen(true)}>
-              <Icon icon={LogOut} size="sm" />
-              Leave chat
-            </MenuItem>
-          ) : null}
-          {multiHumanCapable ? <MenuSeparator /> : null}
-          <MenuItem onClick={enterSelectionMode}>Select messages…</MenuItem>
-          <MenuItem onClick={(): void => openContextTab("overrides")}>Chat overrides…</MenuItem>
-          {isHost ? (
-            <MenuItem onClick={(): void => openContextTab("preview")}>Preview request…</MenuItem>
-          ) : null}
-          <MenuItem onClick={(): void => openContextTab("injections")}>Injections…</MenuItem>
+        <MenuSeparator />
+        {isHost && multiHumanCapable ? (
+          <MenuItem onClick={(): void => setInviteOpen(true)}>
+            <Icon icon={UserPlus} size="sm" />
+            Invite people…
+          </MenuItem>
+        ) : null}
+        {isHost && multiHumanCapable ? (
+          <MenuItem onClick={(): void => openContextTab("members")}>
+            <Icon icon={Crown} size="sm" />
+            Hand off host…
+          </MenuItem>
+        ) : null}
+        {!isHost && multiHumanCapable ? (
+          <MenuItem onClick={(): void => setLeaveOpen(true)}>
+            <Icon icon={LogOut} size="sm" />
+            Leave chat
+          </MenuItem>
+        ) : null}
+        {multiHumanCapable ? <MenuSeparator /> : null}
+        <MenuItem onClick={enterSelectionMode}>Select messages…</MenuItem>
+        <MenuItem onClick={(): void => openContextTab("overrides")}>Chat overrides…</MenuItem>
+        {isHost ? (
+          <MenuItem onClick={(): void => openContextTab("preview")}>Preview request…</MenuItem>
+        ) : null}
+        <MenuItem onClick={(): void => openContextTab("injections")}>Injections…</MenuItem>
 
-          <MenuSeparator />
-          <MenuItem onClick={openRename}>
-            <Icon icon={Pencil} size="sm" />
-            Rename
-          </MenuItem>
-          <MenuItem onClick={goToLanding}>
-            <Icon icon={X} size="sm" />
-            Close chat
-          </MenuItem>
-          <MenuItem onClick={(): void => setDeleteOpen(true)}>
-            <Icon icon={Trash2} size="sm" />
-            Delete chat
-          </MenuItem>
-        </MenuPopup>
-      </Menu>
+        <MenuSeparator />
+        <MenuItem onClick={openRename}>
+          <Icon icon={Pencil} size="sm" />
+          Rename
+        </MenuItem>
+        <MenuItem onClick={goToLanding}>
+          <Icon icon={X} size="sm" />
+          Close chat
+        </MenuItem>
+      </RowActionsMenu>
 
       <RenameChatDialog
         open={renameOpen}
@@ -253,15 +236,6 @@ export function ChatOptionsMenu({
       {isHost && multiHumanCapable ? (
         <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} />
       ) : null}
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete this chat?"
-        description="This permanently deletes the chat and its messages for everyone. This can't be undone."
-        confirmLabel="Delete"
-        onConfirm={confirmDelete}
-      />
 
       {galleryFor === null ? null : (
         <CharacterGalleryDialog

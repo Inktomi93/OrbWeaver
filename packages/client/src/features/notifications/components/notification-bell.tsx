@@ -41,6 +41,10 @@ const ROW_COPY: {
   kicked: () => "You were removed from a chat",
   "handoff-nominated": () => "You've been nominated to host a chat",
   "handoff-accepted": (p) => `${p.newHostHandle} is now hosting your chat`,
+  "deferred-turn-dropped": (p) =>
+    p.reason === "consent"
+      ? "An AI reply couldn't run — the host hasn't allowed it"
+      : "An AI reply couldn't run — that chat is no longer available",
 };
 
 function rowCopy(payload: NotificationEvent): string {

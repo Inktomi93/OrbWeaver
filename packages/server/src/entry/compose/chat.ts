@@ -6,7 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
+import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -233,7 +233,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   const resolveChatVia = async (
     userId: UserId,
-    routable: RoutableChat,
+    routable: RouteChatAssignment,
   ): Promise<ResolvedConnection> =>
     input.connection.resolveChat({
       principal: await realHostPrincipal(userId),
@@ -261,9 +261,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     }
   };
 
-  // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
-  // ⇒ no declared variables.
-  const resolvePromptVariables = async (chatId: ChatId): Promise<readonly ChoiceBlockSpec[]> => {
+  // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
+  // room draws from (D19; every roster character is host-owned per PD-21). `null` ⇒ a hostless/stale room.
+  const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
     const hostRows = await db
       .select({ userId: chatParticipants.userId })
       .from(chatParticipants)
@@ -275,7 +275,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         ),
       )
       .limit(1);
-    const hostUserId = hostRows.at(0)?.userId ?? null;
+    return hostRows.at(0)?.userId ?? null;
+  };
+
+  // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
+  // ⇒ no declared variables.
+  const resolvePromptVariables = async (chatId: ChatId): Promise<readonly ChoiceBlockSpec[]> => {
+    const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
       return [];
     }
@@ -309,6 +315,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newEventId: minter(ID_PREFIX.chatEvent),
     newStreamEventId: minter(ID_PREFIX.chatStreamEvent),
     newInviteId: minter(ID_PREFIX.chatInvite),
+    newPendingTurnId: minter(ID_PREFIX.pendingTurn),
     hashToken: createTokenHasher(input.sessionSecret),
     audit: input.audit,
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
@@ -706,8 +713,24 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     searchDigests: (query) =>
       input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
-    // FLAG[PD-71]: search.corpus needs a resolved owner MemoryQueryOptions can't carry; recall doesn't call this yet.
-    searchCorpus: () => Promise.resolve([]),
+    // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
+    // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
+    // is host-owned per PD-21, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty
+    // (leak-free unknown-owner, the resolvePromptVariables posture); an empty queryText propagates the
+    // corpus verb's own SEARCH_EMPTY_QUERY refusal (flag-don't-fake).
+    searchCorpus: async (query) => {
+      const hostUserId = await resolveChatHostUserId(query.scope.chat);
+      if (hostUserId === null) {
+        return [];
+      }
+      const hits = await input.search.corpus({
+        ownerId: hostUserId,
+        queryText: query.queryText ?? "",
+        mode: query.mode,
+        minScore: query.minScore,
+      });
+      return hits.map((h) => h.blockKey);
+    },
     log: (entry) => recordMemoryLog(entry),
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
@@ -731,7 +754,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         .where(eq(chats.id, chatId))
         .limit(1);
       const meta = parseChatMetadata(rows.at(0)?.metadata ?? null);
-      const routable: RoutableChat =
+      const routable: RouteChatAssignment =
         meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
       return resolveChatVia(runAsUserId, routable);
     },
@@ -783,7 +806,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         personas: { anchor, active },
         // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
         // macro engine falls back to server-local until the turn request carries it.
-        globalRegexScripts: us.regexScripts,
+        globalRegexScripts: us.regex.scripts,
         scanDepth: us.worldInfo.scanDepth,
         injectionTokenBudget: us.worldInfo.tokenBudget,
         memoryConfig,

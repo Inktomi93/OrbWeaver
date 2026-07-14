@@ -2,8 +2,8 @@
   "// path": "The product code only — the 5 packages' src. Tooling (scripts/, tools/) + the centralized tests/ mirror are excluded below.",
   "path": ["packages"],
 
-  "// formats": "Only the languages in play; CSS joins when the client lands (Phase 6).",
-  "format": ["typescript", "css"],
+  "// formats": "The languages in play. `tsx` is REQUIRED to see the client — jscpd's `typescript` format does NOT tokenize .tsx, so without this the whole client (207 .tsx files) is invisible to the gate.",
+  "format": ["typescript", "tsx", "css"],
 
   "// minTokens": "50 (default) catches real duplication; lower → noise.",
   "minTokens": 50,

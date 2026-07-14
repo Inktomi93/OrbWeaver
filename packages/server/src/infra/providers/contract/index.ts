@@ -10,7 +10,6 @@
 
 export type {
   ChatApi,
-  ChatSource,
   ModelCapability,
   ModelCatalogEntry,
 } from "@orb/contracts/connection";

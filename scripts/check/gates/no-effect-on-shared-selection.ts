@@ -1,28 +1,11 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS/JSX fixture
 // snippets (long identifier runs the entropy heuristic false-fires on), not secrets.
-// Gate: no-effect-on-shared-selection (UI-Architecture-and-Layout.md §5.1, amended 2026-07-09) — the
-// mechanical half of the anti-`this_chid` rule. §5.1 sanctions THREE reader shapes for the shared
-// selection stores (composition / own-section / mirror), ALL render-only; what it bans is
-// subscribe-and-EFFECT — a `useEffect`/`useLayoutEffect` in `features/**` keyed on a shared-selection
-// pointer is the neo chase reborn (a surface reacting to ambient selection with side effects), and it
-// was pure prose until this gate. Landed on a clean field (2026-07-09 census: zero effect-on-selection
-// sites in features), so any future hit is a NEW violation, never legacy noise.
-//
-// FLAGS: in packages/client/src/features/** (app-shell EXEMPT — the shell tier owns layout/appearance
-// root effects), a `useEffect(...)`/`useLayoutEffect(...)` whose dependency array contains an
-// identifier TAINTED by a shared-selection hook:
-//   • seed taint: a variable initialized from a call to a SELECTION_HOOK_RE hook
-//     (`const chatId = useActiveChatId()`);
-//   • transitive taint (same file, name-level fixpoint): a variable whose initializer references a
-//     tainted identifier (`const gated = chatId !== null` — depping `gated` still chases).
-//
-// Does NOT flag: render-only reads (no effect involved); effects depping props/query data (a
-// selection threaded as a PROP by the route is the composition shape — the parent re-keys/renders,
-// the child never subscribes); app-shell (shell-tier); `chat-stream`/draft-store hooks (lifecycle
-// stores, not selection pointers — their read hooks ARE the API). The sanctioned fixes the message
-// names: derive in render, or `useEffectEvent` for a non-reactive read inside an unrelated effect.
-// Name-level taint is file-scoped and deliberately simple (the state-files.ts literal-scan
-// precedent); laundering through a helper FUNCTION isn't traced — review owns that residue.
+// Gate: no-effect-on-shared-selection (UI-Architecture-and-Layout.md §5.1) — §5.1 sanctions three
+// render-only reader shapes for the shared selection stores; what it bans is subscribe-and-EFFECT — a
+// `useEffect`/`useLayoutEffect` in features/** (app-shell exempt) keyed on an identifier TAINTED by a
+// shared-selection hook (seed: initialized from a SELECTION_HOOK_RE call; transitive: same-file
+// name-level fixpoint) — a surface reacting to ambient selection with side effects, the neo chase
+// reborn. Does not flag props/query-data deps or lifecycle-store hooks (chat-stream/draft-store).
 import type { ArrayLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

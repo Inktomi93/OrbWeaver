@@ -1,23 +1,8 @@
-// Gate: ownerid-registry (D23 the ownership-stamp rule + D30 chat_tags + D21 assets). An `ownerId`
-// column may exist ONLY on a table that PASSES the D23 test — a TRUE PRODUCER (the user's authored
-// artifact with no owned anchor) OR a parentless per-user aggregate OR one of the two sanctioned
-// "ownerId IS the scope subject, not a parent mirror" cases (chat_tags D30 · global_documents D49). Every
-// OTHER table must DERIVE its owner by following ONE FK to an owned entity (drop the stamp — a redundant
-// mirror of the parent's owner). A newly-stamped `ownerId` on an unlisted table is a doubling: RED with
-// the D23 cite. The allowlist is the vector-scope-derived data-driven shape (a Set the tree is measured
-// against), and it is a TWO-DIRECTION ratchet — a stale entry (a listed table that has lost its ownerId
-// or no longer exists) is ALSO RED, so the allowlist can't rot silent.
-//
-// Each entry is a SQL table name (the first arg to `sqliteTable`), classified against the ledger:
-//   • TRUE PRODUCERS (D23 KEEP — stamp + fetchOwned): characters · personas · presets · world_books ·
-//     tags · user_credentials · workloads · documents (D49) · roster_presets (D61) · themes (D23 generalized
-//     producer list) · assets (D21 single-owned) · automation_rules (D46 host-authored) · global_variables
-//     (D46 per-user KV).
-//   • PARENTLESS PER-USER AGGREGATES (D23 KEEP — owner × a non-entity dimension): owner_stats · daily_stats ·
-//     model_stats · keyword_cooccurrence · theme_clusters.
-//   • SCOPE-SUBJECT (the ownerId IS the partition subject, not a derivable parent mirror — the D23 "no
-//     derivable owner → KEEP" case): chat_tags (D30 per-user overlay on an ownerless chat) · global_documents
-//     (D49 — the ownerId is the scope subject of the personal bank).
+// Gate: ownerid-registry (D23 ownership-stamp rule, D30 chat_tags, D21 assets). An `ownerId` column may
+// exist ONLY on a table that PASSES the D23 test — a true producer, a parentless per-user aggregate, or
+// a sanctioned "ownerId IS the scope subject" case (see OWNERID_ALLOWLIST's per-entry justification).
+// Every other table must derive its owner by following one FK to an owned entity. A newly-stamped
+// `ownerId` on an unlisted table is a doubling — RED with the D23 cite; a stale allowlist entry is also RED (two-direction ratchet).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

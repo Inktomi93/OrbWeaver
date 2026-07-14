@@ -11,10 +11,9 @@ export interface MacroCallNode {
   type: "macro";
   name: string;
   args: string[];
-  /** The original source span (`{{name:one,two}}` exactly as typed). The evaluator re-emits THIS
-   *  for unrecognized macros — reconstructing from parsed args normalized single-colon/whitespace
-   *  arg forms to `::` and changed passthrough bytes (review V10-10). Optional so hand-built AST
-   *  fixtures stay valid; absent → reconstructed `{{name::args}}` fallback. */
+  /** The original source span (`{{name:one,two}}` exactly as typed) — the evaluator re-emits this
+   *  for unrecognized macros, since parsed args normalize colon/whitespace forms. Absent →
+   *  reconstructed `{{name::args}}` fallback. */
   raw?: string;
 }
 
@@ -29,17 +28,13 @@ export interface MacroBlockNode {
 }
 
 /** A macro's runtime variable bag (the `{{get}}`/`{{if}}` key→value store). Values are `unknown`:
- *  the mutation handlers (`setvar`/`addvar`/`incvar`/`decvar`) write strings, but `{{if}}` and
- *  consumer-provided fixtures legitimately hold booleans/numbers for truthiness tests, so the
- *  type stays open. `chats.variableValues` (the persisted form) IS string-only — see the
- *  schema annotation there; the macro engine narrows when it flushes back. */
+ *  mutation handlers write strings, but `{{if}}` and consumer-provided fixtures may legitimately
+ *  hold booleans/numbers for truthiness tests, so the type stays open. */
 export type MacroEnv = Record<string, unknown>;
 
-/** One recorded runtime variable mutation (D46). `set`/`add` carry `value`; `inc`/`dec`/`delete` don't.
- *  The macro mutation handlers push these to {@link MacroContext.opLog}; the chat domain persists the
- *  ordered list per message-variant and REPLAYS it (`foldVarOps`) along the selected-variant chain to
- *  derive the current runtime state — deriving, not stamping, so a swipe/fork rewinds by re-folding
- *  (avoids the ST swipe-clobber issue #3263). `applyVarOp` is the one shared mutation-semantics home. */
+/** One recorded runtime variable mutation. `set`/`add` carry `value`; `inc`/`dec`/`delete` don't.
+ *  Pushed to {@link MacroContext.opLog} and REPLAYED (`foldVarOps`) along the selected-variant
+ *  chain to derive current state — deriving, not stamping, so a swipe/fork rewinds correctly. */
 export type VarOp =
   | { readonly op: "set"; readonly key: string; readonly value: string }
   | { readonly op: "add"; readonly key: string; readonly value: string }
@@ -59,10 +54,7 @@ export interface MacroContext {
   castNotMuted?: readonly string[];
   persona: string;
   scenario: string;
-  // Character-field shortcuts (legacy card-format compat). Optional — undefined → the macro renders "".
-  // These mirror the per-section markers the prompt assembler also exposes (char_description et al.),
-  // but as inline {{macro}}s usable from any literal section / WI entry / guided template / regex
-  // replacement string. Authors don't have to know the section markers exist.
+  // Character-field shortcuts (legacy card-format compat). Undefined → the macro renders "".
   description?: string | undefined; // → {{description}} / {{charDescription}}
   personality?: string | undefined; // → {{personality}} / {{charPersonality}}
   appearance?: string | undefined; // → {{appearance}}
@@ -70,28 +62,23 @@ export interface MacroContext {
   exampleMessages?: string | undefined; // → {{example}} / {{mesExamples}}
   charSysInfo?: string | undefined; // → {{charSysInfo}} (the card's system-prompt override)
   charPostHistory?: string | undefined; // → {{charPostHistory}} (post-history instructions)
-  // → {{original}} — the PRESET-level Main Prompt (when rendering char_system) or Jailbreak (when
-  // rendering post_history), so a character's own system/jailbreak can WRAP the global one (ST's
-  // `{{original}}` + prefer_character_prompt). Threaded per-marker by the assembler; "" elsewhere.
+  // → {{original}} — the PRESET-level Main Prompt (char_system) or Jailbreak (post_history), so a
+  // character's own system/jailbreak can WRAP the global one. Threaded per-marker by the assembler.
   original?: string | undefined;
   firstMessage?: string | undefined; // → {{charFirstMessage}}
-  // Conversation-derived fields (optional — set by the chat send/assembly path, undefined elsewhere
-  // so `{{input}}`/`{{lastMessage}}` degrade to "" rather than throwing in contexts that lack them).
+  // Conversation-derived fields — undefined ⇒ `{{input}}`/`{{lastMessage}}` degrade to "" rather
+  // than throwing in contexts that lack them.
   input?: string | undefined; // the in-flight user turn being answered
   lastMessage?: string | undefined; // most recent message of any role (excl. the in-flight one)
   lastUserMessage?: string | undefined;
   lastCharMessage?: string | undefined;
-  // Server-injected content — read by templated markers (compact_summary / memory /
-  // guided_instruction). Each is a per-chat ephemeral string the runner stages onto the assemble
+  // Server-injected content — each a per-chat ephemeral string the runner stages onto the assemble
   // context. Macros `{{compact_summary}}`/`{{memory}}`/`{{guided_instruction}}` return these.
   compactSummary?: string | undefined;
   memory?: string | undefined;
   guidedInstruction?: string | undefined;
-  // The {{databank}} slot — RESERVED parallel to {{memory}} (D49 #5; databank-design/07 §3). The
-  // retrieved-chunk string databank's gatherRetrieval stages onto the assemble context; undefined ⇒
-  // nothing retrieved ⇒ the `{{databank}}` marker renders empty (byte-identical non-databank turn). The
-  // slot is born now so the preset section templates + the rpg GM preset can reference it; the producer
-  // (domain/databank.gatherRetrieval) fills it when DB2 proper lands.
+  // The {{databank}} slot — undefined ⇒ nothing retrieved ⇒ the marker renders empty
+  // (byte-identical non-databank turn).
   databank?: string | undefined;
   // Run-environment shortcuts (legacy card-format compat). Threaded by the chat send/assembly path.
   model?: string | undefined; // → {{model}}
@@ -99,14 +86,11 @@ export interface MacroContext {
   // IANA timezone (e.g. "America/New_York") for {{time}}/{{date}} — supplied per-request by the
   // browser (Intl.DateTimeFormat().resolvedOptions().timeZone). Absent/invalid → server-local.
   timezone?: string | undefined;
-  // Fixed clock for {{time}}/{{date}}, as epoch-ms UTC (shared/time vocabulary). Absent → the
-  // live wall clock (DateTime.now()). Threaded by the chat send/assembly path so a caller can pin
-  // "now" — the deterministic-clock seam (tests, replay, scheduled re-renders).
+  // Fixed clock for {{time}}/{{date}}, as epoch-ms UTC. Absent → the live wall clock — the
+  // deterministic-clock seam (tests, replay, scheduled re-renders).
   nowMs?: number | undefined;
   // Injectable PRNG for {{random}}/{{roll}}/{{pick}}/dice — a float in [0,1) like Math.random.
-  // Absent → the ambient Math.random (live entropy). Mirrors the nowMs clock seam: supplying a
-  // fixed/sequenced generator makes the randomized macros deterministic (tests, replay, reproducible
-  // rolls). The default (ambient Math.random) preserves current behavior byte-for-byte.
+  // Absent → the ambient Math.random. Mirrors the nowMs clock seam for deterministic tests/replay.
   random?: (() => number) | undefined;
   // Allows extensions (like Regex) or future features to pass arbitrary runtime state
   env: MacroEnv;
@@ -119,9 +103,8 @@ export interface MacroContext {
   // Optional warning sink. Server layer injects getLog().warn; tests/client can leave undefined.
   // Kept as a plain callback (not a Logger import) so kit stays isolated from server/.
   onWarn?: (msg: string, err?: unknown) => void;
-  // Optional ordered log of runtime variable mutations (D46). When present, the setvar/addvar/incvar/
-  // decvar/deletevar handlers push each op here (in addition to applying it to `env`). The chat turn
-  // threads a fresh array per turn and persists it as the produced variant's `variable_delta`; absent ⇒
+  // Optional ordered log of runtime variable mutations. When present, the setvar/addvar/incvar/
+  // decvar/deletevar handlers push each op here in addition to applying it to `env`; absent ⇒
   // no recording (assembly-only re-renders, config-plane previews, tests).
   opLog?: VarOp[];
   // Defense-in-depth budget — capped recursion depth + total output size so a malicious card

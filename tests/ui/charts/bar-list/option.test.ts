@@ -1,4 +1,4 @@
-// Unit: <BarList>'s pure `buildBarListOption` builder (ui-package-design §9 v1 corpus-viz set). A
+// Unit: <BarList>'s pure `buildBarListOption` builder. A
 // mounted ECharts instance does not survive the Playwright component-test RPC boundary with its
 // methods intact, so the resolved-color/rank-order/valueFormatter wiring is proven here as plain
 // data (bar-list.ct.tsx covers what IS DOM-observable: heading, chart mount, empty state).

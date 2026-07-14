@@ -21,7 +21,7 @@ export function snapBlobWidth(requested: number): number | undefined {
 
 // The portrait (2:3, face-safe smart-crop) ladder — a separate fixed (w,h) set, never a caller-chosen height.
 // biome-ignore lint/style/noMagicNumbers: a fixed 2:3 display-size ladder; the literals are the data itself.
-export const PORTRAIT_WIDTHS = [200, 400] as const;
+const PORTRAIT_WIDTHS = [200, 400] as const;
 const PORTRAIT_ASPECT_HEIGHT_OVER_WIDTH = 1.5; // 2:3 — height = width * 3/2
 
 /** Kept module-private (not exported) — consumed only via return-type inference. */

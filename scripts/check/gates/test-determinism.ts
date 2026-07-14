@@ -1,9 +1,7 @@
-// Gate: test-determinism (core/Spine-Testing.md §3 / core/Core-0-Architecture-and-Structure.md §7) — no ambient clock/random/unseeded id
-// under tests/. Tests inject the frozen clock + seeded ids (tests/support) through the same composition
-// seam production uses; reading the real clock or Math.random makes rolling-pair / recall-ordering
-// assertions flaky. Exempts support/ (the determinism seam itself) + e2e/ (real-browser full-stack).
-// (A ts-morph/fs gate, not biome noRestrictedGlobals — that can ban the `Date` global but NOT the
-// `Math.random`/`crypto.randomUUID` member calls, and can't exempt support/ or check `new Date()` arity.)
+// Gate: test-determinism (Spine-Testing.md §3, Core-0-Architecture-and-Structure.md §7) — no ambient
+// clock/random/unseeded id under tests/. Tests inject the frozen clock + seeded ids (tests/support)
+// through the same composition seam production uses; the real clock/Math.random makes ordering
+// assertions flaky. Exempts support/ + e2e/. A ts-morph/fs gate (biome noRestrictedGlobals can't ban member calls or exempt support/).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";

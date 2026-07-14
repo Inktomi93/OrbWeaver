@@ -13,23 +13,33 @@ import { createFields, createSuggest } from "./verbs/fields";
 import { createFindCharacters } from "./verbs/find-characters";
 import { createImages } from "./verbs/images";
 import { createKnn } from "./verbs/knn";
+import { createSearch } from "./verbs/search";
 import { createSegments } from "./verbs/segments";
 import { createSimilarArt } from "./verbs/similar-art";
 import { createSimilarCharacters } from "./verbs/similar-characters";
 
 export function createSearchService(ctx: SearchContext): SearchService {
   const knn = createKnn(ctx);
+  const findCharacters = createFindCharacters(ctx, knn);
+  const digests = createDigests(ctx);
+  const segments = createSegments(ctx);
+  const corpus = createCorpus(ctx);
+  const images = createImages(ctx);
+  const discover = createDiscover(ctx);
   return {
     knn,
-    findCharacters: createFindCharacters(ctx, knn),
-    digests: createDigests(ctx),
-    segments: createSegments(ctx),
-    corpus: createCorpus(ctx),
-    images: createImages(ctx),
+    findCharacters,
+    digests,
+    segments,
+    corpus,
+    images,
     fields: createFields(ctx),
     suggest: createSuggest(ctx),
-    discover: createDiscover(ctx),
+    discover,
     similarCharacters: createSimilarCharacters(ctx),
     similarArt: createSimilarArt(ctx),
+    // The unified dispatch closes over the owner-wide card/corpus/image verbs + segments (digests route
+    // through the dispatch's own owner-belted scan, not the un-belted memory `digests` verb).
+    search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments }),
   };
 }

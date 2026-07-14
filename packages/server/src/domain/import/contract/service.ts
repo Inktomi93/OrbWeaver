@@ -31,13 +31,13 @@ export type FindCharacterByImportHash = (args: {
 }) => Promise<CharacterId | null>;
 
 /** (ownerId, handle) re-import match oracle; fires only after FindCharacterByImportHash misses. */
-export type FindCharacterByHandle = (args: {
+type FindCharacterByHandle = (args: {
   readonly ownerId: UserId;
   readonly handle: string;
 }) => Promise<CharacterId | null>;
 
 /** Edits an existing character's card in place for the handle-match re-import path. */
-export type UpdateImportedCharacter = (args: {
+type UpdateImportedCharacter = (args: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly input: UpdateCharacterInput;
@@ -51,34 +51,34 @@ export type StoreImportAsset = (args: {
 }) => Promise<AssetId>;
 
 /** Attaches one author-shipped card tag by name as a card/pending suggestion; idempotent, race-safe. */
-export type AttachImportedCardTag = (args: {
+type AttachImportedCardTag = (args: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly tagName: string;
 }) => Promise<boolean>;
 
 /** World-info-owned lorebook bulk-import write op; optional (card-only upload path skips embedded books). */
-export type BulkImportLorebookOp = (args: {
+type BulkImportLorebookOp = (args: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly book: BulkImportLorebookInput;
 }) => Promise<BulkImportLorebookResult>;
 
 /** Enqueues one memory-backfill workload for the owner, once per import run when a chat was written. */
-export type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Promise<void>;
+type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Promise<void>;
 
 /** Inline post-import stats rollup rebuild. */
-export type ReconcileImportStats = (args: { readonly ownerId: UserId }) => Promise<void>;
+type ReconcileImportStats = (args: { readonly ownerId: UserId }) => Promise<void>;
 
 /** Chat-owned bulk-import write op; import maps its ST parse to the canonical input and never touches \@orb/db. */
-export type BulkImportChatsOp = (args: {
+type BulkImportChatsOp = (args: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly chats: readonly BulkImportChatInput[];
 }) => Promise<BulkImportChatsResult>;
 
 /** Persona-owned bulk-import write op (dedup-by-name); returned idByName feeds chat attribution. */
-export type BulkImportPersonasOp = (args: {
+type BulkImportPersonasOp = (args: {
   readonly ownerId: UserId;
   readonly personas: readonly BulkImportPersonaInput[];
 }) => Promise<BulkImportPersonasResult>;

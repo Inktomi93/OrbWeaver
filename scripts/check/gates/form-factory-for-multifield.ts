@@ -1,30 +1,11 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are JSX/form fixture
 // snippets (factory imports + controlled-input markup), not secrets.
-// Gate: form-factory-for-multifield (D54 §13.3/§13.4 + UI-Primitives-and-Reuse.md §13.4's threshold
-// rule). The live `no-direct-useform` grit already forces `useAppForm`/the factories the moment TanStack
-// Form is TOUCHED. The HOLE this gate closes is the form that dodges Form ENTIRELY: a features/**
-// component that hand-rolls ≥3 CONTROLLED inputs (value/checked + an onChange-family handler on the same
-// element) yet imports neither editor factory. Per §13.4 the trigger for a factory is "≥3 fields OR
-// validation OR save/draft semantics" — a hand-rolled multi-field form is exactly the drift the factories
-// exist to prevent (seed / key-remount / post-submit reset / reseed-guard / draft-mirror / dontUpdateMeta
-// all re-invented, subtly wrong).
-//
-// DETECTION (honest, low-FP — a POSITIVE control allowlist, never a `value=`-anywhere sweep):
-//   • Scope: packages/client/src/features/**/*.tsx (feature components only).
-//   • A CONTROLLED input = a JSX element whose tag is in FORM_CONTROLS (raw input/textarea/select + the
-//     @orb/ui field controls) AND that carries BOTH a value binding (`value`/`checked`) AND an
-//     onChange-family handler (`onChange`/`onValueChange`/`onCheckedChange`). Tabs/Slider-as-weight/
-//     filter-Select `value=` do NOT count unless the tag is a form control AND it's two-way bound.
-//   • Count per enclosing component (nearest function-like ancestor). ≥3 in one component, in a file that
-//     imports NEITHER `createSavedEntityForm` NOR `createAutosaveEntityForm` = RED.
-//
-// The doc's exemption list (search box · lone toggle · single rename · login 2-field) is respected for
-// FREE — all four are ≤2 controlled inputs, under the threshold. `Tabs` is deliberately excluded from
-// FORM_CONTROLS (its `value`/`onValueChange` is active-tab state, not a field).
-//
-// ACTIVE: in report.ts's ALL_CHECKS (activated 2026-07-09) — runs on every `pnpm check`, not just its
-// self-test (tests/tooling/form-factory-for-multifield.int.test.ts). Its Layer-3 ACTIVE row lives in
-// Core-Enforcement-Active-Gates.md (kept in SYNC with enforcement-registry-parity.ts + check-gates.int).
+// Gate: form-factory-for-multifield (D54 §13.3/§13.4, UI-Primitives-and-Reuse.md §13.4). The live
+// `no-direct-useform` grit already forces the factories the moment TanStack Form is touched; the hole
+// this gate closes is the form that dodges Form ENTIRELY — a features/** component hand-rolling ≥3
+// CONTROLLED inputs (a form-control tag with both a value binding and an onChange-family handler) while
+// importing neither editor factory (which bake seed/key-remount/reset/reseed-guard/draft-mirror
+// semantics a hand-roll re-invents, subtly wrong). Scope: packages/client/src/features/**/*.tsx; counted per enclosing component.
 import type { JsxAttribute, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";

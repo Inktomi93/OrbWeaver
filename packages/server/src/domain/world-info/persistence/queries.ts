@@ -53,7 +53,7 @@ export function toEntryView(row: EntryRow): EntryView {
   };
 }
 
-export function toAttachmentView(row: BookRow, role: WorldBookRole | null): BookAttachmentView {
+function toAttachmentView(row: BookRow, role: WorldBookRole | null): BookAttachmentView {
   return { ...toBookView(row), role };
 }
 

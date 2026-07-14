@@ -9,6 +9,8 @@ export type {
   AutosaveEntityFormConfig,
 } from "./create-autosave-entity-form";
 export { createAutosaveEntityForm } from "./create-autosave-entity-form";
+export type { FormHandleBridge } from "./create-form-handle-bridge";
+export { createFormHandleBridge } from "./create-form-handle-bridge";
 export type { SavedEntityFormArgs, SavedEntityFormConfig } from "./create-saved-entity-form";
 export { createSavedEntityForm } from "./create-saved-entity-form";
 export type { AppFormInstance } from "./use-app-form";

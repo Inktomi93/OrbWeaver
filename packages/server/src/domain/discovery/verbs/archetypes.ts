@@ -129,7 +129,7 @@ function archetypesForGroup(
  * The owner's character archetypes — k-means clusters of their card embeddings, labelled from distilled
  * facets, largest first. Standalone `(db, ownerId, opts?)` so the service factory + tests call it directly.
  */
-export async function archetypes(
+async function archetypes(
   db: Db,
   ownerId: UserId,
   opts: ArchetypesOptions = {},

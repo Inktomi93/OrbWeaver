@@ -7,8 +7,8 @@
 // - `guard.ts` is a ratified, cross-domain 9th slot (Core-Laws-and-Precedents.md "Committed decisions" —
 //   the `can()` authority seam: `requireAdmin` lives in `domain/admin/guard.ts`). It's an I/O-touching,
 //   non-verb gate primitive — can't live in zero-I/O `substrate/`, isn't a verb. Allowed at ANY domain root.
-// - A handful of domain-specific root singletons, each individually justified in that domain's own spec
-//   doc (docs/architecture/domains/<domain>.md) but not yet promoted to the cross-domain ledger.
+// - A handful of domain-specific root singletons, each individually justified inline below
+//   (`DOMAIN_SPECIFIC_ROOT_FILES`) but not yet promoted to the cross-domain ledger.
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
@@ -22,14 +22,14 @@ const REQUIRED_DIRS = ["contract", "verbs"] as const;
  *  permission "Committed decisions"). Allowed at any domain root, not just admin's. */
 const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
 
-/** Domain-specific root singletons, sanctioned by that domain's own spec doc:
- *  - chat.md: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set),
+/** Domain-specific root singletons — each justified here, since this allowlist IS the source of truth:
+ *  - chat: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set),
  *    `connected-persona.ts` (one-connection-only auto-activate) — none fit verbs/substrate/a subsystem.
  *  - preset: `constants.ts` (SYSTEM_DEFAULT_PRESET_ID, domain-internal), `seed.ts` (boot-time
  *    ensureSystemDefaultPreset — too small to be its own subsystem).
  *  - settings: `constants.ts` (the theme seed sentinel TypeIDs, domain-internal), `seed-themes.ts`
  *    (boot-time `ensureSeedThemes` — the preset `seed.ts` precedent, named `-themes` since the domain
- *    root's `seed.ts` slot may host a different concern later — themes-design.md §5).
+ *    root's `seed.ts` slot may host a different concern later).
  *  - buddy: `bus.ts` (the observer's per-user reaction feed emitter + replay ring — the chat/bus.ts
  *    precedent; a feature-root collaborator the observer emits onto, PD-45). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {

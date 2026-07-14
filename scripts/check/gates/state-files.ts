@@ -1,19 +1,8 @@
-// Gate: state-files (docs/architecture/core/UI-Architecture-and-Layout.md §5 + §2.1 state/) — the
-// gated-Zustand discipline for packages/client/src/state/*.ts (the FLAT store tier). §5: "Gated by
-// state:files: one create( per file, ≤10 top-level fields, no exported set/getState/store handle."
-// dep-cruiser can't see call-shape or object-literal arity; this ts-morph gate can. Scans ONLY the
-// flat direct children of state/ (nested buckets are a different tier).
-//
-//   1. one-mint-per-file — ≤1 store-minting call (createGatedStore / createEntityDraftStore, or the raw
-//      zustand `create` / `createStore` the two factories themselves wrap). Two stores in one file is
-//      the "grab-bag store module" smell §5 forbids (one store per file).
-//   2. field-cap — a mint call whose state initializer returns an object LITERAL may declare ≤10
-//      top-level fields. Past 10 fields a store is doing multiple jobs — split it. (Factory files pass
-//      the initializer as a param, so there's no literal to count — correctly skipped.)
-//   3. no-exported-handle — the minted store handle (the `create(...)` result) is never `export`ed:
-//      callers go through intent-named module actions + narrow read hooks, never raw set/getState
-//      across a module boundary (§5). The factory FUNCTIONS (createGatedStore/…) are the sanctioned
-//      mint API and legitimately return the handle — they don't `export const x = create()`.
+// Gate: state-files (UI-Architecture-and-Layout.md §5, §2.1 state/) — the gated-Zustand discipline for
+// packages/client/src/state/*.ts (the flat store tier, direct children only): one create( per file, ≤10
+// top-level fields, no exported set/getState/store handle. dep-cruiser can't see call-shape or
+// object-literal arity; this ts-morph gate can. Three arms: one-mint-per-file, field-cap (past 10
+// fields a store is doing multiple jobs), no-exported-handle (callers go through intent-named actions + narrow read hooks, never a raw handle across a module boundary).
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";

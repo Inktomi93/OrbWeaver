@@ -79,7 +79,7 @@ function tallyDigest(
  * Pure counting core (no db): per digest, every unordered keyword pair co-occurs once (canonical A-before-B) and
  * every keyword credits its character. O(k²) per digest, k ≤ ~20 (the caller caps the digest keyword set).
  */
-export function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTally {
+function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTally {
   const pairCount = new Map<string, Map<string, number>>();
   const charKw = new Map<string, Map<string, number>>();
   for (const d of digests) {

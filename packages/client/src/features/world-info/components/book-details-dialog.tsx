@@ -14,7 +14,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
-export interface BookDetailsPatch {
+interface BookDetailsPatch {
   readonly name: string;
   /** The trimmed description (`""` clears it — `updateBook` has no null form). */
   readonly description: string;

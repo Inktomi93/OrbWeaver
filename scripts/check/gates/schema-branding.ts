@@ -1,12 +1,10 @@
 // biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are drizzle schema
 // fixture snippets (sqliteTable(...) calls), not secrets.
 // Gate: schema-branding — the Drizzle-column companion to the no-raw-id grit. Every entity id column
-// in packages/db/src/schema/ must carry a `.$type<XId>()` brand so the TypeID discipline can't rot
-// when a new table/FK is added unbranded. Generic (no hardcoded table list):
-//   1. unbranded-id-pk — a `text(...).primaryKey()` column named `id` with no `.$type<>()`.
-//   2. unbranded-fk    — a `.references(() => X.id)` FK with no `.$type<>()` where X's OWN id IS branded
-//                        (can't brand an FK tighter than its target — plain-target FKs auto-exempt).
-// Escape hatch: a leading `// plain-id: <reason>` comment marks a deliberately-plain id.
+// in packages/db/src/schema/ must carry a `.$type<XId>()` brand so the TypeID discipline can't rot when
+// a new table/FK is added unbranded. Two checks, generic (no hardcoded table list): unbranded-id-pk (a
+// `text(...).primaryKey()` column named `id` with no `.$type<>()`) and unbranded-fk (a `.references()`
+// FK with no brand where the target's own id IS branded). Escape: `// plain-id: <reason>`.
 
 import type { CallExpression, Project, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";

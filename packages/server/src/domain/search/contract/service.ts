@@ -5,7 +5,9 @@
 // embedModel), a required dep the entry root wires at boot. search reads the vector tables directly via
 // @orb/db (allowed by design — it's the bulk reader) and never calls embeddings verbs.
 //
-// FLAG[PD-38]: unified search(UnifiedSearchParams) dispatch deferred until the full verb set exists.
+// The unified `search(UnifiedSearchParams)` verb is a DISPATCH over the sibling verbs (PD-38, verbs/search.ts):
+// it adds one genuinely new capability — the by-character cross-chat digest scan via the
+// chat_digest_speakers OR-branch — and otherwise delegates.
 
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { ReadOnlyDb } from "@orb/db";
@@ -21,6 +23,7 @@ import type {
   SimilarArtParams,
   SimilarCharactersParams,
   SuggestParams,
+  UnifiedSearchParams,
 } from "./params";
 import type {
   CharacterCardHit,
@@ -33,6 +36,7 @@ import type {
   SearchSuggestion,
   SegmentSearchHit,
   SimilarArtHit,
+  UnifiedSearchResult,
 } from "./results";
 
 /** DI bundle the search verbs close over. Read-only (ReadOnlyDb — a write call is a tsc error). */
@@ -60,4 +64,8 @@ export interface SearchService {
   readonly discover: (params: DiscoverParams) => Promise<DiscoverCharacter[]>;
   readonly similarCharacters: (params: SimilarCharactersParams) => Promise<CharacterCardHit[]>;
   readonly similarArt: (params: SimilarArtParams) => Promise<SimilarArtHit[]>;
+  /** The unified omnibox dispatch — one query + target + scope → the matching verb's hits, tagged by
+   *  `over`. A dispatcher over the siblings; the only new capability is the by-character cross-chat
+   *  digest scan (the chat_digest_speakers OR-branch). */
+  readonly search: (params: UnifiedSearchParams) => Promise<UnifiedSearchResult>;
 }

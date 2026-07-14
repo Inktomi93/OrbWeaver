@@ -2,7 +2,7 @@
 // runs as) plus the capability DESCRIPTOR both the per-runner translator and client panel read.
 // `connection` is selection, not execution: the sealed `runner`/`family` vocab stays inside
 // `infra/providers`; this contract speaks only the user vocab `{api, source, model}` + `ModelCapability`.
-// `ChatSource` re-exports `CredentialSource` verbatim (never redeclared) — routing's `source` IS the
+// `connection` re-exports `CredentialSource` verbatim (never redeclared) — routing's `source` IS the
 // credential source. FLAG[PD-12]: BYO `modelProfile`/`CustomModelProfile` deferred to `#credentials`.
 
 import type { ModelId } from "@orb/kit/ids";
@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { CredentialSource, ResolvedCredential } from "#credentials";
 
-// The chat-completion machinery a turn is addressed by — distinct from `ChatSource` (one source can
+// The chat-completion machinery a turn is addressed by — distinct from `CredentialSource` (one source can
 // serve several apis). Every dispatch switch over `api` uses `assertNever` for exhaustiveness.
 export const CHAT_APIS = [
   "agent-sdk",
@@ -21,8 +21,8 @@ export const CHAT_APIS = [
 export type ChatApi = (typeof CHAT_APIS)[number];
 export const chatApiSchema = z.enum(CHAT_APIS);
 
-/** Verbatim re-export of {@link CredentialSource} — not a second tuple. */
-export type { CredentialSource as ChatSource } from "#credentials";
+/** Verbatim re-export of {@link CredentialSource} — not a second tuple (D31). */
+export type { CredentialSource } from "#credentials";
 
 /** OpenRouter "provider routing" preferences — the request's `provider` object. OpenRouter owns and
  *  evolves this wire shape, so the model is lenient: known knobs are typed+optional, `.loose()` keeps
@@ -241,10 +241,6 @@ export interface RouteChatAssignment {
   readonly model?: string | null | undefined;
   readonly providerRouting?: OpenRouterProviderRouting | undefined;
 }
-/** The UserSettings projection `resolveChat` overlays beneath the chat row. Aliased, never re-declared. */
-export type RouteOverlay = RouteChatAssignment;
-/** The chat row's routing fields handed to `resolveChat` (these BEAT the overlay). */
-export type RoutableChat = RouteChatAssignment;
 
 // The brand ENDS at the curated shortlist: OpenRouter ids are plain strings; only curated entries
 // carry this brand. `isChatModelId` is the runtime discriminator.

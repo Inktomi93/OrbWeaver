@@ -1,11 +1,8 @@
-// Gate: no-direct-users-read (Spine-Identity-and-Auth.md — resolve-once Principal; the no-direct-users-read chokepoint) — `users` is the identity
-// root every single-owned table FKs. It is read/written through exactly TWO sanctioned domains: `sessions`
-// (the resolution-path writer — validate / provisionIdentity / ensureUser) and `admin` (the user-management
-// surface). EVERY OTHER domain takes `userId` from the resolved `Principal` (via the injected context) and
-// NEVER queries `users` — joining it sideways re-couples identity into a feature and dodges the resolve-once
-// model. This makes the documented chokepoint PHYSICS: a domain outside sessions/admin importing the `users`
-// table symbol from `@orb/db` is RED. (The `@orb/db` schema files legitimately FK `users`; they are not
-// under `domain/`, so they are unaffected.)
+// Gate: no-direct-users-read (Spine-Identity-and-Auth.md — resolve-once Principal) — `users` is the
+// identity root every single-owned table FKs; it is read/written through exactly TWO sanctioned domains
+// (`sessions` — the resolution-path writer, and `admin` — user-management). Every other domain takes
+// `userId` from the resolved `Principal`; joining `users` sideways re-couples identity into a feature.
+// A domain outside sessions/admin importing the `users` table symbol from `@orb/db` is RED.
 import type { ImportSpecifier } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

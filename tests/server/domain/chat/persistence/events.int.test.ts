@@ -1,13 +1,13 @@
 // The chat_events APPEND writer (persistence/events.ts — the PD-88 extraction from bus.ts). Proves against
 // a real libSQL db: the correlated-subquery per-chat seq is monotonic and per-chat independent, the full
-// room-public payload round-trips, and the durable rows are exactly what `replayChatEvents` replays.
+// room-public payload round-trips, and the durable rows are exactly what `loadChatEventReplay` replays.
 
 import type { Db } from "@orb/db";
 import { chatEvents } from "@orb/db";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { appendChatEvent } from "../../../../../packages/server/src/domain/chat/persistence/events";
-import { replayChatEvents } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { loadChatEventReplay } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedChat } from "../_support";
@@ -67,7 +67,7 @@ describe("appendChatEvent — the durable chat_events append", () => {
     expect(seqB).toBe(1);
   });
 
-  test("appended rows are exactly what replayChatEvents replays (the durable ramp-up path)", async () => {
+  test("appended rows are exactly what loadChatEventReplay replays (the durable ramp-up path)", async () => {
     const ctx = makeChatContext(db);
     const chatId = await seedChat(db, "a");
 
@@ -84,7 +84,7 @@ describe("appendChatEvent — the durable chat_events append", () => {
       createdAt: ctx.now(),
     });
 
-    const replay = await replayChatEvents(db, chatId, 1);
+    const replay = await loadChatEventReplay(db, chatId, 1);
     expect(replay).toEqual([{ seq: 2, payload: { type: "chatDeleted", chatId } }]);
   });
 });

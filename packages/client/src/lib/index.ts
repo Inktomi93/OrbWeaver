@@ -23,6 +23,8 @@ export { perfMark, perfMeasure } from "./perf-marks";
 export { isProbeMode } from "./probe-mode";
 export { RenderProfiler } from "./render-profiler";
 export { TEST_IDS, testId } from "./test-ids";
+export type { ThemeColorFields } from "./theme-override-form";
+export { assignThemeColorFields } from "./theme-override-form";
 export { timeLib } from "./time";
 export type { TrpcOpLogEntry } from "./trpc-devlog";
 export { formatTrpcOp } from "./trpc-devlog";

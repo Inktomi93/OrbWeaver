@@ -30,6 +30,7 @@ export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard";
 export { generateDigests } from "./memory/build/digests";
 export { generateSegments } from "./memory/build/segments";
 export { loadChatMeta } from "./memory/persistence/queries";
+export { resolveTier0Range } from "./memory/recall/bridge";
 export { createBulkImportChats } from "./persistence/import-write";
 export { reclaimChatLocksOnBoot } from "./persistence/lock";
 export { createChatService } from "./service";

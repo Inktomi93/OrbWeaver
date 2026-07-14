@@ -1,9 +1,8 @@
 // Gate: client-structure (UI-Architecture-and-Layout.md §2.1 + §4) — the @orb/client feature-slice
 // layout. File-shape invariants dep-cruiser can't see. Enforced per-BUILT-feature — a slice holding
-// only a .gitkeep (reserved, not yet built) is skipped. Rules: (1) front-door index.ts, (2) name is a
-// reserved UI-only slice or mirrors a real server domain, (3) no stray root files, (4) known buckets
-// only, (5) surfaces/*.tsx end -surface.tsx, (6) hooks/anchors naming, (7) a surface must not render
-// its own outer Dialog/AlertDialog/Drawer (that's the anchor's job).
+// only a .gitkeep is skipped. Rules: (1) front-door index.ts, (2) name is reserved-UI-only or mirrors a
+// real server domain, (3) no stray root files, (4) known buckets only, (5) surfaces/*.tsx end
+// -surface.tsx, (6) hooks/anchors naming, (7) a surface must not render its own outer Dialog/Drawer.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";

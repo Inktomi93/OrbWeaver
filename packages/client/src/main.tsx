@@ -23,6 +23,7 @@ import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload } from "#lib";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
+import { isProbeMode } from "./lib/probe-mode";
 import { router } from "./routes/router";
 import "./styles/globals.css";
 
@@ -113,7 +114,7 @@ createRoot(rootEl).render(
           </AppErrorBoundary>
           <Toaster />
         </ToastProvider>
-        {DevTools === null ? null : (
+        {DevTools === null || isProbeMode() ? null : (
           <Suspense fallback={null}>
             <DevTools queryClient={queryClient} router={router} />
           </Suspense>

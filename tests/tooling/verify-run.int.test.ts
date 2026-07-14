@@ -4,9 +4,6 @@
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import type { Finding } from "../../scripts/check/contract.ts";
 import { gate as verifyRegistryParityGate } from "../../scripts/check/gates/verify-registry-parity.ts";
@@ -22,6 +19,7 @@ import {
 import { aggregateExit, parse } from "../../scripts/verify/run.ts";
 import { resolveSelection } from "../../scripts/verify/selection.ts";
 import { expect, test } from "../support/fixtures.ts";
+import { withTree } from "./_support.ts";
 
 /** A parse result that IS a misuse error (what main() maps to exit 3). */
 function isMisuse(argv: readonly string[]): boolean {
@@ -98,6 +96,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "types:tests-membership",
     "structure:full",
     "imports:depcruise",
+    "deps:knip",
     "docs:format",
   ]);
 });
@@ -331,11 +330,8 @@ test("every manual-tier stage carries a reason", () => {
 // Run the fsBacked gate over a real temp-dir package.json against the REAL registry (imported by the gate).
 
 function runParityGate(pkgScripts: Readonly<Record<string, string>>): readonly Finding[] {
-  const root = mkdtempSync(join(tmpdir(), "orb-parity-gate-"));
-  try {
-    const abs = join(root, "package.json");
-    mkdirSync(dirname(abs), { recursive: true });
-    writeFileSync(abs, JSON.stringify({ scripts: pkgScripts }));
+  let findings: readonly Finding[] = [];
+  withTree({ "package.json": JSON.stringify({ scripts: pkgScripts }) }, (root) => {
     const project = new Project({ skipAddingFilesFromTsConfig: true });
     const result = runPass([verifyRegistryParityGate], {
       root,
@@ -344,12 +340,11 @@ function runParityGate(pkgScripts: Readonly<Record<string, string>>): readonly F
       files: project.getSourceFiles(),
       checker: () => project.getTypeChecker(),
     });
-    return canonicalSort(
+    findings = canonicalSort(
       result.gates.find((g) => g.name === verifyRegistryParityGate.name)?.findings ?? [],
     );
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+  });
+  return findings;
 }
 
 test("verify-registry-parity: a verification-shaped script with no tier is a violation (arm 1 bites)", () => {

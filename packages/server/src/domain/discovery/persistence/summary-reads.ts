@@ -5,7 +5,7 @@
 import type { Db } from "@orb/db";
 import { characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 interface CardFacetRow {
   readonly characterId: CharacterId;
@@ -29,4 +29,27 @@ export async function readOwnedCardFacets(db: Db, ownerId: UserId): Promise<Card
     .from(characterSummaries)
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
     .where(eq(characters.ownerId, ownerId));
+}
+
+/** ONE owned/distilled card's facets — the owner belt for `askCard`/`characterDossier` (`undefined` when the
+ *  character isn't owned by `ownerId` or has no `character_summaries` row). Owner scope via `characters.ownerId`. */
+export async function readOwnedCardFacet(
+  db: Db,
+  ownerId: UserId,
+  characterId: CharacterId,
+): Promise<CardFacetRow | undefined> {
+  const rows = await db
+    .select({
+      characterId: characterSummaries.characterId,
+      name: characters.name,
+      genre: characterSummaries.genre,
+      tone: characterSummaries.tone,
+      tags: characterSummaries.tags,
+      elevatorPitch: characterSummaries.elevatorPitch,
+    })
+    .from(characterSummaries)
+    .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
+    .where(and(eq(characters.ownerId, ownerId), eq(characterSummaries.characterId, characterId)))
+    .limit(1);
+  return rows[0];
 }

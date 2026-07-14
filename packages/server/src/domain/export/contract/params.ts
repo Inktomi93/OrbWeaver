@@ -6,7 +6,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 export type ExportChatFormat = "jsonl" | "txt";
 
-export interface ExportActorParams {
+interface ExportActorParams {
   readonly principal: Principal;
 }
 

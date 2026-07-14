@@ -1,16 +1,8 @@
 // Gate: membership-enforcer (ledger D16/D18) — chats are MEMBERSHIP-scoped; `chats.ownerId` does not
-// exist and owner-equality must never come back. The layered enforcement this gate completes:
-//   • compile-time (already physics): `CHAT_VERB_AUTHORITY satisfies Record<keyof ChatService, …>`
-//     (substrate/auth/matrix.ts) — a NEW chat verb fails `tsc` until classified, default-deny;
-//     `chats` has no `ownerId` column, so a property access fails `tsc` too.
-//   • THIS gate (the regression freeze): no OWNER-EQUALITY comparison (`x.ownerId === y` /
-//     `y === x.ownerId`) anywhere in `domain/chat` or the chat transport surfaces — the ~171-site
-//     neo pattern D18 dissolved; membership (`assertParticipant` → the `can()` seam) is the ONLY
-//     authority model. Also: no `fetchOwned`/`OwnedTable` IMPORT in `domain/chat` — chats are the
-//     membership-scoped category; treating one as single-owned is the D18 category error.
-// Deliberately NOT gated here: participant-role literals (`role === "host"`) — those are host-LOOKUP
-// (deriving `runAsUserId`/the funding source from the loaded roster, D18-sanctioned), not privilege
-// decisions; the privilege comparison lives inside `can()` (the owner-role-split gate's territory).
+// exist and owner-equality must never come back. The regression freeze: no owner-equality comparison
+// (`x.ownerId === y` / `y === x.ownerId`) anywhere in domain/chat or the chat transport surfaces —
+// membership (`assertParticipant` → the `can()` seam) is the ONLY authority model. Also: no
+// `fetchOwned`/`OwnedTable` import in domain/chat. Not gated: participant-role literals (host-lookup, not a privilege decision — that's owner-role-split's territory).
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

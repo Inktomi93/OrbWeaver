@@ -2,7 +2,7 @@
 // LOAD-BEARING SECURITY PIN (R3): a settings blob carrying secret-adjacent config (routing / connection source)
 // EXPORTS WITHOUT IT — exercised through the REAL read path (a stored user_settings row), not just the serde.
 
-import { createSettingsContext, createUserSettingsExport } from "@orb/server/domain/settings";
+import { createExportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
 import { parseUserSettingsBackup } from "@orb/server/kit/serde/user-settings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -30,7 +30,7 @@ describe("exportUserSettings", () => {
       },
     });
 
-    const file = await createUserSettingsExport(ctx)(owner);
+    const file = await createExportUserSettings(ctx)(owner);
     expect(file.filename).toBe("user-settings.json");
 
     // The fenced connection config never appears in the exported bytes.

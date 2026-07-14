@@ -60,15 +60,15 @@ import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import {
   listMemberChats,
   loadAncestorChain,
-  chatEventBounds as loadChatEventBounds,
-  replayChatEvents as loadChatEventReplay,
+  loadChatEventBounds,
+  loadChatEventReplay,
   loadChatMessageStats,
   loadChatParticipantCharacterIds,
   loadForkChildren,
   loadMessagesPage,
   loadMessageVariantSummaries,
-  streamEventBounds as loadStreamBounds,
-  replayStreamEvents as loadStreamReplay,
+  loadStreamBounds,
+  loadStreamReplay,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";

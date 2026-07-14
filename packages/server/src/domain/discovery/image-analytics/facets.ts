@@ -60,7 +60,7 @@ const metaStr = (m: Record<string, unknown> | null, key: string): string | null 
   m !== null && typeof m[key] === "string" ? (m[key] as string) : null;
 
 /** Ascending — worst-matched art first (the curation signal). */
-export async function portraitAlignment(db: Db, ownerId: UserId): Promise<PortraitAlignmentReport> {
+async function portraitAlignment(db: Db, ownerId: UserId): Promise<PortraitAlignmentReport> {
   const [pairs, captions] = await Promise.all([
     readOwnedPortraitPairs(db, ownerId),
     readOwnedCaptionRows(db, ownerId),
@@ -104,7 +104,7 @@ function bumpArr(m: Map<string, number>, v: unknown): void {
 const toFacetCounts = (m: Map<string, number>): FacetCount[] =>
   [...m.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
 
-export async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets> {
+async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets> {
   const rows = await readOwnedCaptionRows(db, ownerId);
   const t = {
     artStyle: new Map<string, number>(),
@@ -154,7 +154,7 @@ export async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets>
   };
 }
 
-export async function charactersByImageFacet(
+async function charactersByImageFacet(
   db: Db,
   ownerId: UserId,
   facet: ImageFacetKey,

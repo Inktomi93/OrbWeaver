@@ -32,7 +32,7 @@ type LibraryImportState =
   | { readonly status: "error"; readonly message: string };
 
 /** The progress + terminal callbacks the section wires into <BundleWorkloadTracker> while running. */
-export interface LibraryImportTrack {
+interface LibraryImportTrack {
   readonly onProgress: (progress: WorkloadProgressView) => void;
   readonly onSucceeded: (counts: BundleCounts) => void;
   readonly onFailed: (message: string) => void;

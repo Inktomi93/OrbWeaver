@@ -4,9 +4,10 @@
 // Thin: validate → `ctx.services.search.<verb>` → map errors.
 
 import { imageLensSchema } from "@orb/contracts/embeddings";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
+import { SEARCH_TARGETS } from "#domain/search";
 import { authedProcedure, t } from "../trpc";
 
 const searchInput = z.object({
@@ -17,6 +18,28 @@ const searchInput = z.object({
 
 const imagesInput = searchInput.extend({
   lens: imageLensSchema,
+});
+
+// The unified omnibox: one query + one target surface + one scope. `scope` is the discriminated WHERE axis
+// (owner-wide · one chat · one character across all chats — the membership-widened cross-chat scope). Ids
+// inside the scope are owner-belted inside the domain (a foreign id → empty, never another tenant's data).
+const searchScopeInput = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("owner") }),
+  z.object({
+    kind: z.literal("chat"),
+    chatId: brandedId<ChatId>(),
+    scopedCharacterId: brandedId<CharacterId>().optional(),
+  }),
+  z.object({ kind: z.literal("character"), characterId: brandedId<CharacterId>() }),
+]);
+
+const unifiedSearchInput = z.object({
+  query: z.string().min(1),
+  topN: z.number().int().positive(),
+  over: z.enum(SEARCH_TARGETS),
+  scope: searchScopeInput,
+  rerank: z.boolean().optional(),
+  lens: imageLensSchema.optional(),
 });
 
 // The seed-vector similarity verbs take a seed characterId (owner-belted inside the domain — the seed read
@@ -101,6 +124,20 @@ export const searchRouter = t.router({
       ownerId: ctx.auth.userId,
       characterId: input.characterId,
       topN: input.topN,
+      lens: input.lens,
+    }),
+  ),
+
+  // PD-38 unified dispatch: query + target + scope → the matching verb's hits, tagged by `over`. Owner =
+  // resolved principal (audit #1). Any ids in `scope` are owner-belted in the domain (cross-tenant-swept).
+  search: authedProcedure.input(unifiedSearchInput).query(({ ctx, input }) =>
+    ctx.services.search.search({
+      ownerId: ctx.auth.userId,
+      query: input.query,
+      topN: input.topN,
+      over: input.over,
+      scope: input.scope,
+      rerank: input.rerank,
       lens: input.lens,
     }),
   ),

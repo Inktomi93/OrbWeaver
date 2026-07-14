@@ -19,15 +19,16 @@ export interface ParsedPersonas {
   readonly defaultAvatarFile: string | null;
 }
 
-export const FS_DIR_ENTRY_KINDS = ["file", "directory", "other"] as const;
-export type FsDirEntryKind = (typeof FS_DIR_ENTRY_KINDS)[number];
+const FS_DIR_ENTRY_KINDS = ["file", "directory", "other"] as const;
+type FsDirEntryKind = (typeof FS_DIR_ENTRY_KINDS)[number];
 
-export interface FsDirEntry {
+interface FsDirEntry {
   readonly name: string;
   readonly kind: FsDirEntryKind;
 }
 
-/** Injected filesystem surface (domain-no-node-fs keeps node:fs out of the domain; real impl at entry/). */
+/** Injected filesystem surface (domain-no-node-fs keeps node:fs out of the domain; real impl at
+ *  entry/import/run-profile-dir-import.ts — `createNodeFsImportPort`). */
 export interface ImportFsPort {
   /** Must resolve to [] (never throw) for a missing/unreadable dir — a profile may carry only one subdir. */
   readonly readdir: (dir: string) => Promise<readonly FsDirEntry[]>;

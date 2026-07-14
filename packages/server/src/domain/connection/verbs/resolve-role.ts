@@ -2,7 +2,7 @@
 // optional per-agent override, validates `(api, source)` coherence, heals the model id, and returns
 // `{api, model, credential, capability}`. No per-role hard-pin — any role may resolve to any source it supports.
 
-import type { ChatApi, ChatSource, ResolvedConnection } from "@orb/contracts/connection";
+import type { ChatApi, CredentialSource, ResolvedConnection } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -24,15 +24,15 @@ type RoleDefaults = UserSettings["routing"]["roleDefaults"];
  *  non-chat roles (embed/rerank/imageEmbed/generateImage) carry a concrete engine/model string. */
 interface RouteSelection {
   readonly api: ChatApi;
-  readonly source: ChatSource;
+  readonly source: CredentialSource;
   readonly model: string | null;
   readonly chatModel: boolean;
 }
 
 const DEFAULT_CHAT_API: ChatApi = "chat-completions";
-const DEFAULT_LOCAL_SOURCE: ChatSource = "vllm";
-const DEFAULT_AGENT_SOURCE: ChatSource = "max-pro-sub";
-const DEFAULT_IMAGE_SOURCE: ChatSource = "openrouter";
+const DEFAULT_LOCAL_SOURCE: CredentialSource = "vllm";
+const DEFAULT_AGENT_SOURCE: CredentialSource = "max-pro-sub";
+const DEFAULT_IMAGE_SOURCE: CredentialSource = "openrouter";
 
 /** Exhaustive over `RoutingRoleKey`; `agentOverride` fields beat the role default. */
 const ROLE_SELECTORS: {
@@ -116,7 +116,7 @@ function applyVllmFallback(
 }
 
 /** Reject an incoherent `(api, source)` selection — the only thrown-error path. */
-function assertCoherent(api: ChatApi, source: ChatSource): void {
+function assertCoherent(api: ChatApi, source: CredentialSource): void {
   if (api === "agent-sdk") {
     if (source !== "max-pro-sub" && source !== "openrouter") {
       throw new ConnectionRoutingError(api, source);

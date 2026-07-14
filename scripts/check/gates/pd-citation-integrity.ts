@@ -1,10 +1,7 @@
 // Gate: pd-citation-integrity — the Promotion/Relocation Debt registry (core/Audits-and-Debt.md) is the
-// ONE home for "promote/relocate later" deferrals; code cites a row via `FLAG[PD-<n>]`. Concurrent leaf
-// agents collided ids (two PD-19s; reused PD-1/2/3 for new items) — the registry built to PREVENT lost
-// deferrals got corrupted by uncoordinated appends. This makes the registry↔code link PHYSICS:
-//   (a) no PD id appears twice in the registry (the concurrent-append collision), and
-//   (b) every `FLAG[PD-<n>]` in code resolves to a registry row (active or cleared) — no orphan citation.
-// (A registry row with NO citation is allowed: future/blocked debt is registered before it has a code site.)
+// ONE home for "promote/relocate later" deferrals; code cites a row via `FLAG[PD-<n>]`. Makes the
+// registry↔code link physics: (a) no PD id appears twice in the registry, and (b) every `FLAG[PD-<n>]`
+// in code resolves to a registry row. A registry row with no citation is allowed (future/blocked debt registered before it has a code site).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";

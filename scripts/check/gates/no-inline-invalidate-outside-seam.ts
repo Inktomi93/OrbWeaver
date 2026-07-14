@@ -1,21 +1,8 @@
 // Gate: no-inline-invalidate-outside-seam (UI-Gates-and-Lessons.md §11.3 — "the central invalidation
-// seam"). neo's real sprawl was INVALIDATION: 81 `invalidateQueries` across 40 files, no map. orbweaver
-// routes ALL invalidation through ONE chokepoint — `data/invalidation.ts` owns the exhaustive
+// seam"). All invalidation routes through ONE chokepoint — `data/invalidation.ts` owns the exhaustive
 // event→`queryFilter()` maps and the sole `queryClient.invalidateQueries` call; everything else calls
-// `invalidate(event)` / `invalidateUser(event)` or hands `invalidates` filters to `createEntityMutation`
-// (which routes them back through `invalidateFilters`). A loose `invalidateQueries(` anywhere else
-// recreates the sprawl the seam exists to kill.
-//
-// WHAT IT FLAGS: a `.invalidateQueries(` method call (AST — comments/strings don't count) in
-// packages/client/src/** OUTSIDE `data/invalidation.ts`. TIGHTER than the Layer-2 grit
-// `client-cache-surgery-only-in-data` (which allows all of `data/`) — this pins the seam to the ONE
-// file, so an `invalidateQueries` that drifts into a sibling data/ module (a mutation factory, a bus
-// adapter) is still RED.
-//
-// WHAT IT DELIBERATELY DOES NOT FLAG: the ONE sanctioned call in `data/invalidation.ts`
-// (`invalidateFilters` → `deps.queryClient.invalidateQueries(filter)`); `.cancelQueries(` /
-// `.setQueryData(` (createEntityMutation's optimistic flow — a different concern, the grit's job); and
-// the `.queryKey`/`.queryFilter` proxy reads (not `invalidateQueries`).
+// `invalidate(event)`/`invalidateUser(event)` or hands filters to `createEntityMutation`. Flags a
+// `.invalidateQueries(` call anywhere in packages/client/src/** outside that one file. Does not flag `.cancelQueries(`/`.setQueryData(` (a different concern).
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 

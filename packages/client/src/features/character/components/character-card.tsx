@@ -9,24 +9,16 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { initialsFor } from "@orb/kit/initials";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the character-library-surface.tsx precedent).
-import { Archive, Copy, Icon, MessagesSquare, MoreHorizontal, Star, Trash2 } from "@orb/ui/icons";
+import { Archive, Copy, Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { RowActionsMenu } from "#components";
 
 export interface CharacterCardItem {
   readonly id: string;
@@ -100,24 +92,22 @@ export function CharacterCardTile({
 
   return (
     <ListRow
-      // Below ~320px row width the docked list can't seat avatar + title + three buttons, so fold
-      // Star/Chat into the kebab. Bulk mode is a single checkbox — no collapse, plain `actions`.
-      {...(bulkMode
-        ? { actions: bulkActions }
-        : {
-            renderActions: (collapsed: boolean): ReactElement => (
-              <NormalRowActions
-                character={character}
-                collapsed={collapsed}
-                onChat={onChat}
-                onDelete={onDelete}
-                onDuplicate={onDuplicate}
-                onToggleArchive={onToggleArchive}
-                onToggleStar={onToggleStar}
-              />
-            ),
-            collapseBelow: ACTIONS_COLLAPSE_BELOW_PX,
-          })}
+      // The Chat CTA is the row's 1-click core loop (§9c) — it stays a visible target (hover-revealed
+      // on fine pointers, always-on for coarse), never folded into the kebab. Bulk mode is a checkbox.
+      actions={
+        bulkMode ? (
+          bulkActions
+        ) : (
+          <NormalRowActions
+            character={character}
+            onChat={onChat}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onToggleArchive={onToggleArchive}
+            onToggleStar={onToggleStar}
+          />
+        )
+      }
       className="group"
       clickable={true}
       leading={
@@ -135,14 +125,10 @@ export function CharacterCardTile({
   );
 }
 
-/** The row-width floor below which the list row folds Star/Chat into the kebab. */
-const ACTIONS_COLLAPSE_BELOW_PX = 320;
-
-/** The normal-mode trailing actions, collapse-aware: when the row is tight the secondary Star + Chat
- *  targets fold into the kebab as menu items instead of squeezing three buttons into a too-small slot. */
+/** The normal-mode trailing actions: the always-visible Star + dual-purpose Chat CTA (§4.4/§9c —
+ *  the 1-click core loop, hover-revealed on fine pointers, always-on for coarse) + the ⋯ overflow. */
 function NormalRowActions({
   character,
-  collapsed,
   onChat,
   onToggleStar,
   onToggleArchive,
@@ -150,14 +136,12 @@ function NormalRowActions({
   onDelete,
 }: {
   readonly character: CharacterCardItem;
-  readonly collapsed: boolean;
   readonly onChat: (id: string) => void;
   readonly onToggleStar: (id: string, next: boolean) => void;
   readonly onToggleArchive: (id: string, next: boolean) => void;
   readonly onDuplicate: (id: string) => void;
   readonly onDelete: (id: string) => void;
 }): ReactElement {
-  const [deleteOpen, setDeleteOpen] = useState(false);
   return (
     <>
       {character.archived ? (
@@ -165,90 +149,47 @@ function NormalRowActions({
           Archived
         </Badge>
       ) : null}
-      {collapsed ? null : (
-        <Button
-          aria-label={character.starred ? `Unstar ${character.name}` : `Star ${character.name}`}
-          {...(character.starred ? { className: "text-warning" } : {})}
-          intent="ghost"
-          onClick={(): void => onToggleStar(character.id, !character.starred)}
-          size="icon"
-          type="button"
-        >
-          <Icon icon={Star} size="sm" />
-        </Button>
-      )}
-      {collapsed ? null : (
-        <Button
-          aria-label={`Chat with ${character.name}`}
-          className={ROW_REVEAL}
-          intent="ghost"
-          onClick={(): void => onChat(character.id)}
-          size="icon"
-          type="button"
-        >
-          <Icon icon={MessagesSquare} size="sm" />
-        </Button>
-      )}
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button
-              aria-label={`Actions for ${character.name}`}
-              className={ROW_REVEAL}
-              intent="ghost"
-              size="icon"
-              type="button"
-            >
-              <Icon icon={MoreHorizontal} size="sm" />
-            </Button>
-          }
-        />
-        <MenuPopup>
-          {collapsed ? (
-            <>
-              <MenuItem onClick={(): void => onToggleStar(character.id, !character.starred)}>
-                <Icon icon={Star} size="sm" />
-                {character.starred ? "Unstar" : "Star"}
-              </MenuItem>
-              <MenuItem onClick={(): void => onChat(character.id)}>
-                <Icon icon={MessagesSquare} size="sm" />
-                Chat
-              </MenuItem>
-            </>
-          ) : null}
-          <MenuItem onClick={(): void => onToggleArchive(character.id, !character.archived)}>
-            <Icon icon={Archive} size="sm" />
-            {character.archived ? "Unarchive" : "Archive"}
-          </MenuItem>
-          <MenuItem onClick={(): void => onDuplicate(character.id)}>
-            <Icon icon={Copy} size="sm" />
-            Duplicate
-          </MenuItem>
-          <MenuItem onClick={(): void => setDeleteOpen(true)}>
-            <Icon icon={Trash2} size="sm" />
-            Delete
-          </MenuItem>
-        </MenuPopup>
-      </Menu>
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogPopup>
-          <AlertDialogTitle>{`Delete "${character.name}"?`}</AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently deletes the character and everything attached to it. This can't be
-            undone.
-          </AlertDialogDescription>
-          <AlertDialogActions>
-            <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <AlertDialogClose
-              render={
-                <Button intent="destructive" onClick={(): void => onDelete(character.id)}>
-                  Delete
-                </Button>
-              }
-            />
-          </AlertDialogActions>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <Button
+        aria-label={character.starred ? `Unstar ${character.name}` : `Star ${character.name}`}
+        {...(character.starred ? { className: "text-warning" } : {})}
+        intent="ghost"
+        onClick={(): void => onToggleStar(character.id, !character.starred)}
+        size="icon"
+        type="button"
+      >
+        <Icon icon={Star} size="sm" />
+      </Button>
+      <Button
+        aria-label={`Chat with ${character.name}`}
+        className={ROW_REVEAL}
+        intent="ghost"
+        onClick={(): void => onChat(character.id)}
+        size="icon"
+        type="button"
+      >
+        <Icon icon={MessagesSquare} size="sm" />
+      </Button>
+      <RowActionsMenu
+        align="start"
+        label={`Actions for ${character.name}`}
+        reveal={true}
+        destructive={{
+          separator: false,
+          title: `Delete "${character.name}"?`,
+          description:
+            "This permanently deletes the character and everything attached to it. This can't be undone.",
+          onConfirm: (): void => onDelete(character.id),
+        }}
+      >
+        <MenuItem onClick={(): void => onToggleArchive(character.id, !character.archived)}>
+          <Icon icon={Archive} size="sm" />
+          {character.archived ? "Unarchive" : "Archive"}
+        </MenuItem>
+        <MenuItem onClick={(): void => onDuplicate(character.id)}>
+          <Icon icon={Copy} size="sm" />
+          Duplicate
+        </MenuItem>
+      </RowActionsMenu>
     </>
   );
 }

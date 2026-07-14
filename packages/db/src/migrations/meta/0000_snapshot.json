@@ -5203,7 +5203,7 @@
       "checkConstraints": {
         "notifications_type_check": {
           "name": "notifications_type_check",
-          "value": "type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted')"
+          "value": "type in ('invite', 'kicked', 'handoff-nominated', 'handoff-accepted', 'deferred-turn-dropped')"
         }
       }
     },
@@ -7609,7 +7609,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 2
+          "default": 3
         },
         "config": {
           "name": "config",

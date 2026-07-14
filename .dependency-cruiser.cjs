@@ -485,6 +485,12 @@ module.exports = {
       from: { path: `${SRV}domain/stats/` },
       to: { path: `${DB}schema/embeddings` },
     },
+    // NOTE (2026-07-13): the discovery↔stats rollup seal is NOT a dep-cruiser rule — every `@orb/db`
+    // import resolves to the barrel (exports map "." → src/index.ts), so a `to: schema/stats` regex can
+    // never fire (empirically verified: a probe `import { ownerStats }` in discovery cruised green). The
+    // real enforcement is the ts-morph structure gate `discovery-no-stats-rollups`
+    // (scripts/check/gates/) which matches the named table symbols at the ImportSpecifier level — the
+    // same mechanism vector-scope-derived/no-direct-users-read use for barrel-resolved table seals.
 
     // ════════════════════════════ Hygiene ═══════════════════════════════════════════════════════
     {

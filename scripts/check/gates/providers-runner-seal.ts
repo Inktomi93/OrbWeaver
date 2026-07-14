@@ -1,11 +1,7 @@
-// Gate: providers-runner-seal (core/Tier-3b-Providers.md invariant #3) — the runner DERIVATION + VOCAB
-// (`deriveRunner` / `backendForSource` / `BackendKey` / `BACKEND_KEYS`) are sealed INSIDE infra/providers
-// and never leave it. They ARE legitimately reachable on the providers barrel — the role dispatchers and
-// the `roles/dispatch.test.ts` self-test consume them, and the derivation is unit-tested directly. What
-// the doctrine forbids is a PRODUCTION CONSUMER ABOVE infra reaching for them: a `domain` / `transport` /
-// `entry` module that imports the runner key escapes the firewall (it could route around the sealed
-// (api,source)→backend derivation). This is the doc's "grep for runner/family in domain/** → RED": no
-// consumer above infra may import a sealed runner symbol. Intra-providers + tests are exempt.
+// Gate: providers-runner-seal (Tier-3b-Providers.md invariant #3) — the runner derivation + vocab
+// (`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) are sealed inside infra/providers and
+// never leave it. A `domain`/`transport`/`entry` module importing a sealed runner symbol escapes the
+// firewall (routes around the sealed (api,source)→backend derivation) and is RED. Intra-providers + tests are exempt.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

@@ -3,14 +3,9 @@
 // the tab is CRUD over the array (`form.pushFieldValue`/`removeFieldValue`).
 
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
-import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-library-surface.tsx precedent).
-import { Icon, Plus } from "@orb/ui/icons";
-import { Row, Section, Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { EntryListEditor } from "#components";
 import type { AppFormInstance } from "#forms";
 import { VariableEditorDialog } from "./variable-editor-dialog";
 
@@ -42,58 +37,33 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
   };
 
   return (
-    <Section heading="Variables">
-      <Text size="micro" tone="muted">
-        Choice blocks the chat asks you to answer — each fills a matching macro in your prompt.
-      </Text>
-
-      <form.Subscribe selector={(state): readonly ChoiceBlockSpec[] => state.values.variables}>
-        {(variables): ReactElement => (
-          <Stack gap="field">
-            {variables.length === 0 ? (
-              <Text size="micro" tone="muted">
-                No variables yet.
-              </Text>
-            ) : (
-              variables.map((variable, index) => (
-                <ListRow
-                  // biome-ignore lint/suspicious/noArrayIndexKey: variables are a positional, id-less list (names may collide) edited in place — the index IS the identity (the character-greeting-preview precedent).
-                  key={index}
-                  title={variable.name === "" ? "Unnamed variable" : variable.name}
-                  subtitle={variable.question}
-                  clickable={true}
-                  onClick={(): void => setEditIndex(index)}
-                  actions={
-                    <Button
-                      intent="ghost"
-                      size="sm"
-                      onClick={(): void => {
-                        void form.removeFieldValue("variables", index);
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  }
-                />
-              ))
-            )}
-            <Row>
-              <Button intent="secondary" size="sm" onClick={onAdd}>
-                <Icon icon={Plus} size="sm" />
-                Add variable
-              </Button>
-            </Row>
-          </Stack>
-        )}
-      </form.Subscribe>
-
-      {editIndex === null ? null : (
-        <VariableEditorDialog
-          form={form}
-          index={editIndex}
-          onClose={(): void => setEditIndex(null)}
+    <form.Subscribe selector={(state): readonly ChoiceBlockSpec[] => state.values.variables}>
+      {(variables): ReactElement => (
+        <EntryListEditor
+          addLabel="Add variable"
+          editIndex={editIndex}
+          emptyText="No variables yet."
+          getSubtitle={(variable): string => variable.question}
+          getTitle={(variable): string =>
+            variable.name === "" ? "Unnamed variable" : variable.name
+          }
+          heading="Variables"
+          helperText="Choice blocks the chat asks you to answer — each fills a matching macro in your prompt."
+          items={variables}
+          onAdd={onAdd}
+          onEdit={setEditIndex}
+          onRemove={(index): void => {
+            void form.removeFieldValue("variables", index);
+          }}
+          renderEditor={(index): ReactElement => (
+            <VariableEditorDialog
+              form={form}
+              index={index}
+              onClose={(): void => setEditIndex(null)}
+            />
+          )}
         />
       )}
-    </Section>
+    </form.Subscribe>
   );
 }

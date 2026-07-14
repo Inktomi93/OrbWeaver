@@ -32,7 +32,8 @@ export interface ImportCharacterPort {
   }) => Promise<{ readonly characterId: CharacterId } | null>;
 }
 
-/** The `assets` front-door slice the driver wires the import avatar-store op to. */
+/** The `assets` front-door slice the driver wires the import avatar-store op to. `maxBytes` (PD-94) is the
+ *  non-HTTP caller's zip-bomb belt — the store seam rejects an over-cap blob before the CAS write. */
 export interface ImportAssetPort {
   readonly store: (params: {
     readonly principal: Principal;
@@ -40,6 +41,7 @@ export interface ImportAssetPort {
     readonly kind: "avatar";
     readonly mime: string;
     readonly enforceMagic?: boolean;
+    readonly maxBytes?: number;
   }) => Promise<{ readonly assetId: AssetId }>;
 }
 

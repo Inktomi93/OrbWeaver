@@ -42,26 +42,33 @@ const config: KnipConfig = {
       project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // verify-run.int.test.ts asserts missing-binary handling with a deliberately fake binary name.
       ignoreBinaries: ["orb-nonexistent-binary-xyz-123"],
+      // pino-pretty is spawned as a BINARY by scripts/dev/dev.sh (the dev-log pretty-pipe), never imported —
+      // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
+      ignoreDependencies: ["pino-pretty"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/db": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/ui": {
-      // Subpath exports map = the real entry set (knip reads package.json exports); tokens.build.ts
-      // is the codegen script at the package root (run via the tokens:build package script).
-      entry: ["tokens.build.ts"],
-      project: ["src/**/*.{ts,tsx}!", "tokens.build.ts"],
+      // Entry set = the package.json subpath exports map (knip reads it) + tokens.build.ts, which is
+      // auto-detected as an entry via the `tokens:build` package script that runs it.
+      project: ["src/**/*.{ts,tsx}!"],
     },
     "packages/server": {
-      entry: ["src/entry/index.ts!"],
+      // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
       project: ["src/**/*.ts!"],
-      // pino loads its transport by NAME STRING (`target: "pino-pretty"`, foundation logger) —
-      // invisible to import analysis. nvidia-smi/ps/ss are system binaries the vllm engine shells.
-      ignoreDependencies: ["pino-pretty"],
+      ignore: [
+        // PD-132: dormant SHAPE-phase debug trace — the content-free assembly projection for the
+        // host/admin inspector, built alongside shape.ts's wired `stages`; wire to the inspector view
+        // pending.
+        "src/domain/chat/assembly/trace.ts",
+      ],
+      // nvidia-smi/ps/ss are system binaries the vllm engine shells.
       ignoreBinaries: ["nvidia-smi", "ps", "ss"],
     },
     "packages/client": {
-      entry: ["src/main.tsx!", "index.html"],
+      // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
+      entry: ["index.html"],
       project: ["src/**/*.{ts,tsx}!"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.

@@ -1,7 +1,6 @@
 // CT: the list-row seal — the slot-based entity row (leading/title/subtitle/actions). The
 // load-bearing assertion is the a11y contract: a clickable row is ONE role="button" element and
-// its trailing actions are SEPARATE tab stops OUTSIDE that element, never nested inside it
-// (ui-package-design §12 Wave-3-C; the work-order's binding constraint).
+// its trailing actions are SEPARATE tab stops OUTSIDE that element, never nested inside it.
 
 import { ListRow } from "@orb/ui/list-row";
 import { TOKENS } from "@orb/ui/tokens";

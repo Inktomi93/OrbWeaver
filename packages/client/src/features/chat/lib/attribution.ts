@@ -6,7 +6,6 @@
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -178,5 +177,3 @@ export function speakerThemesByName(
   }
   return byName;
 }
-
-export const initialsForAttribution = initialsFor;

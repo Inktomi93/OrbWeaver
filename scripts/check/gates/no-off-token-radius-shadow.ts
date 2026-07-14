@@ -1,36 +1,8 @@
-// Gate: no-off-token-radius-shadow (design-enforcement.md §3, DC8 rollup-audit blind spot). The bracket
-// gate (`no-arbitrary-tw-values`) only catches arbitrary VALUES (`rounded-[3px]`); a DEFAULT-SCALE
-// Tailwind radius/shadow utility (`rounded-lg`, `shadow-md`, bare `shadow`) resolves against Tailwind's
-// stock scale, NOT the DTCG theme — which defines its OWN closed radius vocabulary (`base`/`control`/
-// `card`/`full`, theme.css `--radius-*`) and shadow vocabulary (`glow`/`overlay`/`prose`, `--shadow-*`).
-// A `rounded-lg`/`shadow-md` in `packages/{client,ui}/src` silently renders Tailwind's stock gray-shadow/
-// generic-radius scale instead of the themed one — the exact class of drift `no-color-literals` closes
-// for raw hex but this axis had no equivalent belt (verified gate blind spot; command-palette-surface.tsx
-// passed `no-arbitrary-tw-values` clean while shipping `rounded-lg`/`shadow-md`).
-//
-// SHAPE: unlike no-arbitrary-tw-values (whose bracket shape `-\[...\]` is a near-zero-false-positive
-// signal in ANY string), a bare `shadow` or `rounded-lg` is an ordinary ENGLISH WORD/UI-copy token too
-// ("Prose shadow" settings label, a `keywords: [...]` search-index entry) — so this gate scopes to only
-// the class-string call sites the token family targets: a JSX `className=` attribute, or a string/
-// template arg inside `cn(...)`/`clsx(...)`/`cva(...)`/`tv(...)`. Within those sites it walks every
-// string/template-literal PART, including interpolated-template segments (TemplateHead/Middle/Tail —
-// `tv()` slot values freely interpolate motion fragments, e.g.
-// `` `rounded-card ... shadow-lg ${OVERLAY_MOTION.modalPopup}` ``; the no-arbitrary-tw-values precedent
-// of skipping interpolated templates entirely would silently miss every overlay primitive here), splits
-// on whitespace into class tokens, strips variant modifiers (keep the terminal `:`-segment, so
-// `hover:shadow-lg` still flags), and flags a terminal segment that is EXACTLY `rounded-<scale>` or
-// `shadow-<scale>` (or bare `shadow`) where `<scale>` is a Tailwind DEFAULT-scale name (`sm|md|lg|xl|
-// 2xl|3xl|inner` for shadow; `sm|md|lg|xl|2xl|3xl|4xl` for radius) — never the THEMED names
-// (`rounded-base/control/card/full`, `shadow-glow/overlay/prose`), which pass straight through
-// untouched. `rounded-none`/`shadow-none` are a deliberate "opt out of radius/shadow entirely" keyword
-// (dialog.tsx's `full` presentation, the lightbox's flush popup) — NOT a magic value, so `none` is
-// excluded from the banned scale. `drop-shadow-*` (a filter utility, a different CSS property/namespace
-// entirely) is out of scope.
-//
-// ALLOWLIST (file-level, the no-arbitrary-tw-values / no-raw-interactive-intrinsics BURN_DOWN
-// precedent): a file lands here with the value + reason when the drift is real pre-existing debt, not
-// a new offense. An allowlisted file that has gone CLEAN is RED ("stale entry — remove it"); a NEW
-// offender not in the allowlist is RED immediately.
+// Gate: no-off-token-radius-shadow (design-enforcement.md §3, DC8). `no-arbitrary-tw-values` only
+// catches arbitrary VALUES (`rounded-[3px]`); a DEFAULT-SCALE utility (`rounded-lg`, `shadow-md`, bare
+// `shadow`) resolves against Tailwind's stock scale, not the DTCG theme's own closed radius/shadow
+// vocabulary — a verified gate blind spot (command-palette-surface.tsx shipped `rounded-lg` clean).
+// Scoped to class-string call sites only (JSX `className=`, or a `cn`/`clsx`/`cva`/`tv` arg) — `shadow`/`rounded-lg` are ordinary English too.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";

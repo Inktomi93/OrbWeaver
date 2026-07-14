@@ -11,6 +11,7 @@ export type StageGroup =
   | "types"
   | "structure"
   | "imports"
+  | "deps"
   | "docs"
   | "tests"
   | "browser"
@@ -234,6 +235,17 @@ export const REGISTRY: readonly StageDef[] = [
             "--output-type",
             "err-long",
           ],
+  },
+
+  // ── deps stage-group ──
+  {
+    name: "deps:knip",
+    group: "deps",
+    tiers: STATIC,
+    argv: ["pnpm", "knip"],
+    // A WHOLE-TREE unused-export/dependency reconciliation (like tests-membership/structure:full) — no
+    // partial-file invocation makes sense, so it's whole-only, deferred at a scoped tier.
+    classify: asViolations,
   },
 
   // ── docs stage-group ──

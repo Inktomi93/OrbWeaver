@@ -20,6 +20,15 @@ export {
   runBundleImport,
 } from "./run-bundle-import";
 export type {
+  ProfileDirImportDeps,
+  ProfileDirImportResult,
+} from "./run-profile-dir-import";
+export {
+  createNodeFsImportPort,
+  PROFILE_IMPORT_MAX_ASSET_BYTES,
+  runProfileDirImport,
+} from "./run-profile-dir-import";
+export type {
   FailedCard,
   ImportedCard,
   ImportFile,

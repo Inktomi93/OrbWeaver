@@ -88,3 +88,6 @@ scratch/
 
 # browser-automation snapshot artifacts (live-verify)
 .playwright-mcp/
+
+# SillyTavern data snapshot (copied from neo-tavern) — import fodder for the ST-profile loader; never committed
+.st-data/

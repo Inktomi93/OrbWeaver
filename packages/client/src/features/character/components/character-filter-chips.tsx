@@ -9,7 +9,7 @@ import { Row } from "@orb/ui/layout";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 
-export interface FilterChipTag {
+interface FilterChipTag {
   readonly id: TagId;
   readonly name: string;
 }

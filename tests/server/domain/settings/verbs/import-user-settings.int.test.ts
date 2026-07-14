@@ -4,7 +4,7 @@
 // non-settings file returns {ok:false} without throwing.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { createSettingsContext, createUserSettingsImport } from "@orb/server/domain/settings";
+import { createImportUserSettings, createSettingsContext } from "@orb/server/domain/settings";
 import { buildUserSettingsBackup } from "@orb/server/kit/serde/user-settings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -29,7 +29,7 @@ describe("importUserSettings", () => {
     const bytes = buildUserSettingsBackup({
       appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: 1.4 },
     });
-    const result = await createUserSettingsImport(ctx)(owner, bytes);
+    const result = await createImportUserSettings(ctx)(owner, bytes);
     expect(result).toEqual({ ok: true, created: false });
 
     const view = await h.svc.getUserSettings({ principal: p });
@@ -54,7 +54,7 @@ describe("importUserSettings", () => {
         },
       }),
     );
-    const result = await createUserSettingsImport(ctx)(owner, hostile);
+    const result = await createImportUserSettings(ctx)(owner, hostile);
     expect(result.ok).toBe(true);
 
     const view = await h.svc.getUserSettings({ principal: p });
@@ -69,7 +69,7 @@ describe("importUserSettings", () => {
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_bad" });
 
-    const result = await createUserSettingsImport(ctx)(owner, new TextEncoder().encode("nope"));
+    const result = await createImportUserSettings(ctx)(owner, new TextEncoder().encode("nope"));
     expect(result.ok).toBe(false);
     expect(result.error).toBeDefined();
   });

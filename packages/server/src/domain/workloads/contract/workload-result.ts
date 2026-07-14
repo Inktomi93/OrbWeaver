@@ -13,7 +13,7 @@ export interface AnalyticsResult {
   readonly written: number;
 }
 
-export interface MaintenanceResult {
+interface MaintenanceResult {
   readonly scanned: number;
   readonly changed: number;
   readonly dryRun: boolean;
@@ -44,7 +44,7 @@ export interface CatalogRefreshResult {
 }
 
 /** deferred:true distinguishes an inert P5/v2-stub run from a real zero-work pass. */
-export interface DeferredResult {
+interface DeferredResult {
   readonly deferred: true;
 }
 

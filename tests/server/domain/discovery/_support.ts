@@ -38,6 +38,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
+import { resolveTier0Range } from "../../../../packages/server/src/domain/chat/index.ts";
 import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
 import { createStatsService } from "../../../../packages/server/src/domain/stats/service.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -49,7 +50,7 @@ type WriteHubScores = DiscoveryContext["writeHubScores"];
 /** A fixed epoch-ms (the frozen clock instant — stable timestamp assertions). */
 export const FROZEN_AT = FROZEN_AT_MS;
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
-export const VECTOR_DIM = 1024;
+const VECTOR_DIM = 1024;
 /** The default embed model the seeders tag rows with (the `(model)` space tag). */
 export const EMBED_MODEL = "test-embed-model-1024";
 
@@ -117,7 +118,7 @@ function seededMinter<T extends string>(prefix: string): () => T {
 /** A recording `attachCardTagByName` fake — captures each staging call (the distill pass's tag seam) and
  *  reports it as a NEW attach (returns true). A test that wants REAL pending rows injects the actual
  *  `tag.attachCardTagByName` instead (over the same db); this default keeps the non-distill harnesses simple. */
-export interface TagAttachRecorder {
+interface TagAttachRecorder {
   readonly op: DiscoveryContext["attachCardTagByName"];
   readonly calls: {
     ownerId: string;
@@ -128,7 +129,7 @@ export interface TagAttachRecorder {
   }[];
 }
 
-export function makeTagAttachRecorder(): TagAttachRecorder {
+function makeTagAttachRecorder(): TagAttachRecorder {
   const calls: TagAttachRecorder["calls"] = [];
   const op: DiscoveryContext["attachCardTagByName"] = (params) => {
     calls.push({
@@ -150,6 +151,9 @@ export interface DiscoveryHarness {
   readonly tagAttach: TagAttachRecorder;
 }
 
+/** The injected cross-domain `similar` op type (search's `similarCharacters`, narrowed to DossierNeighbor). */
+type SimilarOp = DiscoveryContext["similar"];
+
 /** Build a `DiscoveryContext` over a real db with seeded ids + a frozen clock + the injected fakes. */
 export function makeDiscoveryHarness(
   db: Db,
@@ -160,6 +164,7 @@ export function makeDiscoveryHarness(
     readonly attachCardTagByName?: DiscoveryContext["attachCardTagByName"];
     readonly characterEconomics?: DiscoveryContext["characterEconomics"];
     readonly characterModelEconomics?: DiscoveryContext["characterModelEconomics"];
+    readonly similar?: SimilarOp;
   } = {},
 ): DiscoveryHarness {
   const hubScores = overrides.hubScores ?? makeHubScoreRecorder();
@@ -184,6 +189,12 @@ export function makeDiscoveryHarness(
     writeHubScores: hubScores.op,
     characterEconomics: overrides.characterEconomics ?? stats.characterEconomics,
     characterModelEconomics: overrides.characterModelEconomics ?? stats.characterModelEconomics,
+    // Default `similar`: no neighbours (the non-dossier harnesses don't compose search). A dossier test injects
+    // a scripted op to assert the cross-domain composition (the "inject the real/faked dep at the root" doctrine).
+    similar: overrides.similar ?? (() => Promise.resolve([])),
+    // The memory tier-grid seam — the REAL chat/memory resolver over the grounded floor config (fanOut 4),
+    // exactly what the composition root binds (over live AppSettings there).
+    tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
   };
   return { ctx, hubScores, summarize, tagAttach };
 }
@@ -291,7 +302,7 @@ export async function seedDepartedHost(
 /** The synthetic group-as-character bucket for shared digests (a real `CharacterId` FK — inv 8, no `''`
  *  sentinel). Hidden/synthetic + with NO character_embedding + NO hosted chat, so it never enters CSLS /
  *  themes / duplicate analytics (the digest hub/theme passes scan embeddings + host-derived owners). */
-export const GROUP_CHAR = castId<CharacterId>("character_group");
+const GROUP_CHAR = castId<CharacterId>("character_group");
 const DIGEST_OWNER = castId<UserId>("user_digest_owner");
 
 // Idempotently ensure the synthetic group char (+ its owner) exists for the digest scopedCharacterId FK.
@@ -398,6 +409,7 @@ export async function seedMessage(
     readonly role?: MessageRole;
     readonly characterId?: CharacterId;
     readonly variant?: {
+      readonly content?: string;
       readonly model?: string | null;
       readonly provider?: string | null;
       readonly tokensIn?: number;
@@ -423,7 +435,7 @@ export async function seedMessage(
       id: variantId,
       messageId,
       idx: 0,
-      content: "",
+      content: overrides.variant.content ?? "",
       model: overrides.variant.model ?? null,
       provider: overrides.variant.provider ?? null,
       tokensIn: overrides.variant.tokensIn ?? null,
@@ -438,6 +450,25 @@ export async function seedMessage(
       .set({ selectedVariantId: variantId })
       .where(eq(messages.id, messageId));
   }
+}
+
+/** Append an EXTRA (non-selected) variant to a message — the swipe-hotspot input (a slot with >1 take). */
+export async function seedMessageVariant(
+  db: Db,
+  overrides: {
+    readonly id: string;
+    readonly messageId: string;
+    readonly idx: number;
+    readonly content?: string;
+  },
+): Promise<void> {
+  await db.insert(messageVariants).values({
+    id: castId<MessageVariantId>(overrides.id),
+    messageId: castId<MessageId>(overrides.messageId),
+    idx: overrides.idx,
+    content: overrides.content ?? "",
+    createdAt: FROZEN_AT,
+  });
 }
 
 export async function seedAsset(db: Db, id: string, ownerId: UserId): Promise<AssetId> {

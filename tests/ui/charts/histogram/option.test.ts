@@ -1,5 +1,5 @@
-// Unit: <Histogram>'s pure `buildHistogramOption` builder (ui-package-design §9 v1 corpus-viz
-// set). A mounted ECharts instance does not survive the Playwright component-test RPC boundary
+// Unit: <Histogram>'s pure `buildHistogramOption` builder. A mounted ECharts instance does not
+// survive the Playwright component-test RPC boundary
 // with its methods intact, so the resolved-color/flush-bar/bucket-order wiring is proven here as
 // plain data (histogram.ct.tsx covers what IS DOM-observable: heading, chart mount, empty state).
 //

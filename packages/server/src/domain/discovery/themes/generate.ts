@@ -221,8 +221,9 @@ export async function computeThemes(
   }
 
   await replaceAll(db, clusterRows, assignRows, opts.ownerId);
-  // FLAG[PD-39]: stamps `msgMidAt` on tier-0 assignments (written null in the replace batch).
-  await backfillMsgMidAt(db, opts.ownerId);
+  // Stamps `msgMidAt` on the fresh assignments (written null in the replace batch) — tier-0 via the exact
+  // segment span, tier-k via the injected memory tier-grid (deps.tier0RangeOf).
+  await backfillMsgMidAt(db, deps.tier0RangeOf, opts.ownerId);
   return {
     ownersProcessed: owners.size,
     clustersWritten: clusterRows.length,
