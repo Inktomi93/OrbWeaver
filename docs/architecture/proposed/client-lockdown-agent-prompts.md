@@ -80,6 +80,14 @@ THE VERIFY TOOLCHAIN (know the exact contract):
     (half-registration across maps). Your FINAL verdict is always the WHOLE run: `pnpm check`.
   - DONE-BEFORE-COMMIT: `pnpm check` (= `pnpm verify --static`) GREEN, whole, and `pnpm test` green for
     any wave that touches runtime. Read the FULL output, not the exit code alone.
+  - TEST THE NEW BEHAVIOR — "`pnpm test` green" is NOT sufficient. `test-presence-client` only checks a
+    store's mirror `.ct.tsx` EXISTS; adding a new action to an existing store passes it WITHOUT covering
+    the new action (learned: 4 dual-write actions shipped untested). So: every NEW `#state` action /
+    projection / non-trivial behavior you introduce gets an assertion YOU add to the mirror
+    `tests/client/state/<store>.ct.tsx` (drive the action, assert the resulting store state — e.g. a
+    dual-write writes BOTH channels). Old tests still passing ≠ new behavior tested. If a piece of new
+    behavior has no meaningful unit/CT assertion (a pure trpc read = "the library was called"), say so in
+    your report rather than silently skipping.
   - EXIT CODES ARE UNIFORM: 0 clean · 1 violations · 2 tool-error · 3 misuse. Exit 2 means a CHECKER is
     broken (e.g. a gate you wrote throws in conformance) — NEVER "fix" an exit-2 by editing product code.
     Fix the checker.
@@ -217,8 +225,14 @@ shape) · the `D62` / `D66` / `D70` ledger entries.
 >   `panelOverrides` ONLY on desktop, so each write self-selects its regime (verified: `mobileSheet` has one
 >   consumer, all reads `isMobile`-gated). Viewport-unaware action, correct reveal in both regimes. A
 >   section definition NEVER imports `useIsMobileViewport`.
-> - `shellLayout.listMode`: expose the narrow projection from `#state` (the shell vocabulary already
->   lives in `state/shell-store.ts`, §5 rule 5).
+> - `shellLayout.listMode` (viewport-dependent READ — HARDER than a plain projection, learned M1.7): a
+>   naive `#state` projection of `override ?? default === "docked"` is WRONG on mobile — `listMode` is
+>   viewport-aware (mobile is NEVER docked) and `#state` can't read viewport (`no-raw-matchmedia`). The
+>   fix: **the shell (the sole viewport-aware layer, `features/app-shell`) publishes `isMobile` into the
+>   shell store (`mobileViewport`); the projection reads THAT** — `mobileViewport ? false : (override ??
+>   default) === "docked"`. Features read the viewport-derived bit from `#state`, never the viewport hook
+>   (they stay @container-only). Distinct from the dual-write: dual-write is for viewport-dependent WRITES
+>   (reveal actions, reader self-selects); this is the pattern for viewport-dependent READS.
 > - `useAuthConfig` / `multiHumanCapable`: read via `trpc.*` directly in the definition (cache-first),
 >   or home the hook in `#data` (mirror `use-viewer.ts`).
 >   Precedent, not novelty: 57 feature files already read shell state from `#state` (`pnpm ast importers`
@@ -245,19 +259,51 @@ member, and a definition nothing consumes is RED. Therefore M1 is a MULTI-STEP w
   rail/panelDefaults/placeholder (old maps + the new definition) is intentional until cutover.
 - **M1.2–M1.n (later dispatches):** the other six sections, each same shape, each green, chats last — each
   swaps only its own `sections={{…}}` branch; the app-shell-internal maps stay whole throughout.
-- **M1.cutover (final dispatch):** once ALL seven definitions exist, flip AppShell from consuming the
-  `Partial<Record>` props to `sections.get(active)`, construct the ONE total `createRegistry("sections",
-  SECTION_IDS, {…})` at the door, and ATOMICALLY delete the four now-unread app-shell maps (`RAIL_SECTIONS`,
-  `SECTION_PANEL_DEFAULTS`, `SECTION_PLACEHOLDER_COPY`, `CONTEXT_SLOTS`) + the `sections={{…}}` prop —
-  `SECTION_IDS` stays. Rename the `/` route to **`app-root.tsx`** (O7); build **G1
-  `section-registry-completeness`** (`whole-project`) + **G2 `no-parallel-section-map`** (its `mustPass`
-  MUST include a legitimately DERIVED map like `MOBILE_PRIMARY_SECTIONS`←`RAIL_SECTIONS`, or STOP and
-  report). Only here do G1/G2 go green.
-  **CUTOVER FINDING (learned M1.3): the `{kind:"single"}` context arm needs a host.** `ContextTabsPanel`
-  today renders ONLY the `tabs` arm; pre-cutover, worldInfo's `single` body is hosted directly in the route
-  via a `context.kind === "single"` narrow. At cutover, the shell's context consumption must branch on
-  `context.kind` (host `single` bodies too), or `ContextTabsPanel` must be extended to accept a
-  `single`-kind definition — otherwise `sections.get(active).context` can't render worldInfo's inspector.
+- **M1.cutover (the M1 TAIL only — registry + list/content/header inversion):** once ALL seven definitions
+  exist, construct the ONE total `createRegistry("sections", SECTION_IDS, {…})` at the door; flip AppShell to
+  consume `sections.get(active)` for rail / panelDefaults / placeholder / **list** / **content** /
+  **header** (chat's `chatsHeader` → `definition.header`; refinery's `{planned}` content → its placeholder).
+  ATOMICALLY delete `RAIL_SECTIONS` / `SECTION_PANEL_DEFAULTS` / `SECTION_PLACEHOLDER_COPY` + the
+  `sections={{…}}` prop's NON-context fields; `SECTION_IDS` stays. Rename `/` → **`app-root.tsx`** (O7).
+  Build **G1 `section-registry-completeness`** (`whole-project`) + **G2 `no-parallel-section-map`** (its
+  `mustPass` MUST include a legitimately DERIVED map like `MOBILE_PRIMARY_SECTIONS`←`RAIL_SECTIONS`, or STOP
+  and report). **CONTEXT IS NOT DONE HERE** — it stays hand-wired, bridged through a SLIM temporary
+  context-only prop; `CONTEXT_SLOTS` + the route's inline `<ContextTabsPanel>` + chat's `chatsContext`
+  survive to M3. **The temp prop is TRACKED SCAFFOLDING, not silent:** name it clearly and mark every piece
+  of it (the prop, its type, the route wiring that feeds it) with a greppable `FLAG[lockdown-M3]` header
+  comment citing "temporary context bridge — deleted at M3". Do NOT fold context in — the doc separates M1
+  and M3 for a reason (this wave is already large). Only here do G1/G2 go green.
+- **M3 (context-unification — its OWN wave, per the doc §M3; pre-launch, in full):** AppShell consumes
+  `sections.get(active).context`. The consumer computes each section's projection `S` (chat's
+  `ChatContextState` from trpc + `multiHumanCapable`; the `resolveActiveTab` = store tab if visible else
+  first-visible resolution lives here) and branches on `context.kind`: `tabs`→`ContextTabsPanel`,
+  `single`→its host (the M1.3 finding — extend `ContextTabsPanel` or add a sibling to host a `single` body,
+  else worldInfo's inspector can't render), `none`→nothing. ATOMICALLY DELETE `CONTEXT_SLOTS`, the slim
+  context prop, EVERY route inline `<ContextTabsPanel>`, and chat's bespoke `chatsContext` /
+  `ChatContextPanel` `<Tabs>` — **chat is NOT an exception** (§6b: `ContextTabsPanel` is the one renderer for
+  every `kind:"tabs"` section INCLUDING chat). Build **G3 `context-definition-shape`**. Leaving any bespoke
+  or route-hand-wired context alive is a half-migration, not the end state.
+  **M3 DONE-GATE — verify ZERO scaffolding survives (cite each):** `grep -r "FLAG\[lockdown-M3\]"` returns
+  NOTHING (the temp context bridge is fully removed); no slim context prop / type remains; no route inline
+  `<ContextTabsPanel>`; no `chatsContext` / bespoke chat `<Tabs>`; `CONTEXT_SLOTS` is deleted; G3 green.
+  The temp prop introduced at M1.cutover MUST die here — its removal is not optional cleanup, it is M3's
+  definition of done.
+
+**SEQUENCED FOLLOW-UP WAVES (done properly, not "someday"):**
+
+- **F1 — test-backfill (before F2).** Add assertions for the `#state` actions shipped untested in M1.1-1.4
+  — `revealContextPanel` (the dual-write: assert it writes BOTH `mobileSheet` and the panel override),
+  `selectPresetFromList`, `dismissPresetSection`, `selectWorldBookFromList` — into their existing
+  `tests/client/state/<store>.ct.tsx`. Plus a CT for any content component carrying REAL logic (chat's
+  landing/room split); do NOT blanket-CT thin selection-branch components (repo law: no shit tests —
+  `Spine-Testing.md` §5 / global "don't confirm obvious behavior").
+- **F2 — gate-strengthen (after F1 is green).** Extend `test-presence-client` so each EXPORTED store action
+  must be referenced in its mirror `.ct.tsx` — closes the existence-not-coverage loophole (Nate, option b).
+  Full gate ritual (mustFlag = a store action absent from its mirror test; mustPass = one covered). It will
+  red until F1 lands — that ordering is deliberate.
+- **F3 — dead-ignore sweep (anytime; low risk).** Delete the \~123 now-lying
+  `biome-ignore lint/correctness/noUnresolvedImports` comments (the rule is OFF — a stale suppression is a
+  defect per Documentation-Law §1, not deferred cleanup). Mechanical; `pnpm check` stays green.
 
 **M1.1 executor spec (characters):**
 
