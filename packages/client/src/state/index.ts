@@ -111,7 +111,9 @@ export {
 export {
   clearPresetSection,
   clearPresetSelection,
+  dismissPresetSection,
   selectPreset,
+  selectPresetFromList,
   selectPresetSection,
   useSelectedPresetId,
   useSelectedPresetSectionId,

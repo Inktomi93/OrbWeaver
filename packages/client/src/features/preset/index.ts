@@ -8,6 +8,7 @@ export { PresetLibraryWelcome } from "./components/preset-library-welcome";
 export { PresetSectionInspector } from "./components/preset-section-inspector";
 export type { PresetUsageContextProps } from "./components/preset-usage-context";
 export { PresetUsageContext } from "./components/preset-usage-context";
+export { presetsSection } from "./lib/presets-section";
 export type { PresetEditorSurfaceProps } from "./surfaces/preset-editor-surface";
 export { PresetEditorSurface } from "./surfaces/preset-editor-surface";
 export { PresetLibrarySurface } from "./surfaces/preset-library-surface";
