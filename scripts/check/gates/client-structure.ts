@@ -16,7 +16,7 @@ const BUCKETS = new Set(["surfaces", "anchors", "components", "hooks", "lib"]);
 const SHELL_EXTRA = new Set(["registry", "store"]);
 // refinery: declared-planned (client-architecture-lockdown.md §6a, O1) — its design set scores/rewrites
 // against the `character` domain rather than owning one; no `domain/refinery` mirror is expected.
-const RESERVED = new Set(["app-shell", "auth", "prompt-manager", "refinery", "user-admin"]);
+const RESERVED = new Set(["app-shell", "auth", "refinery", "user-admin"]);
 // Container-type vocabulary for anchor filenames (an anchor names the containment it PROVIDES).
 const ANCHOR_SUFFIXES = ["anchor", "dialog", "drawer", "popover", "menu", "panel"];
 // The bare modal ROOT tag only (`<Dialog>`/`<Dialog `), not `<DialogTrigger`/`<DialogPopup`/`<ConfirmDialog`
@@ -290,9 +290,9 @@ export const gate: GateDescriptor = {
     {
       // rule 2: a reserved UI-only slice needs no server-domain mirror.
       files: {
-        "packages/client/src/features/prompt-manager/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/user-admin/index.ts": "export const x = 1;\n",
       },
-      why: "rule 2: a reserved UI-only slice (prompt-manager) is clean without a domain mirror",
+      why: "rule 2: a reserved UI-only slice (user-admin) is clean without a domain mirror",
     },
     {
       // rule 5: app-shell surfaces are exempt from the -surface.tsx naming contract (region chrome).

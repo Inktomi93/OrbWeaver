@@ -121,7 +121,7 @@ packages/client/
     features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
                         #     the clamp-width overlay (§11.1); RAIL_SLOTS ↔ MODAL_SLOTS registries (gate check:registry-pairing)
-      auth/ character/ chat/ corpus/ credentials/ notifications/ persona/ preset/ prompt-manager/ settings/ user-admin/ workloads/ world-info/
+      auth/ character/ chat/ corpus/ credentials/ notifications/ persona/ preset/ settings/ user-admin/ workloads/ world-info/
                         #   (`corpus` is the SECTION/feature name; the owning DOMAIN is `discovery` — the
                         #     rename landed domain-side only, per the feature-structure gate note)
         <feature>/      #   { surfaces/ (containment CONSUMERS, @container) · anchors/ (containment PROVIDERS) ·

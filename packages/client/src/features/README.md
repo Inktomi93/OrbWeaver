@@ -31,5 +31,5 @@ own chunk.
 ## The slices (§2.1)
 
 `app-shell` (the 4-region rail frame: RAIL | LIST | CONTENT | CONTEXT — the one viewport `@media` site) ·
-`auth` · `character` · `chat` · `corpus` · `credentials` · `persona` · `preset` · `prompt-manager` ·
+`auth` · `character` · `chat` · `corpus` · `credentials` · `persona` · `preset` ·
 `settings` · `tag` · `user-admin` · `workloads` · `world-info`.
