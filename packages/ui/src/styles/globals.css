@@ -282,3 +282,14 @@
     animation: none;
   }
 }
+
+/* Jump-to-anchor flash ring (settings scroll-spy + any future anchor jump). An INSET box-shadow (not
+ * outline) so the ring clips to the target's border-box instead of bleeding past a scroll container's
+ * edge. Class-toggle, not imperative `el.style.*`, so it stays token-gated (no-off-token-inline-style). */
+.settings-flash-anchor {
+  border-radius: var(--radius-card);
+  transition: box-shadow var(--motion-base) var(--ease-out-expo);
+}
+.settings-flash-anchor--lit {
+  box-shadow: inset 0 0 0 2px var(--color-ring);
+}
