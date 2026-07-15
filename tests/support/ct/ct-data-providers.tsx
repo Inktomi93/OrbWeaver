@@ -17,13 +17,14 @@
 
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
 import { charactersSection } from "@orb/client/features/character";
-import { chatsSection } from "@orb/client/features/chat";
+import { makeChatsSection } from "@orb/client/features/chat";
 import { corpusSection } from "@orb/client/features/discovery";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { analyticsSection } from "@orb/client/features/stats";
 import { worldInfoSection } from "@orb/client/features/world-info";
-import { createRegistry } from "@orb/client/lib";
+import type { ChatContextState, ContextTabDef } from "@orb/client/lib";
+import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type { SectionDefinition, SectionId, SectionRegistry } from "@orb/client/state";
 import { SECTION_IDS, SectionRegistryProvider } from "@orb/client/state";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -52,8 +53,13 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
 // (the one client-owned CT support file — selection.ts CT_CLIENT_OWNED) so importing the client feature
 // front doors stays in the client program.
 
-const REAL: Record<SectionId, SectionDefinition<never>> = {
-  chats: chatsSection,
+const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
+  "chat-context",
+  [],
+);
+
+const REAL: Record<SectionId, SectionDefinition> = {
+  chats: makeChatsSection(chatContextContributors),
   characters: charactersSection,
   corpus: corpusSection,
   worldInfo: worldInfoSection,
@@ -62,7 +68,7 @@ const REAL: Record<SectionId, SectionDefinition<never>> = {
   analytics: analyticsSection,
 };
 
-const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition<never>>(
+const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition>(
   "sections",
   SECTION_IDS,
   REAL,
@@ -77,13 +83,16 @@ export function CtRealSectionRegistry({
   return <SectionRegistryProvider value={realRegistry}>{children}</SectionRegistryProvider>;
 }
 
-/** Per-section fake injection: `list`/`content` slots the story wants to render (the old SectionSlot). */
+/** Per-section fake injection: `list`/`content`/`context` slots the story wants to render. A `context`
+ *  slot is delivered through the real `single` ContextDefinition arm so `SectionContextHost` renders it
+ *  live (the shell's real consumer path); a non-injected section's context is `{ kind: "none" }`. */
 export interface CtFakeSection {
   readonly list?: ReactNode;
   readonly content?: ReactNode;
+  readonly context?: ReactNode;
 }
 
-function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDefinition<never> {
+function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDefinition {
   const real = REAL[id];
   return {
     id,
@@ -93,7 +102,10 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
     ...(slot?.list !== undefined ? { list: (): ReactNode => slot.list } : {}),
     // A non-injected section renders its real placeholder (the planned arm) — the old "unwired ⇒ fallback".
     content: slot?.content !== undefined ? (): ReactNode => slot.content : { planned: "ct" },
-    context: { kind: "none" },
+    context:
+      slot?.context !== undefined
+        ? { kind: "single", body: (): ReactNode => slot.context }
+        : { kind: "none" },
   };
 }
 
@@ -105,12 +117,12 @@ export function CtFakeSectionRegistry({
   readonly sections?: Partial<Record<SectionId, CtFakeSection>>;
   readonly children: ReactNode;
 }): ReactElement {
-  const registry = createRegistry<SectionId, SectionDefinition<never>>(
+  const registry = createRegistry<SectionId, SectionDefinition>(
     "sections",
     SECTION_IDS,
     Object.fromEntries(SECTION_IDS.map((id) => [id, fakeSection(id, sections?.[id])])) as Record<
       SectionId,
-      SectionDefinition<never>
+      SectionDefinition
     >,
   );
   return <SectionRegistryProvider value={registry}>{children}</SectionRegistryProvider>;

@@ -103,8 +103,8 @@ test("resolveHumanParticipants returns [] for an all-character roster", () => {
   expect(resolveHumanParticipants([alice, bob])).toEqual([]);
 });
 
-// ── castSectionVisible / membersTabJustified (the Members-tab floor gate, ported from
-// chat-context-panel-surface.tsx's showMembers into chats-section.tsx's declarative `when`) ──
+// ── castSectionVisible / membersTabJustified (the Members-tab floor gate, chats-section.tsx's
+// declarative members `when`) ──
 
 function humanParticipant(id: string): ReturnType<typeof makeParticipant> {
   return makeParticipant({ id: castId(id), kind: "human", characterId: null, displayName: id });

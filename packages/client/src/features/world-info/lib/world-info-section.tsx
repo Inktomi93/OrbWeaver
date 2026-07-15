@@ -2,9 +2,8 @@
 // section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
 // place. A pure DATA object: no app-shell/auth hook (the LIST's mobile-sheet-close on select is a #state
 // intent, `selectWorldBookFromList`, not an isMobile branch here). CONTEXT is the `single` arm (§6b) —
-// worldInfo has one body, not tabs, so `S` stays `void`. The composition root assembles this into the
-// section registry (main.tsx); AppShell consumes it via `useSectionRegistry`. CONTEXT still rides the
-// FLAG[lockdown-M3] bridge until M3.
+// worldInfo has one body, not tabs. The composition root assembles this into the section registry
+// (main.tsx); AppShell consumes it via `useSectionRegistry`.
 
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the BookOpen glyph fine (the character-card-facets.ts precedent).
 import { BookOpen } from "@orb/ui/icons";

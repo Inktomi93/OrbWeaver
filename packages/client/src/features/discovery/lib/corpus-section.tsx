@@ -1,10 +1,12 @@
 // The Corpus rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — the
 // section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
-// place. A pure DATA object: no app-shell/auth hook (Corpus has no isMobile-branching intent). The
+// place. CONTEXT is minted via `defineContextTabs<void>` (§6b) — Corpus has no shared context state, so
+// `useContextState` returns the `VOID_STATE` sentinel (always-present, unconditionally called). The
 // composition root assembles this into the section registry (main.tsx); AppShell consumes it via
-// `useSectionRegistry`. CONTEXT still rides the FLAG[lockdown-M3] bridge until M3.
+// `useSectionRegistry`.
 
 import { Library } from "@orb/ui/icons";
+import { defineContextTabs, VOID_STATE } from "#lib";
 import type { SectionDefinition } from "#state";
 import { CorpusListAnchor } from "../anchors/corpus-list-anchor";
 import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab";
@@ -30,8 +32,8 @@ export const corpusSection: SectionDefinition = {
   ),
   content: () => <CorpusContent />,
   // Five owner-scoped analytics tabs, always available: Archetypes / Visuals / Map / Similarity / Compare.
-  context: {
-    kind: "tabs",
+  context: defineContextTabs<void>({
+    useContextState: () => VOID_STATE,
     tabs: [
       { id: "archetypes", label: "Archetypes", body: () => <CorpusArchetypesTab /> },
       { id: "visuals", label: "Visuals", body: () => <CorpusVisualsTab /> },
@@ -39,5 +41,5 @@ export const corpusSection: SectionDefinition = {
       { id: "similarity", label: "Similarity", body: () => <CorpusSimilarityTab /> },
       { id: "compare", label: "Compare", body: () => <CorpusCompareTab /> },
     ],
-  },
+  }),
 };

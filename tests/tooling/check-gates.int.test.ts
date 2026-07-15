@@ -210,6 +210,12 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_g2map/lib/parallel.ts",
     "export const M = { chats: 1, characters: 1, corpus: 1 };\n",
   );
+  // context-definition-shape: a hand-rolled `{kind:"tabs",useResolved}` object literal outside
+  // lib/registry-contracts.ts — a badge-wearing tabs renderer bypassing the mint (arm 1).
+  fx(
+    "packages/client/src/features/__g_g3ctx/lib/g3-badge.ts",
+    'export const gBadgeCtx = { kind: "tabs", useResolved: () => null };\n',
+  );
   // state-files: a flat state/ file exporting the minted store handle (rule 3 — no exported handle).
   fx(
     "packages/client/src/state/__g_state.ts",

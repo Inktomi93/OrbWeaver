@@ -49,13 +49,22 @@ function plannedReason(section: ObjectLiteralExpression): string | undefined {
   return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : "";
 }
 
-/** True when a section object wires a REAL body (list/header/non-`none` context) — illegal for planned. */
+/** True when a section object wires a REAL body (list/header/non-`none` context) — illegal for planned.
+ *  A `context` initializer is real unless it is the literal `{ kind: "none" }` — this includes a
+ *  `defineContextTabs(…)` CALL (the mint returns a `{ kind: "tabs" }` shape a plain object-literal check
+ *  can't see; without this arm a planned section wired `context: defineContextTabs(…)` slips through). */
 function wiresRealBody(section: ObjectLiteralExpression): boolean {
   if (section.getProperty("list") !== undefined || section.getProperty("header") !== undefined) {
     return true;
   }
   const context = objProp(section, "context");
-  if (context !== undefined && Node.isObjectLiteralExpression(context)) {
+  if (context === undefined) {
+    return false;
+  }
+  if (Node.isCallExpression(context)) {
+    return true;
+  }
+  if (Node.isObjectLiteralExpression(context)) {
     const kind = context.getProperty("kind");
     if (kind !== undefined && Node.isPropertyAssignment(kind)) {
       const k = kind.getInitializer();
@@ -227,6 +236,14 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/x/lib/x-section.ts",
       expect: { messageIncludes: "real body" },
       why: "a planned section that also wires a list — the badge-wearing half-build arm (O1)",
+    },
+    {
+      files:
+        "export const xSection: SectionDefinition = { id: 'x', content: { planned: 'soon' }, context: defineContextTabs({ useContextState: () => null, tabs: [] }) };\n",
+      at: "packages/client/src/features/x/lib/x-section.ts",
+      expect: { messageIncludes: "real body" },
+      // biome-ignore lint/security/noSecrets: a fixture WHY string (prose), not a secret.
+      why: "a planned section wired `context: defineContextTabs(…)` — a CallExpression the plain object-literal check can't see (M3 amendment)",
     },
     {
       files: "export const G = <AppShell sections={{ chats: 1, characters: 2 }} />;\n",

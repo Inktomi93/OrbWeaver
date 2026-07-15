@@ -23,12 +23,9 @@ export type {
 export { useSendMessage } from "./hooks/use-send-message";
 export type { UseStopTurnResult } from "./hooks/use-stop-turn";
 export { useStopTurn } from "./hooks/use-stop-turn";
-export type { ChatContextState } from "./lib/chats-section";
-export { chatsSection } from "./lib/chats-section";
+export { makeChatsSection } from "./lib/chats-section";
 export { isContinueEligible } from "./lib/continue-on-empty";
 export { clearJoinParam, readJoinToken } from "./lib/join-token";
-export type { ChatContextPanelProps } from "./surfaces/chat-context-panel-surface";
-export { ChatContextPanel } from "./surfaces/chat-context-panel-surface";
 export type { ChatLandingSurfaceProps } from "./surfaces/chat-landing-surface";
 export { ChatLandingSurface } from "./surfaces/chat-landing-surface";
 export type { ChatListSurfaceProps } from "./surfaces/chat-list-surface";
@@ -40,8 +37,6 @@ export type {
   GoToSection,
 } from "./surfaces/command-palette-surface";
 export { CommandPaletteSurface } from "./surfaces/command-palette-surface";
-export type { DraftContextPanelProps } from "./surfaces/draft-context-panel-surface";
-export { DraftContextPanel } from "./surfaces/draft-context-panel-surface";
 export type { MessageListSurfaceProps } from "./surfaces/message-list-surface";
 export { MessageListSurface } from "./surfaces/message-list-surface";
 export { NewChatPicker } from "./surfaces/new-chat-picker-surface";

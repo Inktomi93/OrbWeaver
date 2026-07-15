@@ -1,4 +1,5 @@
-// CT: the chat CONTEXT panel (task #28 + the §7.1 Members merge — members · overrides · group ·
+// CT: the chats section's COMMITTED context (chats-section.tsx's `defineContextTabs` over the committed
+// arm of ChatContextState, rendered through the real SectionContextHost — members · overrides · group ·
 // preview · injections). Drives the production path over the stubbed network (routeTrpc):
 // `chat.getChat` supplies the roster (the host gate + the Members rows) + the current room overrides;
 // `chat.listChatInjections` + `chat.previewAssembly` feed the tabs; `invites.*` feeds the mint dialog.
@@ -12,11 +13,33 @@
 // value crosses the routeTrpc JSON boundary as a plain object.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatContextPanelStory } from "../_ct-stories";
 
 const NATE_HOST_RE = /Alex — host/u;
 const BUDDY_MEMBER_RE = /Buddy — member/u;
+
+// `multiHumanCapable` now reads from `/api/auth/config` (not a prop), so the People-tab cases stub the
+// deployment capability at the network boundary — the honest source the shell gates on. Unstubbed, the
+// hook degrades to `false` (single-user), which the non-People cases already assume.
+async function stubMultiHumanCapable(page: Page, capable: boolean): Promise<void> {
+  await page.route("**/api/auth/config", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "single",
+        requiresLogin: false,
+        localEnabled: false,
+        oidcEnabled: false,
+        discreetLogin: false,
+        defaultHandle: null,
+        multiHumanCapable: capable,
+      }),
+    }),
+  );
+}
 
 // A human seat in the room — `role` seats a host/member (the roster shape); the surface's host gate is
 // the separate server-resolved `viewerIsHost` field, NOT this seat's role. The rest is filler the panel
@@ -209,8 +232,9 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
       token: "tok_ct_minted",
     }),
   });
+  await stubMultiHumanCapable(page, true);
 
-  const component = await mount(<ChatContextPanelStory multiHumanCapable={true} />);
+  const component = await mount(<ChatContextPanelStory />);
   await component.getByRole("tab", { name: "Members" }).click();
 
   // The People section — humans differentiated from the seated cast, host crowned; the server
@@ -250,8 +274,9 @@ test("capable MEMBER: Members shows who's here but NO invite/kick controls (host
       ]),
     "chat.listChatInjections": () => [],
   });
+  await stubMultiHumanCapable(page, true);
 
-  const component = await mount(<ChatContextPanelStory multiHumanCapable={true} />);
+  const component = await mount(<ChatContextPanelStory />);
   await component.getByRole("tab", { name: "Members" }).click();
 
   const panel = page.getByTestId("members-panel");

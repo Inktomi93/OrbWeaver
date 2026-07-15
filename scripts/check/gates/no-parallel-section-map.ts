@@ -49,15 +49,13 @@ function readSectionIds(project: Project): ReadonlySet<string> {
   return ids;
 }
 
-/** The sanctioned homes for a SectionId-keyed map: the vocabulary tuple, the door assembly, the section
- *  definition files, + the two FLAG[lockdown-M3] CONTEXT scaffolds (context-slots + app-root's bridge). */
+/** The sanctioned homes for a SectionId-keyed map: the vocabulary tuple, the door assembly, and the
+ *  co-located section definition files. */
 function isAllowlisted(repoRelPath: string): boolean {
   return (
     repoRelPath.endsWith("/state/shell-store.ts") ||
     repoRelPath.endsWith("/client/src/main.tsx") ||
-    SECTION_FILE_RE.test(repoRelPath) ||
-    repoRelPath.endsWith("/app-shell/lib/context-slots.ts") || // FLAG[lockdown-M3]
-    repoRelPath.endsWith("/routes/app-root.tsx") // FLAG[lockdown-M3]: the slim sectionContext bridge
+    SECTION_FILE_RE.test(repoRelPath)
   );
 }
 
@@ -174,7 +172,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "an object literal / array of `{ id }` elements / `Record<SectionId, …>`-typed value hardcoding ≥2 SectionIds is a parallel section map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the SECTION_IDS tuple, the main.tsx door, the *-section definition files, and the FLAG[lockdown-M3] context scaffolds.",
+    "an object literal / array of `{ id }` elements / `Record<SectionId, …>`-typed value hardcoding ≥2 SectionIds is a parallel section map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the SECTION_IDS tuple, the main.tsx door, and the *-section definition files.",
   fix: "delete the map and read the section registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
   run: (ctx) => {
     const ids = readSectionIds(ctx.project);
@@ -236,15 +234,6 @@ export const gate: GateDescriptor = {
           "export const MOBILE_PRIMARY_SECTIONS = registry.list().filter((d) => d.mobilePrimary);\n",
       },
       why: "a DERIVED map (no literal SectionId keys) — the mandated false-positive check, must pass",
-    },
-    {
-      files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
-        "packages/client/src/routes/app-root.tsx":
-          "export const bridge = { chats: 1, characters: 2 };\n",
-      },
-      why: "the FLAG[lockdown-M3] context bridge lives in the allowlisted app-root.tsx — tracked scaffolding, passes",
     },
     {
       files: {

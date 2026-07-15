@@ -4,7 +4,7 @@
 // is marked/dimmed). Read-only surface — no mutations here (those live in the Roster tab + composer).
 //
 // The roster stub returns only what the bar reads (`participants` with kind/characterId/displayName/
-// disabled) — a partial `ChatDetail`, the same posture as chat-context-panel-surface.ct's stub.
+// disabled) — a partial `ChatDetail`, the same posture as chats-section.ct's stub.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";

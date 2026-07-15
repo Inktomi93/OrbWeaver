@@ -9,14 +9,12 @@ import type { ChatBusDeps } from "@orb/client/data";
 import { createInvalidation, useTRPC } from "@orb/client/data";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
-  ChatContextPanel,
   ChatLandingSurface,
   ChatListAnchor,
   ChatListSurface,
   ChatRoomSurface,
   CommandPaletteSurface,
   Composer,
-  DraftContextPanel,
   JoinInviteDialog,
   MessageListSurface,
   MessageThreadAnchor,
@@ -31,6 +29,8 @@ import {
   draftChat,
   selectChat,
   startEditingMessage,
+  startNewChat,
+  useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
 import type {
@@ -51,6 +51,7 @@ import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
@@ -72,7 +73,7 @@ import type {
   MemberCastRow,
   MemberPersonRow,
 } from "../../../../packages/client/src/features/chat/lib/member-rows";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
@@ -770,36 +771,57 @@ export function ChatRoomSurfaceStory({
   );
 }
 
-/** The chat CONTEXT panel (task #28 — overrides · preview · injections tabs), over the stubbed network
- *  (`chat.getChat` drives the host gate + overrides; `chat.listChatInjections`/`chat.previewAssembly`
- *  feed the tabs). The `.ct.tsx` sets the routeTrpc stubs (incl. the host/member roster) per case.
- *  `multiHumanCapable` mirrors the route-threaded capability prop (the People-tab gate — invites CT). */
-export function ChatContextPanelStory({
-  multiHumanCapable = false,
-}: {
-  readonly multiHumanCapable?: boolean;
-}): ReactElement {
+// Mounts the chats section's CONTEXT through the real `SectionContextHost` (the shell's one consumer) —
+// the section's `useChatContextState` resolves the active handle against the stubbed network, exactly as
+// production does. The `key` mirrors the shell's per-section remount.
+function ChatContextHostHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  return (
+    <div style={{ height: 560 }}>
+      <SectionContextHost key="chats" definition={registry.get("chats")} />
+    </div>
+  );
+}
+
+/** The chat CONTEXT panel via the real host (§6b — overrides · preview · injections · members tabs), over
+ *  the stubbed network (`chat.getChat` drives the host gate + overrides; `chat.listChatInjections`/
+ *  `chat.previewAssembly` feed the tabs). The `.ct.tsx` sets the routeTrpc stubs + the `/api/auth/config`
+ *  capability stub (the People-tab gate — `multiHumanCapable` now reads from auth-config, not a prop). */
+export function ChatContextPanelStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
   return (
     <CtDataProviders>
-      <div style={{ height: 560 }}>
-        <ChatContextPanel chatId={CHAT_ID} multiHumanCapable={multiHumanCapable} />
-      </div>
+      <CtRealSectionRegistry>
+        <ChatContextHostHarness />
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
 
-/** The DRAFT CONTEXT panel (J2/J3) — the draft-config-backed twin of `ChatContextPanel`. No server reads:
- *  the Overrides tab renders from `draftConfig` (keyed by this key) and writes to the draft-config store on
- *  edit. The `.ct.tsx` asserts the tab + fields render and that editing lands in the store (no network). */
-const DRAFT_CONTEXT_KEY = "draft-ct-context";
-export function DraftContextPanelStory(): ReactElement {
+export interface DraftContextPanelStoryProps {
+  /** The founding cast seed. Empty (default) ⇒ the solo case (Overrides + Injections only; no
+   *  Members/Group — both gate at cast≥2). A ≥2-length seed exercises the Members/Group `when` predicates
+   *  live (M3.3). */
+  readonly characterIds?: readonly CharacterId[];
+}
+
+/** The DRAFT CONTEXT panel via the real host (J2/J3) — the draft-config-backed twin. No server reads for
+ *  the solo case: the Overrides tab renders from `draftConfig` and writes to the draft-config store on
+ *  edit. A ≥2-cast seed additionally reads `character.get` per cast id (the Members roster) — the
+ *  `.ct.tsx` routeTrpc-stubs those for that case. */
+export function DraftContextPanelStory({
+  characterIds = [],
+}: DraftContextPanelStoryProps): ReactElement {
+  useEffect(() => {
+    startNewChat({ characterIds });
+  }, [characterIds]);
   return (
     <CtDataProviders>
-      <div style={{ height: 560 }}>
-        {/* An empty founding cast ⇒ the solo case (Overrides tab only; no Roster). The Roster tab is
-            covered by the pure `RosterPanelStory` below. */}
-        <DraftContextPanel draftKey={DRAFT_CONTEXT_KEY} characterIds={[]} />
-      </div>
+      <CtRealSectionRegistry>
+        <ChatContextHostHarness />
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

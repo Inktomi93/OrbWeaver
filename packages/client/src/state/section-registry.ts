@@ -32,10 +32,11 @@ export interface SectionPlaceholderCopy {
   readonly description: string;
 }
 
-/** A rail section as ONE definition. `S` = the section's CONTEXT-state projection (O5 strict; `void`
- *  for a section whose context reads no shared state). A section with neither a real `content` pane nor
- *  the DECLARED-PLANNED arm is the refinery bug — structurally impossible here. */
-export interface SectionDefinition<S = void> {
+/** A rail section as ONE definition. `context` is the NON-generic `ContextDefinition` (§6b) — a `tabs`
+ *  host mints its own projection via `defineContextTabs<S>`, so `S` never crosses this seam. A section
+ *  with neither a real `content` pane nor the DECLARED-PLANNED arm is the refinery bug — structurally
+ *  impossible here. */
+export interface SectionDefinition {
   readonly id: SectionId;
   readonly rail: RailEntry;
   /** The boot-default panel modes; the persisted per-panel override wins thereafter. */
@@ -46,5 +47,5 @@ export interface SectionDefinition<S = void> {
   readonly content: (() => ReactNode) | { readonly planned: string };
   readonly header?: () => ReactNode;
   /** REQUIRED — `{ kind: "none" }` is an explicit decision, never an absence. */
-  readonly context: ContextDefinition<S>;
+  readonly context: ContextDefinition;
 }
