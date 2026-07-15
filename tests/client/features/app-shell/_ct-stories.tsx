@@ -27,6 +27,7 @@ import type { ModalSlotId } from "../../../../packages/client/src/state/shell-st
 import { openModal } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
 import {
+  CtChatContributorSectionRegistry,
   CtDataProviders,
   CtFakeModalRegistry,
   CtFakeSectionRegistry,
@@ -50,6 +51,20 @@ export function AppShellStory(): ReactElement {
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
         <AppShell />
       </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The REAL shell + the REAL `chats` section (`ChatContent`, landing by default) — end-to-end proof that
+ *  `useListDocked` (chat-content.tsx) agrees with `resolvePanel`'s auto-overlay derivation at every width
+ *  (the M10-correction verifier gap): mounting through the real `useShellLayout` viewport-publish effect,
+ *  not a hand-fed store write. */
+export function AppShellRealChatsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtChatContributorSectionRegistry>
+        <AppShell />
+      </CtChatContributorSectionRegistry>
     </CtDataProviders>
   );
 }

@@ -8,7 +8,7 @@
 
 import type { PresetId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";
-import { setMobileSheet } from "./shell-store";
+import { setOpenOverlayPanel } from "./shell-store";
 
 interface PresetSelectionState {
   /** The preset whose editor the Presets CONTENT shows — `null` = the section's welcome state. */
@@ -34,12 +34,13 @@ export function selectPreset(id: PresetId): void {
   );
 }
 
-/** Open a preset from the LIST (a library-row click) AND close any open mobile LIST sheet — the
- *  viewport-unaware intent form of the old route-closure `selectPresetFromList`: `mobileSheet` is
- *  read only in the mobile regime (`useShellLayout`), so the unconditional write is a no-op on desktop. */
+/** Open a preset from the LIST (a library-row click) AND close any open LIST slide-over — the
+ *  viewport-unaware intent form of the old route-closure `selectPresetFromList`: `openOverlayPanel` is
+ *  read only in an overlay regime (`useShellLayout`), so the unconditional write is a no-op when the LIST
+ *  is docked. */
 export function selectPresetFromList(id: PresetId): void {
   selectPreset(id);
-  setMobileSheet(null);
+  setOpenOverlayPanel(null);
 }
 
 /** Clear the selection (back to the Presets welcome state — e.g. after deleting the open preset). Clears
@@ -70,12 +71,12 @@ export function clearPresetSection(): void {
   );
 }
 
-/** Dismiss the CONTEXT section inspector AND close any open mobile CONTEXT sheet — the viewport-unaware
- *  intent form of the old route-closure `dismissSectionInspector`: `setMobileSheet(null)` is a no-op on
- *  desktop (mirrors `selectPresetFromList` / worldInfo's `selectWorldBookFromList`). */
+/** Dismiss the CONTEXT section inspector AND close any open CONTEXT slide-over — the viewport-unaware
+ *  intent form of the old route-closure `dismissSectionInspector`: `setOpenOverlayPanel(null)` is a
+ *  no-op when CONTEXT is docked (mirrors `selectPresetFromList` / worldInfo's `selectWorldBookFromList`). */
 export function dismissPresetSection(): void {
   clearPresetSection();
-  setMobileSheet(null);
+  setOpenOverlayPanel(null);
 }
 
 /** Reactive: the currently-open preset id (`null` = none). A primitive selector (no fresh object). */

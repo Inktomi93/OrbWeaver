@@ -14,7 +14,7 @@ import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle";
 import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle";
 import { createGatedStore } from "./create-gated-store";
-import { setMobileSheet } from "./shell-store";
+import { setOpenOverlayPanel } from "./shell-store";
 
 /** The founding-roster seed a draft chat carries until its first send calls `chat.startChat`. All
  *  fields optional — an empty seed is a legal narrator-only room. */
@@ -111,12 +111,12 @@ export function goToLanding(): void {
   });
 }
 
-/** Land on a chat from the LIST AND close any open mobile LIST sheet — the viewport-unaware intent form
- *  of the old route-closure `selectChatFromList`: `mobileSheet` is read only in the mobile regime
- *  (`useShellLayout`), so the unconditional write is a no-op on desktop. */
+/** Land on a chat from the LIST AND close any open LIST slide-over — the viewport-unaware intent form of
+ *  the old route-closure `selectChatFromList`: `openOverlayPanel` is read only in an overlay regime
+ *  (`useShellLayout`), so the unconditional write is a no-op when the LIST is docked. */
 export function selectChatFromList(chatId: ChatId): void {
   selectChat(chatId);
-  setMobileSheet(null);
+  setOpenOverlayPanel(null);
 }
 
 /** After a host deletes the chat CONTENT is currently showing, return to landing so the room never

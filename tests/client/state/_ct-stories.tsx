@@ -46,8 +46,9 @@ import {
   setCharacterViewMode,
   setChatListCharacterFilter,
   setContextTab,
-  setMobileSheet,
   setMobileViewport,
+  setNarrowViewport,
+  setOpenOverlayPanel,
   setPanelMode,
   startNewChat,
   toggleFavoritesOnly,
@@ -65,9 +66,10 @@ import {
   useContextTab,
   useFavoritesOnly,
   useListDocked,
-  useMobileSheet,
   useModalRegistry,
+  useNarrowViewport,
   useOpenModal,
+  useOpenOverlayPanel,
   usePanelOverride,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
@@ -98,15 +100,16 @@ export function ShellStoreProbe(): ReactElement {
   const modal = useOpenModal();
   const settingsTarget = useSettingsTarget();
   const contextTab = useContextTab();
-  const mobileSheet = useMobileSheet();
+  const openOverlayPanel = useOpenOverlayPanel();
   // `useListDocked` — the narrow #state projection a section definition reads instead of
   // `useShellLayout` (chats-section.tsx's landing showRecents). Fed a literal "docked" own-default here
   // so the probe exercises the override-priority logic, independent of any real section's actual default.
   const docked = useListDocked(section, "docked");
+  const narrowViewport = useNarrowViewport();
   return (
     <div>
       <output>
-        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} mobileSheet=${mobileSheet ?? "none"}`}
+        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"} narrowViewport=${narrowViewport}`}
       </output>
       <button type="button" onClick={(): void => setActiveSection("corpus")}>
         go corpus
@@ -144,6 +147,12 @@ export function ShellStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => setMobileViewport(false)}>
         enter desktop viewport
       </button>
+      <button type="button" onClick={(): void => setNarrowViewport(true)}>
+        enter narrow viewport
+      </button>
+      <button type="button" onClick={(): void => setNarrowViewport(false)}>
+        enter wide viewport
+      </button>
     </div>
   );
 }
@@ -158,13 +167,13 @@ const PROBE_OTHER_CHAT = castId<ChatId>("chat_probe_other");
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
  *  and assert THE KEY DISCIPLINE: sessionKey is stable across a draft→committed promotion, changes on
  *  new-chat / select. Each mount is a fresh page → the module session counter restarts at 1. Also drives
- *  the LIST-callback intent actions (`selectChatFromList`'s mobileSheet dual-write,
+ *  the LIST-callback intent actions (`selectChatFromList`'s openOverlayPanel dual-write,
  *  `chatDeletedFromList`'s active-chat-only goToLanding). */
 export function ActiveChatStoreProbe(): ReactElement {
   const handle = useActiveChatHandle();
   const seed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
-  const mobileSheet = useMobileSheet();
+  const openOverlayPanel = useOpenOverlayPanel();
   let handleStr = "landing";
   if (isCommitted(handle)) {
     handleStr = `committed:${handle.id}`;
@@ -175,7 +184,7 @@ export function ActiveChatStoreProbe(): ReactElement {
   return (
     <div>
       <output>
-        {`handle=${handleStr} session=${sessionKey} seed=${seedStr} mobileSheet=${mobileSheet ?? "none"}`}
+        {`handle=${handleStr} session=${sessionKey} seed=${seedStr} openOverlayPanel=${openOverlayPanel ?? "none"}`}
       </output>
       <button type="button" onClick={(): void => startNewChat()}>
         new blank
@@ -186,8 +195,8 @@ export function ActiveChatStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => selectChat(PROBE_SELECT_CHAT)}>
         select chat
       </button>
-      {/* Open the LIST mobile sheet first so `selectChatFromList`'s dual-write close is observable. */}
-      <button type="button" onClick={(): void => setMobileSheet("list")}>
+      {/* Open the LIST slide-over first so `selectChatFromList`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
         open list sheet
       </button>
       <button type="button" onClick={(): void => selectChatFromList(PROBE_LIST_CHAT)}>
@@ -282,15 +291,15 @@ const PROBE_PRESET = castId<PresetId>("preset_ct_probe");
  *  assert select → clear for BOTH the open preset (W10) and the rack SECTION (The Assembly §2.2): selecting
  *  a section reveals the inspector; opening a different preset clears a stale section. Also drives the
  *  LIST-callback dual-writes `selectPresetFromList`/`dismissPresetSection`, which additionally close the
- *  shell's mobile CONTEXT/LIST sheet (mirrors ActiveChatStoreProbe's `selectChatFromList` posture). */
+ *  shell's open CONTEXT/LIST slide-over (mirrors ActiveChatStoreProbe's `selectChatFromList` posture). */
 export function PresetSelectionProbe(): ReactElement {
   const selected = useSelectedPresetId();
   const section = useSelectedPresetSectionId();
-  const mobileSheet = useMobileSheet();
+  const openOverlayPanel = useOpenOverlayPanel();
   return (
     <div>
       <output>
-        {`selected=${selected ?? "none"} section=${section ?? "none"} mobileSheet=${mobileSheet ?? "none"}`}
+        {`selected=${selected ?? "none"} section=${section ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}
       </output>
       <button type="button" onClick={(): void => selectPreset(PROBE_PRESET)}>
         select preset
@@ -304,15 +313,15 @@ export function PresetSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => clearPresetSelection()}>
         clear preset selection
       </button>
-      {/* Open the LIST mobile sheet first so `selectPresetFromList`'s dual-write close is observable. */}
-      <button type="button" onClick={(): void => setMobileSheet("list")}>
+      {/* Open the LIST slide-over first so `selectPresetFromList`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
         open list sheet
       </button>
       <button type="button" onClick={(): void => selectPresetFromList(PROBE_PRESET)}>
         select preset from list
       </button>
-      {/* Open the CONTEXT mobile sheet first so `dismissPresetSection`'s dual-write close is observable. */}
-      <button type="button" onClick={(): void => setMobileSheet("context")}>
+      {/* Open the CONTEXT slide-over first so `dismissPresetSection`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setOpenOverlayPanel("context")}>
         open context sheet
       </button>
       <button type="button" onClick={(): void => dismissPresetSection()}>
@@ -375,16 +384,16 @@ const PROBE_ENTRY = castId<WorldEntryId>("world_entry_ct_probe");
  *  its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
  *  and assert select → clear for BOTH the open book (LIST drives CONTENT) and the drilled entry: selecting an
  *  entry reveals its editor; opening a different book clears a stale entry. Also drives the LIST-callback
- *  dual-write `selectWorldBookFromList`, which additionally closes the shell's mobile LIST sheet (mirrors
+ *  dual-write `selectWorldBookFromList`, which additionally closes the shell's open LIST slide-over (mirrors
  *  ActiveChatStoreProbe's `selectChatFromList` coverage). */
 export function WorldInfoSelectionProbe(): ReactElement {
   const book = useSelectedWorldBookId();
   const entry = useSelectedWorldEntryId();
-  const mobileSheet = useMobileSheet();
+  const openOverlayPanel = useOpenOverlayPanel();
   return (
     <div>
       <output>
-        {`book=${book ?? "none"} entry=${entry ?? "none"} mobileSheet=${mobileSheet ?? "none"}`}
+        {`book=${book ?? "none"} entry=${entry ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}
       </output>
       <button type="button" onClick={(): void => selectWorldBook(PROBE_BOOK)}>
         select book
@@ -398,8 +407,8 @@ export function WorldInfoSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => clearWorldBookSelection()}>
         clear book selection
       </button>
-      {/* Open the LIST mobile sheet first so `selectWorldBookFromList`'s dual-write close is observable. */}
-      <button type="button" onClick={(): void => setMobileSheet("list")}>
+      {/* Open the LIST slide-over first so `selectWorldBookFromList`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
         open list sheet
       </button>
       <button type="button" onClick={(): void => selectWorldBookFromList(PROBE_BOOK)}>

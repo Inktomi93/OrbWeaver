@@ -8,7 +8,7 @@
 
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";
-import { setMobileSheet } from "./shell-store";
+import { setOpenOverlayPanel } from "./shell-store";
 
 interface WorldInfoSelectionState {
   /** The book whose editor the World Info CONTENT shows — `null` = the section's welcome state. */
@@ -32,12 +32,13 @@ export function selectWorldBook(id: WorldBookId): void {
   );
 }
 
-/** Open a book from the LIST (a library-row click) AND close any open mobile LIST sheet — the
- *  viewport-unaware intent form of the old route-closure `selectWorldBookFromList`: `mobileSheet` is
- *  read only in the mobile regime (`useShellLayout`), so the unconditional write is a no-op on desktop. */
+/** Open a book from the LIST (a library-row click) AND close any open LIST slide-over — the
+ *  viewport-unaware intent form of the old route-closure `selectWorldBookFromList`: `openOverlayPanel` is
+ *  read only in an overlay regime (`useShellLayout`), so the unconditional write is a no-op when the LIST
+ *  is docked. */
 export function selectWorldBookFromList(id: WorldBookId): void {
   selectWorldBook(id);
-  setMobileSheet(null);
+  setOpenOverlayPanel(null);
 }
 
 /** Clear the selection (back to the World Info welcome state — e.g. after deleting the open book). */

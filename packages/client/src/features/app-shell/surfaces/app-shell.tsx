@@ -8,7 +8,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import type { SectionId } from "#state";
 import {
@@ -112,14 +112,32 @@ export function AppShell({ railFoot, topbarTrail }: AppShellProps): ReactElement
   }
   const mainRef = useRef<HTMLElement>(null);
 
-  const dismissOverlays = (): void => {
+  const dismissOverlays = useCallback((): void => {
     if (layout.listMode === "overlay") {
       layout.collapsePanel("list");
     }
     if (layout.contextMode === "overlay") {
       layout.collapsePanel("context");
     }
-  };
+  }, [layout]);
+
+  // Escape dismisses an open narrow/mobile auto-overlay slide-over (the scrim's keyboard equivalent) —
+  // but ONLY when no modal is open. An open Dialog/Drawer owns Escape itself (Base UI); stealing it here
+  // would race the modal's own close and could double-fire onOpenChange.
+  useEffect(() => {
+    if (!layout.scrimVisible || layout.openModalId !== null) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        dismissOverlays();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return (): void => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [layout.scrimVisible, layout.openModalId, dismissOverlays]);
 
   return (
     <TooltipProvider>

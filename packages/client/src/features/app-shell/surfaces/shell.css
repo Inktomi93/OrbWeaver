@@ -243,10 +243,19 @@
   position: absolute;
   /* grid-column:auto resets the abspos containing block off the grid area so inset-inline-start targets the shell edge. */
   grid-column: auto;
-  inset-block: 0;
   width: var(--panel-w);
   z-index: var(--z-overlay);
   transition: transform var(--shell-motion) var(--shell-ease);
+}
+/* A CLOSED (collapsed) panel is off-screen regardless of block inset, so it only needs the full-height
+ * box; an OPEN overlay must clear the topbar row (mirrors the mobile overlay rule below) so it never
+ * occludes the topbar's panel-toggle button underneath it (M10 correction — the desktop overlay
+ * previously covered the topbar and made the toggle unreachable while the panel it opened was showing). */
+.shell-panel[data-panel-mode="collapsed"] {
+  inset-block: 0;
+}
+.shell-panel[data-panel-mode="overlay"] {
+  inset-block: var(--dimension-chrome-row) 0;
 }
 .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
 .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
@@ -328,10 +337,13 @@
   flex-direction: column;
 }
 
-/* Scrim stays mounted and fades via opacity transition off the shared co-motion vars, so it never desyncs from the panel it dims. */
+/* Scrim stays mounted and fades via opacity transition off the shared co-motion vars, so it never desyncs
+ * from the panel it dims. Clears the topbar row (mirrors the mobile scrim rule + the overlay panel rule
+ * above) so a visible scrim never intercepts the topbar's own panel-toggle click. */
 .shell-scrim {
   position: absolute;
   inset: 0;
+  inset-block-start: var(--dimension-chrome-row);
   z-index: calc(var(--z-overlay) - 1);
   background: var(--color-scrim);
   border: none;
