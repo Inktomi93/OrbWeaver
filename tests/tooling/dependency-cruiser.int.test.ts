@@ -100,6 +100,12 @@ function writeAllFixtures(): void {
     "packages/client/src/routes/__dc_frontdoor.ts",
     `import "../features/__dc_cfeat/internal.ts";\n`,
   );
+  // confirm-uses-composite: a features/** module importing the raw @orb/ui/alert-dialog primitive
+  // instead of the tier-2 ConfirmDialog composite (client-architecture-lockdown.md §16 G7).
+  fx(
+    "packages/client/src/features/__dc_confirm/alert.ts",
+    `import { AlertDialog } from "@orb/ui/alert-dialog";\nexport const g = AlertDialog;\n`,
+  );
 
   fx(`${S}/foundation/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);

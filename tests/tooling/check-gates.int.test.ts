@@ -468,6 +468,13 @@ function writeFixtures(): void {
   // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture; it is
   // proven to fire by its dedicated self-test (tests/tooling/warning-code-coverage.int.test.ts) and is
   // exempted from the anti-drift assertion below.
+  // list-row-adoption: a LIST-surface file (imports LibrarySurfaceShell) whose `.map()` row roots in a
+  // plain interactive <div>, not ListRow/LibraryRow (client-architecture-lockdown.md §16 G6).
+  fx(
+    "packages/client/src/features/__g_listrow/surfaces/__g_listrow-surface.tsx",
+    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a JSX onClick row), not a secret.
+    'import { LibrarySurfaceShell } from "#components";\ndeclare const items: { id: string; name: string }[];\ndeclare function select(item: unknown): void;\nexport const G = () => (\n  <LibrarySurfaceShell>\n    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n  </LibrarySurfaceShell>\n);\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

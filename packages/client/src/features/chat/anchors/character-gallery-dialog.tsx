@@ -5,14 +5,6 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
@@ -29,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { GalleryGifSearchPanel } from "../components/gallery-gif-search-panel";
@@ -213,30 +206,15 @@ export function CharacterGalleryDialog({
                 <DialogClose render={<Button intent="ghost">Close</Button>} />
               </Row>
 
-              <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
-                <AlertDialogPopup forceRender={true}>
-                  <Stack gap="block">
-                    <AlertDialogTitle>Remove this image?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This removes the image from {characterName}'s gallery. The image itself stays
-                      in your uploads.
-                    </AlertDialogDescription>
-                    <AlertDialogActions>
-                      <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-                      <AlertDialogClose
-                        render={
-                          <Button
-                            intent="destructive"
-                            onClick={(): void => removeItem(lightbox.galleryItemId)}
-                          >
-                            Remove
-                          </Button>
-                        }
-                      />
-                    </AlertDialogActions>
-                  </Stack>
-                </AlertDialogPopup>
-              </AlertDialog>
+              <ConfirmDialog
+                confirmLabel="Remove"
+                description={`This removes the image from ${characterName}'s gallery. The image itself stays in your uploads.`}
+                forceRender={true}
+                onConfirm={(): void => removeItem(lightbox.galleryItemId)}
+                onOpenChange={setRemoveConfirmOpen}
+                open={removeConfirmOpen}
+                title="Remove this image?"
+              />
             </Stack>
           )}
         </DialogPopup>

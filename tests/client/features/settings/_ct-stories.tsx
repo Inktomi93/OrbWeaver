@@ -2,10 +2,14 @@
 // settings shell comes through the feature front door, wrapped in the real data layer (`routeTrpc` stubs
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
+import { useInvalidation, useTRPC } from "@orb/client/data";
 import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
+import type { UserCredentialId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { CredentialKeyRow } from "../../../../packages/client/src/features/settings/components/credential-key-row";
 // The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
 // Rail precedent) — AppearanceSettingsSurface + SystemSettingsSurface are mounted by SettingsShell itself,
 // not exported standalone.
@@ -174,6 +178,39 @@ export function TagsSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
         <TagsSettingsSurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
+ *  row's own wiring); its mutations are stubbed per-test via routeTrpc. */
+function CredentialKeyRowInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  return (
+    <CredentialKeyRow
+      credential={{
+        id: castId<UserCredentialId>("user_credential_ctstory0001"),
+        provider: "openrouter",
+        label: "prod key",
+        active: false,
+        hasMetadata: false,
+        revokedAt: null,
+        createdAt: 0,
+        updatedAt: 0,
+      }}
+      invalidation={invalidation}
+      trpc={trpc}
+    />
+  );
+}
+
+export function CredentialKeyRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560 }}>
+        <CredentialKeyRowInner />
       </div>
     </CtDataProviders>
   );

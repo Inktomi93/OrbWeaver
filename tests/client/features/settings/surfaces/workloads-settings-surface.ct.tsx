@@ -369,6 +369,8 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
 
   await page.getByRole("button", { name: "Cancel — Index (embeddings)" }).click();
   await expect(page.getByText("Cancel this workload?")).toBeVisible();
+  // The M5 cancelLabel extension: this confirm's Cancel button reads "Keep running", not the default.
+  await expect(page.getByRole("button", { name: "Keep running" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel workload" }).click();
   // No DOM correlate: the mock's `workloads.list` responder is static, so the invalidation-driven
   // refetch re-renders nothing observable — poll the call-count, but tightly (not the 1.85s default).

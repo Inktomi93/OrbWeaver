@@ -4,14 +4,6 @@
 // independent trpc.credentials.* mutation, no draft/submit lifecycle.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Trash2 fine (the tag-settings-row.tsx precedent).
@@ -22,6 +14,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { timeLib } from "#lib";
 import {
@@ -125,28 +118,14 @@ export function CredentialKeyRow({
           >
             <Icon icon={Trash2} size="sm" />
           </Button>
-          <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
-            <AlertDialogPopup>
-              <AlertDialogTitle>{`Remove "${label}"?`}</AlertDialogTitle>
-              <AlertDialogDescription>
-                This deletes the stored key. Any role using this provider falls back to another
-                active key or the default. This can't be undone.
-              </AlertDialogDescription>
-              <AlertDialogActions>
-                <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-                <AlertDialogClose
-                  render={
-                    <Button
-                      intent="destructive"
-                      onClick={(): void => remove.mutate({ credentialId: credential.id })}
-                    >
-                      Remove
-                    </Button>
-                  }
-                />
-              </AlertDialogActions>
-            </AlertDialogPopup>
-          </AlertDialog>
+          <ConfirmDialog
+            confirmLabel="Remove"
+            description="This deletes the stored key. Any role using this provider falls back to another active key or the default. This can't be undone."
+            onConfirm={(): void => remove.mutate({ credentialId: credential.id })}
+            onOpenChange={setDeleteOpen}
+            open={deleteOpen}
+            title={`Remove "${label}"?`}
+          />
         </Row>
       }
     />

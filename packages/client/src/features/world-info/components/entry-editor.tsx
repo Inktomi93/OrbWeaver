@@ -7,14 +7,6 @@
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldEntryId } from "@orb/kit/ids";
 import { ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogPopup,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Combobox } from "@orb/ui/combobox";
 import { Field } from "@orb/ui/field";
@@ -25,6 +17,7 @@ import { SaveBar } from "@orb/ui/save-bar";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useEntryForm } from "../hooks/use-entry-form";
@@ -247,27 +240,15 @@ function DeleteEntryAction({
   readonly onDelete: () => void;
 }): ReactElement {
   return (
-    <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button intent="ghost" size="sm" aria-label={`Delete ${title}`}>
-            <Icon icon={Trash2} size="sm" />
-          </Button>
-        }
-      />
-      <AlertDialogPopup>
-        <AlertDialogTitle>{`Delete "${title}"?`}</AlertDialogTitle>
-        <AlertDialogActions>
-          <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-          <AlertDialogClose
-            render={
-              <Button intent="destructive" onClick={onDelete}>
-                Delete
-              </Button>
-            }
-          />
-        </AlertDialogActions>
-      </AlertDialogPopup>
-    </AlertDialog>
+    <ConfirmDialog
+      confirmLabel="Delete"
+      onConfirm={onDelete}
+      title={`Delete "${title}"?`}
+      trigger={
+        <Button intent="ghost" size="sm" aria-label={`Delete ${title}`}>
+          <Icon icon={Trash2} size="sm" />
+        </Button>
+      }
+    />
   );
 }
