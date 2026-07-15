@@ -490,6 +490,27 @@ function writeFixtures(): void {
   // (client-architecture-lockdown.md §4/§16 G14). Reads via fs.globSync, not ts-morph, so the real-tree
   // fixture is picked up regardless of tsconfig excludes.
   fx("packages/client/src/features/__g_featurecss/lib/__g_featurecss.css", ".g { color: red; }\n");
+  // bus-channel-primitive: a bespoke `new EventEmitter()` under transport/, outside bus-channel.ts's own
+  // home (client-architecture-lockdown.md §13/§16 G10 — the M9 unification).
+  fx(
+    "packages/server/src/transport/__g_bce/x.ts",
+    'import { EventEmitter } from "node:events";\nexport const gEmitter = new EventEmitter();\n',
+  );
+  // bus-definition-belts: a `*_EVENT_TYPES satisfies Record<X["type"], true>` const in @orb/contracts with
+  // NEITHER a coverage-gate file naming it NOR a client-side total map in data/invalidation.ts — both belts
+  // missing (client-architecture-lockdown.md §13 laws 4/5, §16 G11).
+  fx(
+    "packages/contracts/src/__g_busbelt/index.ts",
+    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a contracts const), not a secret.
+    'export type GBeltEvent = { type: "gTick" };\nexport const G_BELT_EVENT_TYPES = { gTick: true } satisfies Record<GBeltEvent["type"], true>;\n',
+  );
+  // membership-fan-guard: an actor-only `emitUserEvent` identifier inside domain/chat — member-visible
+  // state must fan via emitChatChanged/the chat bus, never a single-user channel (client-architecture-
+  // lockdown.md §13 law 2/§16 G12).
+  fx(
+    `${D}/chat/verbs/__g_mfg.ts`,
+    'export const leak = (emitUserEvent: (u: string, e: unknown) => void): void => {\n  emitUserEvent("u1", { type: "x" });\n};\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
