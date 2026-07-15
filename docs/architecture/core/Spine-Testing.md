@@ -97,6 +97,12 @@ tests/
 
 Exempt by nature: `index.ts` barrels, `context.ts` type-interfaces, pure-type `contract/` files. Browser lanes are not presence-gated.
 
+**`test-presence` checks EXISTENCE, not coverage:** it confirms a store's mirror `.ct.tsx` EXISTS — NOT
+that new actions are ASSERTED. Adding an action to an existing store passes presence WITHOUT covering it.
+Every NEW `#state` action / projection / non-trivial behavior gets an assertion in the mirror (drive it,
+assert the resulting store state — a dual-write writes BOTH channels). Old tests passing ≠ new behavior
+tested.
+
 **Coverage: REPORT-ONLY.** v8 provider, `pnpm test:coverage`, NEVER inside `pnpm check`; no `thresholds` block until a real baseline exists — then pin GLOBAL thresholds and ratchet UP as a backslide floor. For "do these tests catch bugs?" use mutation testing (§9), not a coverage number.
 
 ## 6. The "what to test" obligations, gathered
@@ -113,6 +119,10 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
 - **Component — Playwright CT** (`@playwright/experimental-ct-react`): `*.ct.tsx` at the mirror, `playwright-ct.config.ts`, `pnpm test:ct`. Mount wraps the component in `CtProviders` (`tests/support/ct/ct-providers.tsx` — the production provider stack: fresh `QueryClient` per mount with `retry:false`, real tRPC over `httpLink`, the real toaster). tRPC is stubbed at the **network** boundary with Playwright `page.route` (the `tests/support/ct/route-trpc.ts` helpers) — **NOT MSW**: CT runs the test in node and the component in the browser, so node-side `vi.fn` closures can't run in the browser worker. Story wrappers (`_ct-stories.tsx`) hold the components CT mounts (CT only mounts from a non-test module).
 - **e2e** — `*.spec.ts` under `tests/e2e/`, `playwright.config.ts`, `pnpm e2e`: the full running stack.
 - **Locator priority:** `getByRole` ≫ `getByLabel` ≫ `getByPlaceholder` ≫ `getByText` ≫ … ≫ `getByTestId` (last resort, never for buttons/inputs). **Real timers in form tests** (fake timers drift against React 19's scheduler + debounce — assert with Playwright's auto-retrying `expect`).
+- **`pnpm test` runs the NODE lanes only — it does NOT run CT.** A new/changed shared provider or registry
+  Context throws in EVERY story that mounts the component without wrapping it, and `pnpm test` stays GREEN
+  while the CT lane is red. Any wave touching a CT-mounted component, a shared provider, or a registry
+  Context/Provider MUST run `pnpm test:ct` (or the touched `*.ct.tsx`), not just `pnpm test`.
 
 ## 8. Tags (Vitest 4.1+) — the runtime axis, orthogonal to suffix
 

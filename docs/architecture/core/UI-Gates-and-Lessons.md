@@ -27,6 +27,10 @@ neo solved each per-site; orbweaver seals each in a primitive. Row order is load
 The two FORM rows are 2 of the six editor obligations the factories bake — the full contract is §13.4
 (the canonical home). Don't build a form against this table; build against §13.4.
 
+**Doc TS snippets use method-shorthand (`get(id): Def`)** — biome's `useConsistentMethodSignatures` rejects
+it on house style. Write property-style: `readonly get: (id: Id) => Def`. Same shape; never copy a doc
+snippet verbatim into code.
+
 ## 8. The gates (physics + lint belts)
 
 > **Live enforcement state has ONE home:** `Core-Enforcement-Active-Gates.md` (what fails a build today,
@@ -273,3 +277,29 @@ The 2026-06 re-verification write-up is the archaeology record; the standing dec
 - **Charts: Apache ECharts; nivo dropped (D52).** One dep natively covers the corpus set (bar · line ·
   heatmap · calendar · scatter · force-graph), replacing 6 `@nivo/*` packages; Canvas-rendered. Fallback if
   the similarity graph outgrows the force layout: split that one chart to a WebGL lib behind the same seal.
+
+## 12. Authoring a gate — the full ritual (a gate is NOT just the gate file)
+
+To ship a `scripts/check/gates/<name>.ts` gate GREEN you must ALSO do all three, or `pnpm check` reds:
+
+1. **Inline proof (always):** the descriptor exports `gate: GateDescriptor` with `name` == filename, a real
+   `docRow`, `status`, `scopeSafety`, a `visit`/`visitFile`/`run` body, and ≥1 `mustFlag` + ≥1 `mustPass`. The
+   loader REFUSES an un-proven gate; `gate-conformance.int.test.ts` runs the synthetic examples — you cannot
+   ship an always-green fake.
+2. **Registry parity:** add the gate's row to `Core-Enforcement-Active-Gates.md` AND bump the "N registered
+   gates" count — `enforcement-registry-parity` reds until the doc matches the loader.
+3. **Live-tree anti-drift** (`tests/tooling/check-gates.int.test.ts`): either (a) add a `__g_` fixture — a
+   minimal real-tree violation at the gate's anchor path (most per-node gates) — or (b) add the gate NAME to
+   `UNFIXTURABLE_GATES` if it reconciles WHOLE-TREE state and no minimal fixture can trigger it (parity /
+   completeness arms). Do NOT force a fake fixture for an unfixturable gate.
+
+**`scopeSafety` is load-bearing:** a cross-file / registry / completeness gate marked `incremental-safe`
+false-greens on scoped runs — it MUST be `whole-project` when it reconciles across files.
+
+**Prove it BITES its REAL shape, not a strawman.** The machine proves a gate self-CONSISTENT (mustFlag/mustPass
+run); it CANNOT prove the examples are HONEST — that is the reviewer's job. Construct the REAL violation shape
+(the actual bug the gate exists to stop) and confirm the gate reds on it; a `mustFlag` that bites a toy while
+the real shape slips through is the failure. Two recurring traps: a gate that catches ONE syntactic form of the
+banned shape is a HALF-gate (enumerate every form — object vs array vs bare-string-list; `.map()` vs
+`renderItem`; annotated vs inferred type); and a gate whose `scanRoot` names a specific FILE dies silently GREEN
+when that file is deleted (a deletion wave must sweep gates for scanRoots at deleted paths).

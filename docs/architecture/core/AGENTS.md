@@ -26,6 +26,10 @@ updated: 2026-07-13
 5. **You have no standing to shortcut.** When the right path is tedious: do it RIGHT, or STOP and flag. Stub / simplify-away / weaken-a-test / swallow-an-error / sideways-import are the banned reflexes — the instant you reach for one is the moment this file exists to stop you.
 6. **Green-to-commit:** `pnpm check` AND `pnpm test` BOTH pass before any commit; commit on `main`; end the message with the `Co-Authored-By` trailer.
 7. **`pnpm ast`, never grep,** for any code question (refs / callers / importers / exports / rot lenses).
+8. **Grep is for CODE, never for LAW.** A law doc's ruling lives in the CONTEXT around a line, not the
+   line — grepping "app-shell" finds the CSS exemption and misses that app-shell is NOT import-privileged.
+   Read law docs in FULL; random-access is fine only for indexes (`Core-Path-Registry`,
+   `Core-Enforcement-Active-Gates`).
 
 ### 0.2 The shape you're working in (agents forget this and misfile — don't)
 
@@ -119,7 +123,21 @@ concept→domain map: §6 below.
   pre-push bar is `pnpm verify --push` (adds the node tests + CT + e2e-smoke — the behavioral suites a
   bare `pnpm check` does NOT run); `pnpm verify --full` is the works (cpd + full e2e + parity + mutation).
   Exit codes are a hard contract: 0 clean · 1 violations · 2 tool error (a checker BROKE — the run is not
-  a verdict) · 3 misuse (bad args). `pnpm verify --list` prints every stage + its tier.
+  a verdict) · 3 misuse (bad args). `pnpm verify --list` prints every stage + its tier. **A SCOPED green
+  (`--changed`/`--scope`) is NOT done:** it DEFERS every whole-project gate (registry / coverage / parity /
+  completeness — the exact gates that catch half-registration across maps); the whole `pnpm check` is the
+  verdict.
+- **Banned escape hatches** (shipping one is the failure — if you can't go green without one, STOP and
+  report): no `eslint-disable`/`biome-ignore` added to pass; no new dep-cruiser exemption or gate allowlist
+  entry to dodge a rule; no `// TODO`/`// FIXME` in place of the work; no `any`/`unknown`/loose
+  index-signature to appease tsc; no leaving the OLD map/structure beside the new "for now" (delete it in
+  the same commit — half a migration IS the rot); no `{planned}`/`{placeholder}` marker on something not
+  actually planned.
+- **Probe a gate/behavior via a SCRATCH file, NEVER git.** To prove a gate BITES, plant a throwaway
+  violation at the target path (`features/__probe/lib/x.ts`) and `rm` it — no revert needed. NEVER
+  `git stash` / `git checkout <path>` / `git restore` to undo a probe: they can silently drop other
+  uncommitted work, and are banned even when nothing is lost. If you must edit a real file to probe:
+  `cp f f.bak; …; mv f.bak f`.
 - **Testing — the explicit exception to the global "quality over quantity":** comprehensive coverage IS
   the bar — every persistence verb, contract, and load-bearing invariant gets a test
   (`test-presence`/`test-layout`/`test-determinism` gates). Still no padding: test real behavior, not

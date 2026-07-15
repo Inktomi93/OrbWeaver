@@ -457,12 +457,12 @@ death must land together. Build in the order below; there is NO committable gree
 M3.3 — the gates — is the separate follow-on.)
 
 - **BUILD `lib/registry-contracts.ts` additions** (exact shapes: `client-architecture-lockdown.md` §6b — copy
-  the `ContextTabDef<S>` [unchanged], `ResolvedContextTab`, `ResolvedContextTabs`, non-generic
+  the `ContextTabDef<S>` \[unchanged], `ResolvedContextTab`, `ResolvedContextTabs`, non-generic
   `ContextDefinition`, `ContextTabsSpec<S>`, `defineContextTabs<S>`). Also MOVE these published projection
   types here, EXPORTED (O5 home, §15 correction 1): `CharacterContextState` (from
   `features/character/lib/characters-section.tsx:22-24`), `PresetContextState` (from
   `features/preset/lib/presets-section.tsx:21-23`), and the chat phase-union (M3.2). Fields are `@orb/contracts`
-  + `@orb/kit` types only (tier-4 legal). Features re-import them from `#lib`.
+  - `@orb/kit` types only (tier-4 legal). Features re-import them from `#lib`.
 - **`defineContextTabs<S>` body** (in `registry-contracts.ts`): `useResolved` is a named hook closure over
   `spec` — `const useContextState = spec.useContextState; const state = useContextState(); if (state === null)
   return null; return resolveContextTabs(spec, state);`. **BUILD `resolveContextTabs<S>(spec, state)`** as a
@@ -503,8 +503,7 @@ M3.3 — the gates — is the separate follow-on.)
   `defineContextTabs<S>({ useContextState, tabs, actions? })`):
   - **characters** (`features/character/lib/characters-section.tsx`): `S = CharacterContextState` (now from
     `#lib`). BUILD `features/character/hooks/use-character-context-state.ts` → `export function
-    useCharacterContextState(): CharacterContextState | null { const id = useSelectedCharacterId(); return id
-    === null ? null : { characterId: id }; }` (`useSelectedCharacterId` from `#state`,
+    useCharacterContextState(): CharacterContextState | null { const id = useSelectedCharacterId(); return id === null ? null : { characterId: id }; }` (`useSelectedCharacterId` from `#state`,
     `character-selection-store.ts:63`). `actions: (s) => <CharacterActionsMenu characterId={s.characterId} />`
     — the actions menu MOVES from `app-root.tsx:103` into the definition. Tabs unchanged (Field/Links/Options).
   - **presets** (`features/preset/lib/presets-section.tsx`): `S = PresetContextState`. BUILD
@@ -521,13 +520,13 @@ M3.3 — the gates — is the separate follow-on.)
   () => <WorldInfoContextBody /> }` — UNCHANGED. The host's `"single"` case renders it. Delete the FLAG note in
   the header.
 - **DELETE at M3.1:** `features/app-shell/lib/context-slots.ts` (whole file — `CONTEXT_SLOTS` + `ContextTabEntry`
-  + the stale `SectionSlot` prose, §15 correction 7); its export from `features/app-shell/index.ts:14`; the
-  `context-slots.ts` allowlist line in `no-parallel-section-map.ts:59`; the five NON-chat entries in
-  `app-root.tsx`'s `sectionContext` (`characters`/`corpus`/`analytics`/`presets`/`worldInfo`, `:99-121,155-185`)
-  and their now-dead imports (`ContextTabsPanel`, `CharacterActionsMenu`/`CharacterFacetInspector`/… tab
-  imports, `CorpusArchetypesTab`…, `AnalyticsModelsTab`…, `PresetSectionInspector`/`PresetUsageContext`,
-  `dismissPresetSection`, `useSelectedPresetId`, `useSelectedCharacterId`). KEEP the `chats` bridge entry
-  (`app-root.tsx:153`) — it dies at M3.2.
+  - the stale `SectionSlot` prose, §15 correction 7); its export from `features/app-shell/index.ts:14`; the
+    `context-slots.ts` allowlist line in `no-parallel-section-map.ts:59`; the five NON-chat entries in
+    `app-root.tsx`'s `sectionContext` (`characters`/`corpus`/`analytics`/`presets`/`worldInfo`, `:99-121,155-185`)
+    and their now-dead imports (`ContextTabsPanel`, `CharacterActionsMenu`/`CharacterFacetInspector`/… tab
+    imports, `CorpusArchetypesTab`…, `AnalyticsModelsTab`…, `PresetSectionInspector`/`PresetUsageContext`,
+    `dismissPresetSection`, `useSelectedPresetId`, `useSelectedCharacterId`). KEEP the `chats` bridge entry
+    (`app-root.tsx:153`) — it dies at M3.2.
 - **No standalone green here — part A does NOT compile on its own.** The mint migration forces the new
   `ContextDefinition` shape, which breaks `chatsSection`'s raw tabs literal at compile; chat's bridge entry +
   its `app-root.tsx` allowlist line survive only TRANSIENTLY within the atomic pass and die in part B. `pnpm
@@ -538,13 +537,11 @@ M3.3 — the gates — is the separate follow-on.)
 - **PUBLISH the chat projection union** in `registry-contracts.ts` (§15 correction 3):
   `CommittedChatContext { phase:"committed"; chatId; participants; viewerUserId; pendingHostUserId;
   roomOverrides; isHost; multiHumanCapable }` (types from `@orb/contracts/chat` + `@orb/kit/ids`),
-  `DraftChatContext { phase:"draft"; draftKey: string; cast: readonly CharacterId[] }`, `type ChatContextState
-  = CommittedChatContext | DraftChatContext`. DELETE the old `ChatContextState` interface from
+  `DraftChatContext { phase:"draft"; draftKey: string; cast: readonly CharacterId[] }`, `type ChatContextState = CommittedChatContext | DraftChatContext`. DELETE the old `ChatContextState` interface from
   `chats-section.tsx:37-45`.
 - **BUILD `features/chat/hooks/use-chat-context-state.ts`** → `export function useChatContextState():
   ChatContextState | null`. Reads (all unconditional — rules-of-hooks): `useActiveChatHandle()`,
-  `useActiveDraftSeed()`, `useAuthConfig()` (non-suspense, `multiHumanCapable = authConfig?.multiHumanCapable
-  === true`), `useTRPC()`, `useDraftConfig(handle.kind === "draft" ? handle.draftKey : "")` (frozen EMPTY
+  `useActiveDraftSeed()`, `useAuthConfig()` (non-suspense, `multiHumanCapable = authConfig?.multiHumanCapable === true`), `useTRPC()`, `useDraftConfig(handle.kind === "draft" ? handle.draftKey : "")` (frozen EMPTY
   off-draft). The `getChat` read uses the `useSuspenseQueries` DYNAMIC-ARRAY idiom (precedent: `DraftMembersTab`,
   `draft-context-panel-surface.tsx:213-215`) — `queries: chatId === null ? [] : [trpc.chat.getChat.
   queryOptions({ chatId })]` — suspends ONLY when committed (no `useGatedQuery`: it's non-suspense and a
@@ -576,17 +573,17 @@ M3.3 — the gates — is the separate follow-on.)
   Each `body` returns a COMPONENT (mounts + may use hooks — `TabsPanel` renders the node). `toMembersTabProps`
   moves with `CommittedMembersTab` (below).
 - **MOVE (committed bodies) into `features/chat/components/`** — out of the dying surface file: `CommittedMembersTab`
-  + `toMembersTabProps` + `toPersonRows` + `toCastRows` + `CommittedMembersTabProps` (from
-  `chat-context-panel-surface.tsx:47-59,52-91,233-312`). Update `chats-section.tsx`'s import to the new home.
+  - `toMembersTabProps` + `toPersonRows` + `toCastRows` + `CommittedMembersTabProps` (from
+    `chat-context-panel-surface.tsx:47-59,52-91,233-312`). Update `chats-section.tsx`'s import to the new home.
 - **BUILD the three thin DRAFT wrapper components in `features/chat/components/`** — the current
   `DraftContextPanel` inlines these; each becomes a named component that RE-READS `useDraftConfig(draftKey)`
   in-body (a `ContextTabDef.body` is not a hook context, so the read lives in the child):
   - `DraftOverridesTabBody({ draftKey }: { draftKey: string })` — `const cfg = useDraftConfig(draftKey);`
-    renders `<RoomOverridesForm entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}draft:${draftKey}`} roomOverrides={cfg.roomOverrides ?? EMPTY_ROOM_OVERRIDES} isHost={true} save={(o) => { setDraftRoomOverrides(draftKey, o); return Promise.resolve(); }} />`
+    renders `<RoomOverridesForm entityId={`${ROOM\_OVERRIDES\_ENTITY\_PREFIX}draft:${draftKey}`} roomOverrides={cfg.roomOverrides ?? EMPTY_ROOM_OVERRIDES} isHost={true} save={(o) => { setDraftRoomOverrides(draftKey, o); return Promise.resolve(); }} />`
     (lifts `draft-context-panel-surface.tsx:79-82,104-111` verbatim; `ROOM_OVERRIDES_ENTITY_PREFIX` from
     `lib/room-overrides-form-model`, `EMPTY_ROOM_OVERRIDES` local const).
   - `DraftGroupConfigTabBody({ draftKey }: { draftKey: string })` — `const cfg = useDraftConfig(draftKey);`
-    renders `<GroupConfigForm entityId={`${GROUP_CONFIG_ENTITY_PREFIX}draft:${draftKey}`} config={groupConfigSchema.parse(cfg.groupConfig ?? DEFAULT_GROUP_CONFIG)} save={(next) => { setDraftGroupConfig(draftKey, next); return Promise.resolve(); }} />`
+    renders `<GroupConfigForm entityId={`${GROUP\_CONFIG\_ENTITY\_PREFIX}draft:${draftKey}`} config={groupConfigSchema.parse(cfg.groupConfig ?? DEFAULT_GROUP_CONFIG)} save={(next) => { setDraftGroupConfig(draftKey, next); return Promise.resolve(); }} />`
     (lifts `:136-145`; `GROUP_CONFIG_ENTITY_PREFIX` from `hooks/use-group-config-form`; `groupConfigSchema`/
     `DEFAULT_GROUP_CONFIG` from `@orb/contracts/chat`).
   - `DraftMembersTabBody({ draftKey, cast }: { draftKey: string; cast: readonly CharacterId[] })` — `const cfg =
@@ -611,7 +608,7 @@ M3.3 — the gates — is the separate follow-on.)
     `activeSection`/`draftCharacterIds` reads — `routeAnnouncement` (`:123-140`) still uses them; keep
     `goToSections` (the command palette). Verify with `pnpm ast` no other consumer before pruning each import.
   - the `app-root.tsx` allowlist line in `no-parallel-section-map.ts:60` + its app-root `mustPass` fixture
-    (`:244-248`); the "FLAG[lockdown-M3]" phrases in that gate's doc-comment/`message`/`fix` (`:53,59-60,177`).
+    (`:244-248`); the "FLAG\[lockdown-M3]" phrases in that gate's doc-comment/`message`/`fix` (`:53,59-60,177`).
   - EVERY remaining `FLAG[lockdown-M3]` marker (census, verify `grep -r` → 0): the seven `*-section.tsx`
     headers, `app-shell/index.ts`, `app-shell/surfaces/app-shell.tsx`, `tests/client/features/app-shell/_ct-stories.tsx:44`.
 - **REWORK the CTs:** `tests/client/features/chat/_ct-stories.tsx` `ChatContextPanelStory`/`DraftContextPanelStory`
@@ -642,7 +639,7 @@ M3.3 — the gates — is the separate follow-on.)
   through). Add the `mustFlag` fixture (a planned section wired `context: defineContextTabs(…)`).
 - **AMEND G2** (`no-parallel-section-map.ts`): both FLAG allowlist lines already deleted across M3.1/M3.2 —
   confirm `isAllowlisted` (`:54-62`) is back to {`shell-store.ts`, `main.tsx`, `SECTION_FILE_RE`} and the
-  message/fix/doc-comment carry no "FLAG[lockdown-M3]" phrasing; the two removed `mustPass` fixtures are gone.
+  message/fix/doc-comment carry no "FLAG\[lockdown-M3]" phrasing; the two removed `mustPass` fixtures are gone.
 - **BUILD the `resolveContextTabs` unit test** (`tests/client/lib/registry-contracts.test.ts` or a
   `resolve-context-tabs.test.ts` mirror): assert when-filtering (a `when: () => false` tab is absent), own→
   contributor order, the cross-set duplicate-id THROW at mint, `null` state → `useResolved` returns null,
@@ -678,25 +675,27 @@ whole green.
 
 **Extra reading (in full):** doc §6d (the modal registry) + §5 (createRegistry) + §7 (the door) + §16
 G1/G2/G13; the M1.cutover + M3 executor specs above (M4 MIRRORS them — same door-registry + context-delivery
-+ gate FAMILY, NO variance crux). Code: `state/shell-store.ts` (MODAL_SLOT_IDS + openModal/openSettingsTo/
-useOpenModal), `features/app-shell/lib/modal-slots.tsx` (MODAL_SLOTS — dies),
-`features/app-shell/components/modal-host.tsx` (the renderer), `features/app-shell/components/rail.tsx` +
-`lib/rail-slots.ts` (the modal-trigger map — DIES; the rail DERIVES instead) + the topbar/mobile-bar that
-render the command/you affordances, `features/app-shell/components/you-sheet.tsx` (YOU_MODAL_ROWS shadow),
-`routes/app-root.tsx:63,94-101`, `main.tsx` (the door), `state/section-registry{,-context}.ts` +
-`scripts/check/gates/section-registry-completeness.ts` (the delivery + type + GATE precedent to MIRROR),
-gates `registry-pairing.ts` (RETIRES) + `modal-body-not-placeholder.ts` + `no-parallel-section-map.ts`.
+
+- gate FAMILY, NO variance crux). Code: `state/shell-store.ts` (MODAL\_SLOT\_IDS + openModal/openSettingsTo/
+  useOpenModal), `features/app-shell/lib/modal-slots.tsx` (MODAL\_SLOTS — dies),
+  `features/app-shell/components/modal-host.tsx` (the renderer), `features/app-shell/components/rail.tsx` +
+  `lib/rail-slots.ts` (the modal-trigger map — DIES; the rail DERIVES instead) + the topbar/mobile-bar that
+  render the command/you affordances, `features/app-shell/components/you-sheet.tsx` (YOU\_MODAL\_ROWS shadow),
+  `routes/app-root.tsx:63,94-101`, `main.tsx` (the door), `state/section-registry{,-context}.ts` +
+  `scripts/check/gates/section-registry-completeness.ts` (the delivery + type + GATE precedent to MIRROR),
+  gates `registry-pairing.ts` (RETIRES) + `modal-body-not-placeholder.ts` + `no-parallel-section-map.ts`.
 
 **THE DESIGN (owner-locked 2026-07-14 — "there's gonna be modals; build it right and tight." The extensible
 shape, a STRUCTURAL MIRROR of the section registry).** Modals today are a TWO-LAYER indirection (a
 `placeholder:true` `MODAL_SLOTS` registry overridden per-route by `AppShellProps.modals`) AND their
 rail/topbar/avatar/mobile affordances are a PARALLEL hand-map (`RAIL_ACTIONS`/`ACCOUNT_ACTION`/`COMMAND_ACTION`
-+ synthetic `NEW_CHAT_ACTION`/`YOU_ACTION`) — a shadow the lockdown kills (and G2's new ModalSlotId arm would
-flag it, forcing an allowlist dodge). M4 collapses ALL of it into ONE door-assembled `ModalDefinition`
-registry where each modal SELF-DECLARES its trigger, the rail DERIVES its modal affordances from the registry
-(exactly as it already derives sections), and the modal GATE FAMILY mirrors the section gate family.
 
-- **ModalDefinition** (type home `state/modal-registry.ts` — mirror `section-registry.ts`; references
+- synthetic `NEW_CHAT_ACTION`/`YOU_ACTION`) — a shadow the lockdown kills (and G2's new ModalSlotId arm would
+  flag it, forcing an allowlist dodge). M4 collapses ALL of it into ONE door-assembled `ModalDefinition`
+  registry where each modal SELF-DECLARES its trigger, the rail DERIVES its modal affordances from the registry
+  (exactly as it already derives sections), and the modal GATE FAMILY mirrors the section gate family.
+
+* **ModalDefinition** (type home `state/modal-registry.ts` — mirror `section-registry.ts`; references
   `ModalSlotId`/`DialogPopupProps`/`LucideIcon`):
   ```ts
   /** WHERE a modal's trigger affordance lives — the rail/topbar/mobile-bar DERIVE from this (no parallel
@@ -715,7 +714,7 @@ registry where each modal SELF-DECLARES its trigger, the rail DERIVES its modal 
     readonly body: (() => ReactElement) | { readonly planned: string };
   }
   ```
-- **The 6 defs' placements** (bodies STAY where they are — all already in the owning dir; each `*-modal.tsx` is
+* **The 6 defs' placements** (bodies STAY where they are — all already in the owning dir; each `*-modal.tsx` is
   a feature front-door export): theme→`rail-footer` ("Switch theme", SunMoon → ThemePickerSurface);
   settings→`rail-footer` ("Settings", Settings, `size:"xl"` → SettingsShell); account→`avatar` ("Account",
   CircleUser → AccountSurface); command→`topbar-command` ("Jump to…", Command → CommandPaletteSurface);
@@ -723,7 +722,7 @@ registry where each modal SELF-DECLARES its trigger, the rail DERIVES its modal 
   you→`mobile-tab` ("You", CircleUser, `presentation:"drawer"` → YouSheet; app-shell owns `you`). Self-contained
   like sections — the `command` def builds `goToSections` from `useSectionRegistry()` itself (not a prop); ASK
   if any body needs an app-root-only value.
-- **The rail/topbar/mobile-bar DERIVE from the registry** (kills the parallel map — the section-derives-the-rail
+* **The rail/topbar/mobile-bar DERIVE from the registry** (kills the parallel map — the section-derives-the-rail
   pattern, now for modals): rail-footer buttons = `modalRegistry.list().filter(m => m.trigger.placement ===
   "rail-footer")`; topbar ⌘K = the `"topbar-command"` modal; mobile "You" tab = the `"mobile-tab"` modal —
   each rendering `{trigger.label, trigger.icon}` with `onClick={() => openModal(m.id)}`. The `"avatar"`
@@ -732,21 +731,22 @@ registry where each modal SELF-DECLARES its trigger, the rail DERIVES its modal 
   itself renders no avatar fallback. The You sheet still derives its account row from the `"avatar"` modal
   (`modalRegistry.list()`, same as rail-footer). `"content"` modals aren't rail-rendered (chat's new-chat
   button keeps calling `openModal("newChat")`).
-- **Delivery = ModalRegistryContext** (mirror `section-registry-context.ts` EXACTLY): `state/modal-registry-context.ts`
+* **Delivery = ModalRegistryContext** (mirror `section-registry-context.ts` EXACTLY): `state/modal-registry-context.ts`
   (context + `useModalRegistry()` throwing off-provider) + a `ModalRegistryProvider`; `main.tsx` assembles
   `createRegistry("modals", MODAL_SLOT_IDS, {…6…})` + wraps the provider; `ModalHost` reads
   `useModalRegistry().get(openModal)` blind. app-shell gains NO `#features/*` edge (context value; confirm
   `pnpm ast flow`).
-- **DELETE:** `MODAL_SLOTS`+`ModalDef` (`modal-slots.tsx` whole file) + front-door export; `AppShellProps.modals`
-  + the `app-root.tsx` override assembly + dead imports; `ModalHost`'s two-layer → `registry.get(openModal).body()`
-  with the planned-arm narrow (a `{planned}` body renders its title as a placeholder — mirror the section
-  content-none render); **`RAIL_ACTIONS`/`ACCOUNT_ACTION`/`COMMAND_ACTION`/`NEW_CHAT_ACTION`/`YOU_ACTION` + the
-  `RailModalEntry` interface** (`rail-slots.ts` — the whole modal-trigger map; KEEP `SECTION_GROUPS`);
-  `YOU_MODAL_ROWS` (you-sheet — derive its account/settings/theme rows from `modalRegistry.list()`:
-  `{id, label: def.title, icon: def.trigger.icon}`). `openModal`/`openSettingsTo`/etc. UNCHANGED.
+* **DELETE:** `MODAL_SLOTS`+`ModalDef` (`modal-slots.tsx` whole file) + front-door export; `AppShellProps.modals`
+  - the `app-root.tsx` override assembly + dead imports; `ModalHost`'s two-layer → `registry.get(openModal).body()`
+    with the planned-arm narrow (a `{planned}` body renders its title as a placeholder — mirror the section
+    content-none render); **`RAIL_ACTIONS`/`ACCOUNT_ACTION`/`COMMAND_ACTION`/`NEW_CHAT_ACTION`/`YOU_ACTION` + the
+    `RailModalEntry` interface** (`rail-slots.ts` — the whole modal-trigger map; KEEP `SECTION_GROUPS`);
+    `YOU_MODAL_ROWS` (you-sheet — derive its account/settings/theme rows from `modalRegistry.list()`:
+    `{id, label: def.title, icon: def.trigger.icon}`). `openModal`/`openSettingsTo`/etc. UNCHANGED.
 
 **Gates — MIRROR the section gate family** (full ritual each; PROVE each bites a real constructed violation
 incl. the scanRoot-fires check per F2/G3; Core-Enforcement rows + count reconciled):
+
 - **NEW `modal-registry-completeness`** (mirror `section-registry-completeness.ts`/G1): every `MODAL_SLOT_ID`
   has a def co-located `features/*/lib/*-modal.tsx` (tsc carries completeness; the gate adds co-location +
   uniqueness); the PLANNED-arm honesty (a `{planned}` with an empty reason, or a planned modal wiring a real
@@ -772,8 +772,8 @@ incl. the scanRoot-fires check per F2/G3; Core-Enforcement rows + count reconcil
 modals, no cross-feature grafts (verified).
 
 **M4 DONE-GATE (cite each):** `pnpm check` whole green + `pnpm test` green · every modal opens + renders its
-real body, triggered from its DERIVED affordance (theme/settings[xl] rail-footer, account avatar, command ⌘K,
-newChat from chat content, you[drawer] mobile) — drive via run/__orb · `MODAL_SLOTS`/`ModalDef`/
+real body, triggered from its DERIVED affordance (theme/settings\[xl] rail-footer, account avatar, command ⌘K,
+newChat from chat content, you\[drawer] mobile) — drive via run/\_\_orb · `MODAL_SLOTS`/`ModalDef`/
 `AppShellProps.modals`/`RAIL_ACTIONS`+the trigger consts/`YOU_MODAL_ROWS` DELETED not orphaned ·
 `registry-pairing` retired (file + row gone, count decremented) · `modal-registry-completeness` built + its
 singleton/planned/co-location arms each biting a real constructed violation · `modal-body-not-placeholder` +
@@ -820,7 +820,7 @@ image?"), `settings/components/admin-user-sessions-dialog.tsx` (controlled, "Rev
   content/settings regions, not entity LIST panes, and use none of these primitives). Within such a file, a
   `.map()` callback returning INTERACTIVE JSX (an element carrying onClick/role/href) whose root is NOT
   `ListRow`/`LibraryRow`/an allowlisted composite → RED. Both-ways ratchet: an explicit allowlist for any
-  legitimate edge (baseline the current state — list surfaces already root in LibraryRow, so baseline ~zero;
+  legitimate edge (baseline the current state — list surfaces already root in LibraryRow, so baseline \~zero;
   if a real current offender exists, allowlist it WITH a cited reason, do not weaken the predicate).
   scopeSafety incremental-safe. mustFlag = a hand-rolled interactive `.map()` row in a LIST-surface file;
   mustPass = a `LibraryRow`-rooted `.map()`; a non-LIST-surface file's interactive `.map()`; a message/facet/
@@ -829,7 +829,7 @@ image?"), `settings/components/admin-user-sessions-dialog.tsx` (controlled, "Rev
   against a real file, ASK the orchestrator.
 
 **M5 DONE-GATE (cite each):** `pnpm check` whole green + `pnpm test` green · ZERO `@orb/ui/alert-dialog`
-imports in `features/**` (`pnpm ast importers`) · all 5 confirms render + fire live (drive via run/__orb —
+imports in `features/**` (`pnpm ast importers`) · all 5 confirms render + fire live (drive via run/\_\_orb —
 esp. workload-row's "Keep running" cancel + entry-editor's icon trigger + no-description) · G7 REDs a planted
 feature alert-dialog import · G6 built + biting a real offender + passing the baseline + NOT flagging the
 carve-out species · full gate ritual (rows + count + fixtures/UNFIXTURABLE) · zero banned hatches · nothing
@@ -867,22 +867,23 @@ workloads · backup · chat-behavior · regex · connections · automation · sy
   precedent). Do NOT type `contextTab` (ruled opaque). `{placeholder:true}` arm for the 3 unbuilt.
   Section-id↔feature-name is NOT a mirror (`personas` → `features/persona`); G4 keys on WHERE the pane lives.
 - **Delivery = SettingsPaneRegistryContext** (mirror Section/Modal EXACTLY): `state/settings-pane-registry-context.ts`
-  + `-provider.tsx`; `main.tsx` assembles `createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {…12…})`; the
-  host reads `useSettingsPaneRegistry().get(active).body()` blind — the if-ladder dies. Nav derives from
-  `registry.list()` (label/icon/group + `pane.when?.(view) ?? true` where `view` is the host-computed
-  `SettingsViewerView`); scroll-spy + fuzzy search + `openSettingsTo` KEPT (now typed `SettingsCategoryId`).
+  - `-provider.tsx`; `main.tsx` assembles `createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {…12…})`; the
+    host reads `useSettingsPaneRegistry().get(active).body()` blind — the if-ladder dies. Nav derives from
+    `registry.list()` (label/icon/group + `pane.when?.(view) ?? true` where `view` is the host-computed
+    `SettingsViewerView`); scroll-spy + fuzzy search + `openSettingsTo` KEPT (now typed `SettingsCategoryId`).
 
 **SUB-WAVES (each green + committed):**
-- **M6.1 — thin host (panes STAY PUT — behavior-frozen) + G4** [executor]: build the type + context + provider
-  + door assembly registering ALL 12 pane defs CO-LOCATED IN `features/settings/lib/*-pane.tsx` (the 4
-  to-move panes register from settings/lib TEMPORARILY — panes don't move yet, doc §17 "panes stay put"); the
-  4 settings-forever built panes (appearance/system/tags/regex) wrap their existing surfaces; the 3 unbuilt →
-  `{placeholder:true}`; the 5 to-move built panes (personas/admin/connections/workloads/backup) wrap their
-  existing surfaces from settings/lib. REPLACE the if-ladder (`settings-shell-surface.tsx:335-365`) with
-  `registry.get(active).body()` + the placeholder narrow. Build **G4 `settings-pane-completeness`** (MIRROR
-  `modal-registry-completeness`: every `SETTINGS_CATEGORY_ID` has a co-located `*-pane` in the door; duplicate
-  id; placeholder honesty — a `{placeholder:true}` pane can't wire a real body & vice-versa; the host imports
-  NO pane body directly). Green.
+
+- **M6.1 — thin host (panes STAY PUT — behavior-frozen) + G4** \[executor]: build the type + context + provider
+  - door assembly registering ALL 12 pane defs CO-LOCATED IN `features/settings/lib/*-pane.tsx` (the 4
+    to-move panes register from settings/lib TEMPORARILY — panes don't move yet, doc §17 "panes stay put"); the
+    4 settings-forever built panes (appearance/system/tags/regex) wrap their existing surfaces; the 3 unbuilt →
+    `{placeholder:true}`; the 5 to-move built panes (personas/admin/connections/workloads/backup) wrap their
+    existing surfaces from settings/lib. REPLACE the if-ladder (`settings-shell-surface.tsx:335-365`) with
+    `registry.get(active).body()` + the placeholder narrow. Build **G4 `settings-pane-completeness`** (MIRROR
+    `modal-registry-completeness`: every `SETTINGS_CATEGORY_ID` has a co-located `*-pane` in the door; duplicate
+    id; placeholder honesty — a `{placeholder:true}` pane can't wire a real body & vice-versa; the host imports
+    NO pane body directly). Green.
 - **M6.2 — the de-god: EXTRACT-SHARED-FIRST, then move (RULED 2026-07-15 — the standard de-god pattern, done)**:
   **PHASE 1 — hoist every shared cross-boundary primitive to its tier BEFORE moving** (a settings util/component
   imported by BOTH a moving pane AND a staying pane can't be cross-feature-imported once panes leave —
@@ -896,7 +897,7 @@ workloads · backup · chat-behavior · regex · connections · automation · sy
   (connections-domain, zero admin refs — `pnpm ast refs` proved it), correcting the doc's guess. G4 fires on
   the new co-located `features/*/lib/*-pane.tsx`. `prompt-manager/.gitkeep` STAYS (O2). knip-clean; `pnpm test:ct`
   green.
-- **M6.3 — dissolve `settings-shell.css` + G14** [executor]: the 14-line `.settings-flash-anchor` scroll-spy
+- **M6.3 — dissolve `settings-shell.css` + G14** \[executor]: the 14-line `.settings-flash-anchor` scroll-spy
   highlight (token-referenced, `settings-shell.css`) dissolves to a SANCTIONED §4 home (a `@orb/ui` variant or
   `client/styles/globals.css` keyframe — NOT app-shell shell.css unless truly shell-structural; the executor
   judges per §4, ASK if unclear). Build **G14 `feature-css-files`** (fs / `client-structure` arm: a `.css`
@@ -997,7 +998,7 @@ registry, or an anchor has no clean mount.
 
 **READ FIRST:** `docs/architecture/core/AGENTS.md`; then in `client-architecture-lockdown.md` the WHOLE of **§13**
 (the event/sync spine — the 4-bus inventory table, the 6 LAWS each naming its enforcer, the `defineBusChannel`
-unification paragraph, E4) + **§16 rows G10/G11/G12** (lines ~500-502) + **§18 O4** (the buddy deferral). Then read
+unification paragraph, E4) + **§16 rows G10/G11/G12** (lines \~500-502) + **§18 O4** (the buddy deferral). Then read
 the THREE current bus modules IN FULL: `packages/server/src/transport/trpc/chat-events-bus.ts`,
 `user-events-bus.ts`, `notifications-bus.ts`, and the client seam `packages/client/src/data/invalidation.ts`
 (`BUS_FILTERS` / `USER_BUS_FILTERS`). This is a DIFFERENT package from the client registry primitives — M9 mirrors
@@ -1012,7 +1013,7 @@ unwrap generator). Unify the PLUMBING only:
   returning `{ publish(key, event), subscribe(key, signal), subscribeAll? }` — the exact machinery above, ONCE.
   **`subscribeAll` is a TYPED OPT-IN capability, not always-on** (only chat's `ALL_CHATS_CHANNEL` firehose /
   `subscribeAllChatEvents` needs it): a channel that doesn't declare a firehose must NOT expose `subscribeAll` in
-  its type (user/notifications literally cannot call it) — lock the extensible shape ([[lock-the-extensible-shape]]),
+  its type (user/notifications literally cannot call it) — lock the extensible shape (\[\[lock-the-extensible-shape]]),
   don't bolt a universal method that only one bus uses. If the firehose implies `publish` also fans to the firehose
   channel, that fan is part of the declared capability.
 - **Migrate the three buses onto it, BYTE-EQUIVALENTLY:**
@@ -1060,7 +1061,7 @@ choice, or if a gate's server scanRoot can't be made to bite.
 3-state panel model docked/overlay/collapsed + "auto-overlay below a width breakpoint") + §4b axis 2 (the shell
 is the sole legal viewport-`@media` site), and `client-architecture-lockdown.md` §17 M10 + §16 **O6** ("build it
 proper — the §4.1 behavior is real committed law"). Then the code IN FULL: `state/shell-store.ts`
-(`PANEL_MODES`, `panelOverrides` [persisted], `mobileViewport`/`setMobileViewport` [device-transient]),
+(`PANEL_MODES`, `panelOverrides` \[persisted], `mobileViewport`/`setMobileViewport` \[device-transient]),
 `features/app-shell/hooks/use-shell-layout.ts` (`resolvePanel` — the gap), `features/app-shell/hooks/
 use-is-mobile-viewport.ts` (the `no-raw-matchmedia` LEGAL HOME, `MOBILE_QUERY = "(max-width: 48rem)"`),
 `features/app-shell/surfaces/shell.css` (the ONE `@media` + the overlay clamp), `features/app-shell/surfaces/
@@ -1124,6 +1125,7 @@ left reading only `mobileViewport`, so it disagreed with `resolvePanel` in 48–
 auto-overlay must resolve a docked panel to a CLOSED slide-over, openable on demand — NOT open-on-load.
 
 **THE CORRECTED MODEL (ruled — build to the §4.1 law, O6):**
+
 - **The 3 modes are: `docked` (in-column) · `overlay` (slid-over, OPEN) · `collapsed` (zero-width, CLOSED).** A
   slide-over panel that is CLOSED renders as `collapsed`; OPEN renders as `overlay`. "Which slide-over is open" is
   ONE regime-agnostic field: **rename `mobileSheet` → `openOverlayPanel: PanelName | null`** (device-transient,
@@ -1139,8 +1141,8 @@ auto-overlay must resolve a docked panel to a CLOSED slide-over, openable on dem
   ```
 - **ONE shared docked-ness/mode algebra in `#state`** that BOTH `resolvePanel` and `useListDocked` consume, so
   they cannot drift again (the verifier's finding is exactly the drift a shared primitive prevents). `useListDocked`
-  = "list resolves to `docked`" through the SAME function (mobile → false; narrow&&docked-default → false [it's a
-  closed slide-over]; wide&&docked → true). Sweep for ANY other hand-rolled "is panel docked/visible" derivation
+  \= "list resolves to `docked`" through the SAME function (mobile → false; narrow&\&docked-default → false \[it's a
+  closed slide-over]; wide&\&docked → true). Sweep for ANY other hand-rolled "is panel docked/visible" derivation
   and route it through the shared function too.
 - **The topbar toggle (`togglePanel`)**: when the panel is in an overlay regime (mobile OR narrow-auto-overlay),
   it OPENS/CLOSES via `openOverlayPanel` (ephemeral) — mirror the EXISTING mobile open/close path, do NOT write a
@@ -1148,7 +1150,7 @@ auto-overlay must resolve a docked panel to a CLOSED slide-over, openable on dem
   A closed auto-overlay panel's toggle → opens it; an open one → closes it (scrim-dismiss already does this
   correctly — converge on the same `collapsePanel`/close path).
 - **CSS**: the desktop `overlay`-OPEN panel must adopt the same `inset-block` topbar-row clearance the mobile
-  overlay rule already uses (`shell.css` desktop overlay rule ~241-261 ← mirror the mobile rule ~386-410), so an
+  overlay rule already uses (`shell.css` desktop overlay rule \~241-261 ← mirror the mobile rule \~386-410), so an
   OPEN overlay never occludes the topbar controls. Closed = `collapsed` = zero width, no occlusion.
 
 **CORRECTED DONE-GATE:** everything in the original M10 done-gate PLUS: a docked-default panel is CLOSED
