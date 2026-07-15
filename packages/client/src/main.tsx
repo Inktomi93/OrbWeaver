@@ -21,11 +21,14 @@ import type { ReactElement } from "react";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
+import { youModal } from "#features/app-shell";
+import { accountModal } from "#features/auth";
 import { charactersSection } from "#features/character";
-import { makeChatsSection } from "#features/chat";
+import { commandModal, makeChatsSection, newChatModal } from "#features/chat";
 import { corpusSection } from "#features/discovery";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
+import { settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { worldInfoSection } from "#features/world-info";
 import type { ChatContextState, ContextTabDef } from "#lib";
@@ -36,7 +39,12 @@ import {
   createContributorRegistry,
   createRegistry,
 } from "#lib";
-import { SECTION_IDS, SectionRegistryProvider } from "#state";
+import {
+  MODAL_SLOT_IDS,
+  ModalRegistryProvider,
+  SECTION_IDS,
+  SectionRegistryProvider,
+} from "#state";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { isProbeMode } from "./lib/probe-mode";
 import { router } from "./routes/router";
@@ -88,6 +96,17 @@ const sections = createRegistry("sections", SECTION_IDS, {
   presets: presetsSection,
   refinery: refinerySection,
   analytics: analyticsSection,
+});
+
+// The ONE modal assembly (§6d/G8): total over MODAL_SLOT_IDS by tsc; delivered as a context value so
+// ModalHost reads it without a #features import.
+const modals = createRegistry("modals", MODAL_SLOT_IDS, {
+  theme: themeModal,
+  settings: settingsModal,
+  account: accountModal,
+  command: commandModal,
+  newChat: newChatModal,
+  you: youModal,
 });
 
 // The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders
@@ -145,7 +164,9 @@ createRoot(rootEl).render(
             )}
           >
             <SectionRegistryProvider value={sections}>
-              <RouterProvider router={router} />
+              <ModalRegistryProvider value={modals}>
+                <RouterProvider router={router} />
+              </ModalRegistryProvider>
             </SectionRegistryProvider>
           </AppErrorBoundary>
           <Toaster />

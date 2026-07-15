@@ -1,6 +1,6 @@
 // CT: the real AccountSurface (features/auth/surfaces/account-surface.tsx — the P1-c reachability proof).
 // This is the modal body the DESKTOP rail-foot Account entry opens (persona-panel AccountStrip →
-// `openModal("account")` → MODAL_SLOTS.account === <AccountSurface/>, home-page.tsx) — replacing the old
+// `openModal("account")` → the modal registry's `accountModal` body === <AccountSurface/>) — replacing the old
 // stranded placeholder ("Sign-in details arrive with accounts.") and its duplicate `logout()`. The CT
 // proves the surface renders THIS request's identity (handle · role · mode) and the ONE sign-out
 // affordance, with the auth `/config` + `/me` reads stubbed at the network boundary (page.route).

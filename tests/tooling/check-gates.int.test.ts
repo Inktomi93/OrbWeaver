@@ -210,6 +210,17 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_g2map/lib/parallel.ts",
     "export const M = { chats: 1, characters: 1, corpus: 1 };\n",
   );
+  // modal-registry-completeness: a `ModalDefinition`-typed var in a file that is NOT a `*-modal.tsx` def
+  // file — the co-location arm.
+  fx(
+    "packages/client/src/features/__g_gmodal/lib/stray.ts",
+    "export const strayModal: ModalDefinition = { id: 'x' };\n",
+  );
+  // modal-body-not-placeholder: a `*-modal.tsx` def whose function body renders <SectionPlaceholder>.
+  fx(
+    "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
+    "export const gModal: ModalDefinition = { id: 'x', body: () => <SectionPlaceholder /> };\n",
+  );
   // context-definition-shape: a hand-rolled `{kind:"tabs",useResolved}` object literal outside
   // lib/registry-contracts.ts — a badge-wearing tabs renderer bypassing the mint (arm 1).
   fx(
@@ -340,26 +351,10 @@ function writeFixtures(): void {
     // biome-ignore lint/nursery/noUnnecessaryTemplateExpression: The function name is assembled so the literal isn't present in THIS file's source.
     `export function ${"gNoFocus"}Surface() {\n  return <div>unfocused</div>;\n}\n`,
   );
-  // registry-pairing: a rail-slots.ts / modal-slots.tsx PAIR that fails to bijection — a modal trigger
-  // ("ghost") with no body, AND a body ("orphan") with no trigger (both arms fire).
-  fx(
-    "packages/client/src/features/__g_pairing/lib/rail-slots.ts",
-    'export const GHOST = { kind: "modal", id: "ghost", label: "Ghost" };\n',
-  );
-  fx(
-    "packages/client/src/features/__g_pairing/lib/modal-slots.tsx",
-    'export const MODAL_SLOTS = { orphan: { title: "Orphan", render: () => null } };\n',
-  );
   // registry-assembly-at-door-only: a createRegistry( call in a feature file — outside the door.
   fx(
     "packages/client/src/features/__g_regdoor/lib/__g_regdoor.ts",
     'declare function createRegistry<T>(name: string, ids: readonly string[], defs: T): unknown;\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
-  );
-  // modal-body-not-placeholder: a modal-slots.tsx entry rendering <SectionPlaceholder> with NO
-  // `placeholder: true` flag (a silent-sparkle body).
-  fx(
-    "packages/client/src/features/__g_modalph/lib/modal-slots.tsx",
-    'export const MODAL_SLOTS = { silent: { title: "S", render: () => <SectionPlaceholder title="S" /> } };\n',
   );
   // placeholder-copy-registry: a PAIR of co-located `*-section` files sharing one (title, description)
   // placeholder — the cross-file distinctness "SAME" arm. The `-section` path shape (SECTION_FILE_RE)

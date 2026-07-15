@@ -6,8 +6,8 @@
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ModalSlotId, SectionId } from "#state";
-import { useSectionRegistry } from "#state";
-import { ACCOUNT_ACTION, RAIL_ACTIONS, SECTION_GROUPS, YOU_ACTION } from "../lib/rail-slots";
+import { useModalRegistry, useSectionRegistry } from "#state";
+import { SECTION_GROUPS } from "../lib/rail-slots";
 import { RailButton } from "./rail-button";
 import { RailTabButton } from "./rail-tab-button";
 
@@ -15,8 +15,8 @@ export interface RailProps {
   readonly activeSection: SectionId;
   readonly onSelectSection: (id: SectionId) => void;
   readonly onOpenModal: (id: ModalSlotId) => void;
-  /** Route-composed rail-foot chip (the persona switcher). When supplied it replaces the static
-   *  account avatar; undefined ⇒ the account modal button (backward-compatible). */
+  /** The route-composed rail-foot chip (`PersonaPanelSurface`) — the ONE renderer of the `avatar`
+   *  placement; it owns the account-modal trigger itself, so Rail never derives an avatar button. */
   readonly railFoot?: ReactNode;
 }
 
@@ -26,10 +26,14 @@ export function Rail({
   onOpenModal,
   railFoot,
 }: RailProps): ReactElement {
-  // Pure registry render: the rail order + grouping + mobile curation all derive from the section
-  // definitions (no parallel RAIL_SECTIONS map). A new section is a registered SectionDefinition.
+  // Pure registry render: sections derive from the section registry (order/grouping/mobile curation),
+  // modal affordances derive from the modal registry via each def's `trigger.placement` — no parallel
+  // maps. A new section is a registered SectionDefinition; a new rail modal a registered ModalDefinition.
   const sections = useSectionRegistry().list();
   const mobilePrimary = sections.filter((d) => d.rail.mobilePrimary === true);
+  const modals = useModalRegistry().list();
+  const footerModals = modals.filter((m) => m.trigger.placement === "rail-footer");
+  const youModal = modals.find((m) => m.trigger.placement === "mobile-tab");
   return (
     <nav className="shell-rail" aria-label="Primary">
       <div className="shell-rail-desktop">
@@ -58,23 +62,15 @@ export function Rail({
         <div className="shell-rail-spacer" />
 
         <div className="shell-rail-actions">
-          {RAIL_ACTIONS.map((a) => (
+          {footerModals.map((m) => (
             <RailButton
-              key={a.id}
-              label={a.label}
-              icon={a.icon}
-              onClick={(): void => onOpenModal(a.id)}
+              key={m.id}
+              label={m.trigger.label}
+              icon={m.trigger.icon}
+              onClick={(): void => onOpenModal(m.id)}
             />
           ))}
-          <div className="shell-rail-avatar">
-            {railFoot ?? (
-              <RailButton
-                label={ACCOUNT_ACTION.label}
-                icon={ACCOUNT_ACTION.icon}
-                onClick={(): void => onOpenModal(ACCOUNT_ACTION.id)}
-              />
-            )}
-          </div>
+          <div className="shell-rail-avatar">{railFoot}</div>
         </div>
       </div>
 
@@ -88,11 +84,13 @@ export function Rail({
             onClick={(): void => onSelectSection(d.id)}
           />
         ))}
-        <RailTabButton
-          label={YOU_ACTION.label}
-          icon={YOU_ACTION.icon}
-          onClick={(): void => onOpenModal(YOU_ACTION.id)}
-        />
+        {youModal === undefined ? null : (
+          <RailTabButton
+            label={youModal.trigger.label}
+            icon={youModal.trigger.icon}
+            onClick={(): void => onOpenModal(youModal.id)}
+          />
+        )}
       </div>
     </nav>
   );

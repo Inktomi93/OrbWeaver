@@ -20,7 +20,7 @@ export const SECTION_IDS = [
 ] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
-/** The rail/topbar/avatar-triggered modal surfaces (id-paired with MODAL_SLOTS bodies). */
+/** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door). */
 export const MODAL_SLOT_IDS = [
   "theme",
   "settings",

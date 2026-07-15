@@ -1,42 +1,62 @@
 // Gate: no-parallel-section-map (client-architecture-lockdown.md §5 rule 4 / §16 G2) — the composition
-// bug was a section smeared across parallel static maps no gate forced to agree. Three shapes are RED
-// outside the sanctioned homes: (1) a VALUE object literal hardcoding ≥2 SectionId keys (the
-// `SECTION_PANEL_DEFAULTS` shape); (2) an array literal of `{ id: <SectionId>, … }` elements covering ≥2
-// SectionIds (the deleted `RAIL_SECTIONS` shape); (3) a `Record<SectionId, …>` type annotation on a value
-// declaration (catches a hardcoded map whose value literal the object-literal arm can't see, e.g. built by
-// a function call). Derive from the registry, never re-declare — a DERIVED map (`registry.list().filter…`)
-// has no literal SectionId keys/type, so it passes (the load-bearing false-positive check).
+// bug was a section (or modal) smeared across parallel static maps no gate forced to agree. Four shapes
+// are RED outside the sanctioned homes: (1) a VALUE object literal hardcoding ≥2 vocabulary keys (the
+// `SECTION_PANEL_DEFAULTS`/`YOU_MODAL_ROWS` shape); (2) an array literal of `{ id: <VocabId>, … }` elements
+// covering ≥2 ids (the deleted `RAIL_SECTIONS`/`RAIL_ACTIONS` shape); (3) a `Record<VocabId, …>` type
+// annotation on a value declaration (catches a hardcoded map whose value literal the object-literal arm
+// can't see, e.g. built by a function call); (4) a bare array literal of ≥2 distinct vocab-id STRING
+// LITERALS (the deleted `YOU_MODAL_IDS` shape — same drift, spelled as ids not `{id:…}` objects, which arm
+// (2) can't see since it has zero object elements). Derive from the registry, never re-declare — a DERIVED
+// map (`registry.list().filter…`) has no literal keys/type, so it passes (the load-bearing false-positive
+// check). The vocabulary TUPLES themselves (`SECTION_IDS`/`MODAL_SLOT_IDS` in shell-store.ts) are bare
+// all-ids string arrays too — they're the sanctioned ONE home, allowlisted like every other arm.
 //
-// SCOPE (this wave): the SectionId vocabulary only. The ModalSlotId arm lands at M4 (when modal bodies
-// move to the door) and the SettingsCategoryId arm at M6 (settings de-god) — staged, not forgotten.
-import type { ObjectLiteralExpression, Project, SourceFile, TypeNode } from "ts-morph";
+// SCOPE: the SectionId AND ModalSlotId vocabularies (both LIVE). The SettingsCategoryId arm lands at M6
+// (settings de-god) — staged, not forgotten.
+import type { Expression, ObjectLiteralExpression, Project, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
-/** ≥ this many SectionId keys in one object literal = a re-declared parallel map (not an incidental pair). */
-const MIN_SECTION_KEYS = 2;
+/** ≥ this many vocab keys in one object literal = a re-declared parallel map (not an incidental pair). */
+const MIN_KEYS = 2;
 /** A co-located section definition file: `features/<owner>/lib/<id>-section.{ts,tsx}`. */
 const SECTION_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-section\.tsx?$/;
-const RECORD_SECTION_ID_RE = /\bRecord<\s*SectionId\b/;
-const PARTIAL_RECORD_SECTION_ID_RE = /\bPartial<\s*Record<\s*SectionId\b/;
+/** A co-located modal definition file: `features/<owner>/lib/<id>-modal.{ts,tsx}`. */
+const MODAL_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/;
+
+/** A vocabulary the parallel-map ban covers: its ids, its `Record<Name>` type regexes, its sanctioned
+ *  homes, and the registry name for the fix message. */
+interface Vocab {
+  readonly name: string;
+  readonly tupleConst: string;
+  readonly ids: ReadonlySet<string>;
+  readonly recordRe: RegExp;
+  readonly partialRecordRe: RegExp;
+  readonly isDefFile: (repoRelPath: string) => boolean;
+  readonly registry: string;
+}
+
+const SECTION_RECORD_RE = /\bRecord<\s*SectionId\b/;
+const SECTION_PARTIAL_RE = /\bPartial<\s*Record<\s*SectionId\b/;
+const MODAL_RECORD_RE = /\bRecord<\s*ModalSlotId\b/;
+const MODAL_PARTIAL_RE = /\bPartial<\s*Record<\s*ModalSlotId\b/;
 
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-/** The SectionId vocabulary tuple members (§5 rule 5 — SECTION_IDS is the one home). */
-function readSectionIds(project: Project): ReadonlySet<string> {
+/** The members of a `<CONST> = [...] as const` tuple (the one home of a shell vocabulary). */
+function readTuple(project: Project, tupleConst: string): ReadonlySet<string> {
   const ids = new Set<string>();
   for (const sf of project.getSourceFiles()) {
-    const decl = sf.getVariableDeclaration("SECTION_IDS");
+    const decl = sf.getVariableDeclaration(tupleConst);
     const init = decl?.getInitializer();
     if (init === undefined) {
       continue;
     }
-    // `["chats", "characters", …] as const` — the ArrayLiteral is the init or the `as const` expression.
     const arr = Node.isAsExpression(init) ? init.getExpression() : init;
     if (Node.isArrayLiteralExpression(arr)) {
       for (const el of arr.getElements()) {
@@ -49,37 +69,63 @@ function readSectionIds(project: Project): ReadonlySet<string> {
   return ids;
 }
 
-/** The sanctioned homes for a SectionId-keyed map: the vocabulary tuple, the door assembly, and the
- *  co-located section definition files. */
-function isAllowlisted(repoRelPath: string): boolean {
+/** The two shell vocabularies the gate covers (both LIVE); SettingsCategoryId stages at M6. */
+function readVocabs(project: Project): readonly Vocab[] {
+  return [
+    {
+      name: "SectionId",
+      tupleConst: "SECTION_IDS",
+      ids: readTuple(project, "SECTION_IDS"),
+      recordRe: SECTION_RECORD_RE,
+      partialRecordRe: SECTION_PARTIAL_RE,
+      // Section homes: the vocabulary tuple, the door assembly, the co-located section definition files.
+      isDefFile: (p) => SECTION_FILE_RE.test(p),
+      registry: "section",
+    },
+    {
+      name: "ModalSlotId",
+      tupleConst: "MODAL_SLOT_IDS",
+      ids: readTuple(project, "MODAL_SLOT_IDS"),
+      recordRe: MODAL_RECORD_RE,
+      partialRecordRe: MODAL_PARTIAL_RE,
+      // Modal homes: the vocabulary tuple, the door assembly, the co-located *-modal definition files.
+      isDefFile: (p) => MODAL_FILE_RE.test(p),
+      registry: "modal",
+    },
+  ];
+}
+
+/** The sanctioned homes for a vocab-keyed map: the vocabulary tuple + door (shell-store/main.tsx, shared
+ *  by both vocabs) and the vocab's own co-located definition files. */
+function isAllowlisted(repoRelPath: string, vocab: Vocab): boolean {
   return (
     repoRelPath.endsWith("/state/shell-store.ts") ||
     repoRelPath.endsWith("/client/src/main.tsx") ||
-    SECTION_FILE_RE.test(repoRelPath)
+    vocab.isDefFile(repoRelPath)
   );
 }
 
-/** A parallel section map = an object literal whose NAMED keys are ALL SectionIds, ≥2 of them. Requiring
- *  every named key to be a SectionId excludes an incidental collision (a TagUsage map that happens to
- *  carry `characters`/`chats` alongside `worldBooks`/`personas`). */
-function isPureSectionMap(obj: ObjectLiteralExpression, ids: ReadonlySet<string>): boolean {
-  let section = 0;
+/** A parallel vocab map = an object literal whose NAMED keys are ALL vocab ids, ≥2 of them. Requiring
+ *  every named key to be a vocab id excludes an incidental collision (a TagUsage map that happens to carry
+ *  `characters`/`chats` alongside `worldBooks`/`personas`). */
+function isPureVocabMap(obj: ObjectLiteralExpression, ids: ReadonlySet<string>): boolean {
+  let hits = 0;
   for (const prop of obj.getProperties()) {
     if (!(Node.isPropertyAssignment(prop) || Node.isShorthandPropertyAssignment(prop))) {
-      continue; // spreads / methods / computed keys — not a hardcoded per-section entry
+      continue; // spreads / methods / computed keys — not a hardcoded per-id entry
     }
     if (ids.has(prop.getName())) {
-      section += 1;
+      hits += 1;
     } else {
-      return false; // a foreign named key ⇒ this is not a section-space map
+      return false; // a foreign named key ⇒ this is not a vocab-space map
     }
   }
-  return section >= MIN_SECTION_KEYS;
+  return hits >= MIN_KEYS;
 }
 
-/** The string value of an element's `id:`/`id`(shorthand) property, or undefined (not a section-shaped
- *  element). Shorthand (`{ id }`) never carries a literal SectionId, so it can't match — only `id: "x"`. */
-function elementSectionId(el: ObjectLiteralExpression): string | undefined {
+/** The string value of an element's `id:` property, or undefined. Shorthand (`{ id }`) never carries a
+ *  literal, so it can't match — only `id: "x"`. */
+function elementId(el: ObjectLiteralExpression): string | undefined {
   const prop = el.getProperty("id");
   if (prop === undefined || !Node.isPropertyAssignment(prop)) {
     return;
@@ -88,79 +134,98 @@ function elementSectionId(el: ObjectLiteralExpression): string | undefined {
   return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : undefined;
 }
 
-/** A parallel section map, array form: an array literal whose elements are object literals each carrying
- *  an `id:` string that is a SectionId, ≥2 distinct SectionIds covered (the deleted `RAIL_SECTIONS` shape,
- *  `[{ id: 'chats', … }, { id: 'characters', … }]`). A non-section element (a foreign id, or no `id` at
- *  all) makes the array NOT pure section-space, same false-positive guard as the object-literal arm. */
-function isSectionArray(
-  arr: readonly ObjectLiteralExpression[],
-  ids: ReadonlySet<string>,
-): boolean {
+/** An array literal whose elements are object literals each carrying an `id:` that is a vocab id, ≥2
+ *  distinct covered (the deleted `RAIL_SECTIONS`/`RAIL_ACTIONS` shape). A non-vocab element (a foreign id,
+ *  or no `id`) makes the array NOT pure vocab-space, same false-positive guard as the object-literal arm. */
+function isVocabArray(arr: readonly ObjectLiteralExpression[], ids: ReadonlySet<string>): boolean {
   const covered = new Set<string>();
   for (const el of arr) {
-    const id = elementSectionId(el);
+    const id = elementId(el);
     if (id === undefined || !ids.has(id)) {
       return false;
     }
     covered.add(id);
   }
-  return covered.size >= MIN_SECTION_KEYS;
+  return covered.size >= MIN_KEYS;
 }
 
-/** A `Record<SectionId, …>` (or `Partial<Record<SectionId, …>>`) type reference on a value declaration —
+/** A bare array literal whose elements are ALL string literals, ≥2 of them DISTINCT vocab ids (the
+ *  deleted `YOU_MODAL_IDS` shape — a hand list of ids with no `{id:…}` wrapper, invisible to the
+ *  object-element array arm). A foreign string in the mix makes it not pure vocab-space, same
+ *  false-positive guard as the other arms. */
+function isVocabStringArray(elements: readonly Expression[], ids: ReadonlySet<string>): boolean {
+  const covered = new Set<string>();
+  for (const el of elements) {
+    if (!Node.isStringLiteral(el)) {
+      return false;
+    }
+    const text = el.getLiteralText();
+    if (!ids.has(text)) {
+      return false;
+    }
+    covered.add(text);
+  }
+  return covered.size >= MIN_KEYS;
+}
+
+/** A `Record<VocabId, …>` (or `Partial<Record<VocabId, …>>`) type reference on a value declaration —
  *  catches a hardcoded map whose value the object-literal arm can't see (built by a function call, not a
- *  literal). A bare TYPE ALIAS (`type X = Record<SectionId, Y>`) is not a value and can't hold data, so
- *  only VARIABLE declarations are checked. */
-function isSectionRecordType(typeNode: TypeNode | undefined): boolean {
+ *  literal). A bare TYPE ALIAS is not a value and can't hold data, so only VARIABLE declarations checked. */
+function isVocabRecordType(typeNode: TypeNode | undefined, vocab: Vocab): boolean {
   if (typeNode === undefined || !Node.isTypeReference(typeNode)) {
     return false;
   }
   const text = typeNode.getText();
-  return RECORD_SECTION_ID_RE.test(text) || PARTIAL_RECORD_SECTION_ID_RE.test(text);
+  return vocab.recordRe.test(text) || vocab.partialRecordRe.test(text);
 }
 
-function scanFile(sf: SourceFile, ids: ReadonlySet<string>, out: Violation[]): void {
-  const path = sf.getFilePath();
-  if (!path.includes(CLIENT_SRC) || isAllowlisted(rel(path))) {
-    return;
-  }
-  for (const obj of sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)) {
-    if (isPureSectionMap(obj, ids)) {
-      out.push({
-        file: rel(path),
-        line: obj.getStartLineNumber(),
-        message:
-          "an object literal is keyed entirely by SectionIds — a parallel section map that no gate forces " +
-          "to agree with the registry (the SECTION_PANEL_DEFAULTS bug). Derive from the section registry " +
-          "(registry.list()/get()), never re-declare per-section data — client-architecture-lockdown.md §5.",
-      });
-    }
-  }
+/** The two array shapes: a `{ id: … }[]` list (arm 2) or a bare id-string `[]` (arm 4) — mutually
+ *  exclusive by construction (an all-object array has zero string elements and vice versa). */
+function scanArrayForVocab(sf: SourceFile, vocab: Vocab, path: string, out: Violation[]): void {
   for (const arr of sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)) {
-    const elements = arr.getElements().filter(Node.isObjectLiteralExpression);
-    if (elements.length !== arr.getElements().length || elements.length === 0) {
-      continue; // a mixed/empty array isn't a pure `{ id }` section list
+    const rawElements = arr.getElements();
+    const objectElements = rawElements.filter(Node.isObjectLiteralExpression);
+    if (objectElements.length === rawElements.length && objectElements.length > 0) {
+      if (isVocabArray(objectElements, vocab.ids)) {
+        out.push({
+          file: rel(path),
+          line: arr.getStartLineNumber(),
+          message: `an array literal of \`{ id: … }\` elements covers ≥2 ${vocab.name}s — a parallel ${vocab.registry} map (the deleted RAIL_SECTIONS/RAIL_ACTIONS shape). Derive from the ${vocab.registry} registry (registry.list()), never re-declare — client-architecture-lockdown.md §5.`,
+        });
+      }
+      continue;
     }
-    if (isSectionArray(elements, ids)) {
+    if (isVocabStringArray(rawElements, vocab.ids)) {
       out.push({
         file: rel(path),
         line: arr.getStartLineNumber(),
-        message:
-          "an array literal of `{ id: … }` elements covers ≥2 SectionIds — a parallel section map (the " +
-          "deleted RAIL_SECTIONS shape). Derive from the section registry (registry.list()), never " +
-          "re-declare per-section data — client-architecture-lockdown.md §5.",
+        message: `a bare array literal of ${vocab.name} string literals covers ≥2 ids — a parallel ${vocab.registry} map (the deleted YOU_MODAL_IDS shape). Derive from the ${vocab.registry} registry (registry.list()), never re-declare — client-architecture-lockdown.md §5.`,
       });
     }
   }
+}
+
+function scanFileForVocab(sf: SourceFile, vocab: Vocab, out: Violation[]): void {
+  const path = sf.getFilePath();
+  if (!path.includes(CLIENT_SRC) || isAllowlisted(rel(path), vocab)) {
+    return;
+  }
+  for (const obj of sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)) {
+    if (isPureVocabMap(obj, vocab.ids)) {
+      out.push({
+        file: rel(path),
+        line: obj.getStartLineNumber(),
+        message: `an object literal is keyed entirely by ${vocab.name}s — a parallel ${vocab.registry} map that no gate forces to agree with the registry (the SECTION_PANEL_DEFAULTS/YOU_MODAL_ROWS bug). Derive from the ${vocab.registry} registry (registry.list()/get()), never re-declare — client-architecture-lockdown.md §5.`,
+      });
+    }
+  }
+  scanArrayForVocab(sf, vocab, path, out);
   for (const decl of sf.getVariableDeclarations()) {
-    if (isSectionRecordType(decl.getTypeNode())) {
+    if (isVocabRecordType(decl.getTypeNode(), vocab)) {
       out.push({
         file: rel(path),
         line: decl.getStartLineNumber(),
-        message:
-          `"${decl.getName()}" is typed \`Record<SectionId, …>\` — a parallel section map (the composition-` +
-          "drift bug) even without a literal value the object-literal arm can see. Derive from the section " +
-          "registry (registry.list()/get()), never re-declare per-section data — client-architecture-lockdown.md §5.",
+        message: `"${decl.getName()}" is typed \`Record<${vocab.name}, …>\` — a parallel ${vocab.registry} map (the composition-drift bug) even without a literal value the object-literal arm can see. Derive from the ${vocab.registry} registry (registry.list()/get()), never re-declare — client-architecture-lockdown.md §5.`,
       });
     }
   }
@@ -172,16 +237,17 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "an object literal / array of `{ id }` elements / `Record<SectionId, …>`-typed value hardcoding ≥2 SectionIds is a parallel section map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the SECTION_IDS tuple, the main.tsx door, and the *-section definition files.",
-  fix: "delete the map and read the section registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
+    "a hardcoded map (object literal / `{ id }` array / `Record<…>` type) covering ≥2 SectionIds or ModalSlotIds is a parallel section/modal map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the vocab tuple, the main.tsx door, the *-section/*-modal files.",
+  fix: "delete the map and read the registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
   run: (ctx) => {
-    const ids = readSectionIds(ctx.project);
-    if (ids.size === 0) {
-      return;
-    }
     const out: Violation[] = [];
-    for (const sf of ctx.project.getSourceFiles()) {
-      scanFile(sf, ids, out);
+    for (const vocab of readVocabs(ctx.project)) {
+      if (vocab.ids.size === 0) {
+        continue;
+      }
+      for (const sf of ctx.project.getSourceFiles()) {
+        scanFileForVocab(sf, vocab, out);
+      }
     }
     for (const v of out) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
@@ -223,6 +289,39 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "Record<SectionId" },
       why: "a `Record<SectionId, …>`-typed value built by a function call — no literal the object-literal arm can see",
     },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts":
+          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/you-rows.ts":
+          "export const ROWS = {\n  theme: { label: 1 },\n  settings: { label: 2 },\n};\n",
+      },
+      expect: { messageIncludes: "parallel modal map" },
+      why: "a re-declared per-modal map (≥2 ModalSlotId keys) — the deleted YOU_MODAL_ROWS shape",
+    },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts":
+          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/rail-actions.ts":
+          "export const RAIL_ACTIONS = [\n" +
+          '  { id: "theme", label: "Theme" },\n' +
+          '  { id: "settings", label: "Settings" },\n' +
+          "];\n",
+      },
+      expect: { messageIncludes: "the deleted RAIL_SECTIONS/RAIL_ACTIONS shape" },
+      why: "an array of `{ id: … }` elements covering ≥2 ModalSlotIds — the deleted RAIL_ACTIONS shape",
+    },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts":
+          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/you-modal-ids.ts":
+          'export const YOU_MODAL_IDS = ["account", "settings", "theme"];\n',
+      },
+      expect: { messageIncludes: "the deleted YOU_MODAL_IDS shape" },
+      why: "a bare string array of ≥2 ModalSlotIds outside an allowlisted home — the deleted YOU_MODAL_IDS shape (the G2 gap a fresh verifier found: a bare id array has zero object elements, invisible to the `{id:…}` array arm)",
+    },
   ],
   mustPass: [
     {
@@ -245,6 +344,23 @@ export const gate: GateDescriptor = {
           "export const DERIVED = registry.list();\n",
       },
       why: "an array with a non-`id` element isn't pure section-space (the array false-positive guard), passes",
+    },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts":
+          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n' +
+          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+      },
+      why: "the SECTION_IDS/MODAL_SLOT_IDS vocab tuples ARE bare all-ids string arrays, but shell-store.ts is the sanctioned one home — allowlisted, must pass",
+    },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts":
+          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        "packages/client/src/features/x/lib/foreign-strings.ts":
+          'export const NOT_A_MODAL_LIST = ["theme", "someOtherFeature"];\n',
+      },
+      why: "a foreign string in the mix isn't pure vocab-space (the string-array false-positive guard), passes",
     },
   ],
 };

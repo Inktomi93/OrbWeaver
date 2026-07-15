@@ -17,7 +17,7 @@
 // HERE too — otherwise both blocks render and every section name resolves to TWO buttons. At the CT's
 // desktop viewport (1280px > 48rem) this hides the mobile bar, matching production.
 
-import { AppShell, YouSheet } from "@orb/client/features/app-shell";
+import { AppShell } from "@orb/client/features/app-shell";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
@@ -26,7 +26,11 @@ import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
 import { openModal } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
-import { CtDataProviders, CtFakeSectionRegistry } from "../../../support/ct/ct-data-providers";
+import {
+  CtDataProviders,
+  CtFakeModalRegistry,
+  CtFakeSectionRegistry,
+} from "../../../support/ct/ct-data-providers";
 
 /** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
  *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
@@ -42,12 +46,9 @@ export function AppShellStory(): ReactElement {
           corpus: { list: <p>corpus list pane</p>, content: <p>corpus content pane</p> },
         }}
       >
-        <AppShell
-          // The route composes the real "You" bottom-sheet body over the `you` modal slot (L6/J12) — mirror
-          // that here so the mobile CT exercises the real sheet (account/settings/theme + overflow), not the
-          // placeholder fallback.
-          modals={{ you: <YouSheet /> }}
-        />
+        {/* The real "You" bottom-sheet body arrives via the modal registry (CtFakeSectionRegistry nests
+            the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
+        <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
   );
@@ -89,22 +90,26 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry sections={{ chats: { content: <p>chats content pane</p> } }}>
-        <AppShell
-          modals={{
-            // `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to
-            // fit (real drawer content has intrinsic height that resists shrink; an empty div would not) —
-            // we want it to genuinely overflow so the scroll assertion measures a real scroll region.
-            [modalId]: (
-              <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />
-            ),
-          }}
-        />
+        {/* A fake modal registry injects a deliberately-tall body for every id (the inner provider wins
+            over CtFakeSectionRegistry's real one), so the scroll invariant is exercised per placement.
+            `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to fit
+            (real drawer content has intrinsic height that resists shrink; an empty div would not) — we
+            want it to genuinely overflow so the scroll assertion measures a real scroll region. */}
+        <CtFakeModalRegistry
+          body={(): ReactElement => (
+            <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />
+          )}
+        >
+          <AppShell />
+        </CtFakeModalRegistry>
       </CtFakeSectionRegistry>
     </CtDataProviders>
   );
 }
 
-/** The Rail in isolation — a11y + keyboard nav over real <button>s, registry-driven. */
+/** The Rail in isolation — a11y + keyboard nav over real <button>s, registry-driven. `railFoot` is a
+ *  route-composed slot (production: `PersonaPanelSurface`); this story stands in a bare named button so
+ *  the avatar slot stays part of the a11y-baseline assertion without pulling in the persona feature. */
 export function RailStory(): ReactElement {
   return (
     <CtFakeSectionRegistry>
@@ -112,6 +117,7 @@ export function RailStory(): ReactElement {
         activeSection="chats"
         onSelectSection={(): void => undefined}
         onOpenModal={(): void => undefined}
+        railFoot={<button type="button">Account</button>}
       />
     </CtFakeSectionRegistry>
   );

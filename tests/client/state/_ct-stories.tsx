@@ -56,6 +56,7 @@ import {
   useFavoritesOnly,
   useListDocked,
   useMobileSheet,
+  useModalRegistry,
   useOpenModal,
   usePanelOverride,
   useSectionRegistry,
@@ -403,6 +404,30 @@ function SectionRegistryReader(): ReactElement {
   return (
     <div>
       <output>{`ids=${ids} chats=${registry.get("chats").rail.label}`}</output>
+    </div>
+  );
+}
+
+/** ModalRegistryProbe — reads the modal registry via `useModalRegistry` inside its provider (the mirror
+ *  of SectionRegistryProbe), rendering the delivered vocabulary as text so a CT proves the context
+ *  delivers the ordered, total modal list and `get()` resolves a member's title. */
+export function ModalRegistryProbe(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <ModalRegistryReader />
+    </CtFakeSectionRegistry>
+  );
+}
+
+function ModalRegistryReader(): ReactElement {
+  const registry = useModalRegistry();
+  const ids = registry
+    .list()
+    .map((d) => d.id)
+    .join(",");
+  return (
+    <div>
+      <output>{`ids=${ids} theme=${registry.get("theme").title}`}</output>
     </div>
   );
 }

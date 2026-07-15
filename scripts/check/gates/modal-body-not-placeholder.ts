@@ -1,14 +1,14 @@
-// Gate: modal-body-not-placeholder (design-enforcement.md §3.2) — a MODAL_SLOTS entry
-// (features/**/lib/modal-slots.tsx) whose `render` still returns a `<SectionPlaceholder>` must carry an
-// explicit `placeholder: true` flag — without it a placeholder ships silently instead of as a visible,
-// greppable, COUNTED state. Walks every `**/lib/modal-slots.tsx`'s `MODAL_SLOTS` entries for this mismatch.
-import type { ObjectLiteralExpression } from "ts-morph";
+// Gate: modal-body-not-placeholder (client-architecture-lockdown.md §6d / §16 G13) — a ModalDefinition
+// (features/**/lib/*-modal.tsx) whose FUNCTION-arm `body` renders a `<SectionPlaceholder>` is RED. An
+// unbuilt modal uses the DECLARED-PLANNED arm (`body: { planned: "<reason>" }`); a placeholder-rendering
+// function body is the silent-sparkle anti-pattern, now unspellable. Walks every `**/lib/*-modal.tsx`.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
 const PLACEHOLDER_TAG = "SectionPlaceholder";
+/** A co-located modal definition file: `features/<owner>/lib/<id>-modal.tsx`. */
+const MODAL_FILE_RE = /\/lib\/[^/]+-modal\.tsx$/;
 
-/** `packages/...`-relative path for a violation location. */
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
   return idx === -1 ? path : path.slice(idx + 1);
@@ -29,78 +29,69 @@ function rendersPlaceholder(node: Node): boolean {
   return false;
 }
 
-/** Is `placeholder: true` present on the entry object? */
-function hasPlaceholderFlag(entry: ObjectLiteralExpression): boolean {
-  const prop = entry.getProperty("placeholder");
-  if (prop === undefined || !Node.isPropertyAssignment(prop)) {
-    return false;
-  }
-  return prop.getInitializer()?.getKind() === SyntaxKind.TrueKeyword;
-}
-
-// The `MODAL_SLOTS` object's entries whose `render` returns a <SectionPlaceholder> without a
-// `placeholder: true` flag. The message names the offending entry.
 export const gate: GateDescriptor = {
   name: "modal-body-not-placeholder",
-  docRow: "design-enforcement.md §3.2",
+  docRow: "client-architecture-lockdown.md §6d / §16 G13",
   status: "active",
   scopeSafety: "incremental-safe",
   message:
-    "a MODAL_SLOTS entry renders <SectionPlaceholder> but is missing `placeholder: true` — an unbuilt " +
-    "modal must be an explicit, counted state, not a silent sparkle. Add the flag, or route-compose a " +
-    "real body (design-enforcement.md §3.2).",
-  fix: "add `placeholder: true` to the entry (making the unbuilt modal a counted state), or route-compose a real body.",
-  scanRoot: (p) => p.endsWith("/lib/modal-slots.tsx"),
+    "a ModalDefinition's function `body` renders <SectionPlaceholder> — an unbuilt modal is the " +
+    'DECLARED-PLANNED arm (`body: { planned: "<reason>" }`), never a placeholder-rendering function ' +
+    "body (client-architecture-lockdown.md §6d).",
+  fix: 'use `body: { planned: "<reason>" }` for an unbuilt modal, or render a real body — a placeholder function body is unspellable.',
+  scanRoot: (p) => MODAL_FILE_RE.test(p),
   kinds: [SyntaxKind.VariableDeclaration],
   visit: (node, sf, ctx) => {
-    if (!Node.isVariableDeclaration(node) || node.getName() !== "MODAL_SLOTS") {
+    if (!Node.isVariableDeclaration(node)) {
+      return;
+    }
+    const typeNode = node.getTypeNode();
+    if (typeNode === undefined || !typeNode.getText().startsWith("ModalDefinition")) {
       return;
     }
     const init = node.getInitializer();
     if (init === undefined || !Node.isObjectLiteralExpression(init)) {
       return;
     }
-    for (const prop of init.getProperties()) {
-      if (!Node.isPropertyAssignment(prop)) {
-        continue;
-      }
-      const entry = prop.getInitializer();
-      if (entry === undefined || !Node.isObjectLiteralExpression(entry)) {
-        continue;
-      }
-      const render = entry.getProperty("render");
-      if (render === undefined || !rendersPlaceholder(render) || hasPlaceholderFlag(entry)) {
-        continue;
-      }
-      // No per-occurrence message: the reason lives once on the descriptor (owner ruling 2); the
-      // offending entry name rides as the token, so the grouped output still names it.
-      ctx.report({
-        file: rel(sf.getFilePath()),
-        line: prop.getStartLineNumber(),
-        column: prop.getSourceFile().getLineAndColumnAtPos(prop.getStart()).column,
-        token: `entry "${prop.getName()}"`,
-      });
+    const bodyProp = init.getProperty("body");
+    if (bodyProp === undefined || !Node.isPropertyAssignment(bodyProp)) {
+      return;
     }
+    const body = bodyProp.getInitializer();
+    // Only a FUNCTION body can render JSX; the `{ planned }` arm is an object literal (legal, skip).
+    if (body === undefined || !(Node.isArrowFunction(body) || Node.isFunctionExpression(body))) {
+      return;
+    }
+    if (!rendersPlaceholder(body)) {
+      return;
+    }
+    ctx.report({
+      file: rel(sf.getFilePath()),
+      line: node.getStartLineNumber(),
+      column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
+      token: `"${node.getName()}"`,
+    });
   },
   mustFlag: [
     {
       files:
-        "export const MODAL_SLOTS = {\n  theme: { render: () => <SectionPlaceholder /> },\n};\n",
-      at: "packages/client/src/features/x/lib/modal-slots.tsx",
-      why: "a MODAL_SLOTS entry rendering <SectionPlaceholder> with no placeholder:true — a silent sparkle",
+        "export const themeModal: ModalDefinition = { id: 'theme', body: () => <SectionPlaceholder /> };\n",
+      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
+      why: "a ModalDefinition function body rendering <SectionPlaceholder> — the silent-sparkle anti-pattern",
     },
   ],
   mustPass: [
     {
       files:
-        "export const MODAL_SLOTS = {\n  theme: { placeholder: true, render: () => <SectionPlaceholder /> },\n};\n",
-      at: "packages/client/src/features/x/lib/modal-slots.tsx",
-      why: "the same placeholder render WITH placeholder:true — an explicit, counted state, passes",
+        "export const draftModal: ModalDefinition = { id: 'draft', body: { planned: 'build pending' } };\n",
+      at: "packages/client/src/features/x/lib/draft-modal.tsx",
+      why: "the DECLARED-PLANNED arm (object literal, not a function) — the sanctioned unbuilt state, passes",
     },
     {
-      files: "export const MODAL_SLOTS = {\n  theme: { render: () => <ThemePanel /> },\n};\n",
-      at: "packages/client/src/features/x/lib/modal-slots.tsx",
-      why: "an entry rendering a REAL body (no <SectionPlaceholder>) with no flag — the rendersPlaceholder false branch, passes",
+      files:
+        "export const themeModal: ModalDefinition = { id: 'theme', body: () => <ThemePanel /> };\n",
+      at: "packages/client/src/features/settings/lib/theme-modal.tsx",
+      why: "a function body rendering a REAL body (no <SectionPlaceholder>) — the false branch, passes",
     },
   ],
 };

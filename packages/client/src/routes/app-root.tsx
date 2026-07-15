@@ -1,32 +1,22 @@
 // app-root.tsx — the `/` route (O7, renamed from home-page): a THIN mount of the four-region AppShell.
-// The section registry (assembled in main.tsx) drives rail/list/content/header/placeholder/context for
-// EVERY section; this route keeps only §7 residue (the always-on user bus, the aria announcer, the ?join
-// handoff, first-run persona) + the modals composition (until M4). The ONE sanctioned composition route —
-// it may import feature front doors (G1 exempts it, like router.tsx→auth); a `sections={{…}}` god-map is RED.
+// The section + modal registries (assembled in main.tsx) drive rail/list/content/header/placeholder/
+// context + every modal; this route keeps only §7 residue (the always-on user bus, the aria announcer,
+// the ?join handoff, first-run persona). The ONE sanctioned composition route — it may import feature
+// front doors (G1 exempts it, like router.tsx→auth); a `sections={{…}}`/`modals={{…}}` god-map is RED.
 
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthConfig, useInvalidation, useUserBus } from "#data";
-import { AppShell, YouSheet } from "#features/app-shell";
-import { AccountSurface } from "#features/auth";
-import type { GoToSection } from "#features/chat";
-import {
-  CommandPaletteSurface,
-  clearJoinParam,
-  JoinInviteDialog,
-  NewChatPicker,
-  readJoinToken,
-} from "#features/chat";
+import { AppShell } from "#features/app-shell";
+import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { NotificationBell } from "#features/notifications";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
-import { SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   isCommitted,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSection,
-  useSectionRegistry,
   useSelectedCharacterId,
 } from "#state";
 
@@ -51,19 +41,12 @@ export function AppRoot(): ReactElement {
     invalidateAllUserRoots: invalidation.invalidateAllUserRoots,
   });
 
-  const registry = useSectionRegistry();
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
   const activeSection = useActiveSection();
   const selectedCharacterId = useSelectedCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
   const draftCharacterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
-
-  // The palette's "Go to" targets, derived from the section registry.
-  const goToSections = useMemo<readonly GoToSection[]>(
-    () => registry.list().map((d) => ({ id: d.id, label: d.rail.label })),
-    [registry],
-  );
 
   const routeAnnouncement = ((): string => {
     if (activeSection === "chats") {
@@ -91,14 +74,6 @@ export function AppRoot(): ReactElement {
         railFoot={<PersonaPanelSurface />}
         // Topbar chrome, mounted only while the deployment can seat a second human.
         topbarTrail={multiHumanCapable ? <NotificationBell /> : undefined}
-        modals={{
-          theme: <ThemePickerSurface />,
-          settings: <SettingsShell />,
-          newChat: <NewChatPicker />,
-          command: <CommandPaletteSurface goToSections={goToSections} />,
-          account: <AccountSurface />,
-          you: <YouSheet />,
-        }}
       />
       {/* Renders nothing once the viewer owns a persona; forces the create flow on a fresh account. */}
       <FirstRunPersonaDialog />
