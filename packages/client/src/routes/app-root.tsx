@@ -1,8 +1,10 @@
 // app-root.tsx — the `/` route (O7, renamed from home-page): a THIN mount of the four-region AppShell.
-// The section + modal registries (assembled in main.tsx) drive rail/list/content/header/placeholder/
-// context + every modal; this route keeps only §7 residue (the always-on user bus, the aria announcer,
-// the ?join handoff, first-run persona). The ONE sanctioned composition route — it may import feature
-// front doors (G1 exempts it, like router.tsx→auth); a `sections={{…}}`/`modals={{…}}` god-map is RED.
+// The section + modal + chrome registries (assembled in main.tsx) drive rail/list/content/header/
+// placeholder/context/topbar-trail + every modal; this route keeps only §7 residue (the always-on user
+// bus, the aria announcer, the ?join handoff, first-run persona). The ONE sanctioned composition route —
+// it may import feature front doors (G1 exempts it, like router.tsx→auth); a
+// `sections={{…}}`/`modals={{…}}` god-map is RED. The notifications bell is no longer wired here — it's a
+// registered `topbar.trail` chrome widget (`notificationsChrome`, gated on multiHumanCapable at the door).
 
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
@@ -10,7 +12,6 @@ import { useEffect, useState } from "react";
 import { useAuthConfig, useInvalidation, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
-import { NotificationBell } from "#features/notifications";
 import { FirstRunPersonaDialog, PersonaPanelSurface } from "#features/persona";
 import {
   isCommitted,
@@ -70,11 +71,7 @@ export function AppRoot(): ReactElement {
   return (
     <>
       <AriaAnnouncer message={routeAnnouncement} />
-      <AppShell
-        railFoot={<PersonaPanelSurface />}
-        // Topbar chrome, mounted only while the deployment can seat a second human.
-        topbarTrail={multiHumanCapable ? <NotificationBell /> : undefined}
-      />
+      <AppShell railFoot={<PersonaPanelSurface />} />
       {/* Renders nothing once the viewer owns a persona; forces the create flow on a fresh account. */}
       <FirstRunPersonaDialog />
       {/* The /join link landing — mounts only when a token arrived and the deployment is capable. */}

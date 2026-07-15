@@ -3,18 +3,21 @@
 // CONTEXT, never a specific feature — sections ride the registry (`useSectionRegistry`), assembled at
 // the main.tsx door.
 
+import { Button } from "@orb/ui/button";
+import { Kbd } from "@orb/ui/kbd";
 import { PortalContainerContext } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { TooltipProvider } from "@orb/ui/tooltip";
+import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { preload } from "react-dom";
-import type { SectionId } from "#state";
+import type { ChromeEntry, SectionId } from "#state";
 import {
   closeModal,
   openModal,
   setActiveSection,
+  useChromeRegistry,
   useModalRegistry,
   useSectionRegistry,
 } from "#state";
@@ -38,11 +41,32 @@ import "./shell.css";
 export interface AppShellProps {
   /** Route-composed rail-foot chip (the persona switcher). Undefined ⇒ the account button. */
   readonly railFoot?: ReactNode;
-  /** Route-composed topbar trail chrome (e.g. the notifications bell). Undefined ⇒ nothing extra. */
-  readonly topbarTrail?: ReactNode;
 }
 
-export function AppShell({ railFoot, topbarTrail }: AppShellProps): ReactElement {
+/** Renders the `topbar.trail` zone's chrome widgets — the registry list is frozen at the door, so
+ *  calling each entry's `useVisible` unconditionally, in a fixed loop, is legal (the `contentBySection`
+ *  precedent). `false` ⇒ render NOTHING (no gap — preserves the bell's no-flash rule). */
+function TopbarTrailChrome(): ReactElement {
+  const chrome = useChromeRegistry();
+  const entries = chrome
+    .list()
+    .filter((e) => e.zone === "topbar.trail")
+    .toSorted((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return (
+    <>
+      {entries.map((entry) => (
+        <TrailWidget key={entry.id} entry={entry} />
+      ))}
+    </>
+  );
+}
+
+function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactElement | null {
+  const visible = entry.useVisible?.() ?? true;
+  return visible ? <>{entry.body()}</> : null;
+}
+
+export function AppShell({ railFoot }: AppShellProps): ReactElement {
   const registry = useSectionRegistry();
   // The ⌘K affordance opens the single `topbar-command`-placed modal — derived, never hardcoded.
   const commandModalId = useModalRegistry()
@@ -181,18 +205,35 @@ export function AppShell({ railFoot, topbarTrail }: AppShellProps): ReactElement
               <ShellTopbar
                 title={layout.activeSectionLabel}
                 header={activeDef.header?.()}
-                trail={topbarTrail}
+                trail={
+                  <>
+                    <TopbarTrailChrome />
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            intent="secondary"
+                            size="sm"
+                            aria-label="Command menu"
+                            onClick={(): void => {
+                              if (commandModalId !== undefined) {
+                                openModal(commandModalId);
+                              }
+                            }}
+                          >
+                            <Kbd>⌘K</Kbd>
+                            <Text as="span" size="micro" tone="muted">
+                              jump
+                            </Text>
+                          </Button>
+                        }
+                      />
+                      <TooltipPopup side="bottom">Jump to…</TooltipPopup>
+                    </Tooltip>
+                  </>
+                }
                 listMode={layout.listMode}
-                contextMode={layout.contextMode}
-                immersive={layout.immersive}
                 onToggleList={(): void => layout.togglePanel("list")}
-                onToggleContext={(): void => layout.togglePanel("context")}
-                onToggleFocus={layout.toggleFocus}
-                onOpenCommand={(): void => {
-                  if (commandModalId !== undefined) {
-                    openModal(commandModalId);
-                  }
-                }}
               />
               <main className="shell-content" ref={mainRef} tabIndex={-1}>
                 <SectionContent
@@ -212,9 +253,7 @@ export function AppShell({ railFoot, topbarTrail }: AppShellProps): ReactElement
                   Details
                 </Text>
               }
-              collapseLabel="Collapse detail panel"
               mode={layout.contextMode}
-              onCollapse={(): void => layout.collapsePanel("context")}
             >
               <RegionAnchor region="context">
                 <SectionContextHost key={layout.activeSection} definition={activeDef} />

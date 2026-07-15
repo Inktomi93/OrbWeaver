@@ -19,12 +19,13 @@ import type { ReactElement } from "react";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
-import { youModal } from "#features/app-shell";
+import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
 import { charactersSection } from "#features/character";
 import { commandModal, makeChatsSection, newChatModal } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
+import { notificationsChrome } from "#features/notifications";
 import { personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
@@ -51,7 +52,9 @@ import {
   createContributorRegistry,
   createRegistry,
 } from "#lib";
+import type { ChromeEntry } from "#state";
 import {
+  ChromeRegistryProvider,
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
   SECTION_IDS,
@@ -130,6 +133,15 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   you: youModal,
 });
 
+// The ONE chrome assembly (shell-chrome-unification.md §A/§D, G8): an OPEN contributor registry (no
+// closed id vocabulary — CHROME_ZONES is the closed axis, entries are growth) delivered as a context
+// value so app-shell renders the topbar.trail zone blind (no #features import).
+const chrome = createContributorRegistry<ChromeEntry>("chrome", [
+  notificationsChrome,
+  fullscreenChrome,
+  contextToggleChrome,
+]);
+
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
@@ -203,9 +215,11 @@ createRoot(rootEl).render(
           >
             <SectionRegistryProvider value={sections}>
               <ModalRegistryProvider value={modals}>
-                <SettingsPaneRegistryProvider value={settingsPanes}>
-                  <RouterProvider router={router} />
-                </SettingsPaneRegistryProvider>
+                <ChromeRegistryProvider value={chrome}>
+                  <SettingsPaneRegistryProvider value={settingsPanes}>
+                    <RouterProvider router={router} />
+                  </SettingsPaneRegistryProvider>
+                </ChromeRegistryProvider>
               </ModalRegistryProvider>
             </SectionRegistryProvider>
           </AppErrorBoundary>

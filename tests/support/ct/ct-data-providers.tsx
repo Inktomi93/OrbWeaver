@@ -16,12 +16,13 @@
 // page across tests, the per-mount reset belongs HERE.
 
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
-import { youModal } from "@orb/client/features/app-shell";
+import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
 import { charactersSection } from "@orb/client/features/character";
 import { commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
+import { notificationsChrome } from "@orb/client/features/notifications";
 import { personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
@@ -48,6 +49,8 @@ import type {
 } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
+  ChromeEntry,
+  ChromeRegistry,
   ModalDefinition,
   ModalRegistry,
   ModalSlotId,
@@ -59,6 +62,7 @@ import type {
   SettingsPaneRegistry,
 } from "@orb/client/state";
 import {
+  ChromeRegistryProvider,
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
   SECTION_IDS,
@@ -159,8 +163,18 @@ const realSettingsPaneRegistry: SettingsPaneRegistry = createRegistry<
   SettingsPaneDefinition
 >("settings-panes", SETTINGS_CATEGORY_IDS, REAL_SETTINGS_PANES);
 
-/** The real 7-section + 6-modal + 12-settings-pane registries — for CTs that drive real content (the
- *  route CT). */
+// ── Chrome-registry CT provider ───────────────────────────────────────────────────────────────────
+// AppShell reads the chrome registry (its topbar.trail render) as a runtime context (mirrors main.tsx's
+// door). The section-registry providers below nest it, so every shell CT gets all four registries.
+
+const realChromeRegistry: ChromeRegistry = createContributorRegistry<ChromeEntry>("chrome", [
+  notificationsChrome,
+  fullscreenChrome,
+  contextToggleChrome,
+]);
+
+/** The real 7-section + 6-modal + 12-settings-pane + 3-chrome registries — for CTs that drive real
+ *  content (the route CT). */
 export function CtRealSectionRegistry({
   children,
 }: {
@@ -169,9 +183,11 @@ export function CtRealSectionRegistry({
   return (
     <SectionRegistryProvider value={realRegistry}>
       <ModalRegistryProvider value={realModalRegistry}>
-        <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
-          {children}
-        </SettingsPaneRegistryProvider>
+        <ChromeRegistryProvider value={realChromeRegistry}>
+          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
+            {children}
+          </SettingsPaneRegistryProvider>
+        </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
   );
@@ -200,9 +216,11 @@ export function CtChatContributorSectionRegistry({
   return (
     <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
-        <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
-          {children}
-        </SettingsPaneRegistryProvider>
+        <ChromeRegistryProvider value={realChromeRegistry}>
+          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
+            {children}
+          </SettingsPaneRegistryProvider>
+        </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
   );
@@ -272,9 +290,11 @@ export function CtFakeSectionRegistry({
   return (
     <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
-        <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
-          {children}
-        </SettingsPaneRegistryProvider>
+        <ChromeRegistryProvider value={realChromeRegistry}>
+          <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
+            {children}
+          </SettingsPaneRegistryProvider>
+        </ChromeRegistryProvider>
       </ModalRegistryProvider>
     </SectionRegistryProvider>
   );

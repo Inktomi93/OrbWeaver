@@ -67,6 +67,11 @@ export {
   useTurnSlot,
   useTurnSpeakerCharacterId,
 } from "./chat-stream";
+export type { ChromeEntry, ChromeZone } from "./chrome-registry";
+export { CHROME_ZONES } from "./chrome-registry";
+export type { ChromeRegistry } from "./chrome-registry-context";
+export { ChromeRegistryContext, useChromeRegistry } from "./chrome-registry-context";
+export { ChromeRegistryProvider } from "./chrome-registry-provider";
 export {
   clearCorpusSelection,
   selectCorpusCharacter,

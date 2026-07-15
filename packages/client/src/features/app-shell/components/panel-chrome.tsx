@@ -2,12 +2,11 @@
 // `data-panel-mode` drives the clamp-overlay (docked in-flow · overlay float · collapsed off-screen)
 // entirely in shell.css — no width math in JS.
 //
-// The header is an optional ReactNode slot. The CONTEXT panel supplies one and gets a collapse control
-// in that row. The LIST panel supplies none — its own list surface owns the section title, and its
-// reopen/collapse affordance is the always-present topbar toggle.
+// The header is an optional ReactNode slot. Neither panel supplies a collapse control here — the
+// CONTEXT panel's open/close affordance is the registered `contextToggleChrome` topbar widget (the ONE
+// detail-panel close control, shell-chrome-unification.md §A); the LIST panel's is the topbar's
+// intrinsic list toggle.
 
-import { Button } from "@orb/ui/button";
-import { Icon, PanelLeftClose, PanelRightClose } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import type { PanelMode, PanelName } from "#state";
 
@@ -17,11 +16,8 @@ export interface PanelChromeProps {
   readonly label?: string;
   /** Header content. `undefined` renders no header row. */
   readonly header?: ReactNode;
-  readonly collapseLabel?: string;
   /** The current mode — sets `data-panel-mode` (shell.css owns the transform/width per mode). */
   readonly mode: PanelMode;
-  /** Collapse control — the header's close button. Omitted ⇒ no button. */
-  readonly onCollapse?: () => void;
   readonly children: ReactNode;
 }
 
@@ -29,12 +25,9 @@ export function PanelChrome({
   panel,
   label,
   header,
-  collapseLabel,
   mode,
-  onCollapse,
   children,
 }: PanelChromeProps): ReactElement {
-  const CollapseIcon = panel === "list" ? PanelLeftClose : PanelRightClose;
   return (
     <aside
       className="shell-panel"
@@ -44,21 +37,7 @@ export function PanelChrome({
       aria-hidden={mode === "collapsed" ? "true" : undefined}
       inert={mode === "collapsed" ? true : undefined}
     >
-      {header === undefined ? null : (
-        <header className="shell-panel-header">
-          {header}
-          {onCollapse === undefined ? null : (
-            <Button
-              intent="ghost"
-              size="icon"
-              aria-label={collapseLabel ?? "Collapse panel"}
-              onClick={onCollapse}
-            >
-              <Icon icon={CollapseIcon} size="sm" />
-            </Button>
-          )}
-        </header>
-      )}
+      {header === undefined ? null : <header className="shell-panel-header">{header}</header>}
       <div className="shell-panel-body">{children}</div>
     </aside>
   );
