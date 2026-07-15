@@ -47,7 +47,7 @@ interfaces — matches structure §7.4), `noExcessiveCognitiveComplexity: 15`, `
 for `packages/client/**` (`info/warn/error` ok in the browser until a client logger lands) and turned
 off for `scripts/**` + `tests/**` (console is their output channel).
 
-## Layer 2 — GritQL plugins (`tools/grit/`, 37 active)
+## Layer 2 — GritQL plugins (`tools/grit/`, 38 active)
 
 AST patterns Biome rules can't express. Node matchers are **PascalCase** (`JsDecorator()`,
 `JsxAttribute()`). The count is the `biome.json` `plugins` array (the `!**/*.grit` ignore entry is not a
@@ -62,10 +62,12 @@ plugin); full list + rationale in `tools/grit/README.md`.
 - **Client tokens / layout (7):** no-color-literals, no-raw-z-index, no-raw-spacing-in-features,
   no-raw-typography-in-features, no-media-queries-in-features, no-raw-container-widths,
   no-layout-context-props (D42).
-- **Client data / forms / state discipline (12):** no-chat-trpc-in-surface, no-direct-useform,
+- **Client data / forms / state discipline (13):** no-chat-trpc-in-surface, no-direct-useform,
   no-form-state-in-useeffect, no-inline-optimistic-in-surface, client-cache-surgery-only-in-data,
   no-raw-zustand-persist, no-static-staletime, no-fake-disabled-id, chat-stream-writes-in-bus-only,
-  no-multiplexed-mutation-error, zustand-selector-stability, testid-typed-only.
+  no-multiplexed-mutation-error, zustand-selector-stability, testid-typed-only,
+  query-machine-seals (client-architecture-lockdown.md §14/§16 G9 — `useMutation` outside `data/`,
+  `useInfiniteQuery` outside `data/create-collection-surface.ts`).
 - **D44 containment trio (3):** no-untrusted-html-in-main-dom, no-external-media-without-gate,
   theme-override-only-via-scope.
 - **kit (1):** no-manual-token-estimate (`.length / 4` hand-rolled token estimates → `@orb/kit/tokens`).
@@ -191,17 +193,13 @@ the descriptor's `status` field is ground truth.
 | `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
 | `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
 
-**Stale-name follow-up (`client-structure` RESERVED):** `features/corpus` mirrors no domain — the domain
-map renamed corpus→discovery (AGENTS §6). The `.gitkeep` stub should rename to `discovery` (or justify
-keeping `corpus`); tracked inline in `client-structure.ts`'s `RESERVED` comment as a doc/PD follow-up.
-
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 
-The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 46 rules
-(44 error + 1 warn + 1 ignore): the 6-package cake (kit←contracts←db←server←client, + `@orb/ui` between contracts and client), server tier direction
+The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 49 rules
+(47 error + 1 warn + 1 ignore): the 6-package cake (kit←contracts←db←server←client, + `@orb/ui` between contracts and client), server tier direction
 (entry→transport→domain→infra→foundation→kit), kit-purity + kit/ui no-node-builtins, infra-no-db, foundation-reaches-up-to-nothing,
 drivers-through-domain, domain isolation (no-cross-feature/-verb/-subsystem + front-door + substrate
-mediation), the client rules (feature front-door, no-cross-feature, no-backend-runtime, `confirm-uses-composite` — client-architecture-lockdown.md §16 G7, `features/**` may not import `@orb/ui/alert-dialog` (the raw primitive) — ConfirmDialog is the sole feature-tier confirm, the `@orb/ui`
+mediation), the client rules (feature front-door, no-cross-feature, no-backend-runtime, `confirm-uses-composite` — client-architecture-lockdown.md §16 G7, `features/**` may not import `@orb/ui/alert-dialog` (the raw primitive) — ConfirmDialog is the sole feature-tier confirm, `client-components-tier` — client-architecture-lockdown.md §16 G5, the tier-2 `components/` seal (never imports `features/`/`routes/`/`main.tsx`; `lib/` and `state/` never import `components/`), the `@orb/ui`
 satellite seals — D42/D52 physics), providers public-surface + strategy-isolation + vllm-surface-isolation + the transitive credential firewall
 (openrouter ↛ agent-sdk), persistence-no-io, stats-no-vector-tables, `not-to-dev-dep` (prod `packages/*/src` must not import a
 pure devDependency; `recommended-strict` omits it), and `no-orphans` (severity `warn` — a module
