@@ -982,3 +982,64 @@ flow` clean (the seam is chat-owned, assembled at the door; rpg/crew don't exist
 REAL gating not just presence) + `side-eye` (chat room renders unchanged at zero contributions; a fake
 contribution appears correctly at each of the 3 anchors). ASK if the discriminated union won't type through the
 registry, or an anchor has no clean mount.
+
+---
+
+## M9 — bus channel unification (`defineBusChannel` + G10/G11/G12) — SERVER-TIER, security-scoped
+
+**READ FIRST:** `docs/architecture/core/AGENTS.md`; then in `client-architecture-lockdown.md` the WHOLE of **§13**
+(the event/sync spine — the 4-bus inventory table, the 6 LAWS each naming its enforcer, the `defineBusChannel`
+unification paragraph, E4) + **§16 rows G10/G11/G12** (lines ~500-502) + **§18 O4** (the buddy deferral). Then read
+the THREE current bus modules IN FULL: `packages/server/src/transport/trpc/chat-events-bus.ts`,
+`user-events-bus.ts`, `notifications-bus.ts`, and the client seam `packages/client/src/data/invalidation.ts`
+(`BUS_FILTERS` / `USER_BUS_FILTERS`). This is a DIFFERENT package from the client registry primitives — M9 mirrors
+their CONVENTION (a `define*` mint, born-compliant gate), not their location.
+
+**THE WAVE (spec is §13 — this is an extraction + 3 gates, NOT a redesign). Zero behavior change; the existing
+server bus int-tests are the ORACLE.** The three modules hand-roll identical machinery three times (module-scope
+`EventEmitter` + `setMaxListeners(0)` + `channelFor(key)` + `on(emitter, channel, {signal})` + the untyped-args
+unwrap generator). Unify the PLUMBING only:
+
+- **Mint `defineBusChannel<Key, Event>(name)`** at `packages/server/src/transport/trpc/bus-channel.ts` (greenfield)
+  returning `{ publish(key, event), subscribe(key, signal), subscribeAll? }` — the exact machinery above, ONCE.
+  **`subscribeAll` is a TYPED OPT-IN capability, not always-on** (only chat's `ALL_CHATS_CHANNEL` firehose /
+  `subscribeAllChatEvents` needs it): a channel that doesn't declare a firehose must NOT expose `subscribeAll` in
+  its type (user/notifications literally cannot call it) — lock the extensible shape ([[lock-the-extensible-shape]]),
+  don't bolt a universal method that only one bus uses. If the firehose implies `publish` also fans to the firehose
+  channel, that fan is part of the declared capability.
+- **Migrate the three buses onto it, BYTE-EQUIVALENTLY:**
+  - `chat-events-bus.ts` — rides `defineBusChannel` WITH the firehose opt-in (keeps `ALL_CHATS_CHANNEL` +
+    `subscribeAllChatEvents`, the buddy chat-observer tap). **Durability stays composed OUTSIDE the primitive** —
+    the awaited `chat_events` INSERT that assigns `seq` stays in front of `publish` (law 1 — durable-first); the
+    256-entry ring + member-gated replay are UNCHANGED. Do NOT fold durability into the mint.
+  - `user-events-bus.ts` — rides `defineBusChannel`, live-only, NO durability half (fire-and-forget by design).
+    Both publish fns (`publishUserEvent`, `publishChatChanged`) ride it.
+  - `notifications-bus.ts` — rides `defineBusChannel`; the durable INSERT (assigns seq) stays composed OUTSIDE.
+  - **Buddy: DO NOT TOUCH** (O4 — its `@orb/kit/replay-buffer` domain-minted emitter is deferred; it is out of
+    G10's scope precisely because it is not a transport `EventEmitter`).
+- **Build the last three gates (full gate ritual each — descriptor name==filename, inline mustFlag/mustPass, a
+  Core-Enforcement-Active-Gates.md row + count bump 80→83, an anti-drift fixture in `check-gates.int.test.ts` OR a
+  PROVEN `UNFIXTURABLE` justification). These scan `packages/server` — you MUST prove each gate BITES on a planted
+  server-side violation (the scanRoot path-format trap: a ts-morph gate whose scanRoot doesn't actually cover the
+  server file passes GREEN while enforcing nothing — plant a real violation, watch it go RED, then remove it via a
+  SCRATCH file, never git):**
+  - **G10 `bus-channel-primitive`** (ts-morph): `new EventEmitter(` under `packages/server/src/transport/` OUTSIDE
+    `bus-channel.ts` → RED. (Buddy's domain-minted bus is not a transport `EventEmitter` — passes as-is.)
+  - **G11 `bus-definition-belts`** (ts-morph): a `*_EVENT_TYPES satisfies Record<X["type"], true>` const in
+    `@orb/contracts` with NO matching coverage-gate file OR no client-side total map in `data/invalidation.ts` →
+    RED (a new bus can't ship missing the chat bus's belt set — law 4/5).
+  - **G12 `membership-fan-guard`** (ts-morph): under `domain/chat/**` a single-user emit identifier
+    (`emitUserEvent`) → RED (member-visible state rides the member-fan `emitChatChanged` or the chat bus, never an
+    actor-only channel — law 2, the security-scoped fan).
+
+**M9 DONE-GATE:** `pnpm check` green (the full static battery — now 83 gates) · the full server+client test suite
+green, with the bus int-tests (`tests/server/domain/chat/bus.int.test.ts`, `bus-golden.suite.int.test.ts`, the
+user-bus + notifications int-tests) PASSING UNCHANGED — they are the byte-equivalence oracle; if any bus test
+needed editing to pass, that is a behavior change and is WRONG (STOP and report) · `defineBusChannel` is the sole
+transport `EventEmitter` home (G10 proves it) · chat keeps durable-first ordering + the firehose; user stays
+live-only; notifications stays durable-first — all three behaviorally identical to pre-M9 · buddy untouched ·
+G10/G11/G12 each PROVEN to bite on a planted server violation · zero `any`/hatches. Routing: `security-executor`
+(server transport + member-scoped event fan-out + the G12 isolation guard) → `verifier` (byte-equivalence: diff
+each bus's publish/subscribe path against pre-M9 and confirm the int-test oracle is unedited; the three gates bite;
+`subscribeAll` is genuinely absent from user/notifications' types). ASK if byte-equivalence forces a real behavior
+choice, or if a gate's server scanRoot can't be made to bite.
