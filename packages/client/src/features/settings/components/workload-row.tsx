@@ -7,14 +7,6 @@
 // state and every state-changing event invalidates workloads.list. Cancel is confirm-gated; Retry clones
 // a fresh queued row (the original stays as audit).
 
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -25,6 +17,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { timeLib } from "#lib";
@@ -153,26 +146,15 @@ function WorkloadRowBody({
       )}
       <WorkloadFailureDetail workload={workload} />
 
-      <AlertDialog onOpenChange={setConfirmCancel} open={confirmCancel}>
-        <AlertDialogPopup>
-          <Stack gap="block">
-            <AlertDialogTitle>Cancel this workload?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {`Stops the ${kindLabel} run. Progress so far may be kept where the pass is resumable; you can start it again any time.`}
-            </AlertDialogDescription>
-            <AlertDialogActions>
-              <AlertDialogClose render={<Button intent="ghost">Keep running</Button>} />
-              <AlertDialogClose
-                render={
-                  <Button intent="destructive" onClick={onCancel}>
-                    Cancel workload
-                  </Button>
-                }
-              />
-            </AlertDialogActions>
-          </Stack>
-        </AlertDialogPopup>
-      </AlertDialog>
+      <ConfirmDialog
+        cancelLabel="Keep running"
+        confirmLabel="Cancel workload"
+        description={`Stops the ${kindLabel} run. Progress so far may be kept where the pass is resumable; you can start it again any time.`}
+        onConfirm={onCancel}
+        onOpenChange={setConfirmCancel}
+        open={confirmCancel}
+        title="Cancel this workload?"
+      />
     </Stack>
   );
 }

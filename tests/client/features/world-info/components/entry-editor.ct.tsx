@@ -76,3 +76,29 @@ test("renders every field, commits a keyword chip, and saves the full input", as
   // The unknown ST-imported metadata key rides through untouched (the save mapper preserves it).
   expect(saved.input.metadata["extra"]).toBe("keep-me");
 });
+
+test("delete: the icon trigger opens an uncontrolled confirm with no description, and confirming removes the entry", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await routeTrpc(page, {
+    "worldInfo.removeEntry": () => ({ ok: true }),
+  });
+
+  await mount(<EntryEditorStory />);
+
+  await page.getByRole("button", { name: "Delete Eldoria" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Delete "Eldoria"?');
+  // Title-only confirm: no description paragraph renders (the M5 optional-description extension).
+  await expect(dialog.locator("p")).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await expect
+    .poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] })
+    .toBeGreaterThanOrEqual(1);
+  expect((trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe(
+    "world_entry_ctstory0001",
+  );
+});

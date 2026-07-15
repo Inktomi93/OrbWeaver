@@ -137,6 +137,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `modal-body-not-placeholder` | a `ModalDefinition` (`features/*/lib/*-modal.tsx`) whose function-arm `body` renders `<SectionPlaceholder>` is RED — an unbuilt modal uses the `{planned}` arm, never a placeholder body (the placeholder-body anti-pattern is unspellable) |
 | `placeholder-copy-registry` | client-architecture-lockdown.md §6a / §16 G13 — every co-located `SectionDefinition.placeholder` `(title, description)` pair is DISTINCT and non-empty, reconciled ACROSS the 7 `features/*/lib/*-section.*` files — kills the "three sections share one string" silent-duplicate case |
 | `registry-assembly-at-door-only` | client-architecture-lockdown.md §16 G8 — `createRegistry`/`createContributorRegistry` may be CALLED only in `main.tsx` or a `compose/` module; a mutating `register(`-named function/method is banned outright wherever declared (§5 rule 1) |
+| `list-row-adoption` | client-architecture-lockdown.md §14/§16 G6 — a LIST-region surface file (one importing `LibrarySurfaceShell`/`LibraryListLayout`/`createCollectionSurface`) whose `.map()` callback OR `renderItem`/`renderRow` prop returns interactive JSX (onClick/role/href) must root that JSX in `ListRow`/`LibraryRow`/an allowlisted composite. Both-ways ALLOWLIST ratchet (currently empty — every current LIST-surface row already roots in `LibraryRow`) |
 | `enforcement-registry-parity` | this doc's declared registered-gate COUNT + Layer-3 ACTIVE/DORMANT tables must agree with the DISCOVERED gate descriptors' `status` fields (both directions) — reconciles the doc against `loadGates()`'s discovered set, not an `ALL_CHECKS` array — the meta-gate that promotes `check-gates.int.test.ts`'s anti-drift assertion to every `pnpm check` |
 | `no-array-literal-querykey` | a `queryKey:` property whose value is an inline array literal anywhere in `packages/client/src` is RED — client query keys are 100% tRPC-proxy-derived (`.queryKey()`/`.queryFilter()`/`.pathFilter()`), §11.1; the data/ factory passthroughs are identifiers, never literals, so they pass |
 | `no-inline-invalidate-outside-seam` | `.invalidateQueries(` may be called ONLY in `data/invalidation.ts` (the central seam); everything else routes `invalidate(event)`/`invalidateFilters`. Tighter than the Layer-2 grit `client-cache-surgery-only-in-data` (which allows all of `data/`) — §11.3 |
@@ -163,7 +164,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-vanity-alias` | one symbol, one name — a workspace rename-import (original not otherwise present in-module), a rename-export of a UNIQUELY-homed symbol (the ChatSource class — a name with <2 producer modules), or 2+ bare type-aliases onto one identifier (RouteOverlay/RoutableChat). Sanctioned: a genuine in-module collision; a GENERIC name (≥2 producer modules — barrel disambiguation); an `@orb/ui` / db-`*Table` / contracts-`*Wire` rename; a `packages/server/src/**/contract/**` distinct-alias-per-verb vocab home; any vendor-package rename. `whole-project` (rule b counts producer modules tree-wide) |
 | `tsconfig-routing-parity` | TSC-INCREMENTAL-PERFILE.md §2.2 — the file→tsconfig routing algebra (`scripts/verify/selection.ts` `staticPrograms`, which scopes `verify --file/--changed`'s type lanes to the OWNING program(s)) must match each program's REAL root membership. For every present tsconfig (the root graph + 6 package configs) the gate reads its resolved `files` via `tsgo --showConfig` (the include/files expansion, pre-import-closure) and reconciles both directions: a file a program ROOTS that the algebra doesn't predict is RED (forward), and a file the algebra routes to a program that doesn't root it is RED (mirror). A wrong route type-checks a file against the WRONG program (or skips it) → a FALSE GREEN at `verify --file` |
 
-The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (77 registered gates);
+The table mirrors `report.ts`'s `loadGates()`-discovered `status:"active"` set (78 registered gates);
 the discovered descriptor set is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
@@ -194,11 +195,11 @@ keeping `corpus`); tracked inline in `client-structure.ts`'s `RESERVED` comment 
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 
-The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 45 rules
-(43 error + 1 warn + 1 ignore): the 6-package cake (kit←contracts←db←server←client, + `@orb/ui` between contracts and client), server tier direction
+The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 46 rules
+(44 error + 1 warn + 1 ignore): the 6-package cake (kit←contracts←db←server←client, + `@orb/ui` between contracts and client), server tier direction
 (entry→transport→domain→infra→foundation→kit), kit-purity + kit/ui no-node-builtins, infra-no-db, foundation-reaches-up-to-nothing,
 drivers-through-domain, domain isolation (no-cross-feature/-verb/-subsystem + front-door + substrate
-mediation), the client rules (feature front-door, no-cross-feature, no-backend-runtime, the `@orb/ui`
+mediation), the client rules (feature front-door, no-cross-feature, no-backend-runtime, `confirm-uses-composite` — client-architecture-lockdown.md §16 G7, `features/**` may not import `@orb/ui/alert-dialog` (the raw primitive) — ConfirmDialog is the sole feature-tier confirm, the `@orb/ui`
 satellite seals — D42/D52 physics), providers public-surface + strategy-isolation + vllm-surface-isolation + the transitive credential firewall
 (openrouter ↛ agent-sdk), persistence-no-io, stats-no-vector-tables, `not-to-dev-dep` (prod `packages/*/src` must not import a
 pure devDependency; `recommended-strict` omits it), and `no-orphans` (severity `warn` — a module

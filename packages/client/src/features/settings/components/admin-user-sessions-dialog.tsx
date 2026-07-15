@@ -5,14 +5,6 @@
 // mutations path-invalidate `admin.listSessions`, so the list refreshes on settle.
 
 import type { UserId } from "@orb/kit/ids";
-import {
-  AlertDialog,
-  AlertDialogActions,
-  AlertDialogClose,
-  AlertDialogDescription,
-  AlertDialogPopup,
-  AlertDialogTitle,
-} from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
@@ -21,6 +13,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations";
@@ -107,30 +100,15 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
           </Stack>
         </Stack>
 
-        <AlertDialog onOpenChange={setConfirmRevokeAll} open={confirmRevokeAll}>
-          <AlertDialogPopup forceRender={true}>
-            <Stack gap="block">
-              <AlertDialogTitle>Revoke all sessions?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Every live session for {props.handle} is revoked — their next request from any
-                device is signed out.
-              </AlertDialogDescription>
-              <AlertDialogActions>
-                <AlertDialogClose render={<Button intent="ghost">Cancel</Button>} />
-                <AlertDialogClose
-                  render={
-                    <Button
-                      intent="destructive"
-                      onClick={(): void => revokeAll.mutate({ userId: props.userId })}
-                    >
-                      Revoke all
-                    </Button>
-                  }
-                />
-              </AlertDialogActions>
-            </Stack>
-          </AlertDialogPopup>
-        </AlertDialog>
+        <ConfirmDialog
+          confirmLabel="Revoke all"
+          description={`Every live session for ${props.handle} is revoked — their next request from any device is signed out.`}
+          forceRender={true}
+          onConfirm={(): void => revokeAll.mutate({ userId: props.userId })}
+          onOpenChange={setConfirmRevokeAll}
+          open={confirmRevokeAll}
+          title="Revoke all sessions?"
+        />
       </DialogPopup>
     </Dialog>
   );

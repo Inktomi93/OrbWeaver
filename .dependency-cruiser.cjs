@@ -136,6 +136,14 @@ module.exports = {
         dependencyTypesNot: ["type-only"],
       },
     },
+    {
+      name: "confirm-uses-composite",
+      comment:
+        "ConfirmDialog (client-shared, tier-2 components/) is the ONLY feature-tier confirm — a features/** module must not reach past it for the raw alert-dialog primitive (client-architecture-lockdown.md §14/§16 G7).",
+      severity: "error",
+      from: { path: `${CLIENT}features/` },
+      to: { path: "^packages/ui/src/primitives/alert-dialog/" },
+    },
 
     // ════════════════════ @orb/ui — the frontend cake leaf (D42; ui-package-design.md §8) ═══════════
     {

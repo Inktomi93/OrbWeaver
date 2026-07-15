@@ -85,7 +85,7 @@ function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void }): Reac
       description="This replaces the character's current card with this snapshot. Your current state is snapshotted first, so you can undo it."
       onConfirm={onConfirm}
       title="Restore this snapshot?"
-      triggerLabel="Restore"
+      trigger={<Button intent="ghost">Restore</Button>}
     />
   );
 }

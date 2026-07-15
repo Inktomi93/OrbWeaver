@@ -321,9 +321,23 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
     .poll(() => trpc.lastInput("admin.revokeSession"), { intervals: [20, 50, 100] })
     .toEqual({ sessionId: "sess_live" });
 
-  // Revoke-all is confirm-gated.
+  // Revoke-all is confirm-gated: the nested ConfirmDialog (forceRender, since it opens on top of the
+  // already-open sessions Dialog) renders OVER the parent — both the parent `dialog` and the nested
+  // `alertdialog` are visible at once.
   await dialog.getByRole("button", { name: "Revoke all" }).click();
   expect(trpc.count("admin.revokeUserSessions")).toBe(0);
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm.getByText("Revoke all sessions?")).toBeVisible();
+  await expect(dialog).toBeVisible();
+
+  // Cancel is a no-op — the mutation never fires and the parent dialog is unaffected.
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toHaveCount(0);
+  expect(trpc.count("admin.revokeUserSessions")).toBe(0);
+  await expect(dialog).toBeVisible();
+
+  // Confirming fires the real revoke-all mutation for this user.
+  await dialog.getByRole("button", { name: "Revoke all" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Revoke all" }).click();
   await expect
     .poll(() => trpc.lastInput("admin.revokeUserSessions"), { intervals: [20, 50, 100] })
