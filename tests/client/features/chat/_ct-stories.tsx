@@ -20,7 +20,14 @@ import {
   MessageThreadAnchor,
   NewChatPicker,
 } from "@orb/client/features/chat";
-import type { MessageRenderContext } from "@orb/client/lib";
+import type {
+  ChatContextState,
+  ChatSurfaceAnchor,
+  ChatSurfaceContribution,
+  ContextTabDef,
+  MessageRenderContext,
+} from "@orb/client/lib";
+import { createContributorRegistry } from "@orb/client/lib";
 import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
   cancelEditingMessage,
@@ -73,8 +80,19 @@ import type {
   MemberCastRow,
   MemberPersonRow,
 } from "../../../../packages/client/src/features/chat/lib/member-rows";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import {
+  CtChatContributorSectionRegistry,
+  CtDataProviders,
+  CtRealSectionRegistry,
+} from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
+
+// The door's empty chat-surface registry (§6c/M8) — stories that don't test the seam itself pass this,
+// mirroring main.tsx's zero-contribution assembly (no visual change over today's layout).
+const NO_SURFACE_CONTRIBUTORS = createContributorRegistry<ChatSurfaceContribution>(
+  "chat-surface",
+  [],
+);
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -436,7 +454,11 @@ function SurfaceHarness({ committed }: SurfaceHarnessProps): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={handle} busDeps={busDeps} />
+        <MessageListSurface
+          handle={handle}
+          busDeps={busDeps}
+          surfaceContributors={NO_SURFACE_CONTRIBUTORS}
+        />
       </MessageThreadAnchor>
     </div>
   );
@@ -473,7 +495,11 @@ function ReplaySeedHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={handle} busDeps={busDeps} />
+        <MessageListSurface
+          handle={handle}
+          busDeps={busDeps}
+          surfaceContributors={NO_SURFACE_CONTRIBUTORS}
+        />
       </MessageThreadAnchor>
       <button type="button" data-testid="commit-draft" onClick={(): void => setCommitted(true)}>
         commit
@@ -504,7 +530,11 @@ function StoppingHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface handle={committedChat(CHAT_ID)} busDeps={busDeps} />
+        <MessageListSurface
+          handle={committedChat(CHAT_ID)}
+          busDeps={busDeps}
+          surfaceContributors={NO_SURFACE_CONTRIBUTORS}
+        />
       </MessageThreadAnchor>
       <button
         type="button"
@@ -749,7 +779,12 @@ function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactE
   const draftSeed = committed ? undefined : { characterIds: [castId<CharacterId>("char_ct_room")] };
   return (
     <div style={{ height: 480 }}>
-      <ChatRoomSurface busDeps={busDeps} draftSeed={draftSeed} initialHandle={handle} />
+      <ChatRoomSurface
+        busDeps={busDeps}
+        draftSeed={draftSeed}
+        initialHandle={handle}
+        surfaceContributors={NO_SURFACE_CONTRIBUTORS}
+      />
     </div>
   );
 }
@@ -798,6 +833,114 @@ export function ChatContextPanelStory(): ReactElement {
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+// ── M8: fake-contributor stories (§6c) — prove BOTH contributor seams render + `when`-gate through the
+// REAL section/factory/mint/anchor path, driven by a FAKE registry (mirrors the doctrine: a CT fake, not
+// a bespoke test double of the seam itself). ───────────────────────────────────────────────────────
+
+const CT_CONTRIBUTOR_TAB_ID = "ct-fake-context-tab";
+const CT_CONTRIBUTOR_TAB_LABEL = "Fake Tab";
+
+export interface ChatContextTabContributorStoryProps {
+  /** Drives the fake tab's `when` — `false` proves the seam HIDES it, not just that it CAN render. */
+  readonly visible: boolean;
+}
+
+/** The chat-context contributor seam (§6c) LIVE: a fake `ContextTabDef<ChatContextState>` registered at
+ *  a CtChatContributorSectionRegistry door (mirroring main.tsx) in place of the empty M3 registry, mounted
+ *  through the real `SectionContextHost` → `defineContextTabs` → `resolveContextTabs` path. */
+export function ChatContextTabContributorStory({
+  visible,
+}: ChatContextTabContributorStoryProps): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  const fakeTab: ContextTabDef<ChatContextState> = {
+    id: CT_CONTRIBUTOR_TAB_ID,
+    label: CT_CONTRIBUTOR_TAB_LABEL,
+    when: () => visible,
+    body: (): ReactElement => <div data-testid="ct-fake-context-tab-body">fake tab body</div>,
+  };
+  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
+    "chat-context",
+    [fakeTab],
+  );
+  return (
+    <CtDataProviders>
+      <CtChatContributorSectionRegistry contextContributors={contextContributors}>
+        <ChatContextHostHarness />
+      </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+export interface ChatSurfaceContributorStoryProps {
+  readonly anchor: ChatSurfaceAnchor;
+  /** Drives the fake contribution's `when` — `false` proves the anchor HIDES it. */
+  readonly visible: boolean;
+  /** @defaultValue true — a committed room (canon read); message-footer needs a committed message to
+   *  attach to. */
+  readonly committed?: boolean;
+}
+
+const CT_SURFACE_CONTRIBUTION_ID = "ct-fake-surface-contribution";
+
+/** The chat-surface-anchor contributor seam (§6c/M8) LIVE: a single fake `ChatSurfaceContribution` at the
+ *  given anchor, registered at a `CtChatContributorSectionRegistry` door in place of the empty registry,
+ *  mounted through the REAL `chats` section's `content()` → `ChatContent` → `ChatRoomSurface`/`MessageRow`
+ *  anchor-consumer path (chat-room-surface.tsx / message-row.tsx). */
+export function ChatSurfaceContributorStory({
+  anchor,
+  visible,
+  committed = true,
+}: ChatSurfaceContributorStoryProps): ReactElement {
+  useEffect(() => {
+    if (committed) {
+      selectChat(CHAT_ID);
+    } else {
+      startNewChat({ characterIds: [] });
+    }
+  }, [committed]);
+  const fakeContribution: ChatSurfaceContribution =
+    anchor === "message-footer"
+      ? {
+          id: CT_SURFACE_CONTRIBUTION_ID,
+          anchor: "message-footer",
+          when: () => visible,
+          body: (): ReactElement => (
+            <div data-testid="ct-fake-surface-contribution">fake footer</div>
+          ),
+        }
+      : {
+          id: CT_SURFACE_CONTRIBUTION_ID,
+          anchor,
+          when: () => visible,
+          body: (): ReactElement => (
+            <div data-testid="ct-fake-surface-contribution">fake {anchor}</div>
+          ),
+        };
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
+    fakeContribution,
+  ]);
+  return (
+    <CtDataProviders>
+      <CtChatContributorSectionRegistry surfaceContributors={surfaceContributors}>
+        <ChatContentHarness />
+      </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+// Mounts the chats section's CONTENT through the real registry (`registry.get("chats").content()`) — the
+// same call the shell's `SectionContent` makes — so the surface-anchor CT drives the production path.
+function ChatContentHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const content = registry.get("chats").content;
+  if (typeof content !== "function") {
+    throw new Error("ct-stories: chats section content is a planned stub, not a body");
+  }
+  return <div style={{ height: 480 }}>{content()}</div>;
 }
 
 export interface DraftContextPanelStoryProps {

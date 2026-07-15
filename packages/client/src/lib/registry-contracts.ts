@@ -9,7 +9,7 @@
 // `resolveContextTabs`, paired with its consumer INSIDE the definition file; the shell only ever sees the
 // NON-generic `ContextDefinition` this mint returns (§6b).
 
-import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { MessageView, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry";
@@ -141,3 +141,40 @@ export interface DraftChatContext {
 /** The Chats CONTEXT-panel state projection (O5 strict) — a phase-discriminated union so one
  *  `defineContextTabs<ChatContextState>` unifies both the committed panel and its draft twin (§6b/§15). */
 export type ChatContextState = CommittedChatContext | DraftChatContext;
+
+/** The chat SURFACE-ANCHOR vocabulary (§6c/M8) — closed `as const` tuple, so an unlisted anchor is
+ *  unspellable. `thread-flank`/`above-composer` are ROOM-level (mounted once per open room);
+ *  `message-footer` is PER-ROW (mounted once per committed message). */
+export const CHAT_SURFACE_ANCHORS = ["thread-flank", "above-composer", "message-footer"] as const;
+export type ChatSurfaceAnchor = (typeof CHAT_SURFACE_ANCHORS)[number];
+
+/** The room-level surface projection — `thread-flank` + `above-composer` read this. `chatId` is `null`
+ *  for a draft (no server row yet); a contributor that needs a committed chat gates on it itself. */
+export interface ChatRoomSurfaceState {
+  readonly chatId: ChatId | null;
+}
+
+/** The per-message surface projection — `message-footer` reads this, one instance per COMMITTED row
+ *  (never the streaming ghost row, which has no settled `MessageView` to hand a contributor). */
+export interface ChatMessageSurfaceState {
+  readonly message: MessageView;
+}
+
+/** A chat surface-anchor contribution (§6c/M8) — a discriminated union BY ANCHOR: the two room anchors
+ *  share `ChatRoomSurfaceState`, `message-footer` carries `ChatMessageSurfaceState`. The `anchor` literal
+ *  narrows `when`/`body` to the right state at every call site — no erasure, no cast (contrast §6b's
+ *  `ContextTabDef<S>`, where a single S needs the mint's existential dodge; here the anchor IS the
+ *  discriminant, so a plain union types cleanly through the registry). */
+export type ChatSurfaceContribution =
+  | {
+      readonly id: string;
+      readonly anchor: Extract<ChatSurfaceAnchor, "thread-flank" | "above-composer">;
+      readonly when?: (state: ChatRoomSurfaceState) => boolean;
+      readonly body: (state: ChatRoomSurfaceState) => ReactNode;
+    }
+  | {
+      readonly id: string;
+      readonly anchor: Extract<ChatSurfaceAnchor, "message-footer">;
+      readonly when?: (state: ChatMessageSurfaceState) => boolean;
+      readonly body: (state: ChatMessageSurfaceState) => ReactNode;
+    };

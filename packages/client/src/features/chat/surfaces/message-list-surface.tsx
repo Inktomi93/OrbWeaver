@@ -21,6 +21,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC } from "#data";
+import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import {
@@ -56,6 +57,7 @@ export interface MessageListSurfaceProps {
   /** A draft renders each founding character's greeting as a normal message row from this seed. */
   readonly draftSeed?: DraftSeed | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
+  readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
 }
 
 /** The scrolling chat transcript for one chat (or a draft's editable greeting preview). */
@@ -64,6 +66,7 @@ export function MessageListSurface({
   busDeps,
   draftSeed,
   onChatForked,
+  surfaceContributors,
 }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -102,7 +105,12 @@ export function MessageListSurface({
               <QueryErrorState label="this conversation" onRetry={retry} />
             )}
           >
-            <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} />
+            <ChatThread
+              chatId={chatId}
+              chatStyle={chatStyle}
+              onChatForked={onChatForked}
+              surfaceContributors={surfaceContributors}
+            />
           </QueryBoundary>
         );
       })()}
@@ -114,10 +122,16 @@ interface ChatThreadProps {
   readonly chatId: ChatId;
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
+  readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
 }
 
 /** The committed-chat transcript — suspends on the canon + roster reads, then merges the live ghost. */
-function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): ReactElement {
+function ChatThread({
+  chatId,
+  chatStyle,
+  onChatForked,
+  surfaceContributors,
+}: ChatThreadProps): ReactElement {
   const trpc = useTRPC();
   const [{ data: messagesPage }, { data: chatDetail }] = useSuspenseQueries({
     queries: [
@@ -207,6 +221,7 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         viewerUserId={viewerUserId}
         onChatForked={onChatForked}
         enterMotion={newArrivalKeys.has(item.view.id)}
+        surfaceContributors={surfaceContributors}
       />
     );
 
