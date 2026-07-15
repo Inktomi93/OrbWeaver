@@ -1,4 +1,4 @@
-// Unit: the run dialog's DEFERRAL + DAG vocabulary (features/settings/lib/workloads-run-model). Pure, no DOM.
+// Unit: the run dialog's DEFERRAL + DAG vocabulary (features/workloads/lib/workloads-run-model). Pure, no DOM.
 // Guards the datetime→scheduledAt parse (omit when empty/bad), the clock-free queue-state derivations the
 // LIST renders (deferred = queued + future scheduledAt; waiting = queued + deps; dependency_failed = the DAG
 // terminal keyed on the server message fragment), and the plural wait label.
@@ -9,7 +9,7 @@ import {
   isDependencyFailure,
   isWaitingOnDependencies,
   parseRunAt,
-} from "../../../../../packages/client/src/features/settings/lib/workloads-run-model";
+} from "../../../../../packages/client/src/features/workloads/lib/workloads-run-model";
 import { expect, test } from "../../../../support/fixtures";
 
 test("parseRunAt: empty/unparseable → undefined (run now); a valid datetime-local → epoch ms", () => {

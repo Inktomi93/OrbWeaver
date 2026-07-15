@@ -13,10 +13,10 @@ import { Container, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { testId, useFocusOnMount } from "#lib";
+import { settingsAnchorId } from "#state";
 import { ExportLibrarySection } from "../components/export-library-section";
 import { ImportLibrarySection } from "../components/import-library-section";
 import { BACKUP_SUBCATEGORY_IDS } from "../lib/backup-nav";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 
 /** The Backup & Restore panel body (rendered inside the settings modal's category column). */
 export function BackupSettingsSurface(): ReactElement {

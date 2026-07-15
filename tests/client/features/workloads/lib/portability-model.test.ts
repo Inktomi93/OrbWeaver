@@ -1,4 +1,4 @@
-// Unit: the Backup & Restore pane's pure export/import model (features/settings/lib/portability-model).
+// Unit: the Backup & Restore pane's pure export/import model (features/workloads/lib/portability-model).
 // Pins the load-bearing derivations: the export-kind set EXCLUDES `assets` (media always rides along), the
 // href builder omits `kinds` for a full pick but appends `assets` to a partial one, the label Record is
 // exhaustive over the offered kinds, and the summary normalizers (`unknown` workload result → counts;
@@ -15,7 +15,7 @@ import {
   summarizeBundleCounts,
   summarizeCardImport,
   summaryCaption,
-} from "../../../../../packages/client/src/features/settings/lib/portability-model";
+} from "../../../../../packages/client/src/features/workloads/lib/portability-model";
 import { expect, test } from "../../../../support/fixtures";
 
 test("EXPORTABLE_KINDS excludes `assets` and every offered kind has a label", () => {

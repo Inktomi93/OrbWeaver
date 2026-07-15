@@ -12,12 +12,12 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { SettingSwitchRow } from "#components";
 import type { AppFormInstance } from "#forms";
+import { settingsAnchorId } from "#state";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds";
 import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/appearance-nav";
 import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items";
-import { settingsAnchorId } from "../lib/settings-nav-model";
-import { SettingSwitchRow } from "./setting-switch-row";
 
 export function AppearanceEffectsSection({
   form,

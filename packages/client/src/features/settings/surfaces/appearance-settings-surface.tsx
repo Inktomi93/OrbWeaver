@@ -19,6 +19,7 @@ import {
   useTRPC,
 } from "#data";
 import { useFocusOnMount } from "#lib";
+import { settingsAnchorId } from "#state";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { BackgroundUploadField } from "../components/background-upload-field";
@@ -49,7 +50,6 @@ import {
   MESSAGE_ACTIONS_ITEMS,
   SEEDED_BACKGROUND_ITEMS,
 } from "../lib/appearance-select-items";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 
 interface UpdateAppearanceVars {
   readonly section: "appearance";

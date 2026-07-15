@@ -22,6 +22,7 @@ import {
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Icon fine (the character-library-surface.tsx precedent).
 import { Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
+import { scrollBehavior } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -30,11 +31,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { SettingsCategoryId, SettingsPaneDefinition, SettingsViewerView } from "#state";
-import { SETTINGS_GROUPS, useSettingsPaneRegistry, useSettingsTarget } from "#state";
+import {
+  SETTINGS_GROUPS,
+  settingsAnchorId,
+  useSettingsPaneRegistry,
+  useSettingsTarget,
+} from "#state";
 import "./settings-shell.css";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
-import { scrollBehavior } from "../lib/scroll-behavior";
-import { SETTINGS_GROUP_LABELS, settingsAnchorId } from "../lib/settings-nav-model";
+import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model";
 import type { SettingsSearchEntry } from "../lib/settings-search";
 import { buildSettingsSearchEntries } from "../lib/settings-search";
 

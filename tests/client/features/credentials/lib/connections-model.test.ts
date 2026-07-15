@@ -1,8 +1,8 @@
-// Unit: the CONNECTIONS pane's pure model (features/settings/lib/connections-model). No DOM — the node
-// lane. Guards the W10 load-bearing logic: the embedding-dimension mismatch advisory (both slots feed one
-// 1024-dim shared space), the routing project ⇄ patch round-trip (unset ⇒ omitted "no preference", never a
-// pinned empty), and the per-role source constraints matching the settings schema (a stricter/looser list
-// than the server would hide or mis-offer a legal choice).
+// Unit: the CONNECTIONS pane's pure model (features/credentials/lib/connections-model). No DOM — the
+// node lane. Guards the W10 load-bearing logic: the embedding-dimension mismatch advisory (both slots
+// feed one 1024-dim shared space), the routing project ⇄ patch round-trip (unset ⇒ omitted "no
+// preference", never a pinned empty), and the per-role source constraints matching the settings schema
+// (a stricter/looser list than the server would hide or mis-offer a legal choice).
 
 import { ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
 import type { CredentialProvider } from "@orb/contracts/credentials";
@@ -19,7 +19,7 @@ import {
   ROLE_SLOTS_ORDERED,
   SOURCE_LABELS,
   toRoutingSection,
-} from "../../../../../packages/client/src/features/settings/lib/connections-model";
+} from "../../../../../packages/client/src/features/credentials/lib/connections-model";
 import { expect, test } from "../../../../support/fixtures";
 
 // --- embedDimensionWarning ---------------------------------------------------

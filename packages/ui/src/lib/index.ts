@@ -19,7 +19,7 @@ export {
   PortalContainerContext,
   usePortalContainer,
 } from "./portal-container";
-export { prefersReducedMotionNow } from "./reduced-motion-now";
+export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now";
 export { formatResultCount } from "./result-count";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 

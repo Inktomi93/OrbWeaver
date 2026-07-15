@@ -11,7 +11,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { SettingsShellStory, WorkloadsSettingsStory } from "../_ct-stories";
+import { SettingsShellStory } from "../../settings/_ct-stories";
+import { WorkloadsSettingsStory } from "../_ct-stories";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
 const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" };

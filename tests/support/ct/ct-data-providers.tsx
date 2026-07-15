@@ -20,26 +20,25 @@ import { youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
 import { charactersSection } from "@orb/client/features/character";
 import { commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
+import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
+import { personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import {
   accountPane,
-  adminPane,
   appearancePane,
   automationPane,
-  backupPane,
   chatBehaviorPane,
-  connectionsPane,
-  personasPane,
   regexPane,
   settingsModal,
   systemPane,
   tagsPane,
   themeModal,
-  workloadsPane,
 } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
+import { adminPane } from "@orb/client/features/user-admin";
+import { backupPane, workloadsPane } from "@orb/client/features/workloads";
 import { worldInfoSection } from "@orb/client/features/world-info";
 import type { ChatContextState, ContextTabDef } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";

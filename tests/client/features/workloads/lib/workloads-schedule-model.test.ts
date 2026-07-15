@@ -1,4 +1,4 @@
-// Unit: the Workloads pane's SCHEDULES vocabulary (features/settings/lib/workloads-schedule-model). Pure, no
+// Unit: the Workloads pane's SCHEDULES vocabulary (features/workloads/lib/workloads-schedule-model). Pure, no
 // DOM — the node lane. Guards the bulk-schedulability partition (a create-kind that needs a mint target is NOT
 // bulk-schedulable — a schedule carries no target), the mode resolution (maintenance bulk-by-force, owner
 // toggle, non-owner floored to singular), and the params↔form round-trip that seeds the edit dialog.
@@ -8,7 +8,7 @@ import {
   scheduleFormValuesFromRow,
   scheduleParamsToRunValues,
   workloadKindBulkSchedulable,
-} from "../../../../../packages/client/src/features/settings/lib/workloads-schedule-model";
+} from "../../../../../packages/client/src/features/workloads/lib/workloads-schedule-model";
 import { expect, test } from "../../../../support/fixtures";
 
 test("workloadKindBulkSchedulable: sweep kinds yes; create-kinds (needs target) and maintenance kinds no", () => {

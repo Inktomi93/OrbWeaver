@@ -1,5 +1,5 @@
 // The Personas settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
-// wrapping the existing surface. TEMPORARY home (M6.1: panes stay put; the persona-owned move is M6.2).
+// wrapping the existing surface. Owned by features/persona (M6.2 de-god move, §8/O3).
 
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Drama fine (the settings-nav.ts precedent).
 import { Drama } from "@orb/ui/icons";

@@ -11,13 +11,13 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { SettingCheckboxRow } from "#components";
 import { downloadUrl, testId } from "#lib";
 import {
   buildLibraryExportHref,
   EXPORTABLE_KINDS,
   PORTABLE_KIND_LABELS,
 } from "../lib/portability-model";
-import { SettingCheckboxRow } from "./setting-switch-row";
 
 /** The export controls: per-kind checkboxes + the download button. */
 export function ExportLibrarySection(): ReactElement {

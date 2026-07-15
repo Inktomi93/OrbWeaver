@@ -15,3 +15,9 @@ export function prefersReducedMotionNow(): boolean {
     typeof matchMediaFn === "function" && matchMediaFn("(prefers-reduced-motion: reduce)").matches
   );
 }
+
+/** The scroll `behavior` to use right now for an imperative `scrollTo`/`scrollIntoView` call —
+ *  `"smooth"` ignores the CSS reduced-motion floor by spec, so callers derive it here instead. */
+export function scrollBehavior(): "auto" | "smooth" {
+  return prefersReducedMotionNow() ? "auto" : "smooth";
+}

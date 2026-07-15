@@ -9,4 +9,5 @@
 export { FirstRunPersonaDialog } from "./anchors/first-run-persona-dialog";
 export type { PersonaPanelRowProps } from "./components/persona-panel-row";
 export { PersonaPanelRow } from "./components/persona-panel-row";
+export { personasPane } from "./lib/personas-pane";
 export { PersonaPanelSurface } from "./surfaces/persona-panel-surface";
