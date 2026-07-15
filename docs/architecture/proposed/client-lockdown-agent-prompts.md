@@ -273,21 +273,16 @@ member, and a definition nothing consumes is RED. Therefore M1 is a MULTI-STEP w
   of it (the prop, its type, the route wiring that feeds it) with a greppable `FLAG[lockdown-M3]` header
   comment citing "temporary context bridge — deleted at M3". Do NOT fold context in — the doc separates M1
   and M3 for a reason (this wave is already large). Only here do G1/G2 go green.
-- **M3 (context-unification — its OWN wave, per the doc §M3; pre-launch, in full):** AppShell consumes
-  `sections.get(active).context`. The consumer computes each section's projection `S` (chat's
-  `ChatContextState` from trpc + `multiHumanCapable`; the `resolveActiveTab` = store tab if visible else
-  first-visible resolution lives here) and branches on `context.kind`: `tabs`→`ContextTabsPanel`,
-  `single`→its host (the M1.3 finding — extend `ContextTabsPanel` or add a sibling to host a `single` body,
-  else worldInfo's inspector can't render), `none`→nothing. ATOMICALLY DELETE `CONTEXT_SLOTS`, the slim
-  context prop, EVERY route inline `<ContextTabsPanel>`, and chat's bespoke `chatsContext` /
-  `ChatContextPanel` `<Tabs>` — **chat is NOT an exception** (§6b: `ContextTabsPanel` is the one renderer for
-  every `kind:"tabs"` section INCLUDING chat). Build **G3 `context-definition-shape`**. Leaving any bespoke
-  or route-hand-wired context alive is a half-migration, not the end state.
-  **M3 DONE-GATE — verify ZERO scaffolding survives (cite each):** `grep -r "FLAG\[lockdown-M3\]"` returns
-  NOTHING (the temp context bridge is fully removed); no slim context prop / type remains; no route inline
-  `<ContextTabsPanel>`; no `chatsContext` / bespoke chat `<Tabs>`; `CONTEXT_SLOTS` is deleted; G3 green.
-  The temp prop introduced at M1.cutover MUST die here — its removal is not optional cleanup, it is M3's
-  definition of done.
+- **M3 (context-unification — its OWN wave; pre-launch, in full):** the section CONTEXT panel moves off the
+  FLAG bridge onto each section's `ContextDefinition`, consumed by a blind `SectionContextHost`. The design is
+  the `defineContextTabs<S>` MINT (`client-architecture-lockdown.md` §6b) — `S` is paired with its consumer
+  INSIDE the definition file and never crosses the shell seam (the M1.cutover `SectionDefinition<never>`
+  apparatus is DELETED, not re-hydrated). TWO green steps — **M3-core** (the fused M3.1+M3.2: migrating any
+  section to the mint changes `ContextDefinition`'s tabs arm, which breaks chat's raw `{kind:"tabs",tabs}`
+  literal at compile, so all sections INCLUDING chat + the bridge death land ATOMICALLY — there is no green
+  intermediate) then **M3.3** (the walls). This is a COMPLETE BLUEPRINT below (**"M3 executor spec"**) — an executor has ZERO
+  architecture decisions to make, only mechanical construction; the one genuine unknown is flagged as an
+  explicit ASK. **M3 DONE-GATE:** `grep -r "FLAG\[lockdown-M3\]"` → 0; no `sectionContext` prop / `SectionContextBridge` / `contextHeader`; `CONTEXT_SLOTS` + both chat context surface files deleted; `ContextTabsPanel` off the app-shell front door; `SectionDefinition` non-generic (no `SectionDefinition<never>` anywhere); G3 green + its `mustFlag` RED; G1/G2 amendments landed; `pnpm ast flow app-shell.tsx` still zero `#features/*` edges; every section's context renders live.
 
 **SEQUENCED FOLLOW-UP WAVES (done properly, not "someday"):**
 
@@ -346,6 +341,39 @@ Extra reading in full: `client-architecture-lockdown.md` §5–§7; `features/ap
 delete); `features/app-shell/hooks/use-shell-layout.ts` + `components/{rail,you-sheet}.tsx` (the other map
 readers); `main.tsx` (the door) + `routes/home-page.tsx` (the current assembly).
 
+**RESOLVED IN-WAVE (2026-07-14 — settled answers a re-dispatch inherits; do NOT re-derive or re-ask):**
+
+> - **The registry `Def` erasure is `SectionDefinition<never>`, NOT bare / `<void>`.** `S` is contravariant
+>   (`when`/`body` take `S`), so all 7 heterogeneous section defs assign to `<never>` (`never ⊂ every S`)
+>   but NOT to `<void>` (`void ⊄ CharacterContextState`). `never` is the variance-safe erasure — it is NOT
+>   a banned `any`/`unknown`. `main.tsx`: `createRegistry<SectionId, SectionDefinition<never>>(…)`.
+> - **The chats-landing `ImportOnboardingCard` graft — DISCONNECT + DELETE (owner ruling, overriding an
+>   earlier "scaffold it" call).** Today `routes/home-page.tsx#renderChatsContent` wraps `chatsSection
+>   .content()` with `<ImportOnboardingCard/>` (a `#features/settings` export) on the `isLanding` case
+>   only — a settings→chat surface graft that can't fold into `chatsSection` (chat→settings is dep-cruiser
+>   RED). Do NOT preserve it and do NOT build a content-bridge scaffold. The card is only a first-run
+>   NUDGE (its header: "the permanent entry is the Backup & Restore settings pane"; `startImport` =
+>   `openSettingsTo("backup")`), so import CAPABILITY is untouched. DELETE the self-contained closure —
+>   the card, `state/import-onboarding-store.ts`, both barrel exports, the 3 `importOnboarding*` test-ids,
+>   its 2 test files, and the `_ct-stories.tsx` refs (verify zero prod consumers first with `pnpm ast`).
+>   Chats content then flows PURELY from the registry — no special case. The nudge is REBUILT PROPERLY
+>   post-lockdown via the M8 contributor seam (a settings/import→chat `ChatSurfaceContribution`); it is
+>   git-recoverable. This makes the cutover simpler (one fewer temp map for G2).
+> - **G2 is scoped to `SectionId` THIS wave** (fork 1). The doc's §16 G2 covers SectionId/ModalSlotId/
+>   SettingsCategoryId, but modals migrate at M4 and settings at M6 — real Modal/Settings maps
+>   (`YOU_MODAL_ROWS`, `MODAL_SLOTS`, the settings if-ladder) legitimately survive until then, and covering
+>   them now would force the banned large allowlist. Scope `no-parallel-section-map` to SectionId; carry a
+>   terse comment naming the M4 (ModalSlotId) + M6 (SettingsCategoryId) extension points so the arms read as
+>   STAGED, not forgotten. `mustPass` = derived `MOBILE_PRIMARY_SECTIONS`; `mustFlag` = a re-declared
+>   SectionId map. Allowlist ONLY the two `FLAG[lockdown-M3]` context maps (`CONTEXT_SLOTS` + the slim
+>   context prop).
+> - **`app-root.tsx` is the SECOND sanctioned composition route** (fork 2 — an M11 doc-reconciliation:
+>   §16 G1 vs §7 conflict). G1's anti-god-map arm has two sub-arms: (a) a `sections={{…}}`/`modals={{…}}`
+>   object-literal in ANY route file INCLUDING app-root → RED (the real teeth — the god-map must not
+>   re-form); (b) a feature front-door import in `routes/**` → RED EXCEPT the two composition seams
+>   `router.tsx`→`features/auth` AND `app-root.tsx` (§7 permanently homes `JoinInviteDialog`/
+>   `FirstRunPersonaDialog`/etc there). All other route files stay locked.
+
 - **Delivery = a React CONTEXT, not a prop (the load-bearing decision).** `AppShell` is mounted in the
   route but `createRegistry` must live in `main.tsx` (G8), and the registry is read deep in app-shell —
   including inside the `use-shell-layout` HOOK, which can't take a prop. So add
@@ -397,3 +425,239 @@ section
 re-declared one** (the load-bearing false-positive check); the full gate ritual is done (G1/G2 rows + count
 bump in `Core-Enforcement-Active-Gates.md` + a `__g_` fixture OR an `UNFIXTURABLE_GATES` entry per gate as
 its bite dictates); `pnpm check` whole is green.
+
+**M3 executor spec (DEFINITIVE — authored by the architect 2026-07-14; owner bar: ZERO architecture
+decisions left, only mechanical construction).** Extra reading in full: `client-architecture-lockdown.md`
+§6a/§6b/§6c + §15 (the M3 corrections); the code cited below. Every open choice is DECIDED here. The ONE
+genuine unknown is the ASK at the end — everything else is construction.
+
+**THE DESIGN IN ONE PARAGRAPH.** `S` (a section's context-state projection) appears only contravariantly on
+`ContextTabDef` (`when`/`body`), so it can't be produced across the registry seam type-safely (variance proof,
+§6b). So a section's `context: ContextDefinition` is minted by `defineContextTabs<S>(spec)`, which PAIRS the
+feature-owned projection hook with the feature-owned tabs inside the definition file and returns a NON-generic
+`{ kind:"tabs"; useResolved }`. App-shell's `SectionContextHost` switches on `context.kind` and, for `tabs`,
+calls `useResolved()` blind. `SectionDefinition` drops its generic; the `<never>` apparatus is deleted.
+
+**M3-core, part A — contracts + host + the five straightforward sections.** (SEQUENCING: M3.1 and M3.2 are
+ONE atomic step — migrating any section to the mint changes `ContextDefinition`'s tabs arm, which breaks
+`chatsSection`'s raw `{kind:"tabs",tabs}` literal at compile, so the five sections AND chat AND the bridge
+death must land together. Build in the order below; there is NO committable green state until part B is done.
+M3.3 — the gates — is the separate follow-on.)
+
+- **BUILD `lib/registry-contracts.ts` additions** (exact shapes: `client-architecture-lockdown.md` §6b — copy
+  the `ContextTabDef<S>` [unchanged], `ResolvedContextTab`, `ResolvedContextTabs`, non-generic
+  `ContextDefinition`, `ContextTabsSpec<S>`, `defineContextTabs<S>`). Also MOVE these published projection
+  types here, EXPORTED (O5 home, §15 correction 1): `CharacterContextState` (from
+  `features/character/lib/characters-section.tsx:22-24`), `PresetContextState` (from
+  `features/preset/lib/presets-section.tsx:21-23`), and the chat phase-union (M3.2). Fields are `@orb/contracts`
+  + `@orb/kit` types only (tier-4 legal). Features re-import them from `#lib`.
+- **`defineContextTabs<S>` body** (in `registry-contracts.ts`): `useResolved` is a named hook closure over
+  `spec` — `const useContextState = spec.useContextState; const state = useContextState(); if (state === null)
+  return null; return resolveContextTabs(spec, state);`. **BUILD `resolveContextTabs<S>(spec, state)`** as a
+  PURE exported-for-test function: own tabs → `contributors?.list() ?? []`, filter each by `when?.(state) ??
+  true`, map to `{ id, label, node: body(state) }` in declared order (own before contributors), plus `actions:
+  spec.actions?.(state)`. At CONSTRUCTION (mint call, not render) THROW on a duplicate tab id across own ∪
+  contributors (the `createContributorRegistry` posture). `S` is confined to this ONE parametric function.
+- **DROP the `SectionDefinition` generic:** `state/section-registry.ts:38-50` → `interface SectionDefinition`
+  (no `<S>`), `context: ContextDefinition` (non-generic). `state/section-registry-context.ts:12` →
+  `Registry<SectionId, SectionDefinition>`. `main.tsx:71` → `createRegistry("sections", SECTION_IDS, {…})` with
+  no `<SectionId, SectionDefinition<never>>` annotation. Delete the `<never>` comment prose in
+  `section-registry-context.ts:4-5`.
+- **BUILD `features/app-shell/components/section-context-host.tsx`** (NEW — the ONE context consumer, the
+  domain-agnostic dispatcher):
+  - `SectionContextHost({ definition }: { definition: SectionDefinition }): ReactElement` — `switch
+    (definition.context.kind)`: `"none"` → the `SectionPlaceholder` "Details / Select something…" block
+    (lift the exact copy from `app-shell.tsx:207-212`); `"single"` → `<>{ctx.body()}</>`; `"tabs"` → wrap
+    `<ResolvedTabsHost useResolved={ctx.useResolved} />` in ONE `QueryBoundary` (`fallback={<Text
+    tone="muted">Loading details…</Text>}`, default `renderError`).
+  - `ResolvedTabsHost({ useResolved }: { useResolved: () => ResolvedContextTabs | null })` — `const resolved =
+    useResolved(); if (resolved === null || resolved.tabs.length === 0) return <the same placeholder>;` else
+    `<ContextTabsPanel tabs={resolved.tabs} actions={resolved.actions} />`. (Empty visible set is REACHABLE —
+    all `when` false, or contributors-only pre-M8 — so the length-0 guard is required, not defensive.)
+- **REWIRE `app-shell.tsx` CONTEXT region** (`:206-213`) to `<RegionAnchor region="context"><SectionContextHost
+  key={layout.activeSection} definition={activeDef} /></RegionAnchor>`. **The `key` is REQUIRED** — different
+  sections' `useResolved` call different hook sets, legal only across remounts. The context-panel HEADER
+  (`:195-201`) reverts to the static "Details" `Text` unconditionally (delete the `ctx?.contextHeader ??`
+  branch — F0.2: never fed).
+- **GENERALIZE `features/app-shell/components/context-tabs-panel.tsx`** — new props `interface
+  ContextTabsPanelProps { readonly tabs: readonly ResolvedContextTab[]; readonly actions?: ReactNode }`.
+  DELETE the `section`/`bodies` props, the `CONTEXT_SLOTS` import + `entries = CONTEXT_SLOTS[section]` read. All
+  loop bodies now iterate `tabs`; render `tab.node` in each `TabsPanel` (DELETE the `bodies[entry.id] ??
+  "Nothing to show here."` fail-soft, `:95` — one object now). KEEP VERBATIM: the store resolve (`contextTab`
+  if in the visible id-set else first, `:61-63`), `setContextTab` on change, `MAX_STRETCH_TABS`
+  stretch/scroll + measured overflow-fade (`:37-56`), the `actions` row (`:87-91`). REMOVE its export from the
+  app-shell front door (`features/app-shell/index.ts:5-6`) — only `SectionContextHost` consumes it now.
+- **MIGRATE the four `tabs` sections to the mint** (mechanical — each already has the tab array; wrap in
+  `defineContextTabs<S>({ useContextState, tabs, actions? })`):
+  - **characters** (`features/character/lib/characters-section.tsx`): `S = CharacterContextState` (now from
+    `#lib`). BUILD `features/character/hooks/use-character-context-state.ts` → `export function
+    useCharacterContextState(): CharacterContextState | null { const id = useSelectedCharacterId(); return id
+    === null ? null : { characterId: id }; }` (`useSelectedCharacterId` from `#state`,
+    `character-selection-store.ts:63`). `actions: (s) => <CharacterActionsMenu characterId={s.characterId} />`
+    — the actions menu MOVES from `app-root.tsx:103` into the definition. Tabs unchanged (Field/Links/Options).
+  - **presets** (`features/preset/lib/presets-section.tsx`): `S = PresetContextState`. BUILD
+    `features/preset/hooks/use-preset-context-state.ts` → `useSelectedPresetId()` (`#state`,
+    `preset-selection-store.ts:82`); `null` → `null` else `{ presetId }`. Tabs unchanged (Section/Usage). No
+    actions.
+  - **corpus** (`features/discovery/lib/corpus-section.tsx`) + **analytics**
+    (`features/stats/lib/analytics-section.tsx`): `S = void`. `defineContextTabs<void>({ useContextState: () =>
+    VOID_STATE, tabs, … })` where `export const VOID_STATE = undefined as void` lives in `registry-contracts.ts`
+    — `useContextState` is always-present and non-null (the section always shows, never suspends), the tabs'
+    `body: () => <Tab/>` ignore the arg (corpus/analytics tabs already take no `s`). Sentinel not optional-hook —
+    see the RESOLVED note below. Tabs unchanged; the host still remounts per section.
+- **worldInfo** (`features/world-info/lib/world-info-section.tsx`): already `context: { kind: "single", body:
+  () => <WorldInfoContextBody /> }` — UNCHANGED. The host's `"single"` case renders it. Delete the FLAG note in
+  the header.
+- **DELETE at M3.1:** `features/app-shell/lib/context-slots.ts` (whole file — `CONTEXT_SLOTS` + `ContextTabEntry`
+  + the stale `SectionSlot` prose, §15 correction 7); its export from `features/app-shell/index.ts:14`; the
+  `context-slots.ts` allowlist line in `no-parallel-section-map.ts:59`; the five NON-chat entries in
+  `app-root.tsx`'s `sectionContext` (`characters`/`corpus`/`analytics`/`presets`/`worldInfo`, `:99-121,155-185`)
+  and their now-dead imports (`ContextTabsPanel`, `CharacterActionsMenu`/`CharacterFacetInspector`/… tab
+  imports, `CorpusArchetypesTab`…, `AnalyticsModelsTab`…, `PresetSectionInspector`/`PresetUsageContext`,
+  `dismissPresetSection`, `useSelectedPresetId`, `useSelectedCharacterId`). KEEP the `chats` bridge entry
+  (`app-root.tsx:153`) — it dies at M3.2.
+- **No standalone green here — part A does NOT compile on its own.** The mint migration forces the new
+  `ContextDefinition` shape, which breaks `chatsSection`'s raw tabs literal at compile; chat's bridge entry +
+  its `app-root.tsx` allowlist line survive only TRANSIENTLY within the atomic pass and die in part B. `pnpm
+  check` goes green only after part B lands.
+
+**M3-core, part B — chat + the bridge death (the SAME atomic step as part A — no commit between).**
+
+- **PUBLISH the chat projection union** in `registry-contracts.ts` (§15 correction 3):
+  `CommittedChatContext { phase:"committed"; chatId; participants; viewerUserId; pendingHostUserId;
+  roomOverrides; isHost; multiHumanCapable }` (types from `@orb/contracts/chat` + `@orb/kit/ids`),
+  `DraftChatContext { phase:"draft"; draftKey: string; cast: readonly CharacterId[] }`, `type ChatContextState
+  = CommittedChatContext | DraftChatContext`. DELETE the old `ChatContextState` interface from
+  `chats-section.tsx:37-45`.
+- **BUILD `features/chat/hooks/use-chat-context-state.ts`** → `export function useChatContextState():
+  ChatContextState | null`. Reads (all unconditional — rules-of-hooks): `useActiveChatHandle()`,
+  `useActiveDraftSeed()`, `useAuthConfig()` (non-suspense, `multiHumanCapable = authConfig?.multiHumanCapable
+  === true`), `useTRPC()`, `useDraftConfig(handle.kind === "draft" ? handle.draftKey : "")` (frozen EMPTY
+  off-draft). The `getChat` read uses the `useSuspenseQueries` DYNAMIC-ARRAY idiom (precedent: `DraftMembersTab`,
+  `draft-context-panel-surface.tsx:213-215`) — `queries: chatId === null ? [] : [trpc.chat.getChat.
+  queryOptions({ chatId })]` — suspends ONLY when committed (no `useGatedQuery`: it's non-suspense and a
+  pending→null would flash the placeholder, a lying state). Return: committed →
+  `{ phase:"committed", chatId, participants: chat.participants, viewerUserId: chat.viewerUserId,
+  pendingHostUserId: chat.pendingHostUserId, roomOverrides: chat.roomOverrides, isHost: chat.viewerIsHost ===
+  true, multiHumanCapable }`; draft → `{ phase:"draft", draftKey: handle.draftKey, cast: [...new
+  Set([...(draftSeed?.characterIds ?? []), ...(draftConfig.addedCharacterIds ?? [])])] }`; landing → `null`.
+- **AUTHOR `chatsSection` as a FACTORY** (§6c seam): `export function makeChatsSection(chatContextContributors:
+  ContributorRegistry<ContextTabDef<ChatContextState>>): SectionDefinition`. `context =
+  defineContextTabs<ChatContextState>({ useContextState: useChatContextState, tabs: CHAT_CONTEXT_TABS, actions,
+  contributors: chatContextContributors })`. `main.tsx` builds `const chatContextContributors =
+  createContributorRegistry("chat-context", [])` (EMPTY but typed — a REAL seam, NOT a stub; M8 only appends)
+  and passes `makeChatsSection(chatContextContributors)` into `createRegistry`. rail/panelDefaults/placeholder/
+  list/content/header on `chatsSection` are UNCHANGED.
+- **THE UNIFIED TAB SET** `CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[]`, flat declared order
+  `members, overrides, group, preview, injections` (order encodes the Members-default — §6b). Each `body`
+  narrows on `s.phase`:
+
+  | id | label | `when(s)` | `body(s)` |
+  | - | - | - | - |
+  | members | Members | committed: `membersTabJustified(s.participants, s.multiHumanCapable)` · draft: `s.cast.length >= 2` | committed → `<CommittedMembersTab {...toMembersTabProps(s)} />` · draft → `<DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />` |
+  | overrides | Overrides | always (no `when`) | committed → `<RoomOverridesTab chatId={s.chatId} roomOverrides={s.roomOverrides} isHost={s.isHost} />` · draft → `<DraftOverridesTabBody draftKey={s.draftKey} />` |
+  | group | Group | committed: `s.isHost && resolveIsGroupChat(s.participants)` · draft: `s.cast.length >= 2` | committed → `<CommittedGroupConfigTab chatId={s.chatId} />` (already `QueryBoundary`-wrapped) · draft → `<DraftGroupConfigTabBody draftKey={s.draftKey} />` |
+  | preview | Preview | `s.phase === "committed" && s.isHost` | `<AssemblyPreviewPanel chatId={s.chatId} />` |
+  | injections | Injections | always | committed → `<InjectionsManager chatId={s.chatId} isHost={s.isHost} />` (QueryBoundary-wrap as `chats-section.tsx` does) · draft → `<DraftInjectionsTab draftKey={s.draftKey} injections={/* read in-body */} />` |
+
+  `actions: (s) => s.phase === "draft" ? <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} /> : null`.
+  Each `body` returns a COMPONENT (mounts + may use hooks — `TabsPanel` renders the node). `toMembersTabProps`
+  moves with `CommittedMembersTab` (below).
+- **MOVE (committed bodies) into `features/chat/components/`** — out of the dying surface file: `CommittedMembersTab`
+  + `toMembersTabProps` + `toPersonRows` + `toCastRows` + `CommittedMembersTabProps` (from
+  `chat-context-panel-surface.tsx:47-59,52-91,233-312`). Update `chats-section.tsx`'s import to the new home.
+- **BUILD the three thin DRAFT wrapper components in `features/chat/components/`** — the current
+  `DraftContextPanel` inlines these; each becomes a named component that RE-READS `useDraftConfig(draftKey)`
+  in-body (a `ContextTabDef.body` is not a hook context, so the read lives in the child):
+  - `DraftOverridesTabBody({ draftKey }: { draftKey: string })` — `const cfg = useDraftConfig(draftKey);`
+    renders `<RoomOverridesForm entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}draft:${draftKey}`} roomOverrides={cfg.roomOverrides ?? EMPTY_ROOM_OVERRIDES} isHost={true} save={(o) => { setDraftRoomOverrides(draftKey, o); return Promise.resolve(); }} />`
+    (lifts `draft-context-panel-surface.tsx:79-82,104-111` verbatim; `ROOM_OVERRIDES_ENTITY_PREFIX` from
+    `lib/room-overrides-form-model`, `EMPTY_ROOM_OVERRIDES` local const).
+  - `DraftGroupConfigTabBody({ draftKey }: { draftKey: string })` — `const cfg = useDraftConfig(draftKey);`
+    renders `<GroupConfigForm entityId={`${GROUP_CONFIG_ENTITY_PREFIX}draft:${draftKey}`} config={groupConfigSchema.parse(cfg.groupConfig ?? DEFAULT_GROUP_CONFIG)} save={(next) => { setDraftGroupConfig(draftKey, next); return Promise.resolve(); }} />`
+    (lifts `:136-145`; `GROUP_CONFIG_ENTITY_PREFIX` from `hooks/use-group-config-form`; `groupConfigSchema`/
+    `DEFAULT_GROUP_CONFIG` from `@orb/contracts/chat`).
+  - `DraftMembersTabBody({ draftKey, cast }: { draftKey: string; cast: readonly CharacterId[] })` — `const cfg =
+    useDraftConfig(draftKey);` wraps the EXISTING `DraftMembersTab` (`:207-242`, moved into
+    `features/chat/components/`) in a `QueryBoundary` (`fallback` "Loading roster…", the lift of `:115-124`),
+    passing `characterIds={cast} rosterOverrides={cfg.rosterOverrides}`. `DraftInjectionsTab` (`:164-199`,
+    keep its `WeakMap` keying comment) also moves into `components/` and re-reads `cfg.injections` in-body via
+    `useDraftConfig` (its `body` in the table passes `draftKey` only; the component reads injections itself).
+- **DELETE at M3.2 (exhaustive):**
+  - `features/chat/surfaces/chat-context-panel-surface.tsx` — WHOLE FILE (`ChatContextPanel`,
+    `ChatContextPanelBody`, `resolveActiveTab`; the moved `CommittedMembersTab`/`toMembersTabProps`/`toPersonRows`/
+    `toCastRows` now live in `components/`).
+  - `features/chat/surfaces/draft-context-panel-surface.tsx` — WHOLE FILE (its bodies moved to `components/`).
+  - `features/chat/index.ts` exports `:30-31` (`ChatContextPanelProps`/`ChatContextPanel`) + `:43-44`
+    (`DraftContextPanelProps`/`DraftContextPanel`).
+  - `app-shell.tsx`: the `SectionContextBridge` interface (`:31-35`), the `sectionContext` prop +
+    `contextHeader` (`:38-48`), `const ctx = sectionContext?.[…]` (`:91`), and the header/body `ctx?.` reads
+    (`:196,207`) — the whole FLAG bridge.
+  - `app-root.tsx`: the remaining `chats` `sectionContext` entry + `chatsContext`/`DraftContextPanel` closure
+    (`:89-98,152-153`), the whole `sectionContext={{…}}` prop, and now-dead imports (`ContextTabsPanel`,
+    `ChatContextPanel`, `DraftContextPanel`, `worldInfoContext`). **KEEP** `handle`/`draftSeed`/`activeChatId`/
+    `activeSection`/`draftCharacterIds` reads — `routeAnnouncement` (`:123-140`) still uses them; keep
+    `goToSections` (the command palette). Verify with `pnpm ast` no other consumer before pruning each import.
+  - the `app-root.tsx` allowlist line in `no-parallel-section-map.ts:60` + its app-root `mustPass` fixture
+    (`:244-248`); the "FLAG[lockdown-M3]" phrases in that gate's doc-comment/`message`/`fix` (`:53,59-60,177`).
+  - EVERY remaining `FLAG[lockdown-M3]` marker (census, verify `grep -r` → 0): the seven `*-section.tsx`
+    headers, `app-shell/index.ts`, `app-shell/surfaces/app-shell.tsx`, `tests/client/features/app-shell/_ct-stories.tsx:44`.
+- **REWORK the CTs:** `tests/client/features/chat/_ct-stories.tsx` `ChatContextPanelStory`/`DraftContextPanelStory`
+  (`:777-802`) — re-pin against the new bodies (mount `SectionContextHost` with a stubbed `useChatContextState`,
+  or the moved `CommittedMembersTab`/`DraftMembersTabBody` directly); assert the SAME behaviors (host-only
+  Group/Preview, guest hides them, draft cast<2 hides Members/Group, default tab). `tests/client/features/
+  app-shell/_ct-stories.tsx:44`'s `sectionContext` story → a `SectionRegistryProvider` + `SectionContextHost`
+  story. Delete the `chat/index.ts` re-export refs those stories used.
+
+**M3.3 — the walls.**
+
+- **BUILD G3 `context-definition-shape`** (`scripts/check/gates/context-definition-shape.ts`, ts-morph,
+  `scopeSafety: "incremental-safe"`, `status: "active"`). FOUR arms (full spec: `client-architecture-lockdown.md`
+  §16 G3 row): (1) object literal with `kind:"tabs"` + a `useResolved` member outside `registry-contracts.ts`;
+  (2) `defineContextTabs` call with `tabs: []` AND no `contributors`; (3) a `defineContextTabs` call (or any
+  `ContextTabDef<…>` type-ref) whose type arg isn't `void` and isn't an identifier import-resolving to a type
+  EXPORTED from `registry-contracts.ts` — `any`/`unknown`/inline literal/index-sig RED; (4) a JSX attr or
+  interface member named `bodies` typed `Record<string, ReactNode>` (readonly/Partial incl) under `client/src`.
+  `mustFlag`: hand-rolled `{ kind:"tabs", useResolved: () => null }` in a feature; `defineContextTabs<ChatContextState>({ tabs: [] })`;
+  a no-type-arg call AND `defineContextTabs<any>(…)`; a prop `bodies: Record<string, ReactNode>`. `mustPass`:
+  `defineContextTabs<void>({ useContextState: …, tabs: [{ id, label, body: () => null }] })`; a mint with a
+  `registry-contracts`-exported `S` + `when`; a contributors-only mint (`tabs: []` + `contributors`); a
+  `Record<string, ReactNode>` NOT named `bodies` (false-positive check). Full house ritual: Core-Enforcement
+  row + count bump + a `__g_` fixture OR `UNFIXTURABLE_GATES` entry.
+- **AMEND G1** (`section-registry-completeness.ts:52-66`): `wiresRealBody` counts any `context` initializer that
+  is NOT the literal `{ kind: "none" }` — including a `defineContextTabs(…)` CallExpression — as a real body
+  (today it only inspects a non-`none` object LITERAL, so a planned `context: defineContextTabs(…)` slips
+  through). Add the `mustFlag` fixture (a planned section wired `context: defineContextTabs(…)`).
+- **AMEND G2** (`no-parallel-section-map.ts`): both FLAG allowlist lines already deleted across M3.1/M3.2 —
+  confirm `isAllowlisted` (`:54-62`) is back to {`shell-store.ts`, `main.tsx`, `SECTION_FILE_RE`} and the
+  message/fix/doc-comment carry no "FLAG[lockdown-M3]" phrasing; the two removed `mustPass` fixtures are gone.
+- **BUILD the `resolveContextTabs` unit test** (`tests/client/lib/registry-contracts.test.ts` or a
+  `resolve-context-tabs.test.ts` mirror): assert when-filtering (a `when: () => false` tab is absent), own→
+  contributor order, the cross-set duplicate-id THROW at mint, `null` state → `useResolved` returns null,
+  and `actions` binding. This is REAL logic (not a shit test) — the pure resolver is the M3 correctness core.
+
+**M3 UX deltas → route to `side-eye` at verify (NOT silent):** (1) the draft "Cast" label row
+(`draft-context-panel-surface.tsx:86-91`) collapses into the strip-trail `actions` (add-member popover only);
+(2) draft tab order changes (`overrides, members` → `members, overrides` when cast ≥ 2); (3) both chat panels
+lose `useFocusOnMount` — now uniform with the four sections that never focused. All three are consistency
+wins; side-eye adjudicates whether any regresses.
+
+**RESOLVED (orchestrator, 2026-07-14 — the executor does NOT re-open this fork):** the `void`-host shape uses
+the `VOID_STATE` sentinel — `export const VOID_STATE = undefined as void` in `registry-contracts.ts`;
+corpus/analytics mint `defineContextTabs<void>({ useContextState: () => VOID_STATE, tabs, … })`. Chosen over
+the optional-`useContextState?` alternative because `useContextState` then stays ALWAYS-PRESENT and is called
+UNCONDITIONALLY inside the mint — zero rules-of-hooks risk (the hard constraint), a uniform mint signature, no
+conditional-hook branch. `() => VOID_STATE` (return type `void`) is assignable to `() => void | null`, and
+`undefined === null` is false, so a `void` host proceeds to `resolveContextTabs` (never the null placeholder,
+never suspends). If — against expectation — tsc rejects the assignability, that is a narrow TYPE fix at the
+sentinel, NOT a re-open of the design fork. Nothing else in M3 is open.
+
+**M3 verifier "verify" list (per step):** M3.1 — five sections render live via the host; `CONTEXT_SLOTS`
+deleted not orphaned; `ContextTabsPanel` off the front door; `pnpm ast flow app-shell.tsx` zero `#features/*`
+edges; characters' actions menu renders from the definition. M3.2 — both chat surface files deleted; committed
+chat gates correctly (guest: no Group/Preview) AND draft gates (cast<2 hides Members/Group; add-member popover
+in the strip trail); landing → placeholder; `grep -r "FLAG\[lockdown-M3\]"` → 0; no `sectionContext`/
+`SectionContextBridge`/`contextHeader` anywhere; `SectionDefinition` non-generic (no `SectionDefinition<never>`).
+M3.3 — G3 green + `mustFlag` fixtures RED; G1 amended (planned + `defineContextTabs` context REDs); G2
+allowlist back to three homes; the `resolveContextTabs` test asserts real behavior; `pnpm check` + `pnpm test`
+whole green.
