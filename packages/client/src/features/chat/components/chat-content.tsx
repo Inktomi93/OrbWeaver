@@ -6,6 +6,7 @@
 import type { ReactElement } from "react";
 import type { ChatBusDeps } from "#data";
 import { useInvalidation } from "#data";
+import type { ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import {
   chatStream,
   commitDraft,
@@ -22,7 +23,11 @@ import {
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface";
 
-export function ChatContent(): ReactElement {
+export interface ChatContentProps {
+  readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
+}
+
+export function ChatContent({ surfaceContributors }: ChatContentProps): ReactElement {
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
@@ -52,6 +57,7 @@ export function ChatContent(): ReactElement {
       key={sessionKey}
       onChatForked={selectChat}
       onChatStarted={commitDraft}
+      surfaceContributors={surfaceContributors}
     />
   );
 }

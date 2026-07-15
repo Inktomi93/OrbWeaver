@@ -6,13 +6,14 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { Stack } from "@orb/ui/layout";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { Fragment, useRef, useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useGatedQuery, useTRPC } from "#data";
+import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted } from "#state";
@@ -32,6 +33,23 @@ export interface ChatRoomSurfaceProps {
    *  hijack the ancestor's active slot. */
   readonly onChatStarted?: ((chatId: ChatId, draftKey: string) => void) | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
+  readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
+}
+
+/** Resolves the `when`-filtered, in-declared-order body nodes for one room anchor — zero contributions
+ *  ⇒ an empty array, so callers can gate layout on `.length` (the thread-flank conditional, §17 M8). */
+function resolveRoomAnchor(
+  registry: ContributorRegistry<ChatSurfaceContribution>,
+  anchor: "thread-flank" | "above-composer",
+  state: ChatRoomSurfaceState,
+): readonly { readonly id: string; readonly node: ReactNode }[] {
+  return registry
+    .list()
+    .filter(
+      (c): c is Extract<ChatSurfaceContribution, { anchor: typeof anchor }> => c.anchor === anchor,
+    )
+    .filter((c) => c.when?.(state) ?? true)
+    .map((c) => ({ id: c.id, node: c.body(state) }));
 }
 
 export function ChatRoomSurface({
@@ -40,6 +58,7 @@ export function ChatRoomSurface({
   draftSeed,
   onChatStarted,
   onChatForked,
+  surfaceContributors,
 }: ChatRoomSurfaceProps): ReactElement {
   const [handle, setHandle] = useState<ChatHandle>(initialHandle);
   const [draftText, setDraftText] = useState("");
@@ -63,6 +82,28 @@ export function ChatRoomSurface({
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
+  const roomState: ChatRoomSurfaceState = { chatId: roomChatId };
+  const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
+  const aboveComposerContributions = resolveRoomAnchor(
+    surfaceContributors,
+    "above-composer",
+    roomState,
+  );
+
+  const thread = (
+    <Stack className="min-h-0 flex-1">
+      <MessageThreadAnchor>
+        <MessageListSurface
+          busDeps={busDeps}
+          handle={handle}
+          draftSeed={draftSeed}
+          onChatForked={onChatForked}
+          surfaceContributors={surfaceContributors}
+        />
+      </MessageThreadAnchor>
+    </Stack>
+  );
+
   return (
     <ThemeScope tokens={roomTheme ?? {}} className="contents">
       <Stack
@@ -72,17 +113,32 @@ export function ChatRoomSurface({
         tabIndex={-1}
       >
         {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
-        <Stack className="min-h-0 flex-1">
-          <MessageThreadAnchor>
-            <MessageListSurface
-              busDeps={busDeps}
-              handle={handle}
-              draftSeed={draftSeed}
-              onChatForked={onChatForked}
-            />
-          </MessageThreadAnchor>
-        </Stack>
+        {/* Zero flank contributions ⇒ the thread renders alone (today's exact layout, no visual
+         *  change); ≥1 ⇒ a flank column appears beside it (§17 M8). The `Container` + `@max-lg`
+         *  (a CONTAINER query on the chat-content region's own inline size, never the viewport —
+         *  the shell's docked panels can narrow this pane even on a wide screen) makes the beside
+         *  layout responsive-correct BY CONSTRUCTION: below 32rem/512px the flank stacks below the
+         *  thread instead of crushing its reading column (the settings-shell-surface.tsx /
+         *  role-slot-row.tsx `@max-md`/`@2xl` precedent, mirrored here at the `lg` step since a
+         *  thread+flank split needs more room than a nav+content split before beside is comfortable). */}
+        {flankContributions.length === 0 ? (
+          thread
+        ) : (
+          <Container className="min-h-0 flex-1">
+            <Row gap="block" className="h-full @max-lg:flex-col" data-slot="chat-room-flank-row">
+              {thread}
+              <Stack gap="block" data-slot="chat-thread-flank">
+                {flankContributions.map((c) => (
+                  <Fragment key={c.id}>{c.node}</Fragment>
+                ))}
+              </Stack>
+            </Row>
+          </Container>
+        )}
         {isCommitted(handle) ? <MessageSelectionBar chatId={handle.id} /> : null}
+        {aboveComposerContributions.map((c) => (
+          <Fragment key={c.id}>{c.node}</Fragment>
+        ))}
         <ComposerSlot
           handle={handle}
           value={draftText}

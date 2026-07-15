@@ -40,7 +40,12 @@ import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
 import { worldInfoSection } from "@orb/client/features/world-info";
-import type { ChatContextState, ContextTabDef } from "@orb/client/lib";
+import type {
+  ChatContextState,
+  ChatSurfaceContribution,
+  ContextTabDef,
+  ContributorRegistry,
+} from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ModalDefinition,
@@ -91,9 +96,13 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
   "chat-context",
   [],
 );
+const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>(
+  "chat-surface",
+  [],
+);
 
 const REAL: Record<SectionId, SectionDefinition> = {
-  chats: makeChatsSection(chatContextContributors),
+  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
   characters: charactersSection,
   corpus: corpusSection,
   worldInfo: worldInfoSection,
@@ -159,6 +168,37 @@ export function CtRealSectionRegistry({
 }): ReactElement {
   return (
     <SectionRegistryProvider value={realRegistry}>
+      <ModalRegistryProvider value={realModalRegistry}>
+        <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
+          {children}
+        </SettingsPaneRegistryProvider>
+      </ModalRegistryProvider>
+    </SectionRegistryProvider>
+  );
+}
+
+/** The REAL `chats` section, rebuilt with a CALLER-supplied `chat-context`/`chat-surface` contributor
+ *  registry in place of main.tsx's empty ones (the M8 deliverable — proves a fake contributor renders +
+ *  `when`-gates through the REAL section/factory/mint path, not a bespoke test double). Every other
+ *  section stays the real registry (`REAL`), so a chat CT mounting the shell still sees real siblings. */
+export function CtChatContributorSectionRegistry({
+  contextContributors,
+  surfaceContributors,
+  children,
+}: {
+  readonly contextContributors?: ContributorRegistry<ContextTabDef<ChatContextState>>;
+  readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution>;
+  readonly children: ReactNode;
+}): ReactElement {
+  const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
+    ...REAL,
+    chats: makeChatsSection(
+      contextContributors ?? chatContextContributors,
+      surfaceContributors ?? chatSurfaceContributors,
+    ),
+  });
+  return (
+    <SectionRegistryProvider value={registry}>
       <ModalRegistryProvider value={realModalRegistry}>
         <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
           {children}

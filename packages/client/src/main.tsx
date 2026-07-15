@@ -45,7 +45,7 @@ import { analyticsSection } from "#features/stats";
 import { adminPane } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection } from "#features/world-info";
-import type { ChatContextState, ContextTabDef } from "#lib";
+import type { ChatContextState, ChatSurfaceContribution, ContextTabDef } from "#lib";
 import {
   AppErrorBoundary,
   bindNotify,
@@ -102,10 +102,17 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
   [],
 );
 
+// The chat-surface contributor seam (§6c/M8): EMPTY but typed — the door → factory → 3 anchors path is
+// compiled and exercised with zero contributions; rpg/crew append array members later.
+const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>(
+  "chat-surface",
+  [],
+);
+
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
-  chats: makeChatsSection(chatContextContributors),
+  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors),
   characters: charactersSection,
   corpus: corpusSection,
   worldInfo: worldInfoSection,

@@ -11,6 +11,8 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import { Fragment } from "react";
+import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry } from "#lib";
 import { cn } from "#lib";
 import {
   toggleMessageSelected,
@@ -74,6 +76,22 @@ export interface MessageRowProps {
   /** True only when this mount is a genuinely-new arrival, never "the row mounted" (a windowed row
    *  remounts on scrollback). Latched at mount by `useEnterMotion`. */
   readonly enterMotion?: boolean;
+  /** The §6c/M8 message-footer seam — omitted for a pre-commit draft-greeting row (no server row to
+   *  attach a footer to); the committed transcript always supplies it. */
+  readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution> | undefined;
+}
+
+/** Resolves the `when`-filtered `message-footer` contributions for one row (§6c/M8) — a bare helper
+ *  (not inlined) so the component body stays under the cognitive-complexity ceiling. */
+function resolveMessageFooter(
+  registry: ContributorRegistry<ChatSurfaceContribution> | undefined,
+  message: MessageView,
+): readonly Extract<ChatSurfaceContribution, { anchor: "message-footer" }>[] {
+  const state: ChatMessageSurfaceState = { message };
+  return (registry?.list() ?? []).filter(
+    (c): c is Extract<ChatSurfaceContribution, { anchor: "message-footer" }> =>
+      c.anchor === "message-footer" && (c.when?.(state) ?? true),
+  );
 }
 
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
@@ -108,6 +126,7 @@ export function MessageRow({
   messageActions,
   contextBoundary = false,
   enterMotion = false,
+  surfaceContributors,
 }: MessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
   const skin = MESSAGE_ROW_SKINS[chatStyle];
@@ -176,6 +195,9 @@ export function MessageRow({
   const leadingAvatar = weldedAvatar !== null || role === "user" ? null : avatarNode;
   const trailingAvatar = weldedAvatar !== null || role !== "user" ? null : avatarNode;
 
+  // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
+  const footerContributions = resolveMessageFooter(surfaceContributors, message);
+
   return (
     // The boundary divider is a sibling before the article, never nested inside role="article".
     <AttachmentUrlProvider chatId={message.chatId} content={message.content}>
@@ -238,6 +260,13 @@ export function MessageRow({
               <MessageMetadataRow message={message} visibility={metadataVisibility} />
             )}
             {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
+            {footerContributions.length === 0 ? null : (
+              <Stack gap="field" data-slot="message-footer">
+                {footerContributions.map((c) => (
+                  <Fragment key={c.id}>{c.body({ message })}</Fragment>
+                ))}
+              </Stack>
+            )}
           </Stack>
           {trailingAvatar}
         </Row>

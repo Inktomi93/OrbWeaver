@@ -15,7 +15,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatContextPanelStory } from "../_ct-stories";
+import { ChatContextPanelStory, ChatContextTabContributorStory } from "../_ct-stories";
 
 const NATE_HOST_RE = /Alex — host/u;
 const BUDDY_MEMBER_RE = /Buddy — member/u;
@@ -550,4 +550,44 @@ test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it 
     depth: 1,
     role: "assistant",
   });
+});
+
+// ── The chat-context CONTRIBUTOR seam (client-architecture-lockdown.md §6c/M8) ──────────────────────
+// The seam itself was built at M3 (`defineContextTabs`'s `contributors` arm), but no CT had ever mounted
+// a LIVE contributor through it — every prior test drove the panel's OWN 5 tabs. This proves a fake
+// `ContextTabDef<ChatContextState>`, registered at a door-mirroring `CtChatContributorSectionRegistry` in
+// place of main.tsx's empty registry, renders as a real tab AND `when`-gates, through the REAL
+// section → factory → mint → resolve path (not a bespoke test double of the seam).
+
+test("a fake context-tab contributor renders as a tab, in the real tab strip", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host"),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+  });
+
+  const component = await mount(<ChatContextTabContributorStory visible={true} />);
+
+  await expect(component.getByRole("tab", { name: "Fake Tab" })).toBeVisible();
+  await component.getByRole("tab", { name: "Fake Tab" }).click();
+  await expect(component.getByTestId("ct-fake-context-tab-body")).toBeVisible();
+});
+
+test("a fake context-tab contributor's `when:false` hides it from the real tab strip", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host"),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+  });
+
+  const component = await mount(<ChatContextTabContributorStory visible={false} />);
+
+  await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Fake Tab" })).toHaveCount(0);
 });

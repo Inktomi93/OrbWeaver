@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#data";
 import type {
   ChatContextState,
+  ChatSurfaceContribution,
   CommittedChatContext,
   ContextTabDef,
   ContributorRegistry,
@@ -142,6 +143,7 @@ const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
 
 export function makeChatsSection(
   chatContextContributors: ContributorRegistry<ContextTabDef<ChatContextState>>,
+  chatSurfaceContributors: ContributorRegistry<ChatSurfaceContribution>,
 ): SectionDefinition {
   return {
     id: "chats",
@@ -160,7 +162,7 @@ export function makeChatsSection(
         />
       </ChatListAnchor>
     ),
-    content: () => <ChatContent />,
+    content: () => <ChatContent surfaceContributors={chatSurfaceContributors} />,
     // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,
     context: defineContextTabs<ChatContextState>({
