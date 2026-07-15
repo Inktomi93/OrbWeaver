@@ -6,11 +6,21 @@ updated: 2026-07-15
 
 # Shell Chrome Unification (proposed program — Fable design, owner-approved for AFTER the lockdown)
 
-> **STATUS: design of record, NOT yet built.** Authored by the Fable architect 2026-07-15 from the live app
-> (screenshots) + the code. The owner ratified the DIRECTION and sequenced it AFTER the client-architecture
-> lockdown (M0–M11): finish + promote the lockdown first (notifications is EXEMPTED from the O2 gate as a tracked
-> placeholder — see §18 O2 in `client-architecture-lockdown.md`), then build this as its own program with its own
-> D-ledger entries. This doc captures the full design so no work is lost.
+> **STATUS: design of record. Slice 1 (`topbar.trail`) SHIPPED (N1); the rail/sheet/prop-kill waves remain.**
+> Authored by the Fable architect 2026-07-15 from the live app (screenshots) + the code. The owner ratified the
+> DIRECTION and sequenced the bulk AFTER the client-architecture lockdown (M0–M11, now promoted to `core/` as law).
+> This doc captures the full design so no work is lost.
+>
+> **What N1 shipped (a vertical slice, not §E steps 1–2 in order):** a REDUCED `ChromeEntry` — the widget arm only
+> (`{id,label,icon?,zone,order?,useVisible?,body:()=>ReactNode}`; NO `section`/`modal`/`widget` behavior union),
+> assembled via `createContributorRegistry` (NOT `assembleChrome`), with only `zone:"topbar.trail"` consumed.
+> `notificationsChrome` + `fullscreenChrome` + `contextToggleChrome` are real registered widgets; the
+> `chrome-registry-completeness` gate is live; the `topbarTrail` prop and the doubled detail-panel close are gone.
+> **Notifications is therefore NO LONGER an O2 exemption — it owns `notifications-chrome.tsx` (G23/O2 in
+> `client-architecture-lockdown.md`, which is authoritative on this).** STILL UNBUILT: the behavior union +
+> derivation from sections/modals (§A), `assembleChrome` + its door gate, the rail single-DOM cutover (§C),
+> the You-sheet projection + mobile persona (§B), and killing `railFoot` (§E steps 3/5/6). §A–§E remain the design
+> of record for that remainder.
 
 ## The problem (verified, eyes + code)
 
@@ -128,21 +138,26 @@ vocabulary (zones are architecture, entries are growth).
 
 ## E. Migration sketch (each step green; ~one executor wave each)
 
-1. **Mint** — `state/chrome-registry.ts` + `assembleChrome` (pure, unit-tested) + context/provider. `SectionGroup`
-   gets its one home here; `rail-slots.ts` dies.
-2. **Assemble** — door builds chrome from existing registries + 4 widget entries (thin wrappers initially).
-   Provider mounted, nothing consumes yet; app unchanged.
-3. **Rail cutover** — single-DOM chrome render; merge the two button components; CSS reflow inside the existing
-   `@media`; `mobilePrimary?:boolean` → `mobile: MobileCuration` across the 7 section defs. Delete the twin blocks
-   + `RailTabButton`.
-4. **Topbar-trail cutover** — trail renders `zone("topbar.trail")`; bell carries `useVisible`; delete `topbarTrail`
-   prop + app-root wiring; hardcoded focus/context buttons → app-shell widget entries. (Kills the doubled close.)
-5. **Sheet cutover** — `YouSheet` → blind projection (`presentation:"sheet"`); persona widget grows `body("sheet")`
-   (**mobile persona switching ships here**); placement `avatar` dies; account modal → `"surface"`.
-6. **Kill `railFoot`** — persona chrome entry owns the avatar; app-root slims to §7 residue.
-7. **Vocabulary + law** — `rail-footer`→`rail.end`, `content`→`surface`; delete the settings `account` pane; land
-   the gates (prove each bites); update `UI-Architecture-and-Layout.md` §4.x; D-ledger entries for (a)
-   clusters-are-registries / frame-grammar-is-intrinsic, (b) You ⊃ Identity ⊃ Account.
+> **N1 took a vertical slice — a minimal mint + step 4 — via `createContributorRegistry`, skipping steps 1–2's
+> `assembleChrome`. Statuses below reflect that. The remainder still stands as written.**
+
+1. **Mint** — ◐ PARTIAL. `state/chrome-registry.ts` exists but as the reduced widget-only shape; `assembleChrome`,
+   the `SectionGroup` re-home, and `rail-slots.ts`'s death are NOT done (`rail-slots.ts` still lives).
+2. **Assemble** — ○ NOT DONE. No `assembleChrome`; the contributor registry assembles the widget entries only, not
+   derived sections/modals. The behavior union is the crux of this step.
+3. **Rail cutover** — ○ NOT DONE. Single-DOM chrome render; merge the two button components; CSS reflow inside the
+   existing `@media`; `mobilePrimary?:boolean` → `mobile: MobileCuration` across the 7 section defs. Delete the twin
+   blocks + `RailTabButton`.
+4. **Topbar-trail cutover** — ● DONE (N1). Trail renders `zone("topbar.trail")`; bell carries `useVisible`;
+   `topbarTrail` prop + app-root wiring deleted; hardcoded focus/context buttons → app-shell widget entries; the
+   doubled detail-panel close is gone.
+5. **Sheet cutover** — ○ NOT DONE. `YouSheet` → blind projection (`presentation:"sheet"`); persona widget grows
+   `body("sheet")` (**mobile persona switching ships here**); placement `avatar` dies; account modal → `"surface"`.
+6. **Kill `railFoot`** — ○ NOT DONE. `railFoot` prop still lives on `AppShellProps`. Persona chrome entry owns the
+   avatar; app-root slims to §7 residue.
+7. **Vocabulary + law** — ○ NOT DONE. `rail-footer`→`rail.end`, `content`→`surface`; delete the settings `account`
+   pane; land the remaining gates (prove each bites); update `UI-Architecture-and-Layout.md` §4.x; D-ledger entries
+   for (a) clusters-are-registries / frame-grammar-is-intrinsic, (b) You ⊃ Identity ⊃ Account.
 
 **Deleted at the end:** `railFoot` + `topbarTrail` props, `RailTabButton`, both rail DOM twins, `YouSheet`'s
 filters, `rail-slots.ts`, placement `avatar`, the planned account pane. **Watchpoints:** hooks-over-registry-list
