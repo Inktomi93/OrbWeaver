@@ -35,13 +35,14 @@ export function AppShellStory(): ReactElement {
     <CtDataProviders>
       <CtFakeSectionRegistry
         sections={{
-          chats: { content: <p>chats content pane</p> },
+          chats: {
+            content: <p>chats content pane</p>,
+            context: <p>chats context pane</p>,
+          },
           corpus: { list: <p>corpus list pane</p>, content: <p>corpus content pane</p> },
         }}
       >
         <AppShell
-          // The CONTEXT bodies ride the FLAG[lockdown-M3] bridge (list/content ride the registry above).
-          sectionContext={{ chats: { context: <p>chats context pane</p> } }}
           // The route composes the real "You" bottom-sheet body over the `you` modal slot (L6/J12) — mirror
           // that here so the mobile CT exercises the real sheet (account/settings/theme + overflow), not the
           // placeholder fallback.

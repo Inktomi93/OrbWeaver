@@ -78,8 +78,8 @@ export function castSectionVisible(participants: readonly ParticipantView[]): bo
   return filterCharacters(participants).length >= CAST_SECTION_FLOOR;
 }
 
-/** The Members tab's overall floor gate (chat-context-panel-surface.tsx's `showMembers`): People needs a
- *  multi-human install with \>=2 humans, Cast needs \>=2 characters; either alone justifies the tab. */
+/** The Members tab's overall floor gate (chats-section.tsx's members `when`): People needs a multi-human
+ *  install with \>=2 humans, Cast needs \>=2 characters; either alone justifies the tab. */
 export function membersTabJustified(
   participants: readonly ParticipantView[],
   multiHumanCapable: boolean,

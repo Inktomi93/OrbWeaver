@@ -1,12 +1,13 @@
 // The Analytics rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — the
 // section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
-// place. A pure DATA object: no app-shell/auth hook (Analytics has no isMobile-branching intent, unlike
-// Characters' field-inspector reveal). The composition root assembles this into the section registry
-// (main.tsx); AppShell consumes it via `useSectionRegistry`. CONTEXT still rides the FLAG[lockdown-M3]
-// bridge until M3.
+// place. CONTEXT is minted via `defineContextTabs<void>` (§6b) — Analytics has no shared context state, so
+// `useContextState` returns the `VOID_STATE` sentinel (always-present, unconditionally called). The
+// composition root assembles this into the section registry (main.tsx); AppShell consumes it via
+// `useSectionRegistry`.
 
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the ChartColumn glyph fine (the character-card-facets.ts precedent).
 import { ChartColumn } from "@orb/ui/icons";
+import { defineContextTabs, VOID_STATE } from "#lib";
 import type { SectionDefinition } from "#state";
 import { AnalyticsListAnchor } from "../anchors/analytics-list-anchor";
 import { AnalyticsContent } from "../components/analytics-content";
@@ -30,12 +31,12 @@ export const analyticsSection: SectionDefinition = {
   ),
   content: () => <AnalyticsContent />,
   // Three owner-scoped dimension tabs, always available: Models / Time / Personas.
-  context: {
-    kind: "tabs",
+  context: defineContextTabs<void>({
+    useContextState: () => VOID_STATE,
     tabs: [
       { id: "models", label: "Models", body: () => <AnalyticsModelsTab /> },
       { id: "time", label: "Time", body: () => <AnalyticsTimeTab /> },
       { id: "personas", label: "Personas", body: () => <AnalyticsPersonasTab /> },
     ],
-  },
+  }),
 };

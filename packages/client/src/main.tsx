@@ -22,14 +22,20 @@ import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";
 import { charactersSection } from "#features/character";
-import { chatsSection } from "#features/chat";
+import { makeChatsSection } from "#features/chat";
 import { corpusSection } from "#features/discovery";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { analyticsSection } from "#features/stats";
 import { worldInfoSection } from "#features/world-info";
-import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createRegistry } from "#lib";
-import type { SectionDefinition, SectionId } from "#state";
+import type { ChatContextState, ContextTabDef } from "#lib";
+import {
+  AppErrorBoundary,
+  bindNotify,
+  buildClientErrorPayload,
+  createContributorRegistry,
+  createRegistry,
+} from "#lib";
 import { SECTION_IDS, SectionRegistryProvider } from "#state";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { isProbeMode } from "./lib/probe-mode";
@@ -65,11 +71,17 @@ globalThis.addEventListener("vite:preloadError", () => {
 const queryClient = createAppQueryClient();
 const trpcClient = createTrpcClient();
 
+// The chat-context contributor seam (§6c): EMPTY but typed at M3 — the door → factory → mint → resolve
+// → render path is compiled and exercised with zero contributions; M8 only appends array members.
+const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
+  "chat-context",
+  [],
+);
+
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
-// app-shell reads it (incl. the use-shell-layout hook) without a #features import. `never` erases each
-// section's heterogeneous context-state projection (the variance-safe common Def).
-const sections = createRegistry<SectionId, SectionDefinition<never>>("sections", SECTION_IDS, {
-  chats: chatsSection,
+// app-shell reads it (incl. the use-shell-layout hook) without a #features import.
+const sections = createRegistry("sections", SECTION_IDS, {
+  chats: makeChatsSection(chatContextContributors),
   characters: charactersSection,
   corpus: corpusSection,
   worldInfo: worldInfoSection,

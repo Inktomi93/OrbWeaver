@@ -1,50 +1,48 @@
-// The Chats rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — the
-// section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
-// place. A pure DATA object: every render slot is a hook-free arrow composing this feature's surfaces +
-// components, so the definition itself imports NO app-shell/auth hook — `ChatListSurface`/`ChatContent`
-// read their own #state selection, and `multiHumanCapable` (the `ContextTabDef.when`/`body` inputs) is
-// the CONSUMER's job to resolve into `ChatContextState` (today `useAuthConfig` from `#data`, not
-// `#features/auth` — no cross-feature reach). The composition root assembles this into the section
-// registry (main.tsx); AppShell consumes it via `useSectionRegistry`. CONTEXT still rides the
-// FLAG[lockdown-M3] bridge until M3 (`ChatContextPanel`'s bespoke Tabs is the fourth legacy-Tabs
-// unification named in registry-contracts.ts).
+// The Chats rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — rail
+// identity, panel defaults, placeholder copy, list, content, header, and CONTEXT model in one place.
+// CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the phase-discriminated
+// projection, unifying the committed panel and its draft twin into one 5-tab set; `useChatContextState`
+// pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes the chat-context
+// contributor registry (§6c) so rpg/crew can graft tabs at the door without importing chat.
 
-import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
-import type { ChatId, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the MessagesSquare glyph fine (the character-card-facets.ts precedent).
 import { MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#data";
+import type {
+  ChatContextState,
+  CommittedChatContext,
+  ContextTabDef,
+  ContributorRegistry,
+} from "#lib";
+import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { chatDeletedFromList, openModal, selectChatFromList } from "#state";
 import { ChatListAnchor } from "../anchors/chat-list-anchor";
+import { DraftAddMemberPopover } from "../components/add-member-popover";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { ChatContent } from "../components/chat-content";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header";
+import type { CommittedMembersTabProps } from "../components/committed-members-tab";
+import { CommittedMembersTab } from "../components/committed-members-tab";
+import {
+  DraftGroupConfigTabBody,
+  DraftInjectionsTab,
+  DraftMembersTabBody,
+  DraftOverridesTabBody,
+} from "../components/draft-context-tabs";
 import { CommittedGroupConfigTab } from "../components/group-config-form";
 import { InjectionsManager } from "../components/injections-manager";
 import { RoomOverridesTab } from "../components/room-overrides-tab";
-import type { CommittedMembersTabProps } from "../surfaces/chat-context-panel-surface";
-import { CommittedMembersTab } from "../surfaces/chat-context-panel-surface";
+import { useChatContextState } from "../hooks/use-chat-context-state";
 import { ChatListSurface } from "../surfaces/chat-list-surface";
 import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster";
 
-/** The Chats CONTEXT-panel state projection (O5 strict — a real named type, never void/any): the
- *  committed chat's `ChatDetail` wire fields the tabs read + `multiHumanCapable` (the fourth trapped
- *  hook, resolved via `#data`'s `useAuthConfig` at cutover — never `#features/auth`'s). */
-export interface ChatContextState {
-  readonly chatId: ChatId;
-  readonly participants: readonly ParticipantView[];
-  readonly viewerUserId: UserId;
-  readonly pendingHostUserId: UserId | null;
-  readonly roomOverrides: RoomOverrides;
-  readonly isHost: boolean;
-  readonly multiHumanCapable: boolean;
-}
+const GROUP_FLOOR = 2;
 
-function toMembersTabProps(s: ChatContextState): CommittedMembersTabProps {
+function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
   return {
     chatId: s.chatId,
     chat: {
@@ -73,75 +71,106 @@ function queryRenderError(label: string): (error: unknown, retry: () => void) =>
   );
 }
 
-export const chatsSection: SectionDefinition<ChatContextState> = {
-  id: "chats",
-  rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobilePrimary: true },
-  panelDefaults: { list: "docked", context: "collapsed" },
-  placeholder: {
-    title: "Chats",
-    description: "Your conversations live here — pick a thread on the left, or start a new one.",
+// Flat declared order encodes the Members-default (§6b): members first ⇒ the generic resolve picks it as
+// the active tab whenever visible, else the first visible tab. Each body narrows on `s.phase`.
+const CHAT_CONTEXT_TABS: readonly ContextTabDef<ChatContextState>[] = [
+  {
+    id: "members",
+    label: "Members",
+    when: (s) =>
+      s.phase === "committed"
+        ? membersTabJustified(s.participants, s.multiHumanCapable)
+        : s.cast.length >= GROUP_FLOOR,
+    body: (s) =>
+      s.phase === "committed" ? (
+        <CommittedMembersTab {...toMembersTabProps(s)} />
+      ) : (
+        <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />
+      ),
   },
-  list: () => (
-    <ChatListAnchor>
-      <ChatListSurface
-        onDeletedChat={chatDeletedFromList}
-        onNewChat={(): void => openModal("newChat")}
-        onSelect={selectChatFromList}
-      />
-    </ChatListAnchor>
-  ),
-  content: () => <ChatContent />,
-  // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
-  header: () => <ChatsTopbarHeader />,
-  // Five tabs, the chat-context-panel-surface.tsx bespoke Tabs unified (§6c): Members (floor-gated),
-  // Overrides (always), Group (host + group chat only), Preview (host only), Injections (always).
-  context: {
-    kind: "tabs",
-    tabs: [
-      {
-        id: "members",
-        label: "Members",
-        when: (s) => membersTabJustified(s.participants, s.multiHumanCapable),
-        body: (s) => <CommittedMembersTab {...toMembersTabProps(s)} />,
-      },
-      {
-        id: "overrides",
-        label: "Overrides",
-        body: (s) => (
-          <RoomOverridesTab chatId={s.chatId} roomOverrides={s.roomOverrides} isHost={s.isHost} />
-        ),
-      },
-      {
-        id: "group",
-        label: "Group",
-        when: (s) => s.isHost && resolveIsGroupChat(s.participants),
-        body: (s) => (
-          <QueryBoundary
-            fallback={queryFallback("group settings")}
-            renderError={queryRenderError("group settings")}
-          >
-            <CommittedGroupConfigTab chatId={s.chatId} />
-          </QueryBoundary>
-        ),
-      },
-      {
-        id: "preview",
-        label: "Preview",
-        when: (s) => s.isHost,
-        body: (s) => <AssemblyPreviewPanel chatId={s.chatId} />,
-      },
-      {
-        id: "injections",
-        label: "Injections",
-        body: (s) => (
-          <QueryBoundary
-            fallback={queryFallback("injections")}
-            renderError={queryRenderError("injections")}
-          >
-            <InjectionsManager chatId={s.chatId} isHost={s.isHost} />
-          </QueryBoundary>
-        ),
-      },
-    ],
+  {
+    id: "overrides",
+    label: "Overrides",
+    body: (s) =>
+      s.phase === "committed" ? (
+        <RoomOverridesTab chatId={s.chatId} roomOverrides={s.roomOverrides} isHost={s.isHost} />
+      ) : (
+        <DraftOverridesTabBody draftKey={s.draftKey} />
+      ),
   },
-};
+  {
+    id: "group",
+    label: "Group",
+    when: (s) =>
+      s.phase === "committed"
+        ? s.isHost && resolveIsGroupChat(s.participants)
+        : s.cast.length >= GROUP_FLOOR,
+    body: (s) =>
+      s.phase === "committed" ? (
+        <QueryBoundary
+          fallback={queryFallback("group settings")}
+          renderError={queryRenderError("group settings")}
+        >
+          <CommittedGroupConfigTab chatId={s.chatId} />
+        </QueryBoundary>
+      ) : (
+        <DraftGroupConfigTabBody draftKey={s.draftKey} />
+      ),
+  },
+  {
+    id: "preview",
+    label: "Preview",
+    when: (s) => s.phase === "committed" && s.isHost,
+    body: (s) => (s.phase === "committed" ? <AssemblyPreviewPanel chatId={s.chatId} /> : null),
+  },
+  {
+    id: "injections",
+    label: "Injections",
+    body: (s) =>
+      s.phase === "committed" ? (
+        <QueryBoundary
+          fallback={queryFallback("injections")}
+          renderError={queryRenderError("injections")}
+        >
+          <InjectionsManager chatId={s.chatId} isHost={s.isHost} />
+        </QueryBoundary>
+      ) : (
+        <DraftInjectionsTab draftKey={s.draftKey} />
+      ),
+  },
+];
+
+export function makeChatsSection(
+  chatContextContributors: ContributorRegistry<ContextTabDef<ChatContextState>>,
+): SectionDefinition {
+  return {
+    id: "chats",
+    rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobilePrimary: true },
+    panelDefaults: { list: "docked", context: "collapsed" },
+    placeholder: {
+      title: "Chats",
+      description: "Your conversations live here — pick a thread on the left, or start a new one.",
+    },
+    list: () => (
+      <ChatListAnchor>
+        <ChatListSurface
+          onDeletedChat={chatDeletedFromList}
+          onNewChat={(): void => openModal("newChat")}
+          onSelect={selectChatFromList}
+        />
+      </ChatListAnchor>
+    ),
+    content: () => <ChatContent />,
+    // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
+    header: () => <ChatsTopbarHeader />,
+    context: defineContextTabs<ChatContextState>({
+      useContextState: useChatContextState,
+      tabs: CHAT_CONTEXT_TABS,
+      actions: (s) =>
+        s.phase === "draft" ? (
+          <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} />
+        ) : null,
+      contributors: chatContextContributors,
+    }),
+  };
+}

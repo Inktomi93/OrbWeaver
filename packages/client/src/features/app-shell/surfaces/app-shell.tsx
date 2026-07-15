@@ -18,6 +18,7 @@ import { ModalHost } from "../components/modal-host";
 import { PanelChrome } from "../components/panel-chrome";
 import { Rail } from "../components/rail";
 import { SectionContent } from "../components/section-content";
+import { SectionContextHost } from "../components/section-context-host";
 import { SectionPlaceholder } from "../components/section-placeholder";
 import { ShellTopbar } from "../components/shell-topbar";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer";
@@ -28,17 +29,7 @@ import { useShellLayout } from "../hooks/use-shell-layout";
 import { resolveBackgroundUrl } from "../lib/resolve-theme-background";
 import "./shell.css";
 
-/** One section's route-composed CONTEXT chrome (panel body + header) — the M3 bridge value. */
-interface SectionContextBridge {
-  readonly context?: ReactNode;
-  readonly contextHeader?: ReactNode;
-}
-
 export interface AppShellProps {
-  // FLAG[lockdown-M3]: TEMPORARY context bridge. The CONTEXT panel (body + header) stays hand-wired at
-  // app-root until M3 consumes each section's ContextDefinition from the registry. Deleted at M3 — the
-  // per-section map is the sanctioned scaffolding (G2 allowlist), NOT a returning god-map.
-  readonly sectionContext?: Partial<Record<SectionId, SectionContextBridge>>;
   /** Route-composed modal bodies rendered over the `MODAL_SLOTS` placeholders. */
   readonly modals?: Partial<Record<ModalSlotId, ReactNode>>;
   /** Route-composed rail-foot chip (the persona switcher). Undefined ⇒ the account button. */
@@ -47,12 +38,7 @@ export interface AppShellProps {
   readonly topbarTrail?: ReactNode;
 }
 
-export function AppShell({
-  sectionContext,
-  modals,
-  railFoot,
-  topbarTrail,
-}: AppShellProps): ReactElement {
+export function AppShell({ modals, railFoot, topbarTrail }: AppShellProps): ReactElement {
   const registry = useSectionRegistry();
   const layout = useShellLayout();
   const appearance = useAppearance();
@@ -88,7 +74,6 @@ export function AppShell({
     "--width-shell-content": `clamp(680px, ${appearance.chatWidthPct}dvw, 100dvw)`,
   } as CSSProperties;
   const activeDef = registry.get(layout.activeSection);
-  const ctx = sectionContext?.[layout.activeSection];
   const placeholderCopy = activeDef.placeholder;
   // At most one Weave decoration per screen — it rides the content placeholder only.
   const listContent = activeDef.list?.() ?? (
@@ -193,23 +178,16 @@ export function AppShell({
               panel="context"
               label={`${layout.activeSectionLabel} details`}
               header={
-                ctx?.contextHeader ?? (
-                  <Text size="label" weight="medium" tone="muted">
-                    Details
-                  </Text>
-                )
+                <Text size="label" weight="medium" tone="muted">
+                  Details
+                </Text>
               }
               collapseLabel="Collapse detail panel"
               mode={layout.contextMode}
               onCollapse={(): void => layout.collapsePanel("context")}
             >
               <RegionAnchor region="context">
-                {ctx?.context ?? (
-                  <SectionPlaceholder
-                    title="Details"
-                    description="Select something to see its details here."
-                  />
-                )}
+                <SectionContextHost key={layout.activeSection} definition={activeDef} />
               </RegionAnchor>
             </PanelChrome>
 
