@@ -1,0 +1,150 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-15
+---
+
+# Shell Chrome Unification (proposed program — Fable design, owner-approved for AFTER the lockdown)
+
+> **STATUS: design of record, NOT yet built.** Authored by the Fable architect 2026-07-15 from the live app
+> (screenshots) + the code. The owner ratified the DIRECTION and sequenced it AFTER the client-architecture
+> lockdown (M0–M11): finish + promote the lockdown first (notifications is EXEMPTED from the O2 gate as a tracked
+> placeholder — see §18 O2 in `client-architecture-lockdown.md`), then build this as its own program with its own
+> D-ledger entries. This doc captures the full design so no work is lost.
+
+## The problem (verified, eyes + code)
+
+Chrome enters the shell frame by **three different mechanisms**: registry derivation (sections, modal triggers),
+ReactNode **prop injection** (`AppShellProps.railFoot` → the persona avatar, `topbarTrail` → the notification
+bell, both hand-wired in `routes/app-root.tsx`), and **hardcoding** (the topbar focus + context-panel toggles).
+That mechanical non-uniformity — not the visual foot cluster — is the real "rail-foot vs rail-body vs top-rail"
+weirdness. Three load-bearing consequences:
+
+1. The avatar is the ONE bespoke exception the lockdown left behind (it renders the live persona face, which a
+   static `{icon,label}` modal trigger can't express) → prop-injected, not registered.
+2. **Mobile has no persona switcher at all** — the avatar lives only in the desktop DOM block; the mobile You
+   sheet shows Theme/Settings/Account but "playing as" switching is unreachable on a phone. The bespoke seam
+   silently dropped a capability on one regime.
+3. "Account" exists in THREE places — the account modal (real: handle/role/sign-out), the persona popover's
+   Account strip (opens it), and a DECLARED-PLANNED settings pane (`features/settings/lib/account-pane.tsx`) whose
+   planned-reason ("identity + sign-out land here when auth is wired") is now FALSE (auth is wired, in the modal).
+
+## A. The unified model — ONE chrome registry, zones as data, projections as lenses
+
+Every global affordance in the shell frame is a **chrome entry** in ONE registry, assembled once at the door,
+consumed blind. "Rail body vs rail foot vs topbar" becomes ONE mechanism with a `zone` field. The rail is one
+component rendering one list; the foot is just more entries after the spacer. Entries come from three sources but
+by **derivation, never re-declaration**: sections (from `SectionDefinition.rail`), modal triggers (from
+`ModalDefinition.trigger`), and **widgets** (the new arm — live feature-owned chrome a static icon can't express:
+the persona avatar, the notification bell, and the shell's own topbar affordances).
+
+Vocabulary (`state/chrome-registry.ts` — state owns shell vocab, §5 rule 5):
+
+```ts
+export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;
+export type ChromeZone = (typeof CHROME_ZONES)[number];
+
+// A rail entry's mobile fate — an EXPLICIT decision, replaces `mobilePrimary?: boolean`.
+export type MobileCuration = "tab" | "sheet";
+// Which lens renders a widget: the always-mounted bar DOM, or the You-sheet projection.
+export type ChromePresentation = "bar" | "sheet";
+
+export type ChromeEntryBehavior =
+  | { readonly kind: "section"; readonly sectionId: SectionId }
+  | { readonly kind: "modal"; readonly modalId: ModalSlotId }
+  | { readonly kind: "widget"; readonly body: (p: ChromePresentation) => ReactNode };
+
+export interface ChromeEntry {
+  readonly id: string;
+  readonly label: string;
+  readonly icon?: LucideIcon;
+  readonly zone: ChromeZone;
+  readonly group?: SectionGroup;      // rail.nav grouping — ONE home (kills rail-slots.ts's duplicate tuple)
+  readonly order?: number;
+  readonly mobile?: MobileCuration;   // rail entries only
+  readonly useVisible?: () => boolean; // capability gate, called unconditionally; false ⇒ render NOTHING (no gap)
+}
+```
+
+Assembly at the door: `assembleChrome({ sections, modals, widgets })` (a pure, unit-testable function: dupe-id
+throw, zone-validate, deterministic per-zone order algebra) → `ChromeRegistryProvider` (the section-registry
+context/provider split pattern). Widgets: `personaChrome` (rail.end, mobile:"sheet"), `notificationsChrome`
+(topbar.trail, useVisible: multiHumanCapable), `focusToggleChrome` + `contextToggleChrome` (topbar.trail —
+app-shell registers its own chrome through the same door, no self-privilege).
+
+**The topbar becomes dynamic** (the owner's ask): the trail is a registry render of `zone === "topbar.trail"` —
+bell (widget, gated) + ⌘K (derived from `commandModal.trigger`) + fullscreen/focus (widget) + context toggle
+(widget). The crisp line: **clusters are registries; the frame's own panel grammar is NOT.** The list/detail
+panel toggles stay intrinsic — a toggle is positionally bound to the panel it controls. (This also resolves the
+DOUBLED detail-panel close button: one registered context toggle, delete the panel-header's redundant collapse.)
+
+`MODAL_TRIGGER_PLACEMENTS` tightens to `["rail.end", "topbar.trail", "mobile-tab", "surface"]` (`"surface"` merges
+today's `content`+`avatar` = "my trigger lives inside a feature surface"; the `avatar` pseudo-zone dies — the
+account modal is reached from inside the identity widget). **`AppShellProps.railFoot` + `topbarTrail` DIE** — the
+shell accepts zero ReactNode chrome props; `app-root.tsx` slims to §7 residue.
+
+## B. You vs Account — a containment chain: You ⊃ Identity ⊃ Account
+
+| Thing | What it is | Presentation |
+|---|---|---|
+| **You** | NOT a page — the mobile PROJECTION of shell chrome (the drawer where `mobile:"sheet"` rail entries land). No content of its own. | Bottom-sheet drawer (modal slot `"you"`, app-shell-owned) |
+| **Identity** | A chrome widget (persona switcher + Account strip). ONE widget, two lenses: `body("bar")` = avatar chip + popover (desktop); `body("sheet")` = same sections inline in the You sheet. | Both |
+| **Account** | A leaf modal (auth card: handle · role · sign-out). Reached only from inside Identity. Placement `"surface"`. | Centered dialog |
+
+Two rulings fall out: (1) **the mobile persona gap closes for free** — `personaChrome.body("sheet")` renders the
+Playing-as header + persona rows in the sheet; (2) **the settings `account` pane dies** (stale planned-reason) —
+one concept named "account" remains (the modal); it graduates to a pane only if account-settings ever grow real
+weight (a D-note, not speculative structure now).
+
+## C. CSS-transform verdict — YES for the bar, projection (not CSS) for the sheet
+
+- **Rail bar = ONE DOM list, CSS-reflowed.** Today `rail.tsx` renders every button TWICE (`.shell-rail-desktop`
+  + `.shell-rail-mobile`, `RailButton` vs `RailTabButton`) and the one `@media` flips `display`. The single-DOM
+  design: one flat grouped list with `data-mobile="tab|sheet"` per entry; inside the existing one
+  `@media (max-width:48rem)` — `flex-direction: column→row`, `[data-mobile="sheet"]{display:none}` (curation as CSS
+  visibility over the same DOM; `display:none` also removes them from the a11y tree), labels shown on mobile via
+  CSS, brand/spacer hidden + overflow "You" button shown. **Dies:** `.shell-rail-desktop`, `.shell-rail-mobile`,
+  `RailTabButton`, the double render.
+- **You sheet CANNOT be pure CSS** — it's a real modal (portal into the themed root, focus trap, scrim, Escape,
+  `aria-modal`). CSS can restyle nodes; it cannot re-parent into a portal, trap focus, or make the background
+  inert. A "CSS-only sheet" would be a fake modal that fails keyboard + SR users. **BUT** the maintenance
+  duplication dies one level up: the sheet becomes a blind PROJECTION over the same resolved chrome list (not a
+  second hand-maintained derivation — today `YouSheet` re-derives the registries with complementary filters kept
+  correct by discipline alone). Add a chrome entry once at the door → desktop rail, mobile bar, AND the You sheet
+  all pick it up, each in its native form. Nothing maintained twice. The breakpoint story (the one `@media`,
+  `mobileViewport`/`narrowViewport`, `resolvePanelMode`) is untouched.
+
+## D. Door + gates
+
+Door: `assembleChrome(...)` + `ChromeRegistryProvider` in `main.tsx`. Gate family (mirror the existing pattern):
+**`chrome-registry-completeness`** (new; mirror `modal-registry-completeness`: widget co-location
+`features/<owner>/lib/<id>-chrome.tsx`, dupe-id, zone ∈ CHROME_ZONES, a `rail.*` widget must declare `mobile`, a
+`topbar.*` must not); **`modal-registry-completeness`** update (new placement vocab; singleton shrinks to
+`mobile-tab`; a `"surface"` modal needs ≥1 `openModal("<id>")` call site); **`shell-no-chrome-props`** (new arm in
+`client-structure`: `AppShellProps`/`ShellTopbarProps`/`RailProps` may declare no ReactNode chrome slot props —
+the rotted seam becomes unspellable); **`no-parallel-section-map`** extend (a hand-maintained chrome list outside
+the door/`-chrome.tsx` is RED). Chrome adds no id tuple — it's a contributor-style OPEN set over a CLOSED zone
+vocabulary (zones are architecture, entries are growth).
+
+## E. Migration sketch (each step green; ~one executor wave each)
+
+1. **Mint** — `state/chrome-registry.ts` + `assembleChrome` (pure, unit-tested) + context/provider. `SectionGroup`
+   gets its one home here; `rail-slots.ts` dies.
+2. **Assemble** — door builds chrome from existing registries + 4 widget entries (thin wrappers initially).
+   Provider mounted, nothing consumes yet; app unchanged.
+3. **Rail cutover** — single-DOM chrome render; merge the two button components; CSS reflow inside the existing
+   `@media`; `mobilePrimary?:boolean` → `mobile: MobileCuration` across the 7 section defs. Delete the twin blocks
+   + `RailTabButton`.
+4. **Topbar-trail cutover** — trail renders `zone("topbar.trail")`; bell carries `useVisible`; delete `topbarTrail`
+   prop + app-root wiring; hardcoded focus/context buttons → app-shell widget entries. (Kills the doubled close.)
+5. **Sheet cutover** — `YouSheet` → blind projection (`presentation:"sheet"`); persona widget grows `body("sheet")`
+   (**mobile persona switching ships here**); placement `avatar` dies; account modal → `"surface"`.
+6. **Kill `railFoot`** — persona chrome entry owns the avatar; app-root slims to §7 residue.
+7. **Vocabulary + law** — `rail-footer`→`rail.end`, `content`→`surface`; delete the settings `account` pane; land
+   the gates (prove each bites); update `UI-Architecture-and-Layout.md` §4.x; D-ledger entries for (a)
+   clusters-are-registries / frame-grammar-is-intrinsic, (b) You ⊃ Identity ⊃ Account.
+
+**Deleted at the end:** `railFoot` + `topbarTrail` props, `RailTabButton`, both rail DOM twins, `YouSheet`'s
+filters, `rail-slots.ts`, placement `avatar`, the planned account pane. **Watchpoints:** hooks-over-registry-list
+needs the frozen-at-door list (holds by construction); `.ct.tsx` front-door crash → story-module indirection for
+rail/you-sheet stories; the bell's no-flash rule preserved by `useVisible` returning false until authConfig lands.
