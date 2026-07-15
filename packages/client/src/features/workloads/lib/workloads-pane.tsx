@@ -1,7 +1,6 @@
 // The Workloads settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
 // wrapping the existing surface. TEMPORARY home (M6.1: panes stay put; the workloads-owned move is M6.2).
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Gauge fine (the settings-nav.ts precedent).
 import { Gauge } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
 import { WorkloadsSettingsSurface } from "../surfaces/workloads-settings-surface";

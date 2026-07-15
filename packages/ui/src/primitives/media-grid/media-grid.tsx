@@ -2,7 +2,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn, prefersReducedMotionNow } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Icon fine (the spinner.tsx precedent).
 import { Check, Icon } from "#primitives/icons";
 import { TOKENS } from "#tokens";
 import { mediaGridVariants } from "./variants";

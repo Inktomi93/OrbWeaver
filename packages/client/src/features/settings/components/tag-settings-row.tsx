@@ -11,7 +11,6 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ColorField } from "@orb/ui/color-field";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Trash2 fine (the character-tags-row.tsx precedent).
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";

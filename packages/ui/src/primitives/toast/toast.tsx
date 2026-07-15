@@ -5,7 +5,6 @@ import type {
 } from "@base-ui/react/toast";
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine.
 import { Icon, X } from "#primitives/icons";
 import { toastVariants } from "./variants";
 

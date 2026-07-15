@@ -1,6 +1,5 @@
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the icons subpath; tsc + vite resolve Eye/EyeOff/Icon/Lock fine.
 import { Eye, EyeOff, Icon, Lock } from "#primitives/icons";
 import { revealGateVariants } from "./variants";
 

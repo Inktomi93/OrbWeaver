@@ -6,7 +6,6 @@ import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine (the spinner.tsx precedent).
 import { Icon, X } from "#primitives/icons";
 import { autocompleteVariants } from "./variants";
 

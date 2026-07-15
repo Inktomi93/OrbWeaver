@@ -2,7 +2,6 @@
 // state that threw once will throw again, so the fallback offers no retry, only a full reload.
 
 import type { ErrorInfo, ReactNode } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (react conditional-CJS export map).
 import { Component, captureOwnerStack } from "react";
 import { IS_DEV } from "./dev-flag";
 

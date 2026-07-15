@@ -2,7 +2,6 @@
 // wrapping the existing surface. TEMPORARY home (M6.1: panes stay put; the user-admin-owned move is M6.2).
 // `when` replaces the old `adminOnly` flag — the §6b "def declares, consumer supplies" inversion.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Lock fine (the settings-nav.ts precedent).
 import { Lock } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
 import { AdminSettingsSurface } from "../surfaces/admin-settings-surface";

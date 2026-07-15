@@ -3,7 +3,6 @@
 // directly (label + icon DERIVED from the modal registry, never a parallel id list), plus the overflow
 // sections (derived from the section registry). Each row opens its surface in the shared modal slot.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Icon fine (the settings-shell-surface.tsx precedent).
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";

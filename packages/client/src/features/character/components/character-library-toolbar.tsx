@@ -6,7 +6,6 @@
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Pencil/Icon fine (the character-library-surface.tsx precedent).
 import { Icon, Pencil } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";

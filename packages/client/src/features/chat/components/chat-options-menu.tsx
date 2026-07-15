@@ -1,7 +1,3 @@
-// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react
-// re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph fine (the
-// shell-topbar.tsx precedent).
-
 // The chat options menu: registry-shaped over already-built verbs + store actions, so later features
 // enter as rows, not rework. Unbuilt items are omitted — never a disabled stub pointing at nothing. The
 // turn actions reuse useGuidedActions (the composer wand's own dispatch) with an empty steer, giving

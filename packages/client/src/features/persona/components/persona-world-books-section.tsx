@@ -6,7 +6,6 @@
 import type { PersonaId, WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve BookOpen/Icon fine (the add-member-popover precedent).
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";

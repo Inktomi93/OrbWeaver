@@ -7,7 +7,6 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { StatFigureProps } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome mis-enumerates react's conditional-CJS export map and misses lazy/Suspense; tsc resolves them fine.
 import { lazy, Suspense } from "react";
 
 // Lazy so the ~60MB echarts package (pulled in by @orb/ui/stat-figure) never lands in the entry chunk.

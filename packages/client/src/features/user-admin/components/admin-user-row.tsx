@@ -5,7 +5,6 @@
 
 import type { UserRole } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph fine (the theme-row-menu precedent).
 import { Icon, KeyRound, MonitorSmartphone } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";

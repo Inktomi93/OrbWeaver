@@ -9,7 +9,6 @@ import { Avatar } from "@orb/ui/avatar";
 import { Field } from "@orb/ui/field";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc/vite resolve CircleUser/Icon fine (the composer-wand.tsx precedent).
 import { CircleUser, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";

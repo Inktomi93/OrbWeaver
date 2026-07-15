@@ -9,7 +9,6 @@
 // pattern; the ConfirmDialog homing precedent). Consumed across the preset + settings features.
 
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Icon/Plus fine (the preset-library-surface.tsx precedent).
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";

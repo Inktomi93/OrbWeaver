@@ -1,5 +1,4 @@
 import type { ReactElement } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Loader2/Icon fine (the icon-story.tsx precedent).
 import { Icon, Loader2 } from "#primitives/icons";
 import { spinnerVariants } from "./variants";
 

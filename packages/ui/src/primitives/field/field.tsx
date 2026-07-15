@@ -4,7 +4,6 @@ import type { ReactElement, ReactNode } from "react";
 import { createContext, useContext } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Info/Icon fine (the add-member-popover precedent).
 import { Icon, Info } from "#primitives/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { fieldVariants } from "./variants";

@@ -6,7 +6,6 @@
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph + Icon fine (the character-card.tsx precedent).
 import { Icon, Pencil, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";

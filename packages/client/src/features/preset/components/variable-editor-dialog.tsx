@@ -5,7 +5,6 @@
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-library-surface.tsx precedent).
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

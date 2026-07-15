@@ -5,7 +5,6 @@
 // screen, so it rides the content placeholder only; LIST/CONTEXT fallbacks keep the muted sparkle.
 
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the composer.tsx precedent).
 import { Icon, Sparkles } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";

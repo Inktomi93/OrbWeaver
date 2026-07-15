@@ -7,7 +7,6 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the swipe-strip.tsx precedent).
 import { Coins, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";

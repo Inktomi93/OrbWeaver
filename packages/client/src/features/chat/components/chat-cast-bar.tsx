@@ -9,7 +9,6 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Crown/Icon fine (the shell-topbar.tsx precedent).
 import { Crown, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { cn } from "@orb/ui/lib";

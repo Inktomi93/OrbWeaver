@@ -2,7 +2,6 @@ import type { SwitchRootProps } from "@base-ui/react/switch";
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Icon/Lock fine.
 import { Icon, Lock } from "#primitives/icons";
 import { switchVariants } from "./variants";
 

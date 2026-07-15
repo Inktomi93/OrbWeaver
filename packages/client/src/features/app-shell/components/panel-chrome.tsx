@@ -7,7 +7,6 @@
 // reopen/collapse affordance is the always-present topbar toggle.
 
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the status-chip.tsx precedent).
 import { Icon, PanelLeftClose, PanelRightClose } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import type { PanelMode, PanelName } from "#state";

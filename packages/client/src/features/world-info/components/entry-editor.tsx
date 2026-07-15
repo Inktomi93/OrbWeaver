@@ -10,7 +10,6 @@ import { ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
 import { Button } from "@orb/ui/button";
 import { Combobox } from "@orb/ui/combobox";
 import { Field } from "@orb/ui/field";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Trash2 fine (the preset-library-row.tsx precedent).
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { SaveBar } from "@orb/ui/save-bar";

@@ -10,7 +10,6 @@
 // stays controlled + Zod" carve-out — NOT a form factory).
 
 import type { ChatId } from "@orb/kit/ids";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { Archive, Icon, Pencil, Star } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";

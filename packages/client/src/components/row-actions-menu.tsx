@@ -11,9 +11,7 @@
 // showed its ⋯ at rest keeps showing it (do not newly hide a visible cluster).
 
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the ConfirmDialog-adjacent precedent).
 import type { LucideIcon } from "@orb/ui/icons";
-// biome-ignore lint/correctness/noUnresolvedImports: same re-export chain — tsc + vite resolve every glyph + Icon fine.
 import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";

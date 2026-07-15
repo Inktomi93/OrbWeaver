@@ -5,7 +5,6 @@
 import { personaBackupSchema } from "@orb/contracts/persona";
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Upload fine.
 import { Icon, Upload } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
 import { SettingRow } from "@orb/ui/setting-row";

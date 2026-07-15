@@ -1,6 +1,5 @@
 // Big-number + optional sparkline, or a bare number+delta tile when there's no series to chart.
 import type { ReactElement } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve ChevronDown/ChevronUp/Icon/Minus fine (the log-viewer.tsx precedent).
 import { ChevronDown, ChevronUp, Icon, Minus } from "#primitives/icons";
 import type { OrbEChartsInstance } from "../chart";
 import { Chart } from "../chart";

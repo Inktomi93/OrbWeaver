@@ -8,7 +8,6 @@ import { DragDropProvider } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { ReactElement, ReactNode } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve GripVertical/Icon fine.
 import { GripVertical, Icon } from "#primitives/icons";
 import { sortableVariants } from "./variants";
 

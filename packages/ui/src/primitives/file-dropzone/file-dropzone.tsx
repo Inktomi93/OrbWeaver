@@ -1,7 +1,6 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from "react";
 import { useState } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/Check/Icon/Upload fine.
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
 import { Spinner } from "#primitives/spinner";
 import { fileDropzoneVariants } from "./variants";

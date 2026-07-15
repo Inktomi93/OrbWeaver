@@ -14,7 +14,6 @@ import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver misses react's lazy/Suspense named exports (main.tsx precedent).
 import { lazy, Suspense } from "react";
 import type { AppFormInstance } from "#forms";
 

@@ -8,7 +8,6 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { SubstituteFindRegex } from "@orb/kit/regex";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Trash2/Icon fine (the character-card.tsx precedent).
 import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";

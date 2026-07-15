@@ -1,7 +1,6 @@
 // The Connections settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
 // wrapping the existing surface. TEMPORARY home (M6.1: panes stay put; the credentials-owned move is M6.2).
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve ExternalLink fine (the settings-nav.ts precedent).
 import { ExternalLink } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
 import { ConnectionsSettingsSurface } from "../surfaces/connections-settings-surface";

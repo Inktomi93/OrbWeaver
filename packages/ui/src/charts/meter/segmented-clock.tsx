@@ -1,7 +1,6 @@
 // A segmented circle showing filled/segments — same hand-rolled ARIA mechanism as <Meter> (role="meter").
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve ICON_XS/Icon/Lock fine.
 import { ICON_XS, Icon, Lock } from "#primitives/icons";
 import { segmentedClockVariants } from "./variants";
 

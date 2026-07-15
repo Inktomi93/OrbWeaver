@@ -8,7 +8,6 @@ import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve list glyphs fine (the preset-editor-surface.tsx precedent).
 import { ArrowLeft, BookOpen, Icon, Pencil, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";

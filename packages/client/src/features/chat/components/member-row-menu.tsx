@@ -1,7 +1,3 @@
-// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react
-// re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph fine (the
-// shell-topbar.tsx precedent).
-
 // The MEMBERS-row per-row MENU — the §7.1 canonical action home (rule 10: one canonical label + icon
 // per action, everywhere). Builds the `@orb/ui/menu` item set for a row from the action seams the
 // surface wired (host-only callbacks are ABSENT for a member — §8.1 — so a row with zero actions

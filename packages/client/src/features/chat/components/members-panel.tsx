@@ -5,7 +5,6 @@
 // a neighbor once the row disappears from the projected list.
 
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Icon/UserPlus fine (the roster-panel.tsx precedent).
 import { Icon, UserPlus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";

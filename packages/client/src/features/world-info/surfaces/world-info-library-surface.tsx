@@ -7,7 +7,6 @@
 import type { WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve BookOpen/Icon/Plus/Search fine (the preset-library-surface.tsx precedent).
 import { BookOpen, Icon, Plus, Search } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";

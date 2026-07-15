@@ -3,7 +3,6 @@
 // open. A containment CONSUMER (§2.1) — no outer container of its own.
 
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/SlidersHorizontal fine (the character-library-welcome.tsx precedent).
 import { Icon, SlidersHorizontal } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 

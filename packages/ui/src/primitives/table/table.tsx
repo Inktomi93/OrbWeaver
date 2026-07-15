@@ -1,4 +1,3 @@
-// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind #primitives/icons; tsc + vite resolve every symbol fine. File-wide since the import wraps across lines.
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { cn } from "#lib";

@@ -2,7 +2,6 @@ import type { ReactElement, UIEvent } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { cn, prefersReducedMotionNow } from "#lib";
 import { Button } from "#primitives/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/CircleAlert/Copy/Icon/Info fine (the spinner.tsx precedent).
 import { AlertTriangle, CircleAlert, Copy, Icon, Info } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";

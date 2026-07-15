@@ -19,7 +19,6 @@ import {
   CommandList,
   CommandStatus,
 } from "@orb/ui/command";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Icon fine (the character-library-surface.tsx precedent).
 import { Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";

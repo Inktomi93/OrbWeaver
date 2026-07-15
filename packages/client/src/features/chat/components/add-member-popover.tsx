@@ -6,7 +6,6 @@
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { Icon, UserPlus } from "@orb/ui/icons";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";

@@ -6,7 +6,6 @@
 // (`client-state-below-data` has zero type-only exemption), so the settings HOST computes this narrow
 // shape from its own `useViewer()`/session read and supplies it at nav/search/pane-filter time.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve LucideIcon fine (the section-registry.ts precedent).
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { SettingsCategoryId } from "./shell-store";

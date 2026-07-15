@@ -1,7 +1,3 @@
-// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react
-// re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + LucideIcon fine
-// (the table.tsx / status-chip.tsx precedent).
-
 // ShellTopbar — the always-present strip above CONTENT. Shell-owned, section-agnostic chrome: panel
 // show/hide toggles, the active section title (or a per-section header node the route supplies), the ⌘K
 // jump chip, and the focus toggle. Every icon button + the chip carries a Tooltip.

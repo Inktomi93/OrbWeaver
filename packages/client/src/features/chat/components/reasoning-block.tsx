@@ -8,7 +8,6 @@
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-// biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' re-export of the lucide-react glyphs (external .d.ts); tsc resolves the barrel (same class as react's Suspense in query-boundary.tsx).
 import { BrainCircuit, ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";

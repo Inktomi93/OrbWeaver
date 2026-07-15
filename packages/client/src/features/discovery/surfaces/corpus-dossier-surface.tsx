@@ -14,7 +14,6 @@ import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { ArrowLeft, Icon, Sparkles } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";

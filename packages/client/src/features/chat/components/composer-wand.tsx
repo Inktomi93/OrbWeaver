@@ -6,7 +6,6 @@
 import { GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the composer.tsx precedent).
 import { Icon, WandSparkles } from "@orb/ui/icons";
 import {
   Menu,

@@ -11,7 +11,6 @@ import {
 } from "cmdk";
 import type { ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { cn, formatResultCount } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Search/Icon fine (the spinner.tsx precedent).
 import { Icon, Search } from "#primitives/icons";
 import { commandVariants } from "./variants";
 

@@ -5,7 +5,6 @@
 // feature imports it DOWN, the composition root (main.tsx) assembles the registry. Not a store (no mint)
 // — a pure contract module, the `chat-handle.ts` precedent for a types-and-shapes file in the state tier.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve LucideIcon fine (the character-card-facets.ts precedent).
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContextDefinition } from "#lib";

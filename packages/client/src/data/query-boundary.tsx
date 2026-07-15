@@ -5,7 +5,6 @@
 
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver misreads react's export map for Suspense; tsc resolves it (StrictMode/Component resolve identically elsewhere).
 import { Component, Suspense } from "react";
 import { QueryErrorState } from "./query-error-state";
 

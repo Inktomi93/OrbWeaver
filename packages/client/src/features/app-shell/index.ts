@@ -2,8 +2,6 @@
 // domain-agnostic and gains no #features import. `ContextTabsPanel` is NOT exported here — only
 // `SectionContextHost` (app-shell-internal) consumes it now (client-architecture-lockdown.md §6b).
 
-export type { SectionPlaceholderProps } from "./components/section-placeholder";
-export { SectionPlaceholder } from "./components/section-placeholder";
 export { YouSheet } from "./components/you-sheet";
 export { useIsMobileViewport } from "./hooks/use-is-mobile-viewport";
 export type { ShellLayout } from "./hooks/use-shell-layout";

@@ -7,7 +7,6 @@
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Plus/Search/SlidersHorizontal/Upload fine (the character-library-surface.tsx precedent).
 import { Icon, Plus, Search, SlidersHorizontal, Upload } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
