@@ -10,8 +10,14 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { preload } from "react-dom";
-import type { ModalSlotId, SectionId } from "#state";
-import { closeModal, openModal, setActiveSection, useSectionRegistry } from "#state";
+import type { SectionId } from "#state";
+import {
+  closeModal,
+  openModal,
+  setActiveSection,
+  useModalRegistry,
+  useSectionRegistry,
+} from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
 import { CustomThemeStyle } from "../components/custom-theme-style";
 import { ModalHost } from "../components/modal-host";
@@ -30,16 +36,18 @@ import { resolveBackgroundUrl } from "../lib/resolve-theme-background";
 import "./shell.css";
 
 export interface AppShellProps {
-  /** Route-composed modal bodies rendered over the `MODAL_SLOTS` placeholders. */
-  readonly modals?: Partial<Record<ModalSlotId, ReactNode>>;
   /** Route-composed rail-foot chip (the persona switcher). Undefined ⇒ the account button. */
   readonly railFoot?: ReactNode;
   /** Route-composed topbar trail chrome (e.g. the notifications bell). Undefined ⇒ nothing extra. */
   readonly topbarTrail?: ReactNode;
 }
 
-export function AppShell({ modals, railFoot, topbarTrail }: AppShellProps): ReactElement {
+export function AppShell({ railFoot, topbarTrail }: AppShellProps): ReactElement {
   const registry = useSectionRegistry();
+  // The ⌘K affordance opens the single `topbar-command`-placed modal — derived, never hardcoded.
+  const commandModalId = useModalRegistry()
+    .list()
+    .find((m) => m.trigger.placement === "topbar-command")?.id;
   const layout = useShellLayout();
   const appearance = useAppearance();
   const theme = useSelectedTheme();
@@ -162,7 +170,11 @@ export function AppShell({ modals, railFoot, topbarTrail }: AppShellProps): Reac
                 onToggleList={(): void => layout.togglePanel("list")}
                 onToggleContext={(): void => layout.togglePanel("context")}
                 onToggleFocus={layout.toggleFocus}
-                onOpenCommand={(): void => openModal("command")}
+                onOpenCommand={(): void => {
+                  if (commandModalId !== undefined) {
+                    openModal(commandModalId);
+                  }
+                }}
               />
               <main className="shell-content" ref={mainRef} tabIndex={-1}>
                 <SectionContent
@@ -204,7 +216,6 @@ export function AppShell({ modals, railFoot, topbarTrail }: AppShellProps): Reac
 
             <ModalHost
               openModal={layout.openModalId}
-              modals={modals}
               container={portalRootRef}
               onClose={closeModal}
             />

@@ -4,6 +4,7 @@
 
 export { useAuthConfig } from "#data";
 export { LoginShellAnchor } from "./anchors/login-shell-anchor";
+export { accountModal } from "./lib/account-modal";
 export { redirectIfAuthed, requireAuthed } from "./lib/route-guards";
 export { AccountSurface } from "./surfaces/account-surface";
 export { LoginSurface } from "./surfaces/login-surface";

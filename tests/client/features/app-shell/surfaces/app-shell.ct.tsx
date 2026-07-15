@@ -1,8 +1,8 @@
 // AppShell CT — the composed four-region frame end-to-end: the default chats CONTENT renders, a rail
 // click switches the section (store → CONTENT/LIST slots), the topbar panel toggle collapses a panel
 // via the §11.1 clamp-overlay (data-panel-mode + zero rendered width, not just a class string), the
-// focus toggle drives immersive ⇄ command-center, and a footer modal trigger opens the paired
-// MODAL_SLOTS dialog. The MOBILE block (L6/J12 · D62 P3) covers the bottom-tab-bar reflow at a mobile
+// focus toggle drives immersive ⇄ command-center, and a footer modal trigger (derived from the modal
+// registry) opens its real body. The MOBILE block (L6/J12 · D62 P3) covers the bottom-tab-bar reflow at a mobile
 // viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
 
@@ -126,14 +126,17 @@ test("CONTEXT follows the active section (§4.2 rule 1): a rail switch swaps the
   expect(await panelText()).not.toContain("chats context pane");
 });
 
-test("a footer modal trigger opens the paired MODAL_SLOTS dialog", async ({ mount, page }) => {
+test("a footer modal trigger (derived from the modal registry) opens its real body", async ({
+  mount,
+  page,
+}) => {
   const shell = await mount(<AppShellStory />);
+  // The rail-footer "Settings" button DERIVES from the modal registry (settingsModal.trigger).
   await shell.getByRole("button", { name: "Settings" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  // The paired MODAL_SLOTS.settings body — title + its unique placeholder description.
+  // The registry-owned settings modal renders the real SettingsShell (title from the definition).
   await expect(dialog).toContainText("Settings");
-  await expect(dialog).toContainText("App + user settings");
   // Close returns to no dialog.
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -157,10 +160,10 @@ test("closing a modal returns focus to the control that opened it (finalFocus)",
   await expect(trigger).toBeFocused();
 });
 
-// ── No-window-scroll invariant (task #14) — registry-driven over MODAL_SLOTS ─────────────────────
+// ── No-window-scroll invariant (task #14) — registry-driven over the modal registry ──────────────
 // The shell is the window: html/body `overflow: clip` (client globals.css) means the DOCUMENT can never
-// scroll — a modal taller than the viewport scrolls inside its OWN region, never the page. Looping the
-// registry (not a hardcoded list) means a NEW modal id is covered for free — the registry-pairing spirit.
+// scroll — a modal taller than the viewport scrolls inside its OWN region, never the page. Looping
+// MODAL_SLOT_IDS (not a hardcoded list) means a NEW modal id is covered for free.
 // A short viewport + a 3000px injected body forces the overflow; if it leaked to the page, `documentElement`
 // would become scrollable.
 
@@ -250,7 +253,7 @@ for (const modalId of MODAL_SLOT_IDS) {
   });
 }
 
-// ── Escape closes the top layer (§4.3 rule 6) — registry-driven over MODAL_SLOTS ──────────────────
+// ── Escape closes the top layer (§4.3 rule 6) — registry-driven over the modal registry ───────────
 // Every modal (Dialog or the `you` Drawer) must dismiss on Escape — Base UI gives this for free, but a
 // body that swallows the key (a cmdk/combobox search) or an onOpenChange wiring gap can silently break it
 // (side-eye round-3 retrace). Looping the registry means a NEW modal id is covered for free.
@@ -264,7 +267,7 @@ for (const modalId of MODAL_SLOT_IDS) {
   });
 }
 
-// ── Modals inherit the active theme (D44 §12.1) — registry-driven over MODAL_SLOTS ────────────────
+// ── Modals inherit the active theme (D44 §12.1) — registry-driven over the modal registry ─────────
 // A Dialog/Drawer portals out of the DOM; without a THEMED portal root it escapes the app's <ThemeScope>
 // and renders Hearth tokens under a custom theme (side-eye). The app root portals modals into a themed
 // node, so the overlay must inherit the active override. `hooksConfig.theme` wraps the whole mount in a
@@ -398,9 +401,12 @@ test("mobile: the You sheet hands off to Settings in the shared modal slot (sing
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
   // Opening Settings REPLACES the You sheet in the shared openModal slot (not a nested modal): the You
-  // rows disappear, the Settings modal body appears.
+  // rows disappear, the Settings modal body appears. The You row's label DERIVES from the modal registry
+  // (settingsModal.title). Opening it lands the real registry-owned Settings body in the shared slot.
   await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByText("App + user settings")).toBeVisible();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Settings");
   // The You-sheet overflow row is gone (the slot now holds Settings, not You).
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
 });

@@ -109,6 +109,15 @@ export {
   useSelectedCount,
   useSelectionActive,
 } from "./message-selection-store";
+export type {
+  ModalDefinition,
+  ModalTrigger,
+  ModalTriggerPlacement,
+} from "./modal-registry";
+export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry";
+export type { ModalRegistry } from "./modal-registry-context";
+export { ModalRegistryContext, useModalRegistry } from "./modal-registry-context";
+export { ModalRegistryProvider } from "./modal-registry-provider";
 export {
   clearPresetSection,
   clearPresetSelection,

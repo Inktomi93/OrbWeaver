@@ -1,6 +1,7 @@
 // ModalHost — the shell's one modal seam. Reads the open modal id from the shell store and renders the
-// id-paired MODAL_SLOTS body inside a single @orb/ui <Dialog>, or — for a `presentation: "drawer"` def —
-// a bottom <Drawer> sheet. Controlled by the store: closing calls `closeModal`.
+// registry-owned body inside a single @orb/ui <Dialog>, or — for a `presentation: "drawer"` def — a
+// bottom <Drawer> sheet. A DECLARED-PLANNED modal (`body: { planned }`) renders its title as a
+// placeholder. Controlled by the store: closing calls `closeModal`.
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
@@ -10,31 +11,33 @@ import { Drawer, DrawerClose, DrawerPopup, DrawerTitle } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import type { ModalSlotId } from "#state";
-import type { ModalDef } from "../lib/modal-slots";
-import { MODAL_SLOTS } from "../lib/modal-slots";
+import type { ModalDefinition, ModalSlotId } from "#state";
+import { useModalRegistry } from "#state";
+import { SectionPlaceholder } from "./section-placeholder";
 
 export interface ModalHostProps {
   readonly openModal: ModalSlotId | null;
-  /** Route-injected modal bodies; a supplied body wins over the static MODAL_SLOTS placeholder. */
-  readonly modals?: Partial<Record<ModalSlotId, ReactNode>> | undefined;
   /** Themed portal target — Base UI portals the Dialog/Drawer here instead of `<body>` so it inherits the active theme's tokens. */
   readonly container?: DialogPopupProps["container"];
   readonly onClose: () => void;
 }
 
-export function ModalHost({
-  openModal,
-  modals,
-  container,
-  onClose,
-}: ModalHostProps): ReactElement | null {
+/** The def's body — a real render, or the DECLARED-PLANNED placeholder (mirror the section content-none). */
+function modalBody(def: ModalDefinition): ReactNode {
+  return typeof def.body === "function" ? (
+    def.body()
+  ) : (
+    <SectionPlaceholder title={def.title} description={def.body.planned} weave={true} />
+  );
+}
+
+export function ModalHost({ openModal, container, onClose }: ModalHostProps): ReactElement | null {
+  const registry = useModalRegistry();
   if (openModal === null) {
     return null;
   }
-  const def = MODAL_SLOTS[openModal];
-  const injected = modals?.[openModal];
-  const body = injected ?? def.render();
+  const def = registry.get(openModal);
+  const body = modalBody(def);
   const onOpenChange = (nextOpen: boolean): void => {
     if (!nextOpen) {
       onClose();
@@ -78,7 +81,7 @@ function DialogModal({
 }: {
   readonly body: ReactNode;
   readonly container: DialogPopupProps["container"];
-  readonly def: ModalDef;
+  readonly def: ModalDefinition;
   readonly onOpenChange: (nextOpen: boolean) => void;
 }): ReactElement {
   const [capturedTrigger] = useState<HTMLElement | null>(() =>

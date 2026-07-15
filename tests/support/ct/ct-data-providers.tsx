@@ -16,17 +16,32 @@
 // page across tests, the per-mount reset belongs HERE.
 
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
+import { youModal } from "@orb/client/features/app-shell";
+import { accountModal } from "@orb/client/features/auth";
 import { charactersSection } from "@orb/client/features/character";
-import { makeChatsSection } from "@orb/client/features/chat";
+import { commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
 import { corpusSection } from "@orb/client/features/discovery";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
+import { settingsModal, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { worldInfoSection } from "@orb/client/features/world-info";
 import type { ChatContextState, ContextTabDef } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
-import type { SectionDefinition, SectionId, SectionRegistry } from "@orb/client/state";
-import { SECTION_IDS, SectionRegistryProvider } from "@orb/client/state";
+import type {
+  ModalDefinition,
+  ModalRegistry,
+  ModalSlotId,
+  SectionDefinition,
+  SectionId,
+  SectionRegistry,
+} from "@orb/client/state";
+import {
+  MODAL_SLOT_IDS,
+  ModalRegistryProvider,
+  SECTION_IDS,
+  SectionRegistryProvider,
+} from "@orb/client/state";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 
@@ -74,13 +89,55 @@ const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinitio
   REAL,
 );
 
-/** The real 7-section registry — for CTs that drive real section content (the route CT). */
+// ── Modal-registry CT provider ────────────────────────────────────────────────────────────────────
+// AppShell / Rail / YouSheet / ModalHost read the modal registry as a runtime context (mirrors main.tsx).
+// The section-registry providers below nest it, so every shell CT gets both registries transparently.
+
+const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
+  theme: themeModal,
+  settings: settingsModal,
+  account: accountModal,
+  command: commandModal,
+  newChat: newChatModal,
+  you: youModal,
+};
+
+const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>(
+  "modals",
+  MODAL_SLOT_IDS,
+  REAL_MODALS,
+);
+
+/** The real 7-section + 6-modal registries — for CTs that drive real section content (the route CT). */
 export function CtRealSectionRegistry({
   children,
 }: {
   readonly children: ReactNode;
 }): ReactElement {
-  return <SectionRegistryProvider value={realRegistry}>{children}</SectionRegistryProvider>;
+  return (
+    <SectionRegistryProvider value={realRegistry}>
+      <ModalRegistryProvider value={realModalRegistry}>{children}</ModalRegistryProvider>
+    </SectionRegistryProvider>
+  );
+}
+
+/** A modal registry with a story-injected body per id (real trigger/title/presentation preserved) — the
+ *  test-seam analog of CtFakeSectionRegistry, for CTs isolating ModalHost behavior (the scroll invariant). */
+export function CtFakeModalRegistry({
+  body,
+  children,
+}: {
+  readonly body: (id: ModalSlotId) => ReactElement;
+  readonly children: ReactNode;
+}): ReactElement {
+  const registry = createRegistry<ModalSlotId, ModalDefinition>(
+    "modals",
+    MODAL_SLOT_IDS,
+    Object.fromEntries(
+      MODAL_SLOT_IDS.map((id) => [id, { ...REAL_MODALS[id], body: (): ReactElement => body(id) }]),
+    ) as Record<ModalSlotId, ModalDefinition>,
+  );
+  return <ModalRegistryProvider value={registry}>{children}</ModalRegistryProvider>;
 }
 
 /** Per-section fake injection: `list`/`content`/`context` slots the story wants to render. A `context`
@@ -125,5 +182,9 @@ export function CtFakeSectionRegistry({
       SectionDefinition
     >,
   );
-  return <SectionRegistryProvider value={registry}>{children}</SectionRegistryProvider>;
+  return (
+    <SectionRegistryProvider value={registry}>
+      <ModalRegistryProvider value={realModalRegistry}>{children}</ModalRegistryProvider>
+    </SectionRegistryProvider>
+  );
 }
