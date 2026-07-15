@@ -661,3 +661,111 @@ in the strip trail); landing → placeholder; `grep -r "FLAG\[lockdown-M3\]"` �
 M3.3 — G3 green + `mustFlag` fixtures RED; G1 amended (planned + `defineContextTabs` context REDs); G2
 allowlist back to three homes; the `resolveContextTabs` test asserts real behavior; `pnpm check` + `pnpm test`
 whole green.
+
+## M4 — ModalDefinition + the modal registry (the section-registry move, applied to modals)
+
+**Extra reading (in full):** doc §6d (the modal registry) + §5 (createRegistry) + §7 (the door) + §16
+G1/G2/G13; the M1.cutover + M3 executor specs above (M4 MIRRORS them — same door-registry + context-delivery
++ gate FAMILY, NO variance crux). Code: `state/shell-store.ts` (MODAL_SLOT_IDS + openModal/openSettingsTo/
+useOpenModal), `features/app-shell/lib/modal-slots.tsx` (MODAL_SLOTS — dies),
+`features/app-shell/components/modal-host.tsx` (the renderer), `features/app-shell/components/rail.tsx` +
+`lib/rail-slots.ts` (the modal-trigger map — DIES; the rail DERIVES instead) + the topbar/mobile-bar that
+render the command/you affordances, `features/app-shell/components/you-sheet.tsx` (YOU_MODAL_ROWS shadow),
+`routes/app-root.tsx:63,94-101`, `main.tsx` (the door), `state/section-registry{,-context}.ts` +
+`scripts/check/gates/section-registry-completeness.ts` (the delivery + type + GATE precedent to MIRROR),
+gates `registry-pairing.ts` (RETIRES) + `modal-body-not-placeholder.ts` + `no-parallel-section-map.ts`.
+
+**THE DESIGN (owner-locked 2026-07-14 — "there's gonna be modals; build it right and tight." The extensible
+shape, a STRUCTURAL MIRROR of the section registry).** Modals today are a TWO-LAYER indirection (a
+`placeholder:true` `MODAL_SLOTS` registry overridden per-route by `AppShellProps.modals`) AND their
+rail/topbar/avatar/mobile affordances are a PARALLEL hand-map (`RAIL_ACTIONS`/`ACCOUNT_ACTION`/`COMMAND_ACTION`
++ synthetic `NEW_CHAT_ACTION`/`YOU_ACTION`) — a shadow the lockdown kills (and G2's new ModalSlotId arm would
+flag it, forcing an allowlist dodge). M4 collapses ALL of it into ONE door-assembled `ModalDefinition`
+registry where each modal SELF-DECLARES its trigger, the rail DERIVES its modal affordances from the registry
+(exactly as it already derives sections), and the modal GATE FAMILY mirrors the section gate family.
+
+- **ModalDefinition** (type home `state/modal-registry.ts` — mirror `section-registry.ts`; references
+  `ModalSlotId`/`DialogPopupProps`/`LucideIcon`):
+  ```ts
+  /** WHERE a modal's trigger affordance lives — the rail/topbar/mobile-bar DERIVE from this (no parallel
+   *  map). Closed as-const vocab (no-inline-union-redecl); extend the tuple to add a placement. */
+  export const MODAL_TRIGGER_PLACEMENTS = ["rail-footer", "avatar", "topbar-command", "content", "mobile-tab"] as const;
+  export type ModalTriggerPlacement = (typeof MODAL_TRIGGER_PLACEMENTS)[number];
+  export interface ModalTrigger { readonly placement: ModalTriggerPlacement; readonly label: string; readonly icon: LucideIcon; }
+  export interface ModalDefinition {
+    readonly id: ModalSlotId;
+    readonly title: string;
+    readonly presentation?: "dialog" | "drawer";
+    readonly size?: DialogPopupProps["size"];
+    readonly trigger: ModalTrigger;                                     // self-declared reachability
+    /** REQUIRED — a real body, or the DECLARED-PLANNED arm (mirror SectionDefinition O1: there WILL be more
+     *  modals; an unbuilt one registers `{planned:"<reason>"}`, never a placeholder body). */
+    readonly body: (() => ReactElement) | { readonly planned: string };
+  }
+  ```
+- **The 6 defs' placements** (bodies STAY where they are — all already in the owning dir; each `*-modal.tsx` is
+  a feature front-door export): theme→`rail-footer` ("Switch theme", SunMoon → ThemePickerSurface);
+  settings→`rail-footer` ("Settings", Settings, `size:"xl"` → SettingsShell); account→`avatar` ("Account",
+  CircleUser → AccountSurface); command→`topbar-command` ("Jump to…", Command → CommandPaletteSurface);
+  newChat→`content` ("New chat", Plus → NewChatPicker; triggered by chat content, not the rail);
+  you→`mobile-tab` ("You", CircleUser, `presentation:"drawer"` → YouSheet; app-shell owns `you`). Self-contained
+  like sections — the `command` def builds `goToSections` from `useSectionRegistry()` itself (not a prop); ASK
+  if any body needs an app-root-only value.
+- **The rail/topbar/mobile-bar DERIVE from the registry** (kills the parallel map — the section-derives-the-rail
+  pattern, now for modals): rail-footer buttons = `modalRegistry.list().filter(m => m.trigger.placement ===
+  "rail-footer")`; topbar ⌘K = the `"topbar-command"` modal; mobile "You" tab = the `"mobile-tab"` modal —
+  each rendering `{trigger.label, trigger.icon}` with `onClick={() => openModal(m.id)}`. The `"avatar"`
+  placement's DESKTOP affordance is the feature-provided `railFoot` (`PersonaPanelSurface`, route-injected in
+  `app-root.tsx`) — the ONE placement rendered by a richer feature surface, not a bare derived button; Rail
+  itself renders no avatar fallback. The You sheet still derives its account row from the `"avatar"` modal
+  (`modalRegistry.list()`, same as rail-footer). `"content"` modals aren't rail-rendered (chat's new-chat
+  button keeps calling `openModal("newChat")`).
+- **Delivery = ModalRegistryContext** (mirror `section-registry-context.ts` EXACTLY): `state/modal-registry-context.ts`
+  (context + `useModalRegistry()` throwing off-provider) + a `ModalRegistryProvider`; `main.tsx` assembles
+  `createRegistry("modals", MODAL_SLOT_IDS, {…6…})` + wraps the provider; `ModalHost` reads
+  `useModalRegistry().get(openModal)` blind. app-shell gains NO `#features/*` edge (context value; confirm
+  `pnpm ast flow`).
+- **DELETE:** `MODAL_SLOTS`+`ModalDef` (`modal-slots.tsx` whole file) + front-door export; `AppShellProps.modals`
+  + the `app-root.tsx` override assembly + dead imports; `ModalHost`'s two-layer → `registry.get(openModal).body()`
+  with the planned-arm narrow (a `{planned}` body renders its title as a placeholder — mirror the section
+  content-none render); **`RAIL_ACTIONS`/`ACCOUNT_ACTION`/`COMMAND_ACTION`/`NEW_CHAT_ACTION`/`YOU_ACTION` + the
+  `RailModalEntry` interface** (`rail-slots.ts` — the whole modal-trigger map; KEEP `SECTION_GROUPS`);
+  `YOU_MODAL_ROWS` (you-sheet — derive its account/settings/theme rows from `modalRegistry.list()`:
+  `{id, label: def.title, icon: def.trigger.icon}`). `openModal`/`openSettingsTo`/etc. UNCHANGED.
+
+**Gates — MIRROR the section gate family** (full ritual each; PROVE each bites a real constructed violation
+incl. the scanRoot-fires check per F2/G3; Core-Enforcement rows + count reconciled):
+- **NEW `modal-registry-completeness`** (mirror `section-registry-completeness.ts`/G1): every `MODAL_SLOT_ID`
+  has a def co-located `features/*/lib/*-modal.tsx` (tsc carries completeness; the gate adds co-location +
+  uniqueness); the PLANNED-arm honesty (a `{planned}` with an empty reason, or a planned modal wiring a real
+  `body` → RED — mirror G1); the **singleton-placement arm** (the derivation assumes exactly ONE modal per
+  `avatar`/`topbar-command`/`mobile-tab`; two claiming a singleton placement → RED; `rail-footer`/`content` may
+  repeat); the anti-god-map arm (a `modals={{…}}` object literal in `routes/**`).
+- **RETIRE `registry-pairing`** — its rail↔modal bijection is now STRUCTURALLY IMPOSSIBLE to break (the rail
+  derives from the registry; tsc carries completeness; every modal self-declares a trigger = reachability). A
+  gate whose target (`modal-slots.tsx`) is deleted is the F2 false-confidence trap — DELETE the gate file + its
+  Core-Enforcement row + decrement the count. (Confirm zero OTHER feature uses a rail↔modal pairing first with
+  `pnpm ast`.)
+- **RE-POINT `modal-body-not-placeholder`** → scanRoot the `features/*/lib/*-modal.tsx` defs; a modal whose
+  FUNCTION-arm `body` renders `<SectionPlaceholder>` is RED (use the `{planned}` arm — the placeholder-body
+  anti-pattern is unspellable). Update mustFlag/mustPass + scanRoot + docRow. (Fold into
+  `modal-registry-completeness` if that reads cleaner — keep ONE home for the placeholder rule; your call.)
+- **G2 ModalSlotId arm** (`no-parallel-section-map.ts`): read `MODAL_SLOT_IDS` alongside `SECTION_IDS`, same 3
+  arms, allowlist {`shell-store.ts`, `main.tsx`, `*-modal.tsx`}. **No dodge needed — `RAIL_ACTIONS` is deleted
+  (derived), so nothing parallel survives.** Update the scope comment (SectionId + ModalSlotId; SettingsCategoryId
+  staged M6) + ModalSlotId mustFlag/mustPass. A rename (2 vocabs now) is an ASK; else broaden the comment.
+
+**Surprises (in/out):** `you`=drawer, `settings`=xl → PRESERVE. `openSettingsTo` UNCHANGED. `FirstRunPersonaDialog`/
+`JoinInviteDialog` (app-root always-mounted) OUTSIDE the ModalSlotId system, NOT M4. No dynamic/programmatic
+modals, no cross-feature grafts (verified).
+
+**M4 DONE-GATE (cite each):** `pnpm check` whole green + `pnpm test` green · every modal opens + renders its
+real body, triggered from its DERIVED affordance (theme/settings[xl] rail-footer, account avatar, command ⌘K,
+newChat from chat content, you[drawer] mobile) — drive via run/__orb · `MODAL_SLOTS`/`ModalDef`/
+`AppShellProps.modals`/`RAIL_ACTIONS`+the trigger consts/`YOU_MODAL_ROWS` DELETED not orphaned ·
+`registry-pairing` retired (file + row gone, count decremented) · `modal-registry-completeness` built + its
+singleton/planned/co-location arms each biting a real constructed violation · `modal-body-not-placeholder` +
+G2 ModalSlotId arm re-pointed + biting · `pnpm ast flow app-shell.tsx` zero `#features/*` edges · zero banned
+hatches · nothing committed. **Routing:** executor build → verifier (type-seam + FULL gate-honesty sweep: new
+gate bites, retired gate truly obsolete, singleton arm real) → side-eye (6 modals live from their derived
+affordances, esp. drawer + xl). One clean atomic wave, no type-coupling.
