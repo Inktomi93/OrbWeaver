@@ -911,3 +911,74 @@ placeholder, admin `when`-gated). **Routing:** M6.1 executor → verifier (G4 ho
 side-eye (all 12 categories render/gate); M6.2 mech-executor → verifier (import graph — no settings↔owner
 cycle, panes still resolve) → side-eye (panes render post-move); M6.3 executor → verifier (G14 bites a planted
 feature .css). Each sub-wave committed.
+
+---
+
+## M8 — the chat contributor seam (surface-anchor registry + fake-contributor CTs)
+
+**Extra reading:** doc §6c (the contributor seam) + §17 M8 + §5 (`createContributorRegistry`). MIRROR the M3
+context-tab seam (already built, empty): `main.tsx` (`createContributorRegistry<ContextTabDef<ChatContextState>>
+("chat-context", [])` → `makeChatsSection`), `chats-section.tsx` (`makeChatsSection` threads it into
+`defineContextTabs({…contributors})`), `registry-contracts.ts` (`resolveContextTabs` MERGES own∪contributors,
+`when`-filters in declared order, `defineContextTabs` throws on dup id). The content tree the surface seam mounts
+into: `chat-content.tsx` → `chat-room-surface.tsx` (the 3 anchor sites) + `message-list-surface.tsx` /
+`message-row.tsx` (message-footer per-row).
+
+**THE DESIGN — RULED 2026-07-15 (orchestrator, from the lock-the-shape stance; NOT Fable — this is a clean
+discriminated union, not the M3 erasure crux).** The chat-CONTEXT-tab seam is DONE (M3, empty). M8 adds the
+chat-SURFACE-ANCHOR seam + the FIRST fake-contributor CTs for BOTH seams. The scout proved the doc §6c sketch
+(`{id; anchor; when?; body}` with one `body(state)`) does NOT type — the 3 anchors carry DIFFERENT state
+(`thread-flank`/`above-composer` are room-level; `message-footer` is per-message). The refined shape:
+
+- **Anchor vocab (closed `as const`)** in `registry-contracts.ts`:
+  `export const CHAT_SURFACE_ANCHORS = ["thread-flank", "above-composer", "message-footer"] as const;`
+  `export type ChatSurfaceAnchor = (typeof CHAT_SURFACE_ANCHORS)[number];` — an unlisted anchor is unspellable.
+- **Two state projections** (read the content surface for the REAL fields; keep MINIMAL + extensible — do not
+  over-include). Publish both in `registry-contracts.ts` (the §6c contract home):
+  - `ChatRoomSurfaceState` — room-level, for `thread-flank` + `above-composer` (the `ChatHandle` + only what
+    those slots actually need).
+  - `ChatMessageSurfaceState` — per-row, for `message-footer` (the `MessageView` for that row).
+- **`ChatSurfaceContribution` — a discriminated union BY ANCHOR** (strict per-anchor state, like `ContextTabDef<S>`
+  but the anchor picks S). Discriminated-union narrowing by the `anchor` literal types every consumer cleanly —
+  this is why it is NOT the M3 variance crux (state is not erased; the literal narrows it):
+  ```ts
+  export type ChatSurfaceContribution =
+    | { readonly id: string; readonly anchor: "thread-flank" | "above-composer";
+        readonly when?: (s: ChatRoomSurfaceState) => boolean;
+        readonly body: (s: ChatRoomSurfaceState) => ReactNode }
+    | { readonly id: string; readonly anchor: "message-footer";
+        readonly when?: (s: ChatMessageSurfaceState) => boolean;
+        readonly body: (s: ChatMessageSurfaceState) => ReactNode };
+  ```
+- **Assembly (mirror M3, empty):** `createContributorRegistry<ChatSurfaceContribution>("chat-surface", [])` at
+  the door (`main.tsx`); `makeChatsSection` gains a SECOND param `surfaceContributors` →
+  `content: () => <ChatContent surfaceContributors={surfaceContributors} />` → threaded as props down to
+  `ChatRoomSurface` (room anchors) + `MessageListSurface` → `MessageRow` (message-footer). No React context —
+  mirror the explicit factory-param plumbing (the scout confirmed no existing chat-content context to ride).
+  Dup id already throws in `createContributorRegistry`.
+- **Consumers (render at each anchor; `when`-filter; key by `id`):**
+  - `thread-flank` — a CONDITIONAL flank beside the thread: `chat-room-surface.tsx`'s single-child vertical
+    `Stack` around the thread becomes a horizontal row ONLY when `≥1` thread-flank contribution passes `when`
+    (zero → render exactly today's layout, no flank column, NO visual change).
+    `list().filter(c => c.anchor === "thread-flank" && (c.when?.(room) ?? true)).map(c => c.body(room))`.
+  - `above-composer` — between `MessageSelectionBar` and `ComposerSlot` in `chat-room-surface.tsx`. Same filter.
+  - `message-footer` — inside `MessageRow`'s render, per message. DECIDE ghost/streaming rows — DEFAULT: footers
+    on committed message rows only, NOT the ghost/streaming row (ASK if the row types make this ambiguous).
+- **CTs — the M8 deliverable (prove the seam LIVE; there is NO fake-contributor CT today for EITHER seam):**
+  drive the REAL `ChatContent`/section with a FAKE contributor registry (a `CtFake…Contributors` test seam,
+  mirror the existing section/modal CT fakes + `ct-data-providers`). Prove:
+  (a) a fake CONTEXT-tab contributor renders as a tab + `when`-gates (the M3 seam — currently only unit-tested
+  at the resolver level in `registry-contracts.test.ts`, never mounted);
+  (b) a fake SURFACE contribution at EACH of the 3 anchors renders at the right slot + `when`-gates
+  (thread-flank appears AND activates the flank layout; above-composer appears; message-footer appears under a
+  committed message). Assert BOTH the shown (`when`→true) and hidden (`when`→false) states.
+
+**M8 DONE-GATE:** `pnpm check` + `pnpm test` + `pnpm test:ct` green · `chat-surface` registry assembled empty at
+the door (typed) · all 3 anchors wired so a contribution WOULD render (proven by the fake CTs) · thread-flank
+flank is conditional — zero contributions → byte-identical layout, no visual regression · CTs prove render +
+`when`-gate (shown AND hidden) for BOTH seams (context-tab + all 3 surface anchors) · dup id throws · `pnpm ast
+flow` clean (the seam is chat-owned, assembled at the door; rpg/crew don't exist yet) · zero hatches. Routing:
+`executor` → `verifier` (the discriminated-union type-seam holds; the empty registry assembles; the CTs assert
+REAL gating not just presence) + `side-eye` (chat room renders unchanged at zero contributions; a fake
+contribution appears correctly at each of the 3 anchors). ASK if the discriminated union won't type through the
+registry, or an anchor has no clean mount.
