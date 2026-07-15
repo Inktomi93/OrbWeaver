@@ -7,7 +7,6 @@ import { EmptyState } from "@orb/ui/empty-state";
 // biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc +
 // vite resolve AlertTriangle/Icon fine (the same gap `#primitives/icons` hits inside packages/ui itself
 // — see status-chip.tsx).
-// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
@@ -17,7 +16,6 @@ import type { ReactElement } from "react";
 // biome mis-enumerates react's conditional-CJS export map and misses StrictMode/lazy/Suspense
 // specifically (useState/Component/etc. resolve fine); tsc resolves them and the client
 // typechecks clean.
-// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, TRPCProvider } from "#data";

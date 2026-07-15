@@ -3,7 +3,6 @@
 // surfaces only, per-row wrapping drowns the signal. Prod cost ~zero (children render bare).
 
 import type { ProfilerOnRenderCallback, ReactNode } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (react conditional-CJS export map).
 import { Profiler } from "react";
 import { IS_DEV } from "./dev-flag";
 import { logClock } from "./log-clock";

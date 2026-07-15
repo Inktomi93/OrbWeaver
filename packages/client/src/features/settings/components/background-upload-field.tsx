@@ -10,7 +10,6 @@ import { Avatar } from "@orb/ui/avatar";
 import { Field } from "@orb/ui/field";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc/vite resolve Image/Icon fine (the avatar-upload-field precedent).
 import { Icon, ImagePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";

@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve ImageOff/Icon fine.
 import { Icon, ImageOff } from "#primitives/icons";
 import { crossfadeImageVariants } from "./variants";
 

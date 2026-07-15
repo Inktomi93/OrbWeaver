@@ -5,7 +5,6 @@
 // composition root assembles this into the section registry (main.tsx); AppShell consumes it via
 // `useSectionRegistry`.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the ChartColumn glyph fine (the character-card-facets.ts precedent).
 import { ChartColumn } from "@orb/ui/icons";
 import { defineContextTabs, VOID_STATE } from "#lib";
 import type { SectionDefinition } from "#state";

@@ -7,7 +7,6 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Plus/Upload/Icon fine (the character-library-surface.tsx precedent).
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";

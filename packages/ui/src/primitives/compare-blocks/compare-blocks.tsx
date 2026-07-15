@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { Checkbox } from "#primitives/checkbox";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Icon/Minus/Plus fine.
 import { Icon, Minus, Plus } from "#primitives/icons";
 import { compareBlocksVariants } from "./variants";
 

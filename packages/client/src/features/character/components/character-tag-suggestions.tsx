@@ -7,7 +7,6 @@ import type { TagSuggestionView } from "@orb/contracts/tag";
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Check/Settings/Sparkles/X/Icon fine (the character-tags-row.tsx precedent).
 import { Check, Icon, Settings, Sparkles, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

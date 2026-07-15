@@ -6,7 +6,6 @@
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-library-surface.tsx precedent).
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SortableItemKey } from "@orb/ui/sortable";

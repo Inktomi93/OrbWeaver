@@ -6,7 +6,6 @@
 
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Lock fine (the credential-key-row.tsx precedent).
 import { Icon, Lock } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { LibraryRow } from "#components";

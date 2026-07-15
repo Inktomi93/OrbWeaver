@@ -1,6 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Info/Icon fine (the spinner.tsx precedent).
 import { Icon, Info } from "#primitives/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { settingRowVariants } from "./variants";

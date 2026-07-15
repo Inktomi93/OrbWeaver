@@ -6,7 +6,6 @@
 import { estimateTokens } from "@orb/kit/tokens";
 import { Button } from "@orb/ui/button";
 import { FieldLayout } from "@orb/ui/field";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve ArrowLeft/Icon fine (the section-body-editor.tsx precedent).
 import { ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";

@@ -16,7 +16,6 @@ import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
-// biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
 import { lazy, Suspense } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useThemeForm } from "../hooks/use-theme-form";

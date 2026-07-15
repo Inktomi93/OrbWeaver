@@ -4,7 +4,6 @@ import { useState } from "react";
 import { cn, isSafeColor } from "#lib";
 import { Button } from "#primitives/button";
 import { Field } from "#primitives/field";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Icon fine (the spinner.tsx precedent).
 import { Check, Icon } from "#primitives/icons";
 import { Input } from "#primitives/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";

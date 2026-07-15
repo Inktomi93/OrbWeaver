@@ -3,9 +3,7 @@
 // tuple. Voice = the fields that define the character (loud, first); Extras = authoring aids; Advanced =
 // the quiet clerical overrides.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve this type fine (the preset-section-inspector.tsx precedent).
 import type { LucideIcon } from "@orb/ui/icons";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve these glyphs fine (the preset-section-inspector.tsx precedent).
 import { Anchor, BookOpen, Drama, Hash, Info, Pencil, Send, Sparkles, Zap } from "@orb/ui/icons";
 
 /** The facet tiers, in render order — the CONTENT master list's group headings (the hierarchy fix). */

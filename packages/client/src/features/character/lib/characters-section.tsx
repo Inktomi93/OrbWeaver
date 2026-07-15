@@ -4,7 +4,6 @@
 // so `S` (CharacterContextState) never crosses the shell seam. The composition root assembles this into
 // the section registry (main.tsx); AppShell consumes it via `useSectionRegistry`.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the Users glyph fine (the character-card-facets.ts precedent).
 import { Users } from "@orb/ui/icons";
 import type { CharacterContextState } from "#lib";
 import { defineContextTabs } from "#lib";

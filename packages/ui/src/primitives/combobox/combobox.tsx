@@ -7,7 +7,6 @@ import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine (the autocomplete.tsx precedent).
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants";
 

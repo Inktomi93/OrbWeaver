@@ -22,7 +22,6 @@ import {
   CommandItem,
   CommandList,
 } from "@orb/ui/command";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve Check/Icon fine (the chat-list-surface.tsx precedent).
 import { Check, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

@@ -19,7 +19,6 @@ import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/ChevronRight/Icon fine (the spinner.tsx precedent).
 import { Check, ChevronRight, Icon } from "#primitives/icons";
 import { menuVariants } from "./variants";
 

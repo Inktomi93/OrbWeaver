@@ -2,7 +2,6 @@ import type { NumberFieldRootProps } from "@base-ui/react/number-field";
 import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Icon/Lock/Minus/MoveHorizontal/Plus fine.
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
 import { numberFieldVariants } from "./variants";
 

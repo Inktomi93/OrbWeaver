@@ -6,7 +6,6 @@
 // contributor registry (§6c) so rpg/crew can graft tabs at the door without importing chat.
 
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the MessagesSquare glyph fine (the character-card-facets.ts precedent).
 import { MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";

@@ -2,7 +2,6 @@
 // SettingsPaneDefinition wrapping the existing surface. TEMPORARY home (M6.1: panes stay put; the
 // workloads+portability-owned move is M6.2, per O3 — "backup has no feature").
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Archive fine (the settings-nav.ts precedent).
 import { Archive } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
 import { BackupSettingsSurface } from "../surfaces/backup-settings-surface";

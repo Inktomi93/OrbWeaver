@@ -1,7 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { Button } from "#primitives/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine.
 import { Icon, X } from "#primitives/icons";
 import { selectionBarVariants } from "./variants";
 

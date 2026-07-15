@@ -6,7 +6,6 @@
 // pane, as each category's feature lane lands (the way Appearance already is real today).
 
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the character-library-surface.tsx precedent).
 import { Icon, Sparkles } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 

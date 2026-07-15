@@ -1,7 +1,6 @@
 // The System settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
 // wrapping the existing surface. Registered at the door (main.tsx); settings owns this pane (O3).
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Settings fine (the settings-nav.ts precedent).
 import { Settings } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
 import { SystemSettingsSurface } from "../surfaces/system-settings-surface";

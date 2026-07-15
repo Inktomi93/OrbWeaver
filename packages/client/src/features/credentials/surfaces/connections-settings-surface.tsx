@@ -11,7 +11,6 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FieldLayout } from "@orb/ui/field";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Plus/AlertTriangle/KeyRound fine (the tag-settings-surface.tsx precedent).
 import { AlertTriangle, Icon, KeyRound, Plus } from "@orb/ui/icons";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";

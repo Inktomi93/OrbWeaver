@@ -9,7 +9,6 @@ import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the swipe-strip.tsx precedent).
 import { Icon, ImagePlus, Send, Sparkles, Square, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Spinner } from "@orb/ui/spinner";

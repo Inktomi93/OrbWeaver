@@ -5,7 +5,6 @@
 import type { PortableKind } from "@orb/contracts/portability";
 import { Button } from "@orb/ui/button";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the file-dropzone.tsx precedent).
 import { Download, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

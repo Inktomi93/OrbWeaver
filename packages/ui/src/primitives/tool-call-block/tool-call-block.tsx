@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { Badge } from "#primitives/badge";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/AlertTriangle/Icon fine.
 import { AlertTriangle, Check, Icon } from "#primitives/icons";
 import { toolCallBlockVariants } from "./variants";
 

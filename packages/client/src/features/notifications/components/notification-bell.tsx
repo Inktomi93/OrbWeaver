@@ -12,7 +12,6 @@
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve it fine (the roster-panel.tsx precedent).
 import { Bell, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";

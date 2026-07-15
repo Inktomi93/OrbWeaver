@@ -2,7 +2,6 @@
 // Self-contained like a section: `goToSections` derives from the section registry here, not a prop —
 // a section definition never took one either.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the Command glyph fine (the rail-slots precedent).
 import { Command } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
 import { useSectionRegistry } from "#state";

@@ -4,7 +4,6 @@
 
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Plus/Icon fine (the preset-library-surface.tsx precedent).
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Toolbar } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";

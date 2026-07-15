@@ -2,7 +2,6 @@ import type { CheckboxRootProps } from "@base-ui/react/checkbox";
 import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Icon/Lock/Minus fine.
 import { Check, Icon, Lock, Minus } from "#primitives/icons";
 import { checkboxVariants } from "./variants";
 

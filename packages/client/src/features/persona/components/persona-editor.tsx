@@ -9,7 +9,6 @@ import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the add-member-popover precedent).
 import { Copy, Download, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";

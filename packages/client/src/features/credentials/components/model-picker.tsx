@@ -16,7 +16,6 @@ import {
   CommandLoading,
 } from "@orb/ui/command";
 import { useFuzzySearch } from "@orb/ui/fuzzy-search";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/ChevronDown fine (the tag-settings-surface.tsx precedent).
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";

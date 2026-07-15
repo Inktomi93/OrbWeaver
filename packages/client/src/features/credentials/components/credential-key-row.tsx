@@ -6,7 +6,6 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Trash2 fine (the tag-settings-row.tsx precedent).
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";

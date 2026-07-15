@@ -4,7 +4,6 @@ import type { RadioGroupProps as BaseRadioGroupProps } from "@base-ui/react/radi
 import { RadioGroup as BaseRadioGroup } from "@base-ui/react/radio-group";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Icon/Lock fine.
 import { Icon, Lock } from "#primitives/icons";
 import { radioGroupVariants } from "./variants";
 

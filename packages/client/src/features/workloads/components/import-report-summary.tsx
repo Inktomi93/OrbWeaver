@@ -3,7 +3,6 @@
 // shows exactly what landed, deduped, was skipped (unknown kind), or failed. Pure presentation over the
 // hook's summary — no reads, no state.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the file-dropzone.tsx precedent).
 import { AlertTriangle, Check, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

@@ -8,7 +8,6 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { CommandGroup, CommandItem } from "@orb/ui/command";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";

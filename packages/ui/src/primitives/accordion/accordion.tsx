@@ -7,7 +7,6 @@ import type {
 } from "@base-ui/react/accordion";
 import { Accordion as BaseAccordion } from "@base-ui/react/accordion";
 import type { ReactElement } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the icons subpath; tsc + vite resolve ChevronDown fine.
 import { ChevronDown, Icon } from "#primitives/icons";
 import { accordionVariants } from "./variants";
 

@@ -5,7 +5,6 @@
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve BookOpen/Icon/Plus fine (the preset-library-welcome.tsx precedent).
 import { BookOpen, Icon, Plus } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";

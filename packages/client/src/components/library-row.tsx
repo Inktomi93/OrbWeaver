@@ -8,7 +8,6 @@
 // OWNER RULING: lives client-shared (NOT @orb/ui — a domain-agnostic composite over ListRow +
 // RowActionsMenu, the ConfirmDialog homing precedent).
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine.
 import { Copy, Icon, Pencil } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";

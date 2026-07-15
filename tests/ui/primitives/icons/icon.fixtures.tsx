@@ -1,7 +1,6 @@
 // CT story for <Icon> — Playwright CT cannot serialize a component-as-prop across the mount
 // boundary (`icon={X}` would arrive as a callback proxy, not a component), so the composition is
 // pre-bound here and the test mounts the story (the standard CT wrapper pattern).
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve X fine.
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 

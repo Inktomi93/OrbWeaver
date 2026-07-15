@@ -1,7 +1,6 @@
 // The Appearance settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
 // wrapping the existing surface. Registered at the door (main.tsx); settings owns this pane (O3).
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve SunMoon fine (the settings-nav.ts precedent).
 import { SunMoon } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
 import { AppearanceSettingsSurface } from "../surfaces/appearance-settings-surface";

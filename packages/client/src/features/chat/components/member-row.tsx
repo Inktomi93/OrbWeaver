@@ -1,7 +1,3 @@
-// biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react
-// re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph fine (the
-// shell-topbar.tsx precedent).
-
 // One MEMBERS-panel row SHELL (FINAL-Chat-Tab-Redesign §7.1 — the BINDING row-interaction contract).
 // The row BODY is ONE focusable unit — a full-width ghost `Button` that IS the `@orb/ui/menu` trigger,
 // so Enter/Space/click/row-tap all open the per-row Menu (the canonical action home — the items live

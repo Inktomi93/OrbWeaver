@@ -12,7 +12,6 @@ import type { CredentialSource } from "@orb/contracts/credentials";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/AlertTriangle fine (the tag-settings-surface.tsx precedent).
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";

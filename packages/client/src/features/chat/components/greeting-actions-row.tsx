@@ -10,7 +10,6 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' re-export of the lucide-react glyphs (external .d.ts); tsc resolves the barrel (same class as message-actions-row.tsx).
 import { Copy, Icon, Pencil } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";

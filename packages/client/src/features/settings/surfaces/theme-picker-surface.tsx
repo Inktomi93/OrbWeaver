@@ -6,7 +6,6 @@
 import type { Theme } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph fine (the character-library-surface.tsx precedent).
 import { Check, Icon, Plus } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";

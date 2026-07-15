@@ -6,7 +6,6 @@
 // (incl. its custom CSS) is unrecoverable, so a misclick under Duplicate must not fire it.
 
 import type { Theme } from "@orb/contracts/theme";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve every glyph fine (the character-library-surface.tsx precedent).
 import { Copy, Icon, Pencil } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";

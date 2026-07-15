@@ -7,7 +7,6 @@
 // Per A2 the ONE primary here is the search itself; there is no create action in this section.
 
 import { Autocomplete } from "@orb/ui/autocomplete";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the corpus-browse-view.tsx precedent).
 import { Icon, Search } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

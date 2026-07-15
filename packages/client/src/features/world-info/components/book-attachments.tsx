@@ -6,7 +6,6 @@
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve ChevronDown/ChevronRight/Icon fine (the preset-library-row.tsx precedent).
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";

@@ -8,7 +8,6 @@ import { importStChatCompletionPreset } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve AlertTriangle/Icon fine (the file-dropzone.tsx precedent).
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

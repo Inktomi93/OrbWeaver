@@ -5,7 +5,6 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/ChevronDown/Icon fine.
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import { selectVariants } from "./variants";
 

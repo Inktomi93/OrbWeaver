@@ -11,8 +11,6 @@ export type { JoinInviteDialogProps } from "./anchors/join-invite-dialog";
 export { JoinInviteDialog } from "./anchors/join-invite-dialog";
 export type { MessageThreadAnchorProps } from "./anchors/message-thread-anchor";
 export { MessageThreadAnchor } from "./anchors/message-thread-anchor";
-export type { ChatHeaderSurfaceProps, DraftChatHeaderProps } from "./components/chat-header";
-export { ChatHeaderSurface, DraftChatHeader } from "./components/chat-header";
 export type { ComposerProps } from "./components/composer";
 export { Composer } from "./components/composer";
 export type {

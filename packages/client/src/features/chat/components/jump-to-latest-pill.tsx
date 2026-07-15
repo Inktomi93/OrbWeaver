@@ -6,7 +6,6 @@
 // hidden so it never becomes a phantom tab-stop.
 
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve ChevronDown/Icon fine (same as selection-bar.tsx).
 import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";

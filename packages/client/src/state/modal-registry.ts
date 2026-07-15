@@ -3,7 +3,6 @@
 // (main.tsx). The rail/topbar/mobile-bar DERIVE their modal affordances from `trigger` (no parallel map).
 
 import type { DialogPopupProps } from "@orb/ui/dialog";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve LucideIcon fine (the section-registry.ts precedent).
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import type { ModalSlotId } from "./shell-store";

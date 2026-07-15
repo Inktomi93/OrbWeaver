@@ -5,7 +5,6 @@
 // worldInfo has one body, not tabs. The composition root assembles this into the section registry
 // (main.tsx); AppShell consumes it via `useSectionRegistry`.
 
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve the BookOpen glyph fine (the character-card-facets.ts precedent).
 import { BookOpen } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
 import { selectWorldBookFromList } from "#state";

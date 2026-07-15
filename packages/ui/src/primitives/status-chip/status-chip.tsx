@@ -4,9 +4,7 @@ import { cn } from "#lib";
 import type { BadgeProps } from "#primitives/badge";
 import { Badge } from "#primitives/badge";
 import { Button } from "#primitives/button";
-// biome-ignore lint/correctness/noUnresolvedImports: same #primitives/icons resolver gap as above — tsc + vite resolve LucideIcon fine.
 import type { LucideIcon } from "#primitives/icons";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/Check/Icon fine (the spinner.tsx precedent).
 import { AlertTriangle, Check, Icon } from "#primitives/icons";
 import { Spinner } from "#primitives/spinner";
 import { statusChipVariants } from "./variants";
