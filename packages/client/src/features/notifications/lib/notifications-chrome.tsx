@@ -1,6 +1,8 @@
 // notificationsChrome — the registered topbar.trail widget for the notifications bell
-// (shell-chrome-unification.md §A). `useVisible` is the multi-human gate that used to live in
-// app-root.tsx: `false` until authConfig lands, so the bell never flashes-then-yanks.
+// (shell-chrome-unification.md §A). `useVisible` gates the bell on `multiHumanCapable` — which is also the
+// availability of the `notifications` backend (a multi-human-only router today; single-human 404s the
+// inbox query). It replaces the gate that used to live in app-root.tsx: `false` until authConfig lands, so
+// the bell never flashes-then-yanks. When notifications gain a single-human source, widen this gate.
 
 import type { ReactElement } from "react";
 import { useAuthConfig } from "#data";
