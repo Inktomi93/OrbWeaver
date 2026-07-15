@@ -37,7 +37,9 @@ polish) is global and ships first. §6 is the rollout order for everything after
    `tokens.json` + regenerate. Raw `oklch()`/`px`/`rem` literals in a feature = stop, there is a token.
 2. **Hand-written CSS is legal in exactly ONE file:** `client/src/features/app-shell/surfaces/shell.css`
    (the shell tier, the one sanctioned painter). Everything else is Tailwind token utilities inside a
-   `variants.ts`/`tv()` skin or inline via the layout primitives. No new `.css` files.
+   `variants.ts`/`tv()` skin or inline via the layout primitives. No new `.css` files. (This is the
+   FEATURE-tier rule; the reconciled whole-repo CSS-homes table — including the styles-tier hand-written
+   files — is `client-architecture-lockdown.md` §4. `settings-shell.css` dissolved at M6.3.)
 3. **No new primitives or variants** beyond what a task explicitly sanctions (PP1's badge `tone` is
    sanctioned). A task that seems to need a new `Button` intent or component: flag it, don't add it.
 4. **Features compose, never paint.** No `className`/`style` on raw `<div>` in a feature (existing law).

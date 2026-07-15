@@ -48,7 +48,7 @@ READ WHOLE — grep is for CODE, never for LAW. Before you touch code, READ IN F
   - docs/architecture/core/Documentation-Law.md (how comments/docs are WRITTEN — machine-first; the
     comment ladder — see OUTPUT DISCIPLINE below; this is how the repo does not backslide into a novel)
   - docs/architecture/core/Core-Docs-Formatting-Law.md (markdown formatting mechanics, if you touch a doc)
-  - docs/architecture/proposed/client-architecture-lockdown.md  (THE task doc — in full)
+  - docs/architecture/core/client-architecture-lockdown.md  (THE task doc — in full)
   - + the wave's extra reading (named in the M-block below)
 You may NOT grep a law doc to settle a design question. Grep returns a line; the ruling lives in the
 context around it (the trap: grepping "app-shell" finds the CSS exemption and misses that app-shell is NOT

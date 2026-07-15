@@ -43,6 +43,7 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `arch-metrics` | ArchUnitTS class-quality metrics (report-only) | optional |
 | `show` | human-readable check-results viewer (UX) | optional (`report.ts` already prints readable output) |
 | `enforcement-registry` | self-hosting gate that canonizes the catalog | optional (this doc is the catalog for now) |
+| `fetch-fn-in-features` | bans a raw `fetch(` in `features/**` — multipart/binary goes to a `data/` fetch fn beside the existing four (`upload-asset.ts`/`import-tree.ts`/`import-bundle.ts`/`import-characters.ts`); everything else is tRPC (`client-architecture-lockdown.md` §10/§16 R5) | the first `fetch(`-in-features offender appears (zero today) |
 
 ### Dropped (do not port)
 

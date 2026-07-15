@@ -169,7 +169,7 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 
 > **Themes are color palettes only** (§12.1) — there is NO structural mode; the rail + panels render identically under any palette. (The Claude-design seed's `Hearth`/`Loom`/`Pocket` "modes" + a VS-Code "Work mode" were cut under D62; what survived is the palette + visual grammar, folded into §3/§12.1 law — saga in `../history/ui-architecture-archaeology-record.md`.) Where any design-seed mockup and the layout below disagree, this wins.
 
-The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp-overlay so it is BOTH the "command-center" *and* the "immersive-SillyTavern" layout — **one shell, panels toggled**, not two builds.
+The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp-overlay so it is BOTH the "command-center" *and* the "immersive-SillyTavern" layout — **one shell, panels toggled**, not two builds. (`RegionAnchor` names three CONTAINMENT regions — LIST/CONTENT/CONTEXT; RAIL is a non-containment nav strip and hosts no surface. "Four regions" stays as the anatomy name — `client-architecture-lockdown.md` §15.)
 
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
@@ -193,7 +193,9 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             (chat/editor surface, prose capped 65–75ch) + the COMPOSER (pill input · attach · Send,
             mid-stream STOP, optimistic send). With NOTHING selected the Chats section renders the
             LANDING surface (welcome hero + recent chats + character quick-picks — the committed
-            {kind:landing} pane), never an empty room. LEFTOVER width feeds CONTEXT, NOT a wider chat.
+            {kind:landing} pane), never an empty room. Leftover width feeds the centered CONTENT gutter
+            (the `--width-shell-content` clamp) — CONTEXT is a fixed `--dimension-panel` column, not a
+            width recipient (`client-architecture-lockdown.md` §15).
   CONTEXT — the right detail panel (active artifact's detail + config; tabs). Side panel. Every
             section defaults collapsed (`SECTION_PANEL_DEFAULTS`, `rail-slots.ts`); the persisted
             per-panel override wins thereafter.
@@ -228,13 +230,15 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 > LIST-header rulings AMENDED by ledger D66 (`Core-Path-Registry.md` D66 A1/A2; north-star §3): the
 > LIST "header row" is now the shared `.shell-panel-header` band on the `--dimension-chrome-row`
 > baseline (A1), and its create affordance is the panel's ONE `primary` **New** button, not a ghost
-> `+` (A2). The D62 text below stands as the standing law; D66 wins on the conflict.
+> `+` (A2). The D62 text below stands as the standing law; D66 wins on the conflict. **D66 A1/A2 are
+> COMMITTED-not-built** (the north-star N1/N2 lane; `PanelChrome`'s header is optional and the LIST
+> passes none today, `client-architecture-lockdown.md` §15) — do not read this §4.2 as as-built.
 
 Per-section grid (end-state; the D62 program builds toward it):
 
 | Section | LIST | CONTENT — none selected | CONTENT — selected | CONTEXT |
 | - | - | - | - | - |
-| Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Members(group) · Overrides · Group(host) · Preview(host) · Injections (`chat-context-panel-surface.tsx`) |
+| Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Members(group) · Overrides · Group(host) · Preview(host) · Injections — REGISTRY-owned via `defineContextTabs` (`ContextTabsPanel`, built M3; `client-architecture-lockdown.md` §6b), not a bespoke `<Tabs>` |
 | Characters | character rows · search · `+` create/import | teaching state | detail card → editor | activity (chats with them) + actions |
 | World Info | book rows | teaching state | entries table + editor | book config + activation scope |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |

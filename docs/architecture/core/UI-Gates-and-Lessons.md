@@ -47,8 +47,10 @@ The UI enforcement families:
   the theme-aware `--scrim`), `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`,
   `no-arbitrary-tw-values` — over ALL feature + ui TSX, no `components/ui/`-style exemption (§11.0/§11.4).
 - **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
-  the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element in `features/`
-  (app-shell exempt as the SHELL-tier painter). Plus the zustand static-`setState`/`getState`
+  the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element anywhere in
+  `packages/client/src`, three exact exemptions: `features/app-shell/**` (the SHELL-tier painter),
+  `state/**` (store-internal setState re-list mechanics), `lib/weave-glyph.tsx` (the one lib painter,
+  exact path) — `client-architecture-lockdown.md` §4/§15. Plus the zustand static-`setState`/`getState`
   escape-hatch ban, the react-hooks v7 React-Compiler diagnostics (`exhaustive-deps` +
   `unsupported-syntax` at error), the `@tanstack/query` + `@tanstack/router` discipline, and
   better-tailwindcss compiled-class validation on ui.

@@ -1,12 +1,12 @@
 ---
-kind: spec
-status: draft
+kind: law
+status: active
 updated: 2026-07-15
 ---
 
-# Client Architecture Lockdown (ratified draft — pending promotion)
+# Client Architecture Lockdown
 
-> **RATIFIED 2026-07-14 — all eight open decisions resolved by the owner; §18 records the rulings (O2 and O4 stay flagged as tracked follow-ups by explicit choice).** **BUILD STATUS 2026-07-15: M0–M10 COMPLETE and committed — all 14 gates G1–G14 are LIVE (`Core-Enforcement-Active-Gates.md` count 83); only M11 (this promotion to `core/` + the D-ledger entry) remains.** The doc is FINAL as a `proposed/` draft; the remaining step is promotion to `core/` + the D-ledger entry (M11). **§6b was refined POST-RATIFICATION by the M3 design pass (2026-07-14, owner-authorized): the `ContextDefinition<S>` generic became the `defineContextTabs<S>` mint over a non-generic `ContextDefinition` — the variance proof in §6b is why. O5's ruling (strict typing) is unchanged; only its MECHANISM moved to the mint. The M3 corrections in §15 were pulled forward so docs+code stay in lockstep for the M3 executor.** Precedence after promotion: D-ledger → the core `UI-*.md` set → this doc. It BUILDS ON standing law and never restates it: the Discord/region model + settings taxonomy are `UI-Architecture-and-Layout.md` §4.1–§4.3, the reuse primitives are `UI-Primitives-and-Reuse.md` §13, the enforcement families are `UI-Gates-and-Lessons.md` §8. Every code claim was verified against source 2026-07-14 (full-file reads + ast-grep/grep sweeps); where the commissioning brief disagreed with code, the CODE version is recorded, marked **\[CORRECTED]**.
+> **RATIFIED 2026-07-14 — all eight open decisions resolved by the owner; §18 records the rulings (O2 and O4 stay flagged as tracked follow-ups by explicit choice).** **PROMOTED to `core/` 2026-07-15: M0–M11 COMPLETE — all 14 gates G1–G14 (+ G23) are LIVE (`Core-Enforcement-Active-Gates.md` count 85); O2 is closed (`feature-owns-definition` live); the lockdown is CLOSED.** **§6b was refined POST-RATIFICATION by the M3 design pass (2026-07-14, owner-authorized): the `ContextDefinition<S>` generic became the `defineContextTabs<S>` mint over a non-generic `ContextDefinition` — the variance proof in §6b is why. O5's ruling (strict typing) is unchanged; only its MECHANISM moved to the mint. The M3 corrections in §15 were pulled forward so docs+code stay in lockstep for the M3 executor.** Precedence after promotion: D-ledger → the core `UI-*.md` set → this doc. It BUILDS ON standing law and never restates it: the Discord/region model + settings taxonomy are `UI-Architecture-and-Layout.md` §4.1–§4.3, the reuse primitives are `UI-Primitives-and-Reuse.md` §13, the enforcement families are `UI-Gates-and-Lessons.md` §8. Every code claim was verified against source 2026-07-14 (full-file reads + ast-grep/grep sweeps); where the commissioning brief disagreed with code, the CODE version is recorded, marked **\[CORRECTED]**.
 >
 > **Audience: a zero-context agent.** Every rule here is (a) spelled out — nothing implicit, (b) backed by a machine gate that goes RED on violation wherever gateable (§16 names each gate; prose is the WHY, the gate is the WALL), (c) demonstrated by a worked example where a mechanism is involved. Start at §1 (the decision table); read depth only for the row you hit.
 
@@ -465,6 +465,11 @@ The WRONG ways it replaces: a bespoke emitter (G10 RED) · an event type with no
 
 ## 15. Doc↔code reconciliations (code is truth; fix the docs on promotion)
 
+**Applied 2026-07-15 (M11):** every row below whose Disposition calls for a core-doc edit was APPLIED as
+an edit to its target `UI-*.md` doc in the same pass as this promotion. Rows already resolved by the
+build (home-page→app-root, `client-structure` RESERVED @ M7, the §7/§16-G1 app-root row already folded
+into §7+§16) needed no further edit.
+
 | Doc says | Code truth | Disposition |
 | - | - | - |
 | UI-Arch §4.2/D66 A1: LIST header = the shared `.shell-panel-header` band with the ONE primary New | `PanelChrome`'s header is optional and the LIST passes none (`app-shell.tsx:147-153`) | A1 is COMMITTED-not-built (north-star N1/N2 lane); record the gap so §4.2 isn't read as as-built |
@@ -548,7 +553,7 @@ Ordered so every step lands gate-green and unlocks the next; one commit per step
 - [x] **M8 — contributor seam (DONE 2026-07-15, `d4e4c68b`).** Both chat contributor registries live with a NO-OP (empty) assembly at the door + first mounted fake-contributor CTs proving render/`when`-gate (shown AND hidden) for BOTH seams. The surface seam is a discriminated union by anchor (room vs message state, §6c); the sketch's single `body` was refined to type each anchor. thread-flank flank layout is seam-owned + `@container`-responsive so no consumer can crush the reading column. rpg/crew now build against a live seam.
 - [x] **M9 — bus channel unification (DONE 2026-07-15, `bb5850ff`).** `defineBusChannel<Key,Event>` extracted (chat/user/notifications plumbing unified; buddy EXCLUDED — O4 deferred); G10 + G11 + G12 built (count 80→83). Zero behavior change proven byte-equivalent (durability composition sites `entry/compose/{services,chat}.ts` are `git diff`-empty; the existing bus int-tests passed UNEDITED as the oracle). `subscribeAll` is a typed opt-in via overload (`{firehose:true}`) — only chat declares it; calling it on user/notifications is a tsc error, not a runtime no-op.
 - [x] **M10 — auto-overlay (DONE 2026-07-15, `de513984`).** Built to the §4.1 law (O6): below a 64rem shell breakpoint a docked-default panel becomes a CLOSED slide-over (`collapsed`), openable on demand (`overlay`), restoring to docked on re-widen — via a second `narrowViewport` matchMedia signal (legal home) + the shared `resolvePanelMode` algebra (both `resolvePanel` and `useListDocked` consume it — no drift). Toggles write the ephemeral `openOverlayPanel` in the overlay regime, persisted `panelOverrides` only when wide (a resize never mutates the stored preference); Escape closes the slide-over (yields to a modal); `openOverlayPanel` renames `mobileSheet` (mobile byte-identical). The first pass (docked→open-overlay-on-load) was REFUTED by both lenses (a P0: occluded toggle + a sticky persisted collapse) and corrected to closed-by-default before commit. No new gate (still 83).
-- [ ] **M11 — docs.** Promote this doc to `core/` as ONE document (ratified O8 — no split), mint the D-entry, apply §15's reconciliations, add every G-gate row to `Core-Enforcement-Active-Gates.md` (+ R5's trigger to Deferred), retire the brief's stale claims wherever absorbed.
+- [x] **M11 — docs (DONE 2026-07-15).** Promoted this doc to `core/` as ONE document (ratified O8 — no split), minted the D-entry, applied §15's reconciliations to the core `UI-*.md` docs, added R5's trigger to `Core-Enforcement-Deferred-Dropped.md`; every G-gate row was already live in `Core-Enforcement-Active-Gates.md`.
 
 ## 18. Decisions — ratified 2026-07-14 (O2 + O4 remain flagged)
 

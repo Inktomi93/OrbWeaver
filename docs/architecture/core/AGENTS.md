@@ -257,6 +257,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | the domain map | §6 above |
 | server tier law | `Tier-1-DB.md` · `Tier-2-Foundation.md` · `Tier-3-Infra.md` · `Tier-3b-Providers.md` · `Tier-4-Transport.md` · `Tier-5-Entry.md` |
 | UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md` (+ the active program: `../proposed/ui-cohesion-north-star.md`, D66) |
+| client composition / feature architecture (registries, five-tier ladder, the paint law, the event/sync spine) | `client-architecture-lockdown.md` (D70) |
 | UI library evidence mines (re-homed 2026-07-09) | `../history/UI-Lib-TanStack-Form.md` · `../history/UI-Lib-TanStack-Query.md` · `../history/UI-Lib-TanStack-Router.md` · `../history/UI-Lib-TanStack-Virtual.md` · `../history/UI-Lib-Zustand.md` |
 | legacy migration / ST parity | `Core-Legacy-Migration-and-Gaps.md` (split index) → `Core-Shared-Dissolution.md` + `Core-ST-Feature-Gap-Register.md`; feature map: `Core-SillyTavern-Feature-Map.md` |
 | live debt registry | `Core-Audits-and-Debt.md` |
