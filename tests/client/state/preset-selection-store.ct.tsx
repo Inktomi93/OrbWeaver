@@ -4,7 +4,7 @@
 // useSyncExternalStore needs a real browser render (the character-selection-store.ct.tsx posture; no
 // non-reactive snapshot escape hatch exists, and adding one would be API surface no consumer needs). Also
 // covers the LIST-callback dual-writes `selectPresetFromList`/`dismissPresetSection`, which additionally
-// close the shell's mobile sheet (mirrors ActiveChatStoreProbe's `selectChatFromList` coverage).
+// close the shell's open slide-over (mirrors ActiveChatStoreProbe's `selectChatFromList` coverage).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PresetSelectionProbe } from "./_ct-stories";
@@ -13,13 +13,13 @@ test("select sets the id; clear resets to none", async ({ mount }) => {
   const probe = await mount(<PresetSelectionProbe />);
   const state = probe.locator("output");
   // Fresh page → nothing selected (the Presets CONTENT shows the welcome state).
-  await expect(state).toHaveText("selected=none section=none mobileSheet=none");
+  await expect(state).toHaveText("selected=none section=none openOverlayPanel=none");
 
   await probe.getByRole("button", { name: "select preset", exact: true }).click();
-  await expect(state).toHaveText("selected=preset_ct_probe section=none mobileSheet=none");
+  await expect(state).toHaveText("selected=preset_ct_probe section=none openOverlayPanel=none");
 
   await probe.getByRole("button", { name: "clear preset selection" }).click();
-  await expect(state).toHaveText("selected=none section=none mobileSheet=none");
+  await expect(state).toHaveText("selected=none section=none openOverlayPanel=none");
 });
 
 test("select/clear section drives the inspector selection reactively", async ({ mount }) => {
@@ -28,10 +28,12 @@ test("select/clear section drives the inspector selection reactively", async ({ 
 
   await probe.getByRole("button", { name: "select preset", exact: true }).click();
   await probe.getByRole("button", { name: "select section", exact: true }).click();
-  await expect(state).toHaveText("selected=preset_ct_probe section=sec_probe mobileSheet=none");
+  await expect(state).toHaveText(
+    "selected=preset_ct_probe section=sec_probe openOverlayPanel=none",
+  );
 
   await probe.getByRole("button", { name: "clear section", exact: true }).click();
-  await expect(state).toHaveText("selected=preset_ct_probe section=none mobileSheet=none");
+  await expect(state).toHaveText("selected=preset_ct_probe section=none openOverlayPanel=none");
 });
 
 test("selecting a preset clears a stale section (no carry across presets)", async ({ mount }) => {
@@ -39,25 +41,25 @@ test("selecting a preset clears a stale section (no carry across presets)", asyn
   const state = probe.locator("output");
 
   await probe.getByRole("button", { name: "select section", exact: true }).click();
-  await expect(state).toHaveText("selected=none section=sec_probe mobileSheet=none");
+  await expect(state).toHaveText("selected=none section=sec_probe openOverlayPanel=none");
 
   // Opening a preset must wipe the dangling section selection.
   await probe.getByRole("button", { name: "select preset", exact: true }).click();
-  await expect(state).toHaveText("selected=preset_ct_probe section=none mobileSheet=none");
+  await expect(state).toHaveText("selected=preset_ct_probe section=none openOverlayPanel=none");
 });
 
-test("selectPresetFromList selects AND closes the mobile LIST sheet", async ({ mount }) => {
+test("selectPresetFromList selects AND closes the LIST slide-over", async ({ mount }) => {
   const probe = await mount(<PresetSelectionProbe />);
   const state = probe.locator("output");
 
   await probe.getByRole("button", { name: "open list sheet" }).click();
-  await expect(state).toContainText("mobileSheet=list");
+  await expect(state).toContainText("openOverlayPanel=list");
 
   await probe.getByRole("button", { name: "select preset from list" }).click();
-  await expect(state).toHaveText("selected=preset_ct_probe section=none mobileSheet=none");
+  await expect(state).toHaveText("selected=preset_ct_probe section=none openOverlayPanel=none");
 });
 
-test("dismissPresetSection clears the section AND closes the mobile CONTEXT sheet", async ({
+test("dismissPresetSection clears the section AND closes the CONTEXT slide-over", async ({
   mount,
 }) => {
   const probe = await mount(<PresetSelectionProbe />);
@@ -65,8 +67,8 @@ test("dismissPresetSection clears the section AND closes the mobile CONTEXT shee
 
   await probe.getByRole("button", { name: "select section", exact: true }).click();
   await probe.getByRole("button", { name: "open context sheet" }).click();
-  await expect(state).toHaveText("selected=none section=sec_probe mobileSheet=context");
+  await expect(state).toHaveText("selected=none section=sec_probe openOverlayPanel=context");
 
   await probe.getByRole("button", { name: "dismiss section" }).click();
-  await expect(state).toHaveText("selected=none section=none mobileSheet=none");
+  await expect(state).toHaveText("selected=none section=none openOverlayPanel=none");
 });

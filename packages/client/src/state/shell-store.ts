@@ -69,15 +69,21 @@ interface ShellState {
   readonly openModal: ModalSlotId | null;
   /** Opaque "open this tab" request the active content's context surface interprets. Transient. */
   readonly contextTab: string | null;
-  /** Which side panel is open as a mobile sheet — `null` = on content. Device-state, transient, and
-   *  reset on section change. */
-  readonly mobileSheet: PanelName | null;
+  /** Which side panel is open as a slide-over — mobile sheet OR narrow-desktop auto-overlay; `null` = no
+   *  slide-over open (content or the section's docked default shows instead). Device-state, transient,
+   *  and reset on section change. */
+  readonly openOverlayPanel: PanelName | null;
   /** Settings-category deep-link target. Set alongside `openModal:'settings'`; transient. */
   readonly settingsCategory: SettingsCategoryId | null;
   /** The shell's viewport regime, published by app-shell (the sole `useIsMobileViewport` home) so
    *  `#state` projections can branch on viewport WITHOUT importing the matchMedia hook
    *  (`no-raw-matchmedia` bars it outside app-shell). Device-transient, never persisted. */
   readonly mobileViewport: boolean;
+  /** The shell-narrow regime (≤64rem, wider than `mobileViewport`'s 48rem) — published the same way, by
+   *  the sibling `useIsShellNarrowViewport` hook. Drives `resolvePanelMode`'s auto-overlay: a `docked`
+   *  resolution downgrades to a CLOSED slide-over (`collapsed`) while narrow, opening to `overlay` only on
+   *  demand, and restoring the dock on re-widen. Device-transient, never persisted. */
+  readonly narrowViewport: boolean;
 }
 
 /** Only the layout preference persists — `openModal` is transient (never reopen a modal on reload). */
@@ -91,9 +97,10 @@ const DEFAULT_STATE: ShellState = {
   panelOverrides: {},
   openModal: null,
   contextTab: null,
-  mobileSheet: null,
+  openOverlayPanel: null,
   settingsCategory: null,
   mobileViewport: false,
+  narrowViewport: false,
 };
 
 // v2: the persisted shape changed from a single global panel pair to per-section `panelOverrides`.
@@ -161,9 +168,10 @@ function migrate(persisted: unknown): ShellState {
     panelOverrides: sanitizeOverrides(p.panelOverrides),
     openModal: null,
     contextTab: null,
-    mobileSheet: null,
+    openOverlayPanel: null,
     settingsCategory: null,
     mobileViewport: false,
+    narrowViewport: false,
   };
 }
 
@@ -182,14 +190,14 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>(
 
 // ── The write API — intent-named module actions (the store handle never escapes this file). ──
 
-/** Switch the active rail section. Also closes any open mobile sheet — a rail-tab tap must land on
- *  content, never carry the prior section's list sheet across. */
+/** Switch the active rail section. Also closes any open slide-over — a rail-tab tap must land on
+ *  content, never carry the prior section's open sheet/overlay across. */
 export function setActiveSection(id: SectionId): void {
   // A rail-section swap is an in-app pane change at a constant route, so the router's VT never fires —
   // drive it by hand so every writer of the section inherits the crossfade for free.
   withViewTransition(() => {
     useShellStore.setState(
-      { activeSection: id, mobileSheet: null },
+      { activeSection: id, openOverlayPanel: null },
       false,
       "shell/setActiveSection",
     );
@@ -227,13 +235,14 @@ export function setContextTab(tab: string | null): void {
 /** Reveal the CONTEXT panel on a specific tab — the intent form of the old route-closure
  *  `revealFieldInspector` (a feature fires the navigation intent; the section definition stays
  *  viewport-unaware, §5.1). It writes BOTH regime channels unconditionally because `useShellLayout`
- *  reads them mutually-exclusively — `mobileSheet` only in the mobile regime, the `panelOverrides` dock
- *  only on desktop — so each write self-selects its regime and neither leaks into the other. This is the
- *  viewport-unaware equivalent of the old `if (isMobile) sheet else dock` branch, without state forking
- *  the shell's one `matchMedia` home (the app-shell mobile-viewport hook, no-raw-matchmedia). */
+ *  reads them mutually-exclusively — `openOverlayPanel` only in an overlay regime (mobile or
+ *  narrow-auto-overlay), the `panelOverrides` dock only wide — so each write self-selects its regime and
+ *  neither leaks into the other. This is the viewport-unaware equivalent of the old
+ *  `if (isMobile) sheet else dock` branch, without state forking the shell's `matchMedia` homes
+ *  (the app-shell viewport hooks, no-raw-matchmedia). */
 export function revealContextPanel(tab: string): void {
   setContextTab(tab);
-  setMobileSheet("context");
+  setOpenOverlayPanel("context");
   setPanelMode("context", "docked");
 }
 
@@ -241,16 +250,22 @@ export function closeModal(): void {
   useShellStore.setState({ openModal: null, settingsCategory: null }, false, "shell/closeModal");
 }
 
-/** Open/close the mobile side-panel sheet. `null` closes (back to content); a `PanelName` opens that
- *  panel as a sheet and closes the other (one sheet at a time). */
-export function setMobileSheet(panel: PanelName | null): void {
-  useShellStore.setState({ mobileSheet: panel }, false, "shell/setMobileSheet");
+/** Open/close a panel's slide-over (mobile sheet OR narrow-desktop auto-overlay). `null` closes (back to
+ *  content/dock); a `PanelName` opens that panel and closes the other (one slide-over at a time). */
+export function setOpenOverlayPanel(panel: PanelName | null): void {
+  useShellStore.setState({ openOverlayPanel: panel }, false, "shell/setOpenOverlayPanel");
 }
 
 /** Publish the shell's current viewport regime — called from app-shell's `useIsMobileViewport` sync
  *  effect only (that hook is the sole matchMedia read; this store must never read it directly). */
 export function setMobileViewport(isMobile: boolean): void {
   useShellStore.setState({ mobileViewport: isMobile }, false, "shell/setMobileViewport");
+}
+
+/** Publish the shell's narrow-desktop regime — called from app-shell's `useIsShellNarrowViewport` sync
+ *  effect only (the sibling matchMedia read next to `useIsMobileViewport`). */
+export function setNarrowViewport(isNarrow: boolean): void {
+  useShellStore.setState({ narrowViewport: isNarrow }, false, "shell/setNarrowViewport");
 }
 
 // ── The read API — narrow hooks so chrome re-renders only on the slice it reads. ──
@@ -264,15 +279,51 @@ export function usePanelOverride(section: SectionId, panel: PanelName): PanelMod
   return useShellStore((s) => s.panelOverrides[section]?.[panel]);
 }
 
+/** The ONE mode-resolution algebra — both `useShellLayout`'s `resolvePanel` (feature-tier hook, reads the
+ *  section registry for `panelDefaults`) and `useListDocked` below (this tier) call this SAME function so
+ *  they can never drift (the M10 correction: a hand-copied mirror read only `mobileViewport` and
+ *  disagreed with `resolvePanel` in the 48–64rem regime). Precedence isMobile → narrow → wide:
+ *  mobile never resolves "docked" (a transient sheet, open only when `openOverlayPanel` names it); a
+ *  narrow-desktop `docked` DEFAULT auto-downgrades to a CLOSED slide-over (`collapsed`), opening to
+ *  `overlay` only when `openOverlayPanel` names it (§4.1: overlay is zero-width closed by default, slides
+ *  over on demand); an explicit `collapsed`/`overlay` override passes through unchanged in every regime;
+ *  wide resolves the raw override-or-default untouched. */
+export function resolvePanelMode(
+  panel: PanelName,
+  resolved: PanelMode,
+  regime: {
+    readonly isMobile: boolean;
+    readonly isNarrow: boolean;
+    readonly openOverlayPanel: PanelName | null;
+  },
+): PanelMode {
+  if (regime.isMobile) {
+    return regime.openOverlayPanel === panel ? "overlay" : "collapsed";
+  }
+  if (regime.isNarrow && resolved === "docked") {
+    return regime.openOverlayPanel === panel ? "overlay" : "collapsed";
+  }
+  return resolved;
+}
+
 /** Is a section's LIST panel currently docked — the narrow #state projection a section definition reads
  *  instead of `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell
- *  hook). Mirrors `useShellLayout`'s `resolvePanel`: on mobile the real panel is never "docked" (it's a
- *  transient sheet), so this reads `false` regardless of override/default; desktop resolves the same
- *  channel useShellLayout does (override ?? the section's own default). */
+ *  hook). Routes through the SAME `resolvePanelMode` algebra `useShellLayout` uses, so the two can never
+ *  disagree (the M10 correction bug: `showRecents` broke in the 48–64rem regime when this read only
+ *  `mobileViewport`). */
 export function useListDocked(section: SectionId, ownDefault: PanelMode): boolean {
-  const mobileViewport = useShellStore((s) => s.mobileViewport);
+  const isMobile = useShellStore((s) => s.mobileViewport);
+  const isNarrow = useShellStore((s) => s.narrowViewport);
+  const openOverlayPanel = useShellStore((s) => s.openOverlayPanel);
   const override = usePanelOverride(section, "list");
-  return mobileViewport ? false : (override ?? ownDefault) === "docked";
+  const resolved = override ?? ownDefault;
+  return resolvePanelMode("list", resolved, { isMobile, isNarrow, openOverlayPanel }) === "docked";
+}
+
+/** The shell's published narrow-desktop regime (48–64rem) — raw read, for a feature-tier projection
+ *  that needs to branch on it directly (mirrors `mobileViewport`'s narrow read). */
+export function useNarrowViewport(): boolean {
+  return useShellStore((s) => s.narrowViewport);
 }
 
 export function useOpenModal(): ModalSlotId | null {
@@ -284,9 +335,10 @@ export function useContextTab(): string | null {
   return useShellStore((s) => s.contextTab);
 }
 
-/** Which side panel is open as a mobile sheet (`null` = on content). */
-export function useMobileSheet(): PanelName | null {
-  return useShellStore((s) => s.mobileSheet);
+/** Which side panel is open as a slide-over — mobile sheet OR narrow-desktop auto-overlay (`null` = no
+ *  slide-over open). */
+export function useOpenOverlayPanel(): PanelName | null {
+  return useShellStore((s) => s.openOverlayPanel);
 }
 
 /** The settings deep-link target category (`null` = the settings shell's default pane). */
