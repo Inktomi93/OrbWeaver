@@ -80,6 +80,11 @@ THE VERIFY TOOLCHAIN (know the exact contract):
     (half-registration across maps). Your FINAL verdict is always the WHOLE run: `pnpm check`.
   - DONE-BEFORE-COMMIT: `pnpm check` (= `pnpm verify --static`) GREEN, whole, and `pnpm test` green for
     any wave that touches runtime. Read the FULL output, not the exit code alone.
+  - THE CT LANE IS SEPARATE — `pnpm test` runs the NODE lanes (unit/integration/contract) and does NOT run
+    the playwright component tests. For ANY wave touching a CT-mounted component, a shared provider, or a
+    registry Context/Provider, you MUST also run `pnpm test:ct` (the whole CT lane), or at minimum the touched
+    `*.ct.tsx` files: a new/changed provider throws in EVERY story that mounts the component but forgot to wrap
+    it, and `pnpm test` will stay green while the CT lane is 17-red (learned M6.1 — the verifier caught it).
   - TEST THE NEW BEHAVIOR — "`pnpm test` green" is NOT sufficient. `test-presence-client` only checks a
     store's mirror `.ct.tsx` EXISTS; adding a new action to an existing store passes it WITHOUT covering
     the new action (learned: 4 dual-write actions shipped untested). So: every NEW `#state` action /
@@ -824,3 +829,76 @@ carve-out species · full gate ritual (rows + count + fixtures/UNFIXTURABLE) · 
 committed. **Routing:** executor build → verifier (G6/G7 gate-honesty — esp. G6's carve-out non-flagging + the
 scanRoot/predicate fires — + the ConfirmDialog type-seam) → side-eye (the 5 confirms render/fire, esp. the 2
 that exposed API gaps). One clean wave.
+
+## M6 — settings de-god (SettingsPane registry + move panes to owners + G4/G14)
+
+**Extra reading (in full):** doc §8 (the settings host + pane registry) + §18 O2/O3 + §16 G4/G14 + §5/§7; the
+section/modal registry PRECEDENT to mirror — `state/section-registry{,-context}.ts`, `state/modal-registry{,
+-context,-provider}.tsx`, `scripts/check/gates/modal-registry-completeness.ts`; `features/settings/surfaces/
+settings-shell-surface.tsx` (the if-ladder host, `:335`), `features/settings/lib/settings-nav-model.ts`
+(`SETTINGS_CATEGORY_IDS`), `data/use-viewer.ts` (`Viewer` — the `when?` type), the 4 `.gitkeep` stubs.
+
+**THE DESIGN.** The settings god-feature (87 files, 12 categories, an if-ladder host) becomes a SettingsPane
+REGISTRY (the section/modal move) + a DE-GOD (panes move to owner features). Scout-verified CLEAN: ZERO
+cross-feature grafts either direction. **`theme` is a MODAL (M4-owned), NOT a settings category — out of
+scope, do not touch.** 12 categories (`settings-nav-model.ts:14`): account · personas · appearance · tags ·
+workloads · backup · chat-behavior · regex · connections · automation · system · admin — **3 UNBUILT**
+(account, chat-behavior, automation: `built:false`, no surface file).
+
+- **SettingsPaneDefinition** — RULED by Fable 2026-07-14 (§5 rule 6 / §8 "Homes"): the Def homes in
+  **`state/settings-pane-registry.ts`** (mirror modal-registry), and `SettingsCategoryId`/`SETTINGS_CATEGORY_IDS`
+  are SHELL VOCABULARY that **MOVE to `state/shell-store.ts`** (beside `MODAL_SLOT_IDS` — the shell store already
+  navigates by category untyped: `settingsCategory`/`openSettingsTo`; typing them is rule 5 applied). Shape: `{
+  id: SettingsCategoryId; group: SettingsGroup; label; icon: LucideIcon; description; when?: (viewer:
+  SettingsViewerView) => boolean; subcategories?; body: (() => ReactNode) | { readonly placeholder: true } }`.
+  **`when` crosses the tier via a STATE-OWNED PROJECTION** (state cannot import `#data`'s `Viewer` —
+  `client-state-below-data`, zero exemptions): `SettingsViewerView { readonly isAdmin: boolean }` lives beside
+  the Def; the HOST (features/settings, may import `#data`) computes `{ isAdmin: globalRole==="owner" ||
+  globalRole==="admin" }` from its `sessions.me` read and supplies it — the M3 `ContextTabDef<S>` inversion.
+  `adminOnly` dies (admin panes declare `when: (v) => v.isAdmin`). `SETTINGS_GROUPS`/`SettingsSubcategory` move
+  WITH the Def into `settings-pane-registry.ts` (pane taxonomy, NOT shell-store — the `SECTION_GROUPS`-beside-Def
+  precedent). Do NOT type `contextTab` (ruled opaque). `{placeholder:true}` arm for the 3 unbuilt.
+  Section-id↔feature-name is NOT a mirror (`personas` → `features/persona`); G4 keys on WHERE the pane lives.
+- **Delivery = SettingsPaneRegistryContext** (mirror Section/Modal EXACTLY): `state/settings-pane-registry-context.ts`
+  + `-provider.tsx`; `main.tsx` assembles `createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {…12…})`; the
+  host reads `useSettingsPaneRegistry().get(active).body()` blind — the if-ladder dies. Nav derives from
+  `registry.list()` (label/icon/group + `pane.when?.(view) ?? true` where `view` is the host-computed
+  `SettingsViewerView`); scroll-spy + fuzzy search + `openSettingsTo` KEPT (now typed `SettingsCategoryId`).
+
+**SUB-WAVES (each green + committed):**
+- **M6.1 — thin host (panes STAY PUT — behavior-frozen) + G4** [executor]: build the type + context + provider
+  + door assembly registering ALL 12 pane defs CO-LOCATED IN `features/settings/lib/*-pane.tsx` (the 4
+  to-move panes register from settings/lib TEMPORARILY — panes don't move yet, doc §17 "panes stay put"); the
+  4 settings-forever built panes (appearance/system/tags/regex) wrap their existing surfaces; the 3 unbuilt →
+  `{placeholder:true}`; the 5 to-move built panes (personas/admin/connections/workloads/backup) wrap their
+  existing surfaces from settings/lib. REPLACE the if-ladder (`settings-shell-surface.tsx:335-365`) with
+  `registry.get(active).body()` + the placeholder narrow. Build **G4 `settings-pane-completeness`** (MIRROR
+  `modal-registry-completeness`: every `SETTINGS_CATEGORY_ID` has a co-located `*-pane` in the door; duplicate
+  id; placeholder honesty — a `{placeholder:true}` pane can't wire a real body & vice-versa; the host imports
+  NO pane body directly). Green.
+- **M6.2 — the de-god moves (mechanical, per-owner, GREEN EACH)** [mech-executor]: MOVE each pane def + its
+  support files to the owner feature, fix imports (`pnpm ast` the refs), update the `main.tsx` door import to
+  the owner front door, de-stub the `.gitkeep`: **personas** → `features/persona` (the pane; persona is a real
+  feature); **admin** → `features/user-admin` (admin-* components + use-create-user-form + use-admin-mutations
+  + admin-model + role-slot-row + role-status-dot); **connections** → `features/credentials` (add-credential-
+  dialog + credential-key-row + model-picker + static-model-display + use-add-credential-form + use-connections-
+  form + use-connections-mutations + use-role-source-models + connections-model + connections-nav); **workloads
+  + backup** → `features/workloads` (the workloads component/hook/lib set + the backup components +
+  import/export + portability-serde + backup-nav + portability-model). G4 stays green (co-located in the new
+  owner). knip-clean. `prompt-manager/.gitkeep` STAYS (O2). Each owner-move is its own green checkpoint (safe
+  to split the dispatch if one fights).
+- **M6.3 — dissolve `settings-shell.css` + G14** [executor]: the 14-line `.settings-flash-anchor` scroll-spy
+  highlight (token-referenced, `settings-shell.css`) dissolves to a SANCTIONED §4 home (a `@orb/ui` variant or
+  `client/styles/globals.css` keyframe — NOT app-shell shell.css unless truly shell-structural; the executor
+  judges per §4, ASK if unclear). Build **G14 `feature-css-files`** (fs / `client-structure` arm: a `.css`
+  under `features/**` outside `{app-shell/surfaces/shell.css}` → RED). Green — settings-shell.css is the last
+  feature .css; once gone, G14's allowlist is just shell.css.
+
+**M6 DONE-GATE (overall):** if-ladder GONE (`registry.get(active).body()`); all 12 panes registered (9 built +
+3 `{placeholder:true}`); nav derives from the registry; the 4 owner-panes MOVED (3 `.gitkeep` de-stubbed);
+zero `#features/settings` ↔ moved-panes imports; `settings-shell.css` gone; G4 + G14 built + biting real
+constructed violations; `pnpm check` + `pnpm test` green; drive every category live (built render, unbuilt
+placeholder, admin `when`-gated). **Routing:** M6.1 executor → verifier (G4 honesty + registry type-seam) →
+side-eye (all 12 categories render/gate); M6.2 mech-executor → verifier (import graph — no settings↔owner
+cycle, panes still resolve) → side-eye (panes render post-move); M6.3 executor → verifier (G14 bites a planted
+feature .css). Each sub-wave committed.
