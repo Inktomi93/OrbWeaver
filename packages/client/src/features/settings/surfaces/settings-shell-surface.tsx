@@ -37,7 +37,6 @@ import {
   useSettingsPaneRegistry,
   useSettingsTarget,
 } from "#state";
-import "./settings-shell.css";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
 import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model";
 import type { SettingsSearchEntry } from "../lib/settings-search";

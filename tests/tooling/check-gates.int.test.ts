@@ -486,6 +486,10 @@ function writeFixtures(): void {
     // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a JSX onClick row), not a secret.
     'import { LibrarySurfaceShell } from "#components";\ndeclare const items: { id: string; name: string }[];\ndeclare function select(item: unknown): void;\nexport const G = () => (\n  <LibrarySurfaceShell>\n    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n  </LibrarySurfaceShell>\n);\n',
   );
+  // feature-css-files: a .css file under features/** outside the shell.css allowlist
+  // (client-architecture-lockdown.md §4/§16 G14). Reads via fs.globSync, not ts-morph, so the real-tree
+  // fixture is picked up regardless of tsconfig excludes.
+  fx("packages/client/src/features/__g_featurecss/lib/__g_featurecss.css", ".g { color: red; }\n");
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
