@@ -769,3 +769,58 @@ G2 ModalSlotId arm re-pointed + biting · `pnpm ast flow app-shell.tsx` zero `#f
 hatches · nothing committed. **Routing:** executor build → verifier (type-seam + FULL gate-honesty sweep: new
 gate bites, retired gate truly obsolete, singleton arm real) → side-eye (6 modals live from their derived
 affordances, esp. drawer + xl). One clean atomic wave, no type-coupling.
+
+## M5 — confirm/row adoption (ConfirmDialog migration + G6/G7)
+
+**Extra reading (in full):** doc §14 (the reuse-primitive law — G6/G7) + §16 G6/G7 + §3 (tier ladder —
+ConfirmDialog is tier-2 `components/`); `components/confirm-dialog.tsx` (the composite to EXTEND),
+`components/row-actions-menu.tsx` (the established call pattern), the 5 sites, `.dependency-cruiser.cjs` (G7
+home), `components/library-row.tsx` + `@orb/ui/primitives/list-row` + the list-surface primitives.
+
+**THE DESIGN.** Migrate every raw `@orb/ui/alert-dialog` destructive-confirm in `features/**` onto the tier-2
+`ConfirmDialog`, seal it (G7), and ratchet interactive rows in LIST surfaces (G6). The 5 sites (scout-verified,
+all genuine destructive confirms): `chat/anchors/character-gallery-dialog.tsx` (controlled, "Remove this
+image?"), `settings/components/admin-user-sessions-dialog.tsx` (controlled, "Revoke all sessions?"),
+`settings/components/credential-key-row.tsx` (controlled, `Remove "${label}"?`), `settings/components/workload-row.tsx`
+(controlled, "Cancel this workload?" + Cancel="Keep running"), `world-info/components/entry-editor.tsx`
+(UNCONTROLLED, ICON trigger, `Delete "${title}"?`, NO description).
+
+- **EXTEND `ConfirmDialog`** (`components/confirm-dialog.tsx`) — the extensible shape (verified: `triggerLabel`
+  has ZERO consumers; the only consumer `row-actions-menu.tsx` is controlled): (a) add `cancelLabel?: string`
+  (default "Cancel") — workload-row's "Keep running"; (b) make `description?` OPTIONAL (entry-editor is
+  title-only; render the description block only when present — a title-only confirm is valid); (c) REPLACE the
+  unused `triggerLabel?: string` with `trigger?: ReactNode` — uncontrolled-mode trigger is now ANY caller
+  element (entry-editor's icon button; a text case passes `<Button intent="ghost">Label</Button>`);
+  ConfirmDialog owns the open state. KEEP controlled mode + confirmLabel/confirmIntent/onConfirm/confirmDisabled/
+  confirmLoading. Cover the 3 extensions in ConfirmDialog's CT.
+- **MIGRATE the 5 sites** (drop the raw AlertDialog + its buttons; follow `row-actions-menu`): the 4 controlled
+  → `<ConfirmDialog open onOpenChange title description confirmLabel confirmIntent="destructive" onConfirm />`
+  (workload-row adds `cancelLabel="Keep running"`); entry-editor → uncontrolled `<ConfirmDialog trigger={<icon
+  button>} title confirmLabel="Delete" onConfirm />` (no description). DELETE every `@orb/ui/alert-dialog`
+  import from `features/**`.
+- **G7 `confirm-uses-composite`** (dep-cruiser, `.dependency-cruiser.cjs`): a rule `from: features/** to:
+  @orb/ui/alert-dialog` → RED. ConfirmDialog is tier-2 (outside features) so NO exemption; alert-dialog's only
+  non-feature importers are the composite + ui tests. Mirror the `client-features-no-cross` rule shape. Confirm
+  `imports:depcruise` REDs a planted `features/** → @orb/ui/alert-dialog` import, then passes clean post-migration.
+- **G6 `list-row-adoption`** (ts-morph, ratchet — BUILD; full ritual): a **"LIST-region surface file" = a file
+  using `LibrarySurfaceShell` OR `LibraryListLayout` OR `createCollectionSurface`** (the entity-list-pane
+  primitives — this NATURALLY excludes the R1 carve-out species: message/facet/setting `*-row.tsx` live in the
+  content/settings regions, not entity LIST panes, and use none of these primitives). Within such a file, a
+  `.map()` callback returning INTERACTIVE JSX (an element carrying onClick/role/href) whose root is NOT
+  `ListRow`/`LibraryRow`/an allowlisted composite → RED. Both-ways ratchet: an explicit allowlist for any
+  legitimate edge (baseline the current state — list surfaces already root in LibraryRow, so baseline ~zero;
+  if a real current offender exists, allowlist it WITH a cited reason, do not weaken the predicate).
+  scopeSafety incremental-safe. mustFlag = a hand-rolled interactive `.map()` row in a LIST-surface file;
+  mustPass = a `LibraryRow`-rooted `.map()`; a non-LIST-surface file's interactive `.map()`; a message/facet/
+  setting-row file (must NOT flag — the carve-out check). PROVE it bites a real constructed offender + passes
+  the baseline + does NOT false-positive the carve-out species. If the LIST-surface predicate is ambiguous
+  against a real file, ASK the orchestrator.
+
+**M5 DONE-GATE (cite each):** `pnpm check` whole green + `pnpm test` green · ZERO `@orb/ui/alert-dialog`
+imports in `features/**` (`pnpm ast importers`) · all 5 confirms render + fire live (drive via run/__orb —
+esp. workload-row's "Keep running" cancel + entry-editor's icon trigger + no-description) · G7 REDs a planted
+feature alert-dialog import · G6 built + biting a real offender + passing the baseline + NOT flagging the
+carve-out species · full gate ritual (rows + count + fixtures/UNFIXTURABLE) · zero banned hatches · nothing
+committed. **Routing:** executor build → verifier (G6/G7 gate-honesty — esp. G6's carve-out non-flagging + the
+scanRoot/predicate fires — + the ConfirmDialog type-seam) → side-eye (the 5 confirms render/fire, esp. the 2
+that exposed API gaps). One clean wave.
