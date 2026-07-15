@@ -78,6 +78,7 @@ import {
   useSelectedPresetSectionId,
   useSelectedWorldBookId,
   useSelectedWorldEntryId,
+  useSettingsPaneRegistry,
   useSettingsTarget,
   useShowArchived,
   useSpoilerBlur,
@@ -496,6 +497,30 @@ function ModalRegistryReader(): ReactElement {
   return (
     <div>
       <output>{`ids=${ids} theme=${registry.get("theme").title}`}</output>
+    </div>
+  );
+}
+
+/** SettingsPaneRegistryProbe — reads the settings-pane registry via `useSettingsPaneRegistry` inside its
+ *  provider (the mirror of ModalRegistryProbe), rendering the delivered vocabulary as text so a CT proves
+ *  the context delivers the ordered, total pane list and `get()` resolves a member's label. */
+export function SettingsPaneRegistryProbe(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <SettingsPaneRegistryReader />
+    </CtFakeSectionRegistry>
+  );
+}
+
+function SettingsPaneRegistryReader(): ReactElement {
+  const registry = useSettingsPaneRegistry();
+  const ids = registry
+    .list()
+    .map((d) => d.id)
+    .join(",");
+  return (
+    <div>
+      <output>{`ids=${ids} appearance=${registry.get("appearance").label}`}</output>
     </div>
   );
 }

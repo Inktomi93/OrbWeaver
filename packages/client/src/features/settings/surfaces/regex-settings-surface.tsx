@@ -22,7 +22,7 @@ import {
 } from "#data";
 import { useFocusOnMount } from "#lib";
 import { REGEX_SETTINGS_ENTITY_ID, useRegexSettingsForm } from "../hooks/use-regex-settings-form";
-import { REGEX_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { REGEX_SUBCATEGORY_IDS } from "../lib/regex-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 
 interface UpdateRegexVars {

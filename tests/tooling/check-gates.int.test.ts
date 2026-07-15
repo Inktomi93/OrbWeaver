@@ -221,6 +221,17 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
     "export const gModal: ModalDefinition = { id: 'x', body: () => <SectionPlaceholder /> };\n",
   );
+  // settings-pane-completeness: a `SettingsPaneDefinition`-typed var in a file that is NOT a `*-pane.tsx`
+  // def file — the co-location arm.
+  fx(
+    "packages/client/src/features/__g_gpane/lib/stray.ts",
+    "export const strayPane: SettingsPaneDefinition = { id: 'x' };\n",
+  );
+  // no-parallel-section-map: a SettingsCategoryId-keyed object literal outside the sanctioned homes.
+  fx(
+    "packages/client/src/features/__g_g2settings/lib/parallel.ts",
+    "export const M = { account: 1, appearance: 1, tags: 1 };\n",
+  );
   // context-definition-shape: a hand-rolled `{kind:"tabs",useResolved}` object literal outside
   // lib/registry-contracts.ts — a badge-wearing tabs renderer bypassing the mint (arm 1).
   fx(

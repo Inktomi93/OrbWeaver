@@ -31,6 +31,26 @@ export const MODAL_SLOT_IDS = [
 ] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
+/** The settings vocabulary — the SettingsPaneDefinition registry is total over this tuple (assembled at
+ *  the door). MOVED here from features/settings/lib/settings-nav-model.ts (M6.1 ruling, §5 rule 5):
+ *  `settingsCategory`/`openSettingsTo` already navigated by category as a bare string, i.e. this was
+ *  always shell vocabulary, just untyped. */
+export const SETTINGS_CATEGORY_IDS = [
+  "account",
+  "personas",
+  "appearance",
+  "tags",
+  "workloads",
+  "backup",
+  "chat-behavior",
+  "regex",
+  "connections",
+  "automation",
+  "system",
+  "admin",
+] as const;
+export type SettingsCategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
+
 /** A panel's 3-state model: docked (in-flow) · overlay (floats over) · collapsed (zero width). */
 export const PANEL_MODES = ["docked", "overlay", "collapsed"] as const;
 export type PanelMode = (typeof PANEL_MODES)[number];
@@ -52,8 +72,8 @@ interface ShellState {
   /** Which side panel is open as a mobile sheet — `null` = on content. Device-state, transient, and
    *  reset on section change. */
   readonly mobileSheet: PanelName | null;
-  /** Opaque settings-category deep-link target. Set alongside `openModal:'settings'`; transient. */
-  readonly settingsCategory: string | null;
+  /** Settings-category deep-link target. Set alongside `openModal:'settings'`; transient. */
+  readonly settingsCategory: SettingsCategoryId | null;
   /** The shell's viewport regime, published by app-shell (the sole `useIsMobileViewport` home) so
    *  `#state` projections can branch on viewport WITHOUT importing the matchMedia hook
    *  (`no-raw-matchmedia` bars it outside app-shell). Device-transient, never persisted. */
@@ -190,9 +210,8 @@ export function openModal(id: ModalSlotId): void {
   useShellStore.setState({ openModal: id }, false, "shell/openModal");
 }
 
-/** Open the settings overlay and target a specific category pane. `category` is opaque here; the
- *  settings shell validates it against its own registry. */
-export function openSettingsTo(category: string): void {
+/** Open the settings overlay and target a specific category pane. */
+export function openSettingsTo(category: SettingsCategoryId): void {
   useShellStore.setState(
     { openModal: "settings", settingsCategory: category },
     false,
@@ -270,7 +289,7 @@ export function useMobileSheet(): PanelName | null {
   return useShellStore((s) => s.mobileSheet);
 }
 
-/** The settings deep-link target category (opaque; `null` = the settings shell's default pane). */
-export function useSettingsTarget(): string | null {
+/** The settings deep-link target category (`null` = the settings shell's default pane). */
+export function useSettingsTarget(): SettingsCategoryId | null {
   return useShellStore((s) => s.settingsCategory);
 }

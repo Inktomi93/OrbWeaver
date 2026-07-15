@@ -29,8 +29,8 @@ import {
   useSystemSettingsForm,
 } from "../hooks/use-system-settings-form";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
-import { SYSTEM_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
+import { SYSTEM_SUBCATEGORY_IDS } from "../lib/system-nav";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
 import {
   CONCURRENCY_MIN,

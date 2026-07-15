@@ -24,7 +24,7 @@ import {
 } from "#data";
 import { notify, useFocusOnMount } from "#lib";
 import { SettingSwitchRow } from "../components/setting-switch-row";
-import { PERSONA_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { PERSONA_SUBCATEGORY_IDS } from "../lib/personas-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 
 interface PersonaPrefsPatchVars {
