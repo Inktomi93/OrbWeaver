@@ -24,12 +24,12 @@ import {
   useTRPC,
 } from "#data";
 import { useFocusOnMount } from "#lib";
+import { settingsAnchorId } from "#state";
 import {
   SYSTEM_SETTINGS_ENTITY_ID,
   useSystemSettingsForm,
 } from "../hooks/use-system-settings-form";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 import { SYSTEM_SUBCATEGORY_IDS } from "../lib/system-nav";
 import type { SystemSettingsForm } from "../lib/system-settings-model";
 import {

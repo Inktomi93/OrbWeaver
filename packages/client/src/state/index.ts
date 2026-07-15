@@ -150,7 +150,7 @@ export type {
   SettingsSubcategory,
   SettingsViewerView,
 } from "./settings-pane-registry";
-export { SETTINGS_GROUPS } from "./settings-pane-registry";
+export { SETTINGS_GROUPS, settingsAnchorId } from "./settings-pane-registry";
 export type { SettingsPaneRegistry } from "./settings-pane-registry-context";
 export {
   SettingsPaneRegistryContext,

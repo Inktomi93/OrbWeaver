@@ -16,11 +16,11 @@ import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
+import { settingsAnchorId } from "#state";
 import { RunWorkloadDialog } from "../components/run-workload-dialog";
 import { SchedulesSection } from "../components/schedules-section";
 import { WorkloadRow } from "../components/workload-row";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 import {
   isActiveWorkloadStatus,
   WORKLOAD_FILTER_EMPTY_COPY,

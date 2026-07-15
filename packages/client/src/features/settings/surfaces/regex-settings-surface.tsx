@@ -21,9 +21,9 @@ import {
   useTRPC,
 } from "#data";
 import { useFocusOnMount } from "#lib";
+import { settingsAnchorId } from "#state";
 import { REGEX_SETTINGS_ENTITY_ID, useRegexSettingsForm } from "../hooks/use-regex-settings-form";
 import { REGEX_SUBCATEGORY_IDS } from "../lib/regex-nav";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 
 interface UpdateRegexVars {
   readonly section: "regex";

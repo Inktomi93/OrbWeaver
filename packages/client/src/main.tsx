@@ -25,26 +25,25 @@ import { youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
 import { charactersSection } from "#features/character";
 import { commandModal, makeChatsSection, newChatModal } from "#features/chat";
+import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
+import { personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import {
   accountPane,
-  adminPane,
   appearancePane,
   automationPane,
-  backupPane,
   chatBehaviorPane,
-  connectionsPane,
-  personasPane,
   regexPane,
   settingsModal,
   systemPane,
   tagsPane,
   themeModal,
-  workloadsPane,
 } from "#features/settings";
 import { analyticsSection } from "#features/stats";
+import { adminPane } from "#features/user-admin";
+import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection } from "#features/world-info";
 import type { ChatContextState, ContextTabDef } from "#lib";
 import {

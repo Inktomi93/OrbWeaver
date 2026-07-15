@@ -1,9 +1,9 @@
-// Unit: the ModelPicker's pure MODEL (features/settings/lib/model-picker-model). No DOM — the node lane.
-// Guards the load-bearing string-math the picker renders FROM (CONNECTIONS-BUILD-SPEC §3 done-criteria):
-// price is USD/token → $/M (×1e6), context compacts to K/M, the chip filter is AND across active chips, and
-// the render cap is the named constant. The device-local Recent MRU (persistence) is tested against its
-// store in tests/client/state/recent-models-store.test.ts (it moved off this pure lib into the
-// createPersistedStore door).
+// Unit: the ModelPicker's pure MODEL (features/credentials/lib/model-picker-model). No DOM — the node
+// lane. Guards the load-bearing string-math the picker renders FROM (CONNECTIONS-BUILD-SPEC §3
+// done-criteria): price is USD/token → $/M (×1e6), context compacts to K/M, the chip filter is AND across
+// active chips, and the render cap is the named constant. The device-local Recent MRU (persistence) is
+// tested against its store in tests/client/state/recent-models-store.test.ts (it moved off this pure lib
+// into the createPersistedStore door).
 
 import {
   filterByChips,
@@ -11,7 +11,7 @@ import {
   formatContextLength,
   formatPromptPrice,
   MODEL_PICKER_RENDER_CAP,
-} from "../../../../../packages/client/src/features/settings/lib/model-picker-model";
+} from "../../../../../packages/client/src/features/credentials/lib/model-picker-model";
 import { expect, test } from "../../../../support/fixtures";
 
 const SYNCED_RE = /^synced /;

@@ -14,6 +14,7 @@ import { FieldLayout } from "@orb/ui/field";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Icon/Plus/AlertTriangle/KeyRound fine (the tag-settings-surface.tsx precedent).
 import { AlertTriangle, Icon, KeyRound, Plus } from "@orb/ui/icons";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { scrollBehavior } from "@orb/ui/lib";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -27,6 +28,7 @@ import {
   useTRPC,
 } from "#data";
 import { useFocusOnMount } from "#lib";
+import { settingsAnchorId } from "#state";
 import { AddCredentialDialog } from "../components/add-credential-dialog";
 import { CredentialKeyRow } from "../components/credential-key-row";
 import { RoleSlotRow } from "../components/role-slot-row";
@@ -41,8 +43,6 @@ import {
   toRoutingSection,
 } from "../lib/connections-model";
 import { CONNECTIONS_SUBCATEGORY_IDS } from "../lib/connections-nav";
-import { scrollBehavior } from "../lib/scroll-behavior";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 
 const anchor = (sub: string): string => settingsAnchorId("connections", sub);
 

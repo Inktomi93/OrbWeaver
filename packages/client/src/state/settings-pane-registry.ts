@@ -55,3 +55,9 @@ export interface SettingsPaneDefinition {
   readonly subcategories?: readonly SettingsSubcategory[];
   readonly body: (() => ReactNode) | { readonly placeholder: true };
 }
+
+/** The DOM id of a subcategory's anchor node — derived from the registry keys, never a scattered string
+ *  literal. Shared by every pane surface (owner features + the settings host's scroll-spy). */
+export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string): string {
+  return `settings-anchor-${categoryId}-${subId}`;
+}

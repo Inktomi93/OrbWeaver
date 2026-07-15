@@ -1,4 +1,4 @@
-// CT: the import half's OUTCOME-HONEST chrome (features/settings/components/import-library-section +
+// CT: the import half's OUTCOME-HONEST chrome (features/workloads/components/import-library-section +
 // its use-library-import driver). Regression guard for the "fabricated success" P1: a bare-card import
 // that the server rejected (200 with a `failed[]`, per-card isolation) used to still paint the dropzone's
 // green ✓ and fire a success toast, contradicting the honest per-file summary right below. Drives the REAL

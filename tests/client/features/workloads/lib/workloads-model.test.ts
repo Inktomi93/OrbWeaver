@@ -1,4 +1,4 @@
-// Unit: the Workloads pane's pure vocabulary (features/settings/lib/workloads-model). Pure, no DOM —
+// Unit: the Workloads pane's pure vocabulary (features/workloads/lib/workloads-model). Pure, no DOM —
 // the node lane. Guards the CONTRACT-DRIVEN picker invariant: the runnable set is exactly the
 // singular-capable kinds from `WORKLOAD_KIND_MODES` (the unbuilt stubs and the genuinely-bulk-only
 // refresh-model-catalog are absent WITHOUT any hand-copied list — a kind flipping stub→built appears
@@ -6,7 +6,7 @@
 // omitted at its default) and the tab predicate's status partition.
 
 import { WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
-import { friendlyWorkloadError } from "../../../../../packages/client/src/features/settings/lib/workloads-failure-copy";
+import { friendlyWorkloadError } from "../../../../../packages/client/src/features/workloads/lib/workloads-failure-copy";
 import {
   buildStartInput,
   isActiveWorkloadStatus,
@@ -18,7 +18,7 @@ import {
   WORKLOAD_FILTERS,
   workloadFilterMatches,
   workloadResultPreview,
-} from "../../../../../packages/client/src/features/settings/lib/workloads-model";
+} from "../../../../../packages/client/src/features/workloads/lib/workloads-model";
 import { expect, test } from "../../../../support/fixtures";
 
 test("the runnable set is the contract's singular-capable built kinds, minus route-started import-bundle", () => {

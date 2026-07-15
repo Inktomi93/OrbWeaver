@@ -13,10 +13,10 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
+import { settingsAnchorId } from "#state";
 import { TagCreateButton } from "../components/tag-create-button";
 import { TagSettingsRow } from "../components/tag-settings-row";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 import { TAGS_SUBCATEGORY_IDS } from "../lib/tags-nav";
 
 export function TagsSettingsSurface(): ReactElement {

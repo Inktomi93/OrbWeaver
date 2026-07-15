@@ -14,6 +14,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId, useRef } from "react";
+import { SettingSwitchRow } from "#components";
 import type { Trpc } from "#data";
 import {
   createEntityMutation,
@@ -23,9 +24,8 @@ import {
   useTRPC,
 } from "#data";
 import { notify, useFocusOnMount } from "#lib";
-import { SettingSwitchRow } from "../components/setting-switch-row";
+import { settingsAnchorId } from "#state";
 import { PERSONA_SUBCATEGORY_IDS } from "../lib/personas-nav";
-import { settingsAnchorId } from "../lib/settings-nav-model";
 
 interface PersonaPrefsPatchVars {
   readonly section: "persona";

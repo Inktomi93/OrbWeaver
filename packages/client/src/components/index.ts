@@ -15,3 +15,4 @@ export type { RegexEditorDialogProps, RegexScriptsFormValues } from "./regex-edi
 export { RegexEditorDialog } from "./regex-editor-dialog";
 export type { RowActionsMenuProps, RowDestructiveAction } from "./row-actions-menu";
 export { RowActionsMenu } from "./row-actions-menu";
+export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row";
