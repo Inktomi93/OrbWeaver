@@ -4,7 +4,7 @@ status: draft
 updated: 2026-07-14
 ---
 
-# Client-Lockdown — Agent Prompt Templates (M0–M1)
+# Client-Lockdown — Agent Prompt Templates (M0–M10)
 
 > Build-support artifact for the client-architecture lockdown (`client-architecture-lockdown.md`, law by
 > `D70`). These are the prompts the ORCHESTRATOR hands role agents per migration wave (§17). They exist
@@ -914,6 +914,14 @@ feature .css). Each sub-wave committed.
 
 ---
 
+## M7 — tier seals (G5 + G9)
+
+**M7 — tier seals (DONE `9f489aeb`):** G5 (3 dep-cruiser rules: components-tier, lib-below-components,
+state-below-components) + G9 (grit query-machine-seals: useMutation/useInfiniteQuery import bans) +
+resolved the stale `client-structure` RESERVED corpus note. Pure locks, baseline green — no new shape.
+
+---
+
 ## M8 — the chat contributor seam (surface-anchor registry + fake-contributor CTs)
 
 **Extra reading:** doc §6c (the contributor seam) + §17 M8 + §5 (`createContributorRegistry`). MIRROR the M3
@@ -1043,3 +1051,112 @@ G10/G11/G12 each PROVEN to bite on a planted server violation · zero `any`/hatc
 each bus's publish/subscribe path against pre-M9 and confirm the int-test oracle is unedited; the three gates bite;
 `subscribeAll` is genuinely absent from user/notifications' types). ASK if byte-equivalence forces a real behavior
 choice, or if a gate's server scanRoot can't be made to bite.
+
+---
+
+## M10 — auto-overlay (docked panels auto-overlay below the width breakpoint)
+
+**READ FIRST:** `docs/architecture/core/AGENTS.md`; then in the docs: `UI-Architecture-and-Layout.md` §4.1 (the
+3-state panel model docked/overlay/collapsed + "auto-overlay below a width breakpoint") + §4b axis 2 (the shell
+is the sole legal viewport-`@media` site), and `client-architecture-lockdown.md` §17 M10 + §16 **O6** ("build it
+proper — the §4.1 behavior is real committed law"). Then the code IN FULL: `state/shell-store.ts`
+(`PANEL_MODES`, `panelOverrides` [persisted], `mobileViewport`/`setMobileViewport` [device-transient]),
+`features/app-shell/hooks/use-shell-layout.ts` (`resolvePanel` — the gap), `features/app-shell/hooks/
+use-is-mobile-viewport.ts` (the `no-raw-matchmedia` LEGAL HOME, `MOBILE_QUERY = "(max-width: 48rem)"`),
+`features/app-shell/surfaces/shell.css` (the ONE `@media` + the overlay clamp), `features/app-shell/surfaces/
+app-shell.tsx` (`PanelChrome` `mode` prop + the `.shell-scrim`).
+
+**THE DESIGN — RULED 2026-07-15 (orchestrator, both forks from the lock-the-shape stance; NOT Fable — the
+overlay machinery ALREADY EXISTS, this is a derivation + one signal, not a rewrite).** The `overlay` PanelMode
+and its rendering (the §11.1 clamp, the scrim keyed to `scrimVisible`, `PanelChrome mode="overlay"`, the
+outside-interaction collapse) are ALL already wired end-to-end. `resolvePanel` simply never PRODUCES `"overlay"`
+on the desktop branch today. **DO NOT rebuild overlay rendering — make `resolvePanel` produce `overlay` in a new
+narrow-desktop regime.**
+
+- **Fork 1 — the second breakpoint (RULED): a "shell-narrow" breakpoint at 64rem (1024px)**, wider than the
+  48rem mobile breakpoint → a 3-regime ladder: **wide** (>64rem, docked) · **narrow-desktop** (48–64rem,
+  auto-overlay) · **mobile** (<48rem, `mobileSheet` UNCHANGED). Add it as a SECOND matchMedia signal
+  `narrowViewport` published into `#state` EXACTLY like `mobileViewport` — a `SHELL_NARROW_QUERY =
+  "(max-width: 64rem)"` const in the `no-raw-matchmedia` legal home (`use-is-mobile-viewport.ts` or a sibling in
+  that same sanctioned file), the `useSyncExternalStore`+`matchMedia` hook, a `setNarrowViewport` shell-store
+  setter, published in `useShellLayout`'s effect. **NO new CSS `@media` block** — overlay is MODE-gated rendering
+  (PanelChrome branches on `mode`), not `@media`-gated, so the signal is matchMedia-in-JS (same mechanism as
+  `mobileViewport`) and "the one app-shell `@media`" (the 48rem column flip) stays the only CSS `@media`. 64rem
+  is a single tunable constant; side-eye validates it at widths straddling the boundary.
+- **Fork 2 — override semantics (RULED): auto-overlay is PURE DERIVATION, zero new persisted state.**
+  `resolvePanel`'s desktop branch becomes (mobile branch first, unchanged, takes precedence):
+  ```ts
+  if (isMobile) return mobileSheet === panel ? "overlay" : "collapsed";     // unchanged
+  const resolved = override ?? registry.get(activeSection).panelDefaults[panel];
+  return narrowViewport && resolved === "docked" ? "overlay" : resolved;    // the M10 line
+  ```
+  This satisfies EVERY §4.1 clause with no schema change: a `docked` resolution auto-collapses to `overlay` below
+  64rem; RESTORES to docked on re-widen (the persisted `panelOverrides` is NEVER mutated by resize — the
+  derivation is stateless); the user override WINS INSIDE EACH REGIME (an explicit `overlay`/`collapsed` override
+  passes through unchanged in BOTH regimes; only a `docked` resolution downgrades, and only while narrow). No
+  auto-vs-explicit flag, no second override slot — the derivation IS the model (lock-the-shape: nothing to
+  corrupt). `narrowViewport` is device-transient (NOT persisted), exactly like `mobileViewport`.
+
+**M10 DONE-GATE:** `pnpm check` green (STILL 83 gates — NO new gate; `no-raw-matchmedia` already covers the new
+query, so it MUST live in the sanctioned legal home, never a feature — confirm) · `pnpm test` + `pnpm test:ct`
+green · a `docked` panel resolves `overlay` in 48–64rem and `docked` >64rem and `mobileSheet` <48rem (the 3-regime
+derivation) · an explicit `collapsed`/`overlay` override is identical across all three regimes · the persisted
+`panelOverrides` value is BYTE-UNCHANGED after a narrow→wide→narrow resize round-trip (assert it — the derivation
+must not write) · mobile `mobileSheet` behavior unchanged · a CT proving `resolvePanel`'s output per regime for a
+docked panel + pass-through for an explicit override. Routing: `executor` → `verifier` (the regime precedence
+isMobile→narrow→wide; NO store mutation on resize; the second matchMedia is in the legal home; `mobileSheet`
+untouched) + `side-eye` (LIVE per the north-star §9 loop: snap at widths straddling BOTH 48rem and 64rem, flat +
+ramped, ± glass — panels flow docked→overlay→sheet, scrim correct, NO layout jank at the boundary, the persisted
+docked choice restores on re-widen). ASK if 64rem proves wrong under side-eye, or the existing overlay rendering
+doesn't cleanly render an auto-overlayed (previously-docked) panel.
+
+### M10 CORRECTION (2026-07-15, after verifier + side-eye P0) — auto-overlay = CLOSED-by-default slide-over
+
+The first M10 pass shipped `resolvePanel: narrow && resolved === "docked" ? "overlay" : resolved`. Both lenses
+refuted it: **(side-eye P0)** M10 is the FIRST path to put a docked-DEFAULT panel into `overlay` mode outside
+mobile, and `overlay` mode's CSS renders a panel OPEN (slid-over + scrim). So an auto-overlayed panel floated
+open over content ON LOAD, occluded the topbar toggle (desktop overlay CSS lacks the topbar-row `inset-block`
+clearance the mobile rule at `shell.css:~391` already has → real pointer click times out), and clicking that
+toggle mis-fired `togglePanel`'s binary `collapsed?docked:collapsed` into a PERSISTED `collapsed` that then stuck
+past re-widen. **(verifier)** `useListDocked` (`shell-store.ts`) — a hand-copied mirror of `resolvePanel` — was
+left reading only `mobileViewport`, so it disagreed with `resolvePanel` in 48–64rem and broke chats-landing
+`showRecents` (bug #13 inverted). §4.1 is explicit: **overlay = "zero width closed, slides over on demand."** So
+auto-overlay must resolve a docked panel to a CLOSED slide-over, openable on demand — NOT open-on-load.
+
+**THE CORRECTED MODEL (ruled — build to the §4.1 law, O6):**
+- **The 3 modes are: `docked` (in-column) · `overlay` (slid-over, OPEN) · `collapsed` (zero-width, CLOSED).** A
+  slide-over panel that is CLOSED renders as `collapsed`; OPEN renders as `overlay`. "Which slide-over is open" is
+  ONE regime-agnostic field: **rename `mobileSheet` → `openOverlayPanel: PanelName | null`** (device-transient,
+  NOT persisted → no migration; it already IS this concept, just mis-named for one regime). Mobile behavior stays
+  BYTE-IDENTICAL under the rename.
+- **`resolvePanel`** (precedence isMobile → narrow → wide):
+  ```ts
+  if (isMobile) return openOverlayPanel === panel ? "overlay" : "collapsed";     // unchanged semantics
+  const resolved = override ?? registry.get(activeSection).panelDefaults[panel];
+  if (narrowViewport && resolved === "docked")                                    // auto-overlay: CLOSED by default,
+    return openOverlayPanel === panel ? "overlay" : "collapsed";                  //   OPEN only when triggered
+  return resolved;                                                                // explicit overlay/collapsed pass through
+  ```
+- **ONE shared docked-ness/mode algebra in `#state`** that BOTH `resolvePanel` and `useListDocked` consume, so
+  they cannot drift again (the verifier's finding is exactly the drift a shared primitive prevents). `useListDocked`
+  = "list resolves to `docked`" through the SAME function (mobile → false; narrow&&docked-default → false [it's a
+  closed slide-over]; wide&&docked → true). Sweep for ANY other hand-rolled "is panel docked/visible" derivation
+  and route it through the shared function too.
+- **The topbar toggle (`togglePanel`)**: when the panel is in an overlay regime (mobile OR narrow-auto-overlay),
+  it OPENS/CLOSES via `openOverlayPanel` (ephemeral) — mirror the EXISTING mobile open/close path, do NOT write a
+  persisted `panelOverrides` flip. Only in the WIDE regime does the toggle do the persisted docked⇄collapsed flip.
+  A closed auto-overlay panel's toggle → opens it; an open one → closes it (scrim-dismiss already does this
+  correctly — converge on the same `collapsePanel`/close path).
+- **CSS**: the desktop `overlay`-OPEN panel must adopt the same `inset-block` topbar-row clearance the mobile
+  overlay rule already uses (`shell.css` desktop overlay rule ~241-261 ← mirror the mobile rule ~386-410), so an
+  OPEN overlay never occludes the topbar controls. Closed = `collapsed` = zero width, no occlusion.
+
+**CORRECTED DONE-GATE:** everything in the original M10 done-gate PLUS: a docked-default panel is CLOSED
+(`collapsed`, content full-width, NO scrim) by default in 48–64rem — NOT open-on-load; the topbar toggle OPENS it
+(slides over, scrim, topbar controls still clickable — a REAL Playwright click on the toggle, not just a resolve
+assertion) and closes it; opening/closing in the narrow regime does NOT write `panelOverrides` (ephemeral
+`openOverlayPanel` only); `useListDocked` agrees with `resolvePanel` at every width (add a CT mounting the REAL
+chats landing at 900px asserting `showRecents` correctness — the verifier's gap); mobile `openOverlayPanel`
+(renamed) behavior byte-identical. Re-run BOTH `verifier` (the shared algebra; no persisted write on
+narrow-open/close; mobile rename byte-identical) AND `side-eye` (LIVE: closed-by-default at 900px, toggle opens
+without occlusion, scrim, re-widen restores docked, mobile unchanged).
