@@ -202,6 +202,10 @@ const FIXTURES: Record<string, { path: string; src: string }> = {
     path: "packages/client/src/features/x/surfaces/c.tsx",
     src: 'export const C = () => <div data-testid="freeform-string" />;\n',
   },
+  "query-machine-seals": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: 'import { useMutation } from "@tanstack/react-query";\nexport const m = useMutation;\n',
+  },
 };
 
 function pluginDiagnostics(file: string, configPath: string): number {

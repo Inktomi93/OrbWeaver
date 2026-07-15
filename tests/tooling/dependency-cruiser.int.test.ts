@@ -218,6 +218,14 @@ function writeAllFixtures(): void {
   fx("packages/client/src/features/__dc_cfeat/uproute.ts", `import "../../routes/__dc_rt.ts";\n`);
   // client-nothing-imports-main: anything importing the composition root (the real main.tsx).
   fx("packages/client/src/routes/__dc_main.ts", `import "../main.tsx";\n`);
+
+  // client-components-tier (G5): components/ never imports UP into features/routes/main.tsx.
+  fx("packages/client/src/components/__dc_t/i.ts", VAL);
+  fx("packages/client/src/components/__dc_up.ts", `import "../features/__dc_cfeat/index.ts";\n`);
+  // client-lib-below-components (G5): the floor reaching UP into components/.
+  fx("packages/client/src/lib/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
+  // client-state-below-components (G5): a store reaching UP into components/.
+  fx("packages/client/src/state/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
 }
 
 interface Violation {

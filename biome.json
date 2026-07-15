@@ -38,7 +38,8 @@
     "./tools/grit/no-raw-container-widths.grit",
     "./tools/grit/no-arbitrary-tw-values.grit",
     "./tools/grit/no-manual-token-estimate.grit",
-    "./tools/grit/no-raw-matchmedia.grit"
+    "./tools/grit/no-raw-matchmedia.grit",
+    "./tools/grit/query-machine-seals.grit"
   ],
   "vcs": {
     "enabled": true,

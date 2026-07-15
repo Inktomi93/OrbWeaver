@@ -289,6 +289,30 @@ module.exports = {
       from: { path: CLIENT, pathNot: `${CLIENT}main\\.tsx$` },
       to: { path: `${CLIENT}main\\.tsx$` },
     },
+    {
+      name: "client-components-tier",
+      comment:
+        "components/ (tier 2, domain-aware cross-feature composites) never imports UP into features/routes/main.tsx — a composite is consumed BY features, it never depends on one (client-architecture-lockdown.md §3/§16 G5).",
+      severity: "error",
+      from: { path: `${CLIENT}components/` },
+      to: { path: [`${CLIENT}features/`, `${CLIENT}routes/`, `${CLIENT}main\\.tsx$`] },
+    },
+    {
+      name: "client-lib-below-components",
+      comment:
+        "lib/ (tier 4, the util floor) sits BELOW components/ (tier 2) — the reuse ladder's tier order, not just the existing client-lib-floor edges (client-architecture-lockdown.md §3/§16 G5).",
+      severity: "error",
+      from: { path: `${CLIENT}lib/` },
+      to: { path: `${CLIENT}components/` },
+    },
+    {
+      name: "client-state-below-components",
+      comment:
+        "state/ (tier 3, the gated stores) sits below components/ (tier 2) — a store never reads a cross-feature composite (client-architecture-lockdown.md §3/§16 G5).",
+      severity: "error",
+      from: { path: `${CLIENT}state/` },
+      to: { path: `${CLIENT}components/` },
+    },
 
     // ════════════════════ The server tier order (entry>transport>domain>infra>foundation>kit) ═══════
     {
