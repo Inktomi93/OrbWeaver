@@ -124,6 +124,13 @@ SCOPE: do ONLY this wave, and within it ONLY the unit named in the M-block. Do N
 section, wave, or "while I'm here" cleanup. One wave = one commit. When done: report to the orchestrator
 with the receipts and STOP.
 
+PROBE VIA A SCRATCH FILE, NEVER GIT (learned M6.3/M7 — two executors reached for git). To prove a gate BITES
+its real shape, plant the violation in a NEW throwaway file at the target path (e.g. `features/__probe/lib/
+x.ts`) and `rm` it after — no revert needed, no real file touched. If you must edit a real file to probe, back
+it up first (`cp f f.bak; …; mv f.bak f`). NEVER `git stash` / `git checkout <path>` / `git restore` to undo a
+probe — those are BANNED (they can silently drop other uncommitted work) and are not "no harm no foul" even
+when nothing is lost.
+
 BUILDING A GATE — THE FULL RITUAL (learned M0; a gate is NOT just the gate file). To ship a new
 `scripts/check/gates/<name>.ts` gate green you must ALSO:
   1. THE PROOF IS INLINE (always required): the descriptor exports `gate: GateDescriptor` with `name` ==

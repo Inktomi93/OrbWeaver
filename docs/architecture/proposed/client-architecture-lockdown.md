@@ -468,7 +468,7 @@ The WRONG ways it replaces: a bespoke emitter (G10 RED) · an event type with no
 | UI-Gates §8 keystone "in `features/` (app-shell exempt)" | the keystone covers ALL `packages/client/src`; three exact exemptions | Tighten the §8 sentence (§4 here is the precise record) |
 | north-star §0 rule 2 "hand-written CSS legal in exactly ONE file" | true at the FEATURE tier; `client/styles/globals.css` + ui `globals.css` are hand-written styles-tier files, `theme.css` is generated; `settings-shell.css` is a live violation | §4's table is the reconciled law; dissolve settings-shell.css at M6 |
 | "home-page" as a concept | `routes/home-page.tsx` is the `/` route + a 63-symbol god-map; the "home" screen is the chats section's landing STATE (D62 P4) | §7 — rename to `app-root.tsx` (O7) + thin-mount at M1; neo precedent recorded |
-| `client-structure` RESERVED note: `corpus` stub mirrors no domain | `features/discovery/` is BUILT (corpus stays the section label) | Update the gate's RESERVED comment at M7 |
+| `client-structure` RESERVED note: `corpus` stub mirrors no domain | `features/discovery/` is BUILT and already renamed from `corpus` (72b600fc) — the gate's own comment has carried no stale corpus reference since | RESOLVED at M7: doc-only stale follow-up removed from `Core-Enforcement-Active-Gates.md`; no code change needed |
 
 (The former auto-overlay row is resolved by O6: no longer a doc↔code disagreement — the law stands and the code is BUILT to it at M10; see §4.)
 
