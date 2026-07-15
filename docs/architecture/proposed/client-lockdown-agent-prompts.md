@@ -876,17 +876,19 @@ workloads · backup · chat-behavior · regex · connections · automation · sy
   `modal-registry-completeness`: every `SETTINGS_CATEGORY_ID` has a co-located `*-pane` in the door; duplicate
   id; placeholder honesty — a `{placeholder:true}` pane can't wire a real body & vice-versa; the host imports
   NO pane body directly). Green.
-- **M6.2 — the de-god moves (mechanical, per-owner, GREEN EACH)** [mech-executor]: MOVE each pane def + its
-  support files to the owner feature, fix imports (`pnpm ast` the refs), update the `main.tsx` door import to
-  the owner front door, de-stub the `.gitkeep`: **personas** → `features/persona` (the pane; persona is a real
-  feature); **admin** → `features/user-admin` (admin-* components + use-create-user-form + use-admin-mutations
-  + admin-model + role-slot-row + role-status-dot); **connections** → `features/credentials` (add-credential-
-  dialog + credential-key-row + model-picker + static-model-display + use-add-credential-form + use-connections-
-  form + use-connections-mutations + use-role-source-models + connections-model + connections-nav); **workloads
-  + backup** → `features/workloads` (the workloads component/hook/lib set + the backup components +
-  import/export + portability-serde + backup-nav + portability-model). G4 stays green (co-located in the new
-  owner). knip-clean. `prompt-manager/.gitkeep` STAYS (O2). Each owner-move is its own green checkpoint (safe
-  to split the dispatch if one fights).
+- **M6.2 — the de-god: EXTRACT-SHARED-FIRST, then move (RULED 2026-07-15 — the standard de-god pattern, done)**:
+  **PHASE 1 — hoist every shared cross-boundary primitive to its tier BEFORE moving** (a settings util/component
+  imported by BOTH a moving pane AND a staying pane can't be cross-feature-imported once panes leave —
+  `client-features-no-cross`; the answer is tier-promotion, §3/§12, NOT an exemption): a vocab-typed util/const
+  → `#state` (done: `settingsAnchorId` → `state/settings-pane-registry.ts`, typed over `SettingsCategoryId`);
+  a shared client composite → `components/` tier-2 (done: `SettingSwitchRow`); a domain-agnostic primitive →
+  `@orb/ui` (done: `scrollBehavior` → `@orb/ui/lib`). **PHASE 2 — the 4 moves** (`git mv` pane def + support
+  files; fix imports; door imports from the OWNER front door; de-stub the `.gitkeep`): personas → `features/persona`;
+  admin → `features/user-admin`; connections → `features/credentials`; workloads+backup → `features/workloads`.
+  **Ownership is by CODE-TRUTH not the file list** — `role-slot-row`/`role-status-dot` went to credentials
+  (connections-domain, zero admin refs — `pnpm ast refs` proved it), correcting the doc's guess. G4 fires on
+  the new co-located `features/*/lib/*-pane.tsx`. `prompt-manager/.gitkeep` STAYS (O2). knip-clean; `pnpm test:ct`
+  green.
 - **M6.3 — dissolve `settings-shell.css` + G14** [executor]: the 14-line `.settings-flash-anchor` scroll-spy
   highlight (token-referenced, `settings-shell.css`) dissolves to a SANCTIONED §4 home (a `@orb/ui` variant or
   `client/styles/globals.css` keyframe — NOT app-shell shell.css unless truly shell-structural; the executor
