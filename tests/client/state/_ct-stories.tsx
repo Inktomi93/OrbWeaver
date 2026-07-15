@@ -63,6 +63,7 @@ import {
   useCharacterSortMode,
   useCharacterViewMode,
   useChatListCharacterFilter,
+  useChromeRegistry,
   useContextTab,
   useFavoritesOnly,
   useListDocked,
@@ -506,6 +507,31 @@ function ModalRegistryReader(): ReactElement {
   return (
     <div>
       <output>{`ids=${ids} theme=${registry.get("theme").title}`}</output>
+    </div>
+  );
+}
+
+/** ChromeRegistryProbe — reads the chrome registry via `useChromeRegistry` inside its provider (the
+ *  mirror of ModalRegistryProbe), rendering the delivered `topbar.trail` widget ids as text so a CT
+ *  proves the context delivers the real registered widgets (notifications-bell/fullscreen-toggle/
+ *  context-toggle) assembled at the door. */
+export function ChromeRegistryProbe(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <ChromeRegistryReader />
+    </CtFakeSectionRegistry>
+  );
+}
+
+function ChromeRegistryReader(): ReactElement {
+  const registry = useChromeRegistry();
+  const ids = registry
+    .list()
+    .map((e) => e.id)
+    .join(",");
+  return (
+    <div>
+      <output>{`ids=${ids}`}</output>
     </div>
   );
 }

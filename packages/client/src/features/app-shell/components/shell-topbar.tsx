@@ -1,19 +1,12 @@
-// ShellTopbar — the always-present strip above CONTENT. Shell-owned, section-agnostic chrome: panel
-// show/hide toggles, the active section title (or a per-section header node the route supplies), the ⌘K
-// jump chip, and the focus toggle. Every icon button + the chip carries a Tooltip.
+// ShellTopbar — the always-present strip above CONTENT. Shell-owned, section-agnostic chrome: the list
+// panel toggle (frame grammar, positionally bound to the list panel — stays intrinsic), the active section
+// title (or a per-section header node the route supplies), and the registry-driven `topbar.trail` zone
+// (⌘K derived from the modal registry; the bell/focus/context toggles ride the chrome registry as
+// widgets — shell-chrome-unification.md §A). Every icon button + the chip carries a Tooltip.
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
-import {
-  Expand,
-  Icon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-  Shrink,
-} from "@orb/ui/icons";
-import { Kbd } from "@orb/ui/kbd";
+import { Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
@@ -23,19 +16,13 @@ export interface ShellTopbarProps {
   readonly title: string;
   /** Per-section header node the route may supply (defaults to just the title). */
   readonly header?: ReactNode;
-  /** Route-composed trail chrome (the notifications bell), rendered before the ⌘K chip. */
-  readonly trail?: ReactNode;
+  /** The registry-derived `topbar.trail` zone render (⌘K + chrome widgets), rendered as-is. */
+  readonly trail: ReactNode;
   readonly listMode: PanelMode;
-  readonly contextMode: PanelMode;
-  /** Both panels collapsed — drives the focus-toggle affordance. */
-  readonly immersive: boolean;
   readonly onToggleList: () => void;
-  readonly onToggleContext: () => void;
-  readonly onToggleFocus: () => void;
-  readonly onOpenCommand: () => void;
 }
 
-interface TopbarIconButtonProps {
+export interface TopbarIconButtonProps {
   readonly label: string;
   readonly icon: LucideIcon;
   readonly pressed?: boolean;
@@ -43,8 +30,10 @@ interface TopbarIconButtonProps {
   readonly onClick: () => void;
 }
 
-/** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label. */
-function TopbarIconButton({
+/** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label.
+ *  Exported so the fullscreen/context-toggle chrome widgets (features/app-shell/lib) render the SAME
+ *  affordance shape the list-panel toggle uses. */
+export function TopbarIconButton({
   label,
   icon,
   pressed,
@@ -77,15 +66,9 @@ export function ShellTopbar({
   header,
   trail,
   listMode,
-  contextMode,
-  immersive,
   onToggleList,
-  onToggleContext,
-  onToggleFocus,
-  onOpenCommand,
 }: ShellTopbarProps): ReactElement {
   const listCollapsed = listMode === "collapsed";
-  const contextCollapsed = contextMode === "collapsed";
   return (
     <header className="shell-topbar">
       <div className="shell-topbar-lead">
@@ -103,39 +86,7 @@ export function ShellTopbar({
           ) : null)}
       </div>
 
-      <div className="shell-topbar-trail">
-        {trail}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                intent="secondary"
-                size="sm"
-                aria-label="Command menu"
-                onClick={onOpenCommand}
-              >
-                <Kbd>⌘K</Kbd>
-                <Text as="span" size="micro" tone="muted">
-                  jump
-                </Text>
-              </Button>
-            }
-          />
-          <TooltipPopup side="bottom">Jump to…</TooltipPopup>
-        </Tooltip>
-        <TopbarIconButton
-          label={immersive ? "Exit focus mode" : "Enter focus mode"}
-          icon={immersive ? Shrink : Expand}
-          pressed={immersive}
-          onClick={onToggleFocus}
-        />
-        <TopbarIconButton
-          label={contextCollapsed ? "Show detail panel" : "Hide detail panel"}
-          icon={contextCollapsed ? PanelRightOpen : PanelRightClose}
-          expanded={!contextCollapsed}
-          onClick={onToggleContext}
-        />
-      </div>
+      <div className="shell-topbar-trail">{trail}</div>
     </header>
   );
 }

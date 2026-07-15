@@ -216,6 +216,12 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_gmodal/lib/stray.ts",
     "export const strayModal: ModalDefinition = { id: 'x' };\n",
   );
+  // chrome-registry-completeness: a `ChromeEntry`-typed var in a file that is NOT a `*-chrome.tsx` def
+  // file — the co-location arm.
+  fx(
+    "packages/client/src/features/__g_gchrome/lib/stray.ts",
+    "export const strayChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail' };\n",
+  );
   // modal-body-not-placeholder: a `*-modal.tsx` def whose function body renders <SectionPlaceholder>.
   fx(
     "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
