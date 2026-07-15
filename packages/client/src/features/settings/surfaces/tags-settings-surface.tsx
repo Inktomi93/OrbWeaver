@@ -16,8 +16,8 @@ import { useFocusOnMount } from "#lib";
 import { TagCreateButton } from "../components/tag-create-button";
 import { TagSettingsRow } from "../components/tag-settings-row";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
-import { TAGS_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
+import { TAGS_SUBCATEGORY_IDS } from "../lib/tags-nav";
 
 export function TagsSettingsSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);

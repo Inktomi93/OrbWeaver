@@ -12,7 +12,7 @@ import { useFocusOnMount } from "#lib";
 import { AdminEnginesSection } from "../components/admin-engines-section";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../components/admin-ops-section";
 import { AdminUsersSection } from "../components/admin-users-section";
-import { ADMIN_SUBCATEGORY_IDS } from "../lib/settings-nav";
+import { ADMIN_SUBCATEGORY_IDS } from "../lib/admin-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 
 const anchor = (sub: string): string => settingsAnchorId("admin", sub);

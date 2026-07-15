@@ -35,6 +35,7 @@ import {
   FONT_SCALE_MIN,
   FONT_SCALE_STEP,
 } from "../lib/appearance-bounds";
+import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/appearance-nav";
 import {
   AVATAR_ASPECT_ITEMS,
   AVATAR_RING_ITEMS,
@@ -48,7 +49,6 @@ import {
   MESSAGE_ACTIONS_ITEMS,
   SEEDED_BACKGROUND_ITEMS,
 } from "../lib/appearance-select-items";
-import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 
 interface UpdateAppearanceVars {

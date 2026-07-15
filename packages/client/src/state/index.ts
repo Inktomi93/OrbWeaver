@@ -144,7 +144,26 @@ export type {
 export type { SectionRegistry } from "./section-registry-context";
 export { SectionRegistryContext, useSectionRegistry } from "./section-registry-context";
 export { SectionRegistryProvider } from "./section-registry-provider";
-export type { ModalSlotId, PanelMode, PanelName, SectionId } from "./shell-store";
+export type {
+  SettingsGroup,
+  SettingsPaneDefinition,
+  SettingsSubcategory,
+  SettingsViewerView,
+} from "./settings-pane-registry";
+export { SETTINGS_GROUPS } from "./settings-pane-registry";
+export type { SettingsPaneRegistry } from "./settings-pane-registry-context";
+export {
+  SettingsPaneRegistryContext,
+  useSettingsPaneRegistry,
+} from "./settings-pane-registry-context";
+export { SettingsPaneRegistryProvider } from "./settings-pane-registry-provider";
+export type {
+  ModalSlotId,
+  PanelMode,
+  PanelName,
+  SectionId,
+  SettingsCategoryId,
+} from "./shell-store";
 export {
   closeModal,
   MODAL_SLOT_IDS,
@@ -153,6 +172,7 @@ export {
   PANEL_MODES,
   revealContextPanel,
   SECTION_IDS,
+  SETTINGS_CATEGORY_IDS,
   setActiveSection,
   setContextTab,
   setMobileSheet,

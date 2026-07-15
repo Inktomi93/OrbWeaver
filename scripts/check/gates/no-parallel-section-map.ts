@@ -11,8 +11,9 @@
 // check). The vocabulary TUPLES themselves (`SECTION_IDS`/`MODAL_SLOT_IDS` in shell-store.ts) are bare
 // all-ids string arrays too — they're the sanctioned ONE home, allowlisted like every other arm.
 //
-// SCOPE: the SectionId AND ModalSlotId vocabularies (both LIVE). The SettingsCategoryId arm lands at M6
-// (settings de-god) — staged, not forgotten.
+// SCOPE: the SectionId, ModalSlotId, AND SettingsCategoryId vocabularies (all LIVE — the SettingsCategoryId
+// arm lands at M6.1; its allowlist mirrors the modal arm: the tuple home (shell-store.ts), the door, and
+// its own co-located *-pane.tsx defs).
 import type { Expression, ObjectLiteralExpression, Project, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -42,6 +43,10 @@ const SECTION_RECORD_RE = /\bRecord<\s*SectionId\b/;
 const SECTION_PARTIAL_RE = /\bPartial<\s*Record<\s*SectionId\b/;
 const MODAL_RECORD_RE = /\bRecord<\s*ModalSlotId\b/;
 const MODAL_PARTIAL_RE = /\bPartial<\s*Record<\s*ModalSlotId\b/;
+const SETTINGS_RECORD_RE = /\bRecord<\s*SettingsCategoryId\b/;
+const SETTINGS_PARTIAL_RE = /\bPartial<\s*Record<\s*SettingsCategoryId\b/;
+/** A co-located settings-pane definition file: `features/<owner>/lib/<id>-pane.{ts,tsx}`. */
+const PANE_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-pane\.tsx?$/;
 
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
@@ -69,7 +74,7 @@ function readTuple(project: Project, tupleConst: string): ReadonlySet<string> {
   return ids;
 }
 
-/** The two shell vocabularies the gate covers (both LIVE); SettingsCategoryId stages at M6. */
+/** The three shell vocabularies the gate covers (all LIVE). */
 function readVocabs(project: Project): readonly Vocab[] {
   return [
     {
@@ -91,6 +96,16 @@ function readVocabs(project: Project): readonly Vocab[] {
       // Modal homes: the vocabulary tuple, the door assembly, the co-located *-modal definition files.
       isDefFile: (p) => MODAL_FILE_RE.test(p),
       registry: "modal",
+    },
+    {
+      name: "SettingsCategoryId",
+      tupleConst: "SETTINGS_CATEGORY_IDS",
+      ids: readTuple(project, "SETTINGS_CATEGORY_IDS"),
+      recordRe: SETTINGS_RECORD_RE,
+      partialRecordRe: SETTINGS_PARTIAL_RE,
+      // Settings homes: the vocabulary tuple, the door assembly, the co-located *-pane definition files.
+      isDefFile: (p) => PANE_FILE_RE.test(p),
+      registry: "settings",
     },
   ];
 }
@@ -322,6 +337,16 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "the deleted YOU_MODAL_IDS shape" },
       why: "a bare string array of ≥2 ModalSlotIds outside an allowlisted home — the deleted YOU_MODAL_IDS shape (the G2 gap a fresh verifier found: a bare id array has zero object elements, invisible to the `{id:…}` array arm)",
     },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts":
+          'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
+        "packages/client/src/features/x/lib/settings-labels.ts":
+          "export const LABELS = {\n  account: { label: 1 },\n  appearance: { label: 2 },\n};\n",
+      },
+      expect: { messageIncludes: "parallel settings map" },
+      why: "a re-declared per-category map (≥2 SettingsCategoryId keys) outside the sanctioned homes — the M6.1 arm",
+    },
   ],
   mustPass: [
     {
@@ -361,6 +386,15 @@ export const gate: GateDescriptor = {
           'export const NOT_A_MODAL_LIST = ["theme", "someOtherFeature"];\n',
       },
       why: "a foreign string in the mix isn't pure vocab-space (the string-array false-positive guard), passes",
+    },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts":
+          'export const SETTINGS_CATEGORY_IDS = ["account", "appearance", "tags"] as const;\n',
+        "packages/client/src/features/x/lib/appearance-pane.tsx":
+          "export const M = { account: 1, appearance: 2 };\n",
+      },
+      why: "a SettingsCategoryId-keyed object literal inside a co-located *-pane.tsx def file — allowlisted, must pass",
     },
   ],
 };

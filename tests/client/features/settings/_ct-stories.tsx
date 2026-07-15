@@ -23,15 +23,19 @@ import { WorkloadsSettingsSurface } from "../../../../packages/client/src/featur
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 
-/** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test). */
+/** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test).
+ *  SettingsShell reads `useSettingsPaneRegistry()`, so it must mount under the pane-registry provider —
+ *  CtRealSectionRegistry nests it (mirrors main.tsx's door). */
 export function SettingsShellStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 560, width: 900 }}>
-        <SettingsShell />
-      </div>
+      <CtRealSectionRegistry>
+        <div style={{ height: 560, width: 900 }}>
+          <SettingsShell />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -42,23 +46,25 @@ export function SettingsShellStory(): ReactElement {
 export function SettingsModalStory(): ReactElement {
   return (
     <CtDataProviders>
-      <Dialog open={true}>
-        <DialogPopup size="xl">
-          <header className="shell-modal-header shrink-0">
-            <DialogTitle>Settings</DialogTitle>
-            <DialogClose
-              render={
-                <button aria-label="Close" type="button">
-                  ×
-                </button>
-              }
-            />
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <SettingsShell />
-          </div>
-        </DialogPopup>
-      </Dialog>
+      <CtRealSectionRegistry>
+        <Dialog open={true}>
+          <DialogPopup size="xl">
+            <header className="shell-modal-header shrink-0">
+              <DialogTitle>Settings</DialogTitle>
+              <DialogClose
+                render={
+                  <button aria-label="Close" type="button">
+                    ×
+                  </button>
+                }
+              />
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <SettingsShell />
+            </div>
+          </DialogPopup>
+        </Dialog>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

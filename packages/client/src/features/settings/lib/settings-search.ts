@@ -1,11 +1,9 @@
-// SETTINGS_SEARCH_ENTRIES — the whole settings index (categories · subcategories · individual settings)
-// flattened into one fuzzy-searchable list, split out of settings-nav.ts (UI-Arch §2.1 component-size gate).
-// Built once at module load from the registry; the shell's cmdk search matches over label + keywords and,
-// on a hit, JUMPS to that pane + subcategory anchor (settings-shell-surface.tsx). The registry (settings-
-// nav.ts) stays the ONE home for the geography; this is a pure derivation of it.
+// buildSettingsSearchEntries — the whole settings index (categories · subcategories · individual settings)
+// flattened into one fuzzy-searchable list. Derives from the SettingsPaneRegistry (client-architecture-
+// lockdown.md §8) — never a parallel SETTINGS_CATEGORY_IDS-keyed map (G2). The host's cmdk search matches
+// over label + keywords and, on a hit, jumps to that pane + subcategory anchor (settings-shell-surface.tsx).
 
-import { SETTINGS_CATEGORIES } from "./settings-nav";
-import { SETTINGS_CATEGORY_IDS } from "./settings-nav-model";
+import type { SettingsPaneRegistry } from "#state";
 
 /** One flattened, fuzzy-searchable entry over the whole index. `subId: null` = a category-level hit
  *  (switch pane, no scroll); a non-null `subId` jumps to that subcategory's anchor. `keywords` carries
@@ -13,47 +11,50 @@ import { SETTINGS_CATEGORY_IDS } from "./settings-nav-model";
 export interface SettingsSearchEntry {
   readonly id: string;
   readonly label: string;
-  readonly categoryId: (typeof SETTINGS_CATEGORY_IDS)[number];
+  readonly categoryId: string;
   readonly categoryLabel: string;
   readonly subId: string | null;
   readonly keywords: readonly string[];
 }
 
-function buildSettingsSearchEntries(): readonly SettingsSearchEntry[] {
+/** Build the whole search index from the registry's definitions (`when`-visible entries only). */
+export function buildSettingsSearchEntries(
+  registry: SettingsPaneRegistry,
+  isVisible: (categoryId: string) => boolean,
+): readonly SettingsSearchEntry[] {
   const entries: SettingsSearchEntry[] = [];
-  for (const categoryId of SETTINGS_CATEGORY_IDS) {
-    const category = SETTINGS_CATEGORIES[categoryId];
+  for (const pane of registry.list()) {
+    if (!isVisible(pane.id)) {
+      continue;
+    }
     entries.push({
-      id: categoryId,
-      label: category.label,
-      categoryId,
-      categoryLabel: category.label,
+      id: pane.id,
+      label: pane.label,
+      categoryId: pane.id,
+      categoryLabel: pane.label,
       subId: null,
-      keywords: [category.label, category.description],
+      keywords: [pane.label, pane.description],
     });
-    for (const sub of category.subcategories ?? []) {
+    for (const sub of pane.subcategories ?? []) {
       entries.push({
-        id: `${categoryId}::${sub.id}`,
+        id: `${pane.id}::${sub.id}`,
         label: sub.label,
-        categoryId,
-        categoryLabel: category.label,
+        categoryId: pane.id,
+        categoryLabel: pane.label,
         subId: sub.id,
-        keywords: [sub.label, ...(sub.keywords ?? []), category.label],
+        keywords: [sub.label, ...(sub.keywords ?? []), pane.label],
       });
       for (const setting of sub.settings ?? []) {
         entries.push({
-          id: `${categoryId}::${sub.id}::${setting.id}`,
+          id: `${pane.id}::${sub.id}::${setting.id}`,
           label: setting.label,
-          categoryId,
-          categoryLabel: category.label,
+          categoryId: pane.id,
+          categoryLabel: pane.label,
           subId: sub.id,
-          keywords: [setting.label, ...(setting.keywords ?? []), sub.label, category.label],
+          keywords: [setting.label, ...(setting.keywords ?? []), sub.label, pane.label],
         });
       }
     }
   }
   return entries;
 }
-
-/** The whole index flattened for fuzzy search-to-anchor (built once at module load). */
-export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = buildSettingsSearchEntries();

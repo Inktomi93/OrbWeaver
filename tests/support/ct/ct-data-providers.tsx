@@ -23,7 +23,22 @@ import { commandModal, makeChatsSection, newChatModal } from "@orb/client/featur
 import { corpusSection } from "@orb/client/features/discovery";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
-import { settingsModal, themeModal } from "@orb/client/features/settings";
+import {
+  accountPane,
+  adminPane,
+  appearancePane,
+  automationPane,
+  backupPane,
+  chatBehaviorPane,
+  connectionsPane,
+  personasPane,
+  regexPane,
+  settingsModal,
+  systemPane,
+  tagsPane,
+  themeModal,
+  workloadsPane,
+} from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { worldInfoSection } from "@orb/client/features/world-info";
 import type { ChatContextState, ContextTabDef } from "@orb/client/lib";
@@ -35,12 +50,17 @@ import type {
   SectionDefinition,
   SectionId,
   SectionRegistry,
+  SettingsCategoryId,
+  SettingsPaneDefinition,
+  SettingsPaneRegistry,
 } from "@orb/client/state";
 import {
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
   SECTION_IDS,
+  SETTINGS_CATEGORY_IDS,
   SectionRegistryProvider,
+  SettingsPaneRegistryProvider,
 } from "@orb/client/state";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -108,7 +128,31 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
   REAL_MODALS,
 );
 
-/** The real 7-section + 6-modal registries — for CTs that drive real section content (the route CT). */
+// ── Settings-pane-registry CT provider ────────────────────────────────────────────────────────────
+// The settings host reads the settings-pane registry as a runtime context (mirrors main.tsx's door).
+
+const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = {
+  account: accountPane,
+  personas: personasPane,
+  appearance: appearancePane,
+  tags: tagsPane,
+  workloads: workloadsPane,
+  backup: backupPane,
+  "chat-behavior": chatBehaviorPane,
+  regex: regexPane,
+  connections: connectionsPane,
+  automation: automationPane,
+  system: systemPane,
+  admin: adminPane,
+};
+
+const realSettingsPaneRegistry: SettingsPaneRegistry = createRegistry<
+  SettingsCategoryId,
+  SettingsPaneDefinition
+>("settings-panes", SETTINGS_CATEGORY_IDS, REAL_SETTINGS_PANES);
+
+/** The real 7-section + 6-modal + 12-settings-pane registries — for CTs that drive real content (the
+ *  route CT). */
 export function CtRealSectionRegistry({
   children,
 }: {
@@ -116,7 +160,11 @@ export function CtRealSectionRegistry({
 }): ReactElement {
   return (
     <SectionRegistryProvider value={realRegistry}>
-      <ModalRegistryProvider value={realModalRegistry}>{children}</ModalRegistryProvider>
+      <ModalRegistryProvider value={realModalRegistry}>
+        <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
+          {children}
+        </SettingsPaneRegistryProvider>
+      </ModalRegistryProvider>
     </SectionRegistryProvider>
   );
 }
@@ -184,7 +232,11 @@ export function CtFakeSectionRegistry({
   );
   return (
     <SectionRegistryProvider value={registry}>
-      <ModalRegistryProvider value={realModalRegistry}>{children}</ModalRegistryProvider>
+      <ModalRegistryProvider value={realModalRegistry}>
+        <SettingsPaneRegistryProvider value={realSettingsPaneRegistry}>
+          {children}
+        </SettingsPaneRegistryProvider>
+      </ModalRegistryProvider>
     </SectionRegistryProvider>
   );
 }

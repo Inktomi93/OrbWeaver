@@ -14,8 +14,8 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds";
+import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/appearance-nav";
 import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items";
-import { APPEARANCE_SUBCATEGORY_IDS } from "../lib/settings-nav";
 import { settingsAnchorId } from "../lib/settings-nav-model";
 import { SettingSwitchRow } from "./setting-switch-row";
 

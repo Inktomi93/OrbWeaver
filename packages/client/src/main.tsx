@@ -28,7 +28,22 @@ import { commandModal, makeChatsSection, newChatModal } from "#features/chat";
 import { corpusSection } from "#features/discovery";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
-import { settingsModal, themeModal } from "#features/settings";
+import {
+  accountPane,
+  adminPane,
+  appearancePane,
+  automationPane,
+  backupPane,
+  chatBehaviorPane,
+  connectionsPane,
+  personasPane,
+  regexPane,
+  settingsModal,
+  systemPane,
+  tagsPane,
+  themeModal,
+  workloadsPane,
+} from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { worldInfoSection } from "#features/world-info";
 import type { ChatContextState, ContextTabDef } from "#lib";
@@ -43,7 +58,9 @@ import {
   MODAL_SLOT_IDS,
   ModalRegistryProvider,
   SECTION_IDS,
+  SETTINGS_CATEGORY_IDS,
   SectionRegistryProvider,
+  SettingsPaneRegistryProvider,
 } from "#state";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { isProbeMode } from "./lib/probe-mode";
@@ -109,6 +126,23 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   you: youModal,
 });
 
+// The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
+// context value so the settings host reads it without importing any pane body directly.
+const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
+  account: accountPane,
+  personas: personasPane,
+  appearance: appearancePane,
+  tags: tagsPane,
+  workloads: workloadsPane,
+  backup: backupPane,
+  "chat-behavior": chatBehaviorPane,
+  regex: regexPane,
+  connections: connectionsPane,
+  automation: automationPane,
+  system: systemPane,
+  admin: adminPane,
+});
+
 // The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders
 // whatever notify.* enqueues. Without this bind, user-facing errors were console-only.
 const toastManager = createToastManager();
@@ -165,7 +199,9 @@ createRoot(rootEl).render(
           >
             <SectionRegistryProvider value={sections}>
               <ModalRegistryProvider value={modals}>
-                <RouterProvider router={router} />
+                <SettingsPaneRegistryProvider value={settingsPanes}>
+                  <RouterProvider router={router} />
+                </SettingsPaneRegistryProvider>
               </ModalRegistryProvider>
             </SectionRegistryProvider>
           </AppErrorBoundary>
