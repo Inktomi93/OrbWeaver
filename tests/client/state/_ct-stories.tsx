@@ -10,6 +10,7 @@
 import {
   chatDeletedFromList,
   clearAnalyticsSelection,
+  clearCharacterFacet,
   clearCharacterSelection,
   clearChatListCharacterFilter,
   clearCorpusSelection,
@@ -20,30 +21,38 @@ import {
   clearWorldEntrySelection,
   closeModal,
   commitDraft,
+  dismissPresetSection,
   goToLanding,
   isCommitted,
   isLanding,
   openModal,
+  openSettingsTo,
+  revealContextPanel,
   selectAnalyticsCharacter,
   selectCharacter,
+  selectCharacterFacet,
   selectChat,
   selectChatFromList,
   selectCorpusCharacter,
   selectPreset,
+  selectPresetFromList,
   selectPresetSection,
   selectWorldBook,
+  selectWorldBookFromList,
   selectWorldEntry,
   setActiveSection,
   setBulkMode,
   setCharacterSortMode,
   setCharacterViewMode,
   setChatListCharacterFilter,
+  setContextTab,
   setMobileSheet,
   setMobileViewport,
   setPanelMode,
   startNewChat,
   toggleFavoritesOnly,
   toggleShowArchived,
+  toggleSpoilerBlur,
   toggleTagFilter,
   useActiveChatHandle,
   useActiveDraftSeed,
@@ -53,6 +62,7 @@ import {
   useCharacterSortMode,
   useCharacterViewMode,
   useChatListCharacterFilter,
+  useContextTab,
   useFavoritesOnly,
   useListDocked,
   useMobileSheet,
@@ -61,13 +71,16 @@ import {
   usePanelOverride,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
+  useSelectedCharacterFacetId,
   useSelectedCharacterId,
   useSelectedCorpusCharacterId,
   useSelectedPresetId,
   useSelectedPresetSectionId,
   useSelectedWorldBookId,
   useSelectedWorldEntryId,
+  useSettingsTarget,
   useShowArchived,
+  useSpoilerBlur,
   useTagFilter,
 } from "@orb/client/state";
 import type { CharacterId, ChatId, PresetId, TagId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -82,6 +95,9 @@ export function ShellStoreProbe(): ReactElement {
   const list = usePanelOverride(section, "list") ?? "none";
   const context = usePanelOverride(section, "context") ?? "none";
   const modal = useOpenModal();
+  const settingsTarget = useSettingsTarget();
+  const contextTab = useContextTab();
+  const mobileSheet = useMobileSheet();
   // `useListDocked` — the narrow #state projection a section definition reads instead of
   // `useShellLayout` (chats-section.tsx's landing showRecents). Fed a literal "docked" own-default here
   // so the probe exercises the override-priority logic, independent of any real section's actual default.
@@ -89,7 +105,7 @@ export function ShellStoreProbe(): ReactElement {
   return (
     <div>
       <output>
-        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked}`}
+        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} mobileSheet=${mobileSheet ?? "none"}`}
       </output>
       <button type="button" onClick={(): void => setActiveSection("corpus")}>
         go corpus
@@ -109,8 +125,17 @@ export function ShellStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => openModal("settings")}>
         open settings
       </button>
+      <button type="button" onClick={(): void => openSettingsTo("tags")}>
+        open settings to tags
+      </button>
       <button type="button" onClick={(): void => closeModal()}>
         close modal
+      </button>
+      <button type="button" onClick={(): void => setContextTab("members")}>
+        set context tab
+      </button>
+      <button type="button" onClick={(): void => revealContextPanel("field")}>
+        reveal context panel
       </button>
       <button type="button" onClick={(): void => setMobileViewport(true)}>
         enter mobile viewport
@@ -197,19 +222,27 @@ export function ActiveChatStoreProbe(): ReactElement {
   );
 }
 
-/** CharacterSelectionProbe — renders the character-selection store's read hook as text + buttons that
+/** CharacterSelectionProbe — renders the character-selection store's read hooks as text + buttons that
  *  fire its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a
- *  browser) and assert select → clear (J9: LIST selection drives the CONTENT detail card). */
+ *  browser) and assert select → clear (J9: LIST selection drives the CONTENT detail card) AND the facet
+ *  drill-in (a card-content facet row reveals the CONTEXT Field inspector, mirrors selectPresetSection). */
 export function CharacterSelectionProbe(): ReactElement {
   const selected = useSelectedCharacterId();
+  const facet = useSelectedCharacterFacetId();
   return (
     <div>
-      <output>{`selected=${selected ?? "none"}`}</output>
+      <output>{`selected=${selected ?? "none"} facet=${facet ?? "none"}`}</output>
       <button type="button" onClick={(): void => selectCharacter(PROBE_CHARACTER)}>
         select aria
       </button>
       <button type="button" onClick={(): void => clearCharacterSelection()}>
         clear selection
+      </button>
+      <button type="button" onClick={(): void => selectCharacterFacet("facet_probe")}>
+        select facet
+      </button>
+      <button type="button" onClick={(): void => clearCharacterFacet()}>
+        clear facet
       </button>
     </div>
   );
@@ -246,13 +279,18 @@ const PROBE_PRESET = castId<PresetId>("preset_ct_probe");
 /** PresetSelectionProbe — renders the preset-selection store's read hooks as text + buttons that fire its
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
  *  assert select → clear for BOTH the open preset (W10) and the rack SECTION (The Assembly §2.2): selecting
- *  a section reveals the inspector; opening a different preset clears a stale section. */
+ *  a section reveals the inspector; opening a different preset clears a stale section. Also drives the
+ *  LIST-callback dual-writes `selectPresetFromList`/`dismissPresetSection`, which additionally close the
+ *  shell's mobile CONTEXT/LIST sheet (mirrors ActiveChatStoreProbe's `selectChatFromList` posture). */
 export function PresetSelectionProbe(): ReactElement {
   const selected = useSelectedPresetId();
   const section = useSelectedPresetSectionId();
+  const mobileSheet = useMobileSheet();
   return (
     <div>
-      <output>{`selected=${selected ?? "none"} section=${section ?? "none"}`}</output>
+      <output>
+        {`selected=${selected ?? "none"} section=${section ?? "none"} mobileSheet=${mobileSheet ?? "none"}`}
+      </output>
       <button type="button" onClick={(): void => selectPreset(PROBE_PRESET)}>
         select preset
       </button>
@@ -264,6 +302,20 @@ export function PresetSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearPresetSelection()}>
         clear preset selection
+      </button>
+      {/* Open the LIST mobile sheet first so `selectPresetFromList`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setMobileSheet("list")}>
+        open list sheet
+      </button>
+      <button type="button" onClick={(): void => selectPresetFromList(PROBE_PRESET)}>
+        select preset from list
+      </button>
+      {/* Open the CONTEXT mobile sheet first so `dismissPresetSection`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setMobileSheet("context")}>
+        open context sheet
+      </button>
+      <button type="button" onClick={(): void => dismissPresetSection()}>
+        dismiss section
       </button>
     </div>
   );
@@ -281,10 +333,11 @@ export function CharacterLibraryStoreProbe(): ReactElement {
   const showArchived = useShowArchived();
   const bulk = useCharacterBulkMode();
   const tags = useTagFilter();
+  const spoilerBlur = useSpoilerBlur();
   return (
     <div>
       <output>
-        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.join(",") || "none"}`}
+        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.join(",") || "none"} blur=${spoilerBlur}`}
       </output>
       <button type="button" onClick={(): void => setCharacterSortMode("alpha")}>
         sort alpha
@@ -307,6 +360,9 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => clearTagFilter()}>
         clear tags
       </button>
+      <button type="button" onClick={(): void => toggleSpoilerBlur()}>
+        toggle spoiler blur
+      </button>
     </div>
   );
 }
@@ -317,13 +373,18 @@ const PROBE_ENTRY = castId<WorldEntryId>("world_entry_ct_probe");
 /** WorldInfoSelectionProbe — renders the world-info-selection store's read hooks as text + buttons that fire
  *  its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
  *  and assert select → clear for BOTH the open book (LIST drives CONTENT) and the drilled entry: selecting an
- *  entry reveals its editor; opening a different book clears a stale entry. */
+ *  entry reveals its editor; opening a different book clears a stale entry. Also drives the LIST-callback
+ *  dual-write `selectWorldBookFromList`, which additionally closes the shell's mobile LIST sheet (mirrors
+ *  ActiveChatStoreProbe's `selectChatFromList` coverage). */
 export function WorldInfoSelectionProbe(): ReactElement {
   const book = useSelectedWorldBookId();
   const entry = useSelectedWorldEntryId();
+  const mobileSheet = useMobileSheet();
   return (
     <div>
-      <output>{`book=${book ?? "none"} entry=${entry ?? "none"}`}</output>
+      <output>
+        {`book=${book ?? "none"} entry=${entry ?? "none"} mobileSheet=${mobileSheet ?? "none"}`}
+      </output>
       <button type="button" onClick={(): void => selectWorldBook(PROBE_BOOK)}>
         select book
       </button>
@@ -335,6 +396,13 @@ export function WorldInfoSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearWorldBookSelection()}>
         clear book selection
+      </button>
+      {/* Open the LIST mobile sheet first so `selectWorldBookFromList`'s dual-write close is observable. */}
+      <button type="button" onClick={(): void => setMobileSheet("list")}>
+        open list sheet
+      </button>
+      <button type="button" onClick={(): void => selectWorldBookFromList(PROBE_BOOK)}>
+        select book from list
       </button>
     </div>
   );

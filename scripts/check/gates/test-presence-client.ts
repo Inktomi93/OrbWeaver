@@ -1,9 +1,15 @@
+// biome-ignore-all lint/security/noSecrets: the mustFlag/mustPass example strings are TS fixture snippets
 // Gate: test-presence-client — the @orb/client + non-primitive @orb/ui reach test-presence lacks
 // (docs/architecture/core/Spine-Testing.md §5: a test is required only where an untested change
 // silently breaks behavior downstream, not blanket per-file coverage). Clause A: client
 // data/forms/state primitives need a per-file mirror test (each is composed independently). Clause B:
 // non-primitive @orb/ui logic groups need any test in their mirror directory (bare primitives/ are covered by ui-primitive-structure's CT).
-import { existsSync, readdirSync } from "node:fs";
+// Clause C: a mirror EXISTING (clause A) isn't enough — a store gains a new exported action and the
+// mirror's OLD tests keep passing untouched (learned: `revealContextPanel`/`selectPresetFromList`/
+// `dismissPresetSection`/`selectWorldBookFromList` shipped referenced by ZERO test file). Every action
+// exported by a `state/*.ts` file that mints a store (`createGatedStore`/`createPersistedStore`/
+// `createEntityDraftStore`) must appear BY NAME in its mirror `tests/client/state/<store>.ct.tsx`.
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
@@ -13,6 +19,8 @@ import type { Violation } from "../harness.ts";
 const CLIENT_SRC = "/packages/client/src/";
 const UI_SRC = "/packages/ui/src/";
 const EXT_RE = /\.tsx?$/u;
+const STATE_STORE_FACTORY_RE =
+  /\b(?:createGatedStore|createPersistedStore|createEntityDraftStore)(?:<[^(]*>)?\(/u;
 // The client tiers this gate reaches, and (for A) the nested buckets it deliberately does NOT.
 const CLIENT_TIERS = ["data/", "forms/", "state/"];
 const CLIENT_EXCLUDE_NESTED = ["data/bus/", "forms/bound-fields/"];
@@ -36,6 +44,8 @@ const MSG_CLIENT =
   "client data/forms/state primitive has no test — add a .test.ts / .int.test.ts / .ct.tsx at its tests/client mirror. These seals are composed by every feature; an untested change breaks behavior downstream silently (Spine-Testing.md §5).";
 const MSG_UI =
   "non-primitive @orb/ui logic module has no test — add a .test.ts / .ct.tsx at its tests/ui mirror (Spine-Testing.md §5).";
+const MSG_STATE_ACTION = (action: string): string =>
+  `store action \`${action}\` is not referenced by name in its mirror tests/client/state/*.ct.tsx — a mirror EXISTING isn't presence for a NEW action (Spine-Testing.md §5). Drive it and assert the resulting store state.`;
 
 function relAfter(path: string, marker: string): string | undefined {
   const idx = path.indexOf(marker);
@@ -71,6 +81,58 @@ function hasMirrorTest(root: string, pkg: string, rel: string): boolean {
   return TEST_KINDS.some((kind) => existsSync(join(root, "tests", pkg, `${base}${kind}`)));
 }
 
+// Clause C — every exported top-level function in a store file (state/*.ts minting createGatedStore /
+// createPersistedStore / createEntityDraftStore) is a store ACTION unless it's a `use*` read-hook (a
+// selector, not a write) or the store-factory export itself (the `create*` doors re-exported from their
+// own file — not applicable here since those files never call their OWN factory).
+function exportedFunctionDeclActionNames(sf: SourceFile): string[] {
+  const names: string[] = [];
+  for (const fn of sf.getFunctions()) {
+    const name = fn.getName();
+    if (fn.isExported() && name !== undefined && !name.startsWith("use")) {
+      names.push(name);
+    }
+  }
+  return names;
+}
+
+function exportedConstActionNames(sf: SourceFile): string[] {
+  const names: string[] = [];
+  for (const stmt of sf.getVariableStatements()) {
+    if (!stmt.isExported()) {
+      continue;
+    }
+    for (const decl of stmt.getDeclarations()) {
+      const init = decl.getInitializer();
+      const name = decl.getName();
+      const isFnValue =
+        init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init));
+      if (isFnValue && !name.startsWith("use")) {
+        names.push(name);
+      }
+    }
+  }
+  return names;
+}
+
+function storeActionNames(sf: SourceFile): string[] {
+  return [...exportedFunctionDeclActionNames(sf), ...exportedConstActionNames(sf)];
+}
+
+// A `state/*.ts` file mints its OWN store only when it calls one of the three factory doors directly —
+// excludes the factory-definition files themselves (create-gated-store.ts etc. define, never call, the
+// door) and the context/provider/registry files (no store, nothing to gate here).
+function isStoreFile(sf: SourceFile): boolean {
+  return STATE_STORE_FACTORY_RE.test(sf.getFullText());
+}
+
+// Clause C — a store's mirror .ct.tsx (the only kind these hook-backed stores use — useSyncExternalStore
+// needs a browser) must reference every action BY NAME (boundary-anchored, not a substring of a longer
+// identifier).
+function actionReferencedInMirror(mirrorText: string, action: string): boolean {
+  return new RegExp(`(?:[^\\w]|^)${action}\\(`, "u").test(mirrorText);
+}
+
 // Clause B — dir-level presence: ANY test file in the module's mirror directory (a ui-logic group is
 // exercised as a unit, often under a different basename — a helper via its component's CT, a builder
 // via a sibling snap/option test).
@@ -99,6 +161,61 @@ function clientTierRel(rel: string): string | undefined {
   return rel.slice(tier.length).includes("/") ? undefined : rel;
 }
 
+// Clause C — the store's ONE mirror kind is .ct.tsx (useSyncExternalStore needs a browser; every
+// existing state store mirror is a .ct.tsx, never a .test.ts). Missing mirror is already clause A's
+// violation; clause C only judges action-name coverage WITHIN an existing mirror. The action call sites
+// live in the shared `_ct-stories.tsx` story module (Spine-Testing §7 — "CT only mounts from a non-test
+// module"), so the corpus is BOTH the `.ct.tsx` and its sibling `_ct-stories.tsx`.
+function readIfExists(path: string): string {
+  return existsSync(path) ? readFileSync(path, "utf8") : "";
+}
+
+function scanStoreActionPresence(root: string, clientRel: string, sf: SourceFile): Violation[] {
+  const mirrorDir = join(root, "tests", "client", "state");
+  const mirrorPath = join(root, "tests", "client", clientRel.replace(EXT_RE, ".ct.tsx"));
+  if (!existsSync(mirrorPath)) {
+    return [];
+  }
+  const corpus = readIfExists(mirrorPath) + readIfExists(join(mirrorDir, "_ct-stories.tsx"));
+  const out: Violation[] = [];
+  for (const action of storeActionNames(sf)) {
+    if (!actionReferencedInMirror(corpus, action)) {
+      out.push({
+        file: `packages/client/src/${clientRel}`,
+        line: 0,
+        message: MSG_STATE_ACTION(action),
+      });
+    }
+  }
+  return out;
+}
+
+function scanClientTier(root: string, clientRel: string, sf: SourceFile): Violation[] {
+  const out: Violation[] = [];
+  const tierRel = clientTierRel(clientRel);
+  if (tierRel === undefined) {
+    return out;
+  }
+  if (hasCallableExport(sf) && !hasMirrorTest(root, "client", clientRel)) {
+    out.push({ file: `packages/client/src/${clientRel}`, line: 0, message: MSG_CLIENT });
+  }
+  if (clientRel.startsWith("state/") && isStoreFile(sf)) {
+    out.push(...scanStoreActionPresence(root, clientRel, sf));
+  }
+  return out;
+}
+
+function scanUiTier(root: string, uiRel: string, sf: SourceFile): Violation[] {
+  if (
+    UI_LOGIC_GROUPS.some((g) => uiRel.startsWith(g)) &&
+    hasCallableExport(sf) &&
+    !hasDirTest(root, "ui", uiRel)
+  ) {
+    return [{ file: `packages/ui/src/${uiRel}`, line: 0, message: MSG_UI }];
+  }
+  return [];
+}
+
 /** The fs+AST scan shared by the legacy Check and the single-pass `run` descriptor. */
 function scanTestPresenceClient(root: string, project: Project): Violation[] {
   const out: Violation[] = [];
@@ -109,24 +226,12 @@ function scanTestPresenceClient(root: string, project: Project): Violation[] {
     const path = sf.getFilePath();
     const clientRel = relAfter(path, CLIENT_SRC);
     if (clientRel !== undefined) {
-      const tierRel = clientTierRel(clientRel);
-      if (
-        tierRel !== undefined &&
-        hasCallableExport(sf) &&
-        !hasMirrorTest(root, "client", clientRel)
-      ) {
-        out.push({ file: `packages/client/src/${clientRel}`, line: 0, message: MSG_CLIENT });
-      }
+      out.push(...scanClientTier(root, clientRel, sf));
       continue;
     }
     const uiRel = relAfter(path, UI_SRC);
-    if (
-      uiRel !== undefined &&
-      UI_LOGIC_GROUPS.some((g) => uiRel.startsWith(g)) &&
-      hasCallableExport(sf) &&
-      !hasDirTest(root, "ui", uiRel)
-    ) {
-      out.push({ file: `packages/ui/src/${uiRel}`, line: 0, message: MSG_UI });
+    if (uiRel !== undefined) {
+      out.push(...scanUiTier(root, uiRel, sf));
     }
   }
   return out;
@@ -161,6 +266,20 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "non-primitive @orb/ui logic module" },
       why: "clause B: a ui-logic module (markdown/policy) with no test in its mirror dir — fires (dir-level)",
+    },
+    {
+      // clause C: a store action with a mirror .ct.tsx that never references it by name.
+      files: {
+        "packages/client/src/state/__g_gpresclient-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-presclient", () => ({ n: 0 }));\n' +
+          'export function gPresClientAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n' +
+          "export function useGPresClient(): number {\n  return useX((s) => s.n);\n}\n",
+        "tests/client/state/__g_gpresclient-store.ct.tsx":
+          'import { useGPresClient } from "@orb/client/state";\nexport const t = useGPresClient;\n',
+      },
+      expect: { messageIncludes: "gPresClientAction" },
+      why: "clause C: the mirror exists but never calls gPresClientAction( by name — untested new action",
     },
   ],
   mustPass: [
@@ -205,6 +324,30 @@ export const gate: GateDescriptor = {
           "export function build(): number {\n  return 1;\n}\n",
       },
       why: "bare primitives/ are covered by ui-primitive-structure's CT clause — not scanned here, passes",
+    },
+    {
+      // clause C: the mirror DOES call the action by name — covered, passes.
+      files: {
+        "packages/client/src/state/__g_gpresclientok-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-presclientok", () => ({ n: 0 }));\n' +
+          'export function gPresClientOkAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n' +
+          "export function useGPresClientOk(): number {\n  return useX((s) => s.n);\n}\n",
+        "tests/client/state/__g_gpresclientok-store.ct.tsx":
+          'import { gPresClientOkAction, useGPresClientOk } from "@orb/client/state";\n' +
+          "gPresClientOkAction();\nexport const t = useGPresClientOk;\n",
+      },
+      why: "clause C: gPresClientOkAction( appears by name in the mirror — covered, passes",
+    },
+    {
+      // clause C: a state/*.ts file that mints NO store (no factory call) is out of clause C's scope
+      // entirely — e.g. chat-handle.ts's pure constructors, never gated as store actions.
+      files: {
+        "packages/client/src/state/__g_purehandle.ts":
+          'export function gPureBuild(): { kind: "x" } {\n  return { kind: "x" };\n}\n',
+        "tests/client/state/__g_purehandle.ct.tsx": "export {};\n",
+      },
+      why: "clause C: no store-factory call in the file — not a store, out of clause C's scope, passes",
     },
   ],
 };

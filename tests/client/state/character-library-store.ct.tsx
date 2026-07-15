@@ -1,8 +1,9 @@
 // character-library-store CT — drives the LIST view-prefs store (FINAL-Character §4/§12) through its module
 // actions and asserts each read hook reflects the transition on the real persisted (localStorage-backed)
 // store: the §4.5 sort, the §4.3 flat⇄categorized view, the favorites/archived filter chips, the §4.6 bulk
-// flag, and the AND-tag filter's add/remove/clear. `bulkMode` is transient (not persisted) — verified only
-// as a live transition here (a reload-persistence assertion belongs to the persist factory's own test).
+// flag, the AND-tag filter's add/remove/clear, and the spoiler-blur screen-share toggle. `bulkMode` is
+// transient (not persisted) — verified only as a live transition here (a reload-persistence assertion
+// belongs to the persist factory's own test).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterLibraryStoreProbe } from "./_ct-stories";
@@ -32,6 +33,18 @@ test("filter chips + bulk flag toggle independently", async ({ mount }) => {
 
   await probe.getByRole("button", { name: "enter bulk" }).click();
   await expect(state).toContainText("bulk=true");
+});
+
+test("spoiler blur toggles independently of the other filters", async ({ mount }) => {
+  const probe = await mount(<CharacterLibraryStoreProbe />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("blur=false");
+
+  await probe.getByRole("button", { name: "toggle spoiler blur" }).click();
+  await expect(state).toContainText("blur=true");
+
+  await probe.getByRole("button", { name: "toggle spoiler blur" }).click();
+  await expect(state).toContainText("blur=false");
 });
 
 test("the tag filter adds, then removes (idempotent toggle) and clears", async ({ mount }) => {
