@@ -207,7 +207,6 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
                 header={activeDef.header?.()}
                 trail={
                   <>
-                    <TopbarTrailChrome />
                     <Tooltip>
                       <TooltipTrigger
                         render={
@@ -230,6 +229,7 @@ export function AppShell({ railFoot }: AppShellProps): ReactElement {
                       />
                       <TooltipPopup side="bottom">Jump to…</TooltipPopup>
                     </Tooltip>
+                    <TopbarTrailChrome />
                   </>
                 }
                 listMode={layout.listMode}
