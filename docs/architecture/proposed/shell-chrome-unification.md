@@ -154,8 +154,14 @@ vocabulary (zones are architecture, entries are growth).
    clean consumers (its §E-7 deadline beaten); the chrome context/provider rides the W3
    `createRegistryContext` mint (G26). The behavior union + `body(presentation)` stay step 2's crux
    by design.
-2. **Assemble** — ○ NOT DONE. No `assembleChrome`; the contributor registry assembles the widget entries only, not
-   derived sections/modals. The behavior union is the crux of this step.
+2. **Assemble** — ● DONE (2026-07-16). `ChromeEntryBehavior` union (section|modal|widget with the
+   `ChromePresentation` lens param, bar-only until §E-5); pure `state/assemble-chrome.ts` derives
+   `rail.nav` from `SectionDefinition`s (`mobilePrimary → tab|sheet` mapped in ONE home; the 7 defs
+   migrate at step 3) + `rail.end` from `rail-footer` modal triggers + the widgets, owning the
+   dupe/zone/order algebra; `main.tsx` assembles once through the existing provider (G8 intact).
+   `topbar-command` deliberately unmapped — the bespoke ⌘K chip's unification is a VISIBLE change
+   deferred to N1's skin pass. `rail.nav`/`rail.end` entries are assembled-but-unconsumed until step 3.
+   Completeness gate: `rail.*` widgets must declare `mobile`; `topbar.*` must not.
 3. **Rail cutover** — ○ NOT DONE. Single-DOM chrome render; merge the two button components; CSS reflow inside the
    existing `@media`; `mobilePrimary?:boolean` → `mobile: MobileCuration` across the 7 section defs. Delete the twin
    blocks + `RailTabButton`.
