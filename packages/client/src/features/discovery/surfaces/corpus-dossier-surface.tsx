@@ -45,14 +45,7 @@ export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfa
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusDossierSurface")}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading dossier…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load the dossier.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the dossier" onRetry={retry} />}
       >
         <DossierBody characterId={characterId} onBack={onBack} />
       </QueryBoundary>

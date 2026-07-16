@@ -38,7 +38,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
 
   return (
     <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
-      <LibrarySurfaceShell errorLabel="Couldn't load your presets." loadingLabel="Loading your presets…">
+      <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…">
         <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
       </LibrarySurfaceShell>
     </Stack>

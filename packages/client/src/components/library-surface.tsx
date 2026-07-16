@@ -8,17 +8,16 @@
 // precedent). Behavior-preserving: the header band is the CURRENT micro-caps Row (the north-star A1/N2 chrome
 // migration to shell-panel-header is a separate lane — this consolidation does not fork or pre-empt it).
 
-import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { QueryBoundary } from "#data";
+import { QueryBoundary, QueryErrorState } from "#data";
 
 export interface LibrarySurfaceShellProps {
   /** Suspense fallback copy, e.g. "Loading your presets…". */
   readonly loadingLabel: string;
-  /** Error-boundary copy, e.g. "Couldn't load your presets.". */
+  /** Error-boundary noun phrase, e.g. "your presets" (rendered as "Couldn't load your presets."). */
   readonly errorLabel: string;
   /** The querying list component (calls `useSuspenseQuery` — mounted inside the boundary). */
   readonly children: ReactNode;
@@ -30,14 +29,7 @@ export function LibrarySurfaceShell({ loadingLabel, errorLabel, children }: Libr
   return (
     <QueryBoundary
       fallback={<Text tone="muted">{loadingLabel}</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          {errorLabel}{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={errorLabel} onRetry={retry} />}
     >
       {children}
     </QueryBoundary>

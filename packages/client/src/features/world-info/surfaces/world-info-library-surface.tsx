@@ -35,7 +35,7 @@ export function WorldInfoLibrarySurface({ onSelectBook }: WorldInfoLibrarySurfac
 
   return (
     <Stack ref={surfaceRef} className="h-full outline-none" gap="block" tabIndex={-1}>
-      <LibrarySurfaceShell errorLabel="Couldn't load your books." loadingLabel="Loading your books…">
+      <LibrarySurfaceShell errorLabel="your books" loadingLabel="Loading your books…">
         <BookList onSelectBook={onSelectBook ?? selectWorldBook} />
       </LibrarySurfaceShell>
     </Stack>

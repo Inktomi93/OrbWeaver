@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import { useCharacterThemeForm } from "../hooks/use-character-theme-form";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model";
@@ -70,14 +70,7 @@ export function CharacterAppearanceTab({ characterId }: CharacterAppearanceTabPr
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading appearance…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load appearance.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
     >
       <AppearanceTabBody characterId={characterId} />
     </QueryBoundary>

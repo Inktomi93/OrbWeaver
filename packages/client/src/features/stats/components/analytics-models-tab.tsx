@@ -3,14 +3,13 @@
 // and owner-scoped `latency` (on-read TTFT/gen percentiles across all models). Read-only analytics.
 
 import { BarList } from "@orb/ui/bar-list";
-import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { byModelBarItems, formatCompact, formatMs, formatUsd } from "../lib/analytics-view-model";
 
@@ -18,14 +17,7 @@ export function AnalyticsModelsTab(): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading model stats…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load model stats.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
     >
       <ModelsBody />
     </QueryBoundary>

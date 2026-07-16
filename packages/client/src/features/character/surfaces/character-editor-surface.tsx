@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import {
   clearCharacterFacet,
@@ -45,14 +45,7 @@ export function CharacterEditorSurface({ characterId, onRevealField }: Character
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading character…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load this character.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
     >
       <CharacterEditorBody characterId={characterId} onRevealField={onRevealField} key={characterId} />
     </QueryBoundary>

@@ -521,6 +521,9 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_dialog/components/__g_dialog.tsx",
     'import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";\nexport const G = <Dialog><DialogPopup><DialogTitle>x</DialogTitle></DialogPopup></Dialog>;\n',
   );
+  // render-error-via-battery: a hand-rolled `renderError` arm (not QueryErrorState-rooted) in a client
+  // file outside the allowlist — the read-error drift G29 seals (derive-modernization-audit.md §W4).
+  fx("packages/client/src/features/__g_rerror/components/__g_rerror.tsx", "export const G = <B renderError={() => <Text>failed</Text>} />;\n");
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

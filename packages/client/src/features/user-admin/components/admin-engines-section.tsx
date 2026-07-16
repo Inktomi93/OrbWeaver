@@ -12,7 +12,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useRestartEngine } from "../hooks/use-admin-mutations";
 import { engineBadgeIntent } from "../lib/admin-model";
@@ -42,9 +42,13 @@ export function AdminEnginesSection(): ReactElement {
 
   return (
     <Stack gap="row" data-testid={testId("adminEnginesSection")}>
-      {engines.isPending ? <Text tone="muted">Loading engine status…</Text> : null}
-      {engines.isError ? <Text tone="destructive">Couldn't load the engine status — administrators only.</Text> : null}
-      {engines.isSuccess && entries.length === 0 ? <Text tone="muted">No engine status yet — the supervisor reports after its first probe.</Text> : null}
+      <QueryInlineStates
+        status={engines}
+        isEmpty={entries.length === 0}
+        pending="Loading engine status…"
+        error="Couldn't load the engine status — administrators only."
+        empty="No engine status yet — the supervisor reports after its first probe."
+      />
 
       <Stack gap="field">
         {entries.map(([engine, record]) => (

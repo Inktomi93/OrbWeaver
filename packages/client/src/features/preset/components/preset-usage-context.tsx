@@ -5,12 +5,11 @@
 // starter-default distinction, an honest "what this is" rather than a fabricated usage list.
 
 import type { PresetId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 
 export interface PresetUsageContextProps {
   readonly presetId: PresetId;
@@ -21,14 +20,7 @@ export function PresetUsageContext({ presetId }: PresetUsageContextProps): React
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load usage.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="usage" onRetry={retry} />}
     >
       <PresetUsageBody presetId={presetId} />
     </QueryBoundary>

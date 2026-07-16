@@ -22,7 +22,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter } from "#state";
 import { AllThemes, FacetBars, KeywordExplorer, ThemeDrift } from "../components/corpus-home-charts";
@@ -49,14 +49,7 @@ export function CorpusHomeSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusHomeSurface")}>
       <QueryBoundary
         fallback={<Text tone="muted">Loading your corpus…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load your corpus.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
       >
         <CorpusHomeBody />
       </QueryBoundary>
@@ -228,14 +221,7 @@ function ThemeDetailCard({ selection, onDismiss }: { readonly selection: ThemeSe
     <Card padding="block">
       <QueryBoundary
         fallback={<Text tone="muted">Loading theme…</Text>}
-        renderError={(_error, retry): ReactElement => (
-          <Text tone="muted">
-            Couldn't load the theme.{" "}
-            <Button intent="ghost" onClick={retry}>
-              Retry
-            </Button>
-          </Text>
-        )}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the theme" onRetry={retry} />}
       >
         <ThemeDetailBody selection={selection} onDismiss={onDismiss} />
       </QueryBoundary>

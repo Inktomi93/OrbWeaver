@@ -139,11 +139,8 @@ function groupByRole(blocks: readonly PreviewBlock[]): readonly RoleGroup[] {
  * Assemble the preview from the live sections. Only ENABLED, non-pivot, non-duplicate-pivot sections
  * appear. A spliced section is routed to the conversation band (regardless of its zone); an in-flow section
  * joins its zone's role-grouped run. Splices sort depth DESC, then order ASC (the P1 ST-parity semantics).
- *
- * `fires` is an OPTIONAL per-section include predicate (default: every section fires). The lens filter was
- * retired with the toolbar Lens, but the predicate seam is kept so a test can prove the include filter.
  */
-export function assemblePreview(sections: readonly PromptSection[], fires: (section: PromptSection) => boolean = () => true): AssembledPreview {
+export function assemblePreview(sections: readonly PromptSection[]): AssembledPreview {
   const zones = deriveZones(sections);
   const duplicateSet = new Set(zones.duplicatePivotIndexes);
 
@@ -160,9 +157,6 @@ export function assemblePreview(sections: readonly PromptSection[], fires: (sect
       continue; // the pivot itself is the band, never a block.
     }
     if (!section.enabled) {
-      continue;
-    }
-    if (!fires(section)) {
       continue;
     }
     const splice = spliceOf(section);
