@@ -14,6 +14,7 @@
 //     is unreachable dead chrome. A DECLARED-PLANNED surface modal is exempt (not wired yet, by design).
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -36,13 +37,13 @@ function objProp(obj: ObjectLiteralExpression, name: string): Node | undefined {
   return prop !== undefined && Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
 }
 
-/** A modal definition's declared `id` string literal, or undefined. */
+/** A modal definition's declared `id` string literal (through any as/satisfies/paren wrapper), or undefined. */
 function modalId(modal: ObjectLiteralExpression): string | undefined {
   const id = objProp(modal, "id");
-  return id !== undefined && Node.isStringLiteral(id) ? id.getLiteralText() : undefined;
+  return id === undefined ? undefined : readStringValue(id);
 }
 
-/** A modal definition's `trigger.placement` string literal, or undefined. */
+/** A modal definition's `trigger.placement` string literal (through any wrapper), or undefined. */
 function triggerPlacement(modal: ObjectLiteralExpression): string | undefined {
   const trigger = objProp(modal, "trigger");
   if (trigger === undefined || !Node.isObjectLiteralExpression(trigger)) {
@@ -53,7 +54,7 @@ function triggerPlacement(modal: ObjectLiteralExpression): string | undefined {
     return;
   }
   const init = placement.getInitializer();
-  return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : undefined;
+  return init === undefined ? undefined : readStringValue(init);
 }
 
 /** The `body: { planned }` reason if the body is the planned arm (empty string when planned but no
@@ -68,7 +69,7 @@ function plannedReason(modal: ObjectLiteralExpression): string | undefined {
     return;
   }
   const init = planned.getInitializer();
-  return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : "";
+  return (init === undefined ? undefined : readStringValue(init)) ?? "";
 }
 
 type Seen = { readonly name: string; readonly file: string };
@@ -102,8 +103,9 @@ function collectOpenModalCallSites(sf: SourceFile, sites: Set<string>): void {
       continue;
     }
     const [arg] = call.getArguments();
-    if (arg !== undefined && Node.isStringLiteral(arg)) {
-      sites.add(arg.getLiteralText());
+    const id = arg === undefined ? undefined : readStringValue(arg);
+    if (id !== undefined) {
+      sites.add(id);
     }
   }
 }
@@ -266,6 +268,14 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/x/lib/x-modal.tsx",
       expect: { messageIncludes: "call site" },
       why: "a `surface` modal with a real body and NO openModal(id) opener — the surface-reachability arm (§E-7)",
+    },
+    {
+      files: {
+        "packages/client/src/features/a/lib/a-modal.ts": "export const aModal: ModalDefinition = { id: 'dup' as never, trigger: { placement: 'rail.end' } };\n",
+        "packages/client/src/features/b/lib/b-modal.ts": "export const bModal: ModalDefinition = { id: 'dup' as never, trigger: { placement: 'rail.end' } };\n",
+      },
+      expect: { messageIncludes: "already claimed by" },
+      why: "duplicate ids written `'dup' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED before hardening (readStringValue unwraps it)",
     },
     {
       files: "export const G = <AppShell modals={{ theme: 1, settings: 2 }} />;\n",

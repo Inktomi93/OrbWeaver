@@ -5,6 +5,7 @@
 // as a string but is blank is the same silent-sparkle failure). Cross-file, so whole-project.
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 
 /** A co-located section definition file: `features/<owner>/lib/<id>-section.{ts,tsx}`. */
@@ -16,14 +17,15 @@ function rel(path: string): string {
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-/** The string value of a named string-literal property (`title: "Corpus"` → "Corpus"), or undefined. */
+/** The string value of a named string-literal property (`title: "Corpus"` → "Corpus"), through any
+ *  as/satisfies/paren wrapper, or undefined. */
 function stringProp(obj: ObjectLiteralExpression, name: string): string | undefined {
   const prop = obj.getProperty(name);
   if (prop === undefined || !Node.isPropertyAssignment(prop)) {
     return;
   }
   const init = prop.getInitializer();
-  return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : undefined;
+  return init === undefined ? undefined : readStringValue(init);
 }
 
 type SectionEntry = { readonly name: string; readonly file: string; readonly line: number };
@@ -140,6 +142,14 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "empty" },
       why: "an empty placeholder title — the non-empty arm",
+    },
+    {
+      files: {
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "#state";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "" as string, description: "D" }, content: { planned: "x" }, context: { kind: "none" } };\n',
+      },
+      expect: { messageIncludes: "empty" },
+      why: 'an empty title written `"" as string` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader treated as "out of reach" (undefined) and silently PASSED before hardening',
     },
   ],
   mustPass: [

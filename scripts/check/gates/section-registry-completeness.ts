@@ -11,6 +11,7 @@
 //     picks one of the two importable names, silently orphaning the other).
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -29,10 +30,10 @@ function objProp(obj: ObjectLiteralExpression, name: string): Node | undefined {
   return prop !== undefined && Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
 }
 
-/** A section definition's declared `id` string literal, or undefined. */
+/** A section definition's declared `id` string literal (through any as/satisfies/paren wrapper), or undefined. */
 function sectionId(section: ObjectLiteralExpression): string | undefined {
   const id = objProp(section, "id");
-  return id !== undefined && Node.isStringLiteral(id) ? id.getLiteralText() : undefined;
+  return id === undefined ? undefined : readStringValue(id);
 }
 
 /** A section definition's declared `content` — the planned arm if it is an object literal with `planned`. */
@@ -46,7 +47,7 @@ function plannedReason(section: ObjectLiteralExpression): string | undefined {
     return;
   }
   const init = planned.getInitializer();
-  return init !== undefined && Node.isStringLiteral(init) ? init.getLiteralText() : "";
+  return (init === undefined ? undefined : readStringValue(init)) ?? "";
 }
 
 /** True when a section object wires a REAL body (list/header/non-`none` context) — illegal for planned.
@@ -68,7 +69,8 @@ function wiresRealBody(section: ObjectLiteralExpression): boolean {
     const kind = context.getProperty("kind");
     if (kind !== undefined && Node.isPropertyAssignment(kind)) {
       const k = kind.getInitializer();
-      return k !== undefined && Node.isStringLiteral(k) && k.getLiteralText() !== "none";
+      const kindValue = k === undefined ? undefined : readStringValue(k);
+      return kindValue !== undefined && kindValue !== "none";
     }
   }
   return false;
@@ -256,6 +258,16 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "already claimed by" },
       why: "two co-located SectionDefinitions declaring the SAME id — the shadow-def duplicate-id arm",
+    },
+    {
+      files: {
+        "packages/client/src/features/a/lib/a-section.ts":
+          "export const aSection: SectionDefinition = { id: 'dup' as never, content: () => null, context: { kind: 'none' } };\n",
+        "packages/client/src/features/b/lib/b-section.ts":
+          "export const bSection: SectionDefinition = { id: 'dup' as never, content: () => null, context: { kind: 'none' } };\n",
+      },
+      expect: { messageIncludes: "already claimed by" },
+      why: "duplicate ids written `'dup' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED before hardening",
     },
   ],
   mustPass: [

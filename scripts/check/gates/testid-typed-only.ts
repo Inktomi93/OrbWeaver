@@ -1,7 +1,25 @@
 import { Node, SyntaxKind } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 
 const SCOPE = /\/packages\/client\/src\//u;
+
+/** Does this `data-testid` initializer carry a FREEFORM string value — a bare `="foo"` StringLiteral, or a
+ *  braced `={"foo"}` / `={"foo" as string}` / `={\`foo\`}` literal — as opposed to the typed
+ *  `={testId("key")}` call (a non-literal expression, undefined) which is the sanctioned shape. */
+function freeformTestidValue(init: Node | undefined): boolean {
+  if (init === undefined) {
+    return false;
+  }
+  if (Node.isStringLiteral(init)) {
+    return true; // bare attribute string: data-testid="foo"
+  }
+  if (!Node.isJsxExpression(init)) {
+    return false;
+  }
+  const expr = init.getExpression();
+  return expr !== undefined && readStringValue(expr) !== undefined; // braced literal (through any wrapper)
+}
 
 export const gate: GateDescriptor = {
   name: "testid-typed-only",
@@ -17,8 +35,7 @@ export const gate: GateDescriptor = {
     if (!Node.isJsxAttribute(node)) {
       return;
     }
-    const init = node.getInitializer();
-    if (node.getNameNode().getText() === "data-testid" && init && Node.isStringLiteral(init)) {
+    if (node.getNameNode().getText() === "data-testid" && freeformTestidValue(node.getInitializer())) {
       ctx.report(node, { token: "data-testid", offset: 0 });
     }
   },
@@ -27,6 +44,11 @@ export const gate: GateDescriptor = {
       files: "export const A = () => <div data-testid='foo' />;\n",
       at: "packages/client/src/components/foo.tsx",
       why: "freeform string literal testid",
+    },
+    {
+      files: "export const A = () => <div data-testid={'foo' as string} />;\n",
+      at: "packages/client/src/components/foo.tsx",
+      why: "a braced freeform testid wrapped in an AsExpression (`{'foo' as string}`) — the wrapped/braced-literal shape the plain StringLiteral reader silently PASSED before hardening",
     },
   ],
   mustPass: [

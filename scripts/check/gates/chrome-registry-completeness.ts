@@ -8,6 +8,7 @@
 // unknown zone string).
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { readStringValue } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
 import type { Violation } from "../harness.ts";
 
@@ -30,12 +31,12 @@ function objProp(obj: ObjectLiteralExpression, name: string): Node | undefined {
 
 function chromeId(entry: ObjectLiteralExpression): string | undefined {
   const id = objProp(entry, "id");
-  return id !== undefined && Node.isStringLiteral(id) ? id.getLiteralText() : undefined;
+  return id === undefined ? undefined : readStringValue(id);
 }
 
 function chromeZone(entry: ObjectLiteralExpression): string | undefined {
   const zone = objProp(entry, "zone");
-  return zone !== undefined && Node.isStringLiteral(zone) ? zone.getLiteralText() : undefined;
+  return zone === undefined ? undefined : readStringValue(zone);
 }
 
 type Seen = { readonly name: string; readonly file: string };
@@ -155,6 +156,12 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/x/lib/x-chrome.tsx",
       expect: { messageIncludes: "not one of CHROME_ZONES" },
       why: "a zone string outside CHROME_ZONES — the zone arm",
+    },
+    {
+      files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'sidebar.top' as never };\n",
+      at: "packages/client/src/features/x/lib/x-chrome.tsx",
+      expect: { messageIncludes: "not one of CHROME_ZONES" },
+      why: "a bad zone written `'sidebar.top' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader passed before hardening",
     },
     {
       files: "export const railChrome: ChromeEntry = { id: 'r', zone: 'rail.nav', label: 'R', behavior: { kind: 'widget', body: () => null } };\n",
