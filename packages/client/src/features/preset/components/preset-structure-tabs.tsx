@@ -77,6 +77,8 @@ function PromptTab({
 
   const onAdd = (marker: MarkerType | null): void => {
     form.pushFieldValue("sections", makeSection(marker));
+    // Array structural mutations don't fire the autosave onChange listener (§7 TRAP) — flush explicitly.
+    void form.handleSubmit();
   };
   const onAddChatHistory = (): void => onAdd("chat_history");
 

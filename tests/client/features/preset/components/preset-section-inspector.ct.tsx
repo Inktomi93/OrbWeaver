@@ -1,30 +1,41 @@
-// CT: the section-inspector recoverable delete (BUILD-SPEC §3.5 P0 1b). Deleting a section must drop it
-// from the form AND raise an Undo toast whose action restores it at its ORIGINAL index — no silent,
-// irreversible loss. The live section-id order (`<output>`) is the source of truth: `sec_del` sits in the
-// MIDDLE (index 1) so the restore-in-place assertion FAILS against an append-to-end implementation (a last-
-// element fixture would pass either way — insert-at-index and append are identical for the tail).
+// CT: the section-inspector ⋯ actions menu — Delete (north-star §2/§6.2 + §7 autosave trap). The bottom
+// Duplicate/Move/Delete button row is now ONE ⋯ menu in the Section header; Delete is ConfirmDialog-wired
+// (the recoverable undo-toast retired). Deleting the MIDDLE section (index 1) must remove it from the form
+// AND PERSIST the shorter list (`removeFieldValue` doesn't fire the autosave onChange listener, so the menu
+// flushes explicitly — §7 TRAP). The live section-id order + the last-saved count (`<output>`) are the
+// source of truth. The ⋯ trigger, menu items, and ConfirmDialog portal to document.body → addressed via `page`.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DeleteUndoStory } from "./_delete-undo-stories";
 
-test("Delete raises an Undo toast that restores the section at its original index", async ({ mount, page }) => {
+test("Section ⋯ → Delete → confirm removes the middle section and persists the shorter list", async ({ mount, page }) => {
   const probe = await mount(<DeleteUndoStory />);
-  const ids = probe.locator("output");
+  const state = probe.locator("output");
 
-  // The selected MIDDLE section resolves in the inspector (its Name field carries the section's name, and
-  // the Delete affordance is present — i.e. the body rendered, not the EmptyState), and all three exist.
-  await expect(ids).toHaveText("ids=sec_a,sec_del,sec_z");
+  // The selected MIDDLE section resolves in the inspector (its Name field carries the section's name — i.e.
+  // the body rendered, not the EmptyState), and all three exist.
+  await expect(state).toContainText("ids=sec_a,sec_del,sec_z");
   await expect(probe.getByLabel("Name", { exact: true })).toHaveValue("DeleteMe");
 
-  await probe.getByRole("button", { name: "Delete" }).click();
+  // Open the header ⋯ menu, pick Delete, and confirm in the ConfirmDialog.
+  await page.getByRole("button", { name: "Section actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
 
-  // The section is gone and the recoverable-delete toast + its Undo action are shown (the toast portals
-  // to document.body, so it's addressed via `page`, not the component-scoped handle).
-  await expect(ids).toHaveText("ids=sec_a,sec_z");
-  await expect(page.getByText("Section removed")).toBeVisible();
+  // The section is gone AND the shorter list PERSISTED (savedCount=2) — the §7 flush reached `save`.
+  await expect(state).toContainText("ids=sec_a,sec_z");
+  await expect(state).toContainText("savedCount=2");
+});
 
-  await page.getByRole("button", { name: "Undo" }).click();
+test("Section ⋯ → Duplicate clones the section in place and persists the longer list", async ({ mount, page }) => {
+  const probe = await mount(<DeleteUndoStory />);
+  const state = probe.locator("output");
 
-  // Restored at its ORIGINAL MIDDLE index (1) — an append-to-end bug would yield `sec_a,sec_z,sec_del`.
-  await expect(ids).toHaveText("ids=sec_a,sec_del,sec_z");
+  await expect(state).toContainText("ids=sec_a,sec_del,sec_z");
+
+  await page.getByRole("button", { name: "Section actions" }).click();
+  await page.getByRole("menuitem", { name: "Duplicate" }).click();
+
+  // The clone lands right after the original (4 sections now) and the insert PERSISTED (§7 flush).
+  await expect(state).toContainText("savedCount=4");
 });

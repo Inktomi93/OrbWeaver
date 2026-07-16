@@ -27,7 +27,8 @@ export interface SectionRowProps {
   readonly index: number;
   /** The derived zone accent (`setup` steel-blue / `post` warm-amber) — a left-edge cue only. */
   readonly zone: "setup" | "post";
-  /** This row's section is the CONTEXT-selected one (accent border + fill). */
+  /** This row's section is the CONTEXT-selected one (a 10% primary tint + a primary left bar — the one
+   *  restrained ember cue on the row; north-star §6.2 P2 ember budget). */
   readonly selected: boolean;
   /** Select this section → reveal the inspector (the route-built choreography, §3.4). */
   readonly onSelect: (sectionId: string) => void;
@@ -87,7 +88,7 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
         </Badge>
       ) : null}
       {hasCustomTemplate(section) ? (
-        <Badge intent="primary" size="sm">
+        <Badge intent="neutral" size="sm">
           custom
         </Badge>
       ) : null}
@@ -103,8 +104,11 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
 export function SectionRow({ form, section, index, zone, selected, onSelect }: SectionRowProps): ReactElement {
   const { name, subtitle } = sectionLabels(section);
   const tokens = estimateSectionTokens(section);
-  const rowClass = ["rounded-card border", selected ? "border-primary bg-accent" : "border-border", section.enabled ? "" : "opacity-60"].join(" ");
-  const zoneAccent = zone === "post" ? "bg-warning" : "bg-info";
+  // Selection is the ONE restrained ember cue on the row: a 10% primary tint (the N2 chats-list pattern),
+  // not the flat `bg-accent` fill. The left bar flips to primary when selected, else the zone accent.
+  const rowClass = ["rounded-card border border-border", selected ? "bg-primary/10" : "", section.enabled ? "" : "opacity-60"].join(" ");
+  const unselectedAccent = zone === "post" ? "bg-warning" : "bg-info";
+  const zoneAccent = selected ? "bg-primary" : unselectedAccent;
 
   return (
     <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-zone={zone} className={rowClass}>
