@@ -1,17 +1,19 @@
-// The per-message action cluster: Edit / Hide-from-AI / Delete / Fork / Copy, always available on a
-// canon row (the streaming row is a separate component with no actions). Edit/Hide/Fork apply only to
-// user/assistant rows — a system row is a room notice, not authored prose. This row does not re-derive
-// author-or-host authority client-side; a caller without permission gets the verb's own NOT_FOUND. Edit
-// doesn't mutate here — it only flips the external edit-draft store's mode.
+// The per-message action cluster: Edit / Fork inline, with Hide-from-AI / Copy / Delete under a ⋯ menu
+// (D66 A3 collapse — north-star ui-cohesion §4 N3). Only a canon row renders it (the streaming row is a
+// separate component with no actions). Edit/Hide/Fork apply only to user/assistant rows — a system row is
+// a room notice, not authored prose. This row does not re-derive author-or-host authority client-side; a
+// caller without permission gets the verb's own NOT_FOUND. Edit doesn't mutate here — it only flips the
+// external edit-draft store's mode. The whole cluster's rest/reveal posture is `messageActionsRevealClass`
+// (one home); the ⋯ arm is the sanctioned `RowActionsMenu` composite, which owns Delete's ConfirmDialog.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Copy, Eye, EyeOff, GitFork, Icon, Pencil, Trash2 } from "@orb/ui/icons";
+import { Copy, Eye, EyeOff, GitFork, Icon, Pencil } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
@@ -68,7 +70,6 @@ export function MessageActionsRow({ message, onChatForked, messageActions }: Mes
   const hide = useHideMutation({ trpc, invalidation });
   const remove = useDeleteMutation({ trpc, invalidation });
   const fork = useForkMutation({ trpc, invalidation });
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt } = message;
   const editable = isEditableRole(role);
@@ -89,7 +90,6 @@ export function MessageActionsRow({ message, onChatForked, messageActions }: Mes
       return;
     }
     remove.mutate({ chatId, messageIds: [messageId] });
-    setDeleteOpen(false);
   };
 
   const onFork = async (): Promise<void> => {
@@ -122,35 +122,30 @@ export function MessageActionsRow({ message, onChatForked, messageActions }: Mes
         </Button>
       ) : null}
       {editable ? (
-        <Button
-          intent="ghost"
-          size="icon"
-          loading={hide.isPending}
-          aria-label={excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
-          onClick={onToggleHidden}
-        >
-          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />
-        </Button>
-      ) : null}
-      {editable ? (
         <Button intent="ghost" size="icon" loading={fork.isPending} aria-label="Fork chat here" onClick={(): void => void onFork()}>
           <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
         </Button>
       ) : null}
-      <Button intent="ghost" size="icon" aria-label="Copy message" onClick={(): void => void onCopy()}>
-        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Copy} size="sm" />
-      </Button>
-      <Button intent="ghost" size="icon" loading={remove.isPending} aria-label="Delete message" onClick={(): void => setDeleteOpen(true)}>
-        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Trash2} size="sm" />
-      </Button>
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Delete this message?"
-        description="This can't be undone."
-        confirmLabel="Delete"
-        onConfirm={onDelete}
-      />
+      <RowActionsMenu
+        label="More message actions"
+        destructive={{
+          title: "Delete this message?",
+          description: "This can't be undone.",
+          confirmLabel: "Delete",
+          onConfirm: onDelete,
+        }}
+      >
+        {editable ? (
+          <MenuItem onClick={onToggleHidden}>
+            <Icon icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />
+            {excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
+          </MenuItem>
+        ) : null}
+        <MenuItem onClick={(): void => void onCopy()}>
+          <Icon icon={Copy} size="sm" />
+          Copy
+        </MenuItem>
+      </RowActionsMenu>
     </Row>
   );
 }
