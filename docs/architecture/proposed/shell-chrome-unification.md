@@ -173,10 +173,17 @@ vocabulary (zones are architecture, entries are growth).
 4. **Topbar-trail cutover** — ● DONE (N1). Trail renders `zone("topbar.trail")`; bell carries `useVisible`;
    `topbarTrail` prop + app-root wiring deleted; hardcoded focus/context buttons → app-shell widget entries; the
    doubled detail-panel close is gone.
-5. **Sheet cutover** — ○ NOT DONE. `YouSheet` → blind projection (`presentation:"sheet"`); persona widget grows
-   `body("sheet")` (**mobile persona switching ships here**); placement `avatar` dies; account modal → `"surface"`.
-6. **Kill `railFoot`** — ○ NOT DONE. `railFoot` prop still lives on `AppShellProps`. Persona chrome entry owns the
-   avatar; app-root slims to §7 residue.
+5. **Sheet cutover** — ● DONE (2026-07-16). `YouSheet` is a blind projection over the resolved chrome
+   list (rail.end modals → rows, rail.end widgets → `body("sheet")`, `mobile:"sheet"` sections →
+   More); `personaChrome` (features/persona/lib) is the two-lens Identity widget over ONE data fetch —
+   **mobile persona switching shipped** (Account strip → Playing-as → persona rows → this-chat).
+   Placement `avatar` RETIRED (account modal rides `content` until step 7's `surface` rename).
+6. **Kill `railFoot`** — ● DONE (2026-07-16). `AppShellProps` deleted entirely; the rail renders the
+   avatar as a rail.end chrome entry wrapped in `.shell-rail-widget[data-mobile]` (sheet-curated
+   widgets hide off the mobile bar like everything else); app-root is §7 residue. The §D
+   `shell-no-chrome-props` gate is DEFERRED to step 7 with rationale: a ReactNode-prop denylist
+   cannot distinguish the rotted chrome-slot seam from legitimate composition (`ShellTopbarProps`
+   header/trail are ReactNode by design), and both offending props are deleted.
 7. **Vocabulary + law** — ○ NOT DONE. `rail-footer`→`rail.end`, `content`→`surface`; delete the settings `account`
    pane; land the remaining gates (prove each bites); update `UI-Architecture-and-Layout.md` §4.x; D-ledger entries
    for (a) clusters-are-registries / frame-grammar-is-intrinsic, (b) You ⊃ Identity ⊃ Account.
