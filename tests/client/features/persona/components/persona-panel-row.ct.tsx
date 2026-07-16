@@ -27,6 +27,21 @@ test("the chevron fires onToggleExpand only — a disjoint sibling, never 'set c
   await expect(component.getByTestId("fired")).toHaveText("expand");
 });
 
+// The create-on-click escape hatch (side-eye P3-2): "New persona" persists a row instantly, so the
+// freshly-expanded autosave editor must offer an explicit, always-visible Delete (the row's own delete
+// is hover-revealed only). Proves editor-Delete → the row's ConfirmDialog (G7) → confirm → onDelete —
+// the same remove mutation the panel wires, so create-then-discard leaves no row.
+test("the expanded editor's Delete opens the confirm; confirming fires onDelete", async ({ mount, page }) => {
+  const component = await mount(<PersonaPanelRowStory />);
+  await component.getByRole("button", { name: "Show details" }).click();
+  await component.getByRole("button", { name: "Delete", exact: true }).click();
+  // ConfirmDialog portals to the body — page-scoped locators.
+  const confirm = page.getByRole("alertdialog", { name: "Delete this persona?" });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "Delete" }).click();
+  await expect(component.getByTestId("fired")).toHaveText("delete");
+});
+
 test("the name control enters inline rename — it does NOT fire 'set current'", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
   await component.getByRole("button", { name: "Rename persona" }).click();

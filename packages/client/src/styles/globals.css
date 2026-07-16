@@ -174,11 +174,21 @@ html[data-texture="grain"] [data-slot="card-root"] {
   position: relative;
 }
 
-/* Chat-list edge-fade: dissolves softly under the header/composer via mask-image rather than
- * hard-clipping. */
+/* Chat-thread edge-fade: dissolves softly at a scrolled edge via mask-image rather than hard-clipping.
+ * Each edge fades ONLY while content actually lies beyond it — data-fade-top/-bottom are toggled by
+ * the MessageList primitive (@orb/ui) on scroll/resize, so a short unscrolled thread renders its
+ * first/last rows fully opaque instead of half-faded against nothing. */
 [data-slot="message-list-scroll"] {
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
-  mask-image: linear-gradient(to bottom, transparent, black var(--fade-edge-stop), black calc(100% - var(--fade-edge-stop)), transparent);
+  --fade-top-stop: 0%;
+  --fade-bottom-stop: 0%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, black var(--fade-top-stop), black calc(100% - var(--fade-bottom-stop)), transparent);
+}
+[data-slot="message-list-scroll"][data-fade-top] {
+  --fade-top-stop: var(--fade-edge-stop);
+}
+[data-slot="message-list-scroll"][data-fade-bottom] {
+  --fade-bottom-stop: var(--fade-edge-stop);
 }
 
 /* Hairline avatar border: keeps an avatar from dissolving into a blurred/photo background.

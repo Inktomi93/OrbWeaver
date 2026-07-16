@@ -150,7 +150,9 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
     <Popover>
       <PanelTrigger current={current} />
       {/* max-h-(--available-height) caps the whole panel to the viewport, not just a nested list peephole. */}
-      <PopoverPopup align="end" className="max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto" side="right">
+      {/* aria-label names the popup dialog — it has no visible title element (the body opens with the
+          Account strip), so a bare role=dialog would be nameless to AT. */}
+      <PopoverPopup aria-label="Account & personas" align="end" className="max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto" side="right">
         <Container size="md">{sections}</Container>
       </PopoverPopup>
     </Popover>

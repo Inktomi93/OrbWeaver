@@ -17,6 +17,7 @@ import { QueryBoundary, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";
 import { closeModal, openModal, selectChat, setActiveSection } from "#state";
+import { chatSummaryRowView } from "../lib/chat-summary-row";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 
@@ -112,7 +113,7 @@ interface ThreadRowProps {
 
 // cmdk scores value/keywords, never the children, so keywords carries the visible text.
 function ThreadRow({ chat, onJump }: ThreadRowProps): ReactElement {
-  const title = chat.title ?? "Untitled chat";
+  const { title } = chatSummaryRowView(chat);
   return (
     <CommandItem keywords={[title, ...chat.participantNames]} onSelect={(): void => onJump(chat.id)} value={chat.id}>
       <Icon icon={MessagesSquare} size="sm" />

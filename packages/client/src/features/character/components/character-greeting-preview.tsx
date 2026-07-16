@@ -4,7 +4,6 @@
 // The spoiler-blur eye toggle CSS-blurs the preview only — never the edit textarea.
 
 import type { ThemeOverride } from "@orb/contracts/theme";
-import { estimateTokens } from "@orb/kit/tokens";
 import { Button } from "@orb/ui/button";
 import { Icon, Pencil, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -18,7 +17,6 @@ import type { AppFormInstance } from "#forms";
 import { cn } from "#lib";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
-import { CharacterTokenCounter } from "./character-token-counter";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
@@ -121,18 +119,15 @@ function GreetingBody({
       <Stack gap="field">
         <form.Field name={greetingName(index)}>
           {(field): ReactElement => (
-            <>
-              <MacroTextarea
-                aria-label={`Opening ${index + 1}`}
-                value={field.state.value}
-                onChange={(next): void => field.handleChange(next)}
-                onBlur={field.handleBlur}
-                suggestions={CHARACTER_CARD_MACROS}
-                rows={5}
-                placeholder="The character's first message…"
-              />
-              <CharacterTokenCounter tokens={estimateTokens(field.state.value)} />
-            </>
+            <MacroTextarea
+              aria-label={`Opening ${index + 1}`}
+              value={field.state.value}
+              onChange={(next): void => field.handleChange(next)}
+              onBlur={field.handleBlur}
+              suggestions={CHARACTER_CARD_MACROS}
+              rows={5}
+              placeholder="The character's first message…"
+            />
           )}
         </form.Field>
       </Stack>

@@ -8,7 +8,6 @@ import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
-import { estimateTokens } from "@orb/kit/tokens";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
@@ -28,7 +27,6 @@ import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import { CharacterGreetingPreview } from "./character-greeting-preview";
 import { CharacterTagSuggestions } from "./character-tag-suggestions";
 import { CharacterTagsRow } from "./character-tags-row";
-import { CharacterTokenCounter } from "./character-token-counter";
 
 /** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
 export interface CharacterHeroDetail {
@@ -77,9 +75,6 @@ export function CharacterHeroBand({
           <Row align="center" gap="row" className="flex-wrap">
             <Stack className="min-w-0 flex-1" gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
-              <form.Subscribe selector={(s): string => s.values.name}>
-                {(name): ReactElement => <CharacterTokenCounter tokens={estimateTokens(name)} />}
-              </form.Subscribe>
               <Text size="micro" tone="muted" className="font-mono">
                 @{detail.handle}
               </Text>
