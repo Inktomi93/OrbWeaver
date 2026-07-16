@@ -59,17 +59,29 @@ export interface GroupConfigFormProps {
   readonly save?: ((config: GroupConfig) => Promise<unknown>) | undefined;
 }
 
-export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
+/**
+ * Keyed on `entityId` so the whole hook-owning `GroupConfigFormBody` (and its FormApi) dies + is reborn
+ * when the chat identity changes — this editor mounts under `ContextTabsPanel`, which keys by TAB id only,
+ * so a chat switch with the tab open would otherwise keep the SAME FormApi and its frozen seed, and one
+ * field flip could autosave chat A's group config into chat B. The FormApi lives in the hook's `useState`,
+ * so the key must sit ABOVE the hook owner — a key on the inner `<Stack>` remounts DOM only (the
+ * character-editor precedent; stickler review 2026-07-16-merge-block-28523122).
+ */
+export function GroupConfigForm(props: GroupConfigFormProps): ReactElement {
+  return <GroupConfigFormBody key={props.entityId} {...props} />;
+}
+
+function GroupConfigFormBody({ entityId, config, save }: GroupConfigFormProps): ReactElement {
   const factorySave = save === undefined ? undefined : (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
 
-  const { form, mountKey } = useGroupConfigForm({
+  const { form } = useGroupConfigForm({
     entityId,
     serverValues: toGroupConfigForm(config),
     ...(factorySave === undefined ? {} : { save: factorySave }),
   });
 
   return (
-    <Stack key={mountKey} gap="section" data-slot="group-config-form">
+    <Stack gap="section" data-slot="group-config-form">
       <form.AppField name="output">
         {(field): ReactElement => (
           <Stack gap="field">
