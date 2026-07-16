@@ -418,7 +418,23 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 > every section; each stop fills it, applies P2 ownership + §7 autosave, and runs its §9 lines).
 > The characters stop ALSO mints the character-detail contributor registry (the one named seam gap).
 
-1. **Characters** — content header autosave status (§7) replacing Discard/Save
+1. **Characters** — **✅ SHIPPED 2026-07-16** (commits `a69ae7b5` + `e5fd8e37` + `90b17621`;
+   lane verifier CONFIRMED 7/7). Landed: the FIRST A4 autosave flip (factory exposes
+   `saveState`/`retrySave` once; the NEW shared `forms/autosave-status.tsx` renders
+   `Saved / Saving… / Save failed — Retry` where Save was — presets/settings adopt it next; draft
+   crash-mirror deleted per §13.4 obligation-5; greeting add/remove flush the §7 array trap,
+   CT-pinned on the wire payload); token counts to the ONE header readout (exact counts moved into
+   the Field-detail drill-in); zero ember on facet rows (ghost "Add…" empty / content preview
+   filled, chats-pattern selection tint); "Suggested" micro-caps grouping; ChevronLeft Back;
+   inspector empty state names the character; AND the character-detail contributor seam minted
+   M8-style (`CHARACTER_DETAIL_ANCHORS`/`editor-sections`, `makeCharactersSection(detailContributors)`,
+   empty-but-typed at the door, fake-contributor CTs shown+hidden — crew §4.2's card-evolution
+   cards are the named consumer). Snapshot corrections vs the 2026-07-13 spec below: "Set" was a
+   primary Badge across TEN facets (not 5 Buttons), tag buttons were already ghost, Back was
+   already ghost/top-left (icon swapped), the header token readout already existed. Deferred to
+   the quiet-window side-eye pass: AutosaveStatus error-state pixels, the facet-row restyle,
+   touch-target geometry re-measure. Original spec (now the record): content header autosave
+   status (§7) replacing Discard/Save
    (`character-editor-surface.tsx:175-213`, incl. the dirty-primary ternary at `:204`); token counts
    to ONE header readout (`787 total · 637 permanent` pattern), per-field `~N` chips deleted (exact
    counts live in Context → Field detail); the five ember `Set` rows (VOICE/EXTRAS/ADVANCED,
