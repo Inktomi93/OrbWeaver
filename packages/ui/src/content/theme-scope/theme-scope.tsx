@@ -13,8 +13,11 @@ export interface ThemeScopeProps {
 // clampThemeTokens, so a hostile `accent: "url(//x)"` is dropped, not applied.
 export function ThemeScope({ tokens, children, className }: ThemeScopeProps): ReactElement {
   const clamped = clampThemeTokens(tokens);
-  // Only validated `--*` keys reach `style` — never raw caller style.
-  const style = clamped.vars as CSSProperties;
+  // Only validated `--*` keys reach `style` — never raw caller style. `colorScheme` (derived from the
+  // base surface's polarity, when known) rides `style` too so a custom LIGHT theme flips native
+  // controls AND the light-dark() intent arms to their light values instead of the seed's dark scheme.
+  const style: CSSProperties =
+    clamped.colorScheme === undefined ? (clamped.vars as CSSProperties) : { ...(clamped.vars as CSSProperties), colorScheme: clamped.colorScheme };
   return (
     <div
       className={className}

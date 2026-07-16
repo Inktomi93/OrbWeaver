@@ -9,7 +9,7 @@
 // (the same reason snap.ts's --contrast grew compositeOver). The static values are read from the
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
-import { THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp";
+import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp";
 import type { Rgb } from "../../../../scripts/probes/design-audit-checks";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "../../../../scripts/probes/design-audit-checks";
 import { expect, test } from "../../../support/fixtures";
@@ -248,6 +248,19 @@ test("clamp DERIVED accent (hover/selected) surface + its foreground clear AA on
     const accentFg = oklchToRgb({ l: contrastToneL(base.l + D.ramp.accent), c: 0, h: base.h });
     const ratio = contrastRatio(accentFg, oklchToRgb(accent));
     expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+  }
+});
+
+test("clamp-derived colorScheme AGREES with each realistic base's polarity (closes the light-dark loop)", () => {
+  // The AA sweeps above resolve each intent token's light-dark() arm by a base's polarity. Under a CUSTOM
+  // theme, that arm is chosen by the color-scheme the clamp DERIVES from the picked background — so the
+  // derivation must land on the same polarity the AA math assumed, or a custom light theme would resolve
+  // dark arms (the exact illegibility W2's arms fixed). Prove the two agree for every realistic base.
+  for (const baseStr of LIGHT_BASES) {
+    expect(clampThemeTokens({ background: baseStr }).colorScheme, `${baseStr} is a LIGHT base`).toBe("light");
+  }
+  for (const baseStr of DARK_BASES) {
+    expect(clampThemeTokens({ background: baseStr }).colorScheme, `${baseStr} is a DARK base`).toBe("dark");
   }
 });
 

@@ -40,12 +40,15 @@ export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**
  * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys,
- * only validated values) plus the non-custom-property axes (chatStyle/density are `data-*`).
+ * only validated values) plus the non-custom-property axes. `chatStyle`/`density` map to `data-*`;
+ * `colorScheme` maps to the `color-scheme` CSS property (NOT a `--*` var, so it stays OFF the vars
+ * emit surface) — see the `colorSchemeFor` derivation for why it rides this struct.
  */
 export interface ClampedTheme {
   readonly vars: Readonly<Record<string, string>>;
   readonly chatStyle?: (typeof CHAT_STYLES)[number];
   readonly density?: (typeof DENSITIES)[number];
+  readonly colorScheme?: "light" | "dark";
 }
 
 function fontStack(font: ThemeFont): string {
@@ -156,6 +159,42 @@ export const THEME_DERIVATION = {
   },
 } as const;
 
+// Strict L-parse of an `oklch(L C H[ / A])` literal — the form the theme editor emits. L is the first
+// component: a 0–1 number OR a percentage. Anything else (a named color, rgb()/hsl(), a var()) returns
+// null: the polarity is not STATICALLY knowable, so the caller must fail open, never guess.
+const OKLCH_L_RE = /^oklch\(\s*([\d.]+%?)\s+[\d.]+\s+[\d.]+/;
+const PERCENT_DIVISOR = 100;
+function parseOklchL(color: string): number | null {
+  const raw = OKLCH_L_RE.exec(color)?.[1];
+  if (raw === undefined) {
+    return null;
+  }
+  const l = raw.endsWith("%") ? Number(raw.slice(0, -1)) / PERCENT_DIVISOR : Number(raw);
+  return Number.isFinite(l) ? l : null;
+}
+
+/**
+ * The `color-scheme` for a user-picked base surface, derived from its OKLCH lightness. This drives two
+ * things a custom theme otherwise gets WRONG: (1) the light-dark() intent tokens resolve their correct
+ * arm (a custom LIGHT theme needs the light arms, or intent text renders in its dark-arm tone and goes
+ * illegible on the light surface), and (2) native controls/scrollbars match the surface polarity.
+ *
+ * The pivot MUST be `FG_PIVOT_L` — the SAME threshold the derived foreground flips on — so scheme
+ * polarity and text polarity can never disagree: a surface lighter than the pivot already gets
+ * near-black text (a LIGHT surface ⇒ "light"), darker gets near-white (⇒ "dark"). Boundary: strictly
+ * ABOVE the pivot is light, so L of exactly 0.62 resolves "dark" (the pivot itself yields near-black
+ * text but is treated as the dark arm's ceiling, matching the foreground clamp's `(pivot - l)` sign)
+ * and one step over (0.63) flips to light. Non-oklch bases omit the scheme (null) so it inherits — we
+ * never guess a polarity we can't statically read.
+ */
+function colorSchemeFor(background: string): "light" | "dark" | null {
+  const l = parseOklchL(background);
+  if (l === null) {
+    return null;
+  }
+  return l > FG_PIVOT_L ? "light" : "dark";
+}
+
 /** A contrast-safe foreground for text sitting on `surface` (any validated color) — browser-computed. */
 function foregroundOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
@@ -245,9 +284,13 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
   if (t.radius !== undefined && t.radius !== "card") {
     vars["--radius-card"] = `var(--radius-${t.radius})`;
   }
+  // Derived from the picked base surface's polarity (never an input field) — drives the light-dark()
+  // intent arm + native controls. Omitted for a non-oklch base (fail open to the inherited scheme).
+  const colorScheme = t.background === undefined ? null : colorSchemeFor(t.background);
   return {
     vars,
     ...(t.chatStyle === undefined ? {} : { chatStyle: t.chatStyle }),
     ...(t.density === undefined ? {} : { density: t.density }),
+    ...(colorScheme === null ? {} : { colorScheme }),
   };
 }

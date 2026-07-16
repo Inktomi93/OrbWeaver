@@ -35,6 +35,9 @@ test("THEME_SCOPE_EMIT_VARS matches what clampThemeTokens ACTUALLY emits when ev
     density: "compact",
   });
   expect(Object.keys(vars).sort()).toEqual([...THEME_SCOPE_EMIT_VARS].sort());
+  // colorScheme is a struct axis (rides `color-scheme`, not a `--*` var) — it must NEVER appear in the
+  // emit surface, or it would fail the round-trip-to-a-real-token assertion below.
+  expect("colorScheme" in vars).toBe(false);
 });
 
 test.each(THEME_SCOPE_EMIT_VARS)("%s corresponds to a real token in the generated TOKENS map", (cssVar) => {
