@@ -1,6 +1,6 @@
 # EditorConfig — https://editorconfig.org
 # Editor-agnostic base for non-Biome tooling (vim, plain VS Code, GitHub diffs).
-# biome.json encodes the SAME values authoritatively (space/2/100/lf); this mirrors
+# biome.json encodes the SAME values authoritatively (space/2/160/lf); this mirrors
 # them so an editor without the Biome extension formats identically. Keep the two in agreement.
 root = true
 
@@ -11,7 +11,7 @@ indent_style = space
 indent_size = 2
 insert_final_newline = true
 trim_trailing_whitespace = true
-max_line_length = 100
+max_line_length = 160
 
 # Markdown uses two trailing spaces as a hard line break.
 [*.md]
