@@ -62,6 +62,9 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
   `data-app-ready`. Prefer these over chrome-devtools MCP.
 
 ## Boundaries
+- **You are a leaf agent — never spawn other agents.** No nested delegation: no Agent tool, and no
+  launching agents from Bash (`claude -p` / headless CLI runs / anything that starts another agent).
+  If the task needs a different role, stop and report — the orchestrator dispatches.
 - **Never `git stash` / `git checkout <path>` / `git restore`** — they silently destroy uncommitted work
   (this tree carries a large uncommitted surface). To read an old version use `git show HEAD:<path>`.
   Commit / push ONLY when the orchestrator's spec says to.
