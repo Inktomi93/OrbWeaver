@@ -53,7 +53,7 @@
 }
 @supports (backdrop-filter: blur(1px)) {
   .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-    backdrop-filter: blur(calc(var(--blur-strength) / 2)) saturate(1.2);
+    backdrop-filter: blur(calc(var(--blur-strength) / 2)) saturate(var(--blur-saturate));
   }
 }
 
@@ -417,6 +417,8 @@
   .shell-scrim {
     inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
   }
+  /* Mobile blur kill-switch — backdrop-filter is too costly on small/low-power devices.
+   * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
   html[data-blur-modals] [data-slot="dialog-popup"],

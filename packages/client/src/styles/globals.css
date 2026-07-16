@@ -44,48 +44,50 @@ body {
   }
 }
 .orb-weave-shimmer {
-  animation: orb-weave-shimmer 3s ease-in-out infinite;
+  animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;
 }
 
 /* Glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects). data-blur/data-shadow
  * attrs live on html so they reach portalled content. "messages" gets the denser fill since it sits
- * behind scrolling prose; chrome (panels/composer/modals) gets the lighter fill. */
+ * behind scrolling prose; chrome (panels/composer/modals) gets the lighter fill.
+ * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
 @supports (backdrop-filter: blur(1px)) {
   html[data-blur-panels] .shell-panel {
-    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
   }
   html[data-blur-composer] [data-slot="composer"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
   }
   /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
    * frosted look carries through instead of leaving it an opaque slab beside glass panels. */
   html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
-    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
   }
   html[data-blur-modals] [data-slot="dialog-popup"],
   html[data-blur-modals] [data-slot="alert-dialog-popup"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     background-color: color-mix(in oklab, var(--color-popover) var(--blur-fill-chrome), transparent);
   }
   /* Per-role bubble base so the glass tints as that bubble, not a generic grey. */
   html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     background-color: color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), transparent);
   }
   html[data-blur-messages] [data-role="assistant"] [data-slot="message-bubble"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     background-color: color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), transparent);
   }
   html[data-blur-messages] [data-role="system"] [data-slot="message-bubble"] {
-    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     background-color: color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent);
   }
 }
 
-/* prefers-reduced-transparency: reduce → solid. Wins over the @supports block by source order. */
+/* prefers-reduced-transparency: reduce → solid. Wins over the @supports block by source order.
+ * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
 @media (prefers-reduced-transparency: reduce) {
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
@@ -97,7 +99,8 @@ body {
   }
 }
 
-/* prefers-contrast: high → stronger border + more opacity, never less legible. */
+/* prefers-contrast: high → stronger border + more opacity, never less legible.
+ * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
 @media (prefers-contrast: high) {
   html[data-blur-panels] .shell-panel,
   html[data-blur-composer] [data-slot="composer"],
@@ -124,7 +127,7 @@ html[data-shadow] [data-slot="message-bubble"] {
 
 /* Reading typography — line-height/letter-spacing/paragraph-spacing/scale. Spacing/sizing only. */
 [data-slot="message-bubble"] {
-  font-size: calc(var(--text-body) * var(--reading-body-scale));
+  font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
   line-height: var(--reading-line-height);
   letter-spacing: var(--reading-letter-spacing);
 }
@@ -135,7 +138,7 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
   text-align: justify;
 }
 [data-slot="message-attribution"] {
-  font-size: calc(var(--text-label) * var(--reading-name-scale));
+  font-size: calc(var(--text-label) * var(--reading-name-scale, 1));
 }
 
 /* appearance.enableThemeColorization: retints border/hairline chrome tokens from the accent color.

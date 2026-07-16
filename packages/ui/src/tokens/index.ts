@@ -84,6 +84,7 @@ export const TOKENS = {
   "blur.strength": { cssVar: "--blur-strength", value: "14px" },
   "blur.fill-chrome": { cssVar: "--blur-fill-chrome", value: "70%" },
   "blur.fill-dense": { cssVar: "--blur-fill-dense", value: "88%" },
+  "blur.saturate": { cssVar: "--blur-saturate", value: "1.4" },
   "immersive.echo-feather": { cssVar: "--immersive-echo-feather", value: "55%" },
   "immersive.whisper-feather": { cssVar: "--immersive-whisper-feather", value: "70%" },
   "immersive.stripe-width": { cssVar: "--immersive-stripe-width", value: "0.1875rem" },
@@ -128,6 +129,7 @@ export const TOKENS = {
   "motion.base": { cssVar: "--motion-base", value: "220ms" },
   "motion.layout": { cssVar: "--motion-layout", value: "360ms" },
   "motion.shimmer": { cssVar: "--motion-shimmer", value: "1300ms" },
+  "motion.breathe": { cssVar: "--motion-breathe", value: "3000ms" },
   "ease.out-expo": { cssVar: "--ease-out-expo", value: "cubic-bezier(0.16, 1, 0.3, 1)" },
 } as const;
 
