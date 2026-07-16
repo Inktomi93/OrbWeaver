@@ -100,7 +100,17 @@ re-spelling the arrow. `mustPass`: composing the constant; `lib/` itself.
 
 **Sequencing:** ui-package-only — ship WITH the PP1–PP5 lane (one combined ui-polish wave).
 
-## W3 — plumbing mints + three seals (G26–G28)
+## W3 — plumbing mints + three seals (G26–G28) — **LANDED 2026-07-16**
+
+> Commits `bee097d3` (state tier: createRegistryContext + G26, createDrillSelectionStore + G27) and
+> the forms-tier commit after it (useBoundField adoption + G28, entity-form-base). Deltas from spec,
+> all verified: the registry context/provider files stay 8 (biome `useComponentExportOnlyModules`
+> forbids hook+component in one module — the mint is still ONE home; both mint files carry targeted
+> biome.json overrides for `noComponentHookFactories`, the sanctioned-factory-home pattern);
+> `message-selection-store.ts` is G27-allowlisted with citation (a bulk multi-select Set, not a
+> drill); the textarea `hint` restoration is CT-proven. Gate count 126 → 129. Row 4's shared base is
+> `forms/entity-form-base.ts` (factories compose, never merged; the §7 autosave-onChange trap
+> preserved). The `SECTION_GROUPS` double-spell (#5 below) remains chrome §E-1's to absorb.
 
 | Mint | Migration | SEAL |
 | - | - | - |

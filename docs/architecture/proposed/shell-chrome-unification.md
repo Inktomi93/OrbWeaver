@@ -151,8 +151,8 @@ vocabulary (zones are architecture, entries are growth).
 1. **Mint** — ◐ PARTIAL. `state/chrome-registry.ts` exists but as the reduced widget-only shape; `assembleChrome`,
    the `SectionGroup` re-home, and `rail-slots.ts`'s death are NOT done (`rail-slots.ts` still lives). The
    `SectionGroup` re-home also closes derive-audit W3-#5 (the tuple is spelled twice today: `section-registry.ts:15`
-   + `rail-slots.ts:5`); this step's context/provider delivery rides the W3 `createRegistryContext` mint (G26) if
-   that wave has landed — else builds the pair and W3 migrates it.
+   + `rail-slots.ts:5`). **W3 LANDED 2026-07-16** — the chrome registry context/provider already rides the
+   `createRegistryContext` mint (G26); this step consumes it, never re-builds the pair.
 2. **Assemble** — ○ NOT DONE. No `assembleChrome`; the contributor registry assembles the widget entries only, not
    derived sections/modals. The behavior union is the crux of this step.
 3. **Rail cutover** — ○ NOT DONE. Single-DOM chrome render; merge the two button components; CSS reflow inside the
