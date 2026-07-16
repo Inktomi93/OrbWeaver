@@ -4,12 +4,24 @@
 //      reduced-motion floor stays UNLAYERED, color-scheme is declared, and theme.css is imported.
 //   2. shell.css's structural geometry (rail/chrome-row/panel) consumes ONLY the DTCG dimension.*
 //      tokens (WS0) — no raw rem/px literal reintroduced into the tracked properties.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "../../support/fixtures";
 
 const GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/globals.css");
+// The seed [data-theme] palettes + the base color-scheme are GENERATED into theme.css from
+// src/tokens/themes/*.json (W1) — the palette-block assertions read theme.css, not globals.css.
+const THEME_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/theme.css");
+const THEMES_DIR = join(import.meta.dirname, "../../../packages/ui/src/tokens/themes");
 const SHELL_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/features/app-shell/surfaces/shell.css");
+
+/** Basenames of every seed value-set whose `$colorScheme` is "light" (drives the dark-variant exclusion). */
+function lightSeedThemeNames(): string[] {
+  return readdirSync(THEMES_DIR)
+    .filter((f) => f.endsWith(".json"))
+    .filter((f) => (JSON.parse(readFileSync(join(THEMES_DIR, f), "utf8")) as { $colorScheme?: string }).$colorScheme === "light")
+    .map((f) => f.slice(0, -".json".length));
+}
 
 /** Balanced-brace scan: returns the index of the `}` that closes the `{` at `openBraceIndex`. */
 function findBlockEnd(css: string, openBraceIndex: number): number {
@@ -34,6 +46,8 @@ const COMMENT_RE = /\/\*[\s\S]*?\*\//gu;
 // The Light palette BLOCK opener (a rule), distinct from the `[data-theme="light"]` reference inside the
 // `@custom-variant dark (…)` line — this one is immediately followed by the block `{`.
 const LIGHT_BLOCK_RE = /\[data-theme="light"\]\s*\{/u;
+// Any `[data-theme=…] {` block opener — a hand-written palette block reappearing in globals.css.
+const DATA_THEME_BLOCK_RE = /\[data-theme=[^\]]*\]\s*\{/u;
 
 test("globals.css: the reduced-motion floor is unlayered (D43 §11.4e footgun #1)", () => {
   // Strip comments FIRST — a doc comment mentioning "@layer" (as this file's own header does) would
@@ -54,8 +68,8 @@ test("globals.css: the reduced-motion floor is unlayered (D43 §11.4e footgun #1
   }
 });
 
-test("globals.css: color-scheme is declared", () => {
-  const css = readFileSync(GLOBALS_CSS_PATH, "utf8");
+test("theme.css: color-scheme is declared (the base :root scheme, moved here from globals.css in W1)", () => {
+  const css = readFileSync(THEME_CSS_PATH, "utf8");
   expect(css).toMatch(COLOR_SCHEME_RE);
 });
 
@@ -69,23 +83,37 @@ test("globals.css: theme.css is imported", () => {
 // multi-palette surface: a missing block silently means "the palette never applies", a missing
 // color-scheme flip on Light means native controls stay dark (footgun #3), and a naive "default = dark"
 // variant would apply dark-variant styles under Light.
-test("globals.css: the @custom-variant dark is enumerated (not default-dark)", () => {
+// The @custom-variant is the ONE hand-authored piece that stays in globals.css (the palette blocks
+// themselves are generated into theme.css). Strengthened past a bare `[data-theme="light"]` literal:
+// it must EXCLUDE every light seed value-set discovered in src/tokens/themes/*.json — so a NEW light
+// palette that isn't wired into the variant (dark-variant styles would leak under it) goes red here.
+test("globals.css: the @custom-variant dark is enumerated and excludes every light seed value-set", () => {
   const css = readFileSync(GLOBALS_CSS_PATH, "utf8");
   expect(css).toContain("@custom-variant dark");
-  // It must reference the light palette (to EXCLUDE it) — proving it's enumerated, not "everything is dark".
   const variantLine = css.split("\n").find((l) => l.includes("@custom-variant dark")) ?? "";
-  expect(variantLine, "the dark variant must exclude the light palette").toContain('[data-theme="light"]');
+  const lightThemes = lightSeedThemeNames();
+  expect(lightThemes.length, "expected at least one light seed value-set to enforce against").toBeGreaterThan(0);
+  for (const name of lightThemes) {
+    expect(variantLine, `the dark variant must exclude the "${name}" light palette`).toContain(`[data-theme="${name}"]`);
+  }
 });
 
-test("globals.css: the Mocha + Light seed palettes ship as [data-theme] value-sets", () => {
-  const css = readFileSync(GLOBALS_CSS_PATH, "utf8");
+test("globals.css: no [data-theme=…] palette block remains (the seed palettes moved to theme.css in W1)", () => {
+  // Strip comments so the header's own prose mentioning [data-theme=…] can't trip this. A hand-written
+  // block reappearing here (a re-drift of a generated palette back into globals) is the regression.
+  const css = readFileSync(GLOBALS_CSS_PATH, "utf8").replace(COMMENT_RE, "");
+  expect(css, "globals.css must not carry a hand-written [data-theme=…] { … } palette block").not.toMatch(DATA_THEME_BLOCK_RE);
+});
+
+test("theme.css: the Mocha + Light seed palettes ship as generated [data-theme] value-sets", () => {
+  const css = readFileSync(THEME_CSS_PATH, "utf8");
   expect(css).toContain('[data-theme="mocha"]');
   expect(css).toContain('[data-theme="light"]');
 });
 
-test("globals.css: the Light palette flips color-scheme to light (footgun #3)", () => {
+test("theme.css: the Light palette flips color-scheme to light (footgun #3)", () => {
   // Strip comments so a doc-comment mention of "color-scheme: light" can't satisfy this.
-  const css = readFileSync(GLOBALS_CSS_PATH, "utf8").replace(COMMENT_RE, "");
+  const css = readFileSync(THEME_CSS_PATH, "utf8").replace(COMMENT_RE, "");
   const blockMatch = LIGHT_BLOCK_RE.exec(css);
   expect(blockMatch, "the Light palette block must exist").not.toBeNull();
   const lightIdx = (blockMatch as RegExpExecArray).index;
