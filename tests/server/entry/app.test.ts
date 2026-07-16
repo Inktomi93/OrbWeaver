@@ -6,15 +6,27 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
+import { classifyDomainError } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
-import { createApp } from "../../../packages/server/src/entry/app.ts";
+import { createApp, rateLimitResponseMeta } from "../../../packages/server/src/entry/app.ts";
 import { expect, test } from "../../support/fixtures";
+
+/** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the
+ *  mount — mirrors the real path (`error-mapping.ts` wraps the DomainError as `.cause`). */
+function mapped(err: Error): NonNullable<ReturnType<typeof classifyDomainError>> {
+  const result = classifyDomainError(err);
+  if (result === null) {
+    throw new Error("expected the classifier to map this error");
+  }
+  return result;
+}
 
 const FROZEN_NOW = 1_750_000_000_000;
 
@@ -37,6 +49,7 @@ const UNAUTHORIZED = 401;
 const NOT_FOUND = 404;
 const SERVICE_UNAVAILABLE = 503;
 const INTERNAL_ERROR = 500;
+const TOO_MANY_REQUESTS = 429;
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),
@@ -238,5 +251,75 @@ describe("createApp", () => {
     }
     expect(trace.status).toBe("error");
     expect(trace.spans.some((s) => s.events.some((e) => e.name === "exception"))).toBe(true);
+  });
+
+  // Parity gap #1: the tRPC mount caps JSON bodies at 1 MiB (hono/body-limit belt). An oversized POST to
+  // the mount is rejected 413 by the belt BEFORE the handler buffers it (and before auth/routing) — a bare
+  // 413, not an observability-flattened 500. A tiny body under the cap sails past the belt (proven by NOT
+  // getting a 413 — a malformed sub-cap tRPC call yields the handler's own 4xx, never the belt's 413).
+  test("Task 1: an oversized POST to the tRPC mount → 413 (the 1 MiB body cap)", async () => {
+    const app = createApp(deps({}));
+    const oversized = "x".repeat(1024 * 1024 + 1);
+    const res = await hit(
+      app,
+      new Request("http://localhost/api/trpc/health.check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: oversized,
+      }),
+    );
+    expect(res.status).toBe(413);
+  });
+
+  test("Task 1: a sub-cap POST to the tRPC mount is NOT rejected by the body cap (413)", async () => {
+    const app = createApp(deps({}));
+    const res = await hit(
+      app,
+      new Request("http://localhost/api/trpc/health.check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ json: null }),
+      }),
+    );
+    expect(res.status).not.toBe(413);
+  });
+
+  // Parity gap #2: the responseMeta hook surfaces the DomainRateLimitError throttle hint on a
+  // TOO_MANY_REQUESTS response — Retry-After (seconds, ceil of msBeforeNext) + X-RateLimit-Remaining. The
+  // input is the classifier-mapped TRPCError (cause-carrying), exactly what tRPC hands the hook at the mount.
+  test("Task 2: responseMeta sets Retry-After (ceil seconds) + X-RateLimit-Remaining from the rate-limit cause", () => {
+    const err = mapped(new DomainRateLimitError("slow down", { msBeforeNext: 1500, remainingPoints: 0 }));
+    const meta = rateLimitResponseMeta([err]);
+    expect(meta.headers).toEqual({ "Retry-After": "2", "X-RateLimit-Remaining": "0" });
+  });
+
+  test("Task 2: responseMeta floors Retry-After at 1 second even for a sub-second window", () => {
+    const err = mapped(new DomainRateLimitError("slow down", { msBeforeNext: 10, remainingPoints: 3 }));
+    const meta = rateLimitResponseMeta([err]);
+    expect(meta.headers).toEqual({ "Retry-After": "1", "X-RateLimit-Remaining": "3" });
+  });
+
+  test("Task 2: responseMeta ignores non-rate-limit errors (no headers)", () => {
+    const err = mapped(new DomainOperationError("bad_input", "nope"));
+    expect(rateLimitResponseMeta([err])).toEqual({});
+    expect(rateLimitResponseMeta([])).toEqual({});
+  });
+
+  // Parity gap #2 (mount wiring): proves `responseMeta: ({errors}) => rateLimitResponseMeta(errors)` is
+  // actually wired onto the tRPC mount (not just unit-testable in isolation) — a DomainRateLimitError
+  // thrown from the real rate-limit gate, through the real mount, must surface Retry-After +
+  // X-RateLimit-Remaining on the real Response.
+  test("Task 2: a DomainRateLimitError thrown by the rate-limit gate at the real mount surfaces Retry-After + X-RateLimit-Remaining", async () => {
+    const app = createApp(
+      deps({
+        rateLimit: {
+          enforce: (): Promise<void> => Promise.reject(new DomainRateLimitError("slow down", { msBeforeNext: 1500, remainingPoints: 0 })),
+        },
+      }),
+    );
+    const res = await hit(app, new Request("http://localhost/api/trpc/health"));
+    expect(res.status).toBe(TOO_MANY_REQUESTS);
+    expect(res.headers.get("Retry-After")).toBe("2");
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
   });
 });

@@ -8,8 +8,12 @@ import type { AuthMode, Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { DomainRateLimitError } from "@orb/kit/errors";
+import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import type { ResponseMeta } from "@trpc/server/http";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
 import { env } from "#foundation/env";
 import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
@@ -28,7 +32,9 @@ import {
   registerImportBundle,
   registerImportTree,
   registerJoin,
+  registerSpa,
   registerUpload,
+  resolveSpaDistDir,
   securityHeaders,
   serializeSessionCookie,
 } from "./http";
@@ -38,6 +44,42 @@ const MS_PER_SECOND = 1000;
 const TRPC_ENDPOINT = "/api/trpc";
 const TRPC_MOUNT = "/api/trpc/*";
 const SESSION_COOKIE_NAME = "__Host-orb_session";
+const PAYLOAD_TOO_LARGE = 413;
+const BYTES_PER_KIB = 1024;
+const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
+// tRPC bodies are JSON (a batched call's inputs + params). 1 MiB is generous for that; oversized binary
+// rides the upload/import routes with their own larger caps. Bounds a malicious oversized mutation body.
+const TRPC_BODY_MAX_BYTES = BYTES_PER_MIB;
+
+/**
+ * The tRPC `responseMeta` hook: on a TOO_MANY_REQUESTS response, surface the throttle hint from the
+ * `DomainRateLimitError` cause chain (the limiter/gate's only rate-limit throw) as `Retry-After` (seconds,
+ * ceil of `msBeforeNext`) and `X-RateLimit-Remaining`, so clients back off cleanly instead of hammering.
+ * The classifier (`transport/trpc/error-mapping.ts`) preserves the `DomainRateLimitError` as the mapped
+ * `TRPCError.cause`, so the numbers are one deref away.
+ */
+export function rateLimitResponseMeta(errors: readonly TRPCError[]): ResponseMeta {
+  for (const err of errors) {
+    if (err.code !== "TOO_MANY_REQUESTS") {
+      continue;
+    }
+    const cause = err.cause;
+    if (!(cause instanceof DomainRateLimitError)) {
+      continue;
+    }
+    const headers: Record<string, string> = {};
+    if (cause.msBeforeNext !== undefined) {
+      headers["Retry-After"] = String(Math.max(1, Math.ceil(cause.msBeforeNext / MS_PER_SECOND)));
+    }
+    if (cause.remainingPoints !== undefined) {
+      headers["X-RateLimit-Remaining"] = String(cause.remainingPoints);
+    }
+    if (Object.keys(headers).length > 0) {
+      return { headers };
+    }
+  }
+  return {};
+}
 
 /** The request-context surface the routes read. */
 interface AppEnv {
@@ -145,6 +187,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // principal, without widening the span to include auth's own resolvePrincipal latency.
   app.use("*", observability);
 
+  // Cap tRPC JSON bodies (1 MiB) before the handler buffers them. Returns a bare 413 rather than throwing
+  // an HTTPException (which the app's observability onError would flatten to a 500 — an ugly shape for a
+  // tRPC client). Mirrors the upload/import routes' body-limit belt.
+  app.use(TRPC_MOUNT, bodyLimit({ maxSize: TRPC_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }));
+
   app.all(TRPC_MOUNT, (c) =>
     fetchRequestHandler({
       endpoint: TRPC_ENDPOINT,
@@ -160,6 +207,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c),
         }),
+      responseMeta: ({ errors }) => rateLimitResponseMeta(errors),
     }),
   );
 
@@ -190,6 +238,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerAuthRoutes(plain, {
     sessions: deps.sessions,
     now: deps.now,
+    db: deps.db,
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
     ...(deps.oidc !== undefined ? { oidc: deps.oidc } : {}),
   });
@@ -205,6 +254,13 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     db: deps.db,
     auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
   });
+
+  // The SPA static-serve registers LAST — every route above wins by order; only unmatched non-/api GETs
+  // reach the bundle/fallback. No bundle: prod boot-fatal (inside resolve), dev skipped (vite serves it).
+  const spaDistDir = resolveSpaDistDir({ distDir: env.CLIENT_DIST_DIR, prod: env.NODE_ENV === "production" });
+  if (spaDistDir !== null) {
+    registerSpa(plain, { distDir: spaDistDir });
+  }
 
   return app;
 }

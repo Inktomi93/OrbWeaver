@@ -68,6 +68,11 @@ catalog:
   hono: ^4.12.27
   "@hono/node-server": ^2.0.6
   openid-client: ^6.8.4
+  # jose: the JWKS/JWT VERIFY side of forward-header auth (infra/auth/jwks — createLocalJWKSet/
+  # createRemoteJWKSet + jwtVerify with a pinned RS256/ES256 allowlist). Already in the tree as an
+  # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface
+  # (core/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
+  jose: ^6.2.3
   "@trpc/server": ^11.18.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
   # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the

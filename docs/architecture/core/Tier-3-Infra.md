@@ -17,7 +17,7 @@ Five sealed adapters. Each is a factory returning an opaque handle; `entry/` con
 The db-free Strategy executor turning request `Headers` into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the origin-gated owner fallback). Owns:
 
 - **The mode dispatcher** — `resolveIdentity(headers, config, deps)` + `ownerFallbackAllowed`/`isLocalOrigin`. ONE branch point; modes never import each other.
-- **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`), `jwtVerify` with a pinned alg allowlist.
+- **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `entry/lifecycle.ts`).
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups }`; **NO `userId`** by design (infra must not know DB row ids).
 - **The per-request signals** — `viaCookie`, `viaFallback`, `hasCsrfHeader` (`csrf.ts`); the gate itself is enforced at the seam/ladder.
 - **Mint-side crypto** (`password.ts`) — scrypt + `SESSION_SECRET` pepper + constant-time verify + the dummy-hash enumeration floor; consumed by the entry login route.
@@ -91,7 +91,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 **`password.ts` — pepper, constant-time floor, loud-on-misconfig.** Passwords are HMAC-peppered with `SESSION_SECRET` before scrypt (a stolen DB alone can't offline-brute-force); `pepper()` THROWS if `SESSION_SECRET` is unset. Unknown/SSO-only handles verify against `DUMMY_PASSWORD_HASH` so scrypt always runs (defeats the enumeration timing oracle). Cost pinned (`N=2^15,r=8,p=1`); format `scrypt$salt$hash` carries an algo prefix for lazy KDF migration. **Rotating `SESSION_SECRET` invalidates all local passwords.**
 
-**Ingress `clientIp` — peer-vs-XFF trust precedence.** Start from the un-spoofable socket peer; only when the peer is itself private/loopback (a same-host proxy) is the leftmost `X-Forwarded-For`/`X-Real-IP` honored — a direct public peer's forwarded headers are ignored. Loopback is ALWAYS allowed (self-lockout backstop). The same resolver feeds the tRPC seam + the login throttle: one observed identity for all three gates.
+**Ingress `clientIp` — peer-vs-XFF trust precedence.** Start from the un-spoofable socket peer; only when the peer is itself private/loopback (a same-host proxy) is the leftmost `X-Forwarded-For` honored — a direct public peer's forwarded headers are ignored, and `X-Real-IP` is never read (one canonical forwarded header, not a second spoofable parse path — D77). Loopback is ALWAYS allowed (self-lockout backstop). The same resolver feeds the tRPC seam + the login throttle: one observed identity for all three gates.
 
 **The egress firewall resolves DNS once** and passes the resolved address straight to connect (rebinding-safe), always allows the OIDC issuer host (plus any `EGRESS_ALLOWLIST` host), blocks if ANY resolved address is private.
 

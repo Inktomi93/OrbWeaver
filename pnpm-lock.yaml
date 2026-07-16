@@ -198,6 +198,9 @@ catalogs:
     hono:
       specifier: ^4.12.27
       version: 4.12.27
+    jose:
+      specifier: ^6.2.3
+      version: 6.2.3
     jscpd:
       specifier: ^5.0.11
       version: 5.0.11
@@ -420,6 +423,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.12.27
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.3
       jscpd:
         specifier: 'catalog:'
         version: 5.0.11
@@ -657,6 +663,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.12.27
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.3
       minisearch:
         specifier: 'catalog:'
         version: 7.2.0

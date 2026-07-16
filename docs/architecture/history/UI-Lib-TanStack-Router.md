@@ -177,7 +177,7 @@ Legend: ✅ doing it right · ⚠️ weird/risky/fighting the router · 🔼 sho
 | 19 | `notFoundComponent` / `notFoundMode` | 🔼 MINOR ADOPT | `not-found-errors.md`: set a root `notFoundComponent` so a stray `/admin/garbage` deep-link renders something sane. |
 | 20 | SSR / Query SSR integration / streaming / deferred | ⏭️ CORRECTLY SKIP | `integrations/query.md`, `ssr.md`, `deferred-data-loading.md`: all SSR/Start-only. We're a Vite SPA. |
 | 21 | Parallel routes | ⏭️ CORRECTLY SKIP | `parallel-routes.md` is an unimplemented stub; `comparison.md` marks it 🛑 for TanStack. |
-| 22 | SPA history fallback to `index.html` | ✅ CORRECT | `how-to/deploy-to-production.md`: a client-routed SPA needs all paths rewritten to `/index.html`. Our Hono `serveStatic` + index.html fallback is exactly the prescribed config (and barely exercised since the URL rarely leaves `/`). |
+| 22 | SPA history fallback to `index.html` | ✅ CORRECT | `how-to/deploy-to-production.md`: a client-routed SPA needs all paths rewritten to `/index.html`. Built: `entry/http/spa.ts` — Hono `serveStatic` + the Accept-html index.html fallback, exactly the prescribed config (and barely exercised since the URL rarely leaves `/`). |
 | 23 | `linkOptions` / `createLink` for design-system links | 🔼 MINOR ADOPT | `link-options.md`, `custom-link.md`: type-checked reusable nav configs + typed wrapper around our button/anchor primitives. |
 | 24 | `staticData` (e.g. `showNavbar:false` on `/admin`) | 🔼 OPTIONAL | `static-route-data.md`: clean way to flag the admin route as chrome-less vs the `/` shell. |
 

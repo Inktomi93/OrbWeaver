@@ -83,6 +83,7 @@ export type {
 export { hasCsrfHeader } from "./csrf";
 export { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch";
 export { normalizeHost } from "./host";
+export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks";
 export { SESSION_COOKIE_NAME } from "./modes/cookie-session";
 export { verifyPkceState } from "./modes/oidc";
 export {

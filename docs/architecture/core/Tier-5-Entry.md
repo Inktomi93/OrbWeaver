@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-07-16
 ---
 
 # Orbweaver — `entry`: the composition root
@@ -12,7 +12,7 @@ updated: 2026-07-13
 
 1. **The composition root** — constructs every domain service (passing each its `*Context` DI bundle), resolves the cross-feature **injection model** (every "injected at the composition root" op is wired HERE), and hands the wired services to transport. Built LAST (after all domains) and the reason domains never import each other sideways.
 2. **The boot protocol** — `index.ts` is intentionally tiny (construct the lifecycle, wire OS signals, `boot()`); `lifecycle.ts` runs `migrate → seed → supervisors → compose → serve` + graceful shutdown.
-3. **The HTTP edge** — `entry/http/`: the non-tRPC registrars (binary blob serve, multipart upload, healthz) + the auth-mint routes + cookie I/O. Non-tRPC registrars are `entry/`, not `transport/` — they compose domain+infra+the auth seam (`Core-0-Architecture-and-Structure.md` §3).
+3. **The HTTP edge** — `entry/http/`: the non-tRPC registrars (binary blob serve, multipart upload, healthz, the prod SPA static-serve) + the auth-mint routes + cookie I/O. Non-tRPC registrars are `entry/`, not `transport/` — they compose domain+infra+the auth seam (`Core-0-Architecture-and-Structure.md` §3).
 
 NOT owned: business logic (domains), drivers (transport), I/O adapters (infra), env/observability (foundation). Entry only *assembles* them.
 
@@ -24,7 +24,9 @@ packages/server/src/entry/
 ├── lifecycle.ts              boot/shutdown protocol (per Core-Laws-and-Precedents.md §7 D5: entry, NOT foundation)
 ├── app.ts                    the Hono builder (middleware order, ingress-allowlist, mount tRPC + http)
 ├── rate-limit-gate.ts        builds the RateLimitGate impl (limiter instances need db; bucket POLICY lives here;
-│                             transport declares only the port — core/Tier-4-Transport.md §"rate-limit")
+│                             transport declares only the port — core/Tier-4-Transport.md §"rate-limit").
+│                             Second policy site: http/auth-routes.ts owns its own login-IP throttle,
+│                             adjacent to the route it guards.
 ├── auth/seam.ts              THE AUTH SEAM — the ONE Principal construction site: wires infra/auth (verify)
 │                             + domain/sessions (resolve/validate/upsert) (per §7 D1)
 ├── boot/                     migrate.ts (backup → FK-off migrations → foreign_key_check) · seed-owner.ts ·
@@ -50,6 +52,9 @@ packages/server/src/entry/
 │   ├── export.ts / import.ts  the bulk export/import HTTP registrars
 │   ├── join.ts               /join/:token invite-acceptance registrar
 │   ├── security-headers.ts   the response security-header registrar
+│   ├── spa.ts                the prod SPA static-serve: hashed-asset immutable cache + index.html
+│   │                         history fallback (registered LAST; /api/* misses never get HTML;
+│   │                         CLIENT_DIST_DIR missing → prod boot-fatal, dev skipped)
 │   └── healthz.ts            liveness + credentials_key_mismatch / shutdown-503 signals
 └── import/                  the bulk-import composition drivers (run-profile-import · run-bundle-import ·
                               build-import-context) — the upload route + the import-st runner
@@ -80,7 +85,7 @@ The split is load-bearing: **only `seedOwner` runs pre-compose** (compose binds 
 6. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
 7. **seed (post-compose)** — env→DB credential seed (needs the composed credentials service); default preset/themes/characters/persona (the seeders are composed); `reclaimChatLocksOnBoot`; then the fire-and-forget host-offline **deferred-turn drain** (`chat.drainDeferredTurns` — the `pending_turns` reclaim; does real generation, so it must NOT block listen).
 8. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers, the buddy observer.
-9. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`), await the async bind (an `EADDRINUSE` surfaces as a server `error` event, not a throw — boot fails loudly on a dead listener), start listening; healthz goes live.
+9. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`, the SPA static-serve registered LAST so every API/auth route wins by order; a missing client bundle is boot-fatal in prod, skipped-with-log in dev where vite serves the SPA), await the async bind (an `EADDRINUSE` surfaces as a server `error` event, not a throw — boot fails loudly on a dead listener), start listening; healthz goes live.
 10. **shutdown** — close the listener (healthz → 503 first, so the LB pulls traffic), stop supervisors, drain vLLM, db pre-close housekeeping.
 
 ## Invariants
