@@ -391,6 +391,34 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext): Originals
   return { renderedById };
 }
 
+const SYNTHETIC_COMPACT_SUMMARY_ID = "__synthetic-compact-summary";
+
+/** PD-140/D25: a compacted chat's summary must reach STATELESS runners even when the active preset omits a
+ *  `compact_summary` section (the neo C1 cache-anchor invariant). The assembler — not the preset author —
+ *  guarantees delivery: when `ctx.compactSummary` is set and no enabled `compact_summary` section exists,
+ *  synthesize one immediately before the `chat_history` pivot (end of section list if there's no pivot). */
+function withImplicitCompactSummary(config: PromptConfig, ctx: AssembleContext): PromptConfig {
+  if (ctx.compactSummary === null || ctx.compactSummary === undefined || ctx.compactSummary.trim().length === 0) {
+    return config;
+  }
+  const hasSection = config.sections.some((s) => s.type === "marker" && s.marker === "compact_summary" && s.enabled);
+  if (hasSection) {
+    return config;
+  }
+  const synthetic: PromptSection = {
+    type: "marker",
+    id: SYNTHETIC_COMPACT_SUMMARY_ID,
+    name: "compact summary (implicit)",
+    marker: "compact_summary",
+    role: "system",
+    enabled: true,
+  };
+  const pivotIndex = config.sections.findIndex((s) => s.type === "marker" && s.marker === "chat_history");
+  const sections = [...config.sections];
+  sections.splice(pivotIndex >= 0 ? pivotIndex : sections.length, 0, synthetic);
+  return { ...config, sections };
+}
+
 function generationTypeBucket(t: GenerationType): GenerationType {
   return t === "regenerate" ? "swipe" : t;
 }
@@ -569,7 +597,8 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
  * Render `config` against `ctx` into the system-prompt halves + the after-history injection bucket. Each
  * enabled section is delivered into the system block or as an `in_chat` injection. Pure.
  */
-export function assemblePrompt(config: PromptConfig, ctx: AssembleContext): AssembledPrompt {
+export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext): AssembledPrompt {
+  const config = withImplicitCompactSummary(rawConfig, ctx);
   const trace = freshTrace(ctx);
   const acc: WalkAccum = {
     staticParts: [],
