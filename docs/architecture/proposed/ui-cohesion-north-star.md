@@ -1,7 +1,7 @@
 ---
 kind: program
 status: active
-updated: 2026-07-15
+updated: 2026-07-16
 ---
 
 # UI Cohesion — North Star (ledger D66)
@@ -34,26 +34,32 @@ in place below; every correction re-verified against source 2026-07-15. The chro
 doc owns the PAINT (bands, ember budget, density, anatomy). On overlap: chrome doc wins on mechanism,
 this doc wins on visual spec.
 
-**Sequencing (the game plan, 2026-07-15 — verified-open work only; the lockdown itself is CLOSED):**
+**Sequencing (the game plan, updated 2026-07-16 — verified-open work only; the lockdown itself is
+CLOSED). Three programs, ONE ordered queue:** this doc's lanes (paint), shell-chrome §E (mechanism),
+and the derive-modernization program ([`derive-modernization-audit.md`](derive-modernization-audit.md)
+— mint → migrate → SEAL; gates G24–G29 + a G4 arm) interleave as follows:
 
-1. **PP1–PP5** (§5) — ui-package only, zero collisions with anything below; ship first (unchanged).
-2. **Shell-chrome §E steps 1–3** (full mint + `assembleChrome` behavior union + rail single-DOM
+1. **UI-polish wave: PP1–PP5 (§5) + derive-W2 (ui skin-fragment tier) + gate G25** — ONE ui-package
+   wave, zero collisions with anything below; ship first.
+2. **Derive-W3 (plumbing mints + G26–G28)** — anytime from here; pairs with chrome §E-1, which
+   ABSORBS the `SECTION_GROUPS` double-spell (audit W3-#5) and whose chrome registry
+   context/provider rides the same `createRegistryContext` mint (whichever lands first, the other
+   consumes it).
+3. **Shell-chrome §E steps 1–3** (full mint + `assembleChrome` behavior union + rail single-DOM
    cutover) — BEFORE N1, so N1's rail-brand cell and topbar-cluster skin land ONCE on the final DOM,
    not on the doomed `.shell-rail-desktop`/`.shell-rail-mobile` twins.
-3. **N1–N5** (§4) — the chats lane, in order; N5's checklist gates the §6 rollout.
-4. **Shell-chrome §E steps 5–7** (You-sheet projection + mobile persona · `railFoot` kill · vocab/law)
+4. **N1–N5** (§4) — the chats lane, in order; N5's checklist gates the §6 rollout.
+5. **Shell-chrome §E steps 5–7** (You-sheet projection + mobile persona · `railFoot` kill · vocab/law)
    — no file collision with the chats lane; may run parallel to N2–N5. Step 7 deletes the settings
    `account` pane (see §6's superseded Account item).
-5. **§6 rollout** (characters → presets → sections → remainders), §7 autosave inside each lane.
+6. **Derive-W1 (FormDialog rollup + G24)** — parallel-able with 4–5; MUST land before step 7 (the
+   rollout repaints exactly the features W1 migrates — see §6's pre-gate note).
+7. **§6 rollout** (characters → presets → sections → remainders), §7 autosave inside each lane.
 
-Independent, anytime: **O4** — buddy-bus `defineBusChannel` adoption (server tier; lockdown §18).
-
-**Companion program:** the 2026-07-15 full-read sweep surfaced three MORE non-uniform seam classes +
-a dupe/dead tail, now a GATED program (mint → migrate → SEAL, one wave each; gates G24–G29 + a G4
-arm) — [`derive-modernization-audit.md`](derive-modernization-audit.md). Merge points: W2+G25 ride
-WITH the PP lane (one ui-polish wave) · W1+G24 land BEFORE the §6 rollout · W3 pairs with chrome
-§E-1 · W4/W5/W6 are independent mech waves (W6's orphan seals RULED intentional pre-builds —
-`PREBUILT[for:…]` markers).
+Independent, anytime: **derive-W4/W5/W6** (mech waves — G29 battery adoption · small dupes + the G4
+`settings-section-anchored` arm · dead/stale sweep + `PREBUILT[for:…]` markers; W6's orphan seals
+RULED intentional pre-builds, owner 2026-07-15) · **O4** — buddy-bus `defineBusChannel` adoption
+(server tier; lockdown §18).
 
 ---
 
@@ -346,6 +352,10 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 
 ## 5. Primitive polish PP1–PP5 (global lane — ship FIRST, each its own commit)
 
+> **This lane and derive-W2 are ONE ui-package wave** (Sequencing step 1): the skin-fragment tier +
+> gate G25 (`derive-modernization-audit.md` §W2) ships alongside PP1–PP5 — fragments first or
+> interleaved, each still its own commit. Same territory, one dispatch.
+
 - **PP1 · Badge `soft` tone + real `info`** — `ui/primitives/badge/variants.ts` + `tokens.json`.
   Add `color.info-foreground` (dark AA ≥4.5:1 pair for the existing unused `color.info`
   `oklch(0.70 0.10 232)`; mirror the success/warning derivations) + regenerate. **[CORRECTED]** the
@@ -378,6 +388,11 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 ---
 
 ## 6. Rollout after the north star (in order) + ported remainders
+
+> **Pre-gate:** derive-W1 (the `FormDialog` rollup + gate G24, `derive-modernization-audit.md` §W1)
+> lands BEFORE this rollout starts — the rollout repaints exactly the features W1 migrates
+> (character/world-info/user-admin/persona/settings dialogs), so migrate-then-paint, never both at
+> once.
 
 1. **Characters** — content header autosave status (§7) replacing Discard/Save
    (`character-editor-surface.tsx:175-213`, incl. the dirty-primary ternary at `:204`); token counts

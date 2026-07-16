@@ -1,15 +1,19 @@
 ---
 kind: spec
 status: draft
-updated: 2026-07-15
+updated: 2026-07-16
 ---
 
 # Shell Chrome Unification (proposed program — Fable design, owner-approved for AFTER the lockdown)
 
 > **STATUS: design of record. Slice 1 (`topbar.trail`) SHIPPED (N1); the rail/sheet/prop-kill waves remain.**
-> **Sequencing vs the D66 cohesion program lives in ONE home: `ui-cohesion-north-star.md` header ("Sequencing")**
+> **Sequencing across the three programs lives in ONE home: `ui-cohesion-north-star.md` header ("Sequencing")**
 > — §E steps 1–3 land BEFORE the cohesion N1 paint (rail brand/topbar skin style the post-cutover DOM once);
 > steps 5–7 may run parallel to cohesion N2–N5. Step 7's account-pane deletion is cross-recorded there (§6).
+> **Derive-program pairing (`derive-modernization-audit.md`):** its W3 `createRegistryContext` mint (G26)
+> replaces the four hand context/provider pairs INCLUDING `state/chrome-registry-{context,provider}`, and
+> §E-1's `SectionGroup` re-home ABSORBS the audit's `SECTION_GROUPS` double-spell finding (W3-#5) —
+> whichever wave lands first, the other consumes it, never re-does it.
 > Authored by the Fable architect 2026-07-15 from the live app (screenshots) + the code. The owner ratified the
 > DIRECTION and sequenced the bulk AFTER the client-architecture lockdown (M0–M11, now promoted to `core/` as law).
 > This doc captures the full design so no work is lost.
@@ -145,7 +149,10 @@ vocabulary (zones are architecture, entries are growth).
 > `assembleChrome`. Statuses below reflect that. The remainder still stands as written.**
 
 1. **Mint** — ◐ PARTIAL. `state/chrome-registry.ts` exists but as the reduced widget-only shape; `assembleChrome`,
-   the `SectionGroup` re-home, and `rail-slots.ts`'s death are NOT done (`rail-slots.ts` still lives).
+   the `SectionGroup` re-home, and `rail-slots.ts`'s death are NOT done (`rail-slots.ts` still lives). The
+   `SectionGroup` re-home also closes derive-audit W3-#5 (the tuple is spelled twice today: `section-registry.ts:15`
+   + `rail-slots.ts:5`); this step's context/provider delivery rides the W3 `createRegistryContext` mint (G26) if
+   that wave has landed — else builds the pair and W3 migrates it.
 2. **Assemble** — ○ NOT DONE. No `assembleChrome`; the contributor registry assembles the widget entries only, not
    derived sections/modals. The behavior union is the crux of this step.
 3. **Rail cutover** — ○ NOT DONE. Single-DOM chrome render; merge the two button components; CSS reflow inside the

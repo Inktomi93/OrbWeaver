@@ -1,7 +1,7 @@
 ---
 kind: program
-status: draft
-updated: 2026-07-15
+status: active
+updated: 2026-07-16
 ---
 
 # Derive/Modernization Program — mint → migrate → SEAL (from the 2026-07-15 full-read audit)
@@ -182,4 +182,6 @@ bare contract tuples are the SANCTIONED copy-home, not violations.
   mech-executor (migrations) + verifier (gate honesty — each seal proven to bite the real shape).
 - **W4/W5/W6-mechanical:** independent mech-executor waves, verifier on the two new gate arms.
 - Gate count 125 → ~131 (G24–G29 + the G4 arm). Every gate: full ritual, scanRoot proven to fire.
-- **Owner asks outstanding: (1) mint the §0 D-entry; (2) veto/adjust any gate above before dispatch.**
+- **Plan RATIFIED by the owner 2026-07-16** (docs synced: north-star "Sequencing" is the ONE ordered
+  queue across all three programs; shell-chrome carries the W3/§E-1 pairing). **Outstanding owner
+  ask: mint the §0 D-entry** (a law-level act) — the doctrine is applied by this program either way.
