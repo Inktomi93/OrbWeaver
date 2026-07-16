@@ -23,8 +23,8 @@ const REQUIRED_DIRS = ["contract", "verbs"] as const;
 const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
 
 /** Domain-specific root singletons — each justified here, since this allowlist IS the source of truth:
- *  - chat: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set),
- *    `connected-persona.ts` (one-connection-only auto-activate) — none fit verbs/substrate/a subsystem.
+ *  - chat: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set) —
+ *    neither fits verbs/substrate/a subsystem.
  *  - preset: `constants.ts` (SYSTEM_DEFAULT_PRESET_ID, domain-internal), `seed.ts` (boot-time
  *    ensureSystemDefaultPreset — too small to be its own subsystem).
  *  - settings: `constants.ts` (the theme seed sentinel TypeIDs, domain-internal), `seed-themes.ts`
@@ -34,7 +34,7 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *    precedent; a feature-root collaborator the observer emits onto, PD-45). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   buddy: ["bus.ts"],
-  chat: ["bus.ts", "active-turns.ts", "connected-persona.ts"],
+  chat: ["bus.ts", "active-turns.ts"],
   preset: ["constants.ts", "seed.ts"],
   settings: ["constants.ts", "seed-themes.ts"],
 };
