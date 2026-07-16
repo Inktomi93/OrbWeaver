@@ -10,8 +10,7 @@ import type { SelectOption } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface MultiToggleFieldProps {
   readonly label: string;
@@ -20,21 +19,20 @@ export interface MultiToggleFieldProps {
   readonly disabled?: boolean;
 }
 
-export function MultiToggleField({ label, description, items, disabled }: MultiToggleFieldProps): ReactElement {
-  const field = useFieldContext<readonly string[]>();
-  const error = touchedFieldError(field.state.meta);
+export function MultiToggleField(props: MultiToggleFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<readonly string[]>(props);
   return (
-    <Field label={label} description={description} error={error} disabled={disabled ?? false} name={field.name}>
+    <Field {...fieldProps}>
       <ToggleGroup
         multiple={true}
         value={field.state.value}
         onValueChange={(next): void => {
           field.handleChange(next);
         }}
-        disabled={disabled ?? false}
-        aria-label={label}
+        disabled={props.disabled ?? false}
+        aria-label={props.label}
       >
-        {items.map((item) => (
+        {props.items.map((item) => (
           <Toggle key={item.value} value={item.value} aria-label={item.label}>
             {item.label}
           </Toggle>

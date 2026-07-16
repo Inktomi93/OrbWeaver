@@ -53,6 +53,10 @@
     // Same DOM-barrel hazard: this test value-imports `createFormHandleBridge` from `@orb/client/forms`,
     // which re-exports `use-app-form` and thus every DOM bound-field → phantom lib.dom errors in this
     // DOM-less node program. The bridge SOURCE stays dom-typechecked by packages/client/tsconfig.
-    "tests/client/forms/create-form-handle-bridge.test.ts"
+    "tests/client/forms/create-form-handle-bridge.test.ts",
+    // Same DOM-barrel hazard: value-imports `mirrorDraft`/`readDraftSeed` from `@orb/client/forms`, whose
+    // barrel re-exports `use-app-form` and thus every DOM bound-field → phantom lib.dom errors here. The
+    // entity-form-base SOURCE stays dom-typechecked by packages/client/tsconfig.
+    "tests/client/forms/entity-form-base.test.ts"
   ]
 }

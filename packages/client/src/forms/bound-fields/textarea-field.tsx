@@ -4,30 +4,31 @@
 import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useBoundField } from "./use-bound-field";
 
 export interface TextareaFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
+  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
+   *  stay always-visible. */
+  readonly hint?: ReactNode;
   readonly placeholder?: string;
   readonly disabled?: boolean;
   readonly rows?: number;
 }
 
-export function TextareaField({ label, description, placeholder, disabled, rows }: TextareaFieldProps): ReactElement {
-  const field = useFieldContext<string>();
-  const error = touchedFieldError(field.state.meta);
+export function TextareaField(props: TextareaFieldProps): ReactElement {
+  const { field, fieldProps } = useBoundField<string>(props);
   return (
-    <Field label={label} description={description} error={error} disabled={disabled ?? false} name={field.name}>
+    <Field {...fieldProps}>
       <Textarea
         value={field.state.value}
         onChange={(e): void => {
           field.handleChange(e.target.value);
         }}
         onBlur={field.handleBlur}
-        placeholder={placeholder}
-        rows={rows}
+        placeholder={props.placeholder}
+        rows={props.rows}
       />
     </Field>
   );

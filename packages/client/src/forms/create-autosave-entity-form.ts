@@ -5,10 +5,9 @@
 import { revalidateLogic } from "@tanstack/react-form";
 import { useEffect, useRef } from "react";
 import type { EntityDraftStore } from "#state";
+import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, mirrorDraft, readDraftSeed } from "./entity-form-base";
 import type { AppFormInstance, AppFormOptions } from "./use-app-form";
 import { useAppForm } from "./use-app-form";
-
-const DEFAULT_DEBOUNCE_MS = 500;
 
 export interface AutosaveEntityFormConfig<TValues extends object> {
   readonly defaultValues: TValues;
@@ -50,7 +49,7 @@ export function createAutosaveEntityForm<TValues extends object>(
   return function useAutosaveEntityForm({ entityId, serverValues, save: callTimeSave }: AutosaveEntityFormArgs<TValues>) {
     const save = callTimeSave ?? config.save;
     // Seed order: defaults ← server row ← surviving draft (the draft is the newest unsaved intent).
-    const draftSeed = config.draft?.readDraft(entityId);
+    const draftSeed = readDraftSeed(config.draft, entityId);
     const seedRef = useRef<TValues>({
       ...config.defaultValues,
       ...serverValues,
@@ -65,9 +64,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         await save?.(value);
         config.draft?.clearDraft(entityId);
       },
-      onSubmitInvalid: (): void => {
-        document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-      },
+      onSubmitInvalid: focusFirstInvalidField,
       listeners: {
         onChange: ({
           formApi,
@@ -77,7 +74,7 @@ export function createAutosaveEntityForm<TValues extends object>(
             handleSubmit: () => Promise<void>;
           };
         }) => {
-          config.draft?.setDraft(entityId, formApi.state.values);
+          mirrorDraft(config.draft, entityId, formApi.state.values);
           // Save only a genuine change, never the untouched seed (isDefaultValue = matches seed now).
           if (formApi.state.isValid && !formApi.state.isDefaultValue) {
             // handleSubmit re-throws an onSubmit rejection; swallow it here — the injected save's own
@@ -115,7 +112,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       }
       seededRef.current = true;
       if (draftSeed !== undefined) {
-        config.draft?.setDraft(entityId, seedRef.current);
+        mirrorDraft(config.draft, entityId, seedRef.current);
       }
     }, [entityId, draftSeed]);
 

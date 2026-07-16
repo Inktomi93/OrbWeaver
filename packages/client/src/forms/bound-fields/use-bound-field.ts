@@ -2,7 +2,8 @@
 // bound field reads its `useFieldContext<T>()`, normalizes the touch-gated error, and assembles the same
 // `<Field>` prop bundle (label/description/hint/error/disabled/name). This hook is the ONE home for that
 // wiring so a bound field shrinks to its control; `field-error.ts` already homed the error policy the same
-// way. Consumed by number/slider/color (extendable to the rest of the family).
+// way. Consumed by EVERY bound field — the raw `useFieldContext(` door is sealed to this ONE home
+// (G28 `bound-field-via-hook`), so a new bound field cannot re-hand-roll the wiring.
 
 import type { ReactNode } from "react";
 import { useFieldContext } from "../contexts";

@@ -513,6 +513,8 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_regctx/hooks/__g_h.ts", "export const GRegCtx = createContext<Registry<string, number> | null>(null);\n");
   // selection-store-via-factory: a per-section selection store minting the raw createGatedStore door (G27).
   fx("packages/client/src/state/__g_gdrill-selection-store.ts", 'export const useGDrill = createGatedStore("g-drill-selection", () => ({ id: null }));\n');
+  // bound-field-via-hook: a bound field importing the raw useFieldContext door instead of useBoundField (G28).
+  fx("packages/client/src/forms/bound-fields/__g_field.tsx", 'import { useFieldContext } from "../contexts";\nexport const f = useFieldContext;\n');
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
