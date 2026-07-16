@@ -5,6 +5,15 @@
 // _DESTRUCTIVE composes ALONGSIDE (never instead of) FOCUS_RING.
 export const FOCUS_RING = "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
+// The offset moat must match the SURFACE UNDER the control, not the page background — on a
+// sidebar-toned surface (rail, docked panels) or a popover-toned surface (menu/select/combobox
+// popups) the default `ring-offset-background` paints the moat in the wrong tone (north-star PP3).
+// Same shape as FOCUS_RING; only the offset color differs. GLASS surfaces prefer FOCUS_RING_INSET
+// (a solid offset can't match a translucent fill).
+export const FOCUS_RING_ON_SIDEBAR = "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar";
+
+export const FOCUS_RING_ON_POPOVER = "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover";
+
 export const FOCUS_RING_WITHIN = "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background";
 
 export const FOCUS_RING_HAS =

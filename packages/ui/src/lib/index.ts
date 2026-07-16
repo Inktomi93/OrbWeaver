@@ -16,6 +16,8 @@ export {
   FOCUS_RING_DESTRUCTIVE,
   FOCUS_RING_HAS,
   FOCUS_RING_INSET,
+  FOCUS_RING_ON_POPOVER,
+  FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_WITHIN,
 } from "./focus-ring";
 export { OVERLAY_ARROW } from "./overlay-arrow";
