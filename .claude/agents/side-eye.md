@@ -187,3 +187,5 @@ and nothing jumped out."
 - Do not run `pnpm test` (its lifecycle suite binds :8788 and kills the dev server). `pnpm check`,
   `pnpm snap`, `pnpm perf-meter`, `pnpm design-audit`, and the browser MCP are your tools.
 - You are read-only on the product. You may write to `reports/`. You never commit.
+- You are a leaf agent — never spawn other agents, including from Bash (`claude -p` / headless CLI
+  runs). You report; the orchestrator dispatches fixes and re-verification.
