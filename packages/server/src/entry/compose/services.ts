@@ -64,7 +64,7 @@ import { createTagService } from "#domain/tag";
 import { createToolUseService } from "#domain/tool-use";
 import type { StartWorkloadInput, WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import { createBulkImportLorebook, createImportStandaloneLorebook, createWorldInfoService } from "#domain/world-info";
+import { createBulkImportLorebook, createCopyCharacterBooks, createImportStandaloneLorebook, createWorldInfoService } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { logAudit } from "#foundation/observability";
@@ -391,6 +391,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
     attachCardTag: tag.attachCardTagByName,
     detachCardTag: tag.detachCardTagByName,
+    // PD-141: world-info owns the character_books junction — the duplicate carry is its persistence factory,
+    // wired here directly (world-info's full service composes after chat, below).
+    copyCharacterBooks: createCopyCharacterBooks({ db, now }),
   });
 
   const hub = createHubService({

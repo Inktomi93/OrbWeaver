@@ -39,3 +39,15 @@ export interface ImportWorldBookOutcome {
 
 /** Never throws for a malformed file — returns \{ ok:false, error \}. */
 export type ImportWorldBook = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<ImportWorldBookOutcome>;
+
+// ── the character.duplicate CARRY (PD-141) ─────────────────────────────────────────
+
+/** db + clock only: the carry copies character_books rows verbatim, no id-minting or audit. */
+export interface WorldInfoDuplicateCarryContext {
+  readonly db: Db;
+  readonly now: () => number;
+}
+
+/** Re-points the source character's attached books at the new character id (fresh character_books rows,
+ *  role preserved). REFERENCE-carry — the world_books themselves are never cloned; zero attachments = no-op. */
+export type CopyCharacterBooks = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;

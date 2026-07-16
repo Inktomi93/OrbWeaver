@@ -38,6 +38,11 @@ export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly charac
 
 export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
+/** Carries the source character's attached world-info book REFERENCES onto the duplicate (PD-141): fresh
+ *  character_books rows pointing at the SAME books; world-info owns the junction write. Zero attachments =
+ *  no-op. Internal to the DI bundle (the runtime op is world-info's `CopyCharacterBooks`, wired at compose). */
+type CopyCharacterBooksOp = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;
+
 /** DI bundle every character verb closes over. */
 export interface CharacterContext {
   readonly db: Db;
@@ -49,6 +54,8 @@ export interface CharacterContext {
   readonly reapAssets: ReapAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
   readonly detachCardTag: DetachCardTagOp;
+  /** Carries attached world-info book references onto a duplicate (world-info owns the junction, D28). */
+  readonly copyCharacterBooks: CopyCharacterBooksOp;
   /** Fires charactersChanged with the owner's userId after each durable write; distinct from emit
    *  (which drives embedding re-index, not client cache). */
   readonly emitUserEvent: EmitUserEvent;
