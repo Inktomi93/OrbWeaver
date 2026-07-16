@@ -7,7 +7,7 @@ import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
-import { Anchor, ArrowLeft, Icon, Pencil, Sparkles } from "@orb/ui/icons";
+import { ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
@@ -16,7 +16,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms";
-import { isTemplatedMarker, sectionKind } from "../../lib/assembly-model";
+import { headerCopy, isTemplatedMarker, sectionGlyphIcon } from "../../lib/assembly-model";
 import { PRESET_PROMPT_MACROS } from "../../lib/preset-prompt-macros";
 import { MARKER_COPY } from "./marker-copy";
 
@@ -34,24 +34,6 @@ export interface SectionBodyEditorProps {
   readonly onBack: () => void;
 }
 
-/** The glyph for a section (literal · templated marker · plain marker) — matches the rack row's cue. */
-function sectionGlyph(section: PromptSection): ReactElement {
-  const kind = sectionKind(section);
-  if (kind === "literal") {
-    return <Icon icon={Pencil} size="sm" />;
-  }
-  return <Icon icon={kind === "templatedMarker" ? Sparkles : Anchor} size="sm" />;
-}
-
-/** The header label + one-liner for a section (marker copy, or the neutral literal framing). */
-function headerCopy(section: PromptSection): { label: string; oneLiner: string } {
-  if (section.type === "marker") {
-    const copy = MARKER_COPY[section.marker];
-    return { label: copy.label, oneLiner: copy.oneLiner };
-  }
-  return { label: "Literal text", oneLiner: "Your own text, sent exactly as written." };
-}
-
 export function SectionBodyEditor({ form, section, index, onBack }: SectionBodyEditorProps): ReactElement {
   const { label, oneLiner } = headerCopy(section);
   return (
@@ -65,7 +47,7 @@ export function SectionBodyEditor({ form, section, index, onBack }: SectionBodyE
 
       <Stack gap="field">
         <Row gap="row" align="center">
-          {sectionGlyph(section)}
+          <Icon icon={sectionGlyphIcon(section)} size="sm" />
           <Text size="title" weight="semibold">
             {label}
           </Text>

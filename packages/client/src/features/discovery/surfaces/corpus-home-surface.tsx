@@ -6,10 +6,6 @@
 // bar-list), and `themeDrift` (how themes move over story time, scene↔arc toggle). Theme rows drill inline
 // into `themeDetail`; a gem / unused row selects that character's dossier into CONTENT.
 
-import { blobUrl } from "@orb/contracts/assets";
-import type { CharacterId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
-import { Avatar } from "@orb/ui/avatar";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -25,6 +21,7 @@ import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter } from "#state";
+import { CharacterAvatar } from "../components/character-avatar";
 import { AllThemes, FacetBars, KeywordExplorer, ThemeDrift } from "../components/corpus-home-charts";
 import { toBarItems } from "../lib/corpus-charts";
 
@@ -270,15 +267,6 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
         ))}
       </Stack>
     </Stack>
-  );
-}
-
-function CharacterAvatar({ id, name, hash }: { readonly id: CharacterId; readonly name: string; readonly hash: string | null }): ReactElement {
-  const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
-  return (
-    <Avatar fallbackDelay={0} hueSeed={id} size="sm" {...avatarSrc}>
-      {initialsFor(name)}
-    </Avatar>
   );
 }
 

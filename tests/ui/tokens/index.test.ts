@@ -126,9 +126,12 @@ const INTENT_LIGHT_DARK_TOKENS = [
   "color.warning",
   "color.warning-foreground",
   "color.info",
-  "color.highlight",
-  "color.highlight-foreground",
 ] as const;
+
+// highlight + its foreground are POLARITY-INDEPENDENT (a text-mark BACKGROUND, never text) — the former
+// light-dark(X,X) no-op was collapsed to a single plain oklch (derive-modernization-audit §W6). They are
+// deliberately NOT light-dark() like the 4 divergent intents above.
+const INTENT_PLAIN_TOKENS = ["color.highlight", "color.highlight-foreground"] as const;
 
 test.each(INTENT_LIGHT_DARK_TOKENS)("%s is a light-dark() token whose BOTH arms are real oklch literals (dark arm = the byte-identical original)", (path) => {
   const value = TOKENS[path].value;
@@ -138,6 +141,12 @@ test.each(INTENT_LIGHT_DARK_TOKENS)("%s is a light-dark() token whose BOTH arms 
   expect(() => parseOklch(resolveArm(value, "dark"))).not.toThrow();
   // resolveArm on a plain oklch (a surface token) is a pass-through.
   expect(resolveArm(TOKENS["color.card"].value, "light")).toBe(TOKENS["color.card"].value);
+});
+
+test.each(INTENT_PLAIN_TOKENS)("%s is a single plain oklch (polarity-independent — NOT a no-op light-dark(X,X))", (path) => {
+  const value = TOKENS[path].value;
+  expect(value, `${path} must NOT be a light-dark() value`).not.toMatch(LIGHT_DARK_RE);
+  expect(() => parseOklch(value)).not.toThrow();
 });
 
 function relLuminance([L, C, hDeg]: readonly [number, number, number]): number {

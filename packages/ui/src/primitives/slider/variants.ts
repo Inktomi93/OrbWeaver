@@ -15,7 +15,7 @@ export const sliderVariants = tv({
     track: "relative h-field w-full grow overflow-hidden rounded-full bg-input data-invalid:bg-destructive/20",
     indicator: "rounded-full bg-primary data-invalid:bg-destructive",
     thumb: [
-      "size-section rounded-full border border-border bg-foreground",
+      "size-slider-thumb rounded-full border border-border bg-foreground",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,

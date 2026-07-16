@@ -5,11 +5,10 @@
 // subscription unmounts with it.
 
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import { useSubscription } from "@trpc/tanstack-react-query";
 import type { Invalidation, Trpc } from "#data";
 import { useTRPC } from "#data";
 import type { WorkloadProgressView } from "../lib/workloads-model";
-import { toProgressView } from "../lib/workloads-model";
+import { useWorkloadSubscription } from "./use-workload-subscription";
 
 type WorkloadListItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -20,34 +19,18 @@ export interface WorkloadStreamDeps {
   readonly onProgress: (progress: WorkloadProgressView) => void;
 }
 
-/** Tail one active workload's SSE stream: progress → the row buffer, everything else → invalidate. */
+/** Tail one active workload's SSE stream: progress → the row buffer, everything else (state change,
+ *  stream error, reconnect) → invalidate `workloads.list` through the central seam. */
 export function useWorkloadStream({ workloadId, invalidation, onProgress }: WorkloadStreamDeps): void {
   const trpc = useTRPC();
   const refetchList = (): void => {
     invalidation.invalidateFilters([trpc.workloads.list.pathFilter()]);
   };
-  useSubscription(
-    trpc.workloads.subscribe.subscriptionOptions(
-      { workloadId },
-      {
-        onData: (envelope) => {
-          const event = envelope.data;
-          if ("__subscriptionError" in event) {
-            refetchList();
-            return;
-          }
-          if (event.type === "progress") {
-            onProgress(toProgressView(event.progress));
-            return;
-          }
-          refetchList();
-        },
-        onConnectionStateChange: (connection) => {
-          if (connection.state === "pending") {
-            refetchList();
-          }
-        },
-      },
-    ),
-  );
+  useWorkloadSubscription({
+    workloadId,
+    onProgress,
+    onEvent: refetchList,
+    onError: refetchList,
+    onConnectionPending: refetchList,
+  });
 }

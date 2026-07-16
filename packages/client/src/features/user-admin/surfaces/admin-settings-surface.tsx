@@ -49,10 +49,10 @@ function AdminPaneBody(): ReactElement {
       <Section divider={true} heading="Engines" id={anchor(ADMIN_SUBCATEGORY_IDS.engines)}>
         <AdminEnginesSection />
       </Section>
-      <Section divider={true} heading="Model catalog">
+      <Section divider={true} heading="Model catalog" id={anchor(ADMIN_SUBCATEGORY_IDS.catalog)}>
         <AdminCatalogSection />
       </Section>
-      <Section divider={true} heading="Card embeddings">
+      <Section divider={true} heading="Card embeddings" id={anchor(ADMIN_SUBCATEGORY_IDS.embeddings)}>
         <AdminEmbedCardSection />
       </Section>
     </Stack>

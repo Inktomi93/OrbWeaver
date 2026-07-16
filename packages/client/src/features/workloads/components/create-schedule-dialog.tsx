@@ -22,6 +22,7 @@ import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-muta
 import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, workloadKindItems } from "../lib/workloads-model";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model";
 import { resolveScheduleMode, SCHEDULE_CADENCE_ITEMS, scheduleFormValuesFromRow, workloadKindBulkSchedulable } from "../lib/workloads-schedule-model";
+import { MaintenanceKindNote } from "./maintenance-kind-note";
 import { WorkloadParamFields } from "./workload-kind-fields";
 
 type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
@@ -127,11 +128,7 @@ function ScheduleFormBody({
         <form.Subscribe selector={(state): string => state.values.kind}>
           {(kind): ReactElement | null => {
             if (isMaintenanceWorkloadKind(kind)) {
-              return (
-                <Text size="label" tone="muted">
-                  Recurs across every deployment (maintenance) — there's no per-user version.
-                </Text>
-              );
+              return <MaintenanceKindNote verb="Recurs" />;
             }
             return workloadKindBulkSchedulable(kind) ? (
               <form.AppField name="bulk">

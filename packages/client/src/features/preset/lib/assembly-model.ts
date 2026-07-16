@@ -4,6 +4,8 @@
 
 import type { GenerationType, MarkerType, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, GENERATION_TYPES, MARKER_TYPES } from "@orb/contracts/preset";
+import type { LucideIcon } from "@orb/ui/icons";
+import { Anchor, Pencil, Sparkles } from "@orb/ui/icons";
 import { MARKER_COPY } from "../components/prompt-assembly/marker-copy";
 
 /** The three section kinds the rack + inspector branch on (derived from a section, never stamped). */
@@ -24,6 +26,27 @@ export function sectionKind(section: PromptSection): SectionKind {
     return "literal";
   }
   return isTemplatedMarker(section.marker) ? "templatedMarker" : "plainMarker";
+}
+
+/** The glyph icon for a section (literal → Pencil · templated marker → Sparkles · plain marker → Anchor)
+ *  — the rack row + the body-editor header both cue the same kind. Pure: returns the icon COMPONENT; the
+ *  caller renders `<Icon icon={sectionGlyphIcon(section)} size="sm" />` (JSX stays out of this node-safe model). */
+export function sectionGlyphIcon(section: PromptSection): LucideIcon {
+  const kind = sectionKind(section);
+  if (kind === "literal") {
+    return Pencil;
+  }
+  return kind === "templatedMarker" ? Sparkles : Anchor;
+}
+
+/** The header label + one-liner for a section (marker copy, or the neutral literal framing) — shared by
+ *  the CENTER body-editor header and the CONTEXT inspector header. */
+export function headerCopy(section: PromptSection): { readonly label: string; readonly oneLiner: string } {
+  if (section.type === "marker") {
+    const copy = MARKER_COPY[section.marker];
+    return { label: copy.label, oneLiner: copy.oneLiner };
+  }
+  return { label: "Literal text", oneLiner: "Your own text, sent exactly as written." };
 }
 
 /** The two markers whose card/room override is user-facing — the inspector always surfaces their

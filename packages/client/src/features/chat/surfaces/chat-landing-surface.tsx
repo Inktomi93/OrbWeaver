@@ -22,7 +22,8 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
-import { timeLib, useFocusOnMount, WeaveGlyph } from "#lib";
+import { useFocusOnMount, WeaveGlyph } from "#lib";
+import { ChatSummaryRow } from "../components/chat-summary-row";
 
 const RECENTS_LIMIT = 8;
 const QUICK_PICKS_LIMIT = 6;
@@ -125,27 +126,7 @@ interface RecentRowProps {
 }
 
 function RecentRow({ chat, onSelect }: RecentRowProps): ReactElement {
-  const title = chat.title ?? "Untitled chat";
-  const subtitle = chat.participantNames.length > 0 ? chat.participantNames.join(", ") : "No characters";
-  const when = chat.lastMessageAt ?? chat.updatedAt;
-  return (
-    <ListRow
-      clickable={true}
-      leading={
-        <Avatar size="sm" hueSeed={chat.id} fallbackDelay={0}>
-          {initialsFor(title)}
-        </Avatar>
-      }
-      title={title}
-      subtitle={subtitle}
-      actions={
-        <Text size="micro" tone="muted" className="whitespace-nowrap font-mono">
-          {timeLib.formatRelative(when)}
-        </Text>
-      }
-      onClick={(): void => onSelect(chat.id)}
-    />
-  );
+  return <ChatSummaryRow chat={chat} onSelect={onSelect} />;
 }
 
 interface QuickPickRowProps {

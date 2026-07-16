@@ -19,6 +19,7 @@ import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import { fromInjectionForm, toInjectionForm, useInjectionRowForm } from "../hooks/use-injection-row-form";
+import { NEW_INJECTION } from "../lib/injection-seed";
 
 type InjectionFields = Pick<ChatInjection, "position" | "role" | "depth" | "content">;
 
@@ -38,13 +39,6 @@ const POSITION_ITEMS: SelectItems<string> = CHAT_INJECTION_POSITIONS.map((value)
   value,
   label: positionLabel(value),
 }));
-
-const NEW_INJECTION: InjectionFields = {
-  position: "in_chat",
-  depth: 0,
-  role: "system",
-  content: "",
-};
 
 interface InjectionListRow {
   readonly key: string;

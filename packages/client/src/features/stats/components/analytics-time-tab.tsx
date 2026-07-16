@@ -5,14 +5,14 @@
 
 import { BarList } from "@orb/ui/bar-list";
 import { Histogram } from "@orb/ui/histogram";
-import { Row, Section, Stack } from "@orb/ui/layout";
-import { StatFigure } from "@orb/ui/stat-figure";
+import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, hourHistogramBuckets, weekdayBarItems } from "../lib/analytics-view-model";
+import { RhythmFigures } from "./rhythm-figures";
 
 export function AnalyticsTimeTab(): ReactElement {
   return (
@@ -42,13 +42,7 @@ function TimeBody(): ReactElement {
         <Histogram buckets={dailyTokenBuckets(points)} label="Output tokens per day" />
       </Section>
 
-      <Section heading="Rhythm">
-        <Row gap="block" className="flex-wrap">
-          <StatFigure label="Active days" value={formatCompact(temporal.activeDays)} />
-          <StatFigure label="Longest streak" value={`${temporal.longestStreakDays}d`} />
-          <StatFigure label="Busiest day" value={temporal.busiestDay === null ? "—" : formatCompact(temporal.busiestDay.count)} />
-        </Row>
-      </Section>
+      <RhythmFigures temporal={temporal} />
 
       <Section heading="By weekday">
         <BarList items={weekdayBarItems(temporal.dayOfWeek)} label="Messages by weekday" valueFormatter={formatCompact} />

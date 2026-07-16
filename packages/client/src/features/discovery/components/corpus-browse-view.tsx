@@ -6,9 +6,6 @@
 // suspense-read (stable); the filtered rows are a plain query so a filter change re-fetches without
 // re-suspending the whole panel.
 
-import { blobUrl } from "@orb/contracts/assets";
-import { initialsFor } from "@orb/kit/initials";
-import { Avatar } from "@orb/ui/avatar";
 import { Icon, Library } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
@@ -21,6 +18,8 @@ import { useDeferredValue, useState } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
+import { characterFacetLine } from "../lib/character-facet";
+import { CharacterAvatar } from "./character-avatar";
 import { ParamSelect } from "./corpus-controls";
 
 const ANY_VALUE = "";
@@ -120,19 +119,14 @@ function BrowseRows({
 }
 
 function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement {
-  const facet = [row.genre, row.tone].filter((v) => v !== null).join(" · ");
+  const facet = characterFacetLine(row.genre, row.tone);
   const subtitle = row.elevatorPitch ?? (facet === "" ? "Not distilled" : facet);
-  const avatarSrc = row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) };
   return (
     <ListRow
       data-testid={testId("corpusBrowseRow")}
       clickable={true}
       onClick={(): void => selectCorpusCharacter(row.characterId)}
-      leading={
-        <Avatar fallbackDelay={0} hueSeed={row.characterId} size="sm" {...avatarSrc}>
-          {initialsFor(row.name)}
-        </Avatar>
-      }
+      leading={<CharacterAvatar id={row.characterId} name={row.name} hash={row.avatarHash} />}
       title={row.name}
       subtitle={subtitle}
     />

@@ -3,10 +3,6 @@
 // dossier); `imageFacets` is the caption-facet explorer (pick a facet → its distribution as a bar-list),
 // and picking a value drives `charactersByImageFacet` to the avatars carrying it. Read-only analytics.
 
-import { blobUrl } from "@orb/contracts/assets";
-import type { CharacterId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
-import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -23,6 +19,7 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
 import { toBarItems } from "../lib/corpus-charts";
+import { CharacterAvatar } from "./character-avatar";
 import { ParamSelect } from "./corpus-controls";
 
 type ImageFacets = inferOutput<Trpc["discovery"]["imageFacets"]>;
@@ -204,14 +201,5 @@ function FacetDrill({ facet, value }: { readonly facet: FacetKey; readonly value
         />
       ))}
     </Stack>
-  );
-}
-
-function CharacterAvatar({ id, name, hash }: { readonly id: CharacterId; readonly name: string; readonly hash: string | null }): ReactElement {
-  const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
-  return (
-    <Avatar fallbackDelay={0} hueSeed={id} size="sm" {...avatarSrc}>
-      {initialsFor(name)}
-    </Avatar>
   );
 }

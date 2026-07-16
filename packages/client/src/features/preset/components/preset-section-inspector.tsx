@@ -15,10 +15,9 @@ import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { useSelectedPresetId, useSelectedPresetSectionId } from "#state";
-import { hasRoleField } from "../lib/assembly-model";
+import { hasRoleField, headerCopy } from "../lib/assembly-model";
 import { useAssemblyForm } from "../lib/preset-editor-bridge";
 import { deriveZones } from "./prompt-assembly/derive-zones";
-import { MARKER_COPY } from "./prompt-assembly/marker-copy";
 import { SectionLocksControl, SectionPlacementControl, SectionTriggersControl } from "./prompt-assembly/section-inspector-controls";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
@@ -60,15 +59,6 @@ interface InspectorBodyProps {
   readonly section: PromptSection;
   readonly index: number;
   readonly onDismiss: () => void;
-}
-
-/** The header glyph label + one-liner for a section (marker copy, or a neutral literal framing). */
-function headerCopy(section: PromptSection): { label: string; oneLiner: string } {
-  if (section.type === "marker") {
-    const copy = MARKER_COPY[section.marker];
-    return { label: copy.label, oneLiner: copy.oneLiner };
-  }
-  return { label: "Literal text", oneLiner: "Your own text, sent exactly as written." };
 }
 
 function InspectorBody({ form, section, index, onDismiss }: InspectorBodyProps): ReactElement {

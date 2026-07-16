@@ -36,6 +36,11 @@ export const connectionsPane: SettingsPaneDefinition = {
       ],
     },
     {
+      id: CONNECTIONS_SUBCATEGORY_IDS.hostClaude,
+      label: "Host Claude",
+      keywords: ["claude", "subscription", "max", "pro", "auth", "health", "probe", "owner"],
+    },
+    {
       id: CONNECTIONS_SUBCATEGORY_IDS.keys,
       label: "Saved keys",
       keywords: ["credential", "api key", "provider", "openrouter", "anthropic", "openai"],

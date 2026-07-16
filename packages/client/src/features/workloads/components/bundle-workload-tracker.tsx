@@ -6,12 +6,10 @@
 
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { useSubscription } from "@trpc/tanstack-react-query";
-import { useTRPC } from "#data";
+import { useWorkloadSubscription } from "../hooks/use-workload-subscription";
 import type { BundleCounts } from "../lib/portability-model";
 import { asBundleCounts } from "../lib/portability-model";
 import type { WorkloadProgressView } from "../lib/workloads-model";
-import { toProgressView } from "../lib/workloads-model";
 
 export interface BundleWorkloadTrackerProps {
   readonly workloadId: string;
@@ -22,27 +20,20 @@ export interface BundleWorkloadTrackerProps {
 
 /** Tail the import workload; forward progress, and resolve on the terminal event. Renders nothing. */
 export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onFailed }: BundleWorkloadTrackerProps): null {
-  const trpc = useTRPC();
-  useSubscription(
-    trpc.workloads.subscribe.subscriptionOptions(
-      { workloadId: castId<WorkloadId>(workloadId) },
-      {
-        onData: (envelope) => {
-          const event = envelope.data;
-          if ("__subscriptionError" in event) {
-            onFailed("The import stream ended. Check the Workloads pane for its status.");
-          } else if (event.type === "progress") {
-            onProgress(toProgressView(event.progress));
-          } else if (event.type === "succeeded") {
-            onSucceeded(asBundleCounts(event.result));
-          } else if (event.type === "failed") {
-            onFailed(event.error.message);
-          } else if (event.type === "cancelled") {
-            onFailed("The import was cancelled.");
-          }
-        },
-      },
-    ),
-  );
+  useWorkloadSubscription({
+    workloadId: castId<WorkloadId>(workloadId),
+    onProgress,
+    onEvent: (event) => {
+      if (event.type === "succeeded") {
+        onSucceeded(asBundleCounts(event.result));
+      } else if (event.type === "failed") {
+        onFailed(event.error.message);
+      } else if (event.type === "cancelled") {
+        onFailed("The import was cancelled.");
+      }
+      // started/status: no terminal outcome for the import tracker
+    },
+    onError: () => onFailed("The import stream ended. Check the Workloads pane for its status."),
+  });
   return null;
 }

@@ -15,7 +15,7 @@ import type { HighlighterCore } from "@shikijs/core";
 import { createHighlighterCore } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 import type { CodeHighlighterPlugin, HighlightOptions, ThemeInput } from "streamdown";
-import { TOKENS } from "#tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "#tokens";
 
 // HighlightResult is declared in streamdown's .d.ts but not exported publicly — reconstructed here
 // structurally. TS still checks this against the real (unexported) interface at the
@@ -118,11 +118,12 @@ function buildTheme(name: string, type: "light" | "dark", fg: string, bg: string
   };
 }
 
-// Dark literals: TOKENS["color.*"].value. Light literals: transcribed from the [data-theme="light"]
-// override block GENERATED into styles/theme.css (source: src/tokens/themes/light.json) — a palette
-// edit there needs the matching edit here.
+// Dark literals: TOKENS["color.*"].value (the base/dark palette). Light literals: DERIVED from
+// SEED_THEME_VALUE_SETS.light — the same generated [data-theme="light"] override values (source:
+// src/tokens/themes/light.json), so a palette edit flows through the ONE seed home (no transcription drift).
+const LIGHT_VARS = SEED_THEME_VALUE_SETS.light.vars;
 const ORB_DARK = buildTheme("orbweaver-dark", "dark", TOKENS["color.foreground"].value, TOKENS["color.card"].value);
-const ORB_LIGHT = buildTheme("orbweaver-light", "light", "oklch(0.24 0.01 60)", "oklch(0.995 0.003 75)");
+const ORB_LIGHT = buildTheme("orbweaver-light", "light", LIGHT_VARS["--color-foreground"], LIGHT_VARS["--color-card"]);
 
 const THEMES: [ThemeInput, ThemeInput] = [ORB_LIGHT, ORB_DARK];
 

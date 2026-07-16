@@ -5,10 +5,7 @@
 // read-only previews (a digest snippet + its chat, an avatar caption). The query is owner-scoped; the
 // image target rides the caption-aware lens. Rendered only while the omnibox has a query (parent-gated).
 
-import { blobUrl } from "@orb/contracts/assets";
 import type { ChatId } from "@orb/kit/ids";
-import { initialsFor } from "@orb/kit/initials";
-import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Images, MessagesSquare, Search } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -21,7 +18,9 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
+import { characterFacetLine } from "../lib/character-facet";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, resolveSearchTarget } from "../lib/corpus-search-targets";
+import { CharacterAvatar } from "./character-avatar";
 
 type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
 type DiscoverHit = Extract<UnifiedResult, { over: "discover" }>["hits"][number];
@@ -222,19 +221,14 @@ function CharacterHitRow({
   readonly pitch: string | null;
   readonly score: number;
 }): ReactElement {
-  const facet = [genre, tone].filter((v) => v !== null).join(" · ");
+  const facet = characterFacetLine(genre, tone);
   const subtitle = pitch ?? (facet === "" ? "No pitch distilled" : facet);
-  const avatarSrc = avatarHash === null ? {} : { src: blobUrl(avatarHash) };
   return (
     <ListRow
       data-testid={testId("corpusSearchHit")}
       clickable={true}
       onClick={(): void => selectCorpusCharacter(characterId)}
-      leading={
-        <Avatar fallbackDelay={0} hueSeed={characterId} size="sm" {...avatarSrc}>
-          {initialsFor(name)}
-        </Avatar>
-      }
+      leading={<CharacterAvatar id={characterId} name={name} hash={avatarHash} />}
       title={name}
       subtitle={subtitle}
       actions={<ScoreBadge score={score} />}
@@ -244,18 +238,13 @@ function CharacterHitRow({
 
 /** A lived-scene discovery hit — the character plus its per-chat evidence preview. */
 function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
-  const avatarSrc = hit.avatarHash === null ? {} : { src: blobUrl(hit.avatarHash) };
   const groups = groupByChat(hit.segments);
   return (
     <Stack data-testid={testId("corpusSearchHit")} gap="field">
       <ListRow
         clickable={true}
         onClick={(): void => selectCorpusCharacter(hit.characterId)}
-        leading={
-          <Avatar fallbackDelay={0} hueSeed={hit.characterId} size="sm" {...avatarSrc}>
-            {initialsFor(hit.name)}
-          </Avatar>
-        }
+        leading={<CharacterAvatar id={hit.characterId} name={hit.name} hash={hit.avatarHash} />}
         title={hit.name}
         subtitle={`${hit.matchCount} matching moment${hit.matchCount === 1 ? "" : "s"}`}
         actions={<ScoreBadge score={hit.score} />}
