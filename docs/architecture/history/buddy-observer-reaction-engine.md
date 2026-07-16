@@ -59,13 +59,13 @@ Plus `bus.ts` (per-user `quip`/`moodChanged`/`evolved` SSE channel over the kit 
 late-subscriber replay, fanned out by a tRPC `buddy.stream` subscription), a
 `contract/observer-env.ts` (`BuddyObserverEnv` — lite event shapes, no cross-feature type import,
 mirroring `contract/agent-env.ts`), and the `buddy_quips` queries (insert / loadRecent / sweep to
-the newest ~20 per user) in `persistence/queries.ts` (the header there reserves them).
+the newest \~20 per user) in `persistence/queries.ts` (the header there reserves them).
 
 **Injection** (assembled at `entry/`; `startBuddyObserver` is started out-of-band at the
 composition root — a supervised loop, not a service verb):
 
 | Op | Provided by | Used for |
-| --- | --- | --- |
+| - | - | - |
 | `onWorkloadEvent` / `onChatEvent` | workloads / chat buses | the live reaction triggers |
 | `readRecentTraces` | foundation/observability ring | the 30s slow-turn / error-spike sampler |
 | `resolveWorkloadOwner` / `resolveChatHost` | buddy's own `db-reads.ts` | whose buddy reacts |

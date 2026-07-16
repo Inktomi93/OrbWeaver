@@ -29,6 +29,7 @@ The economics columns of `messages` (`tokens_in/out`, `cost_usd`, `cache_*`, `ge
 names the economics columns — so a discovery query that SUMs `tokens_out` fails to type-check.
 
 **As-built (code is the source of truth):**
+
 - The economics projection lives in `domain/stats/persistence/messages-economics.ts` (stats-internal). The
   raw economics ROW shape (`EconomicsRow`/`ModelEconomicsRow`) is MODULE-PRIVATE — never exported — so no
   consumer can name a `tokens_out` column; the file aggregates in SQL and returns only pre-summed results.
@@ -83,4 +84,4 @@ divergence (a regex/`is_user`-split change that unit tests miss). Nice-to-have; 
 
 The `t-digest`-for-latency idea and the per-author-economics-under-agent-principals question are tracked
 at their code seams (`domain/stats/persistence/latency.ts` YAGNI note; the PD-21-confirmed /
-FLAG[PD-17] owner-attribution note in `domain/stats/write/rebuild-from-canon.ts`) — not repeated here.
+FLAG\[PD-17] owner-attribution note in `domain/stats/write/rebuild-from-canon.ts`) — not repeated here.

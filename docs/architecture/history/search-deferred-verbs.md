@@ -46,15 +46,16 @@ updated: 2026-07-03
 ## PD-36 — `images` (cross-modal text→image) + the CSLS-skip exception — BUILT (2026-07-10)
 
 > BUILT: `domain/search/verbs/images.ts` + `persistence/image-nearest.ts` + `ImagesParams`/`ImageSearchHit`
-> + the `search.images` tRPC read. Ranks on RAW cosine distance (the CSLS-skip invariant is pinned inline
-> and by `images.int.test.ts`'s hub-dominant-outlier test); lens-gated (`lens` is a required param, both
-> `image-raw`/`image-captioned` addressable); caption cross-encoder rerank is opt-in (raw-lens hits are a
-> recall-preserving passthrough). Owner-scope derives via `assets.ownerId`. The as-built code is the doc.
+>
+> - the `search.images` tRPC read. Ranks on RAW cosine distance (the CSLS-skip invariant is pinned inline
+>   and by `images.int.test.ts`'s hub-dominant-outlier test); lens-gated (`lens` is a required param, both
+>   `image-raw`/`image-captioned` addressable); caption cross-encoder rerank is opt-in (raw-lens hits are a
+>   recall-preserving passthrough). Owner-scope derives via `assets.ownerId`. The as-built code is the doc.
 
 - Verb: cross-modal text→image search over `image_embeddings` with a pool-capped multimodal rerank.
 - **The esoteric that must survive (carry into `verbs/images.ts` verbatim):**
-  `image_embeddings.hub_score` is computed from image↔image cosine (~0.6–1.0 scale). A cross-modal
-  text→image query produces similarities in a completely different range (~0.05–0.17). Adding
+  `image_embeddings.hub_score` is computed from image↔image cosine (\~0.6–1.0 scale). A cross-modal
+  text→image query produces similarities in a completely different range (\~0.05–0.17). Adding
   `hub_score` to the cross-modal distance dominates ranking and INVERTS the order (verified against
   a 309-card corpus — generic placeholder avatars outrank relevant matches). The verb must skip
   CSLS adjustment on the text→image path; `hub_score` exists on that table only for a future
