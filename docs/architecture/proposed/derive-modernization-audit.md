@@ -40,7 +40,17 @@ registry/store plumbing homes behind mints (§W3).
 post-migration measured floor (client tsx was 3.15% after the 2026-07-13 consolidation) so the next
 copy-paste class REDs instead of accumulating.
 
-## W1 — the FormDialog rollup + `dialog-via-composite` (G24)
+## W1 — the FormDialog rollup + `dialog-via-composite` (G24) — **LANDED 2026-07-16**
+
+> Per D72 the wave resolved ALL 22 `features/**` Dialog-root importers, not just the named set:
+> 16 migrated (incl. add-credential/preset-rename/preset-import — forms the audit didn't name),
+> 6 allowlisted with citations (modal-host seam · chat rename/invite/join-invite §13.4 · gallery
+> picker · variable-editor's pinned-title scroll divergence). New tier-2 composites: `FormDialog`
+> (+prompt mode), `TagPickerDialog` (×3 sites), `RelationManagerSection<TId>` (the relations twins;
+> world-info attachment-rows kept per-site — genuine divergence). The gate keys on the Dialog ROOT
+> import (parts like DialogClose never false-flag). Scaffold deleted same-wave; count 130.
+> `MacroPreviewField` deferred to W5 (independent of the dialog work). admin-user-sessions rides
+> FormDialog SHELL mode (a view dialog); the tag-merge Select picker rides prompt mode directly.
 
 **Mint/migrate:** hoist `WorkloadFormDialog`/`WorkloadSubmitButton`
 (`features/workloads/components/workload-dialog-scaffold.tsx`) → `components/` tier-2 `FormDialog`
